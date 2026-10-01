@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.Views.CliAssistPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MmmTool.Views.Controls">
+
+    <Grid Padding="12" ColumnSpacing="12" RowSpacing="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 左ペイン: 定型コマンド -->
+        <Border
+            Grid.RowSpan="2"
+            Padding="8"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <Grid RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    Margin="8,4"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="定型コマンド" />
+                <TreeView
+                    x:Name="CommandTree"
+                    Grid.Row="1"
+                    ItemInvoked="OnCommandTreeItemInvoked"
+                    SelectionMode="None" />
+            </Grid>
+        </Border>
+
+        <!-- 中央: ターミナル -->
+        <Border
+            Grid.Column="1"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <controls:TerminalControl Session="{x:Bind ViewModel.Terminal}" />
+        </Border>
+
+        <!-- 下部: 送信用の入力エリア -->
+        <Grid
+            Grid.Row="1"
+            Grid.Column="1"
+            RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 添付サムネイル（②で添付があるときだけ表示する） -->
+            <ListView
+                x:Name="AttachmentList"
+                Height="72"
+                ScrollViewer.HorizontalScrollMode="Enabled"
+                ScrollViewer.VerticalScrollMode="Disabled"
+                SelectionMode="None"
+                Visibility="Collapsed">
+                <ListView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsStackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ListView.ItemsPanel>
+            </ListView>
+
+            <Grid Grid.Row="1" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="InputBox"
+                    MaxHeight="120"
+                    AcceptsReturn="True"
+                    AllowDrop="True"
+                    DragOver="OnInputDragOver"
+                    Drop="OnInputDrop"
+                    Paste="OnInputPaste"
+                    PlaceholderText="ターミナルへ送るテキスト"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    Text="{x:Bind ViewModel.InputText, Mode=TwoWay}"
+                    TextWrapping="Wrap" />
+                <Button
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    Command="{x:Bind ViewModel.SendCommand}"
+                    Content="送信"
+                    Style="{StaticResource AccentButtonStyle}" />
+                <Button
+                    Grid.Column="2"
+                    VerticalAlignment="Bottom"
+                    Command="{x:Bind ViewModel.ShowHistoryCommand}"
+                    Content="履歴" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>
