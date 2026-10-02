@@ -1,0 +1,3 @@
+[submodule "external/MmmSdk"]
+	path = external/MmmSdk
+	url = https://github.com/Mimumumimu/MmmSdk.git
