@@ -5,19 +5,24 @@ using MmmTool.ViewModels;
 
 namespace MmmTool.Views.Dialogs;
 
+/// <summary>作業ディレクトリ変更ダイアログ</summary>
 public sealed partial class WorkingDirectoryDialog : ContentDialog
 {
+    /// <summary>履歴のダブルクリックで確定したか</summary>
     private bool _confirmedByDoubleTap;
 
+    /// <summary>ダイアログの ViewModel</summary>
     public WorkingDirectoryDialogViewModel ViewModel { get; }
 
+    /// <summary>ダイアログを作る</summary>
     public WorkingDirectoryDialog(WorkingDirectoryDialogViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();
     }
 
-    /// <summary>ダイアログを開き、選ばれたフォルダを返す。キャンセルなら null。</summary>
+    /// <summary>ダイアログを開き、選ばれたフォルダを返す</summary>
+    /// <remarks>キャンセルなら null。</remarks>
     public async Task<string?> PickAsync()
     {
         ViewModel.Initialize();
@@ -29,9 +34,11 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
             : null;
     }
 
+    /// <summary>履歴のフォルダがクリックされたら、入力欄に入れる</summary>
     private void OnDirectoryClick(object sender, ItemClickEventArgs e)
         => ViewModel.DirectoryPath = (string)e.ClickedItem;
 
+    /// <summary>履歴のフォルダがダブルクリックされたら、入力欄に入れて確定する</summary>
     private void OnDirectoryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not string directory)
@@ -47,6 +54,7 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
         }
     }
 
+    /// <summary>履歴の削除ボタンが押されたときの処理</summary>
     private void OnRemoveDirectoryClick(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is string directory)

@@ -4,8 +4,10 @@ using MmmTool.Views;
 
 namespace MmmTool.Services;
 
+/// <summary>フォルダ選択を開く</summary>
 public sealed class FolderPickerService(IServiceProvider services) : IFolderPickerService
 {
+    /// <inheritdoc />
     public async Task<string?> PickFolderAsync()
     {
         // Windows App SDK のピッカーは、アンパッケージでもウィンドウ ID を渡すだけで使える

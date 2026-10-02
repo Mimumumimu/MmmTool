@@ -5,13 +5,16 @@ using MmmTool.Core.Entities;
 
 namespace MmmTool.ViewModels;
 
+/// <summary>リンクツリーの要素の種類</summary>
 public enum LinkItemKind
 {
+    /// <summary>リンク（開く先を持つ）</summary>
     Link,
 
     /// <summary>子を持てる中間ノード（空でもよい）。</summary>
     Folder,
 
+    /// <summary>区切り線</summary>
     Separator,
 }
 
@@ -23,6 +26,8 @@ public enum LinkItemKind
 /// </remarks>
 public sealed partial class LinkTreeItem : ObservableObject
 {
+    /// <summary>要素を作る</summary>
+    /// <remarks>生成は <see cref="CreateLink"/> などから行う。</remarks>
     private LinkTreeItem(LinkItemKind kind, string name, string path, ObservableCollection<LinkTreeItem>? children)
     {
         Kind = kind;
@@ -44,8 +49,11 @@ public sealed partial class LinkTreeItem : ObservableObject
         }
     }
 
+    /// <summary>種類</summary>
+    /// <remarks>作成時に決めて変えない。</remarks>
     public LinkItemKind Kind { get; }
 
+    /// <summary>表示名</summary>
     [ObservableProperty]
     public partial string Name { get; set; }
 
@@ -53,32 +61,42 @@ public sealed partial class LinkTreeItem : ObservableObject
     [ObservableProperty]
     public partial string Path { get; set; }
 
+    /// <summary>フォルダが開いているか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Glyph))]
     public partial bool IsExpanded { get; set; }
 
-    /// <summary>子要素。フォルダのときだけ持ち、それ以外は null。</summary>
+    /// <summary>子要素</summary>
+    /// <remarks>フォルダのときだけ持ち、それ以外は null。</remarks>
     public ObservableCollection<LinkTreeItem>? Children { get; }
 
+    /// <summary>フォルダか</summary>
     public bool IsFolder => Kind == LinkItemKind.Folder;
 
+    /// <summary>区切り線か</summary>
     public bool IsSeparator => Kind == LinkItemKind.Separator;
 
+    /// <summary>区切り線ではないか</summary>
     public bool IsNotSeparator => !IsSeparator;
 
-    /// <summary>種類のアイコン（フォルダは開閉で変える）。</summary>
+    /// <summary>種類のアイコン</summary>
+    /// <remarks>フォルダは開閉で変える。</remarks>
     public string Glyph => Kind switch
     {
         LinkItemKind.Folder => IsExpanded ? "" : "",
         _ => "",
     };
 
+    /// <summary>新しいリンクを作る</summary>
     public static LinkTreeItem CreateLink() => new(LinkItemKind.Link, "新しいリンク", "", null);
 
+    /// <summary>新しいフォルダーを作る</summary>
     public static LinkTreeItem CreateFolder() => new(LinkItemKind.Folder, "新しいフォルダー", "", []);
 
+    /// <summary>新しい区切り線を作る</summary>
     public static LinkTreeItem CreateSeparator() => new(LinkItemKind.Separator, LinkNode.SeparatorName, "", null);
 
+    /// <summary>保存されている構成から編集用の要素を作る</summary>
     public static LinkTreeItem From(LinkNode node)
     {
         // 子要素のリストがあればフォルダ（パスより優先）
@@ -92,6 +110,7 @@ public sealed partial class LinkTreeItem : ObservableObject
             : new LinkTreeItem(LinkItemKind.Link, node.Name, node.Path ?? "", null);
     }
 
+    /// <summary>保存用の構成に変換する</summary>
     public LinkNode ToNode() => Kind switch
     {
         LinkItemKind.Folder => new LinkNode { Name = Name, Children = [.. Children!.Select(child => child.ToNode())] },

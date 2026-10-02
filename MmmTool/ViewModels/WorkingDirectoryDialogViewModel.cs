@@ -7,11 +7,15 @@ using MmmTool.Services;
 
 namespace MmmTool.ViewModels;
 
+/// <summary>作業ディレクトリ変更ダイアログの ViewModel</summary>
 public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
 {
+    /// <summary>CLI補助の利用状態</summary>
     private readonly CliSettingsService _settings;
+    /// <summary>フォルダ選択</summary>
     private readonly IFolderPickerService _folderPicker;
 
+    /// <summary>ViewModel を作る</summary>
     public WorkingDirectoryDialogViewModel(CliSettingsService settings, IFolderPickerService folderPicker)
     {
         _settings = settings;
@@ -24,8 +28,10 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>最近使ったフォルダ（先頭が最新）。</summary>
     public ObservableCollection<string> Directories { get; } = [];
 
+    /// <summary>最近使ったフォルダが無いか</summary>
     public bool HasNoDirectories => Directories.Count == 0;
 
+    /// <summary>入力されたフォルダのパス</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsValid), nameof(IsNotFound))]
     public partial string DirectoryPath { get; set; }
@@ -36,12 +42,15 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力はあるがフォルダが見つからない。</summary>
     public bool IsNotFound => !string.IsNullOrWhiteSpace(DirectoryPath) && !IsValid;
 
+    /// <summary>エラーメッセージ</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
     public partial string ErrorMessage { get; set; }
 
+    /// <summary>エラーがあるか</summary>
     public bool HasError => ErrorMessage.Length > 0;
 
+    /// <summary>履歴と最後のディレクトリを読み込んで、表示を初期化する</summary>
     public void Initialize()
     {
         Directories.Clear();
@@ -53,6 +62,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         ErrorMessage = string.Empty;
     }
 
+    /// <summary>フォルダ選択を開いて、選ばれたフォルダを入力欄に入れる</summary>
     [RelayCommand]
     private async Task BrowseAsync()
     {
@@ -62,6 +72,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         }
     }
 
+    /// <summary>履歴から取り除く</summary>
     [RelayCommand]
     private async Task RemoveAsync(string directory)
     {

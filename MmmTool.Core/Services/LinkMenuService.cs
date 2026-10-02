@@ -9,12 +9,15 @@ namespace MmmTool.Core.Services;
 /// <remarks>トレイのリンクメニューは <see cref="Current"/> から作る（メニューを開くたびにファイルを読まないため）。</remarks>
 public sealed class LinkMenuService(ILinkRepository repository)
 {
-    /// <summary>最後に読み込み・保存した構成。まだ読み込んでいなければ null。</summary>
+    /// <summary>最後に読み込み・保存した構成</summary>
+    /// <remarks>まだ読み込んでいなければ null。</remarks>
     public LinkMenu? Current { get; private set; }
 
-    /// <summary>最後の読み込みに失敗したときのメッセージ。成功したら null に戻る。</summary>
+    /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
+    /// <remarks>成功したら null に戻る。</remarks>
     public string? LoadError { get; private set; }
 
+    /// <summary>リンクメニューを読み込む</summary>
     /// <exception cref="DataFileException">読み込みに失敗した（<see cref="LoadError"/> にも残す）。</exception>
     public async Task<LinkMenu> LoadAsync(CancellationToken cancellationToken = default)
     {
@@ -33,6 +36,7 @@ public sealed class LinkMenuService(ILinkRepository repository)
         }
     }
 
+    /// <summary>リンクメニューを保存する</summary>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     public async Task SaveAsync(LinkMenu menu, CancellationToken cancellationToken = default)
     {

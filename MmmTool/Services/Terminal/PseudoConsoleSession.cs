@@ -12,29 +12,46 @@ namespace MmmTool.Services.Terminal;
 /// </summary>
 public sealed class PseudoConsoleSession : ITerminalSession
 {
+    /// <summary>擬似コンソールのハンドル</summary>
+    /// <remarks>起動前・解放後は 0。</remarks>
     private nint _pseudoConsole;
+    /// <summary>シェルへの入力パイプ</summary>
     private FileStream? _input;
+    /// <summary>シェルからの出力パイプ</summary>
     private FileStream? _output;
+    /// <summary>シェルのプロセスのハンドル</summary>
     private SafeWaitHandle? _process;
+    /// <summary>プロセス終了の待機登録</summary>
     private RegisteredWaitHandle? _exitWait;
+    /// <summary>出力を読み続けるタスク</summary>
     private Task? _readTask;
+    /// <summary>シェルが終了したか</summary>
     private volatile bool _hasExited;
+    /// <summary>破棄済みか</summary>
     private bool _disposed;
 
+    /// <inheritdoc />
     public string CommandLine { get; set; } = DefaultShell.GetCommandLine();
 
+    /// <inheritdoc />
     public string WorkingDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+    /// <inheritdoc />
     public bool IsStarted => _pseudoConsole != 0;
 
+    /// <inheritdoc />
     public bool HasExited => _hasExited;
 
+    /// <inheritdoc />
     public event EventHandler<string>? OutputReceived;
 
+    /// <inheritdoc />
     public event EventHandler? Exited;
 
+    /// <inheritdoc />
     public event EventHandler<string>? SubmitRequested;
 
+    /// <inheritdoc />
     public void Start(int columns, int rows)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -77,6 +94,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         _readTask = Task.Run(() => ReadLoop(output));
     }
 
+    /// <inheritdoc />
     public void Restart(int columns, int rows)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -84,6 +102,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         Start(columns, rows);
     }
 
+    /// <inheritdoc />
     public void Write(string text)
     {
         if (_input is null || string.IsNullOrEmpty(text))
@@ -102,6 +121,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    /// <inheritdoc />
     public void Submit(string text)
     {
         if (SubmitRequested is { } handler)
@@ -116,6 +136,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    /// <inheritdoc />
     public void Resize(int columns, int rows)
     {
         if (IsStarted)
@@ -124,6 +145,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed)
@@ -138,6 +160,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         Close();
     }
 
+    /// <summary>シェルのプロセスが終了したときの処理</summary>
     private void OnProcessExited()
     {
         _hasExited = true;
@@ -170,6 +193,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         _process = null;
     }
 
+    /// <summary>シェルのプロセスを擬似コンソールに接続して起動する</summary>
     private unsafe SafeWaitHandle StartProcess()
     {
         nint size = 0;
@@ -219,6 +243,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    /// <summary>シェルの出力を読み続けて通知する（パイプが閉じるまで）</summary>
     private void ReadLoop(FileStream output)
     {
         var buffer = new byte[16 * 1024];
@@ -244,11 +269,14 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    /// <summary>列数・行数から端末サイズの構造体を作る</summary>
     private static COORD ToCoord(int columns, int rows)
         => new() { X = (short)Math.Clamp(columns, 1, short.MaxValue), Y = (short)Math.Clamp(rows, 1, short.MaxValue) };
 
+    /// <summary>プロセスのハンドルを待機に使うためのラッパー</summary>
     private sealed class ProcessWaitHandle : WaitHandle
     {
+        /// <summary>ハンドルを借りて待機用にする</summary>
         public ProcessWaitHandle(SafeWaitHandle handle)
         {
             // 待機用に借りるだけで、ハンドルの所有はセッション側

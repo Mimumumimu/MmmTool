@@ -8,11 +8,14 @@ namespace MmmTool.Core.Repositories.Json;
 /// </summary>
 public sealed class JsonFileStore(string dataDirectory)
 {
+    /// <summary>書き込みの同時実行を防ぐロック</summary>
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
+    /// <summary>ファイルが存在するか</summary>
     public bool Exists(string fileName) => File.Exists(GetPath(fileName));
 
-    /// <summary>読み込む。ファイルが無ければ null。</summary>
+    /// <summary>読み込む</summary>
+    /// <remarks>ファイルが無ければ null。</remarks>
     public async Task<T?> ReadAsync<T>(string fileName, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
     {
         var path = GetPath(fileName);
@@ -32,6 +35,7 @@ public sealed class JsonFileStore(string dataDirectory)
         }
     }
 
+    /// <summary>書き込む。一時ファイルに書いてから置き換える</summary>
     public async Task WriteAsync<T>(string fileName, T value, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
     {
         var path = GetPath(fileName);
@@ -57,5 +61,6 @@ public sealed class JsonFileStore(string dataDirectory)
         }
     }
 
+    /// <summary>ファイルのフルパスを返す</summary>
     private string GetPath(string fileName) => Path.Combine(dataDirectory, fileName);
 }

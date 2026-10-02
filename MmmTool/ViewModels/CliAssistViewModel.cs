@@ -9,18 +9,28 @@ using MmmTool.Services.Terminal;
 
 namespace MmmTool.ViewModels;
 
+/// <summary>CLI補助ページの ViewModel</summary>
 public sealed partial class CliAssistViewModel : ObservableObject
 {
+    /// <summary>定型コマンドの保存先</summary>
     private readonly ICliCommandRepository _commandRepository;
+    /// <summary>CLI補助の利用状態</summary>
     private readonly CliSettingsService _settings;
+    /// <summary>添付ファイルの一時保存先</summary>
     private readonly AttachmentStore _attachmentStore;
+    /// <summary>画像の変換</summary>
     private readonly IImageConverter _imageConverter;
+    /// <summary>ダイアログ</summary>
     private readonly IDialogService _dialogs;
+    /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>読み込んだ定型コマンド</summary>
     private CliCommandSet _commandSet = new();
+    /// <summary>初期化済みか</summary>
     private bool _initialized;
 
+    /// <summary>ViewModel を作る</summary>
     public CliAssistViewModel(
         ITerminalSession terminal,
         ICliCommandRepository commandRepository,
@@ -62,13 +72,16 @@ public sealed partial class CliAssistViewModel : ObservableObject
     [ObservableProperty]
     public partial CommandCategory SelectedCategory { get; set; }
 
-    /// <summary>フォーカスの移動を View に頼む（ViewModel は UI に触れないため）。</summary>
+    /// <summary>フォーカスの移動を View に頼む</summary>
+    /// <remarks>ViewModel は UI に触れないため。</remarks>
     public event EventHandler<FocusTarget>? FocusRequested;
 
     /// <summary>左ペインのツリーに表示する要素。</summary>
     [ObservableProperty]
     public partial IReadOnlyList<CommandTreeItem> CommandItems { get; private set; }
 
+    /// <summary>定型コマンドを読み込んで表示を初期化する</summary>
+    /// <remarks>最初の 1 回だけ行う。</remarks>
     public async Task InitializeAsync()
     {
         if (_initialized)
@@ -93,8 +106,10 @@ public sealed partial class CliAssistViewModel : ObservableObject
         RebuildCommandItems();
     }
 
+    /// <summary>タブが切り替わったら、ツリーを作り直す</summary>
     partial void OnSelectedCategoryChanged(CommandCategory value) => RebuildCommandItems();
 
+    /// <summary>選択中のタブの定型コマンドで、ツリーを作り直す</summary>
     private void RebuildCommandItems()
     {
         var items = new List<CommandTreeItem>();
@@ -132,6 +147,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
     }
 
+    /// <summary>作業ディレクトリ変更ダイアログを開き、選ばれたフォルダへ移動する</summary>
     private async Task ChangeWorkingDirectoryAsync()
     {
         if (await _dialogs.ShowWorkingDirectoryDialogAsync() is not { } directory)
@@ -186,8 +202,10 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 添付
 
+    /// <summary>添付ファイルの一覧</summary>
     public ObservableCollection<AttachmentItem> Attachments { get; } = [];
 
+    /// <summary>添付があるか</summary>
     public bool HasAttachments => Attachments.Count > 0;
 
     /// <summary>ファイルを添付する（ドラッグ＆ドロップ・ファイルの貼り付け）。</summary>
@@ -222,6 +240,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
     }
 
+    /// <summary>添付を取り除く</summary>
     [RelayCommand]
     private void RemoveAttachment(AttachmentItem item)
     {
@@ -240,19 +259,24 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 送信履歴
 
+    /// <summary>送信履歴の最大件数</summary>
     private const int MaxSendHistory = 50;
 
-    /// <summary>送信履歴（先頭が最新）。プライバシーのため保存せず、起動中だけ持つ。</summary>
+    /// <summary>送信履歴（先頭が最新）</summary>
+    /// <remarks>プライバシーのため保存せず、起動中だけ持つ。</remarks>
     private readonly List<(string Text, DateTimeOffset SentAt)> _sendHistory = [];
 
+    /// <summary>送信履歴の一覧（絞り込み後）</summary>
     public ObservableCollection<SendHistoryItem> HistoryItems { get; } = [];
 
+    /// <summary>表示する履歴が無いか</summary>
     public bool HasNoHistory => HistoryItems.Count == 0;
 
     /// <summary>履歴の絞り込み文字列。</summary>
     [ObservableProperty]
     public partial string HistoryFilter { get; set; }
 
+    /// <summary>絞り込み文字列が変わったら、一覧を作り直す</summary>
     partial void OnHistoryFilterChanged(string value) => RefreshHistory();
 
     /// <summary>履歴の一覧を開く前に、最新の内容にする。</summary>
@@ -265,7 +289,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>履歴の本文を入力欄へ戻す。</summary>
     public void RestoreHistory(SendHistoryItem item) => InputText = item.Text;
 
-    /// <summary>送信した本文を履歴の先頭に追加する。空白のみは無視し、同じ本文は先頭へ移す。</summary>
+    /// <summary>送信した本文を履歴の先頭に追加する</summary>
+    /// <remarks>空白のみは無視し、同じ本文は先頭へ移す。</remarks>
     private void AddSendHistory(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -281,6 +306,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
     }
 
+    /// <summary>絞り込み文字列に合わせて、履歴の一覧を作り直す</summary>
     private void RefreshHistory()
     {
         var today = _timeProvider.GetLocalNow().Date;
@@ -304,12 +330,15 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region エラー表示
 
+    /// <summary>エラーメッセージ</summary>
     [ObservableProperty]
     public partial string ErrorMessage { get; set; }
 
+    /// <summary>エラーを表示中か</summary>
     [ObservableProperty]
     public partial bool IsErrorOpen { get; set; }
 
+    /// <summary>エラーを表示する</summary>
     private void ShowError(string message)
     {
         ErrorMessage = message;

@@ -12,10 +12,13 @@ using Windows.UI.Core;
 
 namespace MmmTool.Views;
 
+/// <summary>CLI補助ページ</summary>
 public sealed partial class CliAssistPage : Page
 {
+    /// <summary>ページの ViewModel</summary>
     public CliAssistViewModel ViewModel { get; }
 
+    /// <summary>ページを作る</summary>
     public CliAssistPage(CliAssistViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -45,6 +48,7 @@ public sealed partial class CliAssistPage : Page
         ViewModel.FocusRequested += OnFocusRequested;
     }
 
+    /// <summary>フォーカスの移動を求められたら、移す</summary>
     private void OnFocusRequested(object? sender, FocusTarget target)
     {
         // クリックしたツリーが自分にフォーカスを取り終えてから移す（すぐ移すとツリーに取り返される）
@@ -63,13 +67,15 @@ public sealed partial class CliAssistPage : Page
         });
     }
 
+    /// <summary>読み込み時の処理（入力欄の高さ調整と ViewModel の初期化）</summary>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         FitInputBoxToThreeLines();
         await ViewModel.InitializeAsync();
     }
 
-    /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる（固定値だと、フォントによって下だけ余る・欠けるため）。</summary>
+    /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>
+    /// <remarks>固定値だと、フォントによって下だけ余る・欠けるため。</remarks>
     private void FitInputBoxToThreeLines()
     {
         const int lines = 3;
@@ -87,10 +93,12 @@ public sealed partial class CliAssistPage : Page
 
     #region 定型コマンド
 
+    /// <summary>タブが選ばれたら、ViewModel に反映する</summary>
     private void OnCategorySelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         => ViewModel.SelectedCategory = sender.SelectedItem == SessionCategoryItem ? CommandCategory.Session : CommandCategory.Terminal;
 
-    /// <summary>ツリーのノードを作り直す。すべてのノードを最初から展開した状態にする。</summary>
+    /// <summary>ツリーのノードを作り直す</summary>
+    /// <remarks>すべてのノードを最初から展開した状態にする。</remarks>
     private void RebuildCommandTree()
     {
         CommandTree.RootNodes.Clear();
@@ -100,6 +108,7 @@ public sealed partial class CliAssistPage : Page
         }
     }
 
+    /// <summary>ViewModel の要素から、ツリーのノードを作る（子も展開した状態）</summary>
     private static TreeViewNode CreateNode(CommandTreeItem item)
     {
         var node = new TreeViewNode { Content = item, IsExpanded = true };
@@ -121,6 +130,7 @@ public sealed partial class CliAssistPage : Page
         }
     }
 
+    /// <summary>子孫から、指定の型の要素を探す</summary>
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
@@ -134,6 +144,7 @@ public sealed partial class CliAssistPage : Page
         return null;
     }
 
+    /// <summary>ツリーの項目が選ばれたら、コマンドを実行する</summary>
     private void OnCommandTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
         // 手作りのノードでは、InvokedItem はノード自身で、データはその Content にある
@@ -150,6 +161,7 @@ public sealed partial class CliAssistPage : Page
 
     #region 送信欄
 
+    /// <summary>入力欄で Ctrl+Enter が押されたら、送信する</summary>
     private void OnInputPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         // Ctrl+Enter で送信（Enter だけなら改行）
@@ -161,9 +173,11 @@ public sealed partial class CliAssistPage : Page
         }
     }
 
+    /// <summary>IME をオンにしたか</summary>
     private bool _imeInitialized;
 
-    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする（日本語をすぐ打てるように）。以降はユーザーの切り替えを尊重する。</summary>
+    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする（日本語をすぐ打てるように）</summary>
+    /// <remarks>以降はユーザーの切り替えを尊重する。</remarks>
     private void OnInputGotFocus(object sender, RoutedEventArgs e)
     {
         if (_imeInitialized) return;
@@ -171,6 +185,7 @@ public sealed partial class CliAssistPage : Page
         NativeMethods.TurnOnImeForFocusedWindow();
     }
 
+    /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
     private async void OnInputPaste(object sender, TextControlPasteEventArgs e)
     {
         var content = Clipboard.GetContent();
@@ -194,6 +209,7 @@ public sealed partial class CliAssistPage : Page
         }
     }
 
+    /// <summary>ドラッグ中、ファイルなら添付できると示す</summary>
     private void OnComposerDragOver(object sender, DragEventArgs e)
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -203,6 +219,7 @@ public sealed partial class CliAssistPage : Page
         }
     }
 
+    /// <summary>ドロップされたファイルを添付する</summary>
     private async void OnComposerDrop(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -214,6 +231,7 @@ public sealed partial class CliAssistPage : Page
         await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
     }
 
+    /// <summary>添付の削除ボタンが押されたときの処理</summary>
     private void OnRemoveAttachmentClick(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is AttachmentItem item)
@@ -226,8 +244,10 @@ public sealed partial class CliAssistPage : Page
 
     #region 送信履歴
 
+    /// <summary>履歴の一覧が開くときの処理</summary>
     private void OnHistoryFlyoutOpening(object sender, object e) => ViewModel.PrepareHistory();
 
+    /// <summary>履歴の項目が選ばれたら、入力欄に戻す</summary>
     private void OnHistoryItemClick(object sender, ItemClickEventArgs e)
     {
         ViewModel.RestoreHistory((SendHistoryItem)e.ClickedItem);

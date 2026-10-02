@@ -2,6 +2,7 @@ using MmmTool.Core.Entities;
 
 namespace MmmTool.ViewModels;
 
+/// <summary>定型コマンドのタブの種類</summary>
 public enum CommandCategory
 {
     /// <summary>シェルで打つコマンド（AI エージェント起動前）。</summary>
@@ -14,12 +15,14 @@ public enum CommandCategory
 /// <summary>コマンドを送ったあとにフォーカスを移す先。</summary>
 public enum FocusTarget
 {
+    /// <summary>ターミナル</summary>
     Terminal,
 
     /// <summary>送信欄の入力欄。</summary>
     Input,
 }
 
+/// <summary>ツリーの要素の種類</summary>
 public enum CommandItemKind
 {
     /// <summary>子を持つ中間ノード。</summary>
@@ -28,7 +31,8 @@ public enum CommandItemKind
     /// <summary>コマンド文字列をターミナルへ送る葉。</summary>
     Command,
 
-    /// <summary>作業ディレクトリ変更ダイアログを開く葉（コード側で固定追加する）。</summary>
+    /// <summary>作業ディレクトリ変更ダイアログを開く葉</summary>
+    /// <remarks>コード側で固定追加する。</remarks>
     ChangeDirectory,
 }
 
@@ -37,6 +41,8 @@ public enum CommandItemKind
 /// </summary>
 public sealed class CommandTreeItem
 {
+    /// <summary>要素を作る</summary>
+    /// <remarks>生成は <see cref="From"/> などから行う。</remarks>
     private CommandTreeItem(
         string label,
         CommandItemKind kind,
@@ -53,20 +59,27 @@ public sealed class CommandTreeItem
         Focus = focus;
     }
 
+    /// <summary>表示名</summary>
     public string Label { get; }
 
+    /// <summary>種類</summary>
     public CommandItemKind Kind { get; }
 
+    /// <summary>ターミナルへ送るコマンド文字列（葉のとき）</summary>
     public string? Command { get; }
 
-    /// <summary>コマンドを送ったあとに切り替えるタブ。null なら切り替えない。</summary>
+    /// <summary>コマンドを送ったあとに切り替えるタブ</summary>
+    /// <remarks>null なら切り替えない。</remarks>
     public CommandCategory? SwitchTo { get; }
 
-    /// <summary>コマンドを送ったあとにフォーカスを移す先。null なら移さない。</summary>
+    /// <summary>コマンドを送ったあとにフォーカスを移す先</summary>
+    /// <remarks>null なら移さない。</remarks>
     public FocusTarget? Focus { get; }
 
+    /// <summary>子要素</summary>
     public IReadOnlyList<CommandTreeItem> Children { get; }
 
+    /// <summary>種類のアイコン</summary>
     public string Glyph => Kind switch
     {
         CommandItemKind.Group => "",
@@ -77,8 +90,10 @@ public sealed class CommandTreeItem
     /// <summary>ツールチップ（送るコマンド文字列）。</summary>
     public string? ToolTip => Command;
 
+    /// <summary>作業ディレクトリ変更の項目を作る</summary>
     public static CommandTreeItem ChangeDirectory() => new("作業ディレクトリ変更", CommandItemKind.ChangeDirectory, null, []);
 
+    /// <summary>定義から表示用の要素を作る</summary>
     public static CommandTreeItem From(CliCommandNode node)
     {
         // 子を持てば中間ノード（コマンドより子を優先）、無ければコマンドを送る葉
@@ -89,7 +104,8 @@ public sealed class CommandTreeItem
                 Parse<CommandCategory>(node.SwitchTo), Parse<FocusTarget>(node.Focus));
     }
 
-    // 手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する（何もしない）
+    /// <summary>文字列を列挙値に変換する。変換できなければ null</summary>
+    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する（何もしない）。</remarks>
     private static T? Parse<T>(string? value) where T : struct, Enum
         => !string.IsNullOrWhiteSpace(value) && Enum.TryParse<T>(value.Trim(), ignoreCase: true, out var result) && Enum.IsDefined(result)
             ? result

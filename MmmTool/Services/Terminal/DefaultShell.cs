@@ -5,8 +5,10 @@ namespace MmmTool.Services.Terminal;
 /// </summary>
 public static class DefaultShell
 {
+    /// <summary>既定のシェルの起動コマンドラインを返す</summary>
     public static string GetCommandLine() => IsOnPath("pwsh.exe") ? "pwsh.exe" : "powershell.exe";
 
+    /// <summary>PATH 上に実行ファイルがあるか</summary>
     private static bool IsOnPath(string fileName)
     {
         var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];

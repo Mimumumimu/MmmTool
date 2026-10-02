@@ -8,10 +8,12 @@ namespace MmmTool.Core.Services;
 /// </summary>
 public static partial class SendText
 {
+    /// <summary>添付ファイルを参照させる指示文</summary>
     private const string AttachmentInstruction =
         "上記の指示に関連して、次のファイルも参照してください。バイナリ形式でも、拡張子から判断して読み取れるものは内容を読み取ってください。";
 
-    /// <summary>入力欄の本文に、添付ファイルを参照させる指示文と各ファイルの絶対パス（1 行ずつ）を付け足す。</summary>
+    /// <summary>入力欄の本文に、添付ファイルの指示文とパスを付け足す</summary>
+    /// <remarks>指示文と、各ファイルの絶対パス（1 行ずつ）を付ける。</remarks>
     public static string Compose(string text, IReadOnlyList<string> attachmentPaths)
     {
         var body = text.TrimEnd('\r', '\n');
@@ -33,9 +35,11 @@ public static partial class SendText
         return builder.ToString();
     }
 
-    /// <summary>一覧表示用に 1 行へ整形する（改行・連続する空白を空白 1 個に畳む）。</summary>
+    /// <summary>一覧表示用に 1 行へ整形する</summary>
+    /// <remarks>改行・連続する空白を空白 1 個に畳む。</remarks>
     public static string ToSingleLine(string text) => Whitespace().Replace(text.Trim(), " ");
 
+    /// <summary>連続する空白に一致する正規表現</summary>
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
 }

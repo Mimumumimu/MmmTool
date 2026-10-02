@@ -14,12 +14,15 @@ namespace MmmTool.Services.Tray;
 /// </remarks>
 internal sealed unsafe class TrayMenuRenderer : IDisposable
 {
-    /// <summary>文字のフォント。先頭から順に、入っているものを使う。</summary>
+    /// <summary>文字のフォント</summary>
+    /// <remarks>先頭から順に、入っているものを使う。</remarks>
     private static readonly string[] FontFaces = ["BIZ UDGothic", "Yu Gothic UI", "Segoe UI"];
 
+    /// <summary>文字の大きさ（pt）</summary>
     private const int FontSizePoint = 12;
 
-    /// <summary>サブメニューの矢印に使うアイコンフォント。先頭から順に、入っているものを使う。</summary>
+    /// <summary>サブメニューの矢印に使うアイコンフォント</summary>
+    /// <remarks>先頭から順に、入っているものを使う。</remarks>
     private static readonly string[] IconFontFaces = ["Segoe Fluent Icons", "Segoe MDL2 Assets"];
 
     /// <summary>右向きの山形（ChevronRight）。</summary>
@@ -27,34 +30,55 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
 
     #region 寸法（96 DPI のときの px）
 
+    /// <summary>文字の左の余白</summary>
     private const int PaddingLeft = 36;
+    /// <summary>文字の右の余白（サブメニューの矢印が無いとき）</summary>
     private const int PaddingRight = 24;
+    /// <summary>サブメニューの矢印の領域の幅</summary>
     private const int ArrowArea = 32;
+    /// <summary>行の上下の余白</summary>
     private const int PaddingVertical = 4;
+    /// <summary>メニューの最小の幅</summary>
     private const int MinWidth = 140;
+    /// <summary>区切り線の行の高さ</summary>
     private const int SeparatorHeight = 7;
+    /// <summary>区切り線の左右の余白</summary>
     private const int SeparatorInset = 8;
+    /// <summary>選択中の背景の左右の余白</summary>
     private const int HoverInsetX = 4;
+    /// <summary>選択中の背景の上下の余白</summary>
     private const int HoverInsetY = 2;
+    /// <summary>選択中の背景の角の丸み</summary>
     private const int HoverRadius = 8;
+    /// <summary>サブメニューの矢印の大きさ</summary>
     private const int ArrowSize = 10;
 
     #endregion
 
-    /// <summary>項目ごとの描画内容。itemData には「添字 + 1」を入れる（0 は未設定と区別するため）。</summary>
+    /// <summary>項目ごとの描画内容</summary>
+    /// <remarks>itemData には「添字 + 1」を入れる（0 は未設定と区別するため）。</remarks>
     private readonly List<Entry> _entries = [];
 
+    /// <summary>DPI の倍率（96 DPI を 1.0 とする）</summary>
     private readonly double _scale;
+    /// <summary>配色</summary>
     private readonly Palette _palette;
+    /// <summary>文字のフォント</summary>
     private readonly nint _font;
 
-    /// <summary>矢印用のフォント。入っていなければ 0（矢印は Windows に描かせる）。</summary>
+    /// <summary>矢印用のフォント</summary>
+    /// <remarks>入っていなければ 0（矢印は Windows に描かせる）。</remarks>
     private readonly nint _iconFont;
+    /// <summary>背景のブラシ</summary>
     private readonly nint _backgroundBrush;
+    /// <summary>選択中の項目の背景のブラシ</summary>
     private readonly nint _hoverBrush;
+    /// <summary>区切り線のブラシ</summary>
     private readonly nint _separatorBrush;
+    /// <summary>1 行の文字の高さ</summary>
     private readonly int _lineHeight;
 
+    /// <summary>指定位置のモニターの DPI と現在のテーマで描く準備をする</summary>
     /// <param name="x">メニューを出す位置（この位置のモニターの DPI で描く）。</param>
     /// <param name="y">メニューを出す位置。</param>
     public TrayMenuRenderer(int x, int y)
@@ -83,17 +107,19 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
     public void AppendSubmenu(nint menu, nint submenu, string text, bool isEnabled)
         => Append(menu, MF_POPUP | (isEnabled ? 0 : MF_GRAYED), (nuint)submenu, new Entry(text, IsSeparator: false, HasSubmenu: true));
 
+    /// <summary>区切り線を追加する</summary>
     public void AppendSeparator(nint menu)
         => Append(menu, MF_SEPARATOR, 0, new Entry("", IsSeparator: true, HasSubmenu: false));
 
+    /// <summary>項目を追加して、描画内容を覚えておく</summary>
     private void Append(nint menu, uint flags, nuint idOrSubmenu, Entry entry)
     {
         _entries.Add(entry);
         AppendOwnerDrawMenu(menu, flags | MF_OWNERDRAW, idOrSubmenu, _entries.Count);
     }
 
-    /// <summary>メニュー全体（サブメニューを含む）の背景を合わせ、チェックマーク用の左の余白を無くす。</summary>
-    /// <remarks>サブメニューにも反映させるため、項目をすべて追加したあとに呼ぶ。</remarks>
+    /// <summary>メニューの背景を合わせ、チェックマーク用の左の余白を無くす</summary>
+    /// <remarks>サブメニューを含むメニュー全体が対象。 サブメニューにも反映させるため、項目をすべて追加したあとに呼ぶ。</remarks>
     public void ApplyTo(nint menu)
     {
         var info = new MENUINFO
@@ -110,6 +136,7 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
 
     #region 計測・描画（WM_MEASUREITEM / WM_DRAWITEM）
 
+    /// <summary>項目の大きさを計測する</summary>
     public void Measure(MEASUREITEMSTRUCT* item)
     {
         if (GetEntry(item->itemData) is not { } entry) return;
@@ -126,6 +153,7 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
         item->itemHeight = (uint)(_lineHeight + Px(PaddingVertical) * 2);
     }
 
+    /// <summary>項目を描く</summary>
     public void Draw(DRAWITEMSTRUCT* item)
     {
         if (GetEntry(item->itemData) is not { } entry) return;
@@ -178,6 +206,7 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
         SelectObject(hdc, oldFont);
     }
 
+    /// <summary>itemData から描画内容を引く</summary>
     private Entry? GetEntry(nuint itemData)
     {
         var index = (int)itemData - 1;
@@ -188,8 +217,10 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
 
     #region フォント・寸法
 
+    /// <summary>96 DPI のときの px を、実際の px にする</summary>
     private int Px(double value) => (int)Math.Round(value * _scale);
 
+    /// <summary>文字の大きさを測る</summary>
     private (int Width, int Height) MeasureText(string text)
     {
         var hdc = GetDC(0);
@@ -207,6 +238,7 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
         }
     }
 
+    /// <summary>フォントを作る</summary>
     private static nint CreateFont(string face, int height)
     {
         var logFont = new LOGFONTW
@@ -246,6 +278,7 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
         }
     }
 
+    /// <summary>フォントが見つかったことを記録して、列挙を止める</summary>
     [UnmanagedCallersOnly]
     private static int OnFontFound(void* logFont, void* textMetric, uint fontType, nint found)
     {
@@ -275,17 +308,22 @@ internal sealed unsafe class TrayMenuRenderer : IDisposable
     /// <summary>色（COLORREF。0x00BBGGRR）。</summary>
     private sealed record Palette(uint Background, uint Hover, uint Separator, uint Text, uint DisabledText)
     {
+        /// <summary>ダークモードの配色</summary>
         public static readonly Palette Dark = new(Rgb(0x2C, 0x2C, 0x2C), Rgb(0x3D, 0x3D, 0x3D), Rgb(0x48, 0x48, 0x48), Rgb(0xFF, 0xFF, 0xFF), Rgb(0x7A, 0x7A, 0x7A));
 
+        /// <summary>ライトモードの配色</summary>
         public static readonly Palette Light = new(Rgb(0xF9, 0xF9, 0xF9), Rgb(0xE6, 0xE6, 0xE6), Rgb(0xDC, 0xDC, 0xDC), Rgb(0x1A, 0x1A, 0x1A), Rgb(0xA0, 0xA0, 0xA0));
 
+        /// <summary>RGB を COLORREF にする</summary>
         private static uint Rgb(byte r, byte g, byte b) => (uint)(r | (g << 8) | (b << 16));
     }
 
     #endregion
 
+    /// <summary>項目ごとの描画内容</summary>
     private sealed record Entry(string Text, bool IsSeparator, bool HasSubmenu);
 
+    /// <summary>描画に使ったリソースを解放する</summary>
     /// <remarks>メニューが背景のブラシを使っているので、メニューを破棄してから呼ぶ。</remarks>
     public void Dispose()
     {

@@ -14,7 +14,9 @@ namespace MmmTool.Services.Tray;
 /// </remarks>
 public sealed class TrayIcon : IDisposable
 {
+    /// <summary>トレイアイコンの識別番号</summary>
     private const uint IconId = 1;
+    /// <summary>ツールチップの文字</summary>
     private const string ToolTip = "MmmTool";
 
     /// <summary>通知を受けるウィンドウのクラス名。</summary>
@@ -24,25 +26,34 @@ public sealed class TrayIcon : IDisposable
     /// <summary>トレイアイコンの操作（クリック・右クリック等）の通知。</summary>
     private const uint CallbackMessage = WM_APP + 1;
 
-    /// <summary>メッセージを受けるインスタンス（ウィンドウプロシージャは static のため）。トレイはアプリに 1 つ。</summary>
+    /// <summary>メッセージを受けるインスタンス</summary>
+    /// <remarks>ウィンドウプロシージャは static のため。トレイはアプリに 1 つ。</remarks>
     private static TrayIcon? s_current;
 
+    /// <summary>メニューに項目を出す機能</summary>
     private readonly IEnumerable<ITrayMenuSource> _sources;
+    /// <summary>TaskbarCreated（エクスプローラー再起動の通知）のメッセージ番号</summary>
     private readonly uint _taskbarCreatedMessage;
+    /// <summary>UI スレッドのディスパッチャー</summary>
     private readonly DispatcherQueue _dispatcher;
 
     /// <summary>表示中のメニューのコマンド ID と処理。</summary>
     private readonly Dictionary<int, Func<Task>> _commands = [];
 
-    /// <summary>表示中のメニューの描画。メニューを開いている間だけ持つ。</summary>
+    /// <summary>表示中のメニューの描画</summary>
+    /// <remarks>メニューを開いている間だけ持つ。</remarks>
     private TrayMenuRenderer? _renderer;
 
+    /// <summary>通知を受けるウィンドウのハンドル</summary>
     private nint _hwnd;
 
-    /// <summary>ファイルから読んだアイコン（自分で破棄する。標準のアイコンは破棄しないので持たない）。</summary>
+    /// <summary>ファイルから読んだアイコン</summary>
+    /// <remarks>自分で破棄する。標準のアイコンは破棄しないので持たない。</remarks>
     private nint _icon;
+    /// <summary>破棄済みか</summary>
     private bool _disposed;
 
+    /// <summary>トレイアイコンを作る（表示は <see cref="Show"/> で行う）</summary>
     public TrayIcon(IEnumerable<ITrayMenuSource> sources)
     {
         _sources = sources;
@@ -91,10 +102,12 @@ public sealed class TrayIcon : IDisposable
         AddIcon();
     }
 
-    /// <summary>トレイに出すアイコン。読めなければ Windows 標準のアプリアイコン（トレイから操作できなくなるのを避ける）。</summary>
+    /// <summary>トレイに出すアイコン</summary>
+    /// <remarks>読めなければ Windows 標準のアプリアイコン（トレイから操作できなくなるのを避ける）。</remarks>
     private nint DisplayIcon => _icon != 0 ? _icon : LoadIcon(0, IDI_APPLICATION);
 
-    /// <summary>トレイから通知を出す（Windows の通知として表示される）。</summary>
+    /// <summary>トレイから通知を出す</summary>
+    /// <remarks>Windows の通知として表示される。</remarks>
     public unsafe void ShowNotification(string title, string message, bool isError)
     {
         if (_hwnd == 0) return;
@@ -108,6 +121,7 @@ public sealed class TrayIcon : IDisposable
 
     #region アイコン
 
+    /// <summary>Shell_NotifyIcon に渡すデータを作る</summary>
     private unsafe NOTIFYICONDATAW CreateData(uint flags) => new()
     {
         cbSize = (uint)sizeof(NOTIFYICONDATAW),
@@ -134,6 +148,7 @@ public sealed class TrayIcon : IDisposable
         Shell_NotifyIcon(NIM_SETVERSION, &data);
     }
 
+    /// <summary>トレイからアイコンを消す</summary>
     private unsafe void RemoveIcon()
     {
         var data = CreateData(0);
@@ -153,10 +168,12 @@ public sealed class TrayIcon : IDisposable
 
     #region メッセージ
 
+    /// <summary>通知を受けるウィンドウのウィンドウプロシージャ</summary>
     [UnmanagedCallersOnly]
     private static nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam)
         => s_current?.HandleMessage(hwnd, msg, wParam, lParam) ?? DefWindowProc(hwnd, msg, wParam, lParam);
 
+    /// <summary>メッセージを処理する</summary>
     private unsafe nint HandleMessage(nint hwnd, uint msg, nint wParam, nint lParam)
     {
         // エクスプローラーが再起動するとトレイアイコンが消えるので、登録し直す
@@ -255,6 +272,7 @@ public sealed class TrayIcon : IDisposable
         }
     }
 
+    /// <summary>項目をメニューに追加する</summary>
     private void AppendItems(nint menu, IReadOnlyList<TrayMenuItem> items, ref int nextId)
     {
         var renderer = _renderer!;
@@ -281,6 +299,7 @@ public sealed class TrayIcon : IDisposable
         }
     }
 
+    /// <summary>コマンドの項目をメニューに追加する</summary>
     private void AddCommand(nint menu, string text, Func<Task> invoked, ref int nextId)
     {
         var id = nextId++;
@@ -288,7 +307,8 @@ public sealed class TrayIcon : IDisposable
         _renderer!.AppendCommand(menu, id, text, isEnabled: true);
     }
 
-    /// <summary>項目の処理を行う。失敗したらトレイの通知で知らせる（ウィンドウが隠れていても気付けるように）。</summary>
+    /// <summary>項目の処理を行う</summary>
+    /// <remarks>失敗したらトレイの通知で知らせる（ウィンドウが隠れていても気付けるように）。</remarks>
     private async Task InvokeAsync(Func<Task> command)
     {
         try
@@ -303,6 +323,7 @@ public sealed class TrayIcon : IDisposable
 
     #endregion
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed) return;

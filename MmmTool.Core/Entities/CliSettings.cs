@@ -5,7 +5,8 @@ namespace MmmTool.Core.Entities;
 /// </summary>
 public sealed class CliSettings
 {
-    /// <summary>最後に移動した作業ディレクトリ。次回起動時のシェルの開始位置にも使う。</summary>
+    /// <summary>最後に移動した作業ディレクトリ</summary>
+    /// <remarks>次回起動時のシェルの開始位置にも使う。</remarks>
     public string? LastDirectory { get; set; }
 
     /// <summary>作業ディレクトリの履歴（先頭が最新）。</summary>

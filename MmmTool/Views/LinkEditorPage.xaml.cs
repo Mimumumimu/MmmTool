@@ -10,15 +10,19 @@ using VirtualKey = Windows.System.VirtualKey;
 
 namespace MmmTool.Views;
 
+/// <summary>リンク編集ページ</summary>
 public sealed partial class LinkEditorPage : Page
 {
     /// <summary>「保存しました」を出しておく時間。</summary>
     private static readonly TimeSpan SavedNoticeDuration = TimeSpan.FromSeconds(3);
 
+    /// <summary>「保存しました」を閉じるタイマー</summary>
     private readonly DispatcherQueueTimer _savedNoticeTimer;
 
+    /// <summary>ページの ViewModel</summary>
     public LinkEditorViewModel ViewModel { get; }
 
+    /// <summary>ページを作る</summary>
     public LinkEditorPage(LinkEditorViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -38,12 +42,14 @@ public sealed partial class LinkEditorPage : Page
         ViewModel.Saved += (_, _) => ShowSavedNotice();
     }
 
+    /// <summary>読み込み時に ViewModel を初期化する</summary>
     private async void OnLoaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
 
     #region ツリー
 
     // TreeView.SelectedItem は object 型で x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる
 
+    /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
     /// <remarks>
     /// このイベントの中では sender.SelectedItem がまだ前の選択を返すので、args の追加分から取る。
     /// 追加分はクリックでの選択ならデータだが、コードから選択したときは TreeViewNode で来ることがあるので、両方から取り出す。
@@ -56,6 +62,7 @@ public sealed partial class LinkEditorPage : Page
             _ => null,
         };
 
+    /// <summary>ViewModel の選択が変わったら、ツリーの選択を合わせる</summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LinkEditorViewModel.SelectedItem) && LinkTree.SelectedItem != ViewModel.SelectedItem)
@@ -65,7 +72,8 @@ public sealed partial class LinkEditorPage : Page
         }
     }
 
-    /// <summary>右クリックした行を選択してからメニューを出す（メニューの操作はその行が対象。何も無い所なら選択を外す）。</summary>
+    /// <summary>右クリックした行を選択してからメニューを出す</summary>
+    /// <remarks>メニューの操作はその行が対象。何も無い所なら選択を外す。</remarks>
     private void SelectForContextMenu(object source)
     {
         var item = FindItem(source);
@@ -74,6 +82,7 @@ public sealed partial class LinkEditorPage : Page
         LinkTree.SelectedItem = item;
     }
 
+    /// <summary>ツリーで Delete が押されたら、選択中の項目を削除する</summary>
     private void OnTreeKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Delete && ViewModel.DeleteCommand.CanExecute(null))
@@ -99,7 +108,8 @@ public sealed partial class LinkEditorPage : Page
 
     #endregion
 
-    /// <summary>名前欄にフォーカスして全選択する（すぐ打ち替えられるように）。</summary>
+    /// <summary>名前欄にフォーカスして全選択する</summary>
+    /// <remarks>すぐ打ち替えられるように。</remarks>
     private void FocusNameBox()
     {
         // 選択の切り替えで編集欄が表示されてから移す
@@ -112,6 +122,7 @@ public sealed partial class LinkEditorPage : Page
 
     #region 保存の通知
 
+    /// <summary>「保存しました」を表示して、一定時間後に閉じる</summary>
     private void ShowSavedNotice()
     {
         SavedNotice.Visibility = Visibility.Visible;
@@ -120,6 +131,7 @@ public sealed partial class LinkEditorPage : Page
         _savedNoticeTimer.Start();
     }
 
+    /// <summary>「保存しました」が閉じられたときの処理</summary>
     private void OnSavedInfoBarClosed(InfoBar sender, InfoBarClosedEventArgs args)
     {
         _savedNoticeTimer.Stop();

@@ -3,10 +3,13 @@ using MmmTool.Core.Services;
 
 namespace MmmTool.Core.Repositories.Json;
 
+/// <summary>定型コマンドを JSON ファイルに保存する</summary>
 public sealed class JsonCliCommandRepository(JsonFileStore store) : ICliCommandRepository
 {
+    /// <summary>保存先のファイル名</summary>
     private const string FileName = "CliCommands.json";
 
+    /// <inheritdoc />
     public async Task<CliCommandSet> LoadAsync(CancellationToken cancellationToken = default)
     {
         var typeInfo = CoreJsonContext.Readable.CliCommandSet;

@@ -6,8 +6,11 @@ using MmmTool.Views.Dialogs;
 
 namespace MmmTool.Services;
 
+/// <summary>ダイアログを開く</summary>
+/// <remarks>メインウィンドウの上に表示する。</remarks>
 public sealed class DialogService(IServiceProvider services) : IDialogService
 {
+    /// <inheritdoc />
     public Task<string?> ShowWorkingDirectoryDialogAsync()
     {
         var dialog = services.GetRequiredService<WorkingDirectoryDialog>();
@@ -15,6 +18,7 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
         return dialog.PickAsync();
     }
 
+    /// <inheritdoc />
     public async Task<bool> ConfirmAsync(string title, string message, string primaryText)
     {
         var dialog = new ContentDialog

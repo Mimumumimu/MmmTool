@@ -19,25 +19,33 @@ public sealed partial class TerminalControl : UserControl
     /// <remarks>アプリ同梱の Assets/Terminal を WebView2 から読むために使う。</remarks>
     private const string HostName = "terminal.mmmtool.invalid";
 
+    /// <summary>セッションの依存関係プロパティ</summary>
     public static readonly DependencyProperty SessionProperty = DependencyProperty.Register(
         nameof(Session), typeof(ITerminalSession), typeof(TerminalControl), new PropertyMetadata(null, OnSessionChanged));
 
+    /// <summary>UI スレッドのディスパッチャー</summary>
     private readonly DispatcherQueue _dispatcherQueue;
 
     /// <summary>UI スレッドへ渡す前の出力バッファ。</summary>
     /// <remarks>シェル出力は細切れに届くため、UI スレッドへ渡す前にまとめる。</remarks>
     private readonly StringBuilder _pendingOutput = new();
+    /// <summary>出力バッファの排他用ロック</summary>
     private readonly Lock _pendingLock = new();
+    /// <summary>UI スレッドへの受け渡しを予約済みか</summary>
     private bool _flushQueued;
 
+    /// <summary>WebView の初期化を始めたか</summary>
     private bool _webViewInitialized;
+    /// <summary>xterm.js の準備ができたか</summary>
     private bool _webViewReady;
 
     /// <summary>xterm.js 側の現在の端末の列数。</summary>
     /// <remarks>再起動時に使う。</remarks>
     private int _columns;
+    /// <summary>xterm.js 側の現在の端末の行数</summary>
     private int _rows;
 
+    /// <summary>コントロールを作る</summary>
     public TerminalControl()
     {
         InitializeComponent();
@@ -45,12 +53,14 @@ public sealed partial class TerminalControl : UserControl
         Loaded += OnLoaded;
     }
 
+    /// <summary>シェルのセッション</summary>
     public ITerminalSession? Session
     {
         get => (ITerminalSession?)GetValue(SessionProperty);
         set => SetValue(SessionProperty, value);
     }
 
+    /// <summary>セッションが差し替わったら、イベントの購読を付け替える</summary>
     private static void OnSessionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var control = (TerminalControl)d;
@@ -68,6 +78,7 @@ public sealed partial class TerminalControl : UserControl
         }
     }
 
+    /// <summary>送信を求められたら、端末に貼り付けとして渡す</summary>
     private void OnSubmitRequested(object? sender, string text)
     {
         if (_webViewReady)
@@ -82,6 +93,7 @@ public sealed partial class TerminalControl : UserControl
         }
     }
 
+    /// <summary>読み込み時に WebView を初期化して、xterm.js のページを開く</summary>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (_webViewInitialized)
@@ -110,6 +122,7 @@ public sealed partial class TerminalControl : UserControl
         core.Navigate($"https://{HostName}/index.html");
     }
 
+    /// <summary>xterm.js からのメッセージを処理する</summary>
     private void OnWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
     {
         if (!Uri.TryCreate(args.Source, UriKind.Absolute, out var source) || source.Host != HostName)
@@ -137,6 +150,7 @@ public sealed partial class TerminalControl : UserControl
         }
     }
 
+    /// <summary>xterm.js の準備ができたときの処理（シェルを起動する）</summary>
     private void OnTerminalReady()
     {
         _webViewReady = true;
@@ -154,6 +168,7 @@ public sealed partial class TerminalControl : UserControl
         FocusTerminal();
     }
 
+    /// <summary>端末への入力をシェルへ送る（シェル終了後は再起動する）</summary>
     private void OnInput(string data)
     {
         // シェル終了後は、押されたキーを捨てて再起動のきっかけにする
@@ -165,6 +180,7 @@ public sealed partial class TerminalControl : UserControl
         Session?.Write(data);
     }
 
+    /// <summary>シェルを起動する（restart が true なら起動し直す）</summary>
     private void StartSession(bool restart)
     {
         if (Session is not { } session)
@@ -190,6 +206,7 @@ public sealed partial class TerminalControl : UserControl
         }
     }
 
+    /// <summary>シェルの出力をためて、UI スレッドで描画する</summary>
     private void OnOutputReceived(object? sender, string text)
     {
         lock (_pendingLock)
@@ -204,9 +221,11 @@ public sealed partial class TerminalControl : UserControl
         _dispatcherQueue.TryEnqueue(FlushOutput);
     }
 
+    /// <summary>シェルが終了したことを端末に表示する</summary>
     private void OnSessionExited(object? sender, EventArgs e)
         => OnOutputReceived(sender, "\r\n\x1b[90m[プロセスが終了しました。何かキーを押すと再起動します]\x1b[0m\r\n");
 
+    /// <summary>ためた出力を端末へ送る</summary>
     private void FlushOutput()
     {
         if (!_webViewReady)
@@ -239,6 +258,7 @@ public sealed partial class TerminalControl : UserControl
         PostMessage("focus", null);
     }
 
+    /// <summary>xterm.js へメッセージを送る</summary>
     private void PostMessage(string type, string? data)
     {
         // トリミング有効の発行でも動くよう、リフレクションを使わずに JSON を組み立てる

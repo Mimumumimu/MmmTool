@@ -1,8 +1,11 @@
 namespace MmmTool.Core.Services;
 
+/// <summary>シェルの種類</summary>
 public enum ShellKind
 {
+    /// <summary>PowerShell</summary>
     PowerShell,
+    /// <summary>コマンドプロンプト（cmd）</summary>
     Cmd,
 }
 
@@ -11,7 +14,8 @@ public enum ShellKind
 /// </summary>
 public static class ShellCommands
 {
-    /// <summary>起動コマンドラインからシェルの種類を判定する（cmd 以外は PowerShell 扱い）。</summary>
+    /// <summary>起動コマンドラインからシェルの種類を判定する</summary>
+    /// <remarks>cmd 以外は PowerShell 扱い。</remarks>
     public static ShellKind DetectKind(string commandLine)
     {
         var trimmed = commandLine.TrimStart();

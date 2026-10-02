@@ -19,20 +19,28 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <remarks>1 文字ごとにファイルの有無を調べないため（ネットワーク上のパスは時間がかかる）。</remarks>
     private static readonly TimeSpan PathCheckDelay = TimeSpan.FromMilliseconds(300);
 
+    /// <summary>リンクメニューの読み書き</summary>
     private readonly LinkMenuService _linkMenu;
+    /// <summary>リンクを開く処理</summary>
     private readonly LinkOpener _opener;
+    /// <summary>ダイアログ</summary>
     private readonly IDialogService _dialogs;
+    /// <summary>ファイル選択</summary>
     private readonly IFilePickerService _filePicker;
+    /// <summary>フォルダ選択</summary>
     private readonly IFolderPickerService _folderPicker;
 
     /// <summary>読み込みに失敗しているか。</summary>
     /// <remarks>失敗したまま保存すると、手修正の誤り等で読めなかった元のファイルを空の構成で上書きして消してしまうため、保存を止める。</remarks>
     private bool _loadFailed;
 
+    /// <summary>初期化済みか</summary>
     private bool _initialized;
 
+    /// <summary>パスの種類を調べる処理の取り消し用</summary>
     private CancellationTokenSource? _pathCheck;
 
+    /// <summary>ViewModel を作る</summary>
     public LinkEditorViewModel(
         LinkMenuService linkMenu,
         LinkOpener opener,
@@ -55,9 +63,11 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>保存が完了した。</summary>
     public event EventHandler? Saved;
 
+    /// <summary>ツリーの最上位の要素</summary>
     public ObservableCollection<LinkTreeItem> RootItems { get; } = [];
 
-    /// <summary>項目が 1 件も無いか（空のときの案内を出す）。</summary>
+    /// <summary>項目が 1 件も無いか</summary>
+    /// <remarks>空のときの案内を出す。</remarks>
     public bool IsEmpty => RootItems.Count == 0;
 
     /// <summary>未保存の変更があるか。</summary>
@@ -104,13 +114,16 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region 選択・編集欄
 
+    /// <summary>選択中の要素</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLinkSelected), nameof(IsFolderSelected), nameof(IsEditorVisible), nameof(IsEditorHintVisible), nameof(EditorHint))]
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand), nameof(OpenSelectedCommand), nameof(BrowseFileCommand), nameof(BrowseFolderCommand))]
     public partial LinkTreeItem? SelectedItem { get; set; }
 
+    /// <summary>リンクを選択中か</summary>
     public bool IsLinkSelected => SelectedItem?.Kind == LinkItemKind.Link;
 
+    /// <summary>フォルダーを選択中か</summary>
     public bool IsFolderSelected => SelectedItem?.Kind == LinkItemKind.Folder;
 
     /// <summary>編集欄を出すか（リンク・フォルダーを選択中）。</summary>
@@ -119,10 +132,12 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>編集欄の代わりに案内を出すか（未選択・区切り線）。</summary>
     public bool IsEditorHintVisible => !IsEditorVisible;
 
+    /// <summary>編集欄の代わりに出す案内の文</summary>
     public string EditorHint => SelectedItem is null
         ? "ツリーで項目を選ぶと、ここで名前やパスを編集できます。"
         : "区切り線には編集できる項目がありません。ドラッグで位置だけ変えられます。";
 
+    /// <summary>選択が変わったら、変更の監視を付け替えて、パスの種類を調べ直す</summary>
     partial void OnSelectedItemChanged(LinkTreeItem? oldValue, LinkTreeItem? newValue)
     {
         if (oldValue is not null)
@@ -136,6 +151,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         UpdatePathKind();
     }
 
+    /// <summary>選択中の要素のパスが変わったら、種類を調べ直す</summary>
     private void OnSelectedItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LinkTreeItem.Path))
@@ -150,6 +166,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PathKindText), nameof(PathKindGlyph), nameof(IsPathNotFound), nameof(IsPathFound))]
     public partial LinkTargetKind PathKind { get; set; }
 
+    /// <summary>パスの種類の説明</summary>
     public string PathKindText => PathKind switch
     {
         LinkTargetKind.Url => "URL（ブラウザなど既定のアプリで開きます）",
@@ -160,6 +177,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _ => "",
     };
 
+    /// <summary>パスの種類のアイコン</summary>
     public string PathKindGlyph => PathKind switch
     {
         LinkTargetKind.Url => "",
@@ -170,8 +188,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _ => "",
     };
 
+    /// <summary>パスが見つからないか</summary>
     public bool IsPathNotFound => PathKind == LinkTargetKind.NotFound;
 
+    /// <summary>パスが見つかったか（空・見つからない以外）</summary>
     public bool IsPathFound => PathKind is not (LinkTargetKind.Empty or LinkTargetKind.NotFound);
 
     /// <summary>入力が止まるのを待ってから、パスの種類を調べ直す。</summary>
@@ -203,6 +223,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>選択中のリンクを開く</summary>
     [RelayCommand(CanExecute = nameof(CanOpenSelected))]
     private async Task OpenSelectedAsync()
     {
@@ -216,8 +237,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>選択中のリンクを開けるか</summary>
     private bool CanOpenSelected() => IsLinkSelected && !string.IsNullOrWhiteSpace(SelectedItem!.Path);
 
+    /// <summary>ファイル選択を開いて、選ばれたパスを入れる</summary>
     [RelayCommand(CanExecute = nameof(IsLinkSelected))]
     private async Task BrowseFileAsync()
     {
@@ -228,6 +251,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>フォルダ選択を開いて、選ばれたパスを入れる</summary>
     [RelayCommand(CanExecute = nameof(IsLinkSelected))]
     private async Task BrowseFolderAsync()
     {
@@ -242,16 +266,20 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region 追加・削除
 
+    /// <summary>リンクを追加する</summary>
     [RelayCommand]
     private void AddLink() => Add(LinkTreeItem.CreateLink());
 
+    /// <summary>フォルダーを追加する</summary>
     [RelayCommand]
     private void AddFolder() => Add(LinkTreeItem.CreateFolder());
 
+    /// <summary>区切り線を追加する</summary>
     [RelayCommand]
     private void AddSeparator() => Add(LinkTreeItem.CreateSeparator());
 
-    /// <summary>選択がフォルダならその子の末尾、それ以外なら同じ階層の選択の直後、未選択ならルートの末尾に追加して選択する。</summary>
+    /// <summary>項目を追加して選択する</summary>
+    /// <remarks>選択がフォルダならその子の末尾、それ以外なら同じ階層の選択の直後、未選択ならルートの末尾に追加する。</remarks>
     private void Add(LinkTreeItem item)
     {
         if (SelectedItem is { } selected)
@@ -308,6 +336,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         SelectedItem = null;
     }
 
+    /// <summary>削除できるか</summary>
     private bool CanDelete() => SelectedItem is not null;
 
     /// <summary>要素が今入っているコレクション（ルートまたは親フォルダの子要素）を探す。</summary>
@@ -315,6 +344,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     public ObservableCollection<LinkTreeItem>? FindParentCollection(LinkTreeItem item)
         => FindParentCollection(RootItems, item);
 
+    /// <summary>要素が入っているコレクションを、指定のコレクションの下から探す</summary>
     private static ObservableCollection<LinkTreeItem>? FindParentCollection(ObservableCollection<LinkTreeItem> items, LinkTreeItem target)
     {
         if (items.Contains(target))
@@ -336,6 +366,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region 保存・破棄
 
+    /// <summary>保存する</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -352,6 +383,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
     }
 
+    /// <summary>保存できるか</summary>
     private bool CanSave() => IsDirty && !_loadFailed;
 
     /// <summary>変更を破棄して、保存済みの構成を読み直す。</summary>
@@ -359,8 +391,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanDiscard))]
     private Task DiscardAsync() => LoadAsync();
 
+    /// <summary>破棄できるか</summary>
     private bool CanDiscard() => IsDirty || _loadFailed;
 
+    /// <summary>保存・破棄ボタンの状態を更新する</summary>
     private void NotifySaveStateChanged()
     {
         SaveCommand.NotifyCanExecuteChanged();
@@ -373,6 +407,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     // 追加・削除・並べ替え（ドラッグ＆ドロップによるコレクションの変更を含む）と、名前・パスの編集でダーティにする
 
+    /// <summary>コレクションが変わったら、新しい要素を監視して、変更ありにする</summary>
     private void OnChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems is not null)
@@ -389,6 +424,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         IsDirty = true;
     }
 
+    /// <summary>名前・パスが変わったら、変更ありにする</summary>
     private void OnItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(LinkTreeItem.Name) or nameof(LinkTreeItem.Path))
@@ -419,12 +455,15 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region エラー表示
 
+    /// <summary>エラーメッセージ</summary>
     [ObservableProperty]
     public partial string ErrorMessage { get; set; }
 
+    /// <summary>エラーを表示中か</summary>
     [ObservableProperty]
     public partial bool IsErrorOpen { get; set; }
 
+    /// <summary>エラーを表示する</summary>
     private void ShowError(string message)
     {
         ErrorMessage = message;

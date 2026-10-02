@@ -3,8 +3,10 @@ using Windows.Storage.Streams;
 
 namespace MmmTool.Services;
 
+/// <summary>画像を JPEG に変換する</summary>
 public sealed class ImageConverter : IImageConverter
 {
+    /// <inheritdoc />
     public async Task<byte[]> ToJpegAsync(Stream image)
     {
         var decoder = await BitmapDecoder.CreateAsync(image.AsRandomAccessStream());

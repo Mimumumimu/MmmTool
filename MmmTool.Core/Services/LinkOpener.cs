@@ -38,4 +38,5 @@ public sealed class LinkOpener
     });
 }
 
+/// <summary>リンクを開けなかったことを表す例外</summary>
 public sealed class LinkOpenException(string message, Exception? innerException = null) : Exception(message, innerException);

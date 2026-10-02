@@ -8,8 +8,10 @@ namespace MmmTool.Core.Services;
 /// </summary>
 public sealed class CliSettingsService(ICliSettingsRepository repository)
 {
+    /// <summary>ディレクトリ履歴の最大件数</summary>
     public const int MaxDirectoryHistory = 20;
 
+    /// <summary>現在の設定</summary>
     private CliSettings _settings = new();
 
     /// <summary>保存を止めているか。</summary>
@@ -19,10 +21,13 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <summary>読み込みに失敗したときのメッセージ。</summary>
     public string? LoadError { get; private set; }
 
+    /// <summary>最後に移動した作業ディレクトリ</summary>
     public string? LastDirectory => _settings.LastDirectory;
 
+    /// <summary>作業ディレクトリの履歴（新しい順）</summary>
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
+    /// <summary>設定を読み込む</summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -49,15 +54,19 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         return SaveAsync(cancellationToken);
     }
 
+    /// <summary>履歴から作業ディレクトリを取り除く</summary>
     public Task RemoveDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
         _settings.DirectoryHistory.RemoveAll(path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase));
         return SaveAsync(cancellationToken);
     }
 
+    /// <summary>設定を保存する</summary>
+    /// <remarks>保存を止めているときは何もしない。</remarks>
     private Task SaveAsync(CancellationToken cancellationToken)
         => _saveDisabled ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
 
+    /// <summary>リストを先頭から指定件数に切り詰める</summary>
     private static void TrimTo<T>(List<T> list, int maxCount)
     {
         if (list.Count > maxCount)

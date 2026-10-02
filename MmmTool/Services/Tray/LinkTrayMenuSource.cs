@@ -8,6 +8,7 @@ namespace MmmTool.Services.Tray;
 /// </summary>
 public sealed class LinkTrayMenuSource(LinkMenuService links, LinkOpener opener) : ITrayMenuSource
 {
+    /// <inheritdoc />
     public IReadOnlyList<TrayMenuItem> GetItems()
     {
         IReadOnlyList<TrayMenuItem> children = links.LoadError is not null

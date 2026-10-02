@@ -1,26 +1,35 @@
 namespace MmmTool.Core.Services;
 
-/// <summary>
-/// 添付ファイルの一時保存先（%TEMP%\MmmTool\session_日時\）を管理する。アプリ全体で 1 つ。
+/// <summary>添付ファイルの一時保存先（%TEMP%\MmmTool\session_日時\）の管理</summary>
+/// <remarks>
+/// アプリ全体で 1 つ。
 /// <list type="bullet">
 /// <item>最初の添付でセッションフォルダを作り、以降は連番を付けて保存する（同名でも衝突しない）</item>
 /// <item>添付を全部取り除いたらフォルダごと削除して初期化する</item>
 /// <item>送信済みのファイルは CLI が後から読むため、アプリ終了まで残す</item>
 /// </list>
-/// </summary>
+/// </remarks>
 public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
 {
     /// <summary>古い一時フォルダとみなす経過時間。</summary>
     /// <remarks>前回までの残り（異常終了など）は、この時間より古いものだけ消す（同時起動している別ビルドのフォルダを消さないため）。</remarks>
     private static readonly TimeSpan StaleAge = TimeSpan.FromDays(1);
 
+    /// <summary>一時フォルダのルート</summary>
     private readonly string _root = Path.Combine(Path.GetTempPath(), "MmmTool");
+    /// <summary>このインスタンスが作ったセッションフォルダ</summary>
+    /// <remarks>終了時に削除する。</remarks>
     private readonly List<string> _ownedSessions = [];
+    /// <summary>今のセッションフォルダ</summary>
+    /// <remarks>未作成なら null。</remarks>
     private string? _session;
+    /// <summary>セッション内の連番</summary>
     private int _sequence;
+    /// <summary>古い一時フォルダの掃除を済ませたか</summary>
     private bool _staleCleaned;
 
-    /// <summary>ファイルをコピーして添付する。保存先のパスを返す。</summary>
+    /// <summary>ファイルをコピーして添付する</summary>
+    /// <remarks>保存先のパスを返す。</remarks>
     public async Task<string> AddFileAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
         var destination = NextPath(Path.GetFileName(sourcePath));
@@ -30,7 +39,8 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         return destination;
     }
 
-    /// <summary>データをファイルとして添付する。保存先のパスを返す。</summary>
+    /// <summary>データをファイルとして添付する</summary>
+    /// <remarks>保存先のパスを返す。</remarks>
     public async Task<string> AddAsync(byte[] content, string fileName, CancellationToken cancellationToken = default)
     {
         var destination = NextPath(fileName);
@@ -38,7 +48,8 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         return destination;
     }
 
-    /// <summary>添付を取り除く。セッションに何も残らなければフォルダごと削除する。</summary>
+    /// <summary>添付を取り除く</summary>
+    /// <remarks>セッションに何も残らなければフォルダごと削除する。</remarks>
     public void Remove(string filePath)
     {
         File.Delete(filePath);
@@ -51,9 +62,11 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         }
     }
 
-    /// <summary>送信済みとして今のセッションを閉じる。ファイルは残し、次の添付は新しいセッションに入れる。</summary>
+    /// <summary>送信済みとして今のセッションを閉じる</summary>
+    /// <remarks>ファイルは残し、次の添付は新しいセッションに入れる。</remarks>
     public void CloseSession() => _session = null;
 
+    /// <inheritdoc />
     public void Dispose()
     {
         foreach (var directory in _ownedSessions)
@@ -63,6 +76,7 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         _ownedSessions.Clear();
     }
 
+    /// <summary>次に保存するファイルのパスを決める</summary>
     private string NextPath(string fileName)
     {
         if (_session is null)
@@ -73,6 +87,7 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         return Path.Combine(_session!, $"{_sequence:D3}_{fileName}");
     }
 
+    /// <summary>セッションフォルダを作る</summary>
     private void StartSession()
     {
         if (!_staleCleaned)
@@ -89,6 +104,7 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         _sequence = 0;
     }
 
+    /// <summary>古いセッションフォルダを削除する</summary>
     private void DeleteStaleSessions()
     {
         if (!Directory.Exists(_root))
@@ -106,6 +122,8 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
         }
     }
 
+    /// <summary>フォルダを削除する</summary>
+    /// <remarks>失敗しても無視する。</remarks>
     private static void TryDeleteDirectory(string directory)
     {
         try

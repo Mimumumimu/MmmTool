@@ -7,20 +7,25 @@ namespace MmmTool.Core.Services;
 /// </summary>
 public static class CliCommandDefaults
 {
-    // switchTo（切り替え先のタブ）の値
+    /// <summary>switchTo（切り替え先のタブ）の値</summary>
     private static class Tab
     {
+        /// <summary>ターミナルのタブ</summary>
         public const string Terminal = "terminal";
+        /// <summary>AI セッションのタブ</summary>
         public const string Session = "session";
     }
 
-    // focus（送信後のフォーカス移動先）の値
+    /// <summary>focus（送信後のフォーカス移動先）の値</summary>
     private static class Focus
     {
+        /// <summary>ターミナル</summary>
         public const string Terminal = "terminal";
+        /// <summary>送信欄</summary>
         public const string Input = "input";
     }
 
+    /// <summary>既定の定型コマンドを作る</summary>
     public static CliCommandSet Create() => new()
     {
         Terminal =
@@ -57,9 +62,11 @@ public static class CliCommandDefaults
         ],
     };
 
+    /// <summary>フォルダ（子を持つノード）を作る</summary>
     private static CliCommandNode Group(string label, params CliCommandNode[] children)
         => new() { Label = label, Children = [.. children] };
 
+    /// <summary>コマンド（葉）を作る</summary>
     private static CliCommandNode Leaf(string label, string command, string? switchTo = null, string? focus = null)
         => new() { Label = label, Command = command, SwitchTo = switchTo, Focus = focus };
 }

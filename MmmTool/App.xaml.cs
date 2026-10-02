@@ -14,12 +14,17 @@ using MmmTool.Views.Dialogs;
 
 namespace MmmTool;
 
+/// <summary>アプリケーション（起動・終了と DI の構成）</summary>
 public partial class App : Application
 {
+    /// <summary>多重起動の防止</summary>
     private readonly SingleInstanceGuard _instanceGuard = new();
+    /// <summary>DI・ログなどを扱う Host</summary>
     private readonly IHost _host;
+    /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
     private MainWindow? _window;
 
+    /// <summary>多重起動を確認して、DI の構成を作る</summary>
     public App()
     {
         if (!_instanceGuard.IsFirstInstance)
@@ -38,6 +43,7 @@ public partial class App : Application
         _host = builder.Build();
     }
 
+    /// <summary>DI に登録する</summary>
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
@@ -81,6 +87,7 @@ public partial class App : Application
         services.AddTransient<WorkingDirectoryDialogViewModel>();
     }
 
+    /// <inheritdoc />
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         await _host.StartAsync();

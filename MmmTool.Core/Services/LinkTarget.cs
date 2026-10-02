@@ -6,13 +6,16 @@ public enum LinkTargetKind
     /// <summary>パスが空。</summary>
     Empty,
 
+    /// <summary>URL</summary>
     Url,
 
+    /// <summary>フォルダ</summary>
     Folder,
 
     /// <summary>実行ファイル（.exe・.bat 等）。</summary>
     Executable,
 
+    /// <summary>ファイル</summary>
     File,
 
     /// <summary>ファイルにもフォルダにも見つからない。</summary>
@@ -24,12 +27,14 @@ public enum LinkTargetKind
 /// </summary>
 public static class LinkTarget
 {
+    /// <summary>実行ファイルとみなす拡張子</summary>
     private static readonly HashSet<string> ExecutableExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".bat", ".cmd", ".com", ".msc",
     };
 
-    /// <summary>開くときの実際のパス（前後の空白・引用符を除き、環境変数を展開する）。</summary>
+    /// <summary>開くときの実際のパス</summary>
+    /// <remarks>前後の空白・引用符を除き、環境変数を展開する。</remarks>
     public static string Expand(string path)
         => Environment.ExpandEnvironmentVariables(path.Trim().Trim('"'));
 
