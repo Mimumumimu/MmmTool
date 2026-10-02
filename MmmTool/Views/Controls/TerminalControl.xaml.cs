@@ -15,7 +15,8 @@ namespace MmmTool.Views.Controls;
 /// </summary>
 public sealed partial class TerminalControl : UserControl
 {
-    // アプリ同梱の Assets/Terminal を WebView2 から読むための仮想ホスト名
+    /// <summary>Assets/Terminal を読むための仮想ホスト名。</summary>
+    /// <remarks>アプリ同梱の Assets/Terminal を WebView2 から読むために使う。</remarks>
     private const string HostName = "terminal.mmmtool.invalid";
 
     public static readonly DependencyProperty SessionProperty = DependencyProperty.Register(
@@ -23,7 +24,8 @@ public sealed partial class TerminalControl : UserControl
 
     private readonly DispatcherQueue _dispatcherQueue;
 
-    // シェル出力は細切れに届くため、UI スレッドへ渡す前にまとめる
+    /// <summary>UI スレッドへ渡す前の出力バッファ。</summary>
+    /// <remarks>シェル出力は細切れに届くため、UI スレッドへ渡す前にまとめる。</remarks>
     private readonly StringBuilder _pendingOutput = new();
     private readonly Lock _pendingLock = new();
     private bool _flushQueued;
@@ -31,7 +33,8 @@ public sealed partial class TerminalControl : UserControl
     private bool _webViewInitialized;
     private bool _webViewReady;
 
-    // xterm.js 側の現在の端末サイズ（再起動時に使う）
+    /// <summary>xterm.js 側の現在の端末の列数。</summary>
+    /// <remarks>再起動時に使う。</remarks>
     private int _columns;
     private int _rows;
 
@@ -55,11 +58,27 @@ public sealed partial class TerminalControl : UserControl
         {
             oldSession.OutputReceived -= control.OnOutputReceived;
             oldSession.Exited -= control.OnSessionExited;
+            oldSession.SubmitRequested -= control.OnSubmitRequested;
         }
         if (e.NewValue is ITerminalSession newSession)
         {
             newSession.OutputReceived += control.OnOutputReceived;
             newSession.Exited += control.OnSessionExited;
+            newSession.SubmitRequested += control.OnSubmitRequested;
+        }
+    }
+
+    private void OnSubmitRequested(object? sender, string text)
+    {
+        if (_webViewReady)
+        {
+            PostMessage("submit", text);
+        }
+        else
+        {
+            // 端末の表示がまだ準備できていなければ、そのまま書き込んで確定する
+            Session?.Write(text);
+            Session?.Write("\r");
         }
     }
 
@@ -209,7 +228,8 @@ public sealed partial class TerminalControl : UserControl
         }
     }
 
-    private void FocusTerminal()
+    /// <summary>端末にキーボードフォーカスを移す。</summary>
+    public void FocusTerminal()
     {
         if (!_webViewReady)
         {

@@ -1,0 +1,24 @@
+namespace MmmTool.Core.Entities;
+
+/// <summary>
+/// CLI補助の利用状態（Data/CliSettings.json）。DB には載せないローカル専用の設定。
+/// </summary>
+public sealed class CliSettings
+{
+    /// <summary>最後に移動した作業ディレクトリ。次回起動時のシェルの開始位置にも使う。</summary>
+    public string? LastDirectory { get; set; }
+
+    /// <summary>作業ディレクトリの履歴（先頭が最新）。</summary>
+    public List<string> DirectoryHistory { get; set; } = [];
+
+    /// <summary>送信履歴（先頭が最新）。</summary>
+    public List<SendHistoryEntry> SendHistory { get; set; } = [];
+}
+
+public sealed class SendHistoryEntry
+{
+    /// <summary>入力欄に打った本文（自動付加した添付の指示文・パスは含まない）。</summary>
+    public string Text { get; set; } = "";
+
+    public DateTimeOffset SentAt { get; set; }
+}

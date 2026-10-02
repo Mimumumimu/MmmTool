@@ -9,7 +9,8 @@ namespace MmmTool.Services;
 /// </summary>
 public sealed class SingleInstanceGuard
 {
-    // プロセス終了まで保持する（GC で解放されないようフィールドで持つ）
+    /// <summary>多重起動防止用の Mutex。</summary>
+    /// <remarks>プロセス終了まで保持する（GC で解放されないようフィールドで持つ）。</remarks>
     private readonly Mutex _mutex;
 
     public bool IsFirstInstance { get; }

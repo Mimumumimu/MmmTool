@@ -1,5 +1,5 @@
 // xterm.js とホスト（C# 側 WebView2）の橋渡し。
-// ホスト → JS : { type: "output", data } / { type: "focus" }
+// ホスト → JS : { type: "output", data } / { type: "focus" } / { type: "submit", data }
 // JS → ホスト : { type: "ready", cols, rows } / { type: "input", data } / { type: "resize", cols, rows }
 (() => {
     "use strict";
@@ -44,14 +44,45 @@
 
     new ResizeObserver(() => fit.fit()).observe(document.body);
 
+    // 最後にシェルの出力を受け取った時刻（送信時に、CLI の処理が落ち着いたかの判断に使う）
+    let lastOutputAt = 0;
+
+    // 送信の待ち方: 貼り付け後、出力が QUIET_MS 途切れたら Enter（最低 MIN_WAIT_MS、最長 MAX_WAIT_MS）
+    const MIN_WAIT_MS = 150;
+    const QUIET_MS = 120;
+    const MAX_WAIT_MS = 2000;
+    const POLL_MS = 30;
+
+    // テキストを貼り付けとして入力（CLI が対応していればブラケットペースト）し、Enter で確定する。
+    // CLI は貼り付けの処理中に届いた Enter を本文の一部（改行）として扱うことがあるため、
+    // 貼り付けへの反応（画面の書き換え）が落ち着くのを待ってから Enter を送る
+    const submit = text => {
+        const pastedAt = performance.now();
+        term.paste(text);
+
+        const timer = setInterval(() => {
+            const now = performance.now();
+            const elapsed = now - pastedAt;
+            const quiet = now - Math.max(lastOutputAt, pastedAt) >= QUIET_MS;
+            if ((elapsed >= MIN_WAIT_MS && quiet) || elapsed >= MAX_WAIT_MS) {
+                clearInterval(timer);
+                host.postMessage({ type: "input", data: "\r" });
+            }
+        }, POLL_MS);
+    };
+
     host.addEventListener("message", e => {
         const message = e.data;
         switch (message.type) {
             case "output":
+                lastOutputAt = performance.now();
                 term.write(message.data);
                 break;
             case "focus":
                 term.focus();
+                break;
+            case "submit":
+                submit(message.data);
                 break;
         }
     });

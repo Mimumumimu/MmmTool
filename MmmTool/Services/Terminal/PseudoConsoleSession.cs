@@ -33,6 +33,8 @@ public sealed class PseudoConsoleSession : ITerminalSession
 
     public event EventHandler? Exited;
 
+    public event EventHandler<string>? SubmitRequested;
+
     public void Start(int columns, int rows)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -100,6 +102,20 @@ public sealed class PseudoConsoleSession : ITerminalSession
         }
     }
 
+    public void Submit(string text)
+    {
+        if (SubmitRequested is { } handler)
+        {
+            handler(this, text);
+        }
+        else
+        {
+            // 表示側が無いとき（未接続）は、そのまま書き込んで確定する
+            Write(text);
+            Write("\r");
+        }
+    }
+
     public void Resize(int columns, int rows)
     {
         if (IsStarted)
@@ -118,6 +134,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
 
         OutputReceived = null;
         Exited = null;
+        SubmitRequested = null;
         Close();
     }
 
@@ -127,7 +144,8 @@ public sealed class PseudoConsoleSession : ITerminalSession
         Exited?.Invoke(this, EventArgs.Empty);
     }
 
-    // 擬似コンソール・パイプ・プロセスを解放する（シェルがまだ動いていれば終了する）
+    /// <summary>擬似コンソール・パイプ・プロセスを解放する。</summary>
+    /// <remarks>シェルがまだ動いていれば終了する。</remarks>
     private void Close()
     {
         _exitWait?.Unregister(null);

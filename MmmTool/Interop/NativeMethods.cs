@@ -94,7 +94,8 @@ internal static partial class NativeMethods
     [LibraryImport("kernel32.dll")]
     public static partial void DeleteProcThreadAttributeList(nint lpAttributeList);
 
-    // lpCommandLine は API 側で書き換えられることがあるため、書き込み可能なバッファを渡す
+    /// <summary>プロセスを作成する。</summary>
+    /// <remarks>lpCommandLine は API 側で書き換えられることがあるため、書き込み可能なバッファを渡す。</remarks>
     [LibraryImport("kernel32.dll", EntryPoint = "CreateProcessW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static unsafe partial bool CreateProcess(

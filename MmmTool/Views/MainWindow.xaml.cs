@@ -9,7 +9,7 @@ namespace MmmTool.Views;
 
 public sealed partial class MainWindow : Window
 {
-    // 画面キー → ページ型
+    /// <summary>画面キーに対応するページ型。</summary>
     private static readonly Dictionary<string, Type> PageTypes = new()
     {
         [MainViewModel.Keys.CliAssist] = typeof(CliAssistPage),
@@ -18,7 +18,8 @@ public sealed partial class MainWindow : Window
 
     private readonly IServiceProvider _services;
 
-    // ページは初回選択時に DI から生成し、以降は同じインスタンスを使う
+    /// <summary>生成済みページのキャッシュ。</summary>
+    /// <remarks>ページは初回選択時に DI から生成し、以降は同じインスタンスを使う。</remarks>
     private readonly Dictionary<string, Page> _pageCache = [];
 
     public MainViewModel ViewModel { get; }
