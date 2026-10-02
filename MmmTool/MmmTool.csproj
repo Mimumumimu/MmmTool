@@ -5,6 +5,7 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>MmmTool</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
@@ -15,7 +16,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- ランタイム（Windows App Runtime / .NET）は PC 側にインストールする前提。出力ファイル数を減らすため -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <!-- 言語別リソース（NuGet 由来のサテライト DLL）を日本語・英語だけにする -->
+    <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,9 +30,13 @@
     <Content Include="Assets\Square44x44Logo.scale-200.png" />
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
+    <!-- アプリのアイコン（EXE に埋め込むほか、トレイ・ウィンドウのアイコンとして実行時にファイルから読む） -->
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <!-- ターミナル描画（xterm.js、MIT）。WebView2 から読み込むため出力フォルダへコピーする -->
     <Content Include="Assets\Terminal\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- ターミナルの定型コマンドから呼ぶ補助スクリプト（{AppDir}\Assets\Tools\...）。出力フォルダへコピーする -->
+    <Content Include="Assets\Tools\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -61,11 +70,32 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
+  <!--
+    Windows App SDK が出力へコピーする WinUI の多言語リソース（言語名フォルダ内の .mui）のうち、
+    日本語・英語以外を削除する。SatelliteResourceLanguages では消えないため。
+  -->
+  <Target Name="PruneMuiAfterBuild" AfterTargets="Build">
+    <ItemGroup>
+      <_MuiBuild Include="$(OutDir)*\*.mui" Exclude="$(OutDir)ja-JP\*.mui;$(OutDir)en-us\*.mui" />
+      <_MuiBuildDir Include="@(_MuiBuild->'%(RootDir)%(Directory)')" />
+    </ItemGroup>
+    <Delete Files="@(_MuiBuild)" />
+    <RemoveDir Directories="@(_MuiBuildDir->Distinct())" />
+  </Target>
+  <Target Name="PruneMuiAfterPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_MuiPub Include="$(PublishDir)*\*.mui" Exclude="$(PublishDir)ja-JP\*.mui;$(PublishDir)en-us\*.mui" />
+      <_MuiPubDir Include="@(_MuiPub->'%(RootDir)%(Directory)')" />
+    </ItemGroup>
+    <Delete Files="@(_MuiPub)" />
+    <RemoveDir Directories="@(_MuiPubDir->Distinct())" />
+  </Target>
+
   <!-- Publish Properties -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!-- トリミングは自己完結のときだけ使える。フレームワーク依存なので無効 -->
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
 </Project>

@@ -18,8 +18,8 @@ public sealed class SingleInstanceGuard
     public SingleInstanceGuard()
     {
         var exePath = Environment.ProcessPath ?? AppContext.BaseDirectory;
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(exePath.ToUpperInvariant())));
-        _mutex = new Mutex(initiallyOwned: true, $@"Local\MmmTool_{hash}", out var createdNew);
+        var exeHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(exePath.ToUpperInvariant())));
+        _mutex = new Mutex(initiallyOwned: true, $@"Local\MmmTool_{exeHash}", out var createdNew);
         IsFirstInstance = createdNew;
     }
 }

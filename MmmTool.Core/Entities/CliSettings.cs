@@ -10,15 +10,4 @@ public sealed class CliSettings
 
     /// <summary>作業ディレクトリの履歴（先頭が最新）。</summary>
     public List<string> DirectoryHistory { get; set; } = [];
-
-    /// <summary>送信履歴（先頭が最新）。</summary>
-    public List<SendHistoryEntry> SendHistory { get; set; } = [];
-}
-
-public sealed class SendHistoryEntry
-{
-    /// <summary>入力欄に打った本文（自動付加した添付の指示文・パスは含まない）。</summary>
-    public string Text { get; set; } = "";
-
-    public DateTimeOffset SentAt { get; set; }
 }

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MmmTool.Interop;
 using MmmTool.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -62,7 +63,27 @@ public sealed partial class CliAssistPage : Page
         });
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        FitInputBoxToThreeLines();
+        await ViewModel.InitializeAsync();
+    }
+
+    /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる（固定値だと、フォントによって下だけ余る・欠けるため）。</summary>
+    private void FitInputBoxToThreeLines()
+    {
+        const int lines = 3;
+        var probe = new TextBlock
+        {
+            Text = "あ",
+            FontFamily = InputBox.FontFamily,
+            FontSize = InputBox.FontSize,
+        };
+        probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        InputBox.Height = probe.DesiredSize.Height * lines
+            + InputBox.Padding.Top + InputBox.Padding.Bottom
+            + InputBox.BorderThickness.Top + InputBox.BorderThickness.Bottom;
+    }
 
     #region 定型コマンド
 
@@ -89,19 +110,28 @@ public sealed partial class CliAssistPage : Page
         return node;
     }
 
-    // 常に全展開なので、開閉の矢印は見えなくする（行の表示が読み込まれたときに、その行の TreeViewItem へ設定する）
-    private void OnCommandTreeItemContentLoaded(object sender, RoutedEventArgs e)
+    /// <summary>ツリーを横にもスクロールできるようにする。</summary>
+    /// <remarks>TreeView は既定で横スクロールが無効（長い名前は右が切れる）。テンプレート内の ScrollViewer に直接設定する。</remarks>
+    private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
-        DependencyObject? current = sender as DependencyObject;
-        while (current is not null and not TreeViewItem)
+        if (FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)
         {
-            current = VisualTreeHelper.GetParent(current);
+            scrollViewer.HorizontalScrollMode = ScrollMode.Auto;
+            scrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         }
+    }
 
-        if (current is TreeViewItem item)
+    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
-            item.GlyphOpacity = 0;
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if ((child as T ?? FindDescendant<T>(child)) is { } found)
+            {
+                return found;
+            }
         }
+        return null;
     }
 
     private void OnCommandTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
@@ -109,17 +139,12 @@ public sealed partial class CliAssistPage : Page
         // 手作りのノードでは、InvokedItem はノード自身で、データはその Content にある
         var item = args.InvokedItem is TreeViewNode node ? node.Content : args.InvokedItem;
 
-        // 中間ノードは何もしない（常に展開）
+        // 中間ノードは開閉だけ（TreeView が行う）
         if (item is CommandTreeItem { Kind: not CommandItemKind.Group } commandItem)
         {
             ViewModel.InvokeCommandItemCommand.Execute(commandItem);
         }
     }
-
-    /// <summary>ツリーが閉じられたら開き直す。</summary>
-    /// <remarks>ツリーは常に全展開で表示する（キー操作などで閉じられても開き直す）。</remarks>
-    private void OnCommandTreeCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
-        => args.Node.IsExpanded = true;
 
     #endregion
 
@@ -134,6 +159,16 @@ public sealed partial class CliAssistPage : Page
             e.Handled = true;
             ViewModel.SendCommand.Execute(null);
         }
+    }
+
+    private bool _imeInitialized;
+
+    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする（日本語をすぐ打てるように）。以降はユーザーの切り替えを尊重する。</summary>
+    private void OnInputGotFocus(object sender, RoutedEventArgs e)
+    {
+        if (_imeInitialized) return;
+        _imeInitialized = true;
+        NativeMethods.TurnOnImeForFocusedWindow();
     }
 
     private async void OnInputPaste(object sender, TextControlPasteEventArgs e)

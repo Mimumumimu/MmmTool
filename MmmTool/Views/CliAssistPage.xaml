@@ -14,7 +14,7 @@
 
     <Grid Padding="12" ColumnSpacing="12" RowSpacing="8">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="280" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
@@ -45,15 +45,14 @@
                 <TreeView
                     x:Name="CommandTree"
                     Grid.Row="1"
-                    Collapsed="OnCommandTreeCollapsed"
                     ItemInvoked="OnCommandTreeItemInvoked"
+                    Loaded="OnCommandTreeLoaded"
                     SelectionMode="None">
-                    <!-- ノードはコードビハインドで全展開の状態で作る（常に全展開。開閉の矢印は Loaded で消す） -->
+                    <!-- ノードはコードビハインドで作る。最初はすべて開いた状態（閉じるのは自由） -->
                     <TreeView.ItemTemplate>
                         <!-- 手作りのノードでは、行に渡されるデータはノード自身。中身（Content）が CommandTreeItem -->
                         <DataTemplate x:DataType="TreeViewNode">
                             <StackPanel
-                                Loaded="OnCommandTreeItemContentLoaded"
                                 Orientation="Horizontal"
                                 Spacing="8"
                                 ToolTipService.ToolTip="{x:Bind ((vm:CommandTreeItem)Content).ToolTip}">
@@ -98,7 +97,7 @@
             x:Name="Composer"
             Grid.Row="1"
             Grid.Column="1"
-            Padding="8"
+            Padding="10"
             AllowDrop="True"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -108,7 +107,7 @@
                 入力欄は 3 行分の高さ固定（超えた分は欄内でスクロール）。入力で伸びるとターミナルが縮み、CLI が全画面を描き直してちらつくため。
                 添付の行（48px）は添付があるときだけ出す。高さが変わるのは最初の添付時と送信時だけなので許容する
             -->
-            <Grid RowSpacing="6">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -117,6 +116,7 @@
                 <!-- 添付（画像はサムネイル、それ以外はアイコン＋ファイル名。多いときは横スクロール） -->
                 <ListView
                     Height="48"
+                    Margin="0,0,0,6"
                     ItemsSource="{x:Bind ViewModel.Attachments}"
                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
                     ScrollViewer.HorizontalScrollMode="Enabled"
@@ -195,8 +195,10 @@
                     </Grid.ColumnDefinitions>
                     <TextBox
                         x:Name="InputBox"
-                        Height="72"
+                        Height="64"
+                        Padding="0,1"
                         AcceptsReturn="True"
+                        GotFocus="OnInputGotFocus"
                         Paste="OnInputPaste"
                         PlaceholderForeground="{ThemeResource TextFillColorDisabledBrush}"
                         PlaceholderText="ターミナルへ送るテキスト（Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付）"
@@ -220,7 +222,7 @@
                         Spacing="4">
                         <Button
                             Width="40"
-                            Height="32"
+                            Height="30"
                             Padding="0"
                             AutomationProperties.Name="送信履歴"
                             ToolTipService.ToolTip="送信履歴">
@@ -292,7 +294,7 @@
                         </Button>
                         <Button
                             Width="40"
-                            Height="32"
+                            Height="30"
                             Padding="0"
                             AutomationProperties.Name="送信"
                             Command="{x:Bind ViewModel.SendCommand}"

@@ -47,9 +47,11 @@
     // 最後にシェルの出力を受け取った時刻（送信時に、CLI の処理が落ち着いたかの判断に使う）
     let lastOutputAt = 0;
 
-    // 送信の待ち方: 貼り付け後、出力が QUIET_MS 途切れたら Enter（最低 MIN_WAIT_MS、最長 MAX_WAIT_MS）
+    // 送信の待ち方: 貼り付け後、CLI が一度画面を書き換え、その出力が QUIET_MS 途切れたら Enter（最低 MIN_WAIT_MS、最長 MAX_WAIT_MS）。
+    // 長い貼り付けを CLI がまとめて「[Pasted text …]」に置き換える場合、置き換えの描画より先に Enter が届くと
+    // 確定されないため、貼り付け後の出力が来る前は待ち続ける
     const MIN_WAIT_MS = 150;
-    const QUIET_MS = 120;
+    const QUIET_MS = 200;
     const MAX_WAIT_MS = 2000;
     const POLL_MS = 30;
 
@@ -63,7 +65,7 @@
         const timer = setInterval(() => {
             const now = performance.now();
             const elapsed = now - pastedAt;
-            const quiet = now - Math.max(lastOutputAt, pastedAt) >= QUIET_MS;
+            const quiet = lastOutputAt > pastedAt && now - lastOutputAt >= QUIET_MS;
             if ((elapsed >= MIN_WAIT_MS && quiet) || elapsed >= MAX_WAIT_MS) {
                 clearInterval(timer);
                 host.postMessage({ type: "input", data: "\r" });

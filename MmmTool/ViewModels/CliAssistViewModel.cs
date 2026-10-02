@@ -116,7 +116,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         switch (item.Kind)
         {
             case CommandItemKind.Command when item.Command is { } command:
-                Terminal.Submit(command);
+                Terminal.Submit(CommandPlaceholders.Expand(command, AppContext.BaseDirectory));
                 if (item.SwitchTo is { } tab)
                 {
                     SelectedCategory = tab;
@@ -163,7 +163,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     /// <summary>入力欄のテキスト（と添付ファイルの指示文・パス）をターミナルへ送る。</summary>
     [RelayCommand]
-    private async Task SendAsync()
+    private void Send()
     {
         var text = InputText;
         var attachmentPaths = Attachments.Select(item => item.FilePath).ToList();
@@ -178,15 +178,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
         Attachments.Clear();
         _attachmentStore.CloseSession();
 
-        try
-        {
-            // 履歴には入力欄の本文だけを残す（自動で付け足した指示文・パスは残さない）
-            await _settings.AddSendHistoryAsync(text.TrimEnd('\r', '\n'));
-        }
-        catch (DataFileException ex)
-        {
-            ShowError(ex.Message);
-        }
+        // 履歴には入力欄の本文だけを残す（自動で付け足した指示文・パスは残さない）
+        AddSendHistory(text.TrimEnd('\r', '\n'));
     }
 
     #endregion
@@ -247,6 +240,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 送信履歴
 
+    private const int MaxSendHistory = 50;
+
+    /// <summary>送信履歴（先頭が最新）。プライバシーのため保存せず、起動中だけ持つ。</summary>
+    private readonly List<(string Text, DateTimeOffset SentAt)> _sendHistory = [];
+
     public ObservableCollection<SendHistoryItem> HistoryItems { get; } = [];
 
     public bool HasNoHistory => HistoryItems.Count == 0;
@@ -267,13 +265,29 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>履歴の本文を入力欄へ戻す。</summary>
     public void RestoreHistory(SendHistoryItem item) => InputText = item.Text;
 
+    /// <summary>送信した本文を履歴の先頭に追加する。空白のみは無視し、同じ本文は先頭へ移す。</summary>
+    private void AddSendHistory(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        _sendHistory.RemoveAll(entry => entry.Text == text);
+        _sendHistory.Insert(0, (text, _timeProvider.GetLocalNow()));
+        if (_sendHistory.Count > MaxSendHistory)
+        {
+            _sendHistory.RemoveRange(MaxSendHistory, _sendHistory.Count - MaxSendHistory);
+        }
+    }
+
     private void RefreshHistory()
     {
         var today = _timeProvider.GetLocalNow().Date;
         var filter = HistoryFilter.Trim();
 
         HistoryItems.Clear();
-        foreach (var entry in _settings.SendHistory)
+        foreach (var entry in _sendHistory)
         {
             if (filter.Length > 0 && !entry.Text.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {

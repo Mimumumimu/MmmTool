@@ -1,7 +1,10 @@
 using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using MmmTool.Interop;
 using MmmTool.ViewModels;
 using Windows.Graphics;
 
@@ -13,6 +16,7 @@ public sealed partial class MainWindow : Window
     private static readonly Dictionary<string, Type> PageTypes = new()
     {
         [MainViewModel.Keys.CliAssist] = typeof(CliAssistPage),
+        [MainViewModel.Keys.Links] = typeof(LinkEditorPage),
         [MainViewModel.Keys.Settings] = typeof(SettingsPage),
     };
 
@@ -34,10 +38,42 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.Resize(new SizeInt32(1280, 720));
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+        AppWindow.Closing += OnClosing;
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         NavigateTo(ViewModel.SelectedItem);
     }
+
+    #region トレイへの退避・再表示
+
+    /// <summary>アプリを終了中か（閉じる要求が「本当の終了」か「トレイへの退避」かを見分ける）。</summary>
+    private bool _isExiting;
+
+    /// <summary>×ボタン・Alt+F4 では終了せず、トレイへ退避する（非表示にするだけで、アプリは動き続ける）。</summary>
+    private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_isExiting) return;
+        args.Cancel = true;
+        sender.Hide();
+    }
+
+    /// <summary>以降の閉じる要求で本当に閉じるようにする（トレイの「終了」から）。</summary>
+    public void PrepareExit() => _isExiting = true;
+
+    /// <summary>トレイ・最小化から確実に戻して前面に出す（復元 → 表示 → 前面化）。</summary>
+    public void ShowAndActivate()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
+        {
+            presenter.Restore();
+        }
+        AppWindow.Show(activateWindow: true);
+        Activate();
+        NativeMethods.SetForegroundWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id));
+    }
+
+    #endregion
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

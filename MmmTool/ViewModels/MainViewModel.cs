@@ -7,12 +7,14 @@ public sealed partial class MainViewModel : ObservableObject
     public static class Keys
     {
         public const string CliAssist = nameof(CliAssist);
+        public const string Links = nameof(Links);
         public const string Settings = nameof(Settings);
     }
 
     public IReadOnlyList<NavigationItem> MenuItems { get; } =
     [
         new(Keys.CliAssist, "CLI補助", ""),
+        new(Keys.Links, "リンク", ""),
     ];
 
     public IReadOnlyList<NavigationItem> FooterItems { get; } =
