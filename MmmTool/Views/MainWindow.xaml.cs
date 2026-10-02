@@ -19,6 +19,7 @@ public sealed partial class MainWindow : Window
         [MainViewModel.Keys.CliAssist] = typeof(CliAssistPage),
         [MainViewModel.Keys.Links] = typeof(LinkEditorPage),
         [MainViewModel.Keys.Settings] = typeof(SettingsPage),
+        [MainViewModel.Keys.Debug] = typeof(DebugPage),
     };
 
     /// <summary>ページの生成に使う DI コンテナ</summary>

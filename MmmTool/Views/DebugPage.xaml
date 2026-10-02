@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.Views.DebugPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Padding="24" Spacing="16">
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="DEBUG" />
+        <Button Command="{x:Bind ViewModel.ShowNotificationCommand}" Content="通知ダイアログを表示" />
+    </StackPanel>
+</Page>

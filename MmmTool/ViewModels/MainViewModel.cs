@@ -14,6 +14,8 @@ public sealed partial class MainViewModel : ObservableObject
         public const string Links = nameof(Links);
         /// <summary>設定</summary>
         public const string Settings = nameof(Settings);
+        /// <summary>DEBUG（デバッグビルドだけ）</summary>
+        public const string Debug = nameof(Debug);
     }
 
     /// <summary>サイドバー上部の項目</summary>
@@ -26,6 +28,9 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>サイドバー下部の項目</summary>
     public IReadOnlyList<NavigationItem> FooterItems { get; } =
     [
+#if DEBUG
+        new(Keys.Debug, "DEBUG", ""),
+#endif
         new(Keys.Settings, "設定", ""),
     ];
 

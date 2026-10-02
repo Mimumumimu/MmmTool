@@ -14,6 +14,27 @@ public sealed class JsonFileStore(string dataDirectory)
     /// <summary>ファイルが存在するか</summary>
     public bool Exists(string fileName) => File.Exists(GetPath(fileName));
 
+    /// <summary>同期で読み込む</summary>
+    /// <remarks>ファイルが無ければ null。小さなファイルを起動時などに UI スレッドで読む用途向け。</remarks>
+    public T? Read<T>(string fileName, JsonTypeInfo<T> typeInfo)
+    {
+        var path = GetPath(fileName);
+        if (!File.Exists(path))
+        {
+            return default;
+        }
+
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return JsonSerializer.Deserialize(stream, typeInfo);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            throw new DataFileException($"{fileName} を読み込めませんでした。{ex.Message}", ex);
+        }
+    }
+
     /// <summary>読み込む</summary>
     /// <remarks>ファイルが無ければ null。</remarks>
     public async Task<T?> ReadAsync<T>(string fileName, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)

@@ -2,6 +2,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MmmTool.Core.Entities;
+using MmmTool.Core.Services;
 
 namespace MmmTool.Core.Repositories.Json;
 
@@ -10,6 +11,13 @@ namespace MmmTool.Core.Repositories.Json;
 [JsonSerializable(typeof(CliCommandSet))]
 [JsonSerializable(typeof(CliSettings))]
 [JsonSerializable(typeof(LinkMenu))]
+[JsonSerializable(typeof(WindowPosition))]
+[JsonSerializable(typeof(Dictionary<string, JsonElement>))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(long))]
+[JsonSerializable(typeof(double))]
 internal sealed partial class CoreJsonContext : JsonSerializerContext
 {
     /// <summary>手で読み書きしやすい形の設定</summary>

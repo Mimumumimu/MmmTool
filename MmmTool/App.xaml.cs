@@ -53,12 +53,14 @@ public partial class App : Application
         services.AddSingleton<ICliCommandRepository, JsonCliCommandRepository>();
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
         services.AddSingleton<ILinkRepository, JsonLinkRepository>();
+        services.AddSingleton<ISettingsStore, JsonSettingsStore>();
 
         // Services
         services.AddSingleton<CliSettingsService>();
         // 最後に読み込み・保存した構成を、編集ページとトレイのリンクメニューで共有するため、アプリ全体で 1 つ
         services.AddSingleton<LinkMenuService>();
         services.AddSingleton<LinkOpener>();
+        services.AddSingleton<WindowPositionService>();
         // 終了時（Host の破棄時）に添付の一時フォルダを削除する
         services.AddSingleton<AttachmentStore>();
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
@@ -67,6 +69,8 @@ public partial class App : Application
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
         services.AddSingleton<IImageConverter, ImageConverter>();
+        // 通知ウィンドウはアプリ内で 1 枚だけ（サービスが持つ）
+        services.AddSingleton<INotificationDialogService, NotificationDialogService>();
 
         // トレイ（メニューの項目は、ここに登録した順に区切り線で分けて並ぶ）
         services.AddSingleton<TrayIcon>();
@@ -78,6 +82,9 @@ public partial class App : Application
         services.AddTransient<LinkEditorPage>();
         services.AddTransient<SettingsPage>();
         services.AddTransient<WorkingDirectoryDialog>();
+        services.AddTransient<DebugPage>();
+        // ユーザーが閉じたら作り直すので Transient
+        services.AddTransient<NotificationWindow>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
@@ -85,6 +92,8 @@ public partial class App : Application
         services.AddTransient<SettingsViewModel>();
         services.AddTransient<LinkEditorViewModel>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
+        services.AddTransient<DebugViewModel>();
+        services.AddTransient<NotificationDialogViewModel>();
     }
 
     /// <inheritdoc />
