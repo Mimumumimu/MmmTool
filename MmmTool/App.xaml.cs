@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
+using MmmSdk.Core;
+using MmmSdk.Core.Repositories;
+using MmmSdk.WinUI;
 using MmmTool.Core.Repositories;
 using MmmTool.Core.Repositories.Json;
 using MmmTool.Core.Services;
@@ -49,18 +52,16 @@ public partial class App : Application
         services.AddSingleton(TimeProvider.System);
 
         // Repositories（保存先を替えるときはここだけを差し替える）
-        services.AddSingleton(new JsonFileStore(Path.Combine(AppContext.BaseDirectory, "Data")));
+        // SDK（JsonFileStore・設定ストア・位置保存・リンクを開く処理）。JsonFileStore はアプリ固有の保存でも共有する
+        services.AddMmmSdkCore(Path.Combine(AppContext.BaseDirectory, "Data"));
         services.AddSingleton<ICliCommandRepository, JsonCliCommandRepository>();
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
         services.AddSingleton<ILinkRepository, JsonLinkRepository>();
-        services.AddSingleton<ISettingsStore, JsonSettingsStore>();
 
         // Services
         services.AddSingleton<CliSettingsService>();
         // 最後に読み込み・保存した構成を、編集ページとトレイのリンクメニューで共有するため、アプリ全体で 1 つ
         services.AddSingleton<LinkMenuService>();
-        services.AddSingleton<LinkOpener>();
-        services.AddSingleton<WindowPositionService>();
         // 終了時（Host の破棄時）に添付の一時フォルダを削除する
         services.AddSingleton<AttachmentStore>();
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
@@ -69,8 +70,8 @@ public partial class App : Application
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
         services.AddSingleton<IImageConverter, ImageConverter>();
-        // 通知ウィンドウはアプリ内で 1 枚だけ（サービスが持つ）
-        services.AddSingleton<INotificationDialogService, NotificationDialogService>();
+        // 通知ダイアログ（SDK）。ウィンドウはアプリ内で 1 枚だけ（サービスが持つ）
+        services.AddMmmSdkWinUI();
 
         // トレイ（メニューの項目は、ここに登録した順に区切り線で分けて並ぶ）
         services.AddSingleton<TrayIcon>();
@@ -83,8 +84,6 @@ public partial class App : Application
         services.AddTransient<SettingsPage>();
         services.AddTransient<WorkingDirectoryDialog>();
         services.AddTransient<DebugPage>();
-        // ユーザーが閉じたら作り直すので Transient
-        services.AddTransient<NotificationWindow>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
@@ -93,7 +92,6 @@ public partial class App : Application
         services.AddTransient<LinkEditorViewModel>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
         services.AddTransient<DebugViewModel>();
-        services.AddTransient<NotificationDialogViewModel>();
     }
 
     /// <inheritdoc />

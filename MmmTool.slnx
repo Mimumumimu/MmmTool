@@ -3,6 +3,10 @@
     <Platform Name="x64" />
   </Configurations>
   <Project Path="MmmTool.Core/MmmTool.Core.csproj" />
+  <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj" />
+  <Project Path="external/MmmSdk/MmmSdk.WinUI/MmmSdk.WinUI.csproj">
+    <Platform Project="x64" />
+  </Project>
   <Project Path="MmmTool/MmmTool.csproj">
     <Platform Project="x64" />
     <Deploy />
