@@ -4,7 +4,7 @@ namespace MmmTool.Core.CliAssist;
 public enum CommandCategory
 {
     /// <summary>シェルで打つコマンド（AI エージェント起動前）。</summary>
-    Terminal,
+    Shell,
 
     /// <summary>AI エージェントのセッション内で打つコマンド（起動後）。</summary>
     Session,

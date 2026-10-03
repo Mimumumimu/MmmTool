@@ -5,7 +5,7 @@ namespace MmmTool.Core.CliAssist;
 public sealed class CliCommandSet
 {
     /// <summary>シェルで打つコマンド（AI エージェント起動前）。</summary>
-    public List<CliCommandNode>? Terminal { get; set; } = [];
+    public List<CliCommandNode>? Shell { get; set; } = [];
 
     /// <summary>AI エージェント（Claude Code・Kiro 等）のセッション内で打つコマンド（起動後）</summary>
     /// <remarks>ツールごとにフォルダで分ける。</remarks>

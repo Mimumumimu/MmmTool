@@ -124,10 +124,10 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private void RebuildCommandItems()
     {
         var items = new List<CommandTreeItem>();
-        var nodes = SelectedCategory == CommandCategory.Terminal ? _commandSet.Terminal : _commandSet.Session;
+        var nodes = SelectedCategory == CommandCategory.Shell ? _commandSet.Shell : _commandSet.Session;
 
-        // 「作業ディレクトリ変更」はターミナル側の先頭に固定で置く（定義ファイルには含めない）
-        if (SelectedCategory == CommandCategory.Terminal)
+        // 「作業ディレクトリ変更」はシェル側の先頭に固定で置く（定義ファイルには含めない）
+        if (SelectedCategory == CommandCategory.Shell)
         {
             items.Add(CommandTreeItem.ChangeDirectory());
         }

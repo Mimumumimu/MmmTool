@@ -11,7 +11,7 @@ public sealed class CliCommandNode
     /// <summary>ターミナルへ送るコマンド文字列（葉のとき）。</summary>
     public string? Command { get; set; }
 
-    /// <summary>コマンドを送ったあとに切り替える左ペインのタブ（"terminal" または "session"）</summary>
+    /// <summary>コマンドを送ったあとに切り替える左ペインのタブ（"shell" または "session"）</summary>
     /// <remarks>省略すると切り替えない。</remarks>
     public string? SwitchTo { get; set; }
 

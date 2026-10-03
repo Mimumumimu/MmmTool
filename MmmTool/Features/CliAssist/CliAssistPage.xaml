@@ -32,9 +32,9 @@
                 </Grid.RowDefinitions>
                 <SelectorBar x:Name="CategorySelector" SelectionChanged="OnCategorySelectionChanged">
                     <SelectorBarItem
-                        x:Name="TerminalCategoryItem"
+                        x:Name="ShellCategoryItem"
                         IsSelected="True"
-                        Text="ターミナル" />
+                        Text="シェル" />
                     <SelectorBarItem x:Name="SessionCategoryItem" Text="AI セッション" />
                 </SelectorBar>
                 <TreeView

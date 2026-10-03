@@ -11,11 +11,11 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
 
 ## 定型コマンド
-- 「ターミナル」と「AI セッション」の 2 タブ固定。最初は全部開いた状態（開閉は自由。タブを切り替えると開いた状態に戻る）
+- 「シェル」と「AI セッション」の 2 タブ固定（「ターミナル」は中央のペインの名前で、タブとは別。ターミナルは「シェルのタブ」「AI セッションのタブ」のどちらのコマンドも受け取る）。最初は全部開いた状態（開閉は自由。タブを切り替えると開いた状態に戻る）
 - 左ペインは幅 280px。長い名前は横スクロール（TreeView 内の ScrollViewer に Loaded で設定する）
-- JSON は `terminal` / `session`。セッション側はツールごと（Claude Code・Kiro など）にフォルダで分ける。作業ディレクトリ変更はターミナル側の先頭
+- JSON は `shell` / `session`（列挙型は `CommandCategory.Shell` / `Session`）。セッション側はツールごと（Claude Code・Kiro など）にフォルダで分ける。作業ディレクトリ変更はシェル側の先頭
 - 葉のコマンドの設定（値は列挙型 `CommandCategory` / `FocusTarget`（Core）に変換する。`CliCommandNode.GetSwitchTo()` / `GetFocus()`。手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する）
-  - `"switchTo": "terminal" | "session"`：送信後にそのタブへ切り替える。既定では「Claude Code 起動」→ AI セッション、「終了」→ ターミナル
+  - `"switchTo": "shell" | "session"`：送信後にそのタブへ切り替える。既定では「Claude Code 起動」→ AI セッション、「終了」→ シェル
   - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先（input = 送信欄）。既定では、起動・新規チャット → input、モデル切替・会話履歴と再開 → terminal（一覧から選ぶ操作でキーを使うため）
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する（`CommandPlaceholders`）
 - 既定のコマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない（無いときだけ生成）。反映するにはアプリを閉じて JSON を削除する
@@ -40,7 +40,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 
 ## 補助スクリプト：会話履歴の削除
 - `Assets/Tools/Remove-ClaudeSession.ps1`：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る（`~/.claude/projects` 配下の `.jsonl` が対象）
-- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」（ターミナル › Claude Code）から `pwsh -NoProfile -File "{AppDir}\Assets\Tools\..."` で呼ぶ
+- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」（シェル › Claude Code）から `pwsh -NoProfile -File "{AppDir}\Assets\Tools\..."` で呼ぶ
 - ファイルは日本語を含むので BOM 付き UTF-8（PowerShell 5.1 の文字化け対策）
 - 矢印キーの選択画面は実ターミナルが必要（入力がリダイレクトされているときは番号入力に切り替わる）
 - 操作：↑↓ 移動 / Space 選択 / Tab 選択して下へ（Shift+Tab は上へ） / a 全選択 / Enter 決定（未選択ならカーソル行） / Esc・Backspace 戻る / q・Ctrl+C 終了。削除後はプロジェクト選択へ戻る
