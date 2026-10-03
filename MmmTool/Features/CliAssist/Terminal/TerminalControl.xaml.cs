@@ -118,7 +118,16 @@ public sealed partial class TerminalControl : UserControl
         }
         _webViewInitialized = true;
 
-        await WebView.EnsureCoreWebView2Async();
+        try
+        {
+            await WebView.EnsureCoreWebView2Async();
+        }
+        catch (COMException ex)
+        {
+            // WebView2 ランタイムが無い・起動できないとき。ターミナルだけが使えないので、他の機能は使えるよう、ここに理由を出す
+            ShowInitializationError(ex);
+            return;
+        }
         var core = WebView.CoreWebView2;
 
         // ブラウザとしての機能（再読み込み・検索・印刷・ズーム・右クリックメニュー等）を止め、端末として振る舞わせる
@@ -134,6 +143,19 @@ public sealed partial class TerminalControl : UserControl
         core.SetVirtualHostNameToFolderMapping(
             HostName, Path.Combine(AppContext.BaseDirectory, "Assets", "Terminal"), CoreWebView2HostResourceAccessKind.DenyCors);
         core.Navigate($"https://{HostName}/index.html");
+    }
+
+    /// <summary>WebView2 を初期化できなかった理由を、ターミナルの場所に出す</summary>
+    /// <param name="exception">初期化の失敗</param>
+    /// <remarks>
+    /// 制約: WebView2 ランタイムが入っていない PC で、どの例外が出るかは、この環境では確かめられていない。COMException 以外が出たときは、未処理例外の受け皿（ログ・ダイアログ・終了）が受ける。実機で確かめて、受ける例外を直す。
+    /// </remarks>
+    private void ShowInitializationError(COMException exception)
+    {
+        WebView.Visibility = Visibility.Collapsed;
+        InitializationErrorText.Text =
+            $"ターミナルを表示できません（WebView2 を初期化できませんでした）。\nWebView2 ランタイムがインストールされているか確認してください。\n\n{exception.Message}";
+        InitializationErrorText.Visibility = Visibility.Visible;
     }
 
     /// <summary>xterm.js からのメッセージを処理する</summary>
