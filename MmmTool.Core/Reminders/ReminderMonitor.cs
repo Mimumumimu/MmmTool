@@ -64,13 +64,11 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     {
         var now = timeProvider.GetLocalNow().DateTime;
         var today = ReminderDates.ToDateValue(now);
-        foreach (var (reminder, status) in await GetTriggeredAsync(now))
-        {
-            if (status == ReminderStatus.None)
-            {
-                await reminders.SetStateAsync(reminder.No, today, ReminderStatus.Snooze);
-            }
-        }
+        var changes = (await GetTriggeredAsync(now))
+            .Where(target => target.Status == ReminderStatus.None)
+            .Select(target => new ReminderStateChange(target.Reminder.No, today, ReminderStatus.Snooze))
+            .ToList();
+        await reminders.SetStatesAsync(changes);
 
         lock (_gate)
         {

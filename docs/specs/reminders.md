@@ -11,15 +11,23 @@
 - 変換は `ReminderDates`（`DateOnly` / `TimeOnly` / `DayOfWeek` との相互変換、`ToJapanese` で「月火水」、`DescribeWeekdays` で画面に出す曜日の文字列＝曜日が 1 つも無ければ「毎日」）
 - 発動の判定は `ReminderDates.OccursOn(Reminder, DateOnly)`：発動日が今日、または曜日指定で今日の曜日を含む。曜日が 1 つも無い曜日指定は毎日。監視とメイン画面で共通に使う
 
+## 保存先（`IReminderRepository`）
+- 1 件単位の操作で書く（一覧を丸ごと置き換えない）：`AddAsync`・`UpdateAsync`・`SetDeletedAsync`（論理削除の切り替え）・`PurgeAsync`（物理削除）・`SetStatesAsync`（対応状態のまとめ書き）。読みは `GetRemindersAsync(includeDeleted)`・`GetStatesAsync`
+- 番号（`Reminder.No`）と対応状態の連番（`ReminderState.Seq`）は、保存先が決める（`AddAsync` は `No` を無視し、番号つきの内容を返す）。JSON は、ロックの中で「最大 + 1」を計算する。SQL Server は IDENTITY かトランザクション内の最大 + 1（一意制約と再試行）、DynamoDB はカウンター項目の原子的な加算。型は `int` のまま（人が登録する件数で、`int` の範囲を超えないため。DB 側も `int` の IDENTITY で足りる）
+- `PurgeAsync` は対応状態も一緒に消す。残すと、最大の番号を消したあとの新規作成で同じ番号が採番されたとき、前の状態を引き継ぐため。JSON は状態のファイルを先に書く（途中で失敗しても、状態が残るだけの側に倒す）
+- 読み書きはスレッドセーフ。返す値は `init` の record なので、複製しない
+- JSON 実装（`JsonReminderRepository`）: 最初のアクセスで両ファイルを読んでメモリに持ち、`SemaphoreSlim` で順番に読み書きする。書き込みは、変更後のコピーをファイルに書き、成功してからメモリを差し替える（保存に失敗しても、メモリだけが新しい状態にならない）
+- IO エラーで読めなかったときは、空として扱い `LoadError` に残す。書き込みは `DataFileException`（元データを消さないため）。読み込み結果は SDK の `LoadStatus` で持つ（ファイル固有の仕組みなので、保存先の中に閉じる。ファイルを使わない保存先は、`LoadError` / `RecoveryMessage` を常に null にする）
+
 ## サービス（`ReminderService`、Singleton）
-- 最初のアクセスで両ファイルを読んでキャッシュし、`SemaphoreSlim` で順番に読み書きする。取得はキャッシュの複製を返す
-- 保存：`No` が 0 なら最大 + 1 で採番する。既存は同じ `No` を更新し、削除フラグを解除する（無い `No` は `ArgumentException`）
-- 論理削除 `DeleteAsync`、物理削除 `PurgeAsync`（対応状態も一緒に消す。残すと、最大の番号を消したあとの新規作成で同じ番号が採番されたとき、前の状態を引き継ぐため。状態のファイルを先に書く）
-- 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`）
+- 保存先の 1 件単位の操作に、業務の決まりを載せる。一覧は持たず、そのつど保存先から読む（排他・採番・読み込みの失敗の扱いは保存先の仕事）
+- 保存：`No` が 0 なら追加（`AddAsync`）。既存は同じ `No` を更新し、削除フラグを解除する（無い `No` は `ArgumentException`）
+- 論理削除 `DeleteAsync`、物理削除 `PurgeAsync`
+- 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`。複数件は `SetStatesAsync` で 1 回の書き込み）
 - 変更後に `Changed` を発火する（任意のスレッドから）
-- IO エラーで読めなかったときは、空として扱い `LoadError` に残す。保存は `DataFileException`（元データを消さないため）。読み込み結果は SDK の `LoadStatus` で持つ
-- 時刻（`HHmm` の整数）が正しくない（手で編集した JSON で負の値・25 時など）リマインダーは、「常に発動済み」のように誤って動かないよう、`GetTargetsAsync`（今日の対象・通知）から外す。本体は消さない（一覧には出る。編集して直せる）。最初の読み込みで、番号を挙げて InfoBar で知らせる（直しても、次に起動するまでメッセージは残る）
-- `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。本体と状態を同じロックの中で読む。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
+- `LoadError` / `RecoveryMessage` は保存先のものを返す（最初に読んだあとに分かる）
+- 時刻（`HHmm` の整数）が正しくない（手で編集した JSON で負の値・25 時など）リマインダーは、「常に発動済み」のように誤って動かないよう、`GetTargetsAsync`（今日の対象・通知）から外す。本体は消さない（一覧には出る。編集して直せる）。読むたびに調べ、あれば番号を挙げた警告を `RecoveryMessage` に足して、InfoBar で知らせる
+- `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
 
 ## 監視（`ReminderMonitor`、Singleton）
 - 役割分担：タイマーの管理は SDK の `MinuteScheduler`（毎分 00 秒の単発タイマーの掛け直し・同じ分に 2 回呼ばない）、通知する項目の判定は `ReminderEvaluator`（時刻・タイマー・設定に依存しない純粋な判定）、`ReminderMonitor` はそれらをつなぎ、スヌーズの通知時刻を覚える。スヌーズ間隔は `ReminderSettingsService` から読む（設定ストアに直接触れない）
@@ -33,7 +41,7 @@
 - スヌーズ間隔は設定ストアの `Reminder.SnoozeIntervalMinutes` を毎回読む（既定 15、範囲は 5〜999。キー・定数・補正は `ReminderSettingsService` に集約している）
 - 1 回の判定の対象は 1 つの通知にまとめる。タイトルは「リマインダー」、本文は件名（リンクがあればリンク先つき）
 - 判定中の想定外の例外は握りつぶさない（`async void` なので未処理例外になる）
-- `SnoozeTriggeredAsync`：発動済みで今日の状態が None のものを Snooze にし、モニターのスヌーズ間隔をその分から数え直す（そうしないと次の分にすぐ再通知される）。通知をクリックしてメイン画面を開いたときに呼ぶ。行で手動でスヌーズにしたときは数え直さない
+- `SnoozeTriggeredAsync`：発動済みで今日の状態が None のものを Snooze にし、モニターのスヌーズ間隔をその分から数え直す（対象の状態は、`SetStatesAsync` で 1 回の書き込みにまとめる）（そうしないと次の分にすぐ再通知される）。通知をクリックしてメイン画面を開いたときに呼ぶ。行で手動でスヌーズにしたときは数え直さない
 
 ## 擬似モーダル
 一覧・入力画面・確認ダイアログは、開いている間、親を操作できない擬似モーダルにする。決めた理由は [../decisions/0005-pseudo-modal.md](../decisions/0005-pseudo-modal.md)。
@@ -81,7 +89,7 @@
 
 ## メイン画面（`ReminderMainWindow` ＋ `ReminderMainViewModel`）
 - 開くのは `ReminderWindowService`（Singleton）。1 枚だけ持ち、開いていれば前面に出す。読み込み中の 2 回目の呼び出しは、表示し終わるのを待つ
-  - 読み込みの失敗（ファイルを読めない等）は `ReminderService` が受けて `LoadError` に残す（空として続け、画面の InfoBar に出す）ので、ここまでは例外にならない。画面を作る・表示するのが失敗したとき（バグ）は、作りかけの画面を閉じ、失敗した結果を残さずに（次の呼び出しで作り直せるように）、例外はそのまま呼び出し元へ渡す
+  - 読み込みの失敗（ファイルを読めない等）は保存先が受けて `LoadError` に残す（空として続け、画面の InfoBar に出す）ので、ここまでは例外にならない。画面を作る・表示するのが失敗したとき（バグ）は、作りかけの画面を閉じ、失敗した結果を残さずに（次の呼び出しで作り直せるように）、例外はそのまま呼び出し元へ渡す
 - トレイメニューの「リマインダー」（`ReminderTrayMenuSource`。リンクより上）と、通知の本文クリックから開く
 - モーダルではない普通のウィンドウ（× は普通に閉じる。トレイへの退避ではない）。Mica・タイトル帯でドラッグ
 - 大きさは変えられるが保存しない（開くたびに最初の大きさ。最初 360×440・最小 360×320 DIP、最大化・最小化なし、主モニターの作業領域の中央。表示前に倍率を知るため `GetDpiForWindow` を使う）
