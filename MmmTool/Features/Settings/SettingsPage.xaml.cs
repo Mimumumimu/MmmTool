@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
+using MmmSdk.WinUI.VisualTree;
 
 namespace MmmTool.Features.Settings;
 
@@ -38,34 +38,12 @@ public sealed partial class SettingsPage : Page
     /// </remarks>
     private static void HideDeleteButton(DependencyObject numberBox)
     {
-        if (FindDescendant<Button>(numberBox, "DeleteButton") is { } button)
+        if (VisualTreeSearch.FindDescendant<Button>(numberBox, "DeleteButton") is { } button)
         {
             button.MinWidth = 0;
             button.Width = 0;
             button.Opacity = 0;
             button.IsHitTestVisible = false;
         }
-    }
-
-    /// <summary>名前が一致する子孫要素を探す</summary>
-    /// <typeparam name="T">探す要素の型</typeparam>
-    /// <param name="parent">探し始める要素</param>
-    /// <param name="name">探す要素の名前</param>
-    /// <returns>見つかった要素。無ければ null</returns>
-    private static T? FindDescendant<T>(DependencyObject parent, string name) where T : FrameworkElement
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T element && element.Name == name)
-            {
-                return element;
-            }
-            if (FindDescendant<T>(child, name) is { } found)
-            {
-                return found;
-            }
-        }
-        return null;
     }
 }

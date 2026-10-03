@@ -2,10 +2,10 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using MmmTool.Services;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.UI.Text;
+using MmmSdk.WinUI.Dialogs;
 
 namespace MmmTool.Features.Reminders;
 

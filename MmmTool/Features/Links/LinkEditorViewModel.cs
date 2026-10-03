@@ -5,8 +5,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Paths;
 using MmmSdk.Core.Storage;
+using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.Links;
-using MmmTool.Services;
 
 namespace MmmTool.Features.Links;
 
