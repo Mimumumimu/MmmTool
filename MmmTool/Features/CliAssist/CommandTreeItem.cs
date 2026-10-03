@@ -2,26 +2,6 @@ using MmmTool.Core.CliAssist;
 
 namespace MmmTool.Features.CliAssist;
 
-/// <summary>定型コマンドのタブの種類</summary>
-public enum CommandCategory
-{
-    /// <summary>シェルで打つコマンド（AI エージェント起動前）。</summary>
-    Terminal,
-
-    /// <summary>AI エージェントのセッション内で打つコマンド（起動後）。</summary>
-    Session,
-}
-
-/// <summary>コマンドを送ったあとにフォーカスを移す先。</summary>
-public enum FocusTarget
-{
-    /// <summary>ターミナル</summary>
-    Terminal,
-
-    /// <summary>送信欄の入力欄。</summary>
-    Input,
-}
-
 /// <summary>ツリーの要素の種類</summary>
 public enum CommandItemKind
 {
@@ -110,16 +90,6 @@ public sealed class CommandTreeItem
         return children.Count > 0 || string.IsNullOrWhiteSpace(node.Command)
             ? new CommandTreeItem(node.Label, CommandItemKind.Group, null, children)
             : new CommandTreeItem(node.Label, CommandItemKind.Command, node.Command, [],
-                Parse<CommandCategory>(node.SwitchTo), Parse<FocusTarget>(node.Focus));
+                node.GetSwitchTo(), node.GetFocus());
     }
-
-    /// <summary>文字列を列挙値に変換する。変換できなければ null</summary>
-    /// <typeparam name="T">変換先の列挙型</typeparam>
-    /// <param name="value">変換する文字列</param>
-    /// <returns>変換した列挙値。変換できなければ null</returns>
-    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する（何もしない）。</remarks>
-    private static T? Parse<T>(string? value) where T : struct, Enum
-        => !string.IsNullOrWhiteSpace(value) && Enum.TryParse<T>(value.Trim(), ignoreCase: true, out var result) && Enum.IsDefined(result)
-            ? result
-            : null;
 }
