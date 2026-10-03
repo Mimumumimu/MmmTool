@@ -5,7 +5,7 @@ using MmmSdk.Core.Paths;
 using MmmSdk.Core.Storage;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面。今日の対象を並べ、対応状態（未 / スヌーズ / 完了）を切り替える。</summary>
 /// <remarks>

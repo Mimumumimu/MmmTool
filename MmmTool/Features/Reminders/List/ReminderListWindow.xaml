@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Window
-    x:Class="MmmTool.Features.Reminders.ReminderListWindow"
+    x:Class="MmmTool.Features.Reminders.List.ReminderListWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:MmmTool.Features.Reminders"
+    xmlns:local="using:MmmTool.Features.Reminders.List"
     Title="リマインダー一覧">
 
     <Window.SystemBackdrop>

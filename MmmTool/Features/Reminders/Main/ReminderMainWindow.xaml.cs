@@ -9,7 +9,7 @@ using MmmTool.Core.Reminders;
 using Windows.Graphics;
 using Windows.UI.Text;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面</summary>
 /// <remarks>

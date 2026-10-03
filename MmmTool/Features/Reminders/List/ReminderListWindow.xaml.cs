@@ -7,7 +7,7 @@ using Windows.Graphics;
 using Windows.UI.Text;
 using MmmSdk.WinUI.Dialogs;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.List;
 
 /// <summary>リマインダー一覧ウィンドウ</summary>
 /// <remarks>

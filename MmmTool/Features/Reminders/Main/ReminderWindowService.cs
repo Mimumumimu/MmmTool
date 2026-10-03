@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Dialogs;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面を開く</summary>
 /// <param name="services">画面を作る DI のサービスプロバイダー</param>

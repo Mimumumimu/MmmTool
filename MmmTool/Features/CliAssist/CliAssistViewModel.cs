@@ -3,7 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
 using MmmTool.Core.CliAssist;
+using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Features.CliAssist.Terminal;
+using MmmTool.Features.CliAssist.WorkingDirectory;
 
 namespace MmmTool.Features.CliAssist;
 

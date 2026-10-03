@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Input;
 
 /// <summary>リマインダー入力の曜日の選択肢 1 つ（月〜日のトグルボタン）</summary>
 /// <param name="flag">曜日フラグ</param>

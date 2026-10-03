@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面の行（今日の対象 1 件）</summary>
 /// <remarks>

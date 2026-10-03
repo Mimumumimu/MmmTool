@@ -19,7 +19,9 @@
 MmmTool.Core/<機能>/            Entity・Repository のインターフェース・サービス（CliAssist / Links / Reminders）
 MmmTool.Core/<機能>/Json/       JSON の実装（Json<名前>Repository）と機能ごとのソース生成 Context
 MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス・トレイの項目・Add<機能>()・<機能>Startup
-                                （CliAssist（＋Terminal/）/ Links / Reminders / Settings / Debugging）
+                                （CliAssist / Links / Reminders / Settings / Debugging）
+                                機能の中が大きいときは、責務ごとのサブフォルダーに分ける（名前空間もフォルダーどおり）:
+                                CliAssist/{Terminal, WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
                                 PageProvider・IStartupTask・ShellServiceCollectionExtensions）
 MmmTool/Controls/               汎用の部品（TimeInputBox・LinkArea）
@@ -59,7 +61,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
-- 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは `Features/CliAssist/ThumbnailImage.FromFile`）
+- 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは `Features/CliAssist/Attachments/ThumbnailImage.FromFile`）
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
 - ターミナルの後始末（`PseudoConsoleSession.Close`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
 - JSON は `System.Text.Json` のソース生成（トリミングは今は無効だが、戻しても動く形を保つ）

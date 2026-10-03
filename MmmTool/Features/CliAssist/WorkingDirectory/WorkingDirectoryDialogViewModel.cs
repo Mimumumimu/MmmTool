@@ -5,7 +5,7 @@ using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.CliAssist;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.WorkingDirectory;
 
 /// <summary>作業ディレクトリ変更ダイアログの ViewModel</summary>
 public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject

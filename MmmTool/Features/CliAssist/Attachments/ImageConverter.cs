@@ -1,7 +1,7 @@
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Attachments;
 
 /// <summary>画像を JPEG に変換する</summary>
 public sealed class ImageConverter : IImageConverter

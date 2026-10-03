@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Input;
 
 /// <summary>
 /// リマインダー入力画面。リマインダー 1 件を新規登録・編集して保存する。

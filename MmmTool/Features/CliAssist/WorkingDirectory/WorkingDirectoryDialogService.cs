@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Dialogs;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.WorkingDirectory;
 
 /// <summary>作業ディレクトリ変更ダイアログを開く</summary>
 /// <param name="services">ダイアログを作る DI のサービスプロバイダー</param>

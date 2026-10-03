@@ -6,7 +6,7 @@ using MmmTool.Interop;
 using Windows.Foundation;
 using Windows.Graphics;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Input;
 
 /// <summary>リマインダー入力ウィンドウ（1 件の新規登録・編集）</summary>
 /// <remarks>

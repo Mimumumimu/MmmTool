@@ -1,4 +1,4 @@
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Attachments;
 
 /// <summary>画像の変換</summary>
 public interface IImageConverter

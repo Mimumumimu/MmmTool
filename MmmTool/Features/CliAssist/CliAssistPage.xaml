@@ -3,6 +3,7 @@
     x:Class="MmmTool.Features.CliAssist.CliAssistPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:attachments="using:MmmTool.Features.CliAssist.Attachments"
     xmlns:local="using:MmmTool.Features.CliAssist"
     xmlns:terminal="using:MmmTool.Features.CliAssist.Terminal"
     Loaded="OnLoaded">
@@ -133,7 +134,7 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:AttachmentItem">
+                        <DataTemplate x:DataType="attachments:AttachmentItem">
                             <Grid
                                 Height="48"
                                 MinWidth="48"
@@ -143,7 +144,7 @@
                                 ToolTipService.ToolTip="{x:Bind DisplayName}">
                                 <Image
                                     Width="48"
-                                    Source="{x:Bind local:ThumbnailImage.FromFile(ThumbnailPath)}"
+                                    Source="{x:Bind attachments:ThumbnailImage.FromFile(ThumbnailPath)}"
                                     Stretch="UniformToFill"
                                     Visibility="{x:Bind IsImage}" />
                                 <StackPanel

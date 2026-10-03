@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Window
-    x:Class="MmmTool.Features.Reminders.ReminderMainWindow"
+    x:Class="MmmTool.Features.Reminders.Main.ReminderMainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MmmTool.Controls"
-    xmlns:local="using:MmmTool.Features.Reminders"
+    xmlns:local="using:MmmTool.Features.Reminders.Main"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     Title="リマインダー">
 

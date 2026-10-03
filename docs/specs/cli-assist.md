@@ -1,6 +1,6 @@
 # CLI補助
 
-AI のコマンドラインツール（Claude Code・Kiro など）を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`Features/CliAssist/`（Core 側は `MmmTool.Core/CliAssist/`）。
+AI のコマンドラインツール（Claude Code・Kiro など）を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`Features/CliAssist/`（中は `Terminal/`・`WorkingDirectory/`・`Attachments/` に分けている。Core 側は `MmmTool.Core/CliAssist/`）。
 
 ## 画面
 - 3 領域のレイアウト：左に定型コマンドのツリー、中央にターミナル、下に送信欄

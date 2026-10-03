@@ -1,4 +1,4 @@
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Attachments;
 
 /// <summary>
 /// 送信欄に添付したファイル 1 件。

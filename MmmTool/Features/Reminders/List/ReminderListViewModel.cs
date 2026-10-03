@@ -5,7 +5,7 @@ using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.List;
 
 /// <summary>
 /// リマインダー一覧画面。全リマインダーを並べ、追加・編集・削除・コピーして新規追加・完全削除を行う。

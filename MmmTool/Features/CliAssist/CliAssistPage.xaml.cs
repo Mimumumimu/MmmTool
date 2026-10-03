@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using MmmSdk.WinUI.VisualTree;
 using MmmTool.Core.CliAssist;
+using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Interop;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;

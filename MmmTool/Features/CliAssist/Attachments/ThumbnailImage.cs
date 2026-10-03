@@ -3,7 +3,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Streams;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Attachments;
 
 /// <summary>添付のサムネイル画像</summary>
 /// <remarks>XAML の <c>x:Bind</c> から関数として呼ぶ。ファイルを開いたままにしない（削除できなくなるため）よう、中身をメモリに読み込んでから表示する。</remarks>

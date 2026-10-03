@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.WorkingDirectory;
 
 /// <summary>作業ディレクトリ変更ダイアログ</summary>
 public sealed partial class WorkingDirectoryDialog : ContentDialog

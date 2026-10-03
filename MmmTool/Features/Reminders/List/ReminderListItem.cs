@@ -1,6 +1,6 @@
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.List;
 
 /// <summary>リマインダー一覧の 1 行</summary>
 /// <param name="source">元のリマインダー</param>
