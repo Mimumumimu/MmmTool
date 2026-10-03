@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.CliAssist.Terminal;
 
@@ -203,7 +204,7 @@ public sealed partial class TerminalControl : UserControl
         }
         else
         {
-            _ = StartSessionAsync(restart: false);
+            StartSessionAsync(restart: false).Forget();
         }
 
         FlushOutput();
@@ -222,7 +223,7 @@ public sealed partial class TerminalControl : UserControl
         // シェル終了後は、押されたキーを捨てて再起動のきっかけにする
         if (Session is { HasExited: true })
         {
-            _ = StartSessionAsync(restart: true);
+            StartSessionAsync(restart: true).Forget();
             return;
         }
         Session?.Write(data);

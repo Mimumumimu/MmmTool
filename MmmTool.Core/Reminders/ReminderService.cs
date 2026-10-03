@@ -75,7 +75,7 @@ public sealed class ReminderService(IReminderRepository repository)
                 .GroupBy(state => state.BaseNo)
                 .ToDictionary(group => group.Key, group => group.Last().Status);
             return [.. reminders
-                .Where(reminder => !reminder.IsDeleted && ReminderDates.OccursOn(reminder, today))
+                .Where(reminder => !reminder.IsDeleted && ReminderDates.ToTime(reminder.Time) is not null && ReminderDates.OccursOn(reminder, today))
                 .OrderBy(reminder => reminder.Time)
                 .ThenBy(reminder => reminder.No)
                 .Select(reminder => new ReminderTarget(reminder with { }, statuses.GetValueOrDefault(reminder.No)))];
@@ -332,6 +332,16 @@ public sealed class ReminderService(IReminderRepository repository)
         {
             _states = [];
             failures.Add(ex);
+        }
+
+        // 手で編集した JSON の時刻が正しくないと、「常に発動済み」のように誤って動くため、通知・今日の対象から外す。
+        // 本体は消さない（外すのは判定のときだけ）ので、編集して直せる
+        var invalidTimeNos = _reminders.Where(reminder => !reminder.IsDeleted && ReminderDates.ToTime(reminder.Time) is null)
+            .Select(reminder => reminder.No)
+            .ToList();
+        if (invalidTimeNos.Count > 0)
+        {
+            recoveries.Add($"時刻が正しくないリマインダーがあります（番号 {string.Join("、", invalidTimeNos)}）。通知されません。編集して直してください。");
         }
 
         _status.Record(failures, recoveries);

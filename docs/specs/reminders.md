@@ -18,6 +18,7 @@
 - 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`）
 - 変更後に `Changed` を発火する（任意のスレッドから）
 - IO エラーで読めなかったときは、空として扱い `LoadError` に残す。保存は `DataFileException`（元データを消さないため）。読み込み結果は SDK の `LoadStatus` で持つ
+- 時刻（`HHmm` の整数）が正しくない（手で編集した JSON で負の値・25 時など）リマインダーは、「常に発動済み」のように誤って動かないよう、`GetTargetsAsync`（今日の対象・通知）から外す。本体は消さない（一覧には出る。編集して直せる）。最初の読み込みで、番号を挙げて InfoBar で知らせる（直しても、次に起動するまでメッセージは残る）
 - `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。本体と状態を同じロックの中で読む。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
 
 ## 監視（`ReminderMonitor`、Singleton）

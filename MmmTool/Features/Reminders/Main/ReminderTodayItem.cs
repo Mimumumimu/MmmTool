@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.Core.Reminders;
+using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.Reminders.Main;
 
@@ -76,7 +77,7 @@ public sealed partial class ReminderTodayItem : ObservableObject
                 return;
             }
             Status = status;
-            _ = _statusChanged(this, status);
+            _statusChanged(this, status).Forget();
         }
     }
 
