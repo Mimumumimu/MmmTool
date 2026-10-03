@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
 using MmmSdk.Core.SingleInstance;
+using MmmSdk.WinUI.Tray;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Dialogs;
 using MmmTool.Features.CliAssist;
@@ -12,7 +13,6 @@ using MmmTool.Features.Reminders;
 using MmmTool.Features.Settings;
 using MmmTool.Interop;
 using MmmTool.Shell;
-using MmmTool.Shell.Tray;
 
 namespace MmmTool;
 

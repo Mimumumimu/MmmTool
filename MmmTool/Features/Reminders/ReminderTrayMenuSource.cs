@@ -1,4 +1,4 @@
-using MmmTool.Shell.Tray;
+using MmmSdk.WinUI.Tray;
 
 namespace MmmTool.Features.Reminders;
 

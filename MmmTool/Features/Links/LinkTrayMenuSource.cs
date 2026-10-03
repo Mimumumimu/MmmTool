@@ -1,6 +1,6 @@
 using MmmSdk.Core.Paths;
+using MmmSdk.WinUI.Tray;
 using MmmTool.Core.Links;
-using MmmTool.Shell.Tray;
 
 namespace MmmTool.Features.Links;
 

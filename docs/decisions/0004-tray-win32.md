@@ -5,7 +5,7 @@
 
 ## 決定
 - `Shell_NotifyIcon` を直接 P/Invoke する。WinForms の `NotifyIcon` / `ContextMenuStrip` は使わない
-- メニューは Win32 のポップアップメニューを使い、項目はオーナードローで描く（`TrayMenuRenderer`）
+- メニューは Win32 のポップアップメニューを使い、項目はオーナードローで描く（SDK の `TrayMenuRenderer`）
 
 ## 理由
 - WinForms に依存せず、WinUI 3 のアプリに別の UI 基盤を混ぜない
