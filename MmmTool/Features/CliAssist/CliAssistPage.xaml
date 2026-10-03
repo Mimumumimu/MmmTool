@@ -5,8 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:attachments="using:MmmTool.Features.CliAssist.Attachments"
     xmlns:local="using:MmmTool.Features.CliAssist"
-    xmlns:sdkAttachments="using:MmmSdk.WinUI.Attachments"
-    xmlns:terminal="using:MmmSdk.WinUI.Terminal"
+    xmlns:sdkAttachments="using:MmmSdk.WinUI.Components.Attachments"
+    xmlns:terminal="using:MmmSdk.WinUI.Components.Terminal"
     Loaded="OnLoaded">
 
     <Grid Padding="12" ColumnSpacing="12" RowSpacing="8">

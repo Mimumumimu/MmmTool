@@ -42,6 +42,16 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - タスクトレイ常駐（Win32 `Shell_NotifyIcon` を直接 P/Invoke。WinForms に依存しない）、トレイのリンクメニュー
 - リマインダー監視・通知
 
+## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
+依頼: ① SDK のフォルダ整理（Components / Controls / Utilities の層。ブランチ `claude/sdk-layer-folders`、SDK とアプリの両方）→ ② アプリの画面フォルダ整理（`Main/` と 1 画面 = 1 フォルダ。ブランチ `claude/app-screen-folders`。①のマージは済み。次はここから）。レビュー対応（観点 4: P-03・P-04・P-05・P-08 未着手、P-06 保留）は後回し。
+制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
+- [x] ① SDK: フォルダ移動・名前空間・csproj の Terminal 資材のパス・docs / README / CLAUDE.md（SDK ブランチ `claude/sdk-layer-folders` @3fb801b。push 済み）
+- [x] ① アプリ: using・xmlns・docs の直し・決定記録 0012・SDK の参照先の更新（push 済み）
+- [x] ① PR（SDK #17・アプリ #17）。手元でビルド・動作確認済み。SDK は merge commit でマージ済み（fb29bf7）、アプリもマージ
+- [ ] ② アプリ: Shell / Features の移動
+- [ ] ② xmlns・using・docs・決定記録
+- [ ] ② PR
+
 ## 未実装・残りの作業（2026-10-03 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。
 

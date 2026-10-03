@@ -1,4 +1,4 @@
-using MmmSdk.Core.Shells;
+using MmmSdk.Core.Components.Shells;
 using MmmTool.Core.CliAssist;
 
 namespace MmmTool.Features.CliAssist;

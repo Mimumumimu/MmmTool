@@ -1,4 +1,4 @@
-using MmmSdk.Core.Notifications;
+using MmmSdk.Core.Components.Notifications;
 
 namespace MmmTool.Core.Reminders;
 

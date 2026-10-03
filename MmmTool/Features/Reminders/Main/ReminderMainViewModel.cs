@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using MmmSdk.Core.Paths;
+using MmmSdk.Core.Components.Paths;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.Main;

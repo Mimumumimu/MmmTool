@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
-using MmmSdk.WinUI.Dialogs;
-using MmmSdk.WinUI.Input;
-using MmmSdk.WinUI.Windowing;
+using MmmSdk.WinUI.Components.Windowing;
+using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.Reminders;
 using MmmTool.Shell;
 using Windows.Foundation;

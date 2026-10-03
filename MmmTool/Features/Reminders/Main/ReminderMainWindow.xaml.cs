@@ -3,7 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using MmmSdk.WinUI.Windowing;
+using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.Reminders;
 using MmmTool.Shell;
 using Windows.Graphics;

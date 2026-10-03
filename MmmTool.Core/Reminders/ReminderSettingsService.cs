@@ -1,4 +1,4 @@
-using MmmSdk.Core.Settings;
+using MmmSdk.Core.Components.Settings;
 
 namespace MmmTool.Core.Reminders;
 

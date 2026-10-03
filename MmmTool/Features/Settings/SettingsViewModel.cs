@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.Core.Settings;
-using MmmSdk.WinUI.Errors;
+using MmmSdk.Core.Components.Settings;
+using MmmSdk.WinUI.Components.Errors;
 
 namespace MmmTool.Features.Settings;
 

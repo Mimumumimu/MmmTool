@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.WinUI.Tray;
+using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Links;
 using MmmTool.Core.Links.Json;
 using MmmTool.Shell;

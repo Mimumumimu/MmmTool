@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.Core.Storage;
-using MmmSdk.Core.Tasks;
-using MmmSdk.WinUI.Errors;
+using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
+using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders;

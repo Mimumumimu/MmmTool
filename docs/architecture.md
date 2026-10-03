@@ -26,6 +26,7 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
                                 PageProvider・SettingsSection・IStartupTask・ShellServiceCollectionExtensions）
 ```
 
+- 共有ライブラリ（`external/MmmSdk`）のフォルダは、アプリとは別に、プロジェクトの直下を `Components/<部品>/`・`Controls/`・`Utilities/` の 3 層に分けている（[decisions/0012-sdk-layer-folders.md](decisions/0012-sdk-layer-folders.md)）。アプリの `Features/<機能>/` には同じ層を作らない
 - `Shell/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`（`Debug` にすると `System.Diagnostics.Debug` を隠すため）
 
@@ -44,7 +45,7 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
 3 段階。予測できる失敗は、先に確かめる（`TryXxx`・検証・ガード節）。それでも起きる失敗（ファイル・JSON・OS・COM）は、範囲を絞った `catch` で受けて画面に出す（InfoBar）。復旧が難しい失敗・予想外の失敗（バグ）は、ログ（`AppContext.BaseDirectory/Logs/yyyy-MM-dd.log`）→ ダイアログ → 終了（SDK の `FatalErrorHandler`）。隠さず、握りつぶさない。
 - `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` し（Host を作る前の失敗も拾うため）、DI にも登録する（トレイが使う）
 - `try/catch` を書けない場所（`async void`・タイマー・待たれないタスク。例: SDK の `MinuteScheduler` の毎分の処理）の例外は、`AttachTo` の安全網が、同じ処理（ログ → ダイアログ → 終了）で受ける
-- 待たずに走らせるタスクは `_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`（SDK の `MmmSdk.Core.Tasks`）にする。捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる（いつ落ちるか読めない）。`Forget` は、失敗した時点で未処理例外にして、安全網が受ける。起きると分かっている失敗（`DataFileException` など）は、タスクの中で受けて画面に出す（例: `SettingsViewModel.SaveSnoozeIntervalAsync`、`ReminderViewModelBase.RunAsync`）
+- 待たずに走らせるタスクは `_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`（SDK の `MmmSdk.Core.Utilities`）にする。捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる（いつ落ちるか読めない）。`Forget` は、失敗した時点で未処理例外にして、安全網が受ける。起きると分かっている失敗（`DataFileException` など）は、タスクの中で受けて画面に出す（例: `SettingsViewModel.SaveSnoozeIntervalAsync`、`ReminderViewModelBase.RunAsync`）
 - `OnLaunched` は、起動が途中で止まって気づけなくならないよう、`try/catch` で包んで報告する。読み込みの失敗など、起動を止めたくない例外は、各機能の `IStartupTask` の中で受ける
 - トレイの `WndProc` は、`[UnmanagedCallersOnly]` から例外が抜けるとログも残らず落ちるため、中で `try/catch` して報告する。異常終了のときは、トレイのアイコンも外す
 - 詳細は `external/MmmSdk/README.md`「エラーのログと、復旧できないエラーの処理」
@@ -66,7 +67,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - リリースビルドには DEBUG ページ（コード・XAML）を含めない（csproj の条件付き `Remove`）
 - WinUI の多言語リソース（言語名フォルダ内の `.mui`）は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - `MmmTool.exe.WebView2`（WebView2 のキャッシュ）は起動時に exe の隣へ作られる実行時データで、1 フォルダなので放置する
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は SDK の `MmmSdk.WinUI/Terminal/Assets/`（ライセンスファイルも同じ場所）。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
+- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/`（ライセンスファイルも同じ場所）。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`

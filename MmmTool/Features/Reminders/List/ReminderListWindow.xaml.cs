@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
-using MmmSdk.WinUI.Dialogs;
-using MmmSdk.WinUI.Windowing;
+using MmmSdk.WinUI.Components.Windowing;
+using MmmSdk.WinUI.Utilities;
 using MmmTool.Shell;
 using Windows.Foundation;
 using Windows.Graphics;

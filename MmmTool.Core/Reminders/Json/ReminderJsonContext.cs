@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using MmmSdk.Core.Storage;
+using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.Core.Reminders.Json;
 

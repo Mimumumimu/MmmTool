@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.WinUI.Tray;
+using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Reminders;
 using MmmTool.Core.Reminders.Json;
 using MmmTool.Features.Reminders.Input;

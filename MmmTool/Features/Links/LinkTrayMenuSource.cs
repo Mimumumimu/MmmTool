@@ -1,6 +1,6 @@
-using MmmSdk.Core.Paths;
-using MmmSdk.WinUI.Notifications;
-using MmmSdk.WinUI.Tray;
+using MmmSdk.Core.Components.Paths;
+using MmmSdk.WinUI.Components.Notifications;
+using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Links;
 
 namespace MmmTool.Features.Links;

@@ -1,5 +1,5 @@
 using Microsoft.UI.Dispatching;
-using MmmSdk.WinUI.Notifications;
+using MmmSdk.WinUI.Components.Notifications;
 using MmmTool.Core.Reminders;
 using MmmTool.Features.Reminders.Main;
 using MmmTool.Shell;
