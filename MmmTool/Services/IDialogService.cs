@@ -1,29 +1,15 @@
-using MmmTool.Core.Entities;
-
 namespace MmmTool.Services;
 
 /// <summary>
-/// ダイアログを開く（ViewModel から UI 型に触れずに使うための口）。
+/// 機能をまたいで使うダイアログを開く（ViewModel から UI 型に触れずに使うための口）。
 /// </summary>
+/// <remarks>機能固有の画面を開く口は、各機能に置く（<c>IReminderDialogService</c> など）。</remarks>
 public interface IDialogService
 {
-    /// <summary>作業ディレクトリ変更ダイアログを開く</summary>
-    /// <returns>選ばれたフォルダ。キャンセルなら null</returns>
-    Task<string?> ShowWorkingDirectoryDialogAsync();
-
     /// <summary>確認ダイアログを開く</summary>
     /// <param name="title">ダイアログのタイトル</param>
     /// <param name="message">確認する内容のメッセージ</param>
     /// <param name="primaryText">実行するボタンの文言（「削除」等）。</param>
     /// <returns>実行するボタンが押されたら true</returns>
     Task<bool> ConfirmAsync(string title, string message, string primaryText);
-
-    /// <summary>リマインダー入力画面を、いちばん手前の画面の上にモーダルで開く</summary>
-    /// <param name="reminder">編集するリマインダー。新規なら null（連番 0 の内容を渡すと、それを初期値にした新規）</param>
-    /// <returns>保存した内容。キャンセルなら null</returns>
-    Task<Reminder?> ShowReminderInputAsync(Reminder? reminder);
-
-    /// <summary>リマインダー一覧画面を、いちばん手前の画面の上にモーダルで開き、閉じるまで待つ</summary>
-    /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
-    Task ShowReminderListAsync();
 }

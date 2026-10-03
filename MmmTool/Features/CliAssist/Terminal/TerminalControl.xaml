@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Features.CliAssist.Terminal.TerminalControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 読み込み前に白く光らないよう、端末と同じ背景色にしておく -->
+    <WebView2 x:Name="WebView" DefaultBackgroundColor="#FF0C0C0C" />
+</UserControl>

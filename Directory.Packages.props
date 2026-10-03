@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    パッケージのバージョンをここに集める（中央パッケージ管理）。各 csproj の PackageReference にはバージョンを書かない。
+    MmmSdk は自分の Directory.Packages.props を使う。共通のパッケージ（Windows App SDK 等）を上げるときは、SDK を先に上げてから同じバージョンにする。
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+  </ItemGroup>
+</Project>

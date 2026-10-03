@@ -1,0 +1,17 @@
+<Project>
+  <!--
+    アプリの全プロジェクト共通の設定。プロジェクト固有の設定（対象フレームワーク・WinUI 等）は各 csproj に書く。
+    サブモジュールの MmmSdk は自分の Directory.Build.props を使う（MSBuild は近いほうを使うので、ここの設定は SDK に届かない）。
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- XML ドキュメントコメントの検査（書き漏れ・参照切れを警告にする）。未使用 using の検査（IDE0005）にも必要 -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- .editorconfig のコードスタイルをビルド時にも検査する -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- 検査用に作る XML ファイルは配布物に含めない（配布を小さくするため） -->
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+  </PropertyGroup>
+</Project>

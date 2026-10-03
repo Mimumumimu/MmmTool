@@ -1,21 +1,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
-using MmmSdk.Core.Repositories;
 using MmmSdk.WinUI;
-using MmmSdk.WinUI.Services;
-using MmmTool.Core.Repositories;
-using MmmTool.Core.Repositories.Json;
-using MmmTool.Core.Services;
+using MmmTool.Features.CliAssist;
+using MmmTool.Features.Debugging;
+using MmmTool.Features.Links;
+using MmmTool.Features.Reminders;
+using MmmTool.Features.Settings;
 using MmmTool.Interop;
 using MmmTool.Services;
-using MmmTool.Services.Terminal;
-using MmmTool.Services.Tray;
-using MmmTool.ViewModels;
-using MmmTool.Views;
-using MmmTool.Views.Dialogs;
+using MmmTool.Shell;
+using MmmTool.Shell.Tray;
 
 namespace MmmTool;
 
@@ -50,67 +46,30 @@ public partial class App : Application
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
+    /// <remarks>機能ごとの中身（保存先・サービス・画面）は、各機能の Add～ メソッドにある。</remarks>
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
 
-        // Repositories（保存先を替えるときはここだけを差し替える）
-        // SDK（JsonFileStore・設定ストア・位置保存・リンクを開く処理）。JsonFileStore はアプリ固有の保存でも共有する
+        // SDK（JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ）。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(Path.Combine(AppContext.BaseDirectory, "Data"));
-        services.AddSingleton<ICliCommandRepository, JsonCliCommandRepository>();
-        services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
-        services.AddSingleton<ILinkRepository, JsonLinkRepository>();
-        services.AddSingleton<IReminderRepository, JsonReminderRepository>();
-
-        // Services
-        services.AddSingleton<CliSettingsService>();
-        // 最後に読み込み・保存した構成を、編集ページとトレイのリンクメニューで共有するため、アプリ全体で 1 つ
-        services.AddSingleton<LinkMenuService>();
-        // リマインダーは各画面と時刻監視でキャッシュを共有するため、アプリ全体で 1 つ。監視は Host の破棄時に止まる
-        services.AddSingleton<ReminderService>();
-        services.AddSingleton<ReminderMonitor>();
-        services.AddSingleton<ReminderSettingsService>();
-        // 終了時（Host の破棄時）に添付の一時フォルダを削除する
-        services.AddSingleton<AttachmentStore>();
-        // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
-        services.AddTransient<ITerminalSession, PseudoConsoleSession>();
-        services.AddSingleton<DialogService>();
-        services.AddSingleton<IDialogService>(provider => provider.GetRequiredService<DialogService>());
-        // リマインダーのメイン画面はアプリ内で 1 枚だけ（開いていれば前面に出す）
-        services.AddSingleton<ReminderWindowService>();
-        services.AddSingleton<IFolderPickerService, FolderPickerService>();
-        services.AddSingleton<IFilePickerService, FilePickerService>();
-        services.AddSingleton<IImageConverter, ImageConverter>();
-        // 通知ダイアログ（SDK）。ウィンドウはアプリ内で 1 枚だけ（サービスが持つ）
         services.AddMmmSdkWinUI();
 
-        // トレイ（メニューの項目は、ここに登録した順に区切り線で分けて並ぶ）
-        services.AddSingleton<TrayIcon>();
-        services.AddSingleton<ITrayMenuSource, ReminderTrayMenuSource>();
-        services.AddSingleton<ITrayMenuSource, LinkTrayMenuSource>();
+        // 機能をまたいで使う UI のサービス
+        services.AddSingleton<DialogService>();
+        services.AddSingleton<IDialogService>(provider => provider.GetRequiredService<DialogService>());
+        services.AddSingleton<IFolderPickerService, FolderPickerService>();
+        services.AddSingleton<IFilePickerService, FilePickerService>();
 
-        // Views
-        services.AddSingleton<MainWindow>();
-        services.AddTransient<CliAssistPage>();
-        services.AddTransient<LinkEditorPage>();
-        services.AddTransient<SettingsPage>();
-        services.AddTransient<WorkingDirectoryDialog>();
-        services.AddTransient<DebugPage>();
-        // 閉じたウィンドウは再表示できないので、開くたびに作る
-        services.AddTransient<ReminderInputWindow>();
-        services.AddTransient<ReminderListWindow>();
-        services.AddTransient<ReminderMainWindow>();
+        // 画面の枠（メインウィンドウ・サイドバー・トレイ）
+        services.AddShell();
 
-        // ViewModels
-        services.AddSingleton<MainViewModel>();
-        services.AddTransient<CliAssistViewModel>();
-        services.AddTransient<SettingsViewModel>();
-        services.AddTransient<LinkEditorViewModel>();
-        services.AddTransient<WorkingDirectoryDialogViewModel>();
-        services.AddTransient<DebugViewModel>();
-        services.AddTransient<ReminderInputViewModel>();
-        services.AddTransient<ReminderListViewModel>();
-        services.AddTransient<ReminderMainViewModel>();
+        // 機能。登録した順に、サイドバーの項目（上部・下部それぞれ）・トレイメニューの項目・起動時の準備が並ぶ
+        services.AddCliAssist();
+        services.AddReminders();
+        services.AddLinks();
+        services.AddDebugging();
+        services.AddSettings();
     }
 
     /// <inheritdoc />
@@ -118,21 +77,15 @@ public partial class App : Application
     {
         await _host.StartAsync();
 
-        // 画面を作る前に読み込む（前回の作業ディレクトリでシェルを始めるため）。失敗は画面側で通知する
-        await _host.Services.GetRequiredService<CliSettingsService>().LoadAsync();
-
-        // トレイのリンクメニュー用に読み込んでおく
-        try
-        {
-            await _host.Services.GetRequiredService<LinkMenuService>().LoadAsync();
-        }
-        catch (DataFileException)
-        {
-            // 失敗はサービスに残り、トレイのメニューとリンク画面（開いたときに読み直す）で知らせる
-        }
-
         // トレイは画面・各機能より先に作る。Host は作った順の逆に破棄するので、終了時に各機能の後始末が済んでからトレイアイコンが消える
         var tray = _host.Services.GetRequiredService<TrayIcon>();
+
+        // 各機能の起動時の準備（設定の読み込み・時刻監視の開始など）。画面を作る前に行う（前回の作業ディレクトリでシェルを始めるため等）
+        foreach (var startup in _host.Services.GetServices<IStartupTask>())
+        {
+            await startup.StartAsync();
+        }
+
         _window = _host.Services.GetRequiredService<MainWindow>();
         // メインウィンドウから開くダイアログを、メインウィンドウの上に出すため（リマインダーのメイン画面と使い分ける）
         _host.Services.GetRequiredService<DialogService>().TrackWindow(_window);
@@ -141,25 +94,6 @@ public partial class App : Application
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();
-
-        StartReminderMonitor();
-    }
-
-    /// <summary>リマインダーの時刻監視を始める</summary>
-    /// <remarks>
-    /// 監視はタイマーのスレッドから通知を求めてくるので、UI スレッドに切り替えて通知ダイアログを出す。
-    /// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く（発動済みの未対応はスヌーズに進む）。
-    /// </remarks>
-    private void StartReminderMonitor()
-    {
-        var dispatcher = DispatcherQueue.GetForCurrentThread();
-        var notifications = _host.Services.GetRequiredService<INotificationDialogService>();
-        var reminderWindows = _host.Services.GetRequiredService<ReminderWindowService>();
-        _host.Services.GetRequiredService<ReminderMonitor>().Start(
-            (title, items) => dispatcher.TryEnqueue(
-                () => notifications.Show(title, items, onClicked: () => dispatcher.TryEnqueue(
-                    // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く
-                    DispatcherQueuePriority.Low, async () => await reminderWindows.ShowFromNotificationAsync()))));
     }
 
     /// <summary>アプリを完全に終了する（トレイメニューの「終了」から）。</summary>

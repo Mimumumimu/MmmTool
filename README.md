@@ -108,6 +108,14 @@ dotnet restore .\MmmTool.slnx
 dotnet build .\MmmTool.slnx -p:Platform=x64
 ```
 
+ビルドの共通設定はリポジトリ直下にまとめています（`external/MmmSdk` は SDK 自身の同名ファイルを使います）。
+
+| ファイル | 内容 |
+| --- | --- |
+| `Directory.Build.props` | 全プロジェクト共通の設定（Nullable・XML ドキュメントコメントの検査・コードスタイルのビルド時検査など） |
+| `Directory.Packages.props` | NuGet パッケージのバージョン（中央パッケージ管理。csproj にはバージョンを書きません） |
+| `.editorconfig` | コードスタイル。未使用の using などはビルド時に警告になります |
+
 実行は Visual Studio で `MmmTool.slnx` を開き、`MmmTool` プロジェクト（起動プロファイル「MmmTool」）を F5 で起動します。起動してもウィンドウは出ず、タスクトレイにアイコンが出ます。
 
 ### 配布用の発行
@@ -255,9 +263,13 @@ git submodule update --remote external/MmmSdk
 
 | フォルダー | 内容 |
 | --- | --- |
-| `MmmTool.Core/` | UI に依存しない層（`net10.0`）。Entities・Repositories（JSON 実装）・Services |
-| `MmmTool/` | WinUI 3 アプリ本体。Views・ViewModels・Services（トレイ・ターミナルなど Windows 依存のもの）・Interop |
+| `MmmTool.Core/` | UI に依存しない層（`net10.0`）。機能ごとのフォルダー（`CliAssist/`・`Links/`・`Reminders/`）に、保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は各フォルダーの `Json/` に置く |
+| `MmmTool/Features/` | WinUI 3 アプリの機能ごとのフォルダー（`CliAssist/`・`Links/`・`Reminders/`・`Settings/`・`Debugging/`）。画面（View）・ViewModel・その機能の Windows 依存の処理・DI への登録を、機能ごとにまとめている |
+| `MmmTool/Shell/` | 画面の枠。メインウィンドウ・サイドバー・タスクトレイ |
+| `MmmTool/Services/`・`Controls/`・`Interop/` | 機能をまたいで使うもの。ダイアログ・ファイル選択（`Services/`）、共通の入力部品（`Controls/`）、Win32 API の宣言（`Interop/`） |
 | `external/MmmSdk/` | 共有部品（Git サブモジュール）。設定ストア・ウィンドウ位置の保存・通知ダイアログなど |
+
+機能を足すときは、`MmmTool.Core/<機能>/` と `MmmTool/Features/<機能>/` を作り、`App.xaml.cs` で `Add<機能>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、各機能の `Add<機能>()` の中で登録します。
 
 ## ライセンス
 

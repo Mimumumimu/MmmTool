@@ -1,17 +1,15 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Windows.Storage.Pickers;
-using MmmTool.Views;
 
 namespace MmmTool.Services;
 
 /// <summary>ファイル選択を開く</summary>
-/// <param name="services">メインウィンドウを取得する DI のサービスプロバイダー</param>
-public sealed class FilePickerService(IServiceProvider services) : IFilePickerService
+/// <param name="dialogs">ダイアログの親を決めるサービス</param>
+public sealed class FilePickerService(DialogService dialogs) : IFilePickerService
 {
     /// <inheritdoc />
     public async Task<string?> PickFileAsync()
     {
-        var picker = new FileOpenPicker(services.GetRequiredService<MainWindow>().AppWindow.Id);
+        var picker = new FileOpenPicker(dialogs.Owner.AppWindow.Id);
         picker.FileTypeFilter.Add("*");
         var result = await picker.PickSingleFileAsync();
         return result?.Path;
