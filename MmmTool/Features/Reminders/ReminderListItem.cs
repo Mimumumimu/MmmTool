@@ -17,9 +17,9 @@ public sealed class ReminderListItem(Reminder source)
     public string DateText { get; } = ReminderDates.ToDate(source.Date) is { } date ? date.ToString("yyyy/MM/dd") : None;
 
     /// <summary>曜日（「月火水」形式。曜日を選んでいない曜日指定は「毎日」、日付指定は「－」）</summary>
-    public string WeekdayText { get; } = !ReminderDates.IsWeekdaySpecified(source.Date) ? None
-        : source.Weekdays == Weekdays.None ? "毎日"
-        : ReminderDates.ToJapanese(source.Weekdays);
+    public string WeekdayText { get; } = ReminderDates.IsWeekdaySpecified(source.Date)
+        ? ReminderDates.DescribeWeekdays(source.Weekdays)
+        : None;
 
     /// <summary>時刻（HH:mm）</summary>
     public string TimeText { get; } = ReminderDates.ToTime(source.Time) is { } time ? time.ToString("HH:mm") : None;
