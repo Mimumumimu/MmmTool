@@ -45,11 +45,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
 依頼: ① SDK のフォルダ整理（Components / Controls / Utilities の層。ブランチ `claude/sdk-layer-folders`、SDK とアプリの両方）→ ② アプリの画面フォルダ整理（`Main/` と 1 画面 = 1 フォルダ。ブランチ `claude/app-screen-folders`。①の PR がマージされてから）。レビュー対応（観点 4: P-03・P-04・P-05・P-08 未着手、P-06 保留）は後回し。
 制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
-- [ ] ① SDK Core: フォルダ移動（Components / Utilities）
-- [ ] ① SDK WinUI: フォルダ移動・Terminal 資材の csproj のパス
-- [ ] ① SDK: 旧名前空間の grep・SDK の docs / README / CLAUDE.md
-- [ ] ① アプリ: using・xmlns・docs の直し・決定記録・SDK の参照先の更新
-- [ ] ① PR（SDK・アプリ）
+- [x] ① SDK: フォルダ移動・名前空間・csproj の Terminal 資材のパス・docs / README / CLAUDE.md（SDK ブランチ `claude/sdk-layer-folders` @3fb801b。push 済み）
+- [x] ① アプリ: using・xmlns・docs の直し・決定記録 0012・SDK の参照先の更新（push 済み）
+- [ ] ① PR（SDK・アプリ。同じブランチ名）→ ユーザーが手元の VS でビルド・動作確認（Terminal の資材が `Assets\Terminal\*` にコピーされるか）→ SDK を merge commit でマージ → アプリをマージ
 - [ ] ② アプリ: Shell / Features の移動
 - [ ] ② xmlns・using・docs・決定記録
 - [ ] ② PR
