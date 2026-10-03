@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Attachments;
@@ -264,8 +265,9 @@ public sealed partial class CliAssistViewModel : ObservableObject
             var savedPath = await _attachmentStore.AddAsync(jpeg, "clipboard.jpg");
             Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像"));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
         {
+            // COMException: 画像のデコード・変換の失敗（未対応の形式など）
             Error.Show($"画像を添付できませんでした。{ex.Message}");
         }
     }

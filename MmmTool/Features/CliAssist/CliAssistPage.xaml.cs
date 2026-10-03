@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -192,26 +193,34 @@ public sealed partial class CliAssistPage : Page
     /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">貼り付けの情報</param>
+    /// <remarks>クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。このときは添付せず、画面に知らせる。</remarks>
     private async void OnInputPaste(object sender, TextControlPasteEventArgs e)
     {
-        var content = Clipboard.GetContent();
-
-        // エクスプローラーでコピーしたファイルは添付する
-        if (content.Contains(StandardDataFormats.StorageItems))
+        try
         {
-            e.Handled = true;
-            var items = await content.GetStorageItemsAsync();
-            await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
-            return;
+            var content = Clipboard.GetContent();
+
+            // エクスプローラーでコピーしたファイルは添付する
+            if (content.Contains(StandardDataFormats.StorageItems))
+            {
+                e.Handled = true;
+                var items = await content.GetStorageItemsAsync();
+                await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
+                return;
+            }
+
+            // 画像だけのとき（スクリーンショット等）は添付する。テキストも含むとき（Excel のセル等）は通常の貼り付けにする
+            if (content.Contains(StandardDataFormats.Bitmap) && !content.Contains(StandardDataFormats.Text))
+            {
+                e.Handled = true;
+                var bitmap = await content.GetBitmapAsync();
+                using var stream = await bitmap.OpenReadAsync();
+                await ViewModel.AddAttachmentImageAsync(stream.AsStreamForRead());
+            }
         }
-
-        // 画像だけのとき（スクリーンショット等）は添付する。テキストも含むとき（Excel のセル等）は通常の貼り付けにする
-        if (content.Contains(StandardDataFormats.Bitmap) && !content.Contains(StandardDataFormats.Text))
+        catch (COMException ex)
         {
-            e.Handled = true;
-            var bitmap = await content.GetBitmapAsync();
-            using var stream = await bitmap.OpenReadAsync();
-            await ViewModel.AddAttachmentImageAsync(stream.AsStreamForRead());
+            ViewModel.Error.Show($"クリップボードを読めませんでした。もう一度貼り付けてください。{ex.Message}");
         }
     }
 
@@ -237,8 +246,15 @@ public sealed partial class CliAssistPage : Page
             return;
         }
 
-        var items = await e.DataView.GetStorageItemsAsync();
-        await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
+        try
+        {
+            var items = await e.DataView.GetStorageItemsAsync();
+            await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
+        }
+        catch (COMException ex)
+        {
+            ViewModel.Error.Show($"ドロップされたファイルを読めませんでした。{ex.Message}");
+        }
     }
 
     /// <summary>添付の削除ボタンが押されたときの処理</summary>
