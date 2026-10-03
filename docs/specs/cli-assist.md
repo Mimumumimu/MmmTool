@@ -7,6 +7,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 - ターミナルは ConPTY + xterm.js（WebView2）。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する
   - 再起動（`ITerminalSession.RestartAsync`）では、古いシェルの終了待ち（最大で数秒）を UI スレッドの外で行う。終了待ちの間に押されたキーは捨てる（二重に起動し直さない）。アプリの終了時の `Dispose` だけは、シェルを確実に終わらせるため、同期で待つ
   - 出力は、シェルの出力・終了メッセージ・起動失敗のメッセージを、すべて同じバッファ経由で送る（順序が入れ替わらない）。xterm.js が描画し終えるたびに文字数を返し（`written`）、未返却が 1M 文字を超えたら、返ってくるまで送らずにためておく（xterm.js の書き込み待ちがあふれて出力が捨てられるのを防ぐ）。ためる側（C# のバッファ）の大きさには上限を設けていない
+  - WebView2 を初期化できなかったとき（ランタイムが無い・起動できない。`COMException`）は、ターミナルの場所に理由を文字で出す（他の機能は使える）。制約: ランタイムが無い PC で実際にどの例外が出るかは、まだ実機で確かめていない。COMException 以外が出たときは、未処理例外の受け皿（ログ・ダイアログ・終了）が受ける。確かめられたら、受ける例外を直す
   - シェルは pwsh.exe が PATH にあればそれ、無ければ powershell.exe（`DefaultShell`。Core）
   - 描画は `Features/CliAssist/Terminal/TerminalControl`（WebView2 で `Assets/Terminal/` の xterm.js を仮想ホスト経由で表示）。C# ↔ JS は JSON メッセージ（`terminal.js` の冒頭に一覧）
   - `PseudoConsoleSession`（ConPTY は SDK の `PseudoConsole`。ここでは出力の読み取り・終了の通知・入力の確定）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する

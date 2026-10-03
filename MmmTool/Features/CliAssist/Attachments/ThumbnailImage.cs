@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Streams;
+using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.CliAssist.Attachments;
 
@@ -24,7 +25,7 @@ public static class ThumbnailImage
         }
 
         var bitmap = new BitmapImage { DecodePixelHeight = DecodePixelHeight };
-        _ = LoadAsync(bitmap, path);
+        LoadAsync(bitmap, path).Forget();
         return bitmap;
     }
 

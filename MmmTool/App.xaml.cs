@@ -2,10 +2,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
+using MmmSdk.Core.Logging;
 using MmmSdk.Core.SingleInstance;
 using MmmSdk.WinUI.Tray;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Features.CliAssist;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Links;
@@ -20,12 +22,15 @@ public partial class App : Application
 {
     /// <summary>多重起動の防止</summary>
     private readonly SingleInstanceGuard _instanceGuard = new("MmmTool");
+    /// <summary>復旧できないエラーの報告先（ログ・ダイアログ・終了）</summary>
+    private readonly FatalErrorHandler _fatalErrors;
     /// <summary>DI・ログなどを扱う Host</summary>
     private readonly IHost _host;
     /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
     private MainWindow? _window;
 
     /// <summary>多重起動を確認して、DI の構成を作る</summary>
+    /// <remarks>未処理の例外の受け皿は、Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
     public App()
     {
         if (!_instanceGuard.IsFirstInstance)
@@ -34,22 +39,27 @@ public partial class App : Application
             Environment.Exit(0);
         }
 
+        _fatalErrors = new FatalErrorHandler(new ErrorLog(Path.Combine(AppContext.BaseDirectory, "Logs")), "MmmTool");
+        _fatalErrors.AttachTo(this);
+
         InitializeComponent();
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
             ContentRootPath = AppContext.BaseDirectory,
         });
-        ConfigureServices(builder.Services);
+        ConfigureServices(builder.Services, _fatalErrors);
         _host = builder.Build();
     }
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
+    /// <param name="fatalErrors">復旧できないエラーの報告先（トレイなど、SDK の部品が使う）</param>
     /// <remarks>機能ごとの中身（保存先・サービス・画面）は、各機能の Add～ メソッドにある。</remarks>
-    private static void ConfigureServices(IServiceCollection services)
+    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors)
     {
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(fatalErrors);
 
         // SDK（JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択）。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(Path.Combine(AppContext.BaseDirectory, "Data"));
@@ -68,6 +78,25 @@ public partial class App : Application
 
     /// <inheritdoc />
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
+    {
+        try
+        {
+            await StartAsync();
+        }
+        catch (Exception ex)
+        {
+            // 起動が途中で止まると、ウィンドウもトレイも出ないまま動き続けて気づけない。復旧できないので、ログ・ダイアログ・終了にする
+            _fatalErrors.Report("起動に失敗しました", ex);
+        }
+    }
+
+    /// <summary>Host を始めて、トレイと各機能を用意する</summary>
+    /// <returns>起動の完了を表すタスク</returns>
+    /// <remarks>
+    /// 読み込みの失敗など、起動を止めたくない例外は、各機能の起動時の準備（<see cref="IStartupTask"/>）の中で受け止め、画面を開いたときに知らせる。
+    /// ここまで届いた例外は、復旧できない失敗として <see cref="OnLaunched"/> が報告する。
+    /// </remarks>
+    private async Task StartAsync()
     {
         await _host.StartAsync();
 

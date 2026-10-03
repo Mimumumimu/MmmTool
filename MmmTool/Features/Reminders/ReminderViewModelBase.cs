@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
+using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.Reminders;
 
@@ -71,11 +72,11 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     {
         if (_context is null)
         {
-            _ = RefreshAsync();
+            RefreshAsync().Forget();
         }
         else
         {
-            _context.Post(_ => _ = RefreshAsync(), null);
+            _context.Post(_ => RefreshAsync().Forget(), null);
         }
     }
 

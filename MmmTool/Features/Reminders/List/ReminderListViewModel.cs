@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.Reminders;
+using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.Reminders.List;
 
@@ -47,11 +48,11 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
 
     /// <summary>「削除済みを表示」が変わったら読み直す</summary>
     /// <param name="value">変更後の「削除済みを表示」</param>
-    partial void OnShowDeletedChanged(bool value) => _ = RefreshAsync();
+    partial void OnShowDeletedChanged(bool value) => RefreshAsync().Forget();
 
     /// <summary>「過去の予定を表示」が変わったら読み直す</summary>
     /// <param name="value">変更後の「過去の予定を表示」</param>
-    partial void OnShowPastChanged(bool value) => _ = RefreshAsync();
+    partial void OnShowPastChanged(bool value) => RefreshAsync().Forget();
 
     /// <summary>新規追加（入力画面を開く）</summary>
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>

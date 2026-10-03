@@ -1,4 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmSdk.Core.Storage;
+using MmmSdk.Core.Tasks;
 using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
@@ -55,18 +57,32 @@ public sealed partial class SettingsViewModel : ObservableObject
             SnoozeIntervalMinutes = clamped;
             return;
         }
-        _ = SaveSnoozeIntervalAsync(clamped);
+        SaveSnoozeIntervalAsync(clamped).Forget();
     }
 
     /// <summary>スヌーズ間隔を保存する</summary>
     /// <param name="minutes">保存するスヌーズ間隔（分）</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態（設定ファイルを読めなかった）では、入力欄を無効にしてあるので、ここへは来ない。
-    /// 保存の失敗（ロック・権限など）は握りつぶさない（async void と同じく未処理例外として扱う）。
+    /// 保存できない状態（設定ファイルを読めなかった）では、入力欄を無効にしてあるので、ここへは来ない（来たら、保存されなかったことを知らせる）。
+    /// 保存の失敗（ロック・権限など）は、画面に出す。
     /// </remarks>
     private async Task SaveSnoozeIntervalAsync(int minutes)
     {
-        await _reminderSettings.SetSnoozeIntervalMinutesAsync(minutes);
+        try
+        {
+            if (await _reminderSettings.SetSnoozeIntervalMinutesAsync(minutes))
+            {
+                Error.Clear();
+            }
+            else
+            {
+                Error.Show("設定を読み込めなかったため、変更を保存できませんでした。");
+            }
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
     }
 }
