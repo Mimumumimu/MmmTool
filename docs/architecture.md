@@ -21,7 +21,7 @@ MmmTool.Core/<機能>/Json/       JSON の実装（Json<名前>Repository）と�
 MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス・トレイの項目・Add<機能>()・<機能>Startup
                                 （CliAssist / Links / Reminders / Settings / Debugging）
                                 機能の中が大きいときは、責務ごとのサブフォルダーに分ける（名前空間もフォルダーどおり）:
-                                CliAssist/{Terminal, WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
+                                CliAssist/{WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
                                 PageProvider・IStartupTask・ShellServiceCollectionExtensions）
 ```
@@ -64,7 +64,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - リリースビルドには DEBUG ページ（コード・XAML）を含めない（csproj の条件付き `Remove`）
 - WinUI の多言語リソース（言語名フォルダ内の `.mui`）は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - `MmmTool.exe.WebView2`（WebView2 のキャッシュ）は起動時に exe の隣へ作られる実行時データで、1 フォルダなので放置する
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は `Assets/Terminal/`。ライセンスファイルも同梱
+- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は SDK の `MmmSdk.WinUI/Terminal/Assets/`（ライセンスファイルも同じ場所）。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
@@ -73,7 +73,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格（保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化）を `Features/Reminders/ReminderViewModelBase` に持つ
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
-- ターミナルの後始末（`PseudoConsoleSession.Close`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
+- ターミナルの後始末（SDK の `PseudoConsoleSession` の `Dispose`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
 - JSON は `System.Text.Json` のソース生成（トリミングは今は無効だが、戻しても動く形を保つ）
 - コメントは XML ドキュメントコメント（`<summary>` は短く、長い説明は `<remarks>`）。引数・戻り値も書く
 

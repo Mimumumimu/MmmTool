@@ -2,11 +2,12 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Attachments;
+using MmmSdk.Core.Shells;
 using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Errors;
+using MmmSdk.WinUI.Terminal;
 using MmmTool.Core.CliAssist;
 using MmmTool.Features.CliAssist.Attachments;
-using MmmTool.Features.CliAssist.Terminal;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 
 namespace MmmTool.Features.CliAssist;
@@ -173,7 +174,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             return;
         }
 
-        if (!ShellCommands.TryChangeDirectory(ShellCommands.DetectKind(Terminal.CommandLine), directory, out var command))
+        if (!ShellCommands.TryChangeDirectory(Terminal.Shell, directory, out var command))
         {
             Error.Show($"cmd では、% を含むフォルダーへ移動できません（環境変数として展開されるため）: {directory}");
             return;

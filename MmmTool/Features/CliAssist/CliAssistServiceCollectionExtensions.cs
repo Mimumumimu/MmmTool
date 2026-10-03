@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Attachments;
 using MmmSdk.Core.Storage;
+using MmmSdk.WinUI.Terminal;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
 using MmmTool.Features.CliAssist.Attachments;
-using MmmTool.Features.CliAssist.Terminal;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 using MmmTool.Shell;
 

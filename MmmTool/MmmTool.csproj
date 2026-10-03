@@ -23,8 +23,6 @@
   <ItemGroup>
     <!-- アプリのアイコン（EXE に埋め込むほか、トレイ・ウィンドウのアイコンとして実行時にファイルから読む） -->
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
-    <!-- ターミナル描画（xterm.js、MIT）。WebView2 から読み込むため出力フォルダへコピーする -->
-    <Content Include="Assets\Terminal\**" CopyToOutputDirectory="PreserveNewest" />
     <!-- ターミナルの定型コマンドから呼ぶ補助スクリプト（{AppDir}\Assets\Tools\...）。出力フォルダへコピーする -->
     <Content Include="Assets\Tools\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
