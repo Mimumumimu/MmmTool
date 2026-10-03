@@ -48,9 +48,8 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - [x] ① SDK: フォルダ移動・名前空間・csproj の Terminal 資材のパス・docs / README / CLAUDE.md（SDK ブランチ `claude/sdk-layer-folders` @3fb801b。push 済み）
 - [x] ① アプリ: using・xmlns・docs の直し・決定記録 0012・SDK の参照先の更新（push 済み）
 - [x] ① PR（SDK #17・アプリ #17）。手元でビルド・動作確認済み。SDK は merge commit でマージ済み（fb29bf7）、アプリもマージ
-- [ ] ② アプリ: Shell / Features の移動
-- [ ] ② xmlns・using・docs・決定記録
-- [ ] ② PR
+- [x] ② アプリ: Shell / Features の移動・xmlns・using・docs・決定記録 0013（ブランチ `claude/app-screen-folders`。push 済み）
+- [ ] ② PR（アプリ）→ ユーザーが手元の VS でビルド・動作確認（サイドバーの各ページ・リマインダーの各画面・設定ページのリマインダーの欄が開くか）→ マージ
 
 ## 未実装・残りの作業（2026-10-03 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。
