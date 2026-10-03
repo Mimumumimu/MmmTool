@@ -7,7 +7,7 @@ namespace MmmTool.Core.Repositories;
 public interface ICliCommandRepository
 {
     /// <summary>定型コマンドを読み込む</summary>
-    /// <remarks>保存先にまだ無ければ既定の内容を作って保存する。</remarks>
+    /// <remarks>保存先にまだ無ければ既定の内容を作って保存する。壊れていたときは退避してから既定の内容で作り直す。</remarks>
     /// <exception cref="DataFileException">読み込み・保存に失敗した。</exception>
-    Task<CliCommandSet> LoadAsync(CancellationToken cancellationToken = default);
+    Task<DataLoadResult<CliCommandSet>> LoadAsync(CancellationToken cancellationToken = default);
 }

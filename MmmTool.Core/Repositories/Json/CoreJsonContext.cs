@@ -10,6 +10,8 @@ namespace MmmTool.Core.Repositories.Json;
 [JsonSerializable(typeof(CliCommandSet))]
 [JsonSerializable(typeof(CliSettings))]
 [JsonSerializable(typeof(LinkMenu))]
+[JsonSerializable(typeof(ReminderFile))]
+[JsonSerializable(typeof(ReminderStateFile))]
 internal sealed partial class CoreJsonContext : JsonSerializerContext
 {
     /// <summary>手で読み書きしやすい形の設定</summary>

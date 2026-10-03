@@ -91,18 +91,22 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         _initialized = true;
 
-        if (_settings.LoadError is { } loadError)
-        {
-            ShowError(loadError);
-        }
-
+        // 読み込みの問題は複数あり得るので、まとめて 1 つの InfoBar で知らせる
+        List<string?> messages = [_settings.LoadError, _settings.RecoveryMessage];
         try
         {
-            _commandSet = await _commandRepository.LoadAsync();
+            string? recoveryMessage;
+            (_commandSet, recoveryMessage) = await _commandRepository.LoadAsync();
+            messages.Add(recoveryMessage);
         }
         catch (DataFileException ex)
         {
-            ShowError($"{ex.Message}\n定型コマンドは表示されません。");
+            messages.Add($"{ex.Message}\n定型コマンドは表示されません。");
+        }
+
+        if (messages.OfType<string>().ToList() is { Count: > 0 } errors)
+        {
+            ShowError(string.Join("\n\n", errors));
         }
         RebuildCommandItems();
     }

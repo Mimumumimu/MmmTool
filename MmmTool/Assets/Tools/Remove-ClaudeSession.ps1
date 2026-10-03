@@ -132,7 +132,14 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
             if ($key.Key -eq 'C' -and ($key.Modifiers -band [ConsoleModifiers]::Control)) {
                 return New-SelectionResult 'quit'
             }
-            switch ($key.Key) {
+            # IME がオンだと Space・a・q が全角文字（キーの種類なし）で届くので、文字から読み替える
+            $keyName = switch ($key.KeyChar) {
+                ([char]0x3000) { 'Spacebar' }
+                { 'ａ', 'Ａ' -ccontains $_ } { 'A' }
+                { 'ｑ', 'Ｑ' -ccontains $_ } { 'Q' }
+                default { $key.Key.ToString() }
+            }
+            switch ($keyName) {
                 'UpArrow'   { if ($cursor -gt 0) { $cursor-- } }
                 'DownArrow' { if ($cursor -lt $Items.Count - 1) { $cursor++ } }
                 'PageUp'    { $cursor = [Math]::Max(0, $cursor - $rows) }

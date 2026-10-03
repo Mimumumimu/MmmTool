@@ -28,13 +28,20 @@ internal static partial class NativeMethods
 
     /// <summary>フォーカスのあるウィンドウの IME をオンにする</summary>
     /// <remarks>日本語入力・漢字変換の状態にする。</remarks>
-    public static void TurnOnImeForFocusedWindow()
+    public static void TurnOnImeForFocusedWindow() => SetImeForFocusedWindow(true);
+
+    /// <summary>フォーカスのあるウィンドウの IME をオフにする</summary>
+    /// <remarks>英数字の直接入力の状態にする。</remarks>
+    public static void TurnOffImeForFocusedWindow() => SetImeForFocusedWindow(false);
+
+    /// <summary>フォーカスのあるウィンドウの IME のオン・オフを切り替える</summary>
+    private static void SetImeForFocusedWindow(bool open)
     {
         var hwnd = GetFocus();
         if (hwnd == 0) return;
         var imc = ImmGetContext(hwnd);
         if (imc == 0) return;
-        ImmSetOpenStatus(imc, true);
+        ImmSetOpenStatus(imc, open);
         ImmReleaseContext(hwnd, imc);
     }
 
@@ -145,6 +152,28 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(nint hWnd);
+
+    /// <summary>オーナーウィンドウを表す <see cref="SetWindowLongPtr"/> の番号</summary>
+    private const int GWLP_HWNDPARENT = -8;
+
+    /// <summary>ウィンドウの属性を設定する</summary>
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+    private static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
+
+    /// <summary>ウィンドウのオーナー（持ち主のウィンドウ）を設定する</summary>
+    /// <remarks>オーナーより常に手前に表示され、オーナーと一緒に最小化される。</remarks>
+    public static void SetOwner(nint hWnd, nint owner) => SetWindowLongPtr(hWnd, GWLP_HWNDPARENT, owner);
+
+    /// <summary>ウィンドウのマウス・キーボード入力を有効・無効にする</summary>
+    /// <remarks>モーダル表示の間、親ウィンドウを操作できないようにするために使う。</remarks>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnableWindow(nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool bEnable);
+
+    /// <summary>ウィンドウの DPI（ウィンドウがあるモニターの DPI）</summary>
+    /// <remarks>表示する前に大きさを決めるために使う（XamlRoot は表示するまで無いため）。96 が 100%。</remarks>
+    [LibraryImport("user32.dll")]
+    public static partial uint GetDpiForWindow(nint hWnd);
 
     #endregion
 

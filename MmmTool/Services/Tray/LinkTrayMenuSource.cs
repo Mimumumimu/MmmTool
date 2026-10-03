@@ -7,7 +7,7 @@ namespace MmmTool.Services.Tray;
 /// <summary>
 /// トレイメニューの「リンク」。リンク編集ページで保存した構成を階層メニューにする。
 /// </summary>
-public sealed class LinkTrayMenuSource(LinkMenuService links, LinkOpener opener) : ITrayMenuSource
+public sealed class LinkTrayMenuSource(LinkMenuService links, PathOpener opener) : ITrayMenuSource
 {
     /// <inheritdoc />
     public IReadOnlyList<TrayMenuItem> GetItems()

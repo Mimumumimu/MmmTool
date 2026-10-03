@@ -16,11 +16,17 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     private CliSettings _settings = new();
 
     /// <summary>保存を止めているか。</summary>
-    /// <remarks>読み込みに失敗したとき（手修正の誤り等）は、元のファイルを上書きで消さないよう保存を止める。</remarks>
+    /// <remarks>
+    /// ファイルを読めなかったとき（ロック・権限など）は、元のファイルを上書きで消さないよう保存を止める。
+    /// 中身が壊れていたときは退避済みなので止めない。
+    /// </remarks>
     private bool _saveDisabled;
 
     /// <summary>読み込みに失敗したときのメッセージ。</summary>
     public string? LoadError { get; private set; }
+
+    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。</summary>
+    public string? RecoveryMessage { get; private set; }
 
     /// <summary>最後に移動した作業ディレクトリ</summary>
     public string? LastDirectory => _settings.LastDirectory;
@@ -33,7 +39,7 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     {
         try
         {
-            _settings = await repository.LoadAsync(cancellationToken);
+            (_settings, RecoveryMessage) = await repository.LoadAsync(cancellationToken);
             _settings.DirectoryHistory ??= [];
         }
         catch (DataFileException ex)

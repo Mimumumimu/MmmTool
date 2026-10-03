@@ -18,13 +18,18 @@ public sealed class LinkMenuService(ILinkRepository repository)
     /// <remarks>成功したら null に戻る。</remarks>
     public string? LoadError { get; private set; }
 
+    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
+    /// <remarks>起動時の読み込みで起きても編集ページで知らせられるよう、一度入ったら消さない。</remarks>
+    public string? RecoveryMessage { get; private set; }
+
     /// <summary>リンクメニューを読み込む</summary>
     /// <exception cref="DataFileException">読み込みに失敗した（<see cref="LoadError"/> にも残す）。</exception>
     public async Task<LinkMenu> LoadAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var menu = await repository.LoadAsync(cancellationToken);
+            var (menu, recoveryMessage) = await repository.LoadAsync(cancellationToken);
+            RecoveryMessage = recoveryMessage ?? RecoveryMessage;
             menu.Items ??= [];
             Current = menu;
             LoadError = null;

@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
@@ -81,7 +82,7 @@
       <_MuiBuildDir Include="@(_MuiBuild->'%(RootDir)%(Directory)')" />
     </ItemGroup>
     <Delete Files="@(_MuiBuild)" />
-    <RemoveDir Directories="@(_MuiBuildDir->Distinct())" />
+    <RemoveDir Directories="@(_MuiBuildDir-&gt;Distinct())" />
   </Target>
   <Target Name="PruneMuiAfterPublish" AfterTargets="Publish">
     <ItemGroup>
@@ -89,7 +90,7 @@
       <_MuiPubDir Include="@(_MuiPub->'%(RootDir)%(Directory)')" />
     </ItemGroup>
     <Delete Files="@(_MuiPub)" />
-    <RemoveDir Directories="@(_MuiPubDir->Distinct())" />
+    <RemoveDir Directories="@(_MuiPubDir-&gt;Distinct())" />
   </Target>
 
   <!-- Publish Properties -->

@@ -1,14 +1,13 @@
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Repositories;
 using MmmSdk.Core.Services;
 using MmmTool.Core.Entities;
-using MmmTool.Core.Repositories;
 using MmmTool.Core.Services;
 using MmmTool.Services;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace MmmTool.ViewModels;
 
@@ -24,7 +23,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>リンクメニューの読み書き</summary>
     private readonly LinkMenuService _linkMenu;
     /// <summary>リンクを開く処理</summary>
-    private readonly LinkOpener _opener;
+    private readonly PathOpener _opener;
     /// <summary>ダイアログ</summary>
     private readonly IDialogService _dialogs;
     /// <summary>ファイル選択</summary>
@@ -45,7 +44,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>ViewModel を作る</summary>
     public LinkEditorViewModel(
         LinkMenuService linkMenu,
-        LinkOpener opener,
+        PathOpener opener,
         IDialogService dialogs,
         IFilePickerService filePicker,
         IFolderPickerService folderPicker)
@@ -84,6 +83,12 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         if (_initialized) return;
         _initialized = true;
         await LoadAsync();
+
+        // 起動時の読み込みで作り直した場合もここで知らせる（読み込みエラーを表示中なら、そちらを優先）
+        if (_linkMenu.RecoveryMessage is { } recoveryMessage && !_loadFailed)
+        {
+            ShowError(recoveryMessage);
+        }
     }
 
     /// <summary>保存済みの構成を読み込んでツリーを作り直す。</summary>
@@ -166,35 +171,35 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>選択中のリンクのパスが指す先の種類。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PathKindText), nameof(PathKindGlyph), nameof(IsPathNotFound), nameof(IsPathFound))]
-    public partial LinkTargetKind PathKind { get; set; }
+    public partial PathTargetKind PathKind { get; set; }
 
     /// <summary>パスの種類の説明</summary>
     public string PathKindText => PathKind switch
     {
-        LinkTargetKind.Url => "URL（ブラウザなど既定のアプリで開きます）",
-        LinkTargetKind.Folder => "フォルダー（エクスプローラーで開きます）",
-        LinkTargetKind.Executable => "実行ファイル（起動します）",
-        LinkTargetKind.File => "ファイル（関連付けられたアプリで開きます）",
-        LinkTargetKind.NotFound => "見つかりません。パスを確認してください",
+        PathTargetKind.Url => "URL（ブラウザなど既定のアプリで開きます）",
+        PathTargetKind.Folder => "フォルダー（エクスプローラーで開きます）",
+        PathTargetKind.Executable => "実行ファイル（起動します）",
+        PathTargetKind.File => "ファイル（関連付けられたアプリで開きます）",
+        PathTargetKind.NotFound => "見つかりません。パスを確認してください",
         _ => "",
     };
 
     /// <summary>パスの種類のアイコン</summary>
     public string PathKindGlyph => PathKind switch
     {
-        LinkTargetKind.Url => "",
-        LinkTargetKind.Folder => "",
-        LinkTargetKind.Executable => "",
-        LinkTargetKind.File => "",
-        LinkTargetKind.NotFound => "",
+        PathTargetKind.Url => "",
+        PathTargetKind.Folder => "",
+        PathTargetKind.Executable => "",
+        PathTargetKind.File => "",
+        PathTargetKind.NotFound => "",
         _ => "",
     };
 
     /// <summary>パスが見つからないか</summary>
-    public bool IsPathNotFound => PathKind == LinkTargetKind.NotFound;
+    public bool IsPathNotFound => PathKind == PathTargetKind.NotFound;
 
     /// <summary>パスが見つかったか（空・見つからない以外）</summary>
-    public bool IsPathFound => PathKind is not (LinkTargetKind.Empty or LinkTargetKind.NotFound);
+    public bool IsPathFound => PathKind is not (PathTargetKind.Empty or PathTargetKind.NotFound);
 
     /// <summary>入力が止まるのを待ってから、パスの種類を調べ直す。</summary>
     private async void UpdatePathKind()
@@ -204,7 +209,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
         if (SelectedItem is not { Kind: LinkItemKind.Link } link || string.IsNullOrWhiteSpace(link.Path))
         {
-            PathKind = LinkTargetKind.Empty;
+            PathKind = PathTargetKind.Empty;
             return;
         }
 
@@ -213,7 +218,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         try
         {
             await Task.Delay(PathCheckDelay, cancellation.Token);
-            var kind = await Task.Run(() => LinkTarget.Classify(path), cancellation.Token);
+            var kind = await Task.Run(() => PathTarget.Classify(path), cancellation.Token);
             if (!cancellation.IsCancellationRequested)
             {
                 PathKind = kind;
@@ -233,7 +238,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         {
             await _opener.OpenAsync(SelectedItem!.Path);
         }
-        catch (LinkOpenException ex)
+        catch (PathOpenException ex)
         {
             ShowError(ex.Message);
         }

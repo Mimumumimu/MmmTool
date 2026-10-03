@@ -1,4 +1,6 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using MmmTool.ViewModels;
 
 namespace MmmTool.Views;
@@ -14,5 +16,47 @@ public sealed partial class SettingsPage : Page
     {
         ViewModel = viewModel;
         InitializeComponent();
+    }
+
+    /// <summary>読み込み時に消去ボタン（×）を隠す</summary>
+    private void OnNumberBoxLoaded(object sender, RoutedEventArgs e) => HideDeleteButton((DependencyObject)sender);
+
+    /// <summary>フォーカスされたときにも消去ボタン（×）を隠す</summary>
+    /// <remarks>内部の TextBox のテンプレートが読み込み時にはまだ展開されていないことがあるため、×が出る直前のフォーカス時にもやり直す。</remarks>
+    private void OnNumberBoxGotFocus(object sender, RoutedEventArgs e) => HideDeleteButton((DependencyObject)sender);
+
+    /// <summary>NumberBox の消去ボタン（×）を出さない</summary>
+    /// <remarks>
+    /// NumberBox は消去ボタンを隠すプロパティを持たない。ビジュアルステートは Visibility を書き換えるので、
+    /// ステートに触られない大きさ・不透明度・当たり判定で見えなくする（スタイルの MinWidth があるので MinWidth も 0 にする）。
+    /// 空欄は <see cref="SettingsViewModel"/> が補正するので消去は不要。
+    /// </remarks>
+    private static void HideDeleteButton(DependencyObject numberBox)
+    {
+        if (FindDescendant<Button>(numberBox, "DeleteButton") is { } button)
+        {
+            button.MinWidth = 0;
+            button.Width = 0;
+            button.Opacity = 0;
+            button.IsHitTestVisible = false;
+        }
+    }
+
+    /// <summary>名前が一致する子孫要素を探す</summary>
+    private static T? FindDescendant<T>(DependencyObject parent, string name) where T : FrameworkElement
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T element && element.Name == name)
+            {
+                return element;
+            }
+            if (FindDescendant<T>(child, name) is { } found)
+            {
+                return found;
+            }
+        }
+        return null;
     }
 }

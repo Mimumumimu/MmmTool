@@ -1,3 +1,4 @@
+using MmmSdk.Core.Repositories;
 using MmmSdk.Core.Repositories.Json;
 using MmmTool.Core.Entities;
 
@@ -10,8 +11,12 @@ public sealed class JsonCliSettingsRepository(JsonFileStore store) : ICliSetting
     private const string FileName = "CliSettings.json";
 
     /// <inheritdoc />
-    public async Task<CliSettings> LoadAsync(CancellationToken cancellationToken = default)
-        => await store.ReadAsync(FileName, CoreJsonContext.Readable.CliSettings, cancellationToken) ?? new CliSettings();
+    public async Task<DataLoadResult<CliSettings>> LoadAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await store.ReadAsync(FileName, CoreJsonContext.Readable.CliSettings, cancellationToken);
+        // 壊れていたときも、無いときと同じく空の設定から始める（ファイルは次の保存で作られる）
+        return new(result.Value ?? new CliSettings(), result.RecoveryMessage);
+    }
 
     /// <inheritdoc />
     public Task SaveAsync(CliSettings settings, CancellationToken cancellationToken = default)
