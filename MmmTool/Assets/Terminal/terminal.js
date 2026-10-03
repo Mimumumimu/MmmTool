@@ -29,8 +29,10 @@
             return true;
         }
         if (e.key === "c" && term.hasSelection()) {
-            navigator.clipboard.writeText(term.getSelection());
-            term.clearSelection();
+            // 書き込めたときだけ選択を解除する（拒否されたら選択を残して、コピーされていないと分かるようにする）
+            navigator.clipboard.writeText(term.getSelection())
+                .then(() => term.clearSelection())
+                .catch(error => console.error("クリップボードへ書き込めませんでした", error));
             return false;
         }
         if (e.key === "v") {
@@ -42,7 +44,18 @@
     term.onData(data =>host.postMessage({ type: "input", data }));
     term.onResize(({ cols, rows }) => host.postMessage({ type: "resize", cols, rows }));
 
-    new ResizeObserver(() => fit.fit()).observe(document.body);
+    // サイズ変更の通知は 1 フレームに 1 回にまとめる（ドラッグ中に fit() を連打しない。onResize は、列・行が実際に変わったときだけ ConPTY へ伝える）
+    let fitScheduled = false;
+    new ResizeObserver(() => {
+        if (fitScheduled) {
+            return;
+        }
+        fitScheduled = true;
+        requestAnimationFrame(() => {
+            fitScheduled = false;
+            fit.fit();
+        });
+    }).observe(document.body);
 
     // 最後にシェルの出力を受け取った時刻（送信時に、CLI の処理が落ち着いたかの判断に使う）
     let lastOutputAt = 0;

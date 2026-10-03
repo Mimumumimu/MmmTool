@@ -21,14 +21,25 @@ public static class ShellCommands
             : ShellKind.PowerShell;
     }
 
-    /// <summary>作業ディレクトリを移動するコマンド。</summary>
+    /// <summary>作業ディレクトリを移動するコマンドを作る。</summary>
     /// <param name="kind">シェルの種類</param>
     /// <param name="directory">移動先のディレクトリ</param>
-    /// <returns>シェルへ送るコマンド文字列</returns>
-    public static string ChangeDirectory(ShellKind kind, string directory) => kind switch
+    /// <param name="command">シェルへ送るコマンド文字列（作れたとき）</param>
+    /// <returns>作れたら true。cmd で、パスに <c>%</c> を含むときは false</returns>
+    /// <remarks>
+    /// cmd は、対話入力では引用符の中でも <c>%名前%</c> を環境変数に展開し、<c>%</c> を安全に打ち消す方法もない。
+    /// 意図しないパスへ移動しないよう、cmd で <c>%</c> を含むパスは、コマンドを作らない。
+    /// </remarks>
+    public static bool TryChangeDirectory(ShellKind kind, string directory, out string command)
     {
-        ShellKind.Cmd => $"cd /d \"{directory}\"",
+        if (kind == ShellKind.Cmd)
+        {
+            command = directory.Contains('%') ? "" : $"cd /d \"{directory}\"";
+            return command.Length > 0;
+        }
+
         // 単一引用符なら $ や ` が展開されない。パス中の ' は '' でエスケープする
-        _ => $"Set-Location -LiteralPath '{directory.Replace("'", "''")}'",
-    };
+        command = $"Set-Location -LiteralPath '{directory.Replace("'", "''")}'";
+        return true;
+    }
 }
