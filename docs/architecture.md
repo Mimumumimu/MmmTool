@@ -38,6 +38,14 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
 - ダイアログ: 共通の `IDialogService`（SDK）は確認ダイアログだけ。機能固有の画面は各機能の口から開く（`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`）。実装は SDK の `IDialogHost` の `Owner`（親の決定）と `ShowModalAsync`（開いている間モーダルとして覚える）を使う（具象の `DialogService` には依存しない）。ピッカーの親も `IDialogHost.Owner`
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`（閉じる要求を素通しにする）→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能（起動時の準備を含む）より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
+## エラーの扱い
+3 段階。予測できる失敗は、先に確かめる（`TryXxx`・検証・ガード節）。それでも起きる失敗（ファイル・JSON・OS・COM）は、範囲を絞った `catch` で受けて画面に出す（InfoBar）。復旧が難しい失敗・予想外の失敗（バグ）は、ログ（`AppContext.BaseDirectory/Logs/yyyy-MM-dd.log`）→ ダイアログ → 終了（SDK の `FatalErrorHandler`）。隠さず、握りつぶさない。
+- `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` し（Host を作る前の失敗も拾うため）、DI にも登録する（トレイが使う）
+- `try/catch` を書けない場所（`async void`・タイマー・待たれないタスク。例: `ReminderMonitor.OnTick`）の例外は、`AttachTo` の安全網が、同じ処理（ログ → ダイアログ → 終了）で受ける
+- `OnLaunched` は、起動が途中で止まって気づけなくならないよう、`try/catch` で包んで報告する。読み込みの失敗など、起動を止めたくない例外は、各機能の `IStartupTask` の中で受ける
+- トレイの `WndProc` は、`[UnmanagedCallersOnly]` から例外が抜けるとログも残らず落ちるため、中で `try/catch` して報告する。異常終了のときは、トレイのアイコンも外す
+- 詳細は `external/MmmSdk/README.md`「エラーのログと、復旧できないエラーの処理」
+
 ## 保存
 JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときはアプリを閉じてから行う。保存先は将来 SQL Server / DynamoDB などに替える可能性があり、Repository + DI で差し替えられる形にしている。詳細は [specs/storage.md](specs/storage.md)。
 
