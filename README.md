@@ -62,7 +62,7 @@ MmmTool は、開発作業を補助する常駐型の WinUI 3 デスクトップ
 - WinUI 3（Windows App SDK 2.5）
 - CommunityToolkit.Mvvm
 - CommunityToolkit.WinUI.Controls.Segmented（リマインダーの対応状態の切り替え）
-- Microsoft.Extensions.Hosting（Generic Host による DI）
+- Microsoft.Extensions.Hosting（Generic Host による DI。設定・ログの既定は無効）
 - WebView2 + [xterm.js](https://xtermjs.org/) 6.0.0 / addon-fit 0.11.0（ターミナル描画）
 - Win32 API の直接呼び出し（ConPTY、`Shell_NotifyIcon` によるトレイアイコンなど。WinForms には依存しません）
 - 共有部品 [MmmSdk](https://github.com/Mimumumimu/MmmSdk)（Git サブモジュール）

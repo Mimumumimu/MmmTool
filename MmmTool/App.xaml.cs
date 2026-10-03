@@ -24,7 +24,7 @@ public partial class App : Application
     private readonly SingleInstanceGuard _instanceGuard = new("MmmTool");
     /// <summary>復旧できないエラーの報告先（ログ・ダイアログ・終了）</summary>
     private readonly FatalErrorHandler _fatalErrors;
-    /// <summary>DI・ログなどを扱う Host</summary>
+    /// <summary>DI とライフタイムを扱う Host</summary>
     private readonly IHost _host;
     /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
     private MainWindow? _window;
@@ -44,8 +44,10 @@ public partial class App : Application
 
         InitializeComponent();
 
+        // 設定（appsettings.json・環境変数）とログの既定は使わないので、無効にする（起動時に読まないため）
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
+            DisableDefaults = true,
             ContentRootPath = AppContext.BaseDirectory,
         });
         ConfigureServices(builder.Services, _fatalErrors);
