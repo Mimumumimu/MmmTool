@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using MmmTool.Core.CliAssist;
 using static MmmTool.Interop.NativeMethods;
 
 namespace MmmTool.Features.CliAssist.Terminal;
