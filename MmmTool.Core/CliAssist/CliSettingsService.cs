@@ -13,7 +13,14 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     public const int MaxDirectoryHistory = 20;
 
     /// <summary>現在の設定</summary>
+    /// <remarks>
+    /// 書き換えず、変更のたびに新しい設定へ差し替える。保存の途中（スレッドプールでの JSON への変換）に、UI スレッドで履歴を変えても、
+    /// 保存中のものは変わらない（列挙中の変更による例外を防ぐ）。
+    /// </remarks>
     private CliSettings _settings = new();
+
+    /// <summary>保存の順序を守るロック（古い内容が後から書かれないように）</summary>
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
 
     /// <summary>読み込みの結果</summary>
     /// <remarks>
@@ -50,7 +57,6 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         {
             var (settings, recoveryMessage) = await repository.LoadAsync(cancellationToken);
             _settings = settings;
-            _settings.DirectoryHistory ??= [];
             _status.Succeeded(recoveryMessage);
             if (_settings.LastDirectory is { } last && await Task.Run(() => Directory.Exists(last), cancellationToken).ConfigureAwait(false))
             {
@@ -69,10 +75,9 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <returns>保存の完了を表すタスク</returns>
     public Task AddDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
-        _settings.LastDirectory = directory;
-
-        var history = _settings.DirectoryHistory;
+        var history = new List<string>(_settings.DirectoryHistory);
         history.AddRecent(directory, path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase), MaxDirectoryHistory);
+        _settings = new CliSettings { LastDirectory = directory, DirectoryHistory = history };
         return SaveAsync(cancellationToken);
     }
 
@@ -82,14 +87,33 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <returns>保存の完了を表すタスク</returns>
     public Task RemoveDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
-        _settings.DirectoryHistory.RemoveAll(path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase));
+        _settings = new CliSettings
+        {
+            LastDirectory = _settings.LastDirectory,
+            DirectoryHistory = [.. _settings.DirectoryHistory.Where(path => !string.Equals(path, directory, StringComparison.OrdinalIgnoreCase))],
+        };
         return SaveAsync(cancellationToken);
     }
 
     /// <summary>設定を保存する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存を止めているときは何もしない。</remarks>
-    private Task SaveAsync(CancellationToken cancellationToken)
-        => _status.HasFailed ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
+    /// <remarks>保存を止めているときは何もしない。保存は順番に行い、そのときの最新の設定を書く。</remarks>
+    private async Task SaveAsync(CancellationToken cancellationToken)
+    {
+        if (_status.HasFailed)
+        {
+            return;
+        }
+
+        await _saveLock.WaitAsync(cancellationToken);
+        try
+        {
+            await repository.SaveAsync(_settings, cancellationToken);
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
+    }
 }

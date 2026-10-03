@@ -6,6 +6,7 @@
 - `Data/Links.json`：`{ "items": [ { "kind", "name", "path", "children" } ] }`。ローカル専用・ID なしの入れ子。無ければ空で生成する
 - 種類は `kind`（`"link"` / `"folder"` / `"separator"`。Core の `LinkNodeKind`）で明示する。保存するときは必ず書く。名前から決めると、「-」という名前のリンクが、編集画面を開くだけで区切り線に変わってしまうため
 - `kind` が無い古い JSON は、`LinkNode.ResolveKind` が以前の決め方で読み替える（`children` があればフォルダ・名前が `-` なら区切り線・それ以外はリンク）。次に保存したときから、`kind` が書かれる
+- `kind` の知らない値（書き間違い。例: `"folders"`）は、ファイル全体を壊れた扱いにせず、無視して `ResolveKind` の読み替えに任せる（Entity は種類を文字列で持つ。CLI補助の `switchTo` / `focus` と同じ）。読み込んだあとに `LinkMenu.Validate` で調べ、リンク編集ページの InfoBar で場所と使える値を知らせる
 - 編集用は `LinkTreeItem`。種類は作成時に固定する（名前で決めると、入力途中の「-」で区切り線に変わってしまうため）
 
 ## サービス（`LinkMenuService`）

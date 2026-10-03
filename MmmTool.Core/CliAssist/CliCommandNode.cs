@@ -22,6 +22,13 @@ public sealed class CliCommandNode
     /// <summary>子要素（中間ノードのとき）。</summary>
     public List<CliCommandNode>? Children { get; set; }
 
+    /// <summary>列挙値を、JSON に書く文字列にする</summary>
+    /// <typeparam name="T">列挙型（<see cref="CommandCategory"/> / <see cref="FocusTarget"/>）</typeparam>
+    /// <param name="value">列挙値</param>
+    /// <returns>JSON に書く文字列（名前の小文字。例: <c>"session"</c>）</returns>
+    /// <remarks>文字列との変換は、読む側（<see cref="GetSwitchTo"/> / <see cref="GetFocus"/>）とこの 1 か所に集める。</remarks>
+    public static string ToJsonValue<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
+
     /// <summary><see cref="SwitchTo"/> を列挙値にする</summary>
     /// <returns>切り替えるタブ。省略・不正な値なら null</returns>
     public CommandCategory? GetSwitchTo() => Parse<CommandCategory>(SwitchTo);

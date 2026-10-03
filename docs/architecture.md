@@ -32,6 +32,7 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
 ## DI と起動
 - Generic Host（`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定（appsettings.json・環境変数）とロガーの既定は無効）で DI を組む。ログは SDK の `ErrorLog`（エラーのファイル）だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
 - 機能を登録した順（CLI補助 → リマインダー → リンク → DEBUG → 設定）に、サイドバーの項目（上部・下部それぞれ）・トレイメニューの項目（リマインダーがリンクより上）・起動時の準備が並ぶ
+- 開くたびに作るウィンドウ（`IDisposable` の ViewModel を持つもの）は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する（ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため）。常駐するもの（`PseudoConsoleSession` など）は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先（Repository の実装）は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ（[specs/settings.md](specs/settings.md)）
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する（ページは Transient・キーは型名）。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`（初回に DI から作ってキャッシュ）からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
@@ -71,7 +72,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - ロックは `System.Threading.Lock`
 - 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは SDK の `ThumbnailImage.FromFile`、完了・削除済みの見た目は `Features/Reminders/ReminderRowStyle`）
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`（TwoWay）と `Message` に結び付ける（閉じる処理は書かない）。ファイルの読み込み結果は SDK の `LoadStatus` で持つ
-- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）
+- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）。アプリの名前・Data / Logs フォルダー・トレイのクラス名は `Shell/AppInfo` の 1 か所（多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う）
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格（保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化）を `Features/Reminders/ReminderViewModelBase` に持つ
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
 - ターミナルの後始末（SDK の `PseudoConsoleSession` の `Dispose`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため

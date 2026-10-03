@@ -6,6 +6,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 - 3 領域のレイアウト：左に定型コマンドのツリー、中央にターミナル、下に送信欄
 - ターミナルは SDK の `TerminalControl`（ConPTY + xterm.js（WebView2））。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する。セッション・画面・WebView2 の守り・出力の流量制御・シェルの決定（PATH 上の pwsh.exe、無ければ Windows PowerShell）・シェル別の作業ディレクトリ変更コマンドは、SDK の `docs/terminal.md`（`external/MmmSdk/docs/terminal.md`）
   - アプリ側の使い方: `ITerminalSession`（SDK）を `PseudoConsoleSession` として DI に Transient で登録し、Host の破棄時に Dispose する（シェルも終了する）。画面は `CliAssistPage.xaml` の `TerminalControl` に `CliAssistViewModel.Terminal` を渡す
+  - ターミナルが起動していない（起動の直前・再起動の途中・WebView2 を初期化できなかった）ときと、シェルが終了しているときは、定型コマンド・入力欄の送信を捨てずに、InfoBar で知らせる（`CliAssistViewModel.TrySubmit`）。送れなかったときは、入力欄・添付を残し、タブの切り替え・フォーカスの移動もしない。作業ディレクトリ変更は、送れなくても、これから（再）起動するシェルの作業ディレクトリと履歴は更新する
   - 起動時の準備（`CliAssistStartup`）で、既定のシェルの探索（`ShellLocator.Default`。PATH の全項目へ触れる）をバックグラウンドで済ませる。UI スレッドで初めて探して止まらないようにするため
   - 補助スクリプトを動かすシェルは、ターミナルで使うシェルに合わせる（`ShellLocator.Default.FileName`。シェルの中でシェル自身を呼ぶので、ファイル名だけを使う）
   - 作業ディレクトリ変更: `ShellCommands.TryChangeDirectory(Terminal.Shell, …)`。cmd でパスに `%` があると作れない（`false`）ので、移動せずにエラー表示する

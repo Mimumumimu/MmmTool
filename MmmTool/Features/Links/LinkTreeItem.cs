@@ -106,9 +106,9 @@ public sealed partial class LinkTreeItem : ObservableObject
     /// <returns>保存用の構成の要素（種類を必ず書く）</returns>
     public LinkNode ToNode() => Kind switch
     {
-        LinkNodeKind.Folder => new LinkNode { Kind = LinkNodeKind.Folder, Name = Name, Children = [.. Children!.Select(child => child.ToNode())] },
-        LinkNodeKind.Separator => new LinkNode { Kind = LinkNodeKind.Separator },
-        _ => new LinkNode { Kind = LinkNodeKind.Link, Name = Name, Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim() },
+        LinkNodeKind.Folder => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Folder), Name = Name, Children = [.. Children!.Select(child => child.ToNode())] },
+        LinkNodeKind.Separator => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Separator) },
+        _ => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Link), Name = Name, Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim() },
     };
 
     /// <summary>子孫の数（フォルダのとき）。</summary>

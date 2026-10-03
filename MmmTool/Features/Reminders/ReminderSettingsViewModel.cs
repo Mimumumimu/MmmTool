@@ -12,6 +12,10 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <summary>リマインダーの設定</summary>
     private readonly ReminderSettingsService _reminderSettings;
 
+    /// <summary>保存済みの値を入れている最中か</summary>
+    /// <remarks>true の間は、値の変更で保存しない（読み込んだだけの値で、設定ファイルを書き換えないため）。</remarks>
+    private bool _isInitializing;
+
     /// <summary>画面に出すエラー（保存に失敗したとき）</summary>
     public ErrorState Error { get; } = new();
 
@@ -34,7 +38,9 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     public ReminderSettingsViewModel(ReminderSettingsService reminderSettings)
     {
         _reminderSettings = reminderSettings;
+        _isInitializing = true;
         SnoozeIntervalMinutes = reminderSettings.SnoozeIntervalMinutes;
+        _isInitializing = false;
         IsEditable = !reminderSettings.IsReadOnly;
     }
 
@@ -42,6 +48,11 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <param name="value">変更後のスヌーズ間隔（分）</param>
     partial void OnSnoozeIntervalMinutesChanged(double value)
     {
+        if (_isInitializing)
+        {
+            return;
+        }
+
         // NumberBox は空にすると NaN になる
         var minutes = double.IsNaN(value) ? ReminderSettingsService.DefaultSnoozeInterval : (int)Math.Round(value);
         var clamped = ReminderSettingsService.ClampSnoozeInterval(minutes);

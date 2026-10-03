@@ -93,7 +93,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         // 起動時の読み込みで作り直した場合もここで知らせる（読み込みエラーを表示中なら、そちらを優先）
         if (_linkMenu.RecoveryMessage is { } recoveryMessage && !_loadFailed)
         {
-            Error.Show(recoveryMessage);
+            Error.Show(Error.IsOpen ? $"{recoveryMessage}\n\n{Error.Message}" : recoveryMessage);
         }
     }
 
@@ -117,12 +117,18 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _loadFailed = false;
 
         RootItems.Clear();
-        foreach (var node in menu.Items!)
+        foreach (var node in menu.Items)
         {
             RootItems.Add(LinkTreeItem.From(node));
         }
         SelectedItem = null;
         IsDirty = false;
+
+        // 手で編集した JSON の書き間違い（知らない kind）は、無視して続け、画面で知らせる
+        if (menu.Validate() is { Count: > 0 } problems)
+        {
+            Error.Show(string.Join("\n", problems));
+        }
         NotifySaveStateChanged();
     }
 
@@ -336,7 +342,8 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         if (count > 0 && !await _dialogs.ConfirmAsync(
                 $"「{selected.Name}」を削除しますか？",
                 $"中の {count} 件の項目もまとめて削除されます。保存する前なら「変更を破棄」で元に戻せます。",
-                "削除"))
+                "削除",
+                "キャンセル"))
         {
             return;
         }

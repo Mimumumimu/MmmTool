@@ -9,7 +9,7 @@ namespace MmmTool.Core.Reminders;
 public sealed class ReminderSettingsService(ISettingsStore settings)
 {
     /// <summary>スヌーズの再通知間隔（分）の設定キー</summary>
-    public const string SnoozeIntervalKey = "Reminder.SnoozeIntervalMinutes";
+    private const string SnoozeIntervalKey = "Reminder.SnoozeIntervalMinutes";
 
     /// <summary>スヌーズの再通知間隔（分）の既定値</summary>
     public const int DefaultSnoozeInterval = 15;

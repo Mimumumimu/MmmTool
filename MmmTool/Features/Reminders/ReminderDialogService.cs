@@ -7,23 +7,29 @@ using MmmTool.Features.Reminders.List;
 namespace MmmTool.Features.Reminders;
 
 /// <summary>リマインダーの入力・一覧画面を開く</summary>
-/// <param name="services">画面を作る DI のサービスプロバイダー</param>
+/// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
-/// <remarks>画面は閉じると再表示できないので、開くたびに DI から作る。UI スレッドから呼ぶ。</remarks>
-public sealed class ReminderDialogService(IServiceProvider services, IDialogHost dialogs) : IReminderDialogService
+/// <remarks>
+/// 画面は閉じると再表示できないので、開くたびに DI から作る。UI スレッドから呼ぶ。
+/// 画面（と ViewModel）は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する
+/// （ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため）。
+/// </remarks>
+public sealed class ReminderDialogService(IServiceScopeFactory scopeFactory, IDialogHost dialogs) : IReminderDialogService
 {
     /// <inheritdoc />
-    public Task<Reminder?> ShowInputAsync(Reminder? reminder)
+    public async Task<Reminder?> ShowInputAsync(Reminder? reminder)
     {
-        var window = services.GetRequiredService<ReminderInputWindow>();
-        return dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, reminder));
+        using var scope = scopeFactory.CreateScope();
+        var window = scope.ServiceProvider.GetRequiredService<ReminderInputWindow>();
+        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, reminder));
     }
 
     /// <inheritdoc />
-    public Task ShowListAsync()
+    public async Task ShowListAsync()
     {
-        var window = services.GetRequiredService<ReminderListWindow>();
-        return dialogs.ShowModalAsync(window, async owner =>
+        using var scope = scopeFactory.CreateScope();
+        var window = scope.ServiceProvider.GetRequiredService<ReminderListWindow>();
+        await dialogs.ShowModalAsync(window, async owner =>
         {
             await window.ShowModalAsync(owner);
             return true;

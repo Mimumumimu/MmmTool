@@ -22,7 +22,7 @@ namespace MmmTool;
 public partial class App : Application
 {
     /// <summary>多重起動の防止</summary>
-    private readonly SingleInstanceGuard _instanceGuard = new("MmmTool");
+    private readonly SingleInstanceGuard _instanceGuard = new(AppInfo.Name);
     /// <summary>復旧できないエラーの報告先（ログ・ダイアログ・終了）</summary>
     private readonly FatalErrorHandler _fatalErrors;
     /// <summary>DI とライフタイムを扱う Host</summary>
@@ -36,11 +36,11 @@ public partial class App : Application
     {
         if (!_instanceGuard.IsFirstInstance)
         {
-            NativeMessageBox.ShowInformation("MmmTool はすでに起動しています。", "MmmTool");
+            NativeMessageBox.ShowInformation($"{AppInfo.Name} はすでに起動しています。", AppInfo.Name);
             Environment.Exit(0);
         }
 
-        _fatalErrors = new FatalErrorHandler(new ErrorLog(Path.Combine(AppContext.BaseDirectory, "Logs")), "MmmTool");
+        _fatalErrors = new FatalErrorHandler(new ErrorLog(AppInfo.LogDirectory), AppInfo.Name);
         _fatalErrors.AttachTo(this);
 
         InitializeComponent();
@@ -65,7 +65,7 @@ public partial class App : Application
         services.AddSingleton(fatalErrors);
 
         // SDK（JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択）。JsonFileStore はアプリ固有の保存でも共有する
-        services.AddMmmSdkCore(Path.Combine(AppContext.BaseDirectory, "Data"));
+        services.AddMmmSdkCore(AppInfo.DataDirectory);
         services.AddMmmSdkWinUI();
 
         // 画面の枠（メインウィンドウ・サイドバー・トレイ）

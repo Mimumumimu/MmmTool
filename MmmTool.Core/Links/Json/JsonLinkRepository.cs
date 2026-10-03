@@ -23,7 +23,10 @@ public sealed class JsonLinkRepository(IJsonFileStore store) : ILinkRepository
             // 壊れたファイルは退避済みなので、無いときと同じく空の構成で作り直す
             return new(await WriteEmptyAsync(cancellationToken), result.RecoveryMessage);
         }
-        return new(result.Value ?? new LinkMenu());
+        var menu = result.Value ?? new LinkMenu();
+        // JSON に null と書かれていたときも、空として扱う
+        menu.Items ??= [];
+        return new(menu);
     }
 
     /// <summary>空の構成を作って保存する</summary>

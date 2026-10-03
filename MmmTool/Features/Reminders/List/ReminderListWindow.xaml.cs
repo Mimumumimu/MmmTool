@@ -105,7 +105,6 @@ public sealed partial class ReminderListWindow : Window
     /// <param name="e">イベントの情報</param>
     private async void OnPurgeClick(object sender, RoutedEventArgs e) => await ViewModel.PurgeCommand.ExecuteAsync(ItemOf(sender));
 
-
     /// <summary>押された要素の行を選択する</summary>
     /// <param name="originalSource">押された要素</param>
     private void SelectRowOf(object originalSource)

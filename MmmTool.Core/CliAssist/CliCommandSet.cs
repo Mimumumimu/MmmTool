@@ -5,11 +5,12 @@ namespace MmmTool.Core.CliAssist;
 public sealed class CliCommandSet
 {
     /// <summary>シェルで打つコマンド（AI エージェント起動前）。</summary>
-    public List<CliCommandNode>? Shell { get; set; } = [];
+    /// <remarks>JSON に <c>null</c> と書かれていたときは、読み込み（Repository）で空にする。</remarks>
+    public List<CliCommandNode> Shell { get; set; } = [];
 
     /// <summary>AI エージェント（Claude Code・Kiro 等）のセッション内で打つコマンド（起動後）</summary>
-    /// <remarks>ツールごとにフォルダで分ける。</remarks>
-    public List<CliCommandNode>? Session { get; set; } = [];
+    /// <remarks>ツールごとにフォルダで分ける。JSON に <c>null</c> と書かれていたときは、読み込み（Repository）で空にする。</remarks>
+    public List<CliCommandNode> Session { get; set; } = [];
 
     /// <summary>設定の誤り（知らない <c>switchTo</c> / <c>focus</c> の値）を探す</summary>
     /// <returns>ユーザーに見せる警告のメッセージ。誤りが無ければ空</returns>

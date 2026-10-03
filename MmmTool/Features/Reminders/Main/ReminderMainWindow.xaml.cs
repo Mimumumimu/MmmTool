@@ -105,7 +105,6 @@ public sealed partial class ReminderMainWindow : Window
     /// <param name="e">イベントの情報</param>
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
-
     /// <summary>押された要素の行</summary>
     /// <param name="sender">メニュー項目</param>
     /// <returns>メニュー項目の行</returns>

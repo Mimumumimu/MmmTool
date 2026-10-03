@@ -18,8 +18,9 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<PageProvider>();
         // メニューの項目は、各機能が登録した ITrayMenuSource から作る
         services.AddMmmSdkTray(new TrayIconOptions(
-            ToolTip: "MmmTool",
-            WindowClassName: "MmmTool_Tray",
+            ToolTip: AppInfo.Name,
+            WindowClassName: AppInfo.TrayWindowClassName,
+            ExitText: "終了",
             IconPath: AppIcon.FilePath));
         return services;
     }
