@@ -35,18 +35,3 @@ public sealed class JsonReminderRepository(JsonFileStore store) : IReminderRepos
     public Task SaveStatesAsync(IReadOnlyList<ReminderState> states, CancellationToken cancellationToken = default)
         => store.WriteAsync(StatesFileName, new ReminderStateFile { Items = [.. states] }, ReminderJsonContext.Readable.ReminderStateFile, cancellationToken);
 }
-
-/// <summary>Reminders.json の中身</summary>
-/// <remarks>リンクの JSON と同じく <c>{ "items": [...] }</c> の形にする。</remarks>
-internal sealed class ReminderFile
-{
-    /// <summary>リマインダー本体の一覧</summary>
-    public List<Reminder>? Items { get; set; } = [];
-}
-
-/// <summary>ReminderStates.json の中身</summary>
-internal sealed class ReminderStateFile
-{
-    /// <summary>対応状態の一覧</summary>
-    public List<ReminderState>? Items { get; set; } = [];
-}

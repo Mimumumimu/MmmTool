@@ -1,14 +1,5 @@
 namespace MmmTool.Core.CliAssist;
 
-/// <summary>シェルの種類</summary>
-public enum ShellKind
-{
-    /// <summary>PowerShell</summary>
-    PowerShell,
-    /// <summary>コマンドプロンプト（cmd）</summary>
-    Cmd,
-}
-
 /// <summary>
 /// シェルの種類に合わせたコマンド文字列を組み立てる。
 /// </summary>
