@@ -1,11 +1,12 @@
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Windowing;
+using MmmTool.Shell;
 using Windows.Foundation;
 using Windows.Graphics;
 using Windows.UI.Text;
-using MmmSdk.WinUI.Dialogs;
 
 namespace MmmTool.Features.Reminders.List;
 
@@ -42,9 +43,7 @@ public sealed partial class ReminderListWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(TitleBarArea);
+        this.UseCustomTitleBar(TitleBarArea, AppIcon.FilePath);
         _modal = new PseudoModal(this);
 
         // 右クリック（メニューキー）した行を選択してからメニューを出す。行がメニューを出すときに処理済みにするので、処理済みでも受け取る
@@ -64,15 +63,8 @@ public sealed partial class ReminderListWindow : Window
 
         _modal.SetOwner(owner);
         var scale = _modal.OwnerScale;
-        var presenter = OverlappedPresenter.CreateForDialog();
-        presenter.IsResizable = true;
-        presenter.IsMaximizable = false;
-        presenter.IsMinimizable = false;
-        presenter.PreferredMinimumWidth = (int)(MinimumWidth * scale);
-        presenter.PreferredMinimumHeight = (int)(MinimumHeight * scale);
-        AppWindow.SetPresenter(presenter);
-
-        AppWindow.ResizeClient(new SizeInt32((int)(InitialWidth * scale), (int)(InitialHeight * scale)));
+        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)));
+        this.ResizeClientDip(InitialWidth, InitialHeight, scale);
         _modal.CenterOnOwner();
 
         _modal.Show();
