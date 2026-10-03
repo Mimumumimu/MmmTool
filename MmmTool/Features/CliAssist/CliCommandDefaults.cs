@@ -43,7 +43,7 @@ public static class CliCommandDefaults
                 Leaf("最新化", "claude update"),
                 // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
                 Leaf("会話履歴の削除",
-                    $"{DefaultShell.GetCommandLine()} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\Remove-ClaudeSession.ps1\"",
+                    $"{DefaultShell.GetFileName()} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\Remove-ClaudeSession.ps1\"",
                     focus: Focus.Terminal)),
         ],
         Session =

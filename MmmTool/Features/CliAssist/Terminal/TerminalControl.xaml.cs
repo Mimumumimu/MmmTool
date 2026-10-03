@@ -136,6 +136,8 @@ public sealed partial class TerminalControl : UserControl
         core.Settings.AreDefaultContextMenusEnabled = false;
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsZoomControlEnabled = false;
+        // ページからアプリ側のオブジェクトを呼べないようにする（メッセージのやり取りだけを使う）
+        core.Settings.AreHostObjectsAllowed = false;
 #if !DEBUG
         core.Settings.AreDevToolsEnabled = false;
 #endif

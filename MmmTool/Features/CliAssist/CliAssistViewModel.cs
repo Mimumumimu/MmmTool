@@ -173,7 +173,13 @@ public sealed partial class CliAssistViewModel : ObservableObject
             return;
         }
 
-        Terminal.Submit(ShellCommands.ChangeDirectory(ShellCommands.DetectKind(Terminal.CommandLine), directory));
+        if (!ShellCommands.TryChangeDirectory(ShellCommands.DetectKind(Terminal.CommandLine), directory, out var command))
+        {
+            Error.Show($"cmd では、% を含むフォルダーへ移動できません（環境変数として展開されるため）: {directory}");
+            return;
+        }
+
+        Terminal.Submit(command);
         // シェルを再起動したときも同じ場所から始める
         Terminal.WorkingDirectory = directory;
 

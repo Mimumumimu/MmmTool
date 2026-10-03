@@ -48,9 +48,13 @@ function Get-FirstUserMessage([string]$Path) {
 # /resume に出るタイトル（ai-title 行の最後のもの）。無ければ最初のユーザー発言
 function Get-SessionTitle([string]$Path) {
     $title = $null
-    $hit = Select-String -LiteralPath $Path -Pattern '"type":"ai-title"' -Encoding UTF8 | Select-Object -Last 1
-    if ($hit) {
-        try { $title = ($hit.Line | ConvertFrom-Json).aiTitle } catch { }
+    # 1 行ずつ文字列で探す（Select-String はパイプラインを通るので、大きいファイルでは遅い）
+    $hitLine = $null
+    foreach ($line in [System.IO.File]::ReadLines($Path, [System.Text.Encoding]::UTF8)) {
+        if ($line.Contains('"type":"ai-title"')) { $hitLine = $line }
+    }
+    if ($hitLine) {
+        try { $title = ($hitLine | ConvertFrom-Json).aiTitle } catch { }
     }
     if (-not $title) { $title = Get-FirstUserMessage $Path }
     $title = ($title -replace '\s+', ' ').Trim()

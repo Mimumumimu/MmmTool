@@ -8,7 +8,10 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
   - 再起動（`ITerminalSession.RestartAsync`）では、古いシェルの終了待ち（最大で数秒）を UI スレッドの外で行う。終了待ちの間に押されたキーは捨てる（二重に起動し直さない）。アプリの終了時の `Dispose` だけは、シェルを確実に終わらせるため、同期で待つ
   - 出力は、シェルの出力・終了メッセージ・起動失敗のメッセージを、すべて同じバッファ経由で送る（順序が入れ替わらない）。xterm.js が描画し終えるたびに文字数を返し（`written`）、未返却が 1M 文字を超えたら、返ってくるまで送らずにためておく（xterm.js の書き込み待ちがあふれて出力が捨てられるのを防ぐ）。ためる側（C# のバッファ）の大きさには上限を設けていない
   - WebView2 を初期化できなかったとき（ランタイムが無い・起動できない。`COMException`）は、ターミナルの場所に理由を文字で出す（他の機能は使える）。制約: ランタイムが無い PC で実際にどの例外が出るかは、まだ実機で確かめていない。COMException 以外が出たときは、未処理例外の受け皿（ログ・ダイアログ・終了）が受ける。確かめられたら、受ける例外を直す
-  - シェルは pwsh.exe が PATH にあればそれ、無ければ powershell.exe（`DefaultShell`。Core）
+  - シェルは pwsh.exe が PATH にあればそれ、無ければ Windows PowerShell（`DefaultShell`。Core）。起動は、実行ファイルのフルパスを引用符で囲んだコマンドラインで行う（名前だけだと、アプリのフォルダー・カレントフォルダーの同名ファイルが起動しうるため）。シェルの中でシェル自身を呼ぶコマンド（補助スクリプト）は、ファイル名だけを使う（`DefaultShell.GetFileName`）
+  - 作業ディレクトリ変更: PowerShell は `Set-Location -LiteralPath '…'`。cmd は `cd /d "…"` だが、パスに `%` があると環境変数として展開され、打ち消す方法もないため、移動せずにエラー表示する（`ShellCommands.TryChangeDirectory`）
+  - WebView2 の守り: `index.html` の CSP（自分のフォルダーのファイルだけ。外部通信・フレーム・フォームは禁止。xterm.js が `<style>` を足すため style だけ inline を許可。Chromium で、違反が出ないことと、描画・サイズ変更の通知が動くことを確認済み）、`AreHostObjectsAllowed = false`、仮想ホストの `DenyCors`、メッセージの送信元の検査、Release での DevTools 無効化
+  - Ctrl+C のコピーは、クリップボードへ書き込めたときだけ選択を解除する。拒否されたときは選択を残し、`console.error` に出す（画面には出さない）。サイズ変更の通知は 1 フレームに 1 回にまとめる
   - 描画は `Features/CliAssist/Terminal/TerminalControl`（WebView2 で `Assets/Terminal/` の xterm.js を仮想ホスト経由で表示）。C# ↔ JS は JSON メッセージ（`terminal.js` の冒頭に一覧）
   - `PseudoConsoleSession`（ConPTY は SDK の `PseudoConsole`。ここでは出力の読み取り・終了の通知・入力の確定）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
@@ -47,6 +50,8 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 - `Assets/Tools/Remove-ClaudeSession.ps1`：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る（`~/.claude/projects` 配下の `.jsonl` が対象）
 - 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」（シェル › Claude Code）から `<シェル> -NoProfile -File "{AppDir}\Assets\Tools\..."` で呼ぶ
 - ファイルは日本語を含むので BOM 付き UTF-8（PowerShell 5.1 の文字化け対策）
+- タイトルの取得は、`.jsonl` を 1 行ずつ文字列で探して最後の `ai-title` 行を使う（`Select-String` のパイプラインを通さない）。制約: PowerShell をこの環境で動かせず、速さと動作は実機で未確認。遅いままなら、ファイルの末尾から読む方式に替える
+- 実行中のセッションかどうかは調べない。削除はごみ箱への移動なので、間違えても戻せるため。実行中かを確実に判定する方法（ファイルが開かれたままか）が無いことも理由
 - 矢印キーの選択画面は実ターミナルが必要（入力がリダイレクトされているときは番号入力に切り替わる）
 - 操作：↑↓ 移動 / Space 選択 / Tab 選択して下へ（Shift+Tab は上へ） / a 全選択 / Enter 決定（未選択ならカーソル行） / Esc・Backspace 戻る / q・Ctrl+C 終了。削除後はプロジェクト選択へ戻る
 - IME がオンのままだと Space が全角スペース（キーの種類なし・文字だけ）で届き選択できなかったので、全角スペース・全角の a / q も文字から読み替える
