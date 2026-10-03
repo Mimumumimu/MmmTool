@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.Input;
@@ -88,13 +89,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial string Link { get; set; } = "";
 
-    /// <summary>保存のエラー。無ければ null</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSaveError))]
-    public partial string? SaveError { get; set; }
-
-    /// <summary>保存のエラーがあるか</summary>
-    public bool HasSaveError => SaveError is not null;
+    /// <summary>保存のエラー</summary>
+    public ErrorState SaveError { get; } = new();
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集するリマインダー。新規なら null</param>
@@ -129,7 +125,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
         // 読み込みで件名が変わってもエラーは出さない（エラーは保存しようとしたときだけ）
         TitleError = null;
-        SaveError = null;
+        SaveError.Clear();
     }
 
     /// <summary>件名が変わったら、件名のエラーを消す</summary>
@@ -154,7 +150,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveAsync()
     {
-        SaveError = null;
+        SaveError.Clear();
         var title = Title.Trim();
         if (title.Length == 0)
         {
@@ -180,7 +176,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         catch (Exception ex) when (ex is DataFileException or ArgumentException)
         {
             // ArgumentException は、編集中に対象が完全に削除されたとき
-            SaveError = ex.Message;
+            SaveError.Show(ex.Message);
         }
     }
 

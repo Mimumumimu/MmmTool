@@ -109,8 +109,8 @@
             Grid.Row="5"
             Foreground="{ThemeResource SystemFillColorCriticalBrush}"
             Style="{StaticResource CaptionTextBlockStyle}"
-            Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            Text="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             TextWrapping="Wrap"
-            Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}" />
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
     </Grid>
 </ContentDialog>

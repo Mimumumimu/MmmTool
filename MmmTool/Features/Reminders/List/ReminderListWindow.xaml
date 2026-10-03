@@ -196,9 +196,8 @@
             Grid.Row="2"
             Margin="32,8,32,0"
             VerticalAlignment="Top"
-            CloseButtonClick="OnErrorCloseClick"
-            IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
-            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error" />
     </Grid>
 </Window>

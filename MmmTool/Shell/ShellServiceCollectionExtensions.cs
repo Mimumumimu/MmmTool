@@ -19,7 +19,7 @@ public static class ShellServiceCollectionExtensions
         services.AddMmmSdkTray(new TrayIconOptions(
             ToolTip: "MmmTool",
             WindowClassName: "MmmTool_Tray",
-            IconPath: Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico")));
+            IconPath: AppIcon.FilePath));
         return services;
     }
 

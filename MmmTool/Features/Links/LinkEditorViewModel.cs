@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Paths;
 using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Links;
 
 namespace MmmTool.Features.Links;
@@ -58,7 +59,6 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _dialogs = dialogs;
         _filePicker = filePicker;
         _folderPicker = folderPicker;
-        ErrorMessage = string.Empty;
         RootItems.CollectionChanged += OnChildrenChanged;
     }
 
@@ -92,7 +92,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         // 起動時の読み込みで作り直した場合もここで知らせる（読み込みエラーを表示中なら、そちらを優先）
         if (_linkMenu.RecoveryMessage is { } recoveryMessage && !_loadFailed)
         {
-            ShowError(recoveryMessage);
+            Error.Show(recoveryMessage);
         }
     }
 
@@ -109,7 +109,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         {
             _loadFailed = true;
             NotifySaveStateChanged();
-            ShowError($"{ex.Message}\nファイルを修正して「変更を破棄」で読み直すまで、保存できません。");
+            Error.Show($"{ex.Message}\nファイルを修正して「変更を破棄」で読み直すまで、保存できません。");
             return;
         }
 
@@ -251,7 +251,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
         catch (PathOpenException ex)
         {
-            ShowError(ex.Message);
+            Error.Show(ex.Message);
         }
     }
 
@@ -409,7 +409,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
         catch (DataFileException ex)
         {
-            ShowError(ex.Message);
+            Error.Show(ex.Message);
         }
     }
 
@@ -493,21 +493,8 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region エラー表示
 
-    /// <summary>エラーメッセージ</summary>
-    [ObservableProperty]
-    public partial string ErrorMessage { get; set; }
-
-    /// <summary>エラーを表示中か</summary>
-    [ObservableProperty]
-    public partial bool IsErrorOpen { get; set; }
-
-    /// <summary>エラーを表示する</summary>
-    /// <param name="message">表示するエラーメッセージ</param>
-    private void ShowError(string message)
-    {
-        ErrorMessage = message;
-        IsErrorOpen = true;
-    }
+    /// <summary>画面に出すエラー</summary>
+    public ErrorState Error { get; } = new();
 
     #endregion
 }

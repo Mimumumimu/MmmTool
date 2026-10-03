@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.CliAssist;
 
 namespace MmmTool.Features.CliAssist.WorkingDirectory;
@@ -23,7 +24,6 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         _settings = settings;
         _folderPicker = folderPicker;
         DirectoryPath = string.Empty;
-        ErrorMessage = string.Empty;
         Directories.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoDirectories));
     }
 
@@ -44,13 +44,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力はあるがフォルダが見つからない。</summary>
     public bool IsNotFound => !string.IsNullOrWhiteSpace(DirectoryPath) && !IsValid;
 
-    /// <summary>エラーメッセージ</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasError))]
-    public partial string ErrorMessage { get; set; }
-
-    /// <summary>エラーがあるか</summary>
-    public bool HasError => ErrorMessage.Length > 0;
+    /// <summary>エラー</summary>
+    public ErrorState Error { get; } = new();
 
     /// <summary>履歴と最後のディレクトリを読み込んで、表示を初期化する</summary>
     public void Initialize()
@@ -61,7 +56,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
             Directories.Add(directory);
         }
         DirectoryPath = _settings.LastDirectory ?? string.Empty;
-        ErrorMessage = string.Empty;
+        Error.Clear();
     }
 
     /// <summary>フォルダ選択を開いて、選ばれたフォルダを入力欄に入れる</summary>
@@ -88,7 +83,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         }
         catch (DataFileException ex)
         {
-            ErrorMessage = ex.Message;
+            Error.Show(ex.Message);
         }
     }
 }

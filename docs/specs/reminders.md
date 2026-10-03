@@ -17,12 +17,13 @@
 - 論理削除 `DeleteAsync`、物理削除 `PurgeAsync`（状態は残る）
 - 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`）
 - 変更後に `Changed` を発火する（任意のスレッドから）
-- IO エラーで読めなかったときは、空として扱い `LoadError` に残す。保存は `DataFileException`（元データを消さないため）
+- IO エラーで読めなかったときは、空として扱い `LoadError` に残す。保存は `DataFileException`（元データを消さないため）。読み込み結果は SDK の `LoadStatus` で持つ
+- `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。本体と状態を同じロックの中で読む。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
 
 ## 監視（`ReminderMonitor`、Singleton）
 - 起動時の準備 `ReminderStartup`（`IStartupTask`）で `Start(コールバック)`。コールバックは `DispatcherQueue` で UI スレッドへ移し、`INotificationDialogService.Show(タイトル, 項目)` を呼ぶ。Host の破棄で停止する
 - `TimeProvider` の単発タイマー：開始直後に 1 回、以後は毎分 00 秒に判定する。次の 00 秒までの時間をその都度計算して掛け直す（早く来て同じ分になったら、判定せず掛け直すだけ）
-- 対象：発動する日で、時刻が来たもの。並びは時刻 → `No`
+- 対象：発動する日で、時刻が来たもの（`GetTargetsAsync` の結果のうち、時刻が過ぎたもの）。並びは時刻 → `No`
 - 今日の日付の状態だけを見る（別の日の状態は None 扱い）
   - None：毎分通知する
   - Done：通知しない

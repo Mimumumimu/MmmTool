@@ -1,11 +1,11 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.WinUI.Windowing;
 using MmmTool.Core.Reminders;
+using MmmTool.Shell;
 using Windows.Graphics;
 using Windows.UI.Text;
 
@@ -38,9 +38,7 @@ public sealed partial class ReminderMainWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(TitleBarArea);
+        this.UseCustomTitleBar(TitleBarArea, AppIcon.FilePath);
         Closed += (_, _) => ViewModel.Dispose();
     }
 
@@ -56,18 +54,9 @@ public sealed partial class ReminderMainWindow : Window
         AppWindow.Move(new PointInt32(workArea.X, workArea.Y));
         var scale = this.GetDpiScale();
 
-        var presenter = OverlappedPresenter.Create();
-        presenter.IsMaximizable = false;
-        presenter.IsMinimizable = false;
-        presenter.PreferredMinimumWidth = (int)(MinimumWidth * scale);
-        presenter.PreferredMinimumHeight = (int)(MinimumHeight * scale);
-        AppWindow.SetPresenter(presenter);
-        AppWindow.ResizeClient(new SizeInt32((int)(InitialWidth * scale), (int)(InitialHeight * scale)));
-
-        var size = AppWindow.Size;
-        AppWindow.Move(new PointInt32(
-            workArea.X + Math.Max(0, (workArea.Width - size.Width) / 2),
-            workArea.Y + Math.Max(0, (workArea.Height - size.Height) / 2)));
+        this.UseFixedPresenter(isDialog: false, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)));
+        this.ResizeClientDip(InitialWidth, InitialHeight, scale);
+        this.MoveCentered(workArea);
         Activate();
     }
 
@@ -138,10 +127,6 @@ public sealed partial class ReminderMainWindow : Window
     /// <param name="e">イベントの情報</param>
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
-    /// <summary>エラーを閉じたら消す（同じエラーがまた起きたときに出し直せるように）</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="args">閉じたイベントの情報</param>
-    private void OnErrorCloseClick(InfoBar sender, object args) => ViewModel.ErrorMessage = null;
 
     /// <summary>押された要素の行</summary>
     /// <param name="sender">メニュー項目</param>

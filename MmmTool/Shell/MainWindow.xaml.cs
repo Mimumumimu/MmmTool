@@ -25,10 +25,8 @@ public sealed partial class MainWindow : Window
 
         InitializeComponent();
 
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
         AppWindow.Resize(new SizeInt32(1280, 720));
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         AppWindow.Closing += OnClosing;
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;

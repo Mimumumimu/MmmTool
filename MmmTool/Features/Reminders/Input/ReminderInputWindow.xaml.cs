@@ -1,10 +1,10 @@
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using MmmSdk.WinUI.Dialogs;
 using MmmSdk.WinUI.Input;
+using MmmSdk.WinUI.Windowing;
 using MmmTool.Core.Reminders;
+using MmmTool.Shell;
 using Windows.Foundation;
-using Windows.Graphics;
 
 namespace MmmTool.Features.Reminders.Input;
 
@@ -37,9 +37,7 @@ public sealed partial class ReminderInputWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(TitleBarArea);
+        this.UseCustomTitleBar(TitleBarArea, AppIcon.FilePath);
         _modal = new PseudoModal(this);
 
         ViewModel.CloseRequested += OnCloseRequested;
@@ -56,15 +54,11 @@ public sealed partial class ReminderInputWindow : Window
         ViewModel.Load(target);
 
         _modal.SetOwner(owner);
-        var presenter = OverlappedPresenter.CreateForDialog();
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
-        presenter.IsMinimizable = false;
-        AppWindow.SetPresenter(presenter);
+        this.UseFixedPresenter(isDialog: true, isResizable: false);
 
         // 高さは中身を読み込んでから決め直す（OnRootLoaded）。ここでは仮の大きさで親の中央に置く
         var scale = _modal.OwnerScale;
-        AppWindow.ResizeClient(new SizeInt32((int)(WindowWidth * scale), (int)(640 * scale)));
+        this.ResizeClientDip(WindowWidth, 640, scale);
         _modal.CenterOnOwner();
 
         _modal.Show();
@@ -89,7 +83,7 @@ public sealed partial class ReminderInputWindow : Window
 
         RootGrid.Measure(new Size(WindowWidth, double.PositiveInfinity));
         var scale = RootGrid.XamlRoot.RasterizationScale;
-        AppWindow.ResizeClient(new SizeInt32((int)Math.Ceiling(WindowWidth * scale), (int)Math.Ceiling(RootGrid.DesiredSize.Height * scale)));
+        this.ResizeClientDip(WindowWidth, RootGrid.DesiredSize.Height, scale, roundUp: true);
         _modal.CenterOnOwner();
     }
 

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Attachments;
 using MmmSdk.Core.Storage;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.CliAssist;
 using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Features.CliAssist.Terminal;
@@ -59,7 +60,6 @@ public sealed partial class CliAssistViewModel : ObservableObject
         CommandItems = [];
         InputText = string.Empty;
         HistoryFilter = string.Empty;
-        ErrorMessage = string.Empty;
 
         // 前回の作業ディレクトリでシェルを始める
         if (_settings.LastDirectory is { } lastDirectory && Directory.Exists(lastDirectory))
@@ -114,7 +114,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         if (messages.OfType<string>().ToList() is { Count: > 0 } errors)
         {
-            ShowError(string.Join("\n\n", errors));
+            Error.Show(string.Join("\n\n", errors));
         }
         RebuildCommandItems();
     }
@@ -182,7 +182,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         catch (DataFileException ex)
         {
-            ShowError(ex.Message);
+            Error.Show(ex.Message);
         }
     }
 
@@ -239,7 +239,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                ShowError($"{Path.GetFileName(filePath)} を添付できませんでした。{ex.Message}");
+                Error.Show($"{Path.GetFileName(filePath)} を添付できませんでした。{ex.Message}");
             }
         }
     }
@@ -257,7 +257,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ShowError($"画像を添付できませんでした。{ex.Message}");
+            Error.Show($"画像を添付できませんでした。{ex.Message}");
         }
     }
 
@@ -273,7 +273,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ShowError($"添付ファイルを削除できませんでした。{ex.Message}");
+            Error.Show($"添付ファイルを削除できませんでした。{ex.Message}");
         }
     }
 
@@ -332,21 +332,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region エラー表示
 
-    /// <summary>エラーメッセージ</summary>
-    [ObservableProperty]
-    public partial string ErrorMessage { get; set; }
-
-    /// <summary>エラーを表示中か</summary>
-    [ObservableProperty]
-    public partial bool IsErrorOpen { get; set; }
-
-    /// <summary>エラーを表示する</summary>
-    /// <param name="message">表示するエラーメッセージ</param>
-    private void ShowError(string message)
-    {
-        ErrorMessage = message;
-        IsErrorOpen = true;
-    }
+    /// <summary>画面に出すエラー</summary>
+    public ErrorState Error { get; } = new();
 
     #endregion
 }

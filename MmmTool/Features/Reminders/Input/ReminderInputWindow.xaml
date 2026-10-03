@@ -133,8 +133,8 @@
             Grid.Row="1"
             Margin="16,0"
             VerticalAlignment="Top"
-            IsOpen="{x:Bind ViewModel.HasSaveError, Mode=OneWay}"
-            Message="{x:Bind ViewModel.SaveError, Mode=OneWay}"
+            IsOpen="{x:Bind ViewModel.SaveError.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.SaveError.Message, Mode=OneWay}"
             Severity="Error" />
     </Grid>
 </Window>
