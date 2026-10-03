@@ -378,10 +378,10 @@
                 <Border
                     Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
                     CornerRadius="{ThemeResource OverlayCornerRadius}"
-                    Visibility="{x:Bind ViewModel.IsErrorOpen, Mode=OneWay}">
+                    Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}">
                     <InfoBar
-                        IsOpen="{x:Bind ViewModel.IsErrorOpen, Mode=TwoWay}"
-                        Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                        IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                        Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
                         Severity="Error" />
                 </Border>
                 <Border

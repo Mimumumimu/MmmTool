@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.List;
@@ -58,13 +59,8 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     [ObservableProperty]
     public partial bool ShowPast { get; set; }
 
-    /// <summary>エラー（読み込み・保存の失敗、壊れたファイルの退避）。無ければ null</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasError))]
-    public partial string? ErrorMessage { get; set; }
-
-    /// <summary>エラーがあるか</summary>
-    public bool HasError => ErrorMessage is not null;
+    /// <summary>エラー（読み込み・保存の失敗、壊れたファイルの退避）</summary>
+    public ErrorState Error { get; } = new();
 
     /// <summary>最初の読み込み</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
@@ -72,7 +68,7 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     public async Task InitializeAsync()
     {
         await RefreshAsync();
-        ErrorMessage = _reminders.LoadError ?? _reminders.RecoveryMessage;
+        Error.Set(_reminders.LoadError ?? _reminders.RecoveryMessage);
     }
 
     /// <summary>購読をやめる</summary>
@@ -141,11 +137,11 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
         try
         {
             await action();
-            ErrorMessage = null;
+            Error.Clear();
         }
         catch (DataFileException ex)
         {
-            ErrorMessage = ex.Message;
+            Error.Show(ex.Message);
         }
     }
 

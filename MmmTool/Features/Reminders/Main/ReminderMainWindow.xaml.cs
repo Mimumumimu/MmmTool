@@ -128,10 +128,6 @@ public sealed partial class ReminderMainWindow : Window
     /// <param name="e">イベントの情報</param>
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
-    /// <summary>エラーを閉じたら消す（同じエラーがまた起きたときに出し直せるように）</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="args">閉じたイベントの情報</param>
-    private void OnErrorCloseClick(InfoBar sender, object args) => ViewModel.ErrorMessage = null;
 
     /// <summary>押された要素の行</summary>
     /// <param name="sender">メニュー項目</param>
