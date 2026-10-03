@@ -11,21 +11,34 @@ description: C# + WinUI 3 (Windows App SDK) デスクトップアプリの開発
 
 ## ソリューション構成
 プロジェクトは依存の向き（UI あり / なし）で分け、プロジェクトの中は機能ごとのフォルダ（Vertical Slice）にする。層ごとのフォルダ（`Views/` `ViewModels/` `Entities/` 等）は作らない。名前空間はフォルダどおり。
+
+フォルダは、人が開いたときに「何がどこにあるか」が一目で分かる形にする。1 つの段には同じ種類のものだけを並べる（機能・画面・部品・道具を同じ段に混ぜない）。どの機能・部品のフォルダも同じ形にそろえ、1 つを覚えれば全部が読めるようにする。
 - `<App>.Core`（`net10.0` クラスライブラリ。Windows / WinUI を参照しない）
   - `<機能>/` … その機能の Entity（保存データ。保存先に依存しない普通のクラス）・Repository のインターフェース・UI 非依存の処理を平置き
   - `<機能>/Json/` … 保存先ごとの実装（例：`Json<名前>Repository` と、その機能のソース生成 Context `<機能>JsonContext`）。保存先ごとにサブフォルダを分ける
 - `<App>`（WinUI 3 アプリ）… `Core` を参照する
-  - `Features/<機能>/` … その機能の View・ViewModel・行などの表示用の型・UI / Windows 依存のサービス・Converter・DI 登録（`Add<機能>()`）を平置き。大きい部品はサブフォルダに分けてよい（例：`Features/CliAssist/Terminal/`）
-  - `Shell/` … 画面の枠（メインウィンドウ・ナビゲーション・タスクトレイ等、機能を載せる側）
+  - `Features/<機能>/` … 機能ごとのフォルダ。中は「機能全体のつなぎ」と「画面ごとのフォルダ」に分ける
+    - 直下 … 機能全体のつなぎ（DI 登録の `Add<機能>()`・`<機能>Startup`・`<機能>TrayMenuSource` など、Shell へ登録するもの）と、複数の画面で共有するもの（ViewModel の基底クラス・行の書式など）だけを置く
+    - `Main/` … その機能の入口の画面（サイドバーのページ、またはトレイから開くメインのウィンドウ）。画面が 1 つだけの機能も `Main/` に入れる（どの機能も同じ形にするため）
+    - `<画面>/` … そのほかの画面（例：`Input/` `List/` `Settings/`）。1 画面 = 1 フォルダにし、その画面の View・ViewModel・行などの表示用の型・その画面だけで使うサービス・Converter を一緒に置く
+    - 画面ではない部品は、使う画面のフォルダに置く。複数の画面で使うものは直下、ほかの機能でも使える汎用のものは共有部品のライブラリ（SDK。無ければ `Controls/` `Services/`）へ
+  - `Shell/` … 画面の枠（メインウィンドウ・ナビゲーション・タスクトレイ等、機能を載せる側）。機能と同じ形にする：直下に DI 登録と機能が登録に使う型（`NavigationPage`・`IStartupTask` 等）、`Main/` にメインウィンドウ
   - `Services/` … 機能をまたいで使う UI サービス（ダイアログ・ピッカー等）。機能固有のものは置かない
   - `Controls/` … 機能をまたいで使う汎用のコントロール
   - `Interop/` … Win32 P/Invoke。`NativeMethods` に internal static partial で集約し、`LibraryImport` で書く。大きくなったら用途ごとの partial ファイル（`NativeMethods.<用途>.cs`）に分ける
+  - 共有部品のライブラリ（SDK）を使うアプリでは、`Services/` `Controls/` `Interop/` に入るものは SDK に置き、アプリにはこれらのフォルダを作らない（アプリには、そのアプリ固有のものだけを置く）
 - 共通部分（`Shell/` `Services/` `Controls/`）は特定の機能を参照しない。機能から共通部分への一方向にする（機能固有の画面を開く口は、その機能に置く）
 - XAML で同じ名前空間の型は `local:` で参照する
 - 名前空間がよく使う型名を隠さないよう、フォルダ名を選ぶ（例：`Debug` は `System.Diagnostics.Debug` を隠すので `Debugging`）
 - 外部ライブラリ依存の大きい保存先（EF Core, AWS SDK 等）は、採用時に `<App>.Data.<種類>` プロジェクトへ分け、Core に持ち込まない
 - 「Common」のような用途の曖昧な共通プロジェクトは作らない
-- 複数のアプリで共有する部品のライブラリ（SDK）も同じ考え方で、機能の代わりに提供する部品ごとのフォルダにする（例：`<Sdk>.Core/Settings/`・`<Sdk>.WinUI/Notifications/`）。部品の View・ViewModel・サービスは同じフォルダに平置き。DI 登録はプロジェクトごとに 1 つ（`Add<Sdk>Core()` 等）
+- 複数のアプリで共有する部品のライブラリ（SDK）は、プロジェクトの直下を「Components / Controls / Utilities」の 3 つの層に分け、その中を部品ごとにする。プロジェクトは依存の向き（`<Sdk>.Core` / `<Sdk>.WinUI`）で分けるだけにし、見やすさのためにプロジェクトを細かく分けない（層で分ければ足りる）
+  - `Components/<部品>/` … 何をするための部品かを名前で言えるもの（保存・設定・通知・トレイ 等）。その部品の型（サービス・画面・データ・その部品専用の static や拡張メソッド・その部品の中で使うコントロール）を一式まとめて置く（例：`<Sdk>.Core/Components/Settings/`・`<Sdk>.WinUI/Components/Notifications/`）
+  - `Controls/` … どの部品にも属さない、XAML に置いて使う汎用のコントロール
+  - `Utilities/` … どの部品にも属さない、汎用の小さな道具（拡張メソッド・小さなヘルパー。static に限らない）。サブフォルダは作らず平置き
+  - 迷ったら「その型は、ある部品の一部か」で決める。一部なら、その部品のフォルダに置く
+  - Core と WinUI で同じテーマの部品は、同じフォルダ名にする
+  - `Interop/`（Win32 の宣言）は土台なので層の外に置く。DI 登録（`Add<Sdk>Core()` 等）はプロジェクトごとに 1 つで、プロジェクトの直下に置く
 
 ## Entities / 保存
 - Entities は ID を必ず持つ（アプリ側で採番。`Guid` 等）。DB 固有の属性（`[Key]` `[Table]` 等）を付けない
@@ -52,17 +65,27 @@ description: C# + WinUI 3 (Windows App SDK) デスクトップアプリの開発
     Json/                 Json<名前>Repository・<機能>JsonContext
 <App>/
   App.xaml(.cs)           Host の構築・ConfigureServices・起動と終了の順序だけ
-  Shell/                  MainWindow・MainViewModel・NavigationItem・NavigationPage・NavigationArea
-                          PageProvider・IStartupTask・SingleInstanceGuard・ShellServiceCollectionExtensions
-    Tray/                 TrayIcon・ITrayMenuSource・TrayMenuItem（トレイ常駐のとき）
-  Services/               IDialogService・DialogService・ピッカー（機能をまたぐものだけ）
-  Controls/               機能をまたぐ汎用コントロール
-  Interop/                NativeMethods.cs（宣言と用途の一覧）・NativeMethods.<用途>.cs
-  Features/<機能>/        <名前>Page / <名前>Window（View）・<名前>ViewModel・<名前>Item（行）
-                          I<機能>DialogService・<機能>TrayMenuSource・<機能>Startup
-                          <機能>ServiceCollectionExtensions
+  Shell/                  ShellServiceCollectionExtensions・NavigationPage・NavigationArea・IStartupTask
+                          （機能が登録に使う型）
+    Main/                 MainWindow・MainViewModel・NavigationItem・PageProvider
+    Tray/                 TrayIcon・ITrayMenuSource・TrayMenuItem（トレイ常駐のとき。SDK があれば SDK 側）
+  Services/               IDialogService・DialogService・ピッカー（機能をまたぐものだけ。SDK があれば SDK 側）
+  Controls/               機能をまたぐ汎用コントロール（SDK があれば SDK 側）
+  Interop/                NativeMethods.cs（宣言と用途の一覧）・NativeMethods.<用途>.cs（SDK があれば SDK 側）
+  Features/<機能>/        <機能>ServiceCollectionExtensions・<機能>Startup・<機能>TrayMenuSource
+                          I<機能>DialogService・画面間で共有するもの
+    Main/                 入口の画面：<名前>Page / <名前>Window（View）・<名前>ViewModel・<名前>Item（行）
+    <画面>/               ほかの画面：<名前>Window / <名前>Dialog（View）・<名前>ViewModel・<名前>Item（行）
+<Sdk>.Core/ <Sdk>.WinUI/
+  Components/<部品>/      部品一式（サービス・画面・データ・その部品専用の型）
+  Controls/               どの部品にも属さない汎用コントロール（WinUI のみ）
+  Utilities/              どの部品にも属さない汎用の小さな道具（平置き）
+  Interop/                Win32 の宣言（WinUI のみ。層の外）
+  <Sdk>…ServiceCollectionExtensions.cs
 ```
-- MVVM の役割はクラス名で分かるようにする（View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・Service）。フォルダは役割ではなく機能で分ける
+- MVVM の役割はクラス名で分かるようにする（View = `*Page` / `*Window` / `*Dialog`（`ContentDialog`）、ViewModel = `*ViewModel`、Model = Core の Entity・Service）。フォルダは役割ではなく機能と画面で分ける
+- 表示用の型の名前: 一覧の行は `*Item`、選択肢は `*Option`
+- 画面のフォルダ名は、その機能の中での画面の役割（`Main` / `Input` / `List` / `Settings` 等）
 - 機能のフォルダ名は機能の名前（例：`Reminders` / `Links` / `CliAssist`）。中の型名は扱う物の単数形（`Reminder` / `ReminderService`）
 
 ### 機能の DI 登録
