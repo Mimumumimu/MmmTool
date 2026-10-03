@@ -13,7 +13,6 @@ namespace MmmTool.Core.Reminders;
 public sealed class ReminderService(IReminderRepository repository)
 {
     /// <summary>時刻が正しくないリマインダーがあるときの警告。無ければ null</summary>
-    /// <remarks>リマインダーを読むたびに更新する。</remarks>
     private volatile string? _timeWarning;
 
     /// <summary>本体・状態のどちらかが変わった</summary>
@@ -24,10 +23,16 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <remarks>ロック・権限などで読めなかったとき（最初に読んだあとに分かる）。元のファイルを上書きで消さないよう、このときは保存を止める（保存しようとすると例外）。</remarks>
     public string? LoadError => repository.LoadError;
 
-    /// <summary>壊れていたファイルを退避して作り直したとき・時刻が正しくないリマインダーがあるときのメッセージ。通常は null。</summary>
-    /// <remarks>最初に読んだあとに分かる。複数あるときは改行でつなぐ。</remarks>
-    public string? RecoveryMessage
-        => repository.RecoveryMessage is { } recovery && _timeWarning is { } warning ? $"{recovery}\n{warning}" : repository.RecoveryMessage ?? _timeWarning;
+    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。通常は null。</summary>
+    /// <remarks>最初に読んだあとに分かる。</remarks>
+    public string? RecoveryMessage => repository.RecoveryMessage;
+
+    /// <summary>時刻が正しくないリマインダーがあるときの警告（番号つき）。無ければ null。</summary>
+    /// <remarks>
+    /// リマインダーを読むたびに更新する。ファイルの退避（<see cref="RecoveryMessage"/>）とは別の問題なので、別のプロパティにする。
+    /// 手で編集した JSON の時刻が正しくないと、「常に発動済み」のように誤って動くため、通知・今日の対象から外している（本体は消さないので、編集して直せる）。
+    /// </remarks>
+    public string? TimeWarning => _timeWarning;
 
     /// <summary>リマインダー本体の一覧を取得する</summary>
     /// <param name="includeDeleted">論理削除済みも含めるか</param>
@@ -154,10 +159,6 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>読んだリマインダーから、時刻が正しくないものの警告を更新する</summary>
     /// <param name="reminders">読んだリマインダー</param>
-    /// <remarks>
-    /// 手で編集した JSON の時刻が正しくないと、「常に発動済み」のように誤って動くため、通知・今日の対象から外す。
-    /// 本体は消さない（外すのは判定のときだけ）ので、編集して直せる。
-    /// </remarks>
     private void UpdateTimeWarning(IReadOnlyList<Reminder> reminders)
     {
         var invalidTimeNos = reminders

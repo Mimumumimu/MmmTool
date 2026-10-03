@@ -14,18 +14,12 @@ namespace MmmTool.Features.Reminders.Main;
 /// </remarks>
 public sealed partial class ReminderMainViewModel : ReminderViewModelBase
 {
-    /// <summary>日付が変わってから読み直すまでの余裕</summary>
-    /// <remarks>タイマーが 0 時ちょうどより少し早く来ても、前の日のまま読み直さないため。</remarks>
-    private static readonly TimeSpan DayChangeMargin = TimeSpan.FromSeconds(1);
-
     /// <summary>時刻監視（通知から開いたときのスヌーズ）</summary>
     private readonly ReminderMonitor _monitor;
     /// <summary>入力・一覧画面</summary>
     private readonly IReminderDialogService _dialogs;
     /// <summary>リンクを開く処理</summary>
     private readonly IPathOpener _opener;
-    /// <summary>日付が変わったら読み直すタイマー</summary>
-    private readonly ITimer _dayTimer;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
@@ -39,7 +33,6 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         _monitor = monitor;
         _dialogs = dialogs;
         _opener = opener;
-        _dayTimer = Time.CreateTimer(_ => OnDayChanged(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>未対応（未・スヌーズ）の行</summary>
@@ -63,13 +56,6 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <summary>発動済みで未対応のものをスヌーズにする（通知から開いたとき）</summary>
     /// <returns>スヌーズへの切り替えの完了を表すタスク</returns>
     public Task SnoozeTriggeredAsync() => RunAsync(_monitor.SnoozeTriggeredAsync);
-
-    /// <inheritdoc />
-    public override void Dispose()
-    {
-        base.Dispose();
-        _dayTimer.Dispose();
-    }
 
     /// <summary>新規追加（入力画面を開く）</summary>
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
@@ -125,17 +111,12 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <returns>読み直しの完了を表すタスク</returns>
     protected override Task OnSaveFailedAsync() => RefreshAsync();
 
-    /// <summary>日付が変わったら、UI スレッドで読み直す</summary>
-    /// <remarks>タイマーのスレッドから来る。次の日付の変わり目は読み直しの中で掛け直す。</remarks>
-    private void OnDayChanged() => PostRefresh();
-
     /// <summary>今日の対象を読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
     protected override async Task RefreshAsync()
     {
         var version = NextVersion();
         var now = Time.GetLocalNow().DateTime;
-        var today = DateOnly.FromDateTime(now);
 
         var targets = await Reminders.GetTargetsAsync(now);
         if (!IsCurrent(version))
@@ -150,9 +131,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         DoneHeader = $"完了 ({Done.Count})";
         IsEmpty = targets.Count == 0;
 
-        // 次の 0 時に読み直す（読み直すたびに掛け直すので、時計の変更にもある程度追従する）
-        var nextDay = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
-        _dayTimer.Change(nextDay - now + DayChangeMargin, Timeout.InfiniteTimeSpan);
+        ScheduleDayChange(now);
     }
 
     /// <summary>行を並ぶべき内容に合わせる（差分更新）</summary>

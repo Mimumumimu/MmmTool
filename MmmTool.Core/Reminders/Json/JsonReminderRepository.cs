@@ -243,7 +243,10 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
         {
             var result = await store.ReadAsync(RemindersFileName, ReminderJsonContext.Readable.ReminderFile, cancellationToken);
             _reminders = result.Value?.Items ?? [];
-            if (result.RecoveryMessage is not null) recoveries.Add(result.RecoveryMessage);
+            if (result.RecoveryMessage is not null)
+            {
+                recoveries.Add(result.RecoveryMessage);
+            }
         }
         catch (DataFileException ex)
         {
@@ -255,7 +258,10 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
         {
             var result = await store.ReadAsync(StatesFileName, ReminderJsonContext.Readable.ReminderStateFile, cancellationToken);
             _states = result.Value?.Items ?? [];
-            if (result.RecoveryMessage is not null) recoveries.Add(result.RecoveryMessage);
+            if (result.RecoveryMessage is not null)
+            {
+                recoveries.Add(result.RecoveryMessage);
+            }
         }
         catch (DataFileException ex)
         {

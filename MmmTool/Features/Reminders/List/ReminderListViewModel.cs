@@ -114,7 +114,8 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
         }
 
         // 曜日指定は日付なしの特殊値（99999999）なので、過去には入らない
-        var today = ReminderDates.ToDateValue(Time.GetLocalNow().DateTime);
+        var now = Time.GetLocalNow().DateTime;
+        var today = ReminderDates.ToDateValue(now);
         var sorted = reminders.Where(item => ShowPast || item.Date >= today).OrderBy(item => item.Date).ThenBy(item => item.Time).ThenBy(item => item.No).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
@@ -131,5 +132,8 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
         {
             Items.RemoveAt(Items.Count - 1);
         }
+
+        // 開いたまま日付が変わっても、「過去」の判定が古いままにならないよう、0 時に読み直す
+        ScheduleDayChange(now);
     }
 }

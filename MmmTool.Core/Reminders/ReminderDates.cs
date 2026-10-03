@@ -94,14 +94,6 @@ public static class ReminderDates
         _ => Weekdays.None,
     };
 
-    /// <summary>曜日フラグに含まれる曜日を、月曜から順に返す</summary>
-    /// <param name="weekdays">曜日フラグ</param>
-    /// <returns>含まれる曜日（月曜から順）</returns>
-    public static IReadOnlyList<DayOfWeek> ToDaysOfWeek(Weekdays weekdays)
-        => [.. Enum.GetValues<DayOfWeek>()
-            .Where(day => weekdays.HasFlag(ToWeekdays(day)))
-            .OrderBy(day => ((int)day + 6) % 7)];
-
     /// <summary>曜日フラグに指定の曜日が含まれるか</summary>
     /// <param name="weekdays">曜日フラグ</param>
     /// <param name="dayOfWeek">調べる曜日</param>

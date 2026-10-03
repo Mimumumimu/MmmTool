@@ -26,7 +26,7 @@
 - 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`。複数件は `SetStatesAsync` で 1 回の書き込み）
 - 変更後に `Changed` を発火する（任意のスレッドから）
 - `LoadError` / `RecoveryMessage` は保存先のものを返す（最初に読んだあとに分かる）
-- 時刻（`HHmm` の整数）が正しくない（手で編集した JSON で負の値・25 時など）リマインダーは、「常に発動済み」のように誤って動かないよう、`GetTargetsAsync`（今日の対象・通知）から外す。本体は消さない（一覧には出る。編集して直せる）。読むたびに調べ、あれば番号を挙げた警告を `RecoveryMessage` に足して、InfoBar で知らせる
+- 時刻（`HHmm` の整数）が正しくない（手で編集した JSON で負の値・25 時など）リマインダーは、「常に発動済み」のように誤って動かないよう、`GetTargetsAsync`（今日の対象・通知）から外す。本体は消さない（一覧には出る。編集して直せる）。読むたびに調べ、あれば番号を挙げた警告を `TimeWarning`（`RecoveryMessage` とは別）に持ち、画面の InfoBar で（退避のメッセージと一緒に）知らせる
 - `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
 
 ## 監視（`ReminderMonitor`、Singleton）
@@ -103,7 +103,7 @@
   - 状態の切り替え：CommunityToolkit の `Segmented`（NuGet `CommunityToolkit.WinUI.Controls.Segmented`）を `StatusIndex` と双方向でつなぐ。ユーザーが変えたときだけ `SetStateAsync` を呼び、読み直しの反映では保存しない
 - 右クリック：リンクを開く（リンクのある行だけ有効）/ 編集 / 削除（論理削除・確認なし。一覧と同じ）
 - 変更は差分更新する（`No` で同定・不足は挿入・余剰は削除・順番は `Move`。完了の欄の開閉を保つため）。行は `ReminderTodayItem`（読み直しでは `Apply` で中身だけを差し替える）
-- 日付が変わったら新しい日に切り替える（読み直すたびに、次の 0 時 + 1 秒のタイマーを掛け直す）
+- 日付が変わったら新しい日に切り替える（読み直すたびに、次の 0 時 + 1 秒のタイマーを掛け直す。メイン画面・一覧画面の共通の骨格 `ReminderViewModelBase.ScheduleDayChange`。一覧は、開いたまま日付をまたいでも、「過去の予定」の判定が古くならない）。ViewModel は UI スレッドで作る（作れなければ例外）
 - 通知との連携：通知の本文クリックの `onClicked` から、`DispatcherQueue`（Low）でいったん後回しにして `ShowFromNotificationAsync` を呼ぶ（閉じかけの通知ウィンドウと、別のウィンドウの操作が重ならないように）。開いてから `ReminderMonitor.SnoozeTriggeredAsync` を呼ぶ
 - ダイアログの親：`IDialogHost.TrackWindow` で普通のウィンドウ（メインウィンドウ・この画面）を覚え、モーダルが無いときは最後にアクティブになったほうを親にする（この画面から開いた一覧・入力・確認が、この画面の上に出るように）
 
