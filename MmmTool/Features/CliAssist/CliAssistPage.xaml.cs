@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MmmTool.Core.CliAssist;
 using MmmTool.Interop;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;

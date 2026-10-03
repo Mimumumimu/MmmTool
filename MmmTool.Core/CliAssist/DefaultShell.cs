@@ -1,4 +1,4 @@
-namespace MmmTool.Features.CliAssist.Terminal;
+namespace MmmTool.Core.CliAssist;
 
 /// <summary>
 /// 既定で起動するシェルを決める。PowerShell 7（pwsh）があればそれを、無ければ Windows PowerShell を使う。

@@ -278,12 +278,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 送信履歴
 
-    /// <summary>送信履歴の最大件数</summary>
-    private const int MaxSendHistory = 50;
-
-    /// <summary>送信履歴（先頭が最新）</summary>
-    /// <remarks>プライバシーのため保存せず、起動中だけ持つ。</remarks>
-    private readonly List<(string Text, DateTimeOffset SentAt)> _sendHistory = [];
+    /// <summary>送信履歴</summary>
+    private readonly SendHistory _sendHistory = new();
 
     /// <summary>送信履歴の一覧（絞り込み後）</summary>
     public ObservableCollection<SendHistoryItem> HistoryItems { get; } = [];
@@ -313,35 +309,16 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>送信した本文を履歴の先頭に追加する</summary>
     /// <param name="text">送信した本文</param>
     /// <remarks>空白のみは無視し、同じ本文は先頭へ移す。</remarks>
-    private void AddSendHistory(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return;
-        }
-
-        _sendHistory.RemoveAll(entry => entry.Text == text);
-        _sendHistory.Insert(0, (text, _timeProvider.GetLocalNow()));
-        if (_sendHistory.Count > MaxSendHistory)
-        {
-            _sendHistory.RemoveRange(MaxSendHistory, _sendHistory.Count - MaxSendHistory);
-        }
-    }
+    private void AddSendHistory(string text) => _sendHistory.Add(text, _timeProvider.GetLocalNow());
 
     /// <summary>絞り込み文字列に合わせて、履歴の一覧を作り直す</summary>
     private void RefreshHistory()
     {
         var today = _timeProvider.GetLocalNow().Date;
-        var filter = HistoryFilter.Trim();
 
         HistoryItems.Clear();
-        foreach (var entry in _sendHistory)
+        foreach (var entry in _sendHistory.Search(HistoryFilter))
         {
-            if (filter.Length > 0 && !entry.Text.Contains(filter, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             var sentAt = entry.SentAt.ToLocalTime();
             var sentAtText = sentAt.Date == today ? sentAt.ToString("HH:mm") : sentAt.ToString("M/d HH:mm");
             HistoryItems.Add(new SendHistoryItem(entry.Text, SendText.ToSingleLine(entry.Text), sentAtText));

@@ -139,4 +139,10 @@ public static class ReminderDates
         }
         return builder.ToString();
     }
+
+    /// <summary>曜日指定を、画面に出す文字列にする</summary>
+    /// <param name="weekdays">曜日フラグ</param>
+    /// <returns>「月火水」のような文字列。曜日を 1 つも選んでいなければ「毎日」</returns>
+    /// <remarks>日付指定のリマインダーには使わない（呼び出し側で <see cref="IsWeekdaySpecified"/> を確かめる）。</remarks>
+    public static string DescribeWeekdays(Weekdays weekdays) => weekdays == Weekdays.None ? "毎日" : ToJapanese(weekdays);
 }

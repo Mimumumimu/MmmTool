@@ -17,18 +17,6 @@ namespace MmmTool.Core.Reminders;
 /// </remarks>
 public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore settings, TimeProvider timeProvider) : IDisposable
 {
-    /// <summary>スヌーズの再通知間隔（分）の設定キー</summary>
-    public const string SnoozeIntervalKey = "Reminder.SnoozeIntervalMinutes";
-
-    /// <summary>スヌーズの再通知間隔（分）の既定値</summary>
-    public const int DefaultSnoozeInterval = 15;
-
-    /// <summary>スヌーズの再通知間隔（分）の最小値</summary>
-    public const int MinSnoozeInterval = 5;
-
-    /// <summary>スヌーズの再通知間隔（分）の最大値</summary>
-    public const int MaxSnoozeInterval = 999;
-
     /// <summary>通知のタイトル</summary>
     private const string NotificationTitle = "リマインダー";
 
@@ -130,7 +118,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
         List<NotificationItem> items = [];
         lock (_gate)
         {
-            var interval = Math.Clamp(settings.Get(SnoozeIntervalKey, DefaultSnoozeInterval), MinSnoozeInterval, MaxSnoozeInterval);
+            var interval = ReminderSettingsService.ClampSnoozeInterval(settings.Get(ReminderSettingsService.SnoozeIntervalKey, ReminderSettingsService.DefaultSnoozeInterval));
             var snoozeDue = _lastSnoozeNotifiedMinute is not { } last || (minute - last).TotalMinutes >= interval;
             var includesSnooze = false;
 

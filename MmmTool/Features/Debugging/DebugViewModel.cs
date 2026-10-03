@@ -70,7 +70,7 @@ public sealed partial class DebugViewModel(
     {
         if (saved is null) return;
         var when = ReminderDates.IsWeekdaySpecified(saved.Date)
-            ? $"曜日指定 {(saved.Weekdays == Weekdays.None ? "毎日" : ReminderDates.ToJapanese(saved.Weekdays))}"
+            ? $"曜日指定 {ReminderDates.DescribeWeekdays(saved.Weekdays)}"
             : $"日付指定 {saved.Date}";
         notifications.Show("DEBUG：保存しました",
         [
