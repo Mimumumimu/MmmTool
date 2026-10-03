@@ -5,7 +5,8 @@ namespace MmmTool.Core.Links;
 public sealed class LinkMenu
 {
     /// <summary>リンクの一覧（最上位）</summary>
-    public List<LinkNode>? Items { get; set; } = [];
+    /// <remarks>JSON に <c>null</c> と書かれていたときは、読み込み（Repository）で空にする。</remarks>
+    public List<LinkNode> Items { get; set; } = [];
 
     /// <summary>設定の誤り（知らない <c>kind</c> の値）を探す</summary>
     /// <returns>ユーザーに見せる警告のメッセージ。誤りが無ければ空</returns>

@@ -57,7 +57,6 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         {
             var (settings, recoveryMessage) = await repository.LoadAsync(cancellationToken);
             _settings = settings;
-            _settings.DirectoryHistory ??= [];
             _status.Succeeded(recoveryMessage);
             if (_settings.LastDirectory is { } last && await Task.Run(() => Directory.Exists(last), cancellationToken).ConfigureAwait(false))
             {

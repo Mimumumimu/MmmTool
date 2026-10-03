@@ -34,7 +34,6 @@ public sealed class LinkMenuService(ILinkRepository repository)
         try
         {
             var (menu, recoveryMessage) = await repository.LoadAsync(cancellationToken);
-            menu.Items ??= [];
             Current = menu;
             _status.Succeeded(recoveryMessage, keepPreviousRecoveryMessage: true);
             return menu;

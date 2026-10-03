@@ -28,7 +28,11 @@ public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CliComma
         }
 
         // 中身が null（手修正で空にした等）でも既定で上書きはせず、空のまま扱う
-        return new(result.Value ?? new CliCommandSet());
+        var set = result.Value ?? new CliCommandSet();
+        // JSON に null と書かれていたときも、空として扱う
+        set.Shell ??= [];
+        set.Session ??= [];
+        return new(set);
     }
 
     /// <summary>既定の定型コマンドを作って保存する</summary>

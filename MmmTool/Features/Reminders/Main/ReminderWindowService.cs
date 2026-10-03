@@ -20,7 +20,7 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
 
     /// <summary>開く（開いていれば前面に出す）</summary>
     /// <returns>開いた画面</returns>
-    /// <exception cref="Exception">画面を作る・表示するのに失敗した。次に呼ぶときは、作り直す。</exception>
+    /// <remarks>画面を作る・表示するのに失敗したときは、例外をそのまま呼び出し元へ渡す（バグなので、安全網が受ける）。次に呼ぶときは、作り直す。</remarks>
     public async Task<ReminderMainWindow> ShowAsync()
     {
         if (_opening is { } opening)

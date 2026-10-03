@@ -117,7 +117,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _loadFailed = false;
 
         RootItems.Clear();
-        foreach (var node in menu.Items!)
+        foreach (var node in menu.Items)
         {
             RootItems.Add(LinkTreeItem.From(node));
         }
@@ -342,7 +342,8 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         if (count > 0 && !await _dialogs.ConfirmAsync(
                 $"「{selected.Name}」を削除しますか？",
                 $"中の {count} 件の項目もまとめて削除されます。保存する前なら「変更を破棄」で元に戻せます。",
-                "削除"))
+                "削除",
+                "キャンセル"))
         {
             return;
         }

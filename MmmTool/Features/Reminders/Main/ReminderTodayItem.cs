@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmTool.Core.Reminders;
 using MmmSdk.Core.Tasks;
+using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.Main;
 

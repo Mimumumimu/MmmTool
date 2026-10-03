@@ -138,7 +138,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         {
             items.Add(CommandTreeItem.ChangeDirectory());
         }
-        items.AddRange((nodes ?? []).Select(CommandTreeItem.From));
+        items.AddRange(nodes.Select(CommandTreeItem.From));
         CommandItems = items;
     }
 

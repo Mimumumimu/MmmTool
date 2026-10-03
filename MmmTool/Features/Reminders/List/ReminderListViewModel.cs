@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Tasks;
 using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.Reminders;
-using MmmSdk.Core.Tasks;
 
 namespace MmmTool.Features.Reminders.List;
 
@@ -67,7 +67,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     private async Task EditAsync(ReminderListItem item)
     {
         if (item.IsDeleted
-            && !await _dialogs.ConfirmAsync("削除済みのリマインダー", "このリマインダーは削除済みです。\n編集して保存すると、削除が取り消されます。", "編集する"))
+            && !await _dialogs.ConfirmAsync("削除済みのリマインダー", "このリマインダーは削除済みです。\n編集して保存すると、削除が取り消されます。", "編集する", "キャンセル"))
         {
             return;
         }
@@ -95,7 +95,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     [RelayCommand]
     private async Task PurgeAsync(ReminderListItem item)
     {
-        if (await _dialogs.ConfirmAsync("完全削除", $"「{item.Title}」を完全に削除します。\nこの操作は元に戻せません。", "完全削除"))
+        if (await _dialogs.ConfirmAsync("完全削除", $"「{item.Title}」を完全に削除します。\nこの操作は元に戻せません。", "完全削除", "キャンセル"))
         {
             await RunAsync(() => Reminders.PurgeAsync(item.Source.No));
         }
