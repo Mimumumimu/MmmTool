@@ -69,7 +69,7 @@
 - 保存しても、今日の対応状態はそのまま
 
 ## 一覧画面（`ReminderListWindow` ＋ `ReminderListViewModel`）
-- 開くのは `IReminderDialogService.ShowListAsync()`。常にモーダル（2 枚目は開けない）。Transient で、閉じたら `Dispose` で `ReminderService.Changed` の購読をやめる
+- 開くのは `IReminderDialogService.ShowListAsync()`。常にモーダル（2 枚目は開けない）。Transient で、閉じたら `Dispose` で `ReminderService.Changed` の購読をやめる。開くたびに DI のスコープ（`IServiceScopeFactory`）を作り、そこから画面・ViewModel を解決して、閉じたらスコープごと破棄する（ルートから解決した `IDisposable` の Transient は、アプリの終了まで DI コンテナが保持し続けるため。メイン画面・入力画面も同じ）
 - Mica・タイトル帯でドラッグ。大きさは変えられる（最初 760×560・最小 560×360 DIP、最大化・最小化なし）
 - 上に「新規追加」（Accent）、右に「過去の予定を表示」「削除済みを表示」の `ToggleSwitch`（どちらも既定オフ。状態は保存しない）
   - 「過去の予定」をオフにすると、日付が昨日以前の日付指定を隠す。今日の分は時刻が過ぎていても出す。過去日が日付順で一番上に並んで邪魔になるため（並び替えで下へ回す案より、隠す案にした）

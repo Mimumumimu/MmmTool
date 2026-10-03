@@ -32,6 +32,7 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
 ## DI と起動
 - Generic Host（`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定（appsettings.json・環境変数）とロガーの既定は無効）で DI を組む。ログは SDK の `ErrorLog`（エラーのファイル）だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
 - 機能を登録した順（CLI補助 → リマインダー → リンク → DEBUG → 設定）に、サイドバーの項目（上部・下部それぞれ）・トレイメニューの項目（リマインダーがリンクより上）・起動時の準備が並ぶ
+- 開くたびに作るウィンドウ（`IDisposable` の ViewModel を持つもの）は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する（ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため）。常駐するもの（`PseudoConsoleSession` など）は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先（Repository の実装）は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ（[specs/settings.md](specs/settings.md)）
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する（ページは Transient・キーは型名）。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`（初回に DI から作ってキャッシュ）からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
