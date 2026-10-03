@@ -17,11 +17,12 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 起動時はウィンドウを出さず、トレイアイコンだけ出す。ウィンドウはトレイアイコンの左クリックで開く
 - 決めていない操作・項目（一般的な慣習のものも含む）は、勝手に足さない。必要そうなら先に聞く（トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり）
 - 保存: JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手修正はアプリを閉じてから行う運用。保存先は将来 SQL Server / DynamoDB に替える可能性がある（Repository + DI で差し替え）
-- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイは SDK 側にある。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
+- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄（TimeInputBox）・LinkArea・IME 操作・添付の一時保存（AttachmentStore）は SDK 側にある。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
 - バージョンは `Directory.Build.props` の `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。SDK は別に持つ
 - テストプロジェクト: 後で作る
 - アプリの起動など目に見える動作の確認は、1 回ずつ事前に告知してから行う。画面操作が必要な確認は、VS で行ってもらう
 - 一時ファイル（作業用ファイル等）はリポジトリ直下の `_local/` に置く（`.gitignore` 済み）
+- 設計・レビューの方針: 将来を見越して、完璧な形を目指す。汎用の部品は、今使うアプリが 1 つだけでも、「他のアプリで使う予定がない」「優先度が低い」を理由に後回しにせず、SDK に置く。レビューで「現状維持」「対応不要」と判定した項目には、必ず理由（なぜ今の形・場所が正しいか）を書く。「未対応」の項目にも、いつ・なぜやらないかを書く
 - コミット・push は、ユーザーが指示するまで行わない（提案もしない）
 - Claude Code on the web（claude.ai/code）で作業するとき: 同じ会話の中では、PR を出したあとにユーザーがブランチを消していなければ、そのブランチをそのまま使い続けて続きを積む（作り直し・付け替え・強制 push はしない。履歴を書き換えると、ユーザーの手元のブランチと食い違うため）。最新の `master` が必要なときは `git merge origin/master` で取り込む。ユーザーがブランチを消していたら、最新の `master` から新しく作る。SDK 側とアプリ側の対応する PR は、同じブランチ名にする
 - SDK と同時に変える作業の順序: SDK の PR を先に「Create a merge commit」でマージ（スカッシュ・リベースは、アプリが指すコミットが消えるので不可）→ アプリの PR をマージ。動作確認は、マージの前に、ブランチを取得して行う
@@ -43,7 +44,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - テストプロジェクト（Core の処理から。リマインダーの判定・日付の変換・壊れた JSON の退避など）
 
 ## 作業の注意（要点。詳細は docs）
-- 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行（`Add<機能>()`）で済む形を保つ。共通部分（`Shell/` `Controls/`）は特定の機能を参照しない
+- 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行（`Add<機能>()`）で済む形を保つ。共通部分（`Shell/`）は特定の機能を参照しない
 - UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。Core の機能別フォルダは、保存するデータが決まった機能から作る（空の置き場は作らない）
 - 終了の順序（トレイアイコンを各機能の後始末のあとに消す）と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md` と `docs/decisions/0002-startup-task.md`
 - VS で通知ダイアログを閉じると落ちるときは、VS の「XAML 診断」をオフにする（`docs/architecture.md` の「開発時の注意」）

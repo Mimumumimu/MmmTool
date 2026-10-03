@@ -1,8 +1,8 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Input;
 using MmmTool.Core.Reminders;
-using MmmTool.Interop;
 using Windows.Foundation;
 using Windows.Graphics;
 
@@ -96,12 +96,12 @@ public sealed partial class ReminderInputWindow : Window
     /// <summary>件名・備考にフォーカスが来たら IME をオンにする（日本語の入力が多いため）</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => NativeMethods.TurnOnImeForFocusedWindow();
+    private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
     /// <summary>リンクにフォーカスが来たら IME をオフにする（URL・パスを打つため）</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    private void OnLinkBoxGotFocus(object sender, RoutedEventArgs e) => NativeMethods.TurnOffImeForFocusedWindow();
+    private void OnLinkBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOff();
 
     /// <summary>保存・キャンセルで閉じる</summary>
     /// <param name="sender">イベントの送信元</param>

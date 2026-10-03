@@ -3,7 +3,7 @@
     x:Class="MmmTool.Features.Reminders.Input.ReminderInputWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:MmmTool.Controls"
+    xmlns:controls="using:MmmSdk.WinUI.Controls"
     xmlns:local="using:MmmTool.Features.Reminders.Input"
     Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}">
 

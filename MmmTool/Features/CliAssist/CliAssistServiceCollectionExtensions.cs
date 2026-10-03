@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using MmmSdk.Core.Attachments;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
 using MmmTool.Features.CliAssist.Attachments;
@@ -23,7 +24,8 @@ public static class CliAssistServiceCollectionExtensions
 
         services.AddSingleton<CliSettingsService>();
         // 終了時（Host の破棄時）に添付の一時フォルダを削除する
-        services.AddSingleton<AttachmentStore>();
+        // 添付の一時保存先（%TEMP%\MmmTool\session_日時\）
+        services.AddSingleton(provider => new AttachmentStore("MmmTool", provider.GetRequiredService<TimeProvider>()));
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();
         services.AddSingleton<IImageConverter, ImageConverter>();

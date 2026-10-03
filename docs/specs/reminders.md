@@ -54,7 +54,7 @@
 - 日付は `CalendarDatePicker`（選択中の日付を押して空になったら元に戻す）
 - 件名は前後の空白を除いて、空ならエラー（件名欄の下に赤字。件名を変えたら消す）
 - 保存の失敗（読み込み失敗中・IO エラー・編集中に対象が完全削除）は、上部の InfoBar で知らせて閉じない
-- IME：件名・備考はフォーカスでオン、リンクはオフ（`NativeMethods.TurnOn/TurnOffImeForFocusedWindow`）
+- IME：件名・備考はフォーカスでオン、リンクはオフ（SDK の `ImeControl.TurnOn/TurnOff`）
 - 保存しても、今日の対応状態はそのまま
 
 ## 一覧画面（`ReminderListWindow` ＋ `ReminderListViewModel`）
@@ -87,7 +87,7 @@
 - 行はカード
   - 状態の縦線（幅 6・角丸 3）。色は固定で、未 `#9E9E9E` / スヌーズ `#F59E0B` / 完了 `#16A34A`。完了の緑は、濃い緑（`#2E7D32` など）だとダークテーマで沈むため、明るいエメラルド系にしている
   - 時刻（15 SemiBold）
-  - 件名（13 SemiBold）：`Controls/LinkArea`（Grid 派生）。リンクがあると手のカーソル + ホバー背景で、押すと開く。完了は取り消し線 + 不透明度 0.5
+  - 件名（13 SemiBold）：SDK の `LinkArea`（`MmmSdk.WinUI.Controls`。Grid 派生）。リンクがあると手のカーソル + ホバー背景で、押すと開く。完了は取り消し線 + 不透明度 0.5
   - 状態の切り替え：CommunityToolkit の `Segmented`（NuGet `CommunityToolkit.WinUI.Controls.Segmented`）を `StatusIndex` と双方向でつなぐ。ユーザーが変えたときだけ `SetStateAsync` を呼び、読み直しの反映では保存しない
 - 右クリック：リンクを開く（リンクのある行だけ有効）/ 編集 / 削除（論理削除・確認なし。一覧と同じ）
 - 変更は差分更新する（`No` で同定・不足は挿入・余剰は削除・順番は `Move`。完了の欄の開閉を保つため）。行は `ReminderTodayItem`（読み直しでは `Apply` で中身だけを差し替える）
