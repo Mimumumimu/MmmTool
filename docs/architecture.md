@@ -5,8 +5,8 @@
 | --- | --- | --- |
 | `MmmTool` | `net10.0-windows10.0.19041.0`（WinUI 3） | アプリ本体（画面・UI サービス・Win32 呼び出し） |
 | `MmmTool.Core` | `net10.0` | UI に依存しない処理（Entity・Repository・サービス）。Windows / WinUI を参照しない |
-| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品（JSON の保存・設定ストア・位置保存・パスを開く） |
-| `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品の UI（通知ダイアログ） |
+| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの（JSON の保存・設定ストア・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`） |
+| `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの（通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める） |
 
 参照の向きは `MmmTool → MmmTool.Core → MmmSdk.Core`、`MmmTool → MmmSdk.WinUI → MmmSdk.Core`。SDK はアプリを知らない。SDK は別リポジトリ（`https://github.com/Mimumumimu/MmmSdk`）で、Git サブモジュール `external/MmmSdk` として取り込む（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。SDK を直したら、サブモジュールの中（master）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK が先）。
 
@@ -41,7 +41,7 @@ MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・Navi
 ## エラーの扱い
 3 段階。予測できる失敗は、先に確かめる（`TryXxx`・検証・ガード節）。それでも起きる失敗（ファイル・JSON・OS・COM）は、範囲を絞った `catch` で受けて画面に出す（InfoBar）。復旧が難しい失敗・予想外の失敗（バグ）は、ログ（`AppContext.BaseDirectory/Logs/yyyy-MM-dd.log`）→ ダイアログ → 終了（SDK の `FatalErrorHandler`）。隠さず、握りつぶさない。
 - `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` し（Host を作る前の失敗も拾うため）、DI にも登録する（トレイが使う）
-- `try/catch` を書けない場所（`async void`・タイマー・待たれないタスク。例: `ReminderMonitor.OnTick`）の例外は、`AttachTo` の安全網が、同じ処理（ログ → ダイアログ → 終了）で受ける
+- `try/catch` を書けない場所（`async void`・タイマー・待たれないタスク。例: SDK の `MinuteScheduler` の毎分の処理）の例外は、`AttachTo` の安全網が、同じ処理（ログ → ダイアログ → 終了）で受ける
 - 待たずに走らせるタスクは `_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`（SDK の `MmmSdk.Core.Tasks`）にする。捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる（いつ落ちるか読めない）。`Forget` は、失敗した時点で未処理例外にして、安全網が受ける。起きると分かっている失敗（`DataFileException` など）は、タスクの中で受けて画面に出す（例: `SettingsViewModel.SaveSnoozeIntervalAsync`、`ReminderViewModelBase.RunAsync`）
 - `OnLaunched` は、起動が途中で止まって気づけなくならないよう、`try/catch` で包んで報告する。読み込みの失敗など、起動を止めたくない例外は、各機能の `IStartupTask` の中で受ける
 - トレイの `WndProc` は、`[UnmanagedCallersOnly]` から例外が抜けるとログも残らず落ちるため、中で `try/catch` して報告する。異常終了のときは、トレイのアイコンも外す

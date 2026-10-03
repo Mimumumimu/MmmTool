@@ -17,7 +17,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - `docs/architecture.md`: 全体構成（プロジェクト・フォルダ・DI・起動と終了の順序・ビルドの共通設定・配布・C# の書き方・開発時の注意）
 - `docs/specs/`: 機能ごとの仕様と実装メモ（`cli-assist.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`）。機能を変更するときは、先に該当の仕様を読む
 - `docs/decisions/`: 決定記録（なぜそう決めたか。1 件 1 ファイル）。大きな決定をしたら、番号を続けて足す
-- `external/MmmSdk/docs/`: 共有部品（SDK）の仕様（`storage.md` / `notification-dialog.md`）
+- `external/MmmSdk/docs/`: 共有部品（SDK）の仕様（`storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `controls.md`）
 
 ## このプロジェクトの決定事項
 - 多重起動: 禁止（同一 EXE のみ）。2 つ目は「すでに起動しています」のメッセージを出して終了（起動済みのウィンドウは出さない。メインウィンドウは必ず開くものではないため）

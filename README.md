@@ -281,7 +281,7 @@ git submodule update --remote external/MmmSdk
 | [docs/architecture.md](docs/architecture.md) | 全体構成（プロジェクト・フォルダ・DI・起動と終了・ビルド設定・配布） |
 | `docs/specs/` | 機能ごとの仕様と実装メモ（CLI補助・リンク・リマインダー・トレイとメイン画面・設定・保存） |
 | `docs/decisions/` | 決定記録（なぜそう決めたか。1 件 1 ファイル） |
-| `external/MmmSdk/docs/` | 共有部品（JSON の保存・設定ストア・通知ダイアログ）の仕様 |
+| `external/MmmSdk/docs/` | 共有部品（JSON の保存・設定ストア・通知ダイアログ・確認ダイアログ・タスクトレイ・ConPTY・コントロール）の仕様 |
 
 ## バージョン
 
