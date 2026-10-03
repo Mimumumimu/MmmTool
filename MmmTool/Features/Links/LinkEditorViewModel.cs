@@ -438,11 +438,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     #region 変更の検知
 
-    // 追加・削除・並べ替え（ドラッグ＆ドロップによるコレクションの変更を含む）と、名前・パスの編集でダーティにする
-
     /// <summary>コレクションが変わったら、新しい要素を監視して、変更ありにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">コレクションの変更の情報</param>
+    /// <remarks>追加・削除・並べ替え（ドラッグ＆ドロップによるコレクションの変更を含む）と、名前・パスの編集で、変更ありにする。</remarks>
     private void OnChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems is not null)

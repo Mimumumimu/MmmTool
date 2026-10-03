@@ -148,7 +148,7 @@ public sealed partial class TerminalControl : UserControl
         core.Navigate($"https://{HostName}/index.html");
     }
 
-    /// <summary>WebView2 を初期化できなかった理由を、ターミナルの場所に出す</summary>
+    /// <summary>WebView2 の初期化失敗の理由を表示する</summary>
     /// <param name="exception">初期化の失敗</param>
     /// <remarks>
     /// 制約: WebView2 ランタイムが入っていない PC で、どの例外が出るかは、この環境では確かめられていない。COMException 以外が出たときは、未処理例外の受け皿（ログ・ダイアログ・終了）が受ける。実機で確かめて、受ける例外を直す。
@@ -233,6 +233,7 @@ public sealed partial class TerminalControl : UserControl
 
     /// <summary>シェルを起動する（restart が true なら起動し直す）</summary>
     /// <param name="restart">起動し直すなら true</param>
+    /// <returns>起動（または起動し直し）の完了を表すタスク</returns>
     /// <remarks>起動し直すときの終了待ちは、UI スレッドを止めずに行う。</remarks>
     private async Task StartSessionAsync(bool restart)
     {

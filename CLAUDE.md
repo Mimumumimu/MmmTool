@@ -28,7 +28,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄（TimeInputBox）・LinkArea・IME 操作・添付の一時保存（AttachmentStore）・ConPTY（PseudoConsole）・標準のメッセージボックス（NativeMessageBox）は SDK 側にある。Win32 の宣言（P/Invoke）は SDK の CsWin32 に集め、アプリには持たない（[decisions/0011-cswin32.md](docs/decisions/0011-cswin32.md)）。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
 - エラーの扱い: `try/catch` は最小限（範囲を絞る。広い `catch` で隠さない・握りつぶさない）。予測できる失敗は先に確かめる（`TryXxx`・検証）。それでも起きる失敗で、続けられるものは画面に出す（InfoBar）。**これ以上進められない失敗・予想外の失敗（バグ）が出たら、ダイアログに例外の内容を出して、アプリを落とす**（先にログを書く。SDK の `FatalErrorHandler`。[architecture.md](docs/architecture.md) の「エラーの扱い」）
 - バージョンは `Directory.Build.props` の `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。SDK は別に持つ
-- テストプロジェクト: 後で作る
+- テストプロジェクト: ユーザーの決定で、作らない（ユーザーが「作る」と言うまで）。レビューや作業のまとめで、テストが無いことを指摘・提案しない。ユーザーが作ると決めたら、Core の処理（リマインダーの判定・日付の変換・壊れた JSON の退避など）から作る
 - アプリの起動など目に見える動作の確認は、1 回ずつ事前に告知してから行う。画面操作が必要な確認は、VS で行ってもらう
 - 一時ファイル（作業用ファイル等）はリポジトリ直下の `_local/` に置く（`.gitignore` 済み）
 - コミット・push: 作業用ブランチ（`claude/...` など、master 以外）には、区切りのよいところで自由にコミット・push してよい（指示を待たなくてよい）。ただし、master への直接のコミット・push、強制 push、履歴の書き換えはしない。PR の作成とマージは、ユーザーが指示したときだけ行う。SDK も同じ（SDK を先に push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする）
@@ -48,7 +48,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 既定シェルの差し替え: 設定ページの項目ではなく、CLI補助の機能として組み込む。目的は Kiro でも動かすこと、できれば WSL でも動かすこと（パスの問題などがある）
 - クリップボード転送
 - Backlog 連携（設定ページに API キーの欄も足す）
-- テストプロジェクト（Core の処理から。リマインダーの判定・日付の変換・壊れた JSON の退避など）
 
 ## 作業の注意（要点。詳細は docs）
 - 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行（`Add<機能>()`）で済む形を保つ。共通部分（`Shell/`）は特定の機能を参照しない
