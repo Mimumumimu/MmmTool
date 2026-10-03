@@ -21,9 +21,9 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <summary>対応状態の一覧。読み込むまでは null</summary>
     private List<ReminderState>? _states;
 
-    /// <summary>読み込みに失敗したときの例外。正常なら null</summary>
-    /// <remarks>あれば保存を止める。</remarks>
-    private DataFileException? _loadException;
+    /// <summary>読み込みの結果</summary>
+    /// <remarks>読み込みに失敗していたら保存を止める（保存しようとすると例外）。</remarks>
+    private readonly LoadStatus _status = new();
 
     /// <summary>本体・状態のどちらかが変わった</summary>
     /// <remarks>保存したスレッドから発火する（任意のスレッドになりうる）。UI スレッドへの切り替えは受け取る側で行う。</remarks>
@@ -31,10 +31,10 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>ファイルを読めなかったときのメッセージ。正常なら null。</summary>
     /// <remarks>ロック・権限などで読めなかったとき。元のファイルを上書きで消さないよう、このときは保存を止める（保存しようとすると例外）。</remarks>
-    public string? LoadError { get; private set; }
+    public string? LoadError => _status.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。通常は null。</summary>
-    public string? RecoveryMessage { get; private set; }
+    public string? RecoveryMessage => _status.RecoveryMessage;
 
     /// <summary>リマインダー本体の一覧を取得する</summary>
     /// <param name="includeDeleted">論理削除済みも含めるか</param>
@@ -273,7 +273,7 @@ public sealed class ReminderService(IReminderRepository repository)
             return (_reminders, _states);
         }
 
-        List<string> errors = [];
+        List<DataFileException> failures = [];
         List<string> recoveries = [];
 
         try
@@ -285,8 +285,7 @@ public sealed class ReminderService(IReminderRepository repository)
         catch (DataFileException ex)
         {
             _reminders = [];
-            _loadException = ex;
-            errors.Add(ex.Message);
+            failures.Add(ex);
         }
 
         try
@@ -298,22 +297,15 @@ public sealed class ReminderService(IReminderRepository repository)
         catch (DataFileException ex)
         {
             _states = [];
-            _loadException ??= ex;
-            errors.Add(ex.Message);
+            failures.Add(ex);
         }
 
-        LoadError = errors.Count > 0 ? string.Join("\n", errors) : null;
-        RecoveryMessage = recoveries.Count > 0 ? string.Join("\n", recoveries) : null;
+        _status.Record(failures, recoveries);
         return (_reminders, _states);
     }
 
     /// <summary>読み込みに失敗していたら、保存させずに例外にする</summary>
     /// <exception cref="DataFileException">読み込みに失敗している。</exception>
     private void ThrowIfLoadFailed()
-    {
-        if (_loadException is not null)
-        {
-            throw new DataFileException($"{LoadError}\nファイルを読めなかったため、元のデータを消さないよう保存を止めています。アプリを再起動してください。", _loadException);
-        }
-    }
+        => _status.ThrowIfSaveBlocked("ファイルを読めなかったため、元のデータを消さないよう保存を止めています。アプリを再起動してください。");
 }

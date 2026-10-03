@@ -14,18 +14,18 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <summary>現在の設定</summary>
     private CliSettings _settings = new();
 
-    /// <summary>保存を止めているか。</summary>
+    /// <summary>読み込みの結果</summary>
     /// <remarks>
-    /// ファイルを読めなかったとき（ロック・権限など）は、元のファイルを上書きで消さないよう保存を止める。
+    /// ファイルを読めなかったとき（ロック・権限など）は、元のファイルを上書きで消さないよう保存を止める（黙って保存しない。補助的な設定なので、例外にはしない）。
     /// 中身が壊れていたときは退避済みなので止めない。
     /// </remarks>
-    private bool _saveDisabled;
+    private readonly LoadStatus _status = new();
 
     /// <summary>読み込みに失敗したときのメッセージ。</summary>
-    public string? LoadError { get; private set; }
+    public string? LoadError => _status.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。</summary>
-    public string? RecoveryMessage { get; private set; }
+    public string? RecoveryMessage => _status.RecoveryMessage;
 
     /// <summary>最後に移動した作業ディレクトリ</summary>
     public string? LastDirectory => _settings.LastDirectory;
@@ -40,13 +40,14 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     {
         try
         {
-            (_settings, RecoveryMessage) = await repository.LoadAsync(cancellationToken);
+            var (settings, recoveryMessage) = await repository.LoadAsync(cancellationToken);
+            _settings = settings;
             _settings.DirectoryHistory ??= [];
+            _status.Succeeded(recoveryMessage);
         }
         catch (DataFileException ex)
         {
-            LoadError = $"{ex.Message}\n修正するまで、作業ディレクトリは保存されません。";
-            _saveDisabled = true;
+            _status.Failed(ex, $"{ex.Message}\n修正するまで、作業ディレクトリは保存されません。");
         }
     }
 
@@ -80,7 +81,7 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>保存を止めているときは何もしない。</remarks>
     private Task SaveAsync(CancellationToken cancellationToken)
-        => _saveDisabled ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
+        => _status.HasFailed ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
 
     /// <summary>リストを先頭から指定件数に切り詰める</summary>
     /// <typeparam name="T">要素の型</typeparam>

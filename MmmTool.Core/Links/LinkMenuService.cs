@@ -13,13 +13,17 @@ public sealed class LinkMenuService(ILinkRepository repository)
     /// <remarks>まだ読み込んでいなければ null。</remarks>
     public LinkMenu? Current { get; private set; }
 
+    /// <summary>読み込みの結果</summary>
+    /// <remarks>読み込みに失敗しても保存は止めない（編集ページが、読み直すまで保存させない）。</remarks>
+    private readonly LoadStatus _status = new();
+
     /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
     /// <remarks>成功したら null に戻る。</remarks>
-    public string? LoadError { get; private set; }
+    public string? LoadError => _status.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
     /// <remarks>起動時の読み込みで起きても編集ページで知らせられるよう、一度入ったら消さない。</remarks>
-    public string? RecoveryMessage { get; private set; }
+    public string? RecoveryMessage => _status.RecoveryMessage;
 
     /// <summary>リンクメニューを読み込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -30,15 +34,14 @@ public sealed class LinkMenuService(ILinkRepository repository)
         try
         {
             var (menu, recoveryMessage) = await repository.LoadAsync(cancellationToken);
-            RecoveryMessage = recoveryMessage ?? RecoveryMessage;
             menu.Items ??= [];
             Current = menu;
-            LoadError = null;
+            _status.Succeeded(recoveryMessage, keepPreviousRecoveryMessage: true);
             return menu;
         }
         catch (DataFileException ex)
         {
-            LoadError = ex.Message;
+            _status.Failed(ex);
             throw;
         }
     }
@@ -52,6 +55,6 @@ public sealed class LinkMenuService(ILinkRepository repository)
     {
         await repository.SaveAsync(menu, cancellationToken);
         Current = menu;
-        LoadError = null;
+        _status.ClearFailure();
     }
 }
