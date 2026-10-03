@@ -9,7 +9,7 @@ public static class SettingsServiceCollectionExtensions
     /// <summary>設定ページを登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション（続けて登録するため）</returns>
-    /// <remarks>項目の値は各機能のサービスが持つ（スヌーズ間隔はリマインダー）。そのサービスは各機能の登録で入る。</remarks>
+    /// <remarks>設定の項目は、各機能が <c>AddSettingsSection</c> で部品を登録し（例: リマインダーのスヌーズ間隔）、このページは登録順に並べるだけ。このページは特定の機能を知らない。</remarks>
     public static IServiceCollection AddSettings(this IServiceCollection services)
     {
         services.AddTransient<SettingsViewModel>();

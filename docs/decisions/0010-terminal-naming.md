@@ -4,7 +4,7 @@
 「Terminal」が、同じ CLI補助の中で 4 つの意味に使われ、JSON の `"terminal"`（定型コマンドのタブ）と `"focus": "terminal"`（ペイン）が紛らわしかった。
 
 ## 決定
-- **ターミナル**: 中央のペイン、およびその実体（ConPTY・xterm.js）だけを指す。名前空間 `Features/CliAssist/Terminal`、`TerminalControl`、`ITerminalSession`、`FocusTarget.Terminal`（`"focus": "terminal"`）はこの意味
+- **ターミナル**: 中央のペイン、およびその実体（ConPTY・xterm.js）だけを指す。名前空間 `MmmSdk.WinUI.Terminal`（SDK）、`TerminalControl`、`ITerminalSession`、`FocusTarget.Terminal`（`"focus": "terminal"`）はこの意味
 - **シェル**: 定型コマンドの左のタブのうち、シェルで打つコマンド（AI エージェント起動前）。`CommandCategory.Shell`、`CliCommandSet.Shell`、JSON の `"shell"` と `"switchTo": "shell"`、画面の表記「シェル」
 - **AI セッション**: もう一方のタブ（`CommandCategory.Session`、`"session"`）。変更なし
 

@@ -1,21 +1,17 @@
 # CLI補助
 
-AI のコマンドラインツール（Claude Code・Kiro など）を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`Features/CliAssist/`（中は `Terminal/`・`WorkingDirectory/`・`Attachments/` に分けている。Core 側は `MmmTool.Core/CliAssist/`）。
+AI のコマンドラインツール（Claude Code・Kiro など）を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`Features/CliAssist/`（中は `WorkingDirectory/`・`Attachments/` に分けている。Core 側は `MmmTool.Core/CliAssist/`。ターミナルとシェルの決定は SDK）。
 
 ## 画面
 - 3 領域のレイアウト：左に定型コマンドのツリー、中央にターミナル、下に送信欄
-- ターミナルは ConPTY + xterm.js（WebView2）。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する
-  - 再起動（`ITerminalSession.RestartAsync`）では、古いシェルの終了待ち（最大で数秒）を UI スレッドの外で行う。終了待ちの間に押されたキーは捨てる（二重に起動し直さない）。アプリの終了時の `Dispose` だけは、シェルを確実に終わらせるため、同期で待つ
-  - 出力は、シェルの出力・終了メッセージ・起動失敗のメッセージを、すべて同じバッファ経由で送る（順序が入れ替わらない）。xterm.js が描画し終えるたびに文字数を返し（`written`）、未返却が 1M 文字を超えたら、返ってくるまで送らずにためておく（xterm.js の書き込み待ちがあふれて出力が捨てられるのを防ぐ）。ためる側（C# のバッファ）の大きさには上限を設けていない
-  - WebView2 を初期化できなかったとき（ランタイムが無い・起動できない。`COMException`）は、ターミナルの場所に理由を文字で出す（他の機能は使える）。制約: ランタイムが無い PC で実際にどの例外が出るかは、まだ実機で確かめていない。COMException 以外が出たときは、未処理例外の受け皿（ログ・ダイアログ・終了）が受ける。確かめられたら、受ける例外を直す
-  - シェルは pwsh.exe が PATH にあればそれ、無ければ Windows PowerShell（`DefaultShell`。Core）。起動は、実行ファイルのフルパスを引用符で囲んだコマンドラインで行う（名前だけだと、アプリのフォルダー・カレントフォルダーの同名ファイルが起動しうるため）。シェルの中でシェル自身を呼ぶコマンド（補助スクリプト）は、ファイル名だけを使う（`DefaultShell.GetFileName`）
-  - 作業ディレクトリ変更: PowerShell は `Set-Location -LiteralPath '…'`。cmd は `cd /d "…"` だが、パスに `%` があると環境変数として展開され、打ち消す方法もないため、移動せずにエラー表示する（`ShellCommands.TryChangeDirectory`）
-  - WebView2 の守り: `index.html` の CSP（自分のフォルダーのファイルだけ。外部通信・フレーム・フォームは禁止。xterm.js が `<style>` を足すため style だけ inline を許可。Chromium で、違反が出ないことと、描画・サイズ変更の通知が動くことを確認済み）、`AreHostObjectsAllowed = false`、仮想ホストの `DenyCors`、メッセージの送信元の検査、Release での DevTools 無効化
-  - Ctrl+C のコピーは、クリップボードへ書き込めたときだけ選択を解除する。拒否されたときは選択を残し、`console.error` に出す（画面には出さない）。サイズ変更の通知は 1 フレームに 1 回にまとめる
-  - 描画は `Features/CliAssist/Terminal/TerminalControl`（WebView2 で `Assets/Terminal/` の xterm.js を仮想ホスト経由で表示）。C# ↔ JS は JSON メッセージ（`terminal.js` の冒頭に一覧）
-  - `PseudoConsoleSession`（ConPTY は SDK の `PseudoConsole`。ここでは出力の読み取り・終了の通知・入力の確定）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する
+- ターミナルは SDK の `TerminalControl`（ConPTY + xterm.js（WebView2））。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する。セッション・画面・WebView2 の守り・出力の流量制御・シェルの決定（PATH 上の pwsh.exe、無ければ Windows PowerShell）・シェル別の作業ディレクトリ変更コマンドは、SDK の `docs/terminal.md`（`external/MmmSdk/docs/terminal.md`）
+  - アプリ側の使い方: `ITerminalSession`（SDK）を `PseudoConsoleSession` として DI に Transient で登録し、Host の破棄時に Dispose する（シェルも終了する）。画面は `CliAssistPage.xaml` の `TerminalControl` に `CliAssistViewModel.Terminal` を渡す
+  - 起動時の準備（`CliAssistStartup`）で、既定のシェルの探索（`ShellLocator.Default`。PATH の全項目へ触れる）をバックグラウンドで済ませる。UI スレッドで初めて探して止まらないようにするため
+  - 補助スクリプトを動かすシェルは、ターミナルで使うシェルに合わせる（`ShellLocator.Default.FileName`。シェルの中でシェル自身を呼ぶので、ファイル名だけを使う）
+  - 作業ディレクトリ変更: `ShellCommands.TryChangeDirectory(Terminal.Shell, …)`。cmd でパスに `%` があると作れない（`false`）ので、移動せずにエラー表示する
+  - xterm.js のファイル（`Assets/Terminal/`）は SDK の csproj が出力フォルダーへ配る。アプリの csproj には書かない
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
-  - 存在確認（`Directory.Exists`）は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから（デバウンス）確認する。起動時の作業ディレクトリ（`CliSettingsService.StartDirectory`）も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
+  - 存在確認（`Directory.Exists`）は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから確認する（SDK の `Debouncer`。リンク編集のパスの種類の調べ方も同じ）。起動時の作業ディレクトリ（`CliSettingsService.StartDirectory`）も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
 
 ## 定型コマンド
 - 「シェル」と「AI セッション」の 2 タブ固定（「ターミナル」は中央のペインの名前で、タブとは別。ターミナルは「シェルのタブ」「AI セッションのタブ」のどちらのコマンドも受け取る）。最初は全部開いた状態（開閉は自由。タブを切り替えると開いた状態に戻る）
@@ -44,7 +40,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 ## 添付
 - 画像は Ctrl+V で貼り付け（JPEG に変換）。ファイルはドラッグ＆ドロップまたは貼り付け
 - `%TEMP%\MmmTool\session_日時\` に連番で保存する（SDK の `AttachmentStore`。フォルダ名はアプリ側が `"MmmTool"` を渡す）。送信後は一覧だけ空にし、ファイルは終了時に削除する（`AttachmentStore.Dispose`）。1 日より古い残りは、次回の初回添付時に削除する
-- サムネイルは `ThumbnailImage.FromFile`（ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する）
+- サムネイルは SDK の `ThumbnailImage.FromFile`（ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する）。JPEG への変換も SDK の `IImageConverter`（詳細は SDK の `docs/controls.md`）
 
 ## 補助スクリプト：会話履歴の削除
 - `Assets/Tools/Remove-ClaudeSession.ps1`：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る（`~/.claude/projects` 配下の `.jsonl` が対象）

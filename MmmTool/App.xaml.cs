@@ -4,10 +4,11 @@ using Microsoft.UI.Xaml;
 using MmmSdk.Core;
 using MmmSdk.Core.Logging;
 using MmmSdk.Core.SingleInstance;
-using MmmSdk.WinUI.Tray;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Dialogs;
 using MmmSdk.WinUI.Errors;
+using MmmSdk.WinUI.Tray;
+using MmmSdk.WinUI.Windowing;
 using MmmTool.Features.CliAssist;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Links;
@@ -24,7 +25,7 @@ public partial class App : Application
     private readonly SingleInstanceGuard _instanceGuard = new("MmmTool");
     /// <summary>復旧できないエラーの報告先（ログ・ダイアログ・終了）</summary>
     private readonly FatalErrorHandler _fatalErrors;
-    /// <summary>DI・ログなどを扱う Host</summary>
+    /// <summary>DI とライフタイムを扱う Host</summary>
     private readonly IHost _host;
     /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
     private MainWindow? _window;
@@ -44,8 +45,10 @@ public partial class App : Application
 
         InitializeComponent();
 
+        // 設定（appsettings.json・環境変数）とログの既定は使わないので、無効にする（起動時に読まないため）
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
+            DisableDefaults = true,
             ContentRootPath = AppContext.BaseDirectory,
         });
         ConfigureServices(builder.Services, _fatalErrors);
@@ -113,7 +116,7 @@ public partial class App : Application
         // メインウィンドウから開くダイアログを、メインウィンドウの上に出すため（リマインダーのメイン画面と使い分ける）
         _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
 
-        tray.OpenRequested += (_, _) => _window.ShowAndActivate();
+        tray.OpenRequested += (_, _) => _window.BringToFront();
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();

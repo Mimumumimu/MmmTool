@@ -7,7 +7,6 @@ using MmmSdk.WinUI.Windowing;
 using MmmTool.Core.Reminders;
 using MmmTool.Shell;
 using Windows.Graphics;
-using Windows.UI.Text;
 
 namespace MmmTool.Features.Reminders.Main;
 
@@ -60,17 +59,6 @@ public sealed partial class ReminderMainWindow : Window
         Activate();
     }
 
-    /// <summary>前面に出す（最小化していれば元に戻す）</summary>
-    public void BringToFront()
-    {
-        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
-        {
-            presenter.Restore();
-        }
-        Activate();
-        this.SetForeground();
-    }
-
     /// <summary>未対応の色（グレー）</summary>
     private static readonly SolidColorBrush NoneBrush = new(ColorHelper.FromArgb(0xFF, 0x9E, 0x9E, 0x9E));
     /// <summary>スヌーズの色（アンバー）</summary>
@@ -89,16 +77,6 @@ public sealed partial class ReminderMainWindow : Window
         ReminderStatus.Done => DoneBrush,
         _ => NoneBrush,
     };
-
-    /// <summary>完了の件名は淡くする</summary>
-    /// <param name="isDone">完了か</param>
-    /// <returns>件名の不透明度</returns>
-    public static double DoneOpacity(bool isDone) => isDone ? 0.5 : 1.0;
-
-    /// <summary>完了の件名は取り消し線を引く</summary>
-    /// <param name="isDone">完了か</param>
-    /// <returns>文字の装飾</returns>
-    public static TextDecorations Strike(bool isDone) => isDone ? TextDecorations.Strikethrough : TextDecorations.None;
 
     /// <summary>件名を押したら、リンクがあれば開く</summary>
     /// <param name="sender">イベントの送信元</param>

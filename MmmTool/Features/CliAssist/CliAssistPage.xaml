@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:attachments="using:MmmTool.Features.CliAssist.Attachments"
     xmlns:local="using:MmmTool.Features.CliAssist"
-    xmlns:terminal="using:MmmTool.Features.CliAssist.Terminal"
+    xmlns:sdkAttachments="using:MmmSdk.WinUI.Attachments"
+    xmlns:terminal="using:MmmSdk.WinUI.Terminal"
     Loaded="OnLoaded">
 
     <Grid Padding="12" ColumnSpacing="12" RowSpacing="8">
@@ -144,7 +145,7 @@
                                 ToolTipService.ToolTip="{x:Bind DisplayName}">
                                 <Image
                                     Width="48"
-                                    Source="{x:Bind attachments:ThumbnailImage.FromFile(ThumbnailPath)}"
+                                    Source="{x:Bind sdkAttachments:ThumbnailImage.FromFile(ThumbnailPath)}"
                                     Stretch="UniformToFill"
                                     Visibility="{x:Bind IsImage}" />
                                 <StackPanel

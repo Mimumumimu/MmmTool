@@ -21,18 +21,19 @@ MmmTool.Core/<機能>/Json/       JSON の実装（Json<名前>Repository）と�
 MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス・トレイの項目・Add<機能>()・<機能>Startup
                                 （CliAssist / Links / Reminders / Settings / Debugging）
                                 機能の中が大きいときは、責務ごとのサブフォルダーに分ける（名前空間もフォルダーどおり）:
-                                CliAssist/{Terminal, WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
+                                CliAssist/{WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
-                                PageProvider・IStartupTask・ShellServiceCollectionExtensions）
+                                PageProvider・SettingsSection・IStartupTask・ShellServiceCollectionExtensions）
 ```
 
 - `Shell/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`（`Debug` にすると `System.Diagnostics.Debug` を隠すため）
 
 ## DI と起動
-- Generic Host（`Host.CreateApplicationBuilder`）で DI を組む。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
+- Generic Host（`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定（appsettings.json・環境変数）とロガーの既定は無効）で DI を組む。ログは SDK の `ErrorLog`（エラーのファイル）だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
 - 機能を登録した順（CLI補助 → リマインダー → リンク → DEBUG → 設定）に、サイドバーの項目（上部・下部それぞれ）・トレイメニューの項目（リマインダーがリンクより上）・起動時の準備が並ぶ
 - 保存先（Repository の実装）は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
+- 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ（[specs/settings.md](specs/settings.md)）
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する（ページは Transient・キーは型名）。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`（初回に DI から作ってキャッシュ）からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備（`IStartupTask`）: `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `StartAsync` を待つ（CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み）。決めた理由は [decisions/0002-startup-task.md](decisions/0002-startup-task.md)
 - ダイアログ: 共通の `IDialogService`（SDK）は確認ダイアログだけ。機能固有の画面は各機能の口から開く（`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`）。実装は SDK の `IDialogHost` の `Owner`（親の決定）と `ShowModalAsync`（開いている間モーダルとして覚える）を使う（具象の `DialogService` には依存しない）。ピッカーの親も `IDialogHost.Owner`
@@ -64,16 +65,16 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - リリースビルドには DEBUG ページ（コード・XAML）を含めない（csproj の条件付き `Remove`）
 - WinUI の多言語リソース（言語名フォルダ内の `.mui`）は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - `MmmTool.exe.WebView2`（WebView2 のキャッシュ）は起動時に exe の隣へ作られる実行時データで、1 フォルダなので放置する
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は `Assets/Terminal/`。ライセンスファイルも同梱
+- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は SDK の `MmmSdk.WinUI/Terminal/Assets/`（ライセンスファイルも同じ場所）。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
-- 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは `Features/CliAssist/Attachments/ThumbnailImage.FromFile`）
+- 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは SDK の `ThumbnailImage.FromFile`、完了・削除済みの見た目は `Features/Reminders/ReminderRowStyle`）
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`（TwoWay）と `Message` に結び付ける（閉じる処理は書かない）。ファイルの読み込み結果は SDK の `LoadStatus` で持つ
 - ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格（保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化）を `Features/Reminders/ReminderViewModelBase` に持つ
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
-- ターミナルの後始末（`PseudoConsoleSession.Close`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
+- ターミナルの後始末（SDK の `PseudoConsoleSession` の `Dispose`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
 - JSON は `System.Text.Json` のソース生成（トリミングは今は無効だが、戻しても動く形を保つ）
 - コメントは XML ドキュメントコメント（`<summary>` は短く、長い説明は `<remarks>`）。引数・戻り値も書く
 

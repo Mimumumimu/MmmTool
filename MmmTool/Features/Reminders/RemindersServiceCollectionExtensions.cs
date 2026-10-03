@@ -21,7 +21,7 @@ public static class RemindersServiceCollectionExtensions
         // 保存先
         services.AddSingleton<IReminderRepository, JsonReminderRepository>();
 
-        // 各画面と時刻監視でキャッシュを共有するため、アプリ全体で 1 つ。監視は Host の破棄時に止まる
+        // 変更の通知（Changed）を各画面と時刻監視で共有するため、アプリ全体で 1 つ。監視は Host の破棄時に止まる
         services.AddSingleton<ReminderService>();
         services.AddSingleton<ReminderMonitor>();
         services.AddSingleton<ReminderSettingsService>();
@@ -38,6 +38,10 @@ public static class RemindersServiceCollectionExtensions
         services.AddTransient<ReminderInputViewModel>();
         services.AddTransient<ReminderListViewModel>();
         services.AddTransient<ReminderMainViewModel>();
+
+        // 設定ページに並べる設定（スヌーズ間隔）
+        services.AddTransient<ReminderSettingsViewModel>();
+        services.AddSettingsSection<ReminderSettingsControl>();
 
         services.AddStartupTask<ReminderStartup>();
         return services;

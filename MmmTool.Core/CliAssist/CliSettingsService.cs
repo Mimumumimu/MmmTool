@@ -1,3 +1,4 @@
+using MmmSdk.Core.Collections;
 using MmmSdk.Core.Storage;
 
 namespace MmmTool.Core.CliAssist;
@@ -71,9 +72,7 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         _settings.LastDirectory = directory;
 
         var history = _settings.DirectoryHistory;
-        history.RemoveAll(path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase));
-        history.Insert(0, directory);
-        TrimTo(history, MaxDirectoryHistory);
+        history.AddRecent(directory, path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase), MaxDirectoryHistory);
         return SaveAsync(cancellationToken);
     }
 
@@ -93,16 +92,4 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <remarks>保存を止めているときは何もしない。</remarks>
     private Task SaveAsync(CancellationToken cancellationToken)
         => _status.HasFailed ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
-
-    /// <summary>リストを先頭から指定件数に切り詰める</summary>
-    /// <typeparam name="T">要素の型</typeparam>
-    /// <param name="list">切り詰めるリスト</param>
-    /// <param name="maxCount">残す最大件数</param>
-    private static void TrimTo<T>(List<T> list, int maxCount)
-    {
-        if (list.Count > maxCount)
-        {
-            list.RemoveRange(maxCount, list.Count - maxCount);
-        }
-    }
 }

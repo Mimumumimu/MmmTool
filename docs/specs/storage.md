@@ -22,7 +22,7 @@
 - 呼ぶ側は「ファイルが無いとき」と同じに作り直す：Links は空、CliCommands は既定、CliSettings / AppSettings / リマインダーは空
 - 0 バイト・空白だけ・`null` は、退避せず空として扱う
 - ロック・権限などの IO エラーは退避できないので、従来どおり `DataFileException`。リンク・CLI設定・リマインダーは、元のデータを消さないよう保存を止める
-- Repository の `LoadAsync` は `DataLoadResult<T>` を返し、サービスは `RecoveryMessage` を持つ
+- Repository の `LoadAsync` は `DataLoadResult<T>` を返し、サービスは `RecoveryMessage` を持つ（リマインダーは、1 件単位の操作の保存先が `LoadError` / `RecoveryMessage` を持つ。[reminders.md](reminders.md)）
 - 知らせ方は各画面の InfoBar
   - CLI補助は、設定・定型コマンドの問題を 1 つにまとめて表示する
   - リンク編集は、初回表示のときに表示する。`LinkMenuService.RecoveryMessage` は起動時の読み込みの分も知らせるため、一度入ったら消さない

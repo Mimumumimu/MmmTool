@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Storage;
+using MmmSdk.Core.Tasks;
 using MmmSdk.WinUI.Dialogs;
 using MmmSdk.WinUI.Errors;
 using MmmTool.Core.CliAssist;
@@ -22,8 +23,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private DirectoryCheck _check;
 
-    /// <summary>実行中の確認。入力が変わったら取り消す</summary>
-    private CancellationTokenSource? _checkCancellation;
+    /// <summary>存在の確認の待ち合わせ（入力が変わったら、前の確認を取り消す）</summary>
+    private readonly Debouncer _checkDebouncer = new(CheckDelay);
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="settings">CLI補助の利用状態</param>
@@ -81,32 +82,18 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// </remarks>
     private async void UpdateCheck(string path)
     {
-        _checkCancellation?.Cancel();
-        _checkCancellation?.Dispose();
-        _checkCancellation = null;
-
         var trimmed = path.Trim();
         if (trimmed.Length == 0)
         {
+            _checkDebouncer.Cancel();
             SetCheck(DirectoryCheck.None);
             return;
         }
 
         SetCheck(DirectoryCheck.Checking);
-        var cancellation = _checkCancellation = new CancellationTokenSource();
-        try
-        {
-            await Task.Delay(CheckDelay, cancellation.Token);
-            var exists = await Task.Run(() => Directory.Exists(trimmed), cancellation.Token);
-            if (!cancellation.IsCancellationRequested)
-            {
-                SetCheck(exists ? DirectoryCheck.Found : DirectoryCheck.NotFound);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 次の入力で確認し直す
-        }
+        await _checkDebouncer.RunAsync(
+            () => Directory.Exists(trimmed),
+            exists => SetCheck(exists ? DirectoryCheck.Found : DirectoryCheck.NotFound));
     }
 
     /// <summary>確認状態を変えて、表示を更新する</summary>
