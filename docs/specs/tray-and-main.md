@@ -13,7 +13,7 @@
 ## メイン画面
 - 左サイドバー（`NavigationView`）+ 右コンテンツ。下部に「設定」
 - ページは DI で生成してキャッシュする（`PageProvider`）。サイドバーの項目は、各機能が `AddNavigationPage` で登録する（[../architecture.md](../architecture.md)）
-- DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの（`#if DEBUG`）
+- DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録（`#if DEBUG`）だけでなく、コードと XAML も含めない（`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す）
 
 ## トレイアイコン・トレイメニュー
 アイコンとメニューの仕組み（Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応）は SDK の `MmmSdk.WinUI.Tray`（SDK の `docs/tray.md`）。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。

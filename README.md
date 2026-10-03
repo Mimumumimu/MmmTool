@@ -124,7 +124,7 @@ dotnet build .\MmmTool.slnx -p:Platform=x64
 dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
 ```
 
-発行プロファイル `MmmTool/Properties/PublishProfiles/win-x64.pubxml` の設定で、`MmmTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/` に出力されます。このフォルダをそのままコピーして配布します（インストーラーはありません）。
+発行したファイルは `MmmTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/` に出力されます。このフォルダをそのままコピーして配布します（インストーラーはありません）。
 
 ## データ保存場所
 

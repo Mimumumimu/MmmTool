@@ -8,9 +8,9 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
+    <!-- 非パッケージ（WindowsPackageType=None）でも、WinUI のリソース（resources.pri）の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WindowsPackageType>None</WindowsPackageType>
@@ -22,15 +22,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Assets\SplashScreen.scale-200.png" />
-    <Content Include="Assets\LockScreenLogo.scale-200.png" />
-    <Content Include="Assets\Square150x150Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.scale-200.png" />
-    <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-    <Content Include="Assets\StoreLogo.png" />
     <!-- アプリのアイコン（EXE に埋め込むほか、トレイ・ウィンドウのアイコンとして実行時にファイルから読む） -->
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <!-- ターミナル描画（xterm.js、MIT）。WebView2 から読み込むため出力フォルダへコピーする -->
     <Content Include="Assets\Terminal\**" CopyToOutputDirectory="PreserveNewest" />
     <!-- ターミナルの定型コマンドから呼ぶ補助スクリプト（{AppDir}\Assets\Tools\...）。出力フォルダへコピーする -->
@@ -39,6 +32,16 @@
 
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <!--
+    DEBUG ページ（開発用）は、リリースビルドには含めない（コード・XAML ごとビルドから外す）。
+    XAML は #if DEBUG で囲めないため、ここで外す。DI への登録（DebuggingServiceCollectionExtensions）は #if DEBUG で何も登録しない。
+  -->
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <Page Remove="Features\Debugging\DebugPage.xaml" />
+    <Compile Remove="Features\Debugging\DebugPage.xaml.cs" />
+    <Compile Remove="Features\Debugging\DebugViewModel.cs" />
   </ItemGroup>
 
   <!--

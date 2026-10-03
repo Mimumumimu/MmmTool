@@ -51,6 +51,8 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 ## 配布
 - フレームワーク依存（`SelfContained=false` / `WindowsAppSDKSelfContained=false`）。実行する PC に .NET 10 Desktop Runtime と Windows App Runtime 2.5 が必要。決めた理由は [decisions/0003-framework-dependent.md](decisions/0003-framework-dependent.md)
 - 発行は `dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64`。出力フォルダをそのままコピーして配布する
+- 発行プロファイル（`.pubxml`）は使わない（`.gitignore` で除外されており、clone 直後に再現できないため）。設定は csproj の `Publish Properties` に書く。MSIX 用のマニフェスト・ロゴは持たない（非パッケージで配布する）。`EnableMsixTooling` は、非パッケージでも WinUI のリソース生成に使うため true のまま残している
+- リリースビルドには DEBUG ページ（コード・XAML）を含めない（csproj の条件付き `Remove`）
 - WinUI の多言語リソース（言語名フォルダ内の `.mui`）は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - `MmmTool.exe.WebView2`（WebView2 のキャッシュ）は起動時に exe の隣へ作られる実行時データで、1 フォルダなので放置する
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は `Assets/Terminal/`。ライセンスファイルも同梱
