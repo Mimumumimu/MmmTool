@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Paths;
-using MmmSdk.Core.Storage;
-using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.Main;
@@ -14,29 +12,20 @@ namespace MmmTool.Features.Reminders.Main;
 /// 保存内容が変わったら（<see cref="ReminderService.Changed"/>）読み直し、日付が変わったら新しい日の対象に切り替える。
 /// UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。画面を閉じたら <see cref="Dispose"/> する。
 /// </remarks>
-public sealed partial class ReminderMainViewModel : ObservableObject, IDisposable
+public sealed partial class ReminderMainViewModel : ReminderViewModelBase
 {
     /// <summary>日付が変わってから読み直すまでの余裕</summary>
     /// <remarks>タイマーが 0 時ちょうどより少し早く来ても、前の日のまま読み直さないため。</remarks>
     private static readonly TimeSpan DayChangeMargin = TimeSpan.FromSeconds(1);
 
-    /// <summary>リマインダーの読み書き</summary>
-    private readonly ReminderService _reminders;
     /// <summary>時刻監視（通知から開いたときのスヌーズ）</summary>
     private readonly ReminderMonitor _monitor;
     /// <summary>入力・一覧画面</summary>
     private readonly IReminderDialogService _dialogs;
     /// <summary>リンクを開く処理</summary>
     private readonly PathOpener _opener;
-    /// <summary>現在日時</summary>
-    private readonly TimeProvider _time;
-    /// <summary>作ったスレッド（UI スレッド）。変更の通知をここへ戻す</summary>
-    private readonly SynchronizationContext? _context;
     /// <summary>日付が変わったら読み直すタイマー</summary>
     private readonly ITimer _dayTimer;
-
-    /// <summary>読み込みの世代。古い読み込みの結果で上書きしないためのもの</summary>
-    private int _version;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
@@ -45,15 +34,12 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderMainViewModel(ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, PathOpener opener, TimeProvider time)
+        : base(reminders, time)
     {
-        _reminders = reminders;
         _monitor = monitor;
         _dialogs = dialogs;
         _opener = opener;
-        _time = time;
-        _context = SynchronizationContext.Current;
-        _reminders.Changed += OnRemindersChanged;
-        _dayTimer = _time.CreateTimer(_ => OnDayChanged(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _dayTimer = Time.CreateTimer(_ => OnDayChanged(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     /// <summary>未対応（未・スヌーズ）の行</summary>
@@ -74,26 +60,14 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
 
-    /// <summary>エラー（読み込み・保存の失敗、壊れたファイルの退避、リンクを開けなかった）</summary>
-    public ErrorState Error { get; } = new();
-
-    /// <summary>最初の読み込み</summary>
-    /// <returns>読み込みの完了を表すタスク</returns>
-    /// <remarks>ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。</remarks>
-    public async Task InitializeAsync()
-    {
-        await RefreshAsync();
-        Error.Set(_reminders.LoadError ?? _reminders.RecoveryMessage);
-    }
-
     /// <summary>発動済みで未対応のものをスヌーズにする（通知から開いたとき）</summary>
     /// <returns>スヌーズへの切り替えの完了を表すタスク</returns>
     public Task SnoozeTriggeredAsync() => RunAsync(_monitor.SnoozeTriggeredAsync);
 
-    /// <summary>購読とタイマーをやめる</summary>
-    public void Dispose()
+    /// <inheritdoc />
+    public override void Dispose()
     {
-        _reminders.Changed -= OnRemindersChanged;
+        base.Dispose();
         _dayTimer.Dispose();
     }
 
@@ -138,71 +112,38 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
-    private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => _reminders.DeleteAsync(item.Source.Seq));
+    private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.Seq));
 
     /// <summary>ユーザーが状態を切り替えたら、今日の状態として保存する</summary>
     /// <param name="item">状態を切り替えた行</param>
     /// <param name="status">新しい状態</param>
     /// <returns>保存の完了を表すタスク</returns>
     private Task SaveStatusAsync(ReminderTodayItem item, ReminderStatus status)
-        => RunAsync(() => _reminders.SetStateAsync(item.No, ReminderDates.ToDateValue(_time.GetLocalNow().DateTime), status));
+        => RunAsync(() => Reminders.SetStateAsync(item.No, ReminderDates.ToDateValue(Time.GetLocalNow().DateTime), status));
 
-    /// <summary>保存を伴う操作を行い、失敗したらエラーに出す</summary>
-    /// <param name="action">行う操作</param>
-    /// <returns>操作の完了を表すタスク</returns>
-    /// <remarks>保存に失敗したときは、画面の状態を保存内容に戻すため読み直す。</remarks>
-    private async Task RunAsync(Func<Task> action)
-    {
-        try
-        {
-            await action();
-            Error.Clear();
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
-            await RefreshAsync();
-        }
-    }
-
-    /// <summary>保存内容が変わったら、UI スレッドで読み直す</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="e">イベントの情報</param>
-    /// <remarks>任意のスレッドから来る。</remarks>
-    private void OnRemindersChanged(object? sender, EventArgs e) => PostRefresh();
+    /// <summary>保存に失敗したら、画面の状態を保存内容に戻すため読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    protected override Task OnSaveFailedAsync() => RefreshAsync();
 
     /// <summary>日付が変わったら、UI スレッドで読み直す</summary>
     /// <remarks>タイマーのスレッドから来る。次の日付の変わり目は読み直しの中で掛け直す。</remarks>
     private void OnDayChanged() => PostRefresh();
 
-    /// <summary>UI スレッドで読み直す</summary>
-    private void PostRefresh()
-    {
-        if (_context is null)
-        {
-            _ = RefreshAsync();
-        }
-        else
-        {
-            _context.Post(_ => _ = RefreshAsync(), null);
-        }
-    }
-
     /// <summary>今日の対象を読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
-    private async Task RefreshAsync()
+    protected override async Task RefreshAsync()
     {
-        var version = ++_version;
-        var now = _time.GetLocalNow().DateTime;
+        var version = NextVersion();
+        var now = Time.GetLocalNow().DateTime;
         var today = DateOnly.FromDateTime(now);
         var todayValue = ReminderDates.ToDateValue(today);
 
-        var reminders = await _reminders.GetRemindersAsync();
-        var states = (await _reminders.GetStatesAsync())
+        var reminders = await Reminders.GetRemindersAsync();
+        var states = (await Reminders.GetStatesAsync())
             .Where(state => state.Date == todayValue)
             .GroupBy(state => state.BaseNo)
             .ToDictionary(group => group.Key, group => group.Last().Status);
-        if (version != _version)
+        if (!IsCurrent(version))
         {
             return;
         }

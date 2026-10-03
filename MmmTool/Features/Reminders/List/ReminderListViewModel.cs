@@ -1,9 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Dialogs;
-using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Reminders.List;
@@ -16,21 +14,12 @@ namespace MmmTool.Features.Reminders.List;
 /// 保存内容が変わったら（<see cref="ReminderService.Changed"/>）一覧を読み直す。UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。
 /// 画面を閉じたら <see cref="Dispose"/> で購読をやめる。
 /// </remarks>
-public sealed partial class ReminderListViewModel : ObservableObject, IDisposable
+public sealed partial class ReminderListViewModel : ReminderViewModelBase
 {
-    /// <summary>リマインダーの読み書き</summary>
-    private readonly ReminderService _reminders;
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _dialogs;
     /// <summary>入力画面</summary>
     private readonly IReminderDialogService _reminderDialogs;
-    /// <summary>現在日時（過去の予定の判定に使う）</summary>
-    private readonly TimeProvider _time;
-    /// <summary>作ったスレッド（UI スレッド）。変更の通知をここへ戻す</summary>
-    private readonly SynchronizationContext? _context;
-
-    /// <summary>読み込みの世代。古い読み込みの結果で上書きしないためのもの</summary>
-    private int _version;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
@@ -38,13 +27,10 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     /// <param name="reminderDialogs">入力画面を開く</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderListViewModel(ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, TimeProvider time)
+        : base(reminders, time)
     {
-        _reminders = reminders;
         _dialogs = dialogs;
         _reminderDialogs = reminderDialogs;
-        _time = time;
-        _context = SynchronizationContext.Current;
-        _reminders.Changed += OnRemindersChanged;
     }
 
     /// <summary>一覧の行</summary>
@@ -58,21 +44,6 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     /// <remarks>既定はオフ（終わった予定が一覧の上に並んで邪魔になるため）。今日の分は時刻が過ぎていても表示する。</remarks>
     [ObservableProperty]
     public partial bool ShowPast { get; set; }
-
-    /// <summary>エラー（読み込み・保存の失敗、壊れたファイルの退避）</summary>
-    public ErrorState Error { get; } = new();
-
-    /// <summary>最初の読み込み</summary>
-    /// <returns>読み込みの完了を表すタスク</returns>
-    /// <remarks>ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。</remarks>
-    public async Task InitializeAsync()
-    {
-        await RefreshAsync();
-        Error.Set(_reminders.LoadError ?? _reminders.RecoveryMessage);
-    }
-
-    /// <summary>購読をやめる</summary>
-    public void Dispose() => _reminders.Changed -= OnRemindersChanged;
 
     /// <summary>「削除済みを表示」が変わったら読み直す</summary>
     /// <param name="value">変更後の「削除済みを表示」</param>
@@ -114,7 +85,7 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
-    private Task DeleteAsync(ReminderListItem item) => RunAsync(() => _reminders.DeleteAsync(item.Source.Seq));
+    private Task DeleteAsync(ReminderListItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.Seq));
 
     /// <summary>完全削除（物理削除）</summary>
     /// <param name="item">完全削除する行</param>
@@ -125,56 +96,24 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     {
         if (await _dialogs.ConfirmAsync("完全削除", $"「{item.Title}」を完全に削除します。\nこの操作は元に戻せません。", "完全削除"))
         {
-            await RunAsync(() => _reminders.PurgeAsync(item.Source.Seq));
-        }
-    }
-
-    /// <summary>保存を伴う操作を行い、失敗したらエラーに出す</summary>
-    /// <param name="action">行う操作</param>
-    /// <returns>操作の完了を表すタスク</returns>
-    private async Task RunAsync(Func<Task> action)
-    {
-        try
-        {
-            await action();
-            Error.Clear();
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
-        }
-    }
-
-    /// <summary>保存内容が変わったら、UI スレッドで読み直す</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="e">イベントの情報</param>
-    /// <remarks>任意のスレッドから来る。</remarks>
-    private void OnRemindersChanged(object? sender, EventArgs e)
-    {
-        if (_context is null)
-        {
-            _ = RefreshAsync();
-        }
-        else
-        {
-            _context.Post(_ => _ = RefreshAsync(), null);
+            await RunAsync(() => Reminders.PurgeAsync(item.Source.Seq));
         }
     }
 
     /// <summary>一覧を読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
     /// <remarks>変わった行だけを差し替える（全部を作り直すとスクロール位置が先頭へ戻るため）。</remarks>
-    private async Task RefreshAsync()
+    protected override async Task RefreshAsync()
     {
-        var version = ++_version;
-        var reminders = await _reminders.GetRemindersAsync(ShowDeleted);
-        if (version != _version)
+        var version = NextVersion();
+        var reminders = await Reminders.GetRemindersAsync(ShowDeleted);
+        if (!IsCurrent(version))
         {
             return;
         }
 
         // 曜日指定は日付なしの特殊値（99999999）なので、過去には入らない
-        var today = ReminderDates.ToDateValue(_time.GetLocalNow().DateTime);
+        var today = ReminderDates.ToDateValue(Time.GetLocalNow().DateTime);
         var sorted = reminders.Where(item => ShowPast || item.Date >= today).OrderBy(item => item.Date).ThenBy(item => item.Time).ThenBy(item => item.Seq).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
