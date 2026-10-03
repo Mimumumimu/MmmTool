@@ -8,7 +8,7 @@
 - `NumberBox` を 2 つ：▲▼ と ✕ が並んでごちゃごちゃする。欄が 2 つに分かれて見た目もよくない
 
 ## 決定
-`Controls/TimeInputBox`：1 つの枠に「時 : 分」の 2 区画を持たせる。ボタンはなし。
+SDK の `MmmSdk.WinUI.Controls.TimeInputBox`（SDK の `docs/controls.md`）：1 つの枠に「時 : 分」の 2 区画を持たせる。ボタンはなし。
 
 - 数字だけを受け付ける。2 桁打つと分へ移る
 - ←→ で区画を移動し、↑↓ / ホイールで ±1（端で回る）

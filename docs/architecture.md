@@ -24,11 +24,10 @@ MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス
                                 CliAssist/{Terminal, WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
                                 PageProvider・IStartupTask・ShellServiceCollectionExtensions）
-MmmTool/Controls/               汎用の部品（TimeInputBox・LinkArea）
-MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.Ime / .MessageBox / .PseudoConsole）
+MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.MessageBox / .PseudoConsole）。汎用の宣言は SDK 側
 ```
 
-- `Shell/` `Controls/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
+- `Shell/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`（`Debug` にすると `System.Diagnostics.Debug` を隠すため）
 
 ## DI と起動

@@ -2,10 +2,10 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using MmmSdk.WinUI.Input;
 using MmmSdk.WinUI.VisualTree;
 using MmmTool.Core.CliAssist;
 using MmmTool.Features.CliAssist.Attachments;
-using MmmTool.Interop;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
@@ -186,7 +186,7 @@ public sealed partial class CliAssistPage : Page
     {
         if (_imeInitialized) return;
         _imeInitialized = true;
-        NativeMethods.TurnOnImeForFocusedWindow();
+        ImeControl.TurnOn();
     }
 
     /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
