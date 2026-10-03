@@ -93,7 +93,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         // 起動時の読み込みで作り直した場合もここで知らせる（読み込みエラーを表示中なら、そちらを優先）
         if (_linkMenu.RecoveryMessage is { } recoveryMessage && !_loadFailed)
         {
-            Error.Show(recoveryMessage);
+            Error.Show(Error.IsOpen ? $"{recoveryMessage}\n\n{Error.Message}" : recoveryMessage);
         }
     }
 
@@ -123,6 +123,12 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
         SelectedItem = null;
         IsDirty = false;
+
+        // 手で編集した JSON の書き間違い（知らない kind）は、無視して続け、画面で知らせる
+        if (menu.Validate() is { Count: > 0 } problems)
+        {
+            Error.Show(string.Join("\n", problems));
+        }
         NotifySaveStateChanged();
     }
 
