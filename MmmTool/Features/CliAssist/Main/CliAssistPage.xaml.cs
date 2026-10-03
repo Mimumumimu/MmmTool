@@ -5,13 +5,12 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.CliAssist;
-using MmmTool.Features.CliAssist.Attachments;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
 using Windows.UI.Core;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>CLI補助ページ</summary>
 public sealed partial class CliAssistPage : Page

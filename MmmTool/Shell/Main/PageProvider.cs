@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
 
-namespace MmmTool.Shell;
+namespace MmmTool.Shell.Main;
 
 /// <summary>サイドバーの項目に対応するページを作って持つ</summary>
 /// <param name="pages">登録されたページ</param>

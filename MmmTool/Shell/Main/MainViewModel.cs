@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace MmmTool.Shell;
+namespace MmmTool.Shell.Main;
 
 /// <summary>メイン画面（ナビゲーション）の ViewModel</summary>
 public sealed partial class MainViewModel : ObservableObject

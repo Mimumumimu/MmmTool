@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Links;
 using MmmTool.Core.Links.Json;
+using MmmTool.Features.Links.Main;
 using MmmTool.Shell;
 
 namespace MmmTool.Features.Links;

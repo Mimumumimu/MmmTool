@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Page
-    x:Class="MmmTool.Features.CliAssist.CliAssistPage"
+    x:Class="MmmTool.Features.CliAssist.Main.CliAssistPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:attachments="using:MmmTool.Features.CliAssist.Attachments"
-    xmlns:local="using:MmmTool.Features.CliAssist"
+    xmlns:local="using:MmmTool.Features.CliAssist.Main"
     xmlns:sdkAttachments="using:MmmSdk.WinUI.Components.Attachments"
     xmlns:terminal="using:MmmSdk.WinUI.Components.Terminal"
     Loaded="OnLoaded">
@@ -135,7 +134,7 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="attachments:AttachmentItem">
+                        <DataTemplate x:DataType="local:AttachmentItem">
                             <Grid
                                 Height="48"
                                 MinWidth="48"

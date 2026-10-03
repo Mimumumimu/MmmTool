@@ -1,6 +1,6 @@
 using MmmTool.Core.CliAssist;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>
 /// 定型コマンドツリーの表示用の 1 要素。

@@ -4,6 +4,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
+using MmmTool.Features.CliAssist.Main;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 using MmmTool.Shell;
 

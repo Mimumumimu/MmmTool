@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmTool.Shell;
 
-namespace MmmTool.Features.Settings;
+namespace MmmTool.Features.Settings.Main;
 
 /// <summary>設定ページ</summary>
 public sealed partial class SettingsPage : Page

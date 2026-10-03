@@ -1,4 +1,4 @@
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>ツリーの要素の種類</summary>
 public enum CommandItemKind

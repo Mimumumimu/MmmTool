@@ -10,7 +10,7 @@ using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Core.Links;
 
-namespace MmmTool.Features.Links;
+namespace MmmTool.Features.Links.Main;
 
 /// <summary>
 /// リンク編集ページ。リンクメニューのツリーを編集して保存する。

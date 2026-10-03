@@ -5,6 +5,7 @@ using MmmTool.Core.Reminders.Json;
 using MmmTool.Features.Reminders.Input;
 using MmmTool.Features.Reminders.List;
 using MmmTool.Features.Reminders.Main;
+using MmmTool.Features.Reminders.Settings;
 using MmmTool.Shell;
 
 namespace MmmTool.Features.Reminders;

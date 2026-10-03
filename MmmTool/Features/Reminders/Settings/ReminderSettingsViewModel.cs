@@ -4,7 +4,7 @@ using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Core.Reminders;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Settings;
 
 /// <summary>リマインダーの設定（設定ページの部品）の ViewModel</summary>
 public sealed partial class ReminderSettingsViewModel : ObservableObject

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Page
-    x:Class="MmmTool.Features.Links.LinkEditorPage"
+    x:Class="MmmTool.Features.Links.Main.LinkEditorPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:MmmTool.Features.Links"
+    xmlns:local="using:MmmTool.Features.Links.Main"
     Loaded="OnLoaded">
 
     <Page.Resources>

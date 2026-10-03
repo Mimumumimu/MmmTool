@@ -15,6 +15,7 @@ using MmmTool.Features.Links;
 using MmmTool.Features.Reminders;
 using MmmTool.Features.Settings;
 using MmmTool.Shell;
+using MmmTool.Shell.Main;
 
 namespace MmmTool;
 

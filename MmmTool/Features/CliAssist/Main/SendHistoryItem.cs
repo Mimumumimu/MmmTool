@@ -1,4 +1,4 @@
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>
 /// 送信履歴の一覧の 1 行。

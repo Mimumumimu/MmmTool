@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml.Controls;
 
-namespace MmmTool.Features.Debugging;
+namespace MmmTool.Features.Debugging.Main;
 
 /// <summary>DEBUG ページ（デバッグビルドだけで表示する動作確認用）</summary>
 public sealed partial class DebugPage : Page

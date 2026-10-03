@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.WinUI.Utilities;
 
-namespace MmmTool.Features.Reminders;
+namespace MmmTool.Features.Reminders.Settings;
 
 /// <summary>リマインダーの設定（設定ページに並べる部品）</summary>
 public sealed partial class ReminderSettingsControl : UserControl

@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.Core.Links;
 
-namespace MmmTool.Features.Links;
+namespace MmmTool.Features.Links.Main;
 
 /// <summary>
 /// リンク編集ツリーの 1 要素（編集用）。保存時に <see cref="LinkNode"/> へ変換する。
