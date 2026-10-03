@@ -15,23 +15,12 @@
 - ページは DI で生成してキャッシュする（`PageProvider`）。サイドバーの項目は、各機能が `AddNavigationPage` で登録する（[../architecture.md](../architecture.md)）
 - DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの（`#if DEBUG`）
 
-## トレイアイコン（`Shell/Tray/TrayIcon`）
-- `Shell_NotifyIcon` を直接 P/Invoke する（`NOTIFYICON_VERSION_4`）。WinForms には依存しない。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)
-- 通知を受ける専用の非表示トップレベルウィンドウを UI スレッドで作る。メッセージ専用ウィンドウにしないのは、`TaskbarCreated`（エクスプローラーの再起動でアイコンを付け直す）が届かないため
-- 左クリック（`NIN_SELECT`）で表示、右クリックで Win32 のポップアップメニュー
-- ウィンドウクラス名は `MmmTool_Tray`（登録はプロセスごとなので固定でよい）
-- アイコンは `Assets/app.ico`（EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える）
+## トレイアイコン・トレイメニュー
+アイコンとメニューの仕組み（Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応）は SDK の `MmmSdk.WinUI.Tray`（SDK の `docs/tray.md`）。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
 
-## トレイメニュー
-- 項目は `ITrayMenuSource` を DI に登録した順（= 機能を登録した順）に、区切り線で分けて並べ、末尾に「終了」。メニューは開くたびに作る
-- 項目の処理の失敗は、トレイの通知（バルーン）で知らせる
-- 項目はオーナードロー（`Shell/Tray/TrayMenuRenderer`）
-  - フォントは BIZ UDゴシック 12pt（無ければ Yu Gothic UI → Segoe UI。有無は `EnumFontFamiliesEx` で調べる）。メニューを出すモニターの DPI に合わせる
-  - 配色はレジストリの `AppsUseLightTheme` でダーク / ライトを切り替える（Windows 11 風の色）
-  - チェック欄の余白は `MNS_NOCHECK` で無くし、代わりに文字の左を 36px あける。区切り線は文字の書き出し位置から右端まで
-  - 行は詰め気味（上下 4px・区切り線の行 7px）
-  - サブメニューの矢印は Segoe Fluent Icons（無ければ MDL2）で自分で描き、`ExcludeClipRect` で標準の矢印を止める
-  - 枠（外周・影）は Windows が描くので、uxtheme の非公開序数 135 / 136 でシステムのダーク設定に従わせている（無い環境ではライトのまま）
+- アプリ側の設定は `ShellServiceCollectionExtensions.AddShell` の `AddMmmSdkTray(new TrayIconOptions(...))`：ツールチップ `MmmTool`、ウィンドウクラス名 `MmmTool_Tray`、アイコン `Assets/app.ico`（EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える）、終了の文言は既定の「終了」
+- 左クリックでメインウィンドウを開き（`OpenRequested`）、メニューの「終了」で完全終了する（`ExitRequested`）
+- メニューの項目は、各機能が `ITrayMenuSource` を DI に登録して足す（登録した順に区切り線で分けて並ぶ。リンク・リマインダー）。項目の処理の失敗は、トレイの通知（バルーン）で知らせる
 
 ## アイコン
 - 青のグラデーションのタイルに、とがったアーチの小文字 m を 3 つ白で重ね（奥ほど透明）、下に細い線を入れたデザイン。小さいサイズでは溶け合って「m」1 文字に見える

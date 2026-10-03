@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
-using MmmTool.Shell.Tray;
+using MmmSdk.WinUI.Tray;
 
 namespace MmmTool.Shell;
 
@@ -16,7 +16,10 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<PageProvider>();
         // メニューの項目は、各機能が登録した ITrayMenuSource から作る
-        services.AddSingleton<TrayIcon>();
+        services.AddMmmSdkTray(new TrayIconOptions(
+            ToolTip: "MmmTool",
+            WindowClassName: "MmmTool_Tray",
+            IconPath: Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico")));
         return services;
     }
 

@@ -17,7 +17,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 起動時はウィンドウを出さず、トレイアイコンだけ出す。ウィンドウはトレイアイコンの左クリックで開く
 - 決めていない操作・項目（一般的な慣習のものも含む）は、勝手に足さない。必要そうなら先に聞く（トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり）
 - 保存: JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手修正はアプリを閉じてから行う運用。保存先は将来 SQL Server / DynamoDB に替える可能性がある（Repository + DI で差し替え）
-- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止は SDK 側にある。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
+- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイは SDK 側にある。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
 - バージョンは `Directory.Build.props` の `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。SDK は別に持つ
 - テストプロジェクト: 後で作る
 - アプリの起動など目に見える動作の確認は、1 回ずつ事前に告知してから行う。画面操作が必要な確認は、VS で行ってもらう

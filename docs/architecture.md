@@ -22,9 +22,8 @@ MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス
                                 （CliAssist（＋Terminal/）/ Links / Reminders / Settings / Debugging）
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
                                 PageProvider・IStartupTask・ShellServiceCollectionExtensions）
-MmmTool/Shell/Tray/             トレイ（TrayIcon・ITrayMenuSource・TrayMenuItem・TrayMenuRenderer）
 MmmTool/Controls/               汎用の部品（TimeInputBox・LinkArea）
-MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.Ime / .MessageBox / .Window / .Tray / .Menu / .Gdi / .PseudoConsole）
+MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.Ime / .MessageBox / .Window / .PseudoConsole）
 ```
 
 - `Shell/` `Controls/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
