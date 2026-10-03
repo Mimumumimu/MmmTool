@@ -136,24 +136,13 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         var version = NextVersion();
         var now = Time.GetLocalNow().DateTime;
         var today = DateOnly.FromDateTime(now);
-        var todayValue = ReminderDates.ToDateValue(today);
 
-        var reminders = await Reminders.GetRemindersAsync();
-        var states = (await Reminders.GetStatesAsync())
-            .Where(state => state.Date == todayValue)
-            .GroupBy(state => state.BaseNo)
-            .ToDictionary(group => group.Key, group => group.Last().Status);
+        var targets = await Reminders.GetTargetsAsync(now);
         if (!IsCurrent(version))
         {
             return;
         }
 
-        var targets = reminders
-            .Where(reminder => ReminderDates.OccursOn(reminder, today))
-            .OrderBy(reminder => reminder.Time)
-            .ThenBy(reminder => reminder.No)
-            .Select(reminder => (Reminder: reminder, Status: states.GetValueOrDefault(reminder.No)))
-            .ToList();
         Sync(Pending, [.. targets.Where(target => target.Status != ReminderStatus.Done)]);
         Sync(Done, [.. targets.Where(target => target.Status == ReminderStatus.Done)]);
 
@@ -173,7 +162,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// 参照番号で既存の行を同定し、内容・状態を反映する。足りない行は挿入、余った行は削除、順番が違えば移動する。
     /// 全部を作り直さないのは、ちらつき・スクロール位置や完了の欄の開閉のリセットを防ぐため。
     /// </remarks>
-    private void Sync(ObservableCollection<ReminderTodayItem> rows, List<(Reminder Reminder, ReminderStatus Status)> targets)
+    private void Sync(ObservableCollection<ReminderTodayItem> rows, IReadOnlyList<ReminderTarget> targets)
     {
         for (var i = 0; i < targets.Count; i++)
         {

@@ -112,8 +112,6 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
             return;
         }
 
-        var states = await GetTodayStatusesAsync(now);
-
         Action<string, IReadOnlyList<NotificationItem>>? notify;
         List<NotificationItem> items = [];
         lock (_gate)
@@ -122,9 +120,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
             var snoozeDue = _lastSnoozeNotifiedMinute is not { } last || (minute - last).TotalMinutes >= interval;
             var includesSnooze = false;
 
-            foreach (var reminder in targets)
+            foreach (var (reminder, status) in targets)
             {
-                switch (states.GetValueOrDefault(reminder.No))
+                switch (status)
                 {
                     case ReminderStatus.None:
                         items.Add(ToItem(reminder));
@@ -159,10 +157,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     {
         var now = timeProvider.GetLocalNow().DateTime;
         var today = ReminderDates.ToDateValue(now);
-        var states = await GetTodayStatusesAsync(now);
-        foreach (var reminder in await GetTriggeredAsync(now))
+        foreach (var (reminder, status) in await GetTriggeredAsync(now))
         {
-            if (states.GetValueOrDefault(reminder.No) == ReminderStatus.None)
+            if (status == ReminderStatus.None)
             {
                 await reminders.SetStateAsync(reminder.No, today, ReminderStatus.Snooze);
             }
@@ -174,29 +171,13 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
         }
     }
 
-    /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）</summary>
+    /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）と、その対応状態</summary>
     /// <param name="now">現在の日時</param>
-    /// <returns>発動済みのリマインダー</returns>
-    private async Task<List<Reminder>> GetTriggeredAsync(DateTime now)
+    /// <returns>発動済みのリマインダーと今日の対応状態（今日の対象の組み立ては <see cref="ReminderService.GetTargetsAsync"/>）</returns>
+    private async Task<List<ReminderTarget>> GetTriggeredAsync(DateTime now)
     {
-        var today = DateOnly.FromDateTime(now);
         var nowTime = ReminderDates.ToTimeValue(now);
-        return [.. (await reminders.GetRemindersAsync())
-            .Where(reminder => ReminderDates.OccursOn(reminder, today) && reminder.Time <= nowTime)
-            .OrderBy(reminder => reminder.Time)
-            .ThenBy(reminder => reminder.No)];
-    }
-
-    /// <summary>今日の対応状態（参照番号 → 状態）</summary>
-    /// <param name="now">現在の日時</param>
-    /// <returns>参照番号をキーにした今日の対応状態。別の日の状態は含めない（未対応として扱うため）</returns>
-    private async Task<Dictionary<int, ReminderStatus>> GetTodayStatusesAsync(DateTime now)
-    {
-        var today = ReminderDates.ToDateValue(now);
-        return (await reminders.GetStatesAsync())
-            .Where(state => state.Date == today)
-            .GroupBy(state => state.BaseNo)
-            .ToDictionary(group => group.Key, group => group.Last().Status);
+        return [.. (await reminders.GetTargetsAsync(now)).Where(target => target.Reminder.Time <= nowTime)];
     }
 
     /// <summary>リマインダーを通知の項目にする（件名をテキスト、リンクがあればリンク先に）</summary>

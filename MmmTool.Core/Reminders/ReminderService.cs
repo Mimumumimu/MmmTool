@@ -54,6 +54,38 @@ public sealed class ReminderService(IReminderRepository repository)
         }
     }
 
+    /// <summary>ある日の対象（その日に発生するリマインダー）と、その日の対応状態を取得する</summary>
+    /// <param name="now">基準にする日時（この日付を「今日」とする）</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>その日の対象（時刻 → 参照番号の順）。論理削除済みは含めない。別の日の状態は未対応として扱う</returns>
+    /// <remarks>
+    /// 画面（メイン画面）と通知（<see cref="ReminderMonitor"/>）が同じ内容を見るよう、「今日の状態」の組み立てはここだけで行う。
+    /// 本体と状態を同じロックの中で読むので、途中で保存が入っても食い違わない。
+    /// </remarks>
+    public async Task<IReadOnlyList<ReminderTarget>> GetTargetsAsync(DateTime now, CancellationToken cancellationToken = default)
+    {
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            var (reminders, states) = await EnsureLoadedAsync(cancellationToken);
+            var today = DateOnly.FromDateTime(now);
+            var todayValue = ReminderDates.ToDateValue(now);
+            var statuses = states
+                .Where(state => state.Date == todayValue)
+                .GroupBy(state => state.BaseNo)
+                .ToDictionary(group => group.Key, group => group.Last().Status);
+            return [.. reminders
+                .Where(reminder => !reminder.IsDeleted && ReminderDates.OccursOn(reminder, today))
+                .OrderBy(reminder => reminder.Time)
+                .ThenBy(reminder => reminder.No)
+                .Select(reminder => new ReminderTarget(reminder with { }, statuses.GetValueOrDefault(reminder.No)))];
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     /// <summary>リマインダー本体を保存する（追加・更新）</summary>
     /// <param name="reminder">保存するリマインダー</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
