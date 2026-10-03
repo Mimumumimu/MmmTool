@@ -266,7 +266,6 @@ git submodule update --remote external/MmmSdk
 | `MmmTool.Core/` | UI に依存しない層（`net10.0`）。機能ごとのフォルダー（`CliAssist/`・`Links/`・`Reminders/`）に、保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は各フォルダーの `Json/` に置く |
 | `MmmTool/Features/` | WinUI 3 アプリの機能ごとのフォルダー（`CliAssist/`・`Links/`・`Reminders/`・`Settings/`・`Debugging/`）。画面（View）・ViewModel・その機能の Windows 依存の処理・DI への登録を、機能ごとにまとめている |
 | `MmmTool/Shell/` | 画面の枠。メインウィンドウ・サイドバー（タスクトレイの仕組みは SDK） |
-| `MmmTool/Interop/` | Win32 API の宣言（ConPTY・メッセージボックス。汎用のものは SDK 側） |
 | `external/MmmSdk/` | 共有部品（Git サブモジュール）。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 
 機能を足すときは、`MmmTool.Core/<機能>/` と `MmmTool/Features/<機能>/` を作り、`App.xaml.cs` で `Add<機能>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、各機能の `Add<機能>()` の中で登録します。

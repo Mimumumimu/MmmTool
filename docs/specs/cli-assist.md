@@ -7,7 +7,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 - ターミナルは ConPTY + xterm.js（WebView2）。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する
   - シェルは pwsh.exe が PATH にあればそれ、無ければ powershell.exe（`DefaultShell`。Core）
   - 描画は `Features/CliAssist/Terminal/TerminalControl`（WebView2 で `Assets/Terminal/` の xterm.js を仮想ホスト経由で表示）。C# ↔ JS は JSON メッセージ（`terminal.js` の冒頭に一覧）
-  - `PseudoConsoleSession`（ConPTY。P/Invoke は `Interop/NativeMethods.PseudoConsole.cs`）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する
+  - `PseudoConsoleSession`（ConPTY は SDK の `PseudoConsole`。ここでは出力の読み取り・終了の通知・入力の確定）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
 
 ## 定型コマンド

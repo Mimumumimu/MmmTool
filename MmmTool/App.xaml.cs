@@ -11,7 +11,6 @@ using MmmTool.Features.Debugging;
 using MmmTool.Features.Links;
 using MmmTool.Features.Reminders;
 using MmmTool.Features.Settings;
-using MmmTool.Interop;
 using MmmTool.Shell;
 
 namespace MmmTool;
@@ -31,7 +30,7 @@ public partial class App : Application
     {
         if (!_instanceGuard.IsFirstInstance)
         {
-            NativeMethods.ShowInformation("MmmTool はすでに起動しています。", "MmmTool");
+            NativeMessageBox.ShowInformation("MmmTool はすでに起動しています。", "MmmTool");
             Environment.Exit(0);
         }
 

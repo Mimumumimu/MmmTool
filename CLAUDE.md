@@ -17,7 +17,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 起動時はウィンドウを出さず、トレイアイコンだけ出す。ウィンドウはトレイアイコンの左クリックで開く
 - 決めていない操作・項目（一般的な慣習のものも含む）は、勝手に足さない。必要そうなら先に聞く（トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり）
 - 保存: JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手修正はアプリを閉じてから行う運用。保存先は将来 SQL Server / DynamoDB に替える可能性がある（Repository + DI で差し替え）
-- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄（TimeInputBox）・LinkArea・IME 操作・添付の一時保存（AttachmentStore）は SDK 側にある。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
+- 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄（TimeInputBox）・LinkArea・IME 操作・添付の一時保存（AttachmentStore）・ConPTY（PseudoConsole）・標準のメッセージボックス（NativeMessageBox）は SDK 側にある。Win32 の宣言（P/Invoke）は SDK の CsWin32 に集め、アプリには持たない（[decisions/0011-cswin32.md](docs/decisions/0011-cswin32.md)）。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
 - バージョンは `Directory.Build.props` の `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。SDK は別に持つ
 - テストプロジェクト: 後で作る
 - アプリの起動など目に見える動作の確認は、1 回ずつ事前に告知してから行う。画面操作が必要な確認は、VS で行ってもらう
@@ -35,11 +35,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## 未実装・残りの作業（2026-10-03 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。
-
-### 進行中: Win32 の P/Invoke を CsWin32 に切り替える（[decisions/0011-cswin32.md](docs/decisions/0011-cswin32.md)）
-- 段階 1〜3（SDK の前面表示・DPI・IME・オーナー設定、ウィンドウ・トレイ・メニュー、GDI のフォント・描画）は済み。残りは段階 4。次のチャットは段階 4 から
-- 段階 4: アプリ側の ConPTY とメッセージボックスの宣言（`MmmTool/Interop/`）を SDK へ移して切り替える。公開する口は SDK の public な API（クラス・拡張メソッド）にし、宣言そのものは internal のまま。終わったら `docs/architecture.md` の Interop の記述と README を直す
-- 各段階の終わりに Debug / Release のビルドと publish を警告 0 で通す。トレイ・メニュー・ウィンドウの画面確認はユーザーが VS で行う（段階 2・3 は確認済み。段階 4 は ConPTY・多重起動の案内・IME）
 
 ### 未実装（後回し・優先度低）
 - 既定シェルの差し替え: 設定ページの項目ではなく、CLI補助の機能として組み込む。目的は Kiro でも動かすこと、できれば WSL でも動かすこと（パスの問題などがある）

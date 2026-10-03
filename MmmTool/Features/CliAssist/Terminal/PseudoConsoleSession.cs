@@ -1,27 +1,24 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
+using MmmSdk.WinUI.ConPty;
 using MmmTool.Core.CliAssist;
-using static MmmTool.Interop.NativeMethods;
 
 namespace MmmTool.Features.CliAssist.Terminal;
 
 /// <summary>
 /// ConPTY（Windows 擬似コンソール）でシェルを起動し、入出力をパイプでやり取りするセッション。
 /// </summary>
+/// <remarks>擬似コンソールとプロセスの起動は SDK の <see cref="PseudoConsole"/>。ここでは出力の読み取り・終了の通知・入力の確定を受け持つ。</remarks>
 public sealed class PseudoConsoleSession : ITerminalSession
 {
-    /// <summary>擬似コンソールのハンドル</summary>
-    /// <remarks>起動前・解放後は 0。</remarks>
-    private nint _pseudoConsole;
-    /// <summary>シェルへの入力パイプ</summary>
-    private FileStream? _input;
-    /// <summary>シェルからの出力パイプ</summary>
-    private FileStream? _output;
-    /// <summary>シェルのプロセスのハンドル</summary>
-    private SafeWaitHandle? _process;
+    /// <summary>読み取り用のバッファの大きさ（バイト）</summary>
+    private const int ReadBufferSize = 16 * 1024;
+
+    /// <summary>出力を読み取り終わるのを待つ時間</summary>
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>起動中の擬似コンソール</summary>
+    /// <remarks>起動前・解放後は null。</remarks>
+    private PseudoConsole? _console;
     /// <summary>プロセス終了の待機登録</summary>
     private RegisteredWaitHandle? _exitWait;
     /// <summary>出力を読み続けるタスク</summary>
@@ -38,7 +35,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
     public string WorkingDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     /// <inheritdoc />
-    public bool IsStarted => _pseudoConsole != 0;
+    public bool IsStarted => _console is not null;
 
     /// <inheritdoc />
     public bool HasExited => _hasExited;
@@ -61,37 +58,14 @@ public sealed class PseudoConsoleSession : ITerminalSession
             throw new InvalidOperationException("セッションはすでに起動しています。");
         }
 
-        if (!CreatePipe(out var inputRead, out var inputWrite, 0, 0)
-            || !CreatePipe(out var outputRead, out var outputWrite, 0, 0))
-        {
-            throw new Win32Exception();
-        }
-
-        // ConPTY 側の端（入力の読み取り側・出力の書き込み側）は、作成後に ConPTY が保持するので閉じてよい
-        using (inputRead)
-        using (outputWrite)
-        {
-            Marshal.ThrowExceptionForHR(CreatePseudoConsole(ToCoord(columns, rows), inputRead, outputWrite, 0, out _pseudoConsole));
-        }
-
-        _input = new FileStream(inputWrite, FileAccess.Write, 0);
-        _output = new FileStream(outputRead, FileAccess.Read, 0);
-
         _hasExited = false;
-        try
-        {
-            _process = StartProcess();
-        }
-        catch
-        {
-            // シェルを起動できなかったときは擬似コンソールも片付け、未起動の状態に戻す
-            Close();
-            throw;
-        }
+        // 起動に失敗したときは、SDK が作った分を片付けてから例外を投げる（未起動の状態のまま）
+        var console = PseudoConsole.Start(CommandLine, WorkingDirectory, columns, rows);
+        _console = console;
         _exitWait = ThreadPool.RegisterWaitForSingleObject(
-            new ProcessWaitHandle(_process), (_, _) => OnProcessExited(), null, Timeout.Infinite, executeOnlyOnce: true);
+            console.ExitHandle, (_, _) => OnProcessExited(), null, Timeout.Infinite, executeOnlyOnce: true);
 
-        var output = _output;
+        var output = console.Output;
         _readTask = Task.Run(() => ReadLoop(output));
     }
 
@@ -106,15 +80,15 @@ public sealed class PseudoConsoleSession : ITerminalSession
     /// <inheritdoc />
     public void Write(string text)
     {
-        if (_input is null || string.IsNullOrEmpty(text))
+        if (_console is not { } console || string.IsNullOrEmpty(text))
         {
             return;
         }
 
         try
         {
-            _input.Write(Encoding.UTF8.GetBytes(text));
-            _input.Flush();
+            console.Input.Write(Encoding.UTF8.GetBytes(text));
+            console.Input.Flush();
         }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException)
         {
@@ -138,13 +112,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
     }
 
     /// <inheritdoc />
-    public void Resize(int columns, int rows)
-    {
-        if (IsStarted)
-        {
-            ResizePseudoConsole(_pseudoConsole, ToCoord(columns, rows));
-        }
-    }
+    public void Resize(int columns, int rows) => _console?.Resize(columns, rows);
 
     /// <inheritdoc />
     public void Dispose()
@@ -170,90 +138,27 @@ public sealed class PseudoConsoleSession : ITerminalSession
 
     /// <summary>擬似コンソール・パイプ・プロセスを解放する。</summary>
     /// <remarks>
-    /// シェルがまだ動いていれば終了する。
-    /// 同期で待つのは意図的（<c>IAsyncDisposable</c> にすると、DI コンテナが <c>ConfigureAwait(false)</c> で待つため、
-    /// 後から破棄されるトレイアイコンなどの後始末が UI スレッドの外で動いてしまう）。
+    /// シェルがまだ動いていれば終了する。出力を読み続けたまま擬似コンソールを閉じ、読み取りが終わるのを待ってから、パイプを解放する。
     /// </remarks>
     private void Close()
     {
         _exitWait?.Unregister(null);
         _exitWait = null;
-        _input?.Dispose();
-        _input = null;
 
-        if (_pseudoConsole != 0)
-        {
-            var pseudoConsole = _pseudoConsole;
-            _pseudoConsole = 0;
+        var console = _console;
+        _console = null;
+        console?.Close();
 
-            // 出力を読み続けていないと ClosePseudoConsole が戻らない場合があるため、読み取りを止めずに別スレッドで閉じる
-            Task.Run(() => ClosePseudoConsole(pseudoConsole)).Wait(TimeSpan.FromSeconds(3));
-        }
-
-        _readTask?.Wait(TimeSpan.FromSeconds(1));
+        _readTask?.Wait(ReadTimeout);
         _readTask = null;
-        _output?.Dispose();
-        _output = null;
-        _process?.Dispose();
-        _process = null;
-    }
-
-    /// <summary>シェルのプロセスを擬似コンソールに接続して起動する</summary>
-    /// <returns>起動したプロセスのハンドル</returns>
-    private unsafe SafeWaitHandle StartProcess()
-    {
-        nint size = 0;
-        InitializeProcThreadAttributeList(0, 1, 0, ref size);
-        var attributeList = Marshal.AllocHGlobal(size);
-        try
-        {
-            if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref size))
-            {
-                throw new Win32Exception();
-            }
-
-            try
-            {
-                if (!UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, _pseudoConsole, nint.Size, 0, 0))
-                {
-                    throw new Win32Exception();
-                }
-
-                var startupInfo = new STARTUPINFOEXW { lpAttributeList = attributeList };
-                startupInfo.StartupInfo.cb = Unsafe.SizeOf<STARTUPINFOEXW>();
-                // 親（このアプリ）の標準ハンドルを子へ引き継がせない
-                startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-
-                var commandLine = (CommandLine + '\0').ToCharArray();
-                PROCESS_INFORMATION processInfo;
-                fixed (char* commandLinePtr = commandLine)
-                {
-                    if (!CreateProcess(null, commandLinePtr, 0, 0, false, EXTENDED_STARTUPINFO_PRESENT, 0,
-                            WorkingDirectory, ref startupInfo, out processInfo))
-                    {
-                        throw new Win32Exception();
-                    }
-                }
-
-                CloseHandle(processInfo.hThread);
-                return new SafeWaitHandle(processInfo.hProcess, ownsHandle: true);
-            }
-            finally
-            {
-                DeleteProcThreadAttributeList(attributeList);
-            }
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(attributeList);
-        }
+        console?.Dispose();
     }
 
     /// <summary>シェルの出力を読み続けて通知する（パイプが閉じるまで）</summary>
     /// <param name="output">シェルからの出力パイプ</param>
-    private void ReadLoop(FileStream output)
+    private void ReadLoop(Stream output)
     {
-        var buffer = new byte[16 * 1024];
+        var buffer = new byte[ReadBufferSize];
         var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
         // 読み取りの切れ目で UTF-8 の多バイト文字が分断されても正しく復元できるよう、状態を持つデコーダを使う
         var decoder = Encoding.UTF8.GetDecoder();
@@ -273,25 +178,6 @@ public sealed class PseudoConsoleSession : ITerminalSession
         catch (Exception ex) when (ex is IOException or ObjectDisposedException)
         {
             // パイプが閉じられた（セッション終了）
-        }
-    }
-
-    /// <summary>列数・行数から端末サイズの構造体を作る</summary>
-    /// <param name="columns">端末の桁数</param>
-    /// <param name="rows">端末の行数</param>
-    /// <returns>端末サイズ</returns>
-    private static COORD ToCoord(int columns, int rows)
-        => new() { X = (short)Math.Clamp(columns, 1, short.MaxValue), Y = (short)Math.Clamp(rows, 1, short.MaxValue) };
-
-    /// <summary>プロセスのハンドルを待機に使うためのラッパー</summary>
-    private sealed class ProcessWaitHandle : WaitHandle
-    {
-        /// <summary>ハンドルを借りて待機用にする</summary>
-        /// <param name="handle">プロセスのハンドル</param>
-        public ProcessWaitHandle(SafeWaitHandle handle)
-        {
-            // 待機用に借りるだけで、ハンドルの所有はセッション側
-            SafeWaitHandle = new SafeWaitHandle(handle.DangerousGetHandle(), ownsHandle: false);
         }
     }
 }

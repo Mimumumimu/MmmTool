@@ -12,7 +12,6 @@
     <WinUISDKReferences>false</WinUISDKReferences>
     <!-- 非パッケージ（WindowsPackageType=None）でも、WinUI のリソース（resources.pri）の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WindowsPackageType>None</WindowsPackageType>
     <!-- ランタイム（Windows App Runtime / .NET）は PC 側にインストールする前提。出力ファイル数を減らすため -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
