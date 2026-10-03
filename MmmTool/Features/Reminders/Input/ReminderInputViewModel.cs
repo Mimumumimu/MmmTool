@@ -101,7 +101,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         var now = _time.GetLocalNow();
         var today = new DateTimeOffset(now.Date, now.Offset);
 
-        WindowTitle = target is { Seq: > 0 } ? "リマインダー編集" : "リマインダー入力";
+        WindowTitle = target is { No: > 0 } ? "リマインダー編集" : "リマインダー入力";
         Title = target?.Title ?? "";
         Note = target?.Note ?? "";
         Link = target?.Link ?? "";

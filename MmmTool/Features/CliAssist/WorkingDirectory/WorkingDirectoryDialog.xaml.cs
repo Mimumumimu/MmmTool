@@ -44,15 +44,14 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     /// <summary>履歴のフォルダがダブルクリックされたら、入力欄に入れて確定する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ダブルタップの情報</param>
-    private void OnDirectoryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    private async void OnDirectoryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not string directory)
         {
             return;
         }
 
-        ViewModel.DirectoryPath = directory;
-        if (ViewModel.IsValid)
+        if (await ViewModel.UseDirectoryAsync(directory))
         {
             _confirmedByDoubleTap = true;
             Hide();

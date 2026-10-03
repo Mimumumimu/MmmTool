@@ -112,7 +112,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
-    private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.Seq));
+    private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.No));
 
     /// <summary>ユーザーが状態を切り替えたら、今日の状態として保存する</summary>
     /// <param name="item">状態を切り替えた行</param>

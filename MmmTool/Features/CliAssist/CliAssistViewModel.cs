@@ -62,9 +62,9 @@ public sealed partial class CliAssistViewModel : ObservableObject
         HistoryFilter = string.Empty;
 
         // 前回の作業ディレクトリでシェルを始める
-        if (_settings.LastDirectory is { } lastDirectory && Directory.Exists(lastDirectory))
+        if (_settings.StartDirectory is { } startDirectory)
         {
-            Terminal.WorkingDirectory = lastDirectory;
+            Terminal.WorkingDirectory = startDirectory;
         }
 
         Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
@@ -106,6 +106,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             string? recoveryMessage;
             (_commandSet, recoveryMessage) = await _commandRepository.LoadAsync();
             messages.Add(recoveryMessage);
+            messages.AddRange(_commandSet.Validate());
         }
         catch (DataFileException ex)
         {

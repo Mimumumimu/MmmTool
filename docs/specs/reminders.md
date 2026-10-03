@@ -5,16 +5,16 @@
 ## データ
 - `Data/Reminders.json` / `Data/ReminderStates.json`：どちらも `{ "items": [...] }`（ラッパー型は `JsonReminderRepository.cs` 内の internal）
 - `Reminder`（record。複製しやすいため）
-  - `Seq`（ID の連番）・`No`（参照番号）・`IsDeleted`・`Date`（yyyyMMdd。曜日指定は `NoDate` = 99999999）・`Time`（HHmm）・`Weekdays`・`Title`・`Note`・`Link`
-- `ReminderState`：`Seq`・`BaseNo`・`Date`・`Status`
+  - `No`（番号。登録順の一意の連番で、状態の `BaseNo` が指すキー。0 は未採番）・`IsDeleted`・`Date`（yyyyMMdd。曜日指定は `NoDate` = 99999999）・`Time`（HHmm）・`Weekdays`・`Title`・`Note`・`Link`
+- 値は作ったあとに書き換えず、`with` で新しく作る（`init`）。`ReminderState`：`Seq`・`BaseNo`・`Date`・`Status`
 - `Weekdays` は `[Flags]`（月 = 1 … 日 = 64）、`ReminderStatus` は None = 0 / Done = 1 / Snooze = 2。JSON には数値で入る
 - 変換は `ReminderDates`（`DateOnly` / `TimeOnly` / `DayOfWeek` との相互変換、`ToJapanese` で「月火水」、`DescribeWeekdays` で画面に出す曜日の文字列＝曜日が 1 つも無ければ「毎日」）
 - 発動の判定は `ReminderDates.OccursOn(Reminder, DateOnly)`：発動日が今日、または曜日指定で今日の曜日を含む。曜日が 1 つも無い曜日指定は毎日。監視とメイン画面で共通に使う
 
 ## サービス（`ReminderService`、Singleton）
 - 最初のアクセスで両ファイルを読んでキャッシュし、`SemaphoreSlim` で順番に読み書きする。取得はキャッシュの複製を返す
-- 保存：`Seq` が 0 なら最大 + 1 で採番して `No` も同じ値にする。既存は `No` を保ったまま更新し、削除フラグを解除する（無い `Seq` は `ArgumentException`）
-- 論理削除 `DeleteAsync`、物理削除 `PurgeAsync`（状態は残る）
+- 保存：`No` が 0 なら最大 + 1 で採番する。既存は同じ `No` を更新し、削除フラグを解除する（無い `No` は `ArgumentException`）
+- 論理削除 `DeleteAsync`、物理削除 `PurgeAsync`（対応状態も一緒に消す。残すと、最大の番号を消したあとの新規作成で同じ番号が採番されたとき、前の状態を引き継ぐため。状態のファイルを先に書く）
 - 状態は `BaseNo` ごとに 1 件で上書きする（`SetStateAsync`）
 - 変更後に `Changed` を発火する（任意のスレッドから）
 - IO エラーで読めなかったときは、空として扱い `LoadError` に残す。保存は `DataFileException`（元データを消さないため）。読み込み結果は SDK の `LoadStatus` で持つ
@@ -43,7 +43,7 @@
 - 親は SDK の `IDialogHost`（実装は `DialogService`）が決める：開いているモーダルウィンドウを開いた順に覚えておき、いちばん手前を親にする。無ければ、最後にアクティブになった普通のウィンドウ（`TrackWindow` で覚えたメインウィンドウかリマインダーのメイン画面）。確認ダイアログ（`ContentDialog`）・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す
 
 ## 入力画面（`ReminderInputWindow` ＋ `ReminderInputViewModel`）
-- 開くのは `IReminderDialogService.ShowInputAsync(対象 or null)`。保存した内容 or null（キャンセル）を返す。`Seq` が 0 の内容を渡すと、それを初期値にした新規（コピーして新規追加）になる
+- 開くのは `IReminderDialogService.ShowInputAsync(対象 or null)`。保存した内容 or null（キャンセル）を返す。`No` が 0 の内容を渡すと、それを初期値にした新規（コピーして新規追加）になる
 - 独立したウィンドウ（Mica・開くたびに DI から作る Transient）。擬似モーダル・`OverlappedPresenter.CreateForDialog()`
 - 幅 480 固定。高さは読み込み時に中身を測って固定する（日付指定・曜日指定の欄は高いほうの高さを確保、件名のエラー行も場所を空けておく。切り替えやエラーで下の欄・ボタンが動かないように）
 - タイトル帯（`SetTitleBar`）をドラッグして移動できる。× はキャンセルと同じで、確認なし。Esc / Enter のショートカットは付けない
@@ -66,13 +66,13 @@
   - 「過去の予定」をオフにすると、日付が昨日以前の日付指定を隠す。今日の分は時刻が過ぎていても出す。過去日が日付順で一番上に並んで邪魔になるため（並び替えで下へ回す案より、隠す案にした）
 - 下にカード状の一覧。見出しは固定で、行だけスクロールする。列は 日付 120 / 曜日 120 / 時刻 80 / 件名（残り・省略記号）
   - 日付は `yyyy/MM/dd` か「－」。曜日は「月火水」。曜日を選んでいない曜日指定は「毎日」（日付・曜日とも「－」だと区別できないため）。日付指定の曜日は「－」
-  - 並びは 日付 → 時刻 → 連番（曜日指定は `NoDate` なので後ろ）
+  - 並びは 日付 → 時刻 → 番号（曜日指定は `NoDate` なので後ろ）
   - 削除済みは不透明度 0.5 + 取り消し線
 - 行のダブルタップで編集。右クリック（メニューキー）は、その行を選択してからメニューを出す（リンクのツリーと同じく、`AddHandler(..., handledEventsToo: true)` で `RightTapped` と `ContextRequested` を受ける）
 - 右クリックのメニュー：削除済みでない行は「編集 / コピーして新規追加 / 削除」、削除済みの行は「編集 / コピーして新規追加 / 完全削除」
   - 削除済みの行の編集は、「保存すると削除が取り消される」確認（キャンセルが既定）をしてから開く
   - 論理削除は確認なし。完全削除は確認あり
-  - コピーして新規追加は、日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ（連番・削除フラグは引き継がず、元は変えない）
+  - コピーして新規追加は、日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ（番号・削除フラグは引き継がず、元は変えない）
 - メニュー項目は画面の外に出て DataContext が来ないので、行を `Tag="{x:Bind}"` で渡す
 - 変更（`Changed`）は、ViewModel を作ったスレッドの `SynchronizationContext` に戻して読み直し、変わった行だけ差し替える（全部作り直すとスクロールが先頭へ戻るため）
 - エラー（読み込み失敗・壊れたファイルの退避・保存の失敗）は、一覧の上に重ねる InfoBar で知らせる（閉じたら消える）

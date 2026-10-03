@@ -10,7 +10,7 @@ namespace MmmTool.Features.Reminders.List;
 /// リマインダー一覧画面。全リマインダーを並べ、追加・編集・削除・コピーして新規追加・完全削除を行う。
 /// </summary>
 /// <remarks>
-/// 並びは 日付 → 時刻 → 連番 の昇順（曜日指定は日付なしの特殊値なので日付指定の後ろに来る）。
+/// 並びは 日付 → 時刻 → 番号 の昇順（曜日指定は日付なしの特殊値なので日付指定の後ろに来る）。
 /// 保存内容が変わったら（<see cref="ReminderService.Changed"/>）一覧を読み直す。UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。
 /// 画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> で購読をやめる。
 /// </remarks>
@@ -76,16 +76,16 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <summary>コピーして新規追加（入力画面を開く）</summary>
     /// <param name="item">コピー元の行</param>
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
-    /// <remarks>日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ。連番・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
+    /// <remarks>日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
     [RelayCommand]
     private Task CopyAsNewAsync(ReminderListItem item)
-        => _reminderDialogs.ShowInputAsync(item.Source with { Seq = 0, No = 0, IsDeleted = false });
+        => _reminderDialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false });
 
     /// <summary>削除（論理削除）</summary>
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
-    private Task DeleteAsync(ReminderListItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.Seq));
+    private Task DeleteAsync(ReminderListItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.No));
 
     /// <summary>完全削除（物理削除）</summary>
     /// <param name="item">完全削除する行</param>
@@ -96,7 +96,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     {
         if (await _dialogs.ConfirmAsync("完全削除", $"「{item.Title}」を完全に削除します。\nこの操作は元に戻せません。", "完全削除"))
         {
-            await RunAsync(() => Reminders.PurgeAsync(item.Source.Seq));
+            await RunAsync(() => Reminders.PurgeAsync(item.Source.No));
         }
     }
 
@@ -114,7 +114,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
 
         // 曜日指定は日付なしの特殊値（99999999）なので、過去には入らない
         var today = ReminderDates.ToDateValue(Time.GetLocalNow().DateTime);
-        var sorted = reminders.Where(item => ShowPast || item.Date >= today).OrderBy(item => item.Date).ThenBy(item => item.Time).ThenBy(item => item.Seq).ToList();
+        var sorted = reminders.Where(item => ShowPast || item.Date >= today).OrderBy(item => item.Date).ThenBy(item => item.Time).ThenBy(item => item.No).ToList();
         for (var i = 0; i < sorted.Count; i++)
         {
             if (i >= Items.Count)

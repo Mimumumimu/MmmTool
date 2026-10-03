@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Settings;
@@ -11,6 +12,12 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>ページのタイトル</summary>
     public string Title => "設定";
+
+    /// <summary>画面に出すエラー（設定ファイルを読めなかったとき）</summary>
+    public ErrorState Error { get; } = new();
+
+    /// <summary>設定を変更できるか（設定ファイルを読めなかったときは、上書きして消さないよう、変更させない）</summary>
+    public bool IsEditable { get; }
 
     /// <summary>スヌーズ間隔の下限（分）</summary>
     public double SnoozeIntervalMin => ReminderSettingsService.MinSnoozeInterval;
@@ -29,6 +36,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _reminderSettings = reminderSettings;
         SnoozeIntervalMinutes = reminderSettings.SnoozeIntervalMinutes;
+        IsEditable = !reminderSettings.IsReadOnly;
+        if (reminderSettings.LoadError is { } loadError)
+        {
+            Error.Show($"{loadError}\n設定を読み込めなかったため、変更を保存できません。");
+        }
     }
 
     /// <summary>値が変わったら範囲に収めて保存する</summary>
@@ -49,7 +61,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>スヌーズ間隔を保存する</summary>
     /// <param name="minutes">保存するスヌーズ間隔（分）</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>失敗は握りつぶさない（async void と同じく未処理例外として扱う）。</remarks>
+    /// <remarks>
+    /// 保存できない状態（設定ファイルを読めなかった）では、入力欄を無効にしてあるので、ここへは来ない。
+    /// 保存の失敗（ロック・権限など）は握りつぶさない（async void と同じく未処理例外として扱う）。
+    /// </remarks>
     private async Task SaveSnoozeIntervalAsync(int minutes)
     {
         await _reminderSettings.SetSnoozeIntervalMinutesAsync(minutes);
