@@ -151,7 +151,10 @@ public sealed partial class CliAssistViewModel : ObservableObject
         switch (item.Kind)
         {
             case CommandItemKind.Command when item.Command is { } command:
-                Terminal.Submit(CommandPlaceholders.Expand(command, AppContext.BaseDirectory));
+                if (!TrySubmit(CommandPlaceholders.Expand(command, AppContext.BaseDirectory)))
+                {
+                    break;
+                }
                 if (item.SwitchTo is { } tab)
                 {
                     SelectedCategory = tab;
@@ -182,7 +185,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
             return;
         }
 
-        Terminal.Submit(command);
+        // 送れなかったときも、これから（再）起動するシェルは、この場所から始める
+        TrySubmit(command);
         // シェルを再起動したときも同じ場所から始める
         Terminal.WorkingDirectory = directory;
 
@@ -215,7 +219,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
             return;
         }
 
-        Terminal.Submit(SendText.Compose(text, attachmentPaths));
+        if (!TrySubmit(SendText.Compose(text, attachmentPaths)))
+        {
+            // 入力欄と添付は残す（送れるようになってから、もう一度送れるように）
+            return;
+        }
 
         InputText = string.Empty;
         Attachments.Clear();
@@ -223,6 +231,30 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         // 履歴には入力欄の本文だけを残す（自動で付け足した指示文・パスは残さない）
         AddSendHistory(text.TrimEnd('\r', '\n'));
+    }
+
+    /// <summary>ターミナルが使える状態なら、テキストを送る（使えなければ、画面に知らせる）</summary>
+    /// <param name="text">送るテキスト</param>
+    /// <returns>送ったら true。ターミナルが起動していない・シェルが終了しているときは false</returns>
+    /// <remarks>
+    /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき（ターミナルの場所に理由が出る）。
+    /// 黙って捨てると、押したのに何も起きない状態になるので、知らせる。
+    /// </remarks>
+    private bool TrySubmit(string text)
+    {
+        if (!Terminal.IsStarted)
+        {
+            Error.Show("ターミナルが起動していないため、送信できませんでした。WebView2 を使えない環境では、ターミナルは使えません。");
+            return false;
+        }
+        if (Terminal.HasExited)
+        {
+            Error.Show("シェルが終了しています。ターミナルで何かキーを押して再起動してから、もう一度送信してください。");
+            return false;
+        }
+
+        Terminal.Submit(text);
+        return true;
     }
 
     #endregion
