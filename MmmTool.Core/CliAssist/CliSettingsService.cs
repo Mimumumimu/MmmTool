@@ -30,6 +30,13 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <summary>最後に移動した作業ディレクトリ</summary>
     public string? LastDirectory => _settings.LastDirectory;
 
+    /// <summary>起動時にシェルを始める作業ディレクトリ</summary>
+    /// <remarks>
+    /// 最後に移動した作業ディレクトリが、読み込み時に存在していたときだけ。無い・調べていないときは null。
+    /// 存在の確認は、UI スレッドを止めないよう、読み込み（<see cref="LoadAsync"/>）の中でバックグラウンドで行う（ネットワークパスで止まることがあるため）。
+    /// </remarks>
+    public string? StartDirectory { get; private set; }
+
     /// <summary>作業ディレクトリの履歴（新しい順）</summary>
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
@@ -44,6 +51,10 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
             _settings = settings;
             _settings.DirectoryHistory ??= [];
             _status.Succeeded(recoveryMessage);
+            if (_settings.LastDirectory is { } last && await Task.Run(() => Directory.Exists(last), cancellationToken).ConfigureAwait(false))
+            {
+                StartDirectory = last;
+            }
         }
         catch (DataFileException ex)
         {

@@ -91,10 +91,10 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した内容（採番後）の複製</returns>
     /// <remarks>
-    /// <see cref="Reminder.Seq"/> が 0 なら新規として採番し、<see cref="Reminder.No"/> も同じ値にする。
-    /// それ以外は同じ <see cref="Reminder.Seq"/> の既存分を更新する（参照番号は既存のまま。論理削除済みなら削除フラグを解除する）。
+    /// <see cref="Reminder.No"/> が 0 なら新規として、最大 + 1 で採番する。
+    /// それ以外は同じ <see cref="Reminder.No"/> の既存分を更新する（論理削除済みなら削除フラグを解除する）。
     /// </remarks>
-    /// <exception cref="ArgumentException">指定の連番のリマインダーが無い。</exception>
+    /// <exception cref="ArgumentException">指定の番号のリマインダーが無い。</exception>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public async Task<Reminder> SaveAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
@@ -105,20 +105,20 @@ public sealed class ReminderService(IReminderRepository repository)
             var (reminders, _) = await EnsureLoadedAsync(cancellationToken);
             ThrowIfLoadFailed();
 
-            if (reminder.Seq == 0)
+            if (reminder.No == 0)
             {
-                var seq = reminders.Count == 0 ? 1 : reminders.Max(item => item.Seq) + 1;
-                saved = reminder with { Seq = seq, No = seq };
+                var no = reminders.Count == 0 ? 1 : reminders.Max(item => item.No) + 1;
+                saved = reminder with { No = no };
                 reminders.Add(saved);
             }
             else
             {
-                var index = reminders.FindIndex(item => item.Seq == reminder.Seq);
+                var index = reminders.FindIndex(item => item.No == reminder.No);
                 if (index < 0)
                 {
-                    throw new ArgumentException($"連番 {reminder.Seq} のリマインダーがありません。", nameof(reminder));
+                    throw new ArgumentException($"番号 {reminder.No} のリマインダーがありません。", nameof(reminder));
                 }
-                saved = reminder with { No = reminders[index].No, IsDeleted = false };
+                saved = reminder with { IsDeleted = false };
                 reminders[index] = saved;
             }
 
@@ -135,14 +135,14 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー本体を論理削除する（削除フラグを立てる）</summary>
-    /// <param name="seq">削除するリマインダーの連番</param>
+    /// <param name="no">削除するリマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
-    public Task<bool> DeleteAsync(int seq, CancellationToken cancellationToken = default)
+    public Task<bool> DeleteAsync(int no, CancellationToken cancellationToken = default)
         => UpdateRemindersAsync(reminders =>
         {
-            var index = reminders.FindIndex(item => item.Seq == seq);
+            var index = reminders.FindIndex(item => item.No == no);
             if (index < 0 || reminders[index].IsDeleted)
             {
                 return index >= 0;
@@ -152,12 +152,46 @@ public sealed class ReminderService(IReminderRepository repository)
         }, cancellationToken);
 
     /// <summary>リマインダー本体を物理削除する（一覧から完全に取り除く）</summary>
-    /// <param name="seq">削除するリマインダーの連番</param>
+    /// <param name="no">削除するリマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
+    /// <remarks>
+    /// 対応状態（<see cref="ReminderState"/>）も一緒に消す。残すと、あとで同じ番号が採番されたとき（最大の番号を消した場合）に、
+    /// 無関係な新しいリマインダーが、前の状態（完了など）を引き継いでしまうため。
+    /// 状態のファイルを先に書く（途中で失敗しても、状態が残るだけの側に倒す。本体が残って状態だけ消えるのは、未対応に戻るだけで害が小さい）。
+    /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
-    public Task<bool> PurgeAsync(int seq, CancellationToken cancellationToken = default)
-        => UpdateRemindersAsync(reminders => reminders.RemoveAll(item => item.Seq == seq) > 0, cancellationToken);
+    public async Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
+    {
+        bool purged;
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            var (reminders, states) = await EnsureLoadedAsync(cancellationToken);
+            ThrowIfLoadFailed();
+
+            purged = reminders.Exists(item => item.No == no);
+            if (purged)
+            {
+                if (states.RemoveAll(state => state.BaseNo == no) > 0)
+                {
+                    await repository.SaveStatesAsync(states, cancellationToken);
+                }
+                reminders.RemoveAll(item => item.No == no);
+                await repository.SaveRemindersAsync(reminders, cancellationToken);
+            }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        if (purged)
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        return purged;
+    }
 
     /// <summary>対応状態の一覧を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -177,7 +211,7 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー 1 件の対応状態を取得する</summary>
-    /// <param name="baseNo">リマインダー本体の参照番号</param>
+    /// <param name="baseNo">リマインダー本体の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>まだ無ければ null</returns>
     public async Task<ReminderState?> GetStateAsync(int baseNo, CancellationToken cancellationToken = default)
@@ -195,7 +229,7 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー 1 件の対応状態を保存する</summary>
-    /// <param name="baseNo">リマインダー本体の参照番号</param>
+    /// <param name="baseNo">リマインダー本体の番号</param>
     /// <param name="date">対象日（yyyyMMdd の整数）</param>
     /// <param name="status">対応状態</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

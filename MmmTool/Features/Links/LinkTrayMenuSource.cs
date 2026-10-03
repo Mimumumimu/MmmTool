@@ -24,22 +24,22 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
     }
 
     /// <summary>
-    /// 子要素があればサブメニュー、名前が「-」なら区切り線、パスがあれば開く項目、どれでもなければ押せない項目にする。
+    /// 区切り線は区切り線に、子要素があればサブメニューに、パスがあれば開く項目に、どれでもなければ押せない項目にする。
     /// </summary>
     /// <param name="node">リンクメニューの要素</param>
     /// <returns>トレイメニューの項目</returns>
-    /// <remarks>中身が空のフォルダも、開く先が無いので押せない項目として出す。</remarks>
+    /// <remarks>中身が空のフォルダも、開く先が無いので押せない項目として出す。種類は <see cref="LinkNode.ResolveKind"/> で決める。</remarks>
     private TrayMenuItem ToMenuItem(LinkNode node)
     {
+        if (node.ResolveKind() == LinkNodeKind.Separator)
+        {
+            return TrayMenuItem.Separator;
+        }
         if (node.Children is { Count: > 0 } children)
         {
             return TrayMenuItem.Submenu(node.Name, [.. children.Select(ToMenuItem)]);
         }
-        if (node.Name == LinkNode.SeparatorName)
-        {
-            return TrayMenuItem.Separator;
-        }
-        if (!string.IsNullOrWhiteSpace(node.Path))
+        if (node.ResolveKind() == LinkNodeKind.Link && !string.IsNullOrWhiteSpace(node.Path))
         {
             var path = node.Path;
             return TrayMenuItem.Command(node.Name, () => opener.OpenAsync(path));

@@ -1,6 +1,6 @@
 // xterm.js とホスト（C# 側 WebView2）の橋渡し。
 // ホスト → JS : { type: "output", data } / { type: "focus" } / { type: "submit", data }
-// JS → ホスト : { type: "ready", cols, rows } / { type: "input", data } / { type: "resize", cols, rows }
+// JS → ホスト : { type: "ready", cols, rows } / { type: "input", data } / { type: "resize", cols, rows } / { type: "written", length }
 (() => {
     "use strict";
 
@@ -78,7 +78,8 @@
         switch (message.type) {
             case "output":
                 lastOutputAt = performance.now();
-                term.write(message.data);
+                // 描画が終わったら、その文字数をホストへ返す（ホストは未返却が多いと出力を送らず待つ）
+                term.write(message.data, () => host.postMessage({ type: "written", length: message.data.length }));
                 break;
             case "focus":
                 term.focus();

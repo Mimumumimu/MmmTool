@@ -14,11 +14,17 @@
 
         <!-- 設定項目のリスト。項目が増えたらここへ縦に足す -->
         <StackPanel Grid.Row="1" Spacing="12">
+            <!-- 設定ファイルを読めなかったとき（変更は保存できない） -->
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+                Severity="Error" />
             <StackPanel Orientation="Horizontal" Spacing="16">
                 <TextBlock VerticalAlignment="Center" Text="リマインダーのスヌーズ間隔（分）" />
                 <NumberBox
                     Width="160"
                     GotFocus="OnNumberBoxGotFocus"
+                    IsEnabled="{x:Bind ViewModel.IsEditable}"
                     Loaded="OnNumberBoxLoaded"
                     LargeChange="10"
                     Maximum="{x:Bind ViewModel.SnoozeIntervalMax}"

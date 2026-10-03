@@ -39,7 +39,9 @@ public interface ITerminalSession : IDisposable
     /// <summary>現在のシェルを終了して、同じ設定で起動し直す。</summary>
     /// <param name="columns">端末の桁数</param>
     /// <param name="rows">端末の行数</param>
-    void Restart(int columns, int rows);
+    /// <returns>起動し直し終わったら完了するタスク</returns>
+    /// <remarks>シェルの終了待ちで UI スレッドを止めないよう、終了処理はバックグラウンドで行う。</remarks>
+    Task RestartAsync(int columns, int rows);
 
     /// <summary>シェルへ入力をそのまま送る（キー入力など）。</summary>
     /// <param name="text">送る文字列</param>

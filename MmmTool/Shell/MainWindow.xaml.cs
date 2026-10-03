@@ -1,14 +1,20 @@
 using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using MmmSdk.Core.WindowPositions;
 using MmmSdk.WinUI.Windowing;
-using Windows.Graphics;
 
 namespace MmmTool.Shell;
 
 /// <summary>メインウィンドウ（左にナビゲーション、右にページを表示する）</summary>
 public sealed partial class MainWindow : Window
 {
+    /// <summary>既定の幅（DIP）</summary>
+    private const double DefaultWidth = 1280;
+
+    /// <summary>既定の高さ（DIP）</summary>
+    private const double DefaultHeight = 720;
+
     /// <summary>項目に対応するページ</summary>
     private readonly PageProvider _pages;
 
@@ -18,7 +24,8 @@ public sealed partial class MainWindow : Window
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
     /// <param name="pages">項目に対応するページ</param>
-    public MainWindow(MainViewModel viewModel, PageProvider pages)
+    /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
+    public MainWindow(MainViewModel viewModel, PageProvider pages, IWindowPositionService positions)
     {
         ViewModel = viewModel;
         _pages = pages;
@@ -26,7 +33,8 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
-        AppWindow.Resize(new SizeInt32(1280, 720));
+        // 前回の位置と大きさを復元する（無い・画面外のときは、既定の 1280×720 DIP。DPI に合わせる）。変わったら保存する。ウィンドウが閉じたら自分で後始末する
+        _ = new WindowBoundsKeeper(this, positions, "MainWindow", DefaultWidth, DefaultHeight);
         AppWindow.Closing += OnClosing;
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;

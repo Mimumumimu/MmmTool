@@ -70,10 +70,13 @@ public sealed class PseudoConsoleSession : ITerminalSession
     }
 
     /// <inheritdoc />
-    public void Restart(int columns, int rows)
+    public async Task RestartAsync(int columns, int rows)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        Close();
+        var (console, readTask) = Detach();
+        // 終了待ち（最大で数秒）は UI スレッドの外で行う
+        await Task.Run(() => Release(console, readTask));
+        ObjectDisposedException.ThrowIf(_disposed, this);
         Start(columns, rows);
     }
 
@@ -126,7 +129,9 @@ public sealed class PseudoConsoleSession : ITerminalSession
         OutputReceived = null;
         Exited = null;
         SubmitRequested = null;
-        Close();
+        // アプリの終了時に呼ばれる。シェルを確実に終わらせてから抜ける
+        var (console, readTask) = Detach();
+        Release(console, readTask);
     }
 
     /// <summary>シェルのプロセスが終了したときの処理</summary>
@@ -136,21 +141,32 @@ public sealed class PseudoConsoleSession : ITerminalSession
         Exited?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>擬似コンソール・パイプ・プロセスを解放する。</summary>
-    /// <remarks>
-    /// シェルがまだ動いていれば終了する。出力を読み続けたまま擬似コンソールを閉じ、読み取りが終わるのを待ってから、パイプを解放する。
-    /// </remarks>
-    private void Close()
+    /// <summary>現在の擬似コンソールを切り離す（解放は <see cref="Release"/>）</summary>
+    /// <returns>切り離した擬似コンソールと、出力を読み続けているタスク（無ければ null）</returns>
+    /// <remarks>以降は未起動の状態になる。呼び出しスレッドを止めない処理だけを行う。</remarks>
+    private (PseudoConsole? Console, Task? ReadTask) Detach()
     {
         _exitWait?.Unregister(null);
         _exitWait = null;
 
         var console = _console;
         _console = null;
-        console?.Close();
-
-        _readTask?.Wait(ReadTimeout);
+        var readTask = _readTask;
         _readTask = null;
+        return (console, readTask);
+    }
+
+    /// <summary>擬似コンソール・パイプ・プロセスを解放する。</summary>
+    /// <param name="console">切り離した擬似コンソール</param>
+    /// <param name="readTask">出力を読み続けているタスク</param>
+    /// <remarks>
+    /// シェルがまだ動いていれば終了する。出力を読み続けたまま擬似コンソールを閉じ、読み取りが終わるのを待ってから、パイプを解放する。
+    /// 終了待ちで時間がかかることがあるため、UI スレッドからは直接呼ばない。
+    /// </remarks>
+    private static void Release(PseudoConsole? console, Task? readTask)
+    {
+        console?.Close();
+        readTask?.Wait(ReadTimeout);
         console?.Dispose();
     }
 

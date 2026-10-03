@@ -32,6 +32,15 @@ public sealed partial class TerminalControl : UserControl
     private readonly Lock _pendingLock = new();
     /// <summary>UI スレッドへの受け渡しを予約済みか</summary>
     private bool _flushQueued;
+    /// <summary>xterm.js へ送ったが、描画の受け取りがまだ返っていない文字数</summary>
+    /// <remarks>UI スレッドだけで読み書きする。xterm.js の書き込み待ちがあふれて出力が捨てられるのを防ぐ。</remarks>
+    private int _unconfirmedChars;
+    /// <summary>シェルを起動し直している最中か</summary>
+    /// <remarks>終了待ちの間に押されたキーで、二重に起動し直さないための印。UI スレッドだけで読み書きする。</remarks>
+    private bool _isRestarting;
+
+    /// <summary>描画の受け取りを待たずに送ってよい文字数の上限</summary>
+    private const int MaxUnconfirmedChars = 1024 * 1024;
 
     /// <summary>WebView の初期化を始めたか</summary>
     private bool _webViewInitialized;
@@ -154,6 +163,10 @@ public sealed partial class TerminalControl : UserControl
                 _rows = message.GetProperty("rows").GetInt32();
                 Session?.Resize(_columns, _rows);
                 break;
+            case "written":
+                _unconfirmedChars = Math.Max(0, _unconfirmedChars - message.GetProperty("length").GetInt32());
+                FlushOutput();
+                break;
         }
     }
 
@@ -168,7 +181,7 @@ public sealed partial class TerminalControl : UserControl
         }
         else
         {
-            StartSession(restart: false);
+            _ = StartSessionAsync(restart: false);
         }
 
         FlushOutput();
@@ -179,10 +192,15 @@ public sealed partial class TerminalControl : UserControl
     /// <param name="data">端末への入力</param>
     private void OnInput(string data)
     {
+        if (_isRestarting)
+        {
+            return;
+        }
+
         // シェル終了後は、押されたキーを捨てて再起動のきっかけにする
         if (Session is { HasExited: true })
         {
-            StartSession(restart: true);
+            _ = StartSessionAsync(restart: true);
             return;
         }
         Session?.Write(data);
@@ -190,7 +208,8 @@ public sealed partial class TerminalControl : UserControl
 
     /// <summary>シェルを起動する（restart が true なら起動し直す）</summary>
     /// <param name="restart">起動し直すなら true</param>
-    private void StartSession(bool restart)
+    /// <remarks>起動し直すときの終了待ちは、UI スレッドを止めずに行う。</remarks>
+    private async Task StartSessionAsync(bool restart)
     {
         if (Session is not { } session)
         {
@@ -201,8 +220,10 @@ public sealed partial class TerminalControl : UserControl
         {
             if (restart)
             {
-                PostMessage("output", "\r\n");
-                session.Restart(_columns, _rows);
+                _isRestarting = true;
+                // 出力の順序を保つため、シェルの出力と同じ経路で送る
+                OnOutputReceived(this, "\r\n");
+                await session.RestartAsync(_columns, _rows);
             }
             else
             {
@@ -211,7 +232,11 @@ public sealed partial class TerminalControl : UserControl
         }
         catch (Exception ex) when (ex is Win32Exception or COMException or InvalidOperationException)
         {
-            PostMessage("output", $"\x1b[31mシェルを起動できませんでした: {session.CommandLine}\r\n{ex.Message}\x1b[0m\r\n");
+            OnOutputReceived(this, $"\x1b[31mシェルを起動できませんでした: {session.CommandLine}\r\n{ex.Message}\x1b[0m\r\n");
+        }
+        finally
+        {
+            _isRestarting = false;
         }
     }
 
@@ -239,6 +264,7 @@ public sealed partial class TerminalControl : UserControl
         => OnOutputReceived(sender, "\r\n\x1b[90m[プロセスが終了しました。何かキーを押すと再起動します]\x1b[0m\r\n");
 
     /// <summary>ためた出力を端末へ送る</summary>
+    /// <remarks>端末の描画が追いついていない（<see cref="MaxUnconfirmedChars"/> 超）ときは送らず、受け取りが返ってから送る。</remarks>
     private void FlushOutput()
     {
         if (!_webViewReady)
@@ -249,6 +275,11 @@ public sealed partial class TerminalControl : UserControl
         string text;
         lock (_pendingLock)
         {
+            if (_unconfirmedChars >= MaxUnconfirmedChars)
+            {
+                _flushQueued = false;
+                return;
+            }
             text = _pendingOutput.ToString();
             _pendingOutput.Clear();
             _flushQueued = false;
@@ -256,6 +287,7 @@ public sealed partial class TerminalControl : UserControl
 
         if (text.Length > 0)
         {
+            _unconfirmedChars += text.Length;
             PostMessage("output", text);
         }
     }

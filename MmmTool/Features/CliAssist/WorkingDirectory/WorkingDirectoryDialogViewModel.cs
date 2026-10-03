@@ -16,6 +16,15 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>フォルダ選択</summary>
     private readonly IFolderPickerService _folderPicker;
 
+    /// <summary>入力が止まってから存在を確認するまでの待ち時間</summary>
+    private static readonly TimeSpan CheckDelay = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>入力されたフォルダの確認状態</summary>
+    private DirectoryCheck _check;
+
+    /// <summary>実行中の確認。入力が変わったら取り消す</summary>
+    private CancellationTokenSource? _checkCancellation;
+
     /// <summary>ViewModel を作る</summary>
     /// <param name="settings">CLI補助の利用状態</param>
     /// <param name="folderPicker">フォルダ選択</param>
@@ -35,17 +44,95 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
 
     /// <summary>入力されたフォルダのパス</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsValid), nameof(IsNotFound))]
     public partial string DirectoryPath { get; set; }
 
     /// <summary>入力されたフォルダが存在する（変更できる）。</summary>
-    public bool IsValid => !string.IsNullOrWhiteSpace(DirectoryPath) && Directory.Exists(DirectoryPath.Trim());
+    /// <remarks>存在の確認は、入力が止まってから、バックグラウンドで行う。確認が終わるまでは false。</remarks>
+    public bool IsValid => _check == DirectoryCheck.Found;
 
     /// <summary>入力はあるがフォルダが見つからない。</summary>
-    public bool IsNotFound => !string.IsNullOrWhiteSpace(DirectoryPath) && !IsValid;
+    /// <remarks>確認が終わるまでは false（確認中に、見つからないと表示して、ちらつかせないため）。</remarks>
+    public bool IsNotFound => _check == DirectoryCheck.NotFound;
 
     /// <summary>エラー</summary>
     public ErrorState Error { get; } = new();
+
+    /// <summary>履歴のフォルダを入力欄に入れて、存在するかを（デバウンスを待たずに）確認する</summary>
+    /// <param name="directory">履歴のフォルダのパス</param>
+    /// <returns>存在すれば true（ダブルクリックで、そのまま決定してよいか）</returns>
+    /// <remarks>存在の確認は、UI スレッドを止めないよう、バックグラウンドで行う。</remarks>
+    public async Task<bool> UseDirectoryAsync(string directory)
+    {
+        DirectoryPath = directory;
+        var trimmed = directory.Trim();
+        var exists = trimmed.Length > 0 && await Task.Run(() => Directory.Exists(trimmed));
+        return exists && DirectoryPath == directory;
+    }
+
+    /// <summary>入力が変わったら、存在の確認をやり直す</summary>
+    /// <param name="value">変更後のパス</param>
+    partial void OnDirectoryPathChanged(string value) => UpdateCheck(value);
+
+    /// <summary>入力が止まるのを待ってから、フォルダの存在をバックグラウンドで確認する</summary>
+    /// <param name="path">入力されたパス</param>
+    /// <remarks>
+    /// ネットワークパスなどで、存在の確認が長く止まることがあるので、UI スレッドでは呼ばない。
+    /// 入力のたびに呼ぶと負荷になるので、入力が止まってから 1 回だけ確認する。
+    /// </remarks>
+    private async void UpdateCheck(string path)
+    {
+        _checkCancellation?.Cancel();
+        _checkCancellation?.Dispose();
+        _checkCancellation = null;
+
+        var trimmed = path.Trim();
+        if (trimmed.Length == 0)
+        {
+            SetCheck(DirectoryCheck.None);
+            return;
+        }
+
+        SetCheck(DirectoryCheck.Checking);
+        var cancellation = _checkCancellation = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(CheckDelay, cancellation.Token);
+            var exists = await Task.Run(() => Directory.Exists(trimmed), cancellation.Token);
+            if (!cancellation.IsCancellationRequested)
+            {
+                SetCheck(exists ? DirectoryCheck.Found : DirectoryCheck.NotFound);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 次の入力で確認し直す
+        }
+    }
+
+    /// <summary>確認状態を変えて、表示を更新する</summary>
+    /// <param name="check">新しい確認状態</param>
+    private void SetCheck(DirectoryCheck check)
+    {
+        _check = check;
+        OnPropertyChanged(nameof(IsValid));
+        OnPropertyChanged(nameof(IsNotFound));
+    }
+
+    /// <summary>入力されたフォルダの確認状態</summary>
+    private enum DirectoryCheck
+    {
+        /// <summary>入力が空（確認しない）</summary>
+        None,
+
+        /// <summary>確認中</summary>
+        Checking,
+
+        /// <summary>フォルダがある</summary>
+        Found,
+
+        /// <summary>フォルダが無い（ファイルなど、フォルダでないものを含む）</summary>
+        NotFound,
+    }
 
     /// <summary>履歴と最後のディレクトリを読み込んで、表示を初期化する</summary>
     public void Initialize()

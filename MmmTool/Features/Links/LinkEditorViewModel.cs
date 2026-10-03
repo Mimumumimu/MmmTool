@@ -134,10 +134,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     public partial LinkTreeItem? SelectedItem { get; set; }
 
     /// <summary>リンクを選択中か</summary>
-    public bool IsLinkSelected => SelectedItem?.Kind == LinkItemKind.Link;
+    public bool IsLinkSelected => SelectedItem?.Kind == LinkNodeKind.Link;
 
     /// <summary>フォルダーを選択中か</summary>
-    public bool IsFolderSelected => SelectedItem?.Kind == LinkItemKind.Folder;
+    public bool IsFolderSelected => SelectedItem?.Kind == LinkNodeKind.Folder;
 
     /// <summary>編集欄を出すか（リンク・フォルダーを選択中）。</summary>
     public bool IsEditorVisible => IsLinkSelected || IsFolderSelected;
@@ -217,7 +217,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         _pathCheck?.Cancel();
         _pathCheck = null;
 
-        if (SelectedItem is not { Kind: LinkItemKind.Link } link || string.IsNullOrWhiteSpace(link.Path))
+        if (SelectedItem is not { Kind: LinkNodeKind.Link } link || string.IsNullOrWhiteSpace(link.Path))
         {
             PathKind = PathTargetKind.Empty;
             return;

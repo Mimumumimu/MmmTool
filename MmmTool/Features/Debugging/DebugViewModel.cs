@@ -74,7 +74,7 @@ public sealed partial class DebugViewModel(
             : $"日付指定 {saved.Date}";
         notifications.Show("DEBUG：保存しました",
         [
-            new NotificationItem($"Seq {saved.Seq} / No {saved.No} / 削除 {saved.IsDeleted}"),
+            new NotificationItem($"No {saved.No} / 削除 {saved.IsDeleted}"),
             new NotificationItem($"{when} / 時刻 {saved.Time:0000}"),
             new NotificationItem($"件名 {saved.Title}"),
             new NotificationItem($"備考 {saved.Note ?? "(なし)"}"),

@@ -5,16 +5,19 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 ## 画面
 - 3 領域のレイアウト：左に定型コマンドのツリー、中央にターミナル、下に送信欄
 - ターミナルは ConPTY + xterm.js（WebView2）。入出力・リサイズに対応し、シェルが終了したあとは何かキーを押すと再起動する
+  - 再起動（`ITerminalSession.RestartAsync`）では、古いシェルの終了待ち（最大で数秒）を UI スレッドの外で行う。終了待ちの間に押されたキーは捨てる（二重に起動し直さない）。アプリの終了時の `Dispose` だけは、シェルを確実に終わらせるため、同期で待つ
+  - 出力は、シェルの出力・終了メッセージ・起動失敗のメッセージを、すべて同じバッファ経由で送る（順序が入れ替わらない）。xterm.js が描画し終えるたびに文字数を返し（`written`）、未返却が 1M 文字を超えたら、返ってくるまで送らずにためておく（xterm.js の書き込み待ちがあふれて出力が捨てられるのを防ぐ）。ためる側（C# のバッファ）の大きさには上限を設けていない
   - シェルは pwsh.exe が PATH にあればそれ、無ければ powershell.exe（`DefaultShell`。Core）
   - 描画は `Features/CliAssist/Terminal/TerminalControl`（WebView2 で `Assets/Terminal/` の xterm.js を仮想ホスト経由で表示）。C# ↔ JS は JSON メッセージ（`terminal.js` の冒頭に一覧）
   - `PseudoConsoleSession`（ConPTY は SDK の `PseudoConsole`。ここでは出力の読み取り・終了の通知・入力の確定）を `ITerminalSession` として DI に Transient で登録し、Host の破棄時に Dispose する
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
+  - 存在確認（`Directory.Exists`）は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから（デバウンス）確認する。起動時の作業ディレクトリ（`CliSettingsService.StartDirectory`）も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
 
 ## 定型コマンド
 - 「シェル」と「AI セッション」の 2 タブ固定（「ターミナル」は中央のペインの名前で、タブとは別。ターミナルは「シェルのタブ」「AI セッションのタブ」のどちらのコマンドも受け取る）。最初は全部開いた状態（開閉は自由。タブを切り替えると開いた状態に戻る）
 - 左ペインは幅 280px。長い名前は横スクロール（TreeView 内の ScrollViewer に Loaded で設定する）
 - JSON は `shell` / `session`（列挙型は `CommandCategory.Shell` / `Session`）。セッション側はツールごと（Claude Code・Kiro など）にフォルダで分ける。作業ディレクトリ変更はシェル側の先頭
-- 葉のコマンドの設定（値は列挙型 `CommandCategory` / `FocusTarget`（Core）に変換する。`CliCommandNode.GetSwitchTo()` / `GetFocus()`。手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する）
+- 葉のコマンドの設定（値は列挙型 `CommandCategory` / `FocusTarget`（Core）に変換する。`CliCommandNode.GetSwitchTo()` / `GetFocus()`。手で編集した JSON なので、大文字小文字は区別せず、知らない値は読み込みでは無視する。ただし、書き間違いに気づけるよう、読み込んだあとに `CliCommandSet.Validate()` で調べ、誤りを画面の警告（InfoBar）に出す）
   - `"switchTo": "shell" | "session"`：送信後にそのタブへ切り替える。既定では「Claude Code 起動」→ AI セッション、「終了」→ シェル
   - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先（input = 送信欄）。既定では、起動・新規チャット → input、モデル切替・会話履歴と再開 → terminal（一覧から選ぶ操作でキーを使うため）
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する（`CommandPlaceholders`）
