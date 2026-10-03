@@ -271,6 +271,21 @@ git submodule update --remote external/MmmSdk
 
 機能を足すときは、`MmmTool.Core/<機能>/` と `MmmTool/Features/<機能>/` を作り、`App.xaml.cs` で `Add<機能>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、各機能の `Add<機能>()` の中で登録します。
 
+## ドキュメント
+
+設計と仕様は `docs/` にまとめています。
+
+| ファイル | 内容 |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | 全体構成（プロジェクト・フォルダ・DI・起動と終了・ビルド設定・配布） |
+| `docs/specs/` | 機能ごとの仕様と実装メモ（CLI補助・リンク・リマインダー・トレイとメイン画面・設定・保存） |
+| `docs/decisions/` | 決定記録（なぜそう決めたか。1 件 1 ファイル） |
+| `external/MmmSdk/docs/` | 共有部品（JSON の保存・設定ストア・通知ダイアログ）の仕様 |
+
+## バージョン
+
+現在のバージョンは 0.1.0 です（`Directory.Build.props` の `Version`。ファイル・アセンブリのバージョンは 0.1.0.0 になります）。
+
 ## ライセンス
 
 このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。

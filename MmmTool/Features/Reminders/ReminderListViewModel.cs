@@ -54,7 +54,7 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     public partial bool ShowDeleted { get; set; }
 
     /// <summary>過去の予定（日付が昨日以前の日付指定）も表示するか</summary>
-    /// <remarks>既定はオフ（終わった予定が一覧の上に並んで邪魔になるため。ユーザー決定）。今日の分は時刻が過ぎていても表示する。</remarks>
+    /// <remarks>既定はオフ（終わった予定が一覧の上に並んで邪魔になるため）。今日の分は時刻が過ぎていても表示する。</remarks>
     [ObservableProperty]
     public partial bool ShowPast { get; set; }
 

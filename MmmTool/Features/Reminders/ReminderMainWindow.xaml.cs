@@ -87,7 +87,7 @@ public sealed partial class ReminderMainWindow : Window
     /// <summary>スヌーズの色（アンバー）</summary>
     private static readonly SolidColorBrush SnoozeBrush = new(ColorHelper.FromArgb(0xFF, 0xF5, 0x9E, 0x0B));
     /// <summary>完了の色（エメラルド系のグリーン）</summary>
-    /// <remarks>参考値（#2E7D32）は暗くくすんでいてアンバーと釣り合わず、ダークテーマで沈むため、明るめにした（ユーザー決定）。</remarks>
+    /// <remarks>濃い緑（#2E7D32 など）は暗くくすんでアンバーと釣り合わず、ダークテーマで沈むため、明るめにした。</remarks>
     private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x16, 0xA3, 0x4A));
 
     /// <summary>状態の色（未＝グレー / スヌーズ＝アンバー / 完了＝グリーン）</summary>

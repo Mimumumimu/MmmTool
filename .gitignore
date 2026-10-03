@@ -361,9 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-# ローカル専用（リポジトリに含めない）: 一時ファイル置き場 / Claude Code 用の指示ファイル
+# ローカル専用（リポジトリに含めない）: 一時ファイル置き場
 /_local/
-/CLAUDE.md
 
 # Claude Code personal settings
 .claude/settings.local.json
