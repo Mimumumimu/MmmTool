@@ -19,6 +19,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
   - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先（input = 送信欄）。既定では、起動・新規チャット → input、モデル切替・会話履歴と再開 → terminal（一覧から選ぶ操作でキーを使うため）
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する（`CommandPlaceholders`）
 - 既定のコマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない（無いときだけ生成）。反映するにはアプリを閉じて JSON を削除する
+- 既定のコマンドの定義はアプリ側（`Features/CliAssist/CliCommandDefaults`）にあり、Core の `JsonCliCommandRepository` には「既定を作る処理」を DI で渡す（Core がアプリの配置を知らないようにするため）。補助スクリプトを動かすシェルは、ターミナルで使うシェル（`DefaultShell`）に合わせる（pwsh が無い環境でも動く）
 
 ## 送信
 - 送信は Ctrl+Enter。`ITerminalSession.Submit` → xterm.js の `term.paste`（ブラケットペースト）で貼り付け、そのあと Enter で確定する。複数行でも CLI がひとまとまりで受け取る
@@ -40,7 +41,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 
 ## 補助スクリプト：会話履歴の削除
 - `Assets/Tools/Remove-ClaudeSession.ps1`：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る（`~/.claude/projects` 配下の `.jsonl` が対象）
-- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」（シェル › Claude Code）から `pwsh -NoProfile -File "{AppDir}\Assets\Tools\..."` で呼ぶ
+- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」（シェル › Claude Code）から `<シェル> -NoProfile -File "{AppDir}\Assets\Tools\..."` で呼ぶ
 - ファイルは日本語を含むので BOM 付き UTF-8（PowerShell 5.1 の文字化け対策）
 - 矢印キーの選択画面は実ターミナルが必要（入力がリダイレクトされているときは番号入力に切り替わる）
 - 操作：↑↓ 移動 / Space 選択 / Tab 選択して下へ（Shift+Tab は上へ） / a 全選択 / Enter 決定（未選択ならカーソル行） / Esc・Backspace 戻る / q・Ctrl+C 終了。削除後はプロジェクト選択へ戻る

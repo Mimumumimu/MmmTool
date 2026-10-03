@@ -4,7 +4,7 @@ namespace MmmTool.Core.CliAssist.Json;
 
 /// <summary>CLI補助の利用状態を JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-public sealed class JsonCliSettingsRepository(JsonFileStore store) : ICliSettingsRepository
+public sealed class JsonCliSettingsRepository(IJsonFileStore store) : ICliSettingsRepository
 {
     /// <summary>保存先のファイル名</summary>
     private const string FileName = "CliSettings.json";

@@ -9,7 +9,7 @@ namespace MmmTool.Features.Links;
 /// </summary>
 /// <param name="links">リンクメニューの構成</param>
 /// <param name="opener">パスを開く処理</param>
-public sealed class LinkTrayMenuSource(LinkMenuService links, PathOpener opener) : ITrayMenuSource
+public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener) : ITrayMenuSource
 {
     /// <inheritdoc />
     public IReadOnlyList<TrayMenuItem> GetItems()

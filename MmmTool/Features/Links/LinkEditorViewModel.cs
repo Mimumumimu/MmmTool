@@ -23,7 +23,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>リンクメニューの読み書き</summary>
     private readonly LinkMenuService _linkMenu;
     /// <summary>リンクを開く処理</summary>
-    private readonly PathOpener _opener;
+    private readonly IPathOpener _opener;
     /// <summary>ダイアログ</summary>
     private readonly IDialogService _dialogs;
     /// <summary>ファイル選択</summary>
@@ -49,7 +49,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <param name="folderPicker">フォルダ選択</param>
     public LinkEditorViewModel(
         LinkMenuService linkMenu,
-        PathOpener opener,
+        IPathOpener opener,
         IDialogService dialogs,
         IFilePickerService filePicker,
         IFolderPickerService folderPicker)

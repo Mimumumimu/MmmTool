@@ -1,8 +1,14 @@
-namespace MmmTool.Core.CliAssist;
+using MmmTool.Core.CliAssist;
+
+namespace MmmTool.Features.CliAssist;
 
 /// <summary>
 /// CliCommands.json が無いときに作る既定の定型コマンド。
 /// </summary>
+/// <remarks>
+/// アプリの配置（<c>{AppDir}\Assets\Tools\</c> の補助スクリプト）を知っているので、Core ではなくアプリ側に置く。
+/// 補助スクリプトを動かすシェルは、ターミナルで使うシェル（<see cref="DefaultShell"/>）に合わせる（pwsh が無い環境では Windows PowerShell）。
+/// </remarks>
 public static class CliCommandDefaults
 {
     /// <summary>switchTo（切り替え先のタブ）の値</summary>
@@ -37,7 +43,7 @@ public static class CliCommandDefaults
                 Leaf("最新化", "claude update"),
                 // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
                 Leaf("会話履歴の削除",
-                    $"pwsh -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\Remove-ClaudeSession.ps1\"",
+                    $"{DefaultShell.GetCommandLine()} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\Remove-ClaudeSession.ps1\"",
                     focus: Focus.Terminal)),
         ],
         Session =

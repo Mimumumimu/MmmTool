@@ -4,7 +4,8 @@ namespace MmmTool.Core.CliAssist.Json;
 
 /// <summary>定型コマンドを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-public sealed class JsonCliCommandRepository(JsonFileStore store) : ICliCommandRepository
+/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理（既定の中身はアプリが決める）</param>
+public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CliCommandSet> createDefaults) : ICliCommandRepository
 {
     /// <summary>保存先のファイル名</summary>
     private const string FileName = "CliCommands.json";
@@ -35,7 +36,7 @@ public sealed class JsonCliCommandRepository(JsonFileStore store) : ICliCommandR
     /// <returns>保存した既定の定型コマンド</returns>
     private async Task<CliCommandSet> WriteDefaultsAsync(CancellationToken cancellationToken)
     {
-        var defaults = CliCommandDefaults.Create();
+        var defaults = createDefaults();
         await store.WriteAsync(FileName, defaults, CliAssistJsonContext.Readable.CliCommandSet, cancellationToken);
         return defaults;
     }
