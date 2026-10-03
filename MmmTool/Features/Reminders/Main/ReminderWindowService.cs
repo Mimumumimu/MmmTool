@@ -17,6 +17,7 @@ public sealed class ReminderWindowService(IServiceProvider services, IDialogHost
 
     /// <summary>開く（開いていれば前面に出す）</summary>
     /// <returns>開いた画面</returns>
+    /// <exception cref="Exception">画面を作る・表示するのに失敗した。次に呼ぶときは、作り直す。</exception>
     public async Task<ReminderMainWindow> ShowAsync()
     {
         if (_opening is { } opening)
@@ -27,7 +28,16 @@ public sealed class ReminderWindowService(IServiceProvider services, IDialogHost
         }
 
         _opening = OpenAsync();
-        return await _opening;
+        try
+        {
+            return await _opening;
+        }
+        catch
+        {
+            // 失敗した結果を残すと、以後の呼び出しが同じ失敗を待ち続けて二度と開けないため、作り直せる状態に戻して、例外はそのまま呼び出し元へ渡す
+            _opening = null;
+            throw;
+        }
     }
 
     /// <summary>作って表示する</summary>
@@ -38,7 +48,16 @@ public sealed class ReminderWindowService(IServiceProvider services, IDialogHost
         window.Closed += (_, _) => _opening = null;
         // この画面から開くダイアログ（入力・一覧・確認）を、この画面の上に出すため
         dialogs.TrackWindow(window);
-        await window.ShowAsync();
+        try
+        {
+            await window.ShowAsync();
+        }
+        catch
+        {
+            // 表示まで進まなかった作りかけの画面を残さない
+            window.Close();
+            throw;
+        }
         return window;
     }
 
