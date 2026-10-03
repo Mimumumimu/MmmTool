@@ -1,6 +1,6 @@
-using MmmSdk.Core.Notifications;
-using MmmSdk.Core.Scheduling;
-using MmmSdk.Core.Storage;
+using MmmSdk.Core.Components.Notifications;
+using MmmSdk.Core.Components.Scheduling;
+using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.Core.Reminders;
 

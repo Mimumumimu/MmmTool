@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using MmmSdk.WinUI.VisualTree;
+using MmmSdk.WinUI.Utilities;
 
 namespace MmmTool.Features.Reminders;
 

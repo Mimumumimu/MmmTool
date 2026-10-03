@@ -293,5 +293,5 @@ git submodule update --remote external/MmmSdk
 
 同梱している外部ライブラリのライセンスは、それぞれ次のファイルを参照してください。
 
-- xterm.js（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Terminal/Assets/xterm.LICENSE.txt)
-- @xterm/addon-fit（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Terminal/Assets/addon-fit.LICENSE.txt)
+- xterm.js（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
+- @xterm/addon-fit（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)

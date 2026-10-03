@@ -1,8 +1,9 @@
 using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using MmmSdk.Core.WindowPositions;
-using MmmSdk.WinUI.Windowing;
+using MmmSdk.Core.Components.WindowPositions;
+using MmmSdk.WinUI.Components.Windowing;
+using MmmSdk.WinUI.Utilities;
 
 namespace MmmTool.Shell;
 

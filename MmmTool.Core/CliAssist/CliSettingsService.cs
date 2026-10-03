@@ -1,5 +1,5 @@
-using MmmSdk.Core.Collections;
-using MmmSdk.Core.Storage;
+using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 
 namespace MmmTool.Core.CliAssist;
 

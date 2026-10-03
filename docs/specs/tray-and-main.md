@@ -18,7 +18,7 @@
 - DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録（`#if DEBUG`）だけでなく、コードと XAML も含めない（`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す）
 
 ## トレイアイコン・トレイメニュー
-アイコンとメニューの仕組み（Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応）は SDK の `MmmSdk.WinUI.Tray`（SDK の `docs/tray.md`）。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
+アイコンとメニューの仕組み（Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応）は SDK の `MmmSdk.WinUI.Components.Tray`（SDK の `docs/tray.md`）。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
 
 - アプリ側の設定は `ShellServiceCollectionExtensions.AddShell` の `AddMmmSdkTray(new TrayIconOptions(...))`：ツールチップ `MmmTool`、ウィンドウクラス名 `MmmTool_Tray`（どちらも `Shell/AppInfo` から作る）、アイコン `Assets/app.ico`（EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える）、終了の文言は「終了」（アプリが渡す）
 - 左クリックでメインウィンドウを開き（`OpenRequested`）、メニューの「終了」で完全終了する（`ExitRequested`）

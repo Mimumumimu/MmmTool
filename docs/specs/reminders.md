@@ -46,7 +46,7 @@
 ## 擬似モーダル
 一覧・入力画面・確認ダイアログは、開いている間、親を操作できない擬似モーダルにする。決めた理由は [../decisions/0005-pseudo-modal.md](../decisions/0005-pseudo-modal.md)。
 
-- SDK の `PseudoModal`（`MmmSdk.WinUI.Dialogs`。ウィンドウに付ける部品。詳細は SDK の `docs/dialogs.md`）。`SetOwner`（`GWLP_HWNDPARENT`）で親を設定し、表示したら `EnableWindow(親, false)` で親を操作不可にし、閉じる前に戻して親を前面に出す
+- SDK の `PseudoModal`（`MmmSdk.WinUI.Components.Windowing`。ウィンドウに付ける部品。詳細は SDK の `docs/dialogs.md`）。`SetOwner`（`GWLP_HWNDPARENT`）で親を設定し、表示したら `EnableWindow(親, false)` で親を操作不可にし、閉じる前に戻して親を前面に出す
   - コードから閉じるときは `PseudoModal.Close()` を `Close()` の前に呼ぶ。× / Alt+F4 は `AppWindow.Closing`、念のため `Closed` でも戻す。自分が消える前に戻さないと、別のアプリが前面に来る
 - 親の中央に出し、作業領域からはみ出す分は内側へ寄せる（`CenterOnOwner`）。重ねてよい（メイン → 一覧 → 入力画面 / 確認）
 - 親は SDK の `IDialogHost`（実装は `DialogService`）が決める：開いているモーダルウィンドウを開いた順に覚えておき、いちばん手前を親にする。無ければ、最後にアクティブになった普通のウィンドウ（`TrackWindow` で覚えたメインウィンドウかリマインダーのメイン画面）。確認ダイアログ（`ContentDialog`）・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す

@@ -1,4 +1,4 @@
-using MmmSdk.Core.Storage;
+using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.Core.CliAssist.Json;
 

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.WinUI;
-using MmmSdk.WinUI.Tray;
+using MmmSdk.WinUI.Components.Tray;
 
 namespace MmmTool.Shell;
 

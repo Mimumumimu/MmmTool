@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.WinUI.Dialogs;
+using MmmSdk.WinUI.Components.Dialogs;
 
 namespace MmmTool.Features.CliAssist.WorkingDirectory;
 
