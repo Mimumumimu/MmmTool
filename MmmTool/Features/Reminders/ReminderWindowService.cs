@@ -9,7 +9,7 @@ namespace MmmTool.Features.Reminders;
 /// <remarks>
 /// 画面はアプリ内で 1 枚だけ持ち、開いていれば前面に出す。閉じられたら次に開くときに作り直す。UI スレッドから呼ぶ。
 /// </remarks>
-public sealed class ReminderWindowService(IServiceProvider services, DialogService dialogs)
+public sealed class ReminderWindowService(IServiceProvider services, IDialogHost dialogs)
 {
     /// <summary>開いている（開いている途中の）画面。無ければ null</summary>
     /// <remarks>読み込み中にもう一度開こうとしたとき、2 枚目を作らず、表示し終わるのを待ってから前面に出すため Task で持つ。</remarks>

@@ -1,8 +1,7 @@
 using System.ComponentModel;
-using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using MmmTool.Interop;
+using MmmSdk.WinUI.Windowing;
 using Windows.Graphics;
 
 namespace MmmTool.Shell;
@@ -67,7 +66,7 @@ public sealed partial class MainWindow : Window
         }
         AppWindow.Show(activateWindow: true);
         Activate();
-        NativeMethods.SetForegroundWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id));
+        this.SetForeground();
     }
 
     #endregion

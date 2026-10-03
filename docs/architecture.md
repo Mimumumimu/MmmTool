@@ -23,7 +23,7 @@ MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス
 MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
                                 PageProvider・IStartupTask・ShellServiceCollectionExtensions）
 MmmTool/Controls/               汎用の部品（TimeInputBox・LinkArea）
-MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.Ime / .MessageBox / .Window / .PseudoConsole）
+MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途別の partial（.Ime / .MessageBox / .PseudoConsole）
 ```
 
 - `Shell/` `Controls/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
@@ -35,7 +35,7 @@ MmmTool/Interop/                NativeMethods.cs（宣言と一覧）＋用途�
 - 保存先（Repository の実装）は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する（ページは Transient・キーは型名）。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`（初回に DI から作ってキャッシュ）からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備（`IStartupTask`）: `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `StartAsync` を待つ（CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み）。決めた理由は [decisions/0002-startup-task.md](decisions/0002-startup-task.md)
-- ダイアログ: 共通の `IDialogService`（SDK）は確認ダイアログだけ。機能固有の画面は各機能の口から開く（`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`）。実装は SDK の `DialogService` の `Owner`（親の決定）と `ShowModalAsync`（開いている間モーダルとして覚える）を使う。ピッカーの親も `DialogService.Owner`
+- ダイアログ: 共通の `IDialogService`（SDK）は確認ダイアログだけ。機能固有の画面は各機能の口から開く（`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`）。実装は SDK の `IDialogHost` の `Owner`（親の決定）と `ShowModalAsync`（開いている間モーダルとして覚える）を使う（具象の `DialogService` には依存しない）。ピッカーの親も `IDialogHost.Owner`
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`（閉じる要求を素通しにする）→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能（起動時の準備を含む）より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
 ## 保存

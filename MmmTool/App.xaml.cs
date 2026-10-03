@@ -83,7 +83,7 @@ public partial class App : Application
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         // メインウィンドウから開くダイアログを、メインウィンドウの上に出すため（リマインダーのメイン画面と使い分ける）
-        _host.Services.GetRequiredService<DialogService>().TrackWindow(_window);
+        _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
 
         tray.OpenRequested += (_, _) => _window.ShowAndActivate();
         tray.ExitRequested += async (_, _) => await ExitAsync();

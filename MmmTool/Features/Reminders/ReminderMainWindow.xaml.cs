@@ -4,8 +4,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MmmSdk.WinUI.Windowing;
 using MmmTool.Core.Reminders;
-using MmmTool.Interop;
 using Windows.Graphics;
 using Windows.UI.Text;
 
@@ -54,7 +54,7 @@ public sealed partial class ReminderMainWindow : Window
         // 大きさを決める倍率は、置くモニターのものを使うため、先にそのモニターへ移す
         var workArea = DisplayArea.Primary.WorkArea;
         AppWindow.Move(new PointInt32(workArea.X, workArea.Y));
-        var scale = NativeMethods.GetDpiForWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id)) / 96.0;
+        var scale = this.GetDpiScale();
 
         var presenter = OverlappedPresenter.Create();
         presenter.IsMaximizable = false;
@@ -79,7 +79,7 @@ public sealed partial class ReminderMainWindow : Window
             presenter.Restore();
         }
         Activate();
-        NativeMethods.SetForegroundWindow(Win32Interop.GetWindowFromWindowId(AppWindow.Id));
+        this.SetForeground();
     }
 
     /// <summary>未対応の色（グレー）</summary>
