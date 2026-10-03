@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.WinUI.Components.Errors;
 
-namespace MmmTool.Features.Settings;
+namespace MmmTool.Features.Settings.Main;
 
 /// <summary>設定ページの ViewModel</summary>
 /// <remarks>各機能の設定の値と画面の状態は、機能ごとの部品（<see cref="MmmTool.Shell.SettingsSection"/>）が持つ。ここは、ページ全体のこと（タイトル・設定ファイルを読めなかったときの知らせ）だけ。</remarks>

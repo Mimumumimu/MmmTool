@@ -5,7 +5,7 @@ using MmmSdk.Core.Components.WindowPositions;
 using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
 
-namespace MmmTool.Shell;
+namespace MmmTool.Shell.Main;
 
 /// <summary>メインウィンドウ（左にナビゲーション、右にページを表示する）</summary>
 public sealed partial class MainWindow : Window

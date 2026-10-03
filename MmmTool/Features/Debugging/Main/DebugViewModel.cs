@@ -4,7 +4,7 @@ using MmmSdk.WinUI.Components.Notifications;
 using MmmTool.Core.Reminders;
 using MmmTool.Features.Reminders;
 
-namespace MmmTool.Features.Debugging;
+namespace MmmTool.Features.Debugging.Main;
 
 /// <summary>DEBUG ページの ViewModel（デバッグビルドだけで使う）</summary>
 /// <param name="notifications">通知ダイアログの表示</param>

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 #if DEBUG
+using MmmTool.Features.Debugging.Main;
 using MmmTool.Shell;
 #endif
 

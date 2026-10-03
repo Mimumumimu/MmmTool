@@ -18,15 +18,21 @@
 ```
 MmmTool.Core/<機能>/            Entity・Repository のインターフェース・サービス（CliAssist / Links / Reminders）
 MmmTool.Core/<機能>/Json/       JSON の実装（Json<名前>Repository）と機能ごとのソース生成 Context
-MmmTool/Features/<機能>/        View・ViewModel・行の型・UI サービス・トレイの項目・Add<機能>()・<機能>Startup
+MmmTool/Features/<機能>/        機能全体のつなぎ（Add<機能>()・<機能>Startup・<機能>TrayMenuSource など、Shell へ登録するもの）と、
+                                複数の画面で共有するもの（ViewModel の基底クラス・行の書式・I<機能>DialogService）だけ
                                 （CliAssist / Links / Reminders / Settings / Debugging）
-                                機能の中が大きいときは、責務ごとのサブフォルダーに分ける（名前空間もフォルダーどおり）:
-                                CliAssist/{WorkingDirectory, Attachments}、Reminders/{Main, Input, List}
-MmmTool/Shell/                  画面の枠（MainWindow・MainViewModel・NavigationItem / NavigationPage / NavigationArea・
-                                PageProvider・SettingsSection・IStartupTask・ShellServiceCollectionExtensions）
+MmmTool/Features/<機能>/Main/   その機能の入口の画面（サイドバーのページ、またはトレイから開くメインのウィンドウ）の
+                                View・ViewModel・行の型。画面が 1 つだけの機能も Main/ に入れる
+MmmTool/Features/<機能>/<画面>/ そのほかの画面（Reminders/{Input, List, Settings}、CliAssist/WorkingDirectory）。
+                                1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
+MmmTool/Shell/                  画面の枠。直下に DI 登録と、機能が登録に使う型・アプリ全体で使う型
+                                （NavigationItem / NavigationPage / NavigationArea・SettingsSection・IStartupTask・
+                                AppIcon・AppInfo・ShellServiceCollectionExtensions）
+MmmTool/Shell/Main/             メインウィンドウ（MainWindow・MainViewModel・PageProvider）
 ```
 
 - 共有ライブラリ（`external/MmmSdk`）のフォルダは、アプリとは別に、プロジェクトの直下を `Components/<部品>/`・`Controls/`・`Utilities/` の 3 層に分けている（[decisions/0012-sdk-layer-folders.md](decisions/0012-sdk-layer-folders.md)）。アプリの `Features/<機能>/` には同じ層を作らない
+- フォルダの決まり（機能の直下 = つなぎ、`Main/` = 入口の画面、`<画面>/` = 1 画面 1 フォルダ）の理由は [decisions/0013-screen-folders.md](decisions/0013-screen-folders.md)。Core には同じ形を当てない（画面が無い）
 - `Shell/` は特定の機能を参照しない（機能から共通部分への一方向）。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`（`Debug` にすると `System.Diagnostics.Debug` を隠すため）
 

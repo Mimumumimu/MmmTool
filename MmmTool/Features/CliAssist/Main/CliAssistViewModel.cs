@@ -9,10 +9,9 @@ using MmmSdk.WinUI.Components.Attachments;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.Core.CliAssist;
-using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 
-namespace MmmTool.Features.CliAssist;
+namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>CLI補助ページの ViewModel</summary>
 public sealed partial class CliAssistViewModel : ObservableObject

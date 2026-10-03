@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using VirtualKey = Windows.System.VirtualKey;
 using Windows.Foundation;
 
-namespace MmmTool.Features.Links;
+namespace MmmTool.Features.Links.Main;
 
 /// <summary>リンク編集ページ</summary>
 public sealed partial class LinkEditorPage : Page
