@@ -8,7 +8,7 @@ namespace MmmTool.Features.Reminders;
 /// <param name="services">画面を作る DI のサービスプロバイダー</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
 /// <remarks>画面は閉じると再表示できないので、開くたびに DI から作る。UI スレッドから呼ぶ。</remarks>
-public sealed class ReminderDialogService(IServiceProvider services, DialogService dialogs) : IReminderDialogService
+public sealed class ReminderDialogService(IServiceProvider services, IDialogHost dialogs) : IReminderDialogService
 {
     /// <inheritdoc />
     public Task<Reminder?> ShowInputAsync(Reminder? reminder)

@@ -38,7 +38,7 @@
 - SDK の `PseudoModal`（`MmmSdk.WinUI.Dialogs`。ウィンドウに付ける部品。詳細は SDK の `docs/dialogs.md`）。`SetOwner`（`GWLP_HWNDPARENT`）で親を設定し、表示したら `EnableWindow(親, false)` で親を操作不可にし、閉じる前に戻して親を前面に出す
   - コードから閉じるときは `PseudoModal.Close()` を `Close()` の前に呼ぶ。× / Alt+F4 は `AppWindow.Closing`、念のため `Closed` でも戻す。自分が消える前に戻さないと、別のアプリが前面に来る
 - 親の中央に出し、作業領域からはみ出す分は内側へ寄せる（`CenterOnOwner`）。重ねてよい（メイン → 一覧 → 入力画面 / 確認）
-- 親は `DialogService` が決める：開いているモーダルウィンドウを開いた順に覚えておき、いちばん手前を親にする。無ければ、最後にアクティブになった普通のウィンドウ（`TrackWindow` で覚えたメインウィンドウかリマインダーのメイン画面）。確認ダイアログ（`ContentDialog`）・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す
+- 親は SDK の `IDialogHost`（実装は `DialogService`）が決める：開いているモーダルウィンドウを開いた順に覚えておき、いちばん手前を親にする。無ければ、最後にアクティブになった普通のウィンドウ（`TrackWindow` で覚えたメインウィンドウかリマインダーのメイン画面）。確認ダイアログ（`ContentDialog`）・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す
 
 ## 入力画面（`ReminderInputWindow` ＋ `ReminderInputViewModel`）
 - 開くのは `IReminderDialogService.ShowInputAsync(対象 or null)`。保存した内容 or null（キャンセル）を返す。`Seq` が 0 の内容を渡すと、それを初期値にした新規（コピーして新規追加）になる
@@ -93,7 +93,7 @@
 - 変更は差分更新する（`No` で同定・不足は挿入・余剰は削除・順番は `Move`。完了の欄の開閉を保つため）。行は `ReminderTodayItem`（読み直しでは `Apply` で中身だけを差し替える）
 - 日付が変わったら新しい日に切り替える（読み直すたびに、次の 0 時 + 1 秒のタイマーを掛け直す）
 - 通知との連携：通知の本文クリックの `onClicked` から、`DispatcherQueue`（Low）でいったん後回しにして `ShowFromNotificationAsync` を呼ぶ（閉じかけの通知ウィンドウと、別のウィンドウの操作が重ならないように）。開いてから `ReminderMonitor.SnoozeTriggeredAsync` を呼ぶ
-- ダイアログの親：`DialogService.TrackWindow` で普通のウィンドウ（メインウィンドウ・この画面）を覚え、モーダルが無いときは最後にアクティブになったほうを親にする（この画面から開いた一覧・入力・確認が、この画面の上に出るように）
+- ダイアログの親：`IDialogHost.TrackWindow` で普通のウィンドウ（メインウィンドウ・この画面）を覚え、モーダルが無いときは最後にアクティブになったほうを親にする（この画面から開いた一覧・入力・確認が、この画面の上に出るように）
 
 ## 設定
 スヌーズ間隔は設定ページ（[settings.md](settings.md)）で変える。
