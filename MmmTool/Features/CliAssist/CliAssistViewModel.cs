@@ -76,7 +76,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 定型コマンド
 
-    /// <summary>左ペインで表示中のコマンド群（ターミナル / AI セッション）。</summary>
+    /// <summary>左ペインで表示中のコマンド群（シェル / AI セッション）。</summary>
     [ObservableProperty]
     public partial CommandCategory SelectedCategory { get; set; }
 

@@ -3,7 +3,7 @@
 指定した日時（または曜日・時刻）に通知し、今日の分を一覧して対応状態（未・スヌーズ・完了）を管理する機能。データと監視、入力画面、一覧画面、メイン画面、設定（スヌーズ間隔）からなる。`Features/Reminders/`（中は `Main/`・`Input/`・`List/` に分けている。Core 側は `MmmTool.Core/Reminders/`）。
 
 ## データ
-- `Data/Reminders.json` / `Data/ReminderStates.json`：どちらも `{ "items": [...] }`（ラッパー型は `JsonReminderRepository.cs` 内の internal）
+- `Data/Reminders.json` / `Data/ReminderStates.json`：どちらも `{ "items": [...] }`（ラッパー型は `Json/ReminderFile.cs`・`Json/ReminderStateFile.cs` の internal）
 - `Reminder`（record。複製しやすいため）
   - `No`（番号。登録順の一意の連番で、状態の `BaseNo` が指すキー。0 は未採番）・`IsDeleted`・`Date`（yyyyMMdd。曜日指定は `NoDate` = 99999999）・`Time`（HHmm）・`Weekdays`・`Title`・`Note`・`Link`
 - 値は作ったあとに書き換えず、`with` で新しく作る（`init`）。`ReminderState`：`Seq`・`BaseNo`・`Date`・`Status`
@@ -51,7 +51,7 @@
 - タイトル：新規は「リマインダー入力」、採番済みは「リマインダー編集」
 - 初期値：新規は曜日指定（「日付を指定する」はオフ）・曜日は未選択・日付欄は今日・時刻は現在時刻・ほかは空。編集は対象の値（曜日指定なら日付欄は今日）
 - 曜日を 1 つも選ばない曜日指定は、毎日通知する
-- 時刻は自作の `Controls/TimeInputBox`。決めた理由は [../decisions/0006-time-input-box.md](../decisions/0006-time-input-box.md)
+- 時刻は SDK の `MmmSdk.WinUI.Controls.TimeInputBox`。決めた理由は [../decisions/0006-time-input-box.md](../decisions/0006-time-input-box.md)
   - 1 つの枠に「時 : 分」の 2 区画。ボタンなし。数字だけ・2 桁打つと分へ・←→ で区画移動・↑↓ / ホイールで ±1（端で回る）・フォーカスで全選択と IME オフ・離れたときに確定（空なら元の値・範囲外は最大値）・常に 2 桁表示
   - 区画は枠・消去ボタンを持たない最小テンプレートの `TextBox`。外側の枠が、標準の入力欄の見た目（ポインタ上・フォーカス中の背景とアクセントの下線）を受け持つ
 - 日付は `CalendarDatePicker`（選択中の日付を押して空になったら元に戻す）
