@@ -6,6 +6,11 @@ namespace MmmTool.Services.Tray;
 public sealed class TrayMenuItem
 {
     /// <summary>項目を作る</summary>
+    /// <param name="text">表示する文字</param>
+    /// <param name="invoked">クリック時の処理。無ければ null</param>
+    /// <param name="children">サブメニューの項目。無ければ null</param>
+    /// <param name="isEnabled">押せるか</param>
+    /// <param name="isSeparator">区切り線か</param>
     /// <remarks>生成は <see cref="Command"/> などのメソッドから行う。</remarks>
     private TrayMenuItem(string text, Func<Task>? invoked, IReadOnlyList<TrayMenuItem>? children, bool isEnabled, bool isSeparator)
     {
@@ -37,11 +42,19 @@ public sealed class TrayMenuItem
     public bool IsSeparator { get; }
 
     /// <summary>クリックで処理を行う項目。</summary>
+    /// <param name="text">表示する文字</param>
+    /// <param name="invoked">クリック時の処理</param>
+    /// <returns>クリックで処理を行う項目</returns>
     public static TrayMenuItem Command(string text, Func<Task> invoked) => new(text, invoked, null, true, false);
 
     /// <summary>サブメニューを持つ項目</summary>
+    /// <param name="text">表示する文字</param>
+    /// <param name="children">サブメニューの項目</param>
+    /// <returns>サブメニューを持つ項目</returns>
     public static TrayMenuItem Submenu(string text, IReadOnlyList<TrayMenuItem> children) => new(text, null, children, true, false);
 
     /// <summary>押せない項目（説明・状態の表示）。</summary>
+    /// <param name="text">表示する文字</param>
+    /// <returns>押せない項目</returns>
     public static TrayMenuItem Disabled(string text) => new(text, null, null, false, false);
 }

@@ -38,6 +38,7 @@ public sealed partial class LinkArea : Grid
     }
 
     /// <summary>マウスが乗っているかを変えて、見た目を合わせる</summary>
+    /// <param name="value">マウスが乗っているか</param>
     private void SetPointerOver(bool value)
     {
         _isPointerOver = value;

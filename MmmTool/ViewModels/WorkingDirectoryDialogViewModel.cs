@@ -17,6 +17,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     private readonly IFolderPickerService _folderPicker;
 
     /// <summary>ViewModel を作る</summary>
+    /// <param name="settings">CLI補助の利用状態</param>
+    /// <param name="folderPicker">フォルダ選択</param>
     public WorkingDirectoryDialogViewModel(CliSettingsService settings, IFolderPickerService folderPicker)
     {
         _settings = settings;
@@ -64,6 +66,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     }
 
     /// <summary>フォルダ選択を開いて、選ばれたフォルダを入力欄に入れる</summary>
+    /// <returns>選択の完了を表すタスク</returns>
     [RelayCommand]
     private async Task BrowseAsync()
     {
@@ -74,6 +77,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     }
 
     /// <summary>履歴から取り除く</summary>
+    /// <param name="directory">取り除くフォルダのパス</param>
+    /// <returns>取り除きの完了を表すタスク</returns>
     [RelayCommand]
     private async Task RemoveAsync(string directory)
     {

@@ -4,6 +4,8 @@ using MmmTool.Views;
 namespace MmmTool.Services;
 
 /// <summary>リマインダーのメイン画面を開く</summary>
+/// <param name="services">画面を作る DI のサービスプロバイダー</param>
+/// <param name="dialogs">ダイアログの親を管理するサービス</param>
 /// <remarks>
 /// 画面はアプリ内で 1 枚だけ持ち、開いていれば前面に出す。閉じられたら次に開くときに作り直す。UI スレッドから呼ぶ。
 /// </remarks>
@@ -29,6 +31,7 @@ public sealed class ReminderWindowService(IServiceProvider services, DialogServi
     }
 
     /// <summary>作って表示する</summary>
+    /// <returns>開いた画面</returns>
     private async Task<ReminderMainWindow> OpenAsync()
     {
         var window = services.GetRequiredService<ReminderMainWindow>();
@@ -40,6 +43,7 @@ public sealed class ReminderWindowService(IServiceProvider services, DialogServi
     }
 
     /// <summary>通知から開く</summary>
+    /// <returns>開いてスヌーズへ進める処理の完了を表すタスク</returns>
     /// <remarks>通知をクリックして「気づいた」とみなし、発動済みで未対応のものをスヌーズに進める（次はスヌーズ間隔の後に再通知）。</remarks>
     public async Task ShowFromNotificationAsync()
     {

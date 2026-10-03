@@ -49,6 +49,7 @@ public partial class App : Application
     }
 
     /// <summary>DI に登録する</summary>
+    /// <param name="services">登録先のサービスコレクション</param>
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
@@ -162,6 +163,7 @@ public partial class App : Application
     }
 
     /// <summary>アプリを完全に終了する（トレイメニューの「終了」から）。</summary>
+    /// <returns>終了処理の完了を表すタスク</returns>
     /// <remarks>
     /// 各機能の後始末（ターミナルのシェル・添付の一時フォルダ等）→ トレイアイコンの解放 → アプリの終了 の順に行う。
     /// 後の 2 つは Host の破棄（作った順の逆）で行われる。未保存の編集内容は確認せずに破棄する。

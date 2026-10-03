@@ -54,6 +54,7 @@ public sealed class TrayIcon : IDisposable
     private bool _disposed;
 
     /// <summary>トレイアイコンを作る（表示は <see cref="Show"/> で行う）</summary>
+    /// <param name="sources">メニューに項目を出す機能</param>
     public TrayIcon(IEnumerable<ITrayMenuSource> sources)
     {
         _sources = sources;
@@ -107,6 +108,9 @@ public sealed class TrayIcon : IDisposable
     private nint DisplayIcon => _icon != 0 ? _icon : LoadIcon(0, IDI_APPLICATION);
 
     /// <summary>トレイから通知を出す</summary>
+    /// <param name="title">通知のタイトル</param>
+    /// <param name="message">通知の本文</param>
+    /// <param name="isError">エラーのアイコンで出すか（false なら情報のアイコン）</param>
     /// <remarks>Windows の通知として表示される。</remarks>
     public unsafe void ShowNotification(string title, string message, bool isError)
     {
@@ -122,6 +126,8 @@ public sealed class TrayIcon : IDisposable
     #region アイコン
 
     /// <summary>Shell_NotifyIcon に渡すデータを作る</summary>
+    /// <param name="flags">有効にする項目を示すフラグ（<c>NIF_*</c>）</param>
+    /// <returns>トレイアイコンの識別情報を入れたデータ</returns>
     private unsafe NOTIFYICONDATAW CreateData(uint flags) => new()
     {
         cbSize = (uint)sizeof(NOTIFYICONDATAW),
@@ -156,7 +162,7 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>EXE と同じ場所の Assets\app.ico を、トレイの大きさ（DPI に合わせた小アイコン）で読む。</summary>
-    /// <remarks>ファイルが無い等で読めなければ 0（呼び出し側で Windows 標準のアイコンに代える）。</remarks>
+    /// <returns>アイコンのハンドル。ファイルが無い等で読めなければ 0（呼び出し側で Windows 標準のアイコンに代える）</returns>
     private static nint LoadTrayIcon()
     {
         var size = GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem());
@@ -169,11 +175,21 @@ public sealed class TrayIcon : IDisposable
     #region メッセージ
 
     /// <summary>通知を受けるウィンドウのウィンドウプロシージャ</summary>
+    /// <param name="hwnd">ウィンドウのハンドル</param>
+    /// <param name="msg">メッセージ</param>
+    /// <param name="wParam">メッセージの付加情報（wParam）</param>
+    /// <param name="lParam">メッセージの付加情報（lParam）</param>
+    /// <returns>メッセージの処理結果</returns>
     [UnmanagedCallersOnly]
     private static nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam)
         => s_current?.HandleMessage(hwnd, msg, wParam, lParam) ?? DefWindowProc(hwnd, msg, wParam, lParam);
 
     /// <summary>メッセージを処理する</summary>
+    /// <param name="hwnd">ウィンドウのハンドル</param>
+    /// <param name="msg">メッセージ</param>
+    /// <param name="wParam">メッセージの付加情報（wParam）</param>
+    /// <param name="lParam">メッセージの付加情報（lParam）</param>
+    /// <returns>メッセージの処理結果</returns>
     private unsafe nint HandleMessage(nint hwnd, uint msg, nint wParam, nint lParam)
     {
         // エクスプローラーが再起動するとトレイアイコンが消えるので、登録し直す
@@ -223,6 +239,8 @@ public sealed class TrayIcon : IDisposable
     #region メニュー
 
     /// <summary>右クリックメニューを出し、選ばれた項目の処理を行う。</summary>
+    /// <param name="x">メニューを出す位置の X（画面座標）</param>
+    /// <param name="y">メニューを出す位置の Y（画面座標）</param>
     /// <remarks>メニューは開くたびに作る（各機能の最新の内容を出すため）。</remarks>
     private void ShowMenu(int x, int y)
     {
@@ -273,6 +291,9 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>項目をメニューに追加する</summary>
+    /// <param name="menu">追加先のメニューのハンドル</param>
+    /// <param name="items">追加する項目</param>
+    /// <param name="nextId">次に割り当てるコマンド ID。使った分だけ進む</param>
     private void AppendItems(nint menu, IReadOnlyList<TrayMenuItem> items, ref int nextId)
     {
         var renderer = _renderer!;
@@ -300,6 +321,10 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>コマンドの項目をメニューに追加する</summary>
+    /// <param name="menu">追加先のメニューのハンドル</param>
+    /// <param name="text">表示する文字</param>
+    /// <param name="invoked">選ばれたときの処理</param>
+    /// <param name="nextId">次に割り当てるコマンド ID。使った分だけ進む</param>
     private void AddCommand(nint menu, string text, Func<Task> invoked, ref int nextId)
     {
         var id = nextId++;
@@ -308,6 +333,8 @@ public sealed class TrayIcon : IDisposable
     }
 
     /// <summary>項目の処理を行う</summary>
+    /// <param name="command">項目の処理</param>
+    /// <returns>処理の完了を表すタスク</returns>
     /// <remarks>失敗したらトレイの通知で知らせる（ウィンドウが隠れていても気付けるように）。</remarks>
     private async Task InvokeAsync(Func<Task> command)
     {

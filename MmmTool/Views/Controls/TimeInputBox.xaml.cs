@@ -63,6 +63,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>値が変わったら、区画の表示を合わせる</summary>
+    /// <param name="sender">変更されたコントロール</param>
+    /// <param name="e">変更の情報</param>
     private static void OnValueChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
         => ((TimeInputBox)sender).ShowValues();
 
@@ -74,10 +76,14 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>数字以外は入力させない</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">変更前のテキストの情報</param>
     private void OnBeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
         => args.Cancel = !args.NewText.All(char.IsAsciiDigit);
 
     /// <summary>時を 2 桁打ったら分へ移る</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>フォーカス中のキー入力のときだけ（値の表示を更新したときは移らない）。</remarks>
     private void OnHourTextChanged(object sender, TextChangedEventArgs e)
     {
@@ -91,6 +97,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>区画にフォーカスが来たら、全選択して上書きで打てるようにし、IME をオフにする</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnSegmentGotFocus(object sender, RoutedEventArgs e)
     {
         ((TextBox)sender).SelectAll();
@@ -99,6 +107,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>区画を離れたら、打った値を確定する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnSegmentLostFocus(object sender, RoutedEventArgs e)
     {
         Commit((TextBox)sender);
@@ -106,6 +116,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>↑↓ で増減、←→ で区画を移る</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">キー入力の情報</param>
     private void OnSegmentKeyDown(object sender, KeyRoutedEventArgs e)
     {
         var box = (TextBox)sender;
@@ -131,6 +143,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>ホイールで増減する（上で増、下で減）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ホイールの情報</param>
     private void OnSegmentWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var delta = e.GetCurrentPoint((UIElement)sender).Properties.MouseWheelDelta;
@@ -142,6 +156,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>枠の余白を押しても、時の区画へフォーカスを移す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">タップの情報</param>
     private void OnFrameTapped(object sender, TappedRoutedEventArgs e)
     {
         if (ReferenceEquals(e.OriginalSource, Frame))
@@ -151,6 +167,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>ポインタが枠に入った</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ポインタの情報</param>
     private void OnFramePointerEntered(object sender, PointerRoutedEventArgs e)
     {
         _pointerOver = true;
@@ -158,6 +176,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>ポインタが枠から出た</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ポインタの情報</param>
     private void OnFramePointerExited(object sender, PointerRoutedEventArgs e)
     {
         _pointerOver = false;
@@ -174,6 +194,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>区画の値を 1 つ増減する（端を越えたら反対の端へ）</summary>
+    /// <param name="box">増減する区画</param>
+    /// <param name="delta">増減する量</param>
     private void Step(TextBox box, int delta)
     {
         Commit(box);
@@ -189,6 +211,7 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>区画に打った値を確定する（空なら元の値、範囲外は最大値）</summary>
+    /// <param name="box">確定する区画</param>
     private void Commit(TextBox box)
     {
         var max = box == HourBox ? MaxHour : MaxMinute;
@@ -201,5 +224,8 @@ public sealed partial class TimeInputBox : UserControl
     }
 
     /// <summary>0〜最大値の範囲で回す</summary>
+    /// <param name="value">回す値</param>
+    /// <param name="max">最大値</param>
+    /// <returns>0〜最大値の範囲に収めた値</returns>
     private static int Wrap(int value, int max) => (value % (max + 1) + max + 1) % (max + 1);
 }

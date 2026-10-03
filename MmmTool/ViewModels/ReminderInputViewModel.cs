@@ -27,6 +27,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private Reminder? _target;
 
     /// <summary>ViewModel を作る</summary>
+    /// <param name="reminders">リマインダーの読み書き</param>
+    /// <param name="time">現在時刻の提供元</param>
     public ReminderInputViewModel(ReminderService reminders, TimeProvider time)
     {
         _reminders = reminders;
@@ -132,9 +134,12 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     }
 
     /// <summary>件名が変わったら、件名のエラーを消す</summary>
+    /// <param name="value">変更後の件名</param>
     partial void OnTitleChanged(string value) => TitleError = null;
 
     /// <summary>日付が空にされたら、元の日付に戻す</summary>
+    /// <param name="oldValue">変更前の日付</param>
+    /// <param name="newValue">変更後の日付</param>
     /// <remarks>カレンダーで選択中の日付をもう一度押すと選択が外れるため。日付指定は常に日付を持つ。</remarks>
     partial void OnDateChanged(DateTimeOffset? oldValue, DateTimeOffset? newValue)
     {
@@ -145,6 +150,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     }
 
     /// <summary>入力値を検証して保存し、閉じる</summary>
+    /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>件名が未入力ならエラーを出して保存しない。保存に失敗したらエラーを出して閉じない。</remarks>
     [RelayCommand]
     private async Task SaveAsync()
@@ -184,6 +190,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private void Cancel() => CloseRequested?.Invoke(this, null);
 
     /// <summary>曜日の選択肢を、曜日フラグに合わせる</summary>
+    /// <param name="weekdays">反映する曜日フラグ</param>
     private void SetWeekdays(Weekdays weekdays)
     {
         foreach (var option in WeekdayOptions)
@@ -193,6 +200,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     }
 
     /// <summary>選ばれている曜日を曜日フラグにする</summary>
+    /// <returns>選ばれている曜日の曜日フラグ</returns>
     private Weekdays GetWeekdays()
         => WeekdayOptions.Where(option => option.IsChecked).Aggregate(Weekdays.None, (all, option) => all | option.Flag);
 }

@@ -7,6 +7,7 @@ namespace MmmTool.Core.Services;
 /// <summary>
 /// リマインダー（本体・対応状態）を読み書きし、メモリにキャッシュする。アプリ全体で 1 つ。
 /// </summary>
+/// <param name="repository">リマインダーの保存先</param>
 /// <remarks>
 /// 最初のアクセスで 1 度だけ読み込む。読み書きはスレッドセーフ。取得で返すのはキャッシュの複製なので、書き換えても保存はされない（保存は <see cref="SaveAsync"/> で）。
 /// 保存ファイルが無い・空・壊れているときは空の一覧として扱う（壊れていたファイルは退避して <see cref="RecoveryMessage"/> に残す）。
@@ -39,6 +40,8 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>リマインダー本体の一覧を取得する</summary>
     /// <param name="includeDeleted">論理削除済みも含めるか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>リマインダー本体の一覧（複製）</returns>
     public async Task<IReadOnlyList<Reminder>> GetRemindersAsync(bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -54,11 +57,13 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー本体を保存する（追加・更新）</summary>
+    /// <param name="reminder">保存するリマインダー</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存した内容（採番後）の複製</returns>
     /// <remarks>
     /// <see cref="Reminder.Seq"/> が 0 なら新規として採番し、<see cref="Reminder.No"/> も同じ値にする。
     /// それ以外は同じ <see cref="Reminder.Seq"/> の既存分を更新する（参照番号は既存のまま。論理削除済みなら削除フラグを解除する）。
     /// </remarks>
-    /// <returns>保存した内容（採番後）の複製</returns>
     /// <exception cref="ArgumentException">指定の連番のリマインダーが無い。</exception>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public async Task<Reminder> SaveAsync(Reminder reminder, CancellationToken cancellationToken = default)
@@ -100,6 +105,8 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー本体を論理削除する（削除フラグを立てる）</summary>
+    /// <param name="seq">削除するリマインダーの連番</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public Task<bool> DeleteAsync(int seq, CancellationToken cancellationToken = default)
@@ -115,12 +122,16 @@ public sealed class ReminderService(IReminderRepository repository)
         }, cancellationToken);
 
     /// <summary>リマインダー本体を物理削除する（一覧から完全に取り除く）</summary>
+    /// <param name="seq">削除するリマインダーの連番</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public Task<bool> PurgeAsync(int seq, CancellationToken cancellationToken = default)
         => UpdateRemindersAsync(reminders => reminders.RemoveAll(item => item.Seq == seq) > 0, cancellationToken);
 
     /// <summary>対応状態の一覧を取得する</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>対応状態の一覧（複製）</returns>
     public async Task<IReadOnlyList<ReminderState>> GetStatesAsync(CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -137,6 +148,7 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>リマインダー 1 件の対応状態を取得する</summary>
     /// <param name="baseNo">リマインダー本体の参照番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>まだ無ければ null</returns>
     public async Task<ReminderState?> GetStateAsync(int baseNo, CancellationToken cancellationToken = default)
     {
@@ -153,10 +165,12 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>リマインダー 1 件の対応状態を保存する</summary>
-    /// <remarks>同じ参照番号の状態は 1 件に保ち、あれば対象日・値を上書きする。無ければ採番して追加する。</remarks>
     /// <param name="baseNo">リマインダー本体の参照番号</param>
     /// <param name="date">対象日（yyyyMMdd の整数）</param>
     /// <param name="status">対応状態</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>同じ参照番号の状態は 1 件に保ち、あれば対象日・値を上書きする。無ければ採番して追加する。</remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public async Task SetStateAsync(int baseNo, int date, ReminderStatus status, CancellationToken cancellationToken = default)
     {
@@ -189,6 +203,8 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>本体の一覧を書き換えて、変わったときだけ保存する</summary>
     /// <param name="change">一覧を書き換える処理。変わったら true を返す</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>変わって保存したとき true</returns>
     private async Task<bool> UpdateRemindersAsync(Func<List<Reminder>, bool> change, CancellationToken cancellationToken)
     {
         bool changed;
@@ -217,6 +233,8 @@ public sealed class ReminderService(IReminderRepository repository)
     }
 
     /// <summary>未読み込みなら読み込む。呼ぶ側は <c>_lock</c> を取っておくこと</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>キャッシュしているリマインダー本体と対応状態の一覧</returns>
     /// <remarks>ファイルを読めなかったときは空の一覧として扱い、<see cref="LoadError"/> に残す。</remarks>
     private async Task<(List<Reminder> Reminders, List<ReminderState> States)> EnsureLoadedAsync(CancellationToken cancellationToken)
     {

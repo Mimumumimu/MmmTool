@@ -32,6 +32,9 @@ public sealed partial class FilePathToImageSourceConverter : IValueConverter
         => throw new NotSupportedException();
 
     /// <summary>ファイルを読み込んで画像に設定する</summary>
+    /// <param name="bitmap">設定先の画像</param>
+    /// <param name="path">画像ファイルのパス</param>
+    /// <returns>読み込みの完了を表すタスク</returns>
     private static async Task LoadAsync(BitmapImage bitmap, string path)
     {
         try

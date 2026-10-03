@@ -82,6 +82,8 @@ public sealed partial class ReminderTodayItem : ObservableObject
     }
 
     /// <summary>読み直した内容を反映する（保存はしない）</summary>
+    /// <param name="source">読み直したリマインダー</param>
+    /// <param name="status">読み直した今日の対応状態</param>
     public void Apply(Reminder source, ReminderStatus status)
     {
         _applying = true;

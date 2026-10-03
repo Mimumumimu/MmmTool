@@ -8,6 +8,9 @@ using MmmTool.Services;
 namespace MmmTool.ViewModels;
 
 /// <summary>DEBUG ページの ViewModel（デバッグビルドだけで使う）</summary>
+/// <param name="notifications">通知ダイアログの表示</param>
+/// <param name="dialogs">ダイアログを開く</param>
+/// <param name="reminders">リマインダーの読み書き</param>
 public sealed partial class DebugViewModel(
     INotificationDialogService notifications,
     IDialogService dialogs,
@@ -37,11 +40,13 @@ public sealed partial class DebugViewModel(
     }
 
     /// <summary>リマインダー入力画面を新規で開く</summary>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     /// <remarks>保存した内容は通知ダイアログで確かめる。</remarks>
     [RelayCommand]
     private async Task NewReminderAsync() => ShowSaved(await dialogs.ShowReminderInputAsync(null));
 
     /// <summary>リマインダー入力画面を、最初の 1 件（論理削除済みも含む）の編集で開く</summary>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     /// <remarks>1 件も無ければ、その旨を通知ダイアログで知らせる。</remarks>
     [RelayCommand]
     private async Task EditFirstReminderAsync()
@@ -56,10 +61,12 @@ public sealed partial class DebugViewModel(
     }
 
     /// <summary>リマインダー一覧画面を開く</summary>
+    /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task ShowReminderListAsync() => dialogs.ShowReminderListAsync();
 
     /// <summary>保存した内容を通知ダイアログに出す（キャンセルなら何もしない）</summary>
+    /// <param name="saved">保存したリマインダー。キャンセルなら null</param>
     private void ShowSaved(Reminder? saved)
     {
         if (saved is null) return;

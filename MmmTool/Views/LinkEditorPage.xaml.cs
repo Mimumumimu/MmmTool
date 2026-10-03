@@ -23,6 +23,7 @@ public sealed partial class LinkEditorPage : Page
     public LinkEditorViewModel ViewModel { get; }
 
     /// <summary>ページを作る</summary>
+    /// <param name="viewModel">ページの ViewModel</param>
     public LinkEditorPage(LinkEditorViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -43,6 +44,8 @@ public sealed partial class LinkEditorPage : Page
     }
 
     /// <summary>読み込み時に ViewModel を初期化する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
 
     #region ツリー
@@ -50,6 +53,8 @@ public sealed partial class LinkEditorPage : Page
     // TreeView.SelectedItem は object 型で x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる
 
     /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">選択の変更の情報</param>
     /// <remarks>
     /// このイベントの中では sender.SelectedItem がまだ前の選択を返すので、args の追加分から取る。
     /// 追加分はクリックでの選択ならデータだが、コードから選択したときは TreeViewNode で来ることがあるので、両方から取り出す。
@@ -63,6 +68,8 @@ public sealed partial class LinkEditorPage : Page
         };
 
     /// <summary>ViewModel の選択が変わったら、ツリーの選択を合わせる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(LinkEditorViewModel.SelectedItem) && LinkTree.SelectedItem != ViewModel.SelectedItem)
@@ -73,6 +80,7 @@ public sealed partial class LinkEditorPage : Page
     }
 
     /// <summary>右クリックした行を選択してからメニューを出す</summary>
+    /// <param name="source">右クリックされた要素</param>
     /// <remarks>メニューの操作はその行が対象。何も無い所なら選択を外す。</remarks>
     private void SelectForContextMenu(object source)
     {
@@ -83,6 +91,8 @@ public sealed partial class LinkEditorPage : Page
     }
 
     /// <summary>ツリーで Delete が押されたら、選択中の項目を削除する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">キー入力の情報</param>
     private void OnTreeKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Delete && ViewModel.DeleteCommand.CanExecute(null))
@@ -93,6 +103,8 @@ public sealed partial class LinkEditorPage : Page
     }
 
     /// <summary>画面上の要素から、その行の項目を探す。</summary>
+    /// <param name="source">画面上の要素</param>
+    /// <returns>その行の項目。見つからなければ null</returns>
     /// <remarks>行（TreeViewItem）の DataContext はデータではなく TreeViewNode のことがあるので、TreeView に行からデータを引かせる。</remarks>
     private LinkTreeItem? FindItem(object source)
     {
@@ -132,6 +144,8 @@ public sealed partial class LinkEditorPage : Page
     }
 
     /// <summary>「保存しました」が閉じられたときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じた理由の情報</param>
     private void OnSavedInfoBarClosed(InfoBar sender, InfoBarClosedEventArgs args)
     {
         _savedNoticeTimer.Stop();

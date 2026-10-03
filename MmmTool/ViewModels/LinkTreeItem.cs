@@ -27,6 +27,10 @@ public enum LinkItemKind
 public sealed partial class LinkTreeItem : ObservableObject
 {
     /// <summary>要素を作る</summary>
+    /// <param name="kind">種類</param>
+    /// <param name="name">表示名</param>
+    /// <param name="path">開くパス</param>
+    /// <param name="children">子要素（フォルダのとき。それ以外は null）</param>
     /// <remarks>生成は <see cref="CreateLink"/> などから行う。</remarks>
     private LinkTreeItem(LinkItemKind kind, string name, string path, ObservableCollection<LinkTreeItem>? children)
     {
@@ -88,15 +92,20 @@ public sealed partial class LinkTreeItem : ObservableObject
     };
 
     /// <summary>新しいリンクを作る</summary>
+    /// <returns>新しいリンクの要素</returns>
     public static LinkTreeItem CreateLink() => new(LinkItemKind.Link, "新しいリンク", "", null);
 
     /// <summary>新しいフォルダーを作る</summary>
+    /// <returns>新しいフォルダーの要素</returns>
     public static LinkTreeItem CreateFolder() => new(LinkItemKind.Folder, "新しいフォルダー", "", []);
 
     /// <summary>新しい区切り線を作る</summary>
+    /// <returns>新しい区切り線の要素</returns>
     public static LinkTreeItem CreateSeparator() => new(LinkItemKind.Separator, LinkNode.SeparatorName, "", null);
 
     /// <summary>保存されている構成から編集用の要素を作る</summary>
+    /// <param name="node">保存されている構成の 1 要素</param>
+    /// <returns>編集用の要素</returns>
     public static LinkTreeItem From(LinkNode node)
     {
         // 子要素のリストがあればフォルダ（パスより優先）
@@ -111,6 +120,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     }
 
     /// <summary>保存用の構成に変換する</summary>
+    /// <returns>保存用の構成の要素</returns>
     public LinkNode ToNode() => Kind switch
     {
         LinkItemKind.Folder => new LinkNode { Name = Name, Children = [.. Children!.Select(child => child.ToNode())] },
@@ -119,5 +129,6 @@ public sealed partial class LinkTreeItem : ObservableObject
     };
 
     /// <summary>子孫の数（フォルダのとき）。</summary>
+    /// <returns>子孫の数</returns>
     public int CountDescendants() => Children?.Sum(child => 1 + child.CountDescendants()) ?? 0;
 }

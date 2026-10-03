@@ -40,6 +40,11 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     private int _version;
 
     /// <summary>ViewModel を作る</summary>
+    /// <param name="reminders">リマインダーの読み書き</param>
+    /// <param name="monitor">リマインダーの時刻監視</param>
+    /// <param name="dialogs">ダイアログを開く</param>
+    /// <param name="opener">リンクを開く処理</param>
+    /// <param name="time">現在時刻の提供元</param>
     public ReminderMainViewModel(ReminderService reminders, ReminderMonitor monitor, IDialogService dialogs, PathOpener opener, TimeProvider time)
     {
         _reminders = reminders;
@@ -79,6 +84,7 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     public bool HasError => ErrorMessage is not null;
 
     /// <summary>最初の読み込み</summary>
+    /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。</remarks>
     public async Task InitializeAsync()
     {
@@ -87,6 +93,7 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>発動済みで未対応のものをスヌーズにする（通知から開いたとき）</summary>
+    /// <returns>スヌーズへの切り替えの完了を表すタスク</returns>
     public Task SnoozeTriggeredAsync() => RunAsync(_monitor.SnoozeTriggeredAsync);
 
     /// <summary>購読とタイマーをやめる</summary>
@@ -97,14 +104,18 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>新規追加（入力画面を開く）</summary>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task AddAsync() => _dialogs.ShowReminderInputAsync(null);
 
     /// <summary>一覧画面を開く</summary>
+    /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task ShowListAsync() => _dialogs.ShowReminderListAsync();
 
     /// <summary>リンクを開く</summary>
+    /// <param name="item">リンクを開く行</param>
+    /// <returns>リンクを開く処理の完了を表すタスク</returns>
     [RelayCommand]
     private async Task OpenLinkAsync(ReminderTodayItem item)
     {
@@ -124,18 +135,27 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>編集（入力画面を開く）</summary>
+    /// <param name="item">編集する行</param>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task EditAsync(ReminderTodayItem item) => _dialogs.ShowReminderInputAsync(item.Source);
 
     /// <summary>削除（論理削除）</summary>
+    /// <param name="item">削除する行</param>
+    /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
     private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => _reminders.DeleteAsync(item.Source.Seq));
 
     /// <summary>ユーザーが状態を切り替えたら、今日の状態として保存する</summary>
+    /// <param name="item">状態を切り替えた行</param>
+    /// <param name="status">新しい状態</param>
+    /// <returns>保存の完了を表すタスク</returns>
     private Task SaveStatusAsync(ReminderTodayItem item, ReminderStatus status)
         => RunAsync(() => _reminders.SetStateAsync(item.No, ReminderDates.ToDateValue(_time.GetLocalNow().DateTime), status));
 
     /// <summary>保存を伴う操作を行い、失敗したらエラーに出す</summary>
+    /// <param name="action">行う操作</param>
+    /// <returns>操作の完了を表すタスク</returns>
     /// <remarks>保存に失敗したときは、画面の状態を保存内容に戻すため読み直す。</remarks>
     private async Task RunAsync(Func<Task> action)
     {
@@ -152,6 +172,8 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>保存内容が変わったら、UI スレッドで読み直す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>任意のスレッドから来る。</remarks>
     private void OnRemindersChanged(object? sender, EventArgs e) => PostRefresh();
 
@@ -173,6 +195,7 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>今日の対象を読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
     private async Task RefreshAsync()
     {
         var version = ++_version;
@@ -209,6 +232,8 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>行を並ぶべき内容に合わせる（差分更新）</summary>
+    /// <param name="rows">画面に出している行</param>
+    /// <param name="targets">並ぶべき内容（リマインダーと今日の状態）</param>
     /// <remarks>
     /// 参照番号で既存の行を同定し、内容・状態を反映する。足りない行は挿入、余った行は削除、順番が違えば移動する。
     /// 全部を作り直さないのは、ちらつき・スクロール位置や完了の欄の開閉のリセットを防ぐため。
@@ -237,6 +262,10 @@ public sealed partial class ReminderMainViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>指定の位置以降で、参照番号が一致する行の位置。無ければ -1</summary>
+    /// <param name="rows">画面に出している行</param>
+    /// <param name="no">探す参照番号</param>
+    /// <param name="start">探し始める位置</param>
+    /// <returns>見つかった行の位置。無ければ -1</returns>
     private static int IndexOf(ObservableCollection<ReminderTodayItem> rows, int no, int start)
     {
         for (var i = start; i < rows.Count; i++)

@@ -36,6 +36,7 @@ public sealed partial class ReminderListWindow : Window
     public ReminderListViewModel ViewModel { get; }
 
     /// <summary>ウィンドウを作る</summary>
+    /// <param name="viewModel">ウィンドウの ViewModel</param>
     public ReminderListWindow(ReminderListViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -55,6 +56,7 @@ public sealed partial class ReminderListWindow : Window
 
     /// <summary>親ウィンドウの上にモーダルで表示し、閉じるまで待つ</summary>
     /// <param name="owner">親ウィンドウ</param>
+    /// <returns>閉じるまでの待機を表すタスク</returns>
     public async Task ShowModalAsync(Window owner)
     {
         // 空の一覧が一瞬見えないよう、読み込んでから出す
@@ -78,15 +80,23 @@ public sealed partial class ReminderListWindow : Window
     }
 
     /// <summary>削除済みの行は半透明にする</summary>
+    /// <param name="isDeleted">削除済みか</param>
+    /// <returns>行の不透明度</returns>
     public static double RowOpacity(bool isDeleted) => isDeleted ? 0.5 : 1.0;
 
     /// <summary>削除済みの行は取り消し線を引く</summary>
+    /// <param name="isDeleted">削除済みか</param>
+    /// <returns>文字の装飾</returns>
     public static TextDecorations Strike(bool isDeleted) => isDeleted ? TextDecorations.Strikethrough : TextDecorations.None;
 
     /// <summary>false のときだけ表示する</summary>
+    /// <param name="value">表示を隠す条件</param>
+    /// <returns>value が false のときだけ表示</returns>
     public static Visibility VisibleUnless(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>行のダブルタップで編集</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ダブルタップの情報</param>
     private async void OnRowDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (((FrameworkElement)sender).DataContext is ReminderListItem item)
@@ -96,21 +106,32 @@ public sealed partial class ReminderListWindow : Window
     }
 
     /// <summary>メニュー「編集」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnEditClick(object sender, RoutedEventArgs e) => await ViewModel.EditCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>メニュー「コピーして新規追加」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnCopyAsNewClick(object sender, RoutedEventArgs e) => await ViewModel.CopyAsNewCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>メニュー「削除」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>メニュー「完全削除」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnPurgeClick(object sender, RoutedEventArgs e) => await ViewModel.PurgeCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>エラーを閉じたら消す（同じエラーがまた起きたときに出し直せるように）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じたイベントの情報</param>
     private void OnErrorCloseClick(InfoBar sender, object args) => ViewModel.ErrorMessage = null;
 
     /// <summary>押された要素の行を選択する</summary>
+    /// <param name="originalSource">押された要素</param>
     private void SelectRowOf(object originalSource)
     {
         if (originalSource is FrameworkElement { DataContext: ReminderListItem item })
@@ -120,10 +141,14 @@ public sealed partial class ReminderListWindow : Window
     }
 
     /// <summary>メニュー項目の行</summary>
+    /// <param name="sender">メニュー項目</param>
+    /// <returns>メニュー項目の行</returns>
     /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は Tag に入れてある。</remarks>
     private static ReminderListItem ItemOf(object sender) => (ReminderListItem)((FrameworkElement)sender).Tag;
 
     /// <summary>閉じたら購読をやめて完了を返す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)
     {
         ViewModel.Dispose();

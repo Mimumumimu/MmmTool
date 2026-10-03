@@ -5,6 +5,7 @@ using MmmTool.Views;
 namespace MmmTool.Services;
 
 /// <summary>ファイル選択を開く</summary>
+/// <param name="services">メインウィンドウを取得する DI のサービスプロバイダー</param>
 public sealed class FilePickerService(IServiceProvider services) : IFilePickerService
 {
     /// <inheritdoc />

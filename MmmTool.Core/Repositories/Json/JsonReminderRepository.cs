@@ -5,6 +5,7 @@ using MmmTool.Core.Entities;
 namespace MmmTool.Core.Repositories.Json;
 
 /// <summary>リマインダーを JSON ファイルに保存する</summary>
+/// <param name="store">JSON ファイルの読み書き</param>
 /// <remarks>本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する（汎用設定ストアとは別）。</remarks>
 public sealed class JsonReminderRepository(JsonFileStore store) : IReminderRepository
 {

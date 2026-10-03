@@ -5,6 +5,6 @@ namespace MmmTool.Services;
 public interface IFilePickerService
 {
     /// <summary>ファイル選択を開く</summary>
-    /// <remarks>選ばれたファイルのパス、キャンセルなら null。</remarks>
+    /// <returns>選ばれたファイルのパス。キャンセルなら null</returns>
     Task<string?> PickFileAsync();
 }

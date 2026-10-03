@@ -33,6 +33,8 @@ public sealed partial class MainWindow : Window
     public MainViewModel ViewModel { get; }
 
     /// <summary>ウィンドウを作る</summary>
+    /// <param name="viewModel">ウィンドウの ViewModel</param>
+    /// <param name="services">ページを作る DI のサービスプロバイダー</param>
     public MainWindow(MainViewModel viewModel, IServiceProvider services)
     {
         ViewModel = viewModel;
@@ -57,6 +59,8 @@ public sealed partial class MainWindow : Window
     private bool _isExiting;
 
     /// <summary>×ボタン・Alt+F4 では終了せず、トレイへ退避する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じる要求の情報</param>
     /// <remarks>非表示にするだけで、アプリは動き続ける。</remarks>
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
@@ -85,6 +89,8 @@ public sealed partial class MainWindow : Window
     #endregion
 
     /// <summary>選択が変わったら、そのページへ移動する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.SelectedItem))
@@ -94,6 +100,7 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>項目に対応するページを表示する</summary>
+    /// <param name="item">表示するナビゲーション項目</param>
     private void NavigateTo(NavigationItem? item)
     {
         if (item is null || !PageTypes.TryGetValue(item.Key, out var pageType))

@@ -31,6 +31,7 @@ public sealed partial class ReminderInputWindow : Window
     public ReminderInputViewModel ViewModel { get; }
 
     /// <summary>ウィンドウを作る</summary>
+    /// <param name="viewModel">ウィンドウの ViewModel</param>
     public ReminderInputWindow(ReminderInputViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -71,6 +72,8 @@ public sealed partial class ReminderInputWindow : Window
     }
 
     /// <summary>中身に合わせて高さを決め、親の中央に置き直す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>
     /// 日付指定・曜日指定の欄は、高いほうに合わせた高さを確保しておく（切り替えで下の欄やボタンが動かないように）。
     /// そのために一度だけ両方を表示して測り、表示はバインドで元に戻す。
@@ -91,12 +94,18 @@ public sealed partial class ReminderInputWindow : Window
     }
 
     /// <summary>件名・備考にフォーカスが来たら IME をオンにする（日本語の入力が多いため）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => NativeMethods.TurnOnImeForFocusedWindow();
 
     /// <summary>リンクにフォーカスが来たら IME をオフにする（URL・パスを打つため）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnLinkBoxGotFocus(object sender, RoutedEventArgs e) => NativeMethods.TurnOffImeForFocusedWindow();
 
     /// <summary>保存・キャンセルで閉じる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="saved">保存した内容。キャンセルなら null</param>
     private void OnCloseRequested(object? sender, Reminder? saved)
     {
         _result = saved;
@@ -104,6 +113,8 @@ public sealed partial class ReminderInputWindow : Window
     }
 
     /// <summary>閉じたら結果を返す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)
     {
         ViewModel.CloseRequested -= OnCloseRequested;

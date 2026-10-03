@@ -23,6 +23,7 @@ internal sealed class PseudoModal
     private AppWindow? _ownerWindow;
 
     /// <summary>対象のウィンドウに付ける</summary>
+    /// <param name="window">擬似モーダルにするウィンドウ</param>
     public PseudoModal(Window window)
     {
         _window = window;
@@ -35,6 +36,7 @@ internal sealed class PseudoModal
     public double OwnerScale { get; private set; } = 1.0;
 
     /// <summary>親を設定する（表示の前に呼ぶ）</summary>
+    /// <param name="owner">親のウィンドウ</param>
     /// <remarks>常に親の手前に出るようにする。表示倍率も親に合わせて取っておく（初期サイズを決めるため）。</remarks>
     public void SetOwner(Window owner)
     {
@@ -81,6 +83,8 @@ internal sealed class PseudoModal
     }
 
     /// <summary>閉じたら親を戻して前面に出す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)
     {
         EnableOwner();

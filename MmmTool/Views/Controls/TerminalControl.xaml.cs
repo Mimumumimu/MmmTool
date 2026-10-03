@@ -61,6 +61,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>セッションが差し替わったら、イベントの購読を付け替える</summary>
+    /// <param name="d">変更されたコントロール</param>
+    /// <param name="e">変更の情報</param>
     private static void OnSessionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var control = (TerminalControl)d;
@@ -79,6 +81,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>送信を求められたら、端末に貼り付けとして渡す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="text">貼り付けるテキスト</param>
     private void OnSubmitRequested(object? sender, string text)
     {
         if (_webViewReady)
@@ -94,6 +98,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>読み込み時に WebView を初期化して、xterm.js のページを開く</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (_webViewInitialized)
@@ -123,6 +129,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>xterm.js からのメッセージを処理する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">受け取ったメッセージの情報</param>
     private void OnWebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
     {
         if (!Uri.TryCreate(args.Source, UriKind.Absolute, out var source) || source.Host != HostName)
@@ -169,6 +177,7 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>端末への入力をシェルへ送る（シェル終了後は再起動する）</summary>
+    /// <param name="data">端末への入力</param>
     private void OnInput(string data)
     {
         // シェル終了後は、押されたキーを捨てて再起動のきっかけにする
@@ -181,6 +190,7 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>シェルを起動する（restart が true なら起動し直す）</summary>
+    /// <param name="restart">起動し直すなら true</param>
     private void StartSession(bool restart)
     {
         if (Session is not { } session)
@@ -207,6 +217,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>シェルの出力をためて、UI スレッドで描画する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="text">シェルの出力</param>
     private void OnOutputReceived(object? sender, string text)
     {
         lock (_pendingLock)
@@ -222,6 +234,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>シェルが終了したことを端末に表示する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnSessionExited(object? sender, EventArgs e)
         => OnOutputReceived(sender, "\r\n\x1b[90m[プロセスが終了しました。何かキーを押すと再起動します]\x1b[0m\r\n");
 
@@ -259,6 +273,8 @@ public sealed partial class TerminalControl : UserControl
     }
 
     /// <summary>xterm.js へメッセージを送る</summary>
+    /// <param name="type">メッセージの種類</param>
+    /// <param name="data">メッセージの内容。無ければ null</param>
     private void PostMessage(string type, string? data)
     {
         // トリミング有効の発行でも動くよう、リフレクションを使わずに JSON を組み立てる

@@ -15,6 +15,7 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     public WorkingDirectoryDialogViewModel ViewModel { get; }
 
     /// <summary>ダイアログを作る</summary>
+    /// <param name="viewModel">ダイアログの ViewModel</param>
     public WorkingDirectoryDialog(WorkingDirectoryDialogViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -22,6 +23,7 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     }
 
     /// <summary>ダイアログを開き、選ばれたフォルダを返す</summary>
+    /// <returns>選ばれたフォルダ。キャンセルなら null</returns>
     /// <remarks>キャンセルなら null。</remarks>
     public async Task<string?> PickAsync()
     {
@@ -35,10 +37,14 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     }
 
     /// <summary>履歴のフォルダがクリックされたら、入力欄に入れる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">クリックされた項目の情報</param>
     private void OnDirectoryClick(object sender, ItemClickEventArgs e)
         => ViewModel.DirectoryPath = (string)e.ClickedItem;
 
     /// <summary>履歴のフォルダがダブルクリックされたら、入力欄に入れて確定する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ダブルタップの情報</param>
     private void OnDirectoryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if ((e.OriginalSource as FrameworkElement)?.DataContext is not string directory)
@@ -55,6 +61,8 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     }
 
     /// <summary>履歴の削除ボタンが押されたときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnRemoveDirectoryClick(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is string directory)

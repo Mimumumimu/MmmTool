@@ -32,6 +32,13 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private bool _initialized;
 
     /// <summary>ViewModel を作る</summary>
+    /// <param name="terminal">ターミナルのセッション</param>
+    /// <param name="commandRepository">定型コマンドの保存先</param>
+    /// <param name="settings">CLI補助の利用状態</param>
+    /// <param name="attachmentStore">添付ファイルの一時保存先</param>
+    /// <param name="imageConverter">画像の変換</param>
+    /// <param name="dialogs">ダイアログを開く</param>
+    /// <param name="timeProvider">現在時刻の提供元</param>
     public CliAssistViewModel(
         ITerminalSession terminal,
         ICliCommandRepository commandRepository,
@@ -82,6 +89,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public partial IReadOnlyList<CommandTreeItem> CommandItems { get; private set; }
 
     /// <summary>定型コマンドを読み込んで表示を初期化する</summary>
+    /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>最初の 1 回だけ行う。</remarks>
     public async Task InitializeAsync()
     {
@@ -112,6 +120,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>タブが切り替わったら、ツリーを作り直す</summary>
+    /// <param name="value">切り替え後のタブ</param>
     partial void OnSelectedCategoryChanged(CommandCategory value) => RebuildCommandItems();
 
     /// <summary>選択中のタブの定型コマンドで、ツリーを作り直す</summary>
@@ -130,6 +139,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>ツリーの要素を実行する（コマンドなら送信、作業ディレクトリ変更ならダイアログ）。</summary>
+    /// <param name="item">実行するツリーの要素</param>
+    /// <returns>実行の完了を表すタスク</returns>
     [RelayCommand]
     private async Task InvokeCommandItemAsync(CommandTreeItem item)
     {
@@ -153,6 +164,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>作業ディレクトリ変更ダイアログを開き、選ばれたフォルダへ移動する</summary>
+    /// <returns>作業ディレクトリの変更の完了を表すタスク</returns>
     private async Task ChangeWorkingDirectoryAsync()
     {
         if (await _dialogs.ShowWorkingDirectoryDialogAsync() is not { } directory)
@@ -214,6 +226,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public bool HasAttachments => Attachments.Count > 0;
 
     /// <summary>ファイルを添付する（ドラッグ＆ドロップ・ファイルの貼り付け）。</summary>
+    /// <param name="filePaths">添付するファイルのパス</param>
+    /// <returns>添付の完了を表すタスク</returns>
     public async Task AddAttachmentFilesAsync(IEnumerable<string> filePaths)
     {
         foreach (var filePath in filePaths)
@@ -231,6 +245,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>画像を JPEG にして添付する（画像の貼り付け）。</summary>
+    /// <param name="image">添付する画像のストリーム</param>
+    /// <returns>添付の完了を表すタスク</returns>
     public async Task AddAttachmentImageAsync(Stream image)
     {
         try
@@ -246,6 +262,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>添付を取り除く</summary>
+    /// <param name="item">取り除く添付</param>
     [RelayCommand]
     private void RemoveAttachment(AttachmentItem item)
     {
@@ -282,6 +299,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public partial string HistoryFilter { get; set; }
 
     /// <summary>絞り込み文字列が変わったら、一覧を作り直す</summary>
+    /// <param name="value">変更後の絞り込み文字列</param>
     partial void OnHistoryFilterChanged(string value) => RefreshHistory();
 
     /// <summary>履歴の一覧を開く前に、最新の内容にする。</summary>
@@ -292,9 +310,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>履歴の本文を入力欄へ戻す。</summary>
+    /// <param name="item">戻す履歴の行</param>
     public void RestoreHistory(SendHistoryItem item) => InputText = item.Text;
 
     /// <summary>送信した本文を履歴の先頭に追加する</summary>
+    /// <param name="text">送信した本文</param>
     /// <remarks>空白のみは無視し、同じ本文は先頭へ移す。</remarks>
     private void AddSendHistory(string text)
     {
@@ -344,6 +364,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public partial bool IsErrorOpen { get; set; }
 
     /// <summary>エラーを表示する</summary>
+    /// <param name="message">表示するエラーメッセージ</param>
     private void ShowError(string message)
     {
         ErrorMessage = message;

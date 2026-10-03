@@ -5,6 +5,6 @@ namespace MmmTool.Services;
 public interface IFolderPickerService
 {
     /// <summary>フォルダ選択を開く</summary>
-    /// <remarks>選ばれたフォルダのパス、キャンセルなら null。</remarks>
+    /// <returns>選ばれたフォルダのパス。キャンセルなら null</returns>
     Task<string?> PickFolderAsync();
 }

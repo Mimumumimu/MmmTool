@@ -7,6 +7,9 @@ namespace MmmTool.Core.Services;
 /// <summary>
 /// リマインダーの時刻監視。発動時刻を過ぎた未対応・スヌーズのリマインダーを通知する。アプリ全体で 1 つ。
 /// </summary>
+/// <param name="reminders">リマインダーの読み書き</param>
+/// <param name="settings">汎用設定ストア</param>
+/// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する
 /// （固定間隔ではなく、次の 00 秒までの残り時間をその都度計算する単発タイマーの掛け直し）。
@@ -100,6 +103,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     }
 
     /// <summary>今の分の発動対象を判定して、あれば通知する</summary>
+    /// <returns>判定の完了を表すタスク</returns>
     private async Task CheckAsync()
     {
         var now = timeProvider.GetLocalNow().DateTime;
@@ -158,6 +162,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     }
 
     /// <summary>発動済みで未対応のリマインダーを、今日のスヌーズにする</summary>
+    /// <returns>スヌーズへの切り替えの完了を表すタスク</returns>
     /// <remarks>
     /// 通知をクリックして「気づいた」とみなすときに使う。次の再通知はスヌーズ間隔の後にするため、スヌーズの間隔もここから数え直す。
     /// </remarks>
@@ -182,6 +187,8 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     }
 
     /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）</summary>
+    /// <param name="now">現在の日時</param>
+    /// <returns>発動済みのリマインダー</returns>
     private async Task<List<Reminder>> GetTriggeredAsync(DateTime now)
     {
         var today = DateOnly.FromDateTime(now);
@@ -193,7 +200,8 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     }
 
     /// <summary>今日の対応状態（参照番号 → 状態）</summary>
-    /// <remarks>別の日の状態は含めない（未対応として扱うため）。</remarks>
+    /// <param name="now">現在の日時</param>
+    /// <returns>参照番号をキーにした今日の対応状態。別の日の状態は含めない（未対応として扱うため）</returns>
     private async Task<Dictionary<int, ReminderStatus>> GetTodayStatusesAsync(DateTime now)
     {
         var today = ReminderDates.ToDateValue(now);
@@ -204,10 +212,14 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     }
 
     /// <summary>リマインダーを通知の項目にする（件名をテキスト、リンクがあればリンク先に）</summary>
+    /// <param name="reminder">リマインダー</param>
+    /// <returns>通知の項目</returns>
     private static NotificationItem ToItem(Reminder reminder)
         => new(reminder.Title, string.IsNullOrWhiteSpace(reminder.Link) ? null : reminder.Link);
 
     /// <summary>秒以下を切り捨てる</summary>
+    /// <param name="value">日時</param>
+    /// <returns>秒以下を 0 にした日時</returns>
     private static DateTime TruncateToMinute(DateTime value)
         => new(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0, value.Kind);
 

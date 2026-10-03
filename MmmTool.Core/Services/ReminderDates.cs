@@ -25,15 +25,22 @@ public static class ReminderDates
     ];
 
     /// <summary>曜日指定（日付なし）か</summary>
+    /// <param name="date">発動日（yyyyMMdd の整数）</param>
+    /// <returns>曜日指定なら true</returns>
     public static bool IsWeekdaySpecified(int date) => date == NoDate;
 
     /// <summary>日付を yyyyMMdd の整数にする</summary>
+    /// <param name="date">日付</param>
+    /// <returns>yyyyMMdd の整数</returns>
     public static int ToDateValue(DateOnly date) => date.Year * 10000 + date.Month * 100 + date.Day;
 
     /// <summary>日時の日付部分を yyyyMMdd の整数にする</summary>
+    /// <param name="dateTime">日時</param>
+    /// <returns>yyyyMMdd の整数</returns>
     public static int ToDateValue(DateTime dateTime) => ToDateValue(DateOnly.FromDateTime(dateTime));
 
     /// <summary>yyyyMMdd の整数を日付にする</summary>
+    /// <param name="value">yyyyMMdd の整数</param>
     /// <returns>日付なし（<see cref="NoDate"/>）・日付として正しくない値なら null。</returns>
     public static DateOnly? ToDate(int value)
     {
@@ -51,12 +58,17 @@ public static class ReminderDates
     }
 
     /// <summary>時刻を HHmm の整数にする</summary>
+    /// <param name="time">時刻</param>
+    /// <returns>HHmm の整数</returns>
     public static int ToTimeValue(TimeOnly time) => time.Hour * 100 + time.Minute;
 
     /// <summary>日時の時刻部分を HHmm の整数にする（秒以下は切り捨て）</summary>
+    /// <param name="dateTime">日時</param>
+    /// <returns>HHmm の整数</returns>
     public static int ToTimeValue(DateTime dateTime) => ToTimeValue(TimeOnly.FromDateTime(dateTime));
 
     /// <summary>HHmm の整数を時刻にする</summary>
+    /// <param name="value">HHmm の整数</param>
     /// <returns>時刻として正しくない値なら null。</returns>
     public static TimeOnly? ToTime(int value)
     {
@@ -69,6 +81,8 @@ public static class ReminderDates
     }
 
     /// <summary>曜日を曜日フラグにする</summary>
+    /// <param name="dayOfWeek">曜日</param>
+    /// <returns>対応する曜日フラグ</returns>
     public static Weekdays ToWeekdays(DayOfWeek dayOfWeek) => dayOfWeek switch
     {
         DayOfWeek.Monday => Weekdays.Monday,
@@ -82,26 +96,38 @@ public static class ReminderDates
     };
 
     /// <summary>曜日フラグに含まれる曜日を、月曜から順に返す</summary>
+    /// <param name="weekdays">曜日フラグ</param>
+    /// <returns>含まれる曜日（月曜から順）</returns>
     public static IReadOnlyList<DayOfWeek> ToDaysOfWeek(Weekdays weekdays)
         => [.. Enum.GetValues<DayOfWeek>()
             .Where(day => weekdays.HasFlag(ToWeekdays(day)))
             .OrderBy(day => ((int)day + 6) % 7)];
 
     /// <summary>曜日フラグに指定の曜日が含まれるか</summary>
+    /// <param name="weekdays">曜日フラグ</param>
+    /// <param name="dayOfWeek">調べる曜日</param>
+    /// <returns>含まれていれば true</returns>
     public static bool Contains(Weekdays weekdays, DayOfWeek dayOfWeek) => (weekdays & ToWeekdays(dayOfWeek)) != 0;
 
     /// <summary>曜日指定のリマインダーが、指定の曜日に発動するか</summary>
+    /// <param name="weekdays">リマインダーの曜日指定</param>
+    /// <param name="dayOfWeek">調べる曜日</param>
+    /// <returns>発動するなら true</returns>
     /// <remarks>曜日を 1 つも選んでいない（<see cref="Weekdays.None"/>）ときは毎日発動する。</remarks>
     public static bool OccursOn(Weekdays weekdays, DayOfWeek dayOfWeek) => weekdays == Weekdays.None || Contains(weekdays, dayOfWeek);
 
     /// <summary>リマインダーが指定の日に発動するか</summary>
+    /// <param name="reminder">リマインダー</param>
+    /// <param name="date">調べる日</param>
+    /// <returns>発動するなら true</returns>
     /// <remarks>発動日がその日、または曜日指定でその日の曜日を含む（曜日を 1 つも選んでいなければ毎日）。</remarks>
     public static bool OccursOn(Reminder reminder, DateOnly date)
         => reminder.Date == ToDateValue(date)
             || (IsWeekdaySpecified(reminder.Date) && OccursOn(reminder.Weekdays, date.DayOfWeek));
 
     /// <summary>曜日フラグを「月火水」のような日本語の文字列にする</summary>
-    /// <remarks>月曜から順に並べる。指定なしなら空文字。</remarks>
+    /// <param name="weekdays">曜日フラグ</param>
+    /// <returns>月曜から順に並べた文字列。指定なしなら空文字</returns>
     public static string ToJapanese(Weekdays weekdays)
     {
         var builder = new StringBuilder();

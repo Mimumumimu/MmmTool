@@ -7,6 +7,7 @@ namespace MmmTool.Core.Services;
 /// <summary>
 /// CLI補助の利用状態（作業ディレクトリ）をメモリに持ち、変更のたびに保存する。アプリ全体で 1 つ。
 /// </summary>
+/// <param name="repository">CLI補助の利用状態の保存先</param>
 public sealed class CliSettingsService(ICliSettingsRepository repository)
 {
     /// <summary>ディレクトリ履歴の最大件数</summary>
@@ -35,6 +36,8 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
     /// <summary>設定を読み込む</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読み込みの完了を表すタスク</returns>
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -50,6 +53,9 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     }
 
     /// <summary>作業ディレクトリを移動したことを記録する（最終ディレクトリ・履歴の先頭）。</summary>
+    /// <param name="directory">移動した作業ディレクトリ</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存の完了を表すタスク</returns>
     public Task AddDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
         _settings.LastDirectory = directory;
@@ -62,6 +68,9 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     }
 
     /// <summary>履歴から作業ディレクトリを取り除く</summary>
+    /// <param name="directory">取り除く作業ディレクトリ</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存の完了を表すタスク</returns>
     public Task RemoveDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
         _settings.DirectoryHistory.RemoveAll(path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase));
@@ -69,11 +78,16 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     }
 
     /// <summary>設定を保存する</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>保存を止めているときは何もしない。</remarks>
     private Task SaveAsync(CancellationToken cancellationToken)
         => _saveDisabled ? Task.CompletedTask : repository.SaveAsync(_settings, cancellationToken);
 
     /// <summary>リストを先頭から指定件数に切り詰める</summary>
+    /// <typeparam name="T">要素の型</typeparam>
+    /// <param name="list">切り詰めるリスト</param>
+    /// <param name="maxCount">残す最大件数</param>
     private static void TrimTo<T>(List<T> list, int maxCount)
     {
         if (list.Count > maxCount)

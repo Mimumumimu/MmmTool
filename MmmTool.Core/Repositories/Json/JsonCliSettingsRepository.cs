@@ -5,6 +5,7 @@ using MmmTool.Core.Entities;
 namespace MmmTool.Core.Repositories.Json;
 
 /// <summary>CLI補助の利用状態を JSON ファイルに保存する</summary>
+/// <param name="store">JSON ファイルの読み書き</param>
 public sealed class JsonCliSettingsRepository(JsonFileStore store) : ICliSettingsRepository
 {
     /// <summary>保存先のファイル名</summary>

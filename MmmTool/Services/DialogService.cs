@@ -8,6 +8,7 @@ using MmmTool.Views.Dialogs;
 namespace MmmTool.Services;
 
 /// <summary>ダイアログを開く</summary>
+/// <param name="services">ダイアログを作る DI のサービスプロバイダー</param>
 /// <remarks>
 /// いちばん手前のモーダルウィンドウの上に表示する。無ければ、最後に操作した普通のウィンドウ（メインウィンドウ・リマインダーのメイン画面）の上に表示する。
 /// モーダルウィンドウ（一覧・入力画面）は開いている間だけ覚えておき、その上で開くダイアログの親にする（一覧の上に入力画面・確認を重ねるため）。
@@ -25,6 +26,7 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
     private Window Owner => _modals.Count > 0 ? _modals[^1] : _lastActive ?? services.GetRequiredService<MainWindow>();
 
     /// <summary>普通のウィンドウを、ダイアログの親の候補にする</summary>
+    /// <param name="window">親の候補にするウィンドウ</param>
     /// <remarks>そのウィンドウを操作した（アクティブになった）ら、以後のダイアログをその上に出す。閉じられたら候補から外す。</remarks>
     public void TrackWindow(Window window)
     {
@@ -89,8 +91,10 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
     }
 
     /// <summary>モーダルウィンドウを今の親の上に開き、閉じるまで覚えておく</summary>
+    /// <typeparam name="T">ウィンドウが返す結果の型</typeparam>
     /// <param name="window">開くウィンドウ</param>
     /// <param name="show">親を受け取って表示し、閉じるまで待つ処理</param>
+    /// <returns>ウィンドウが返した結果</returns>
     private async Task<T> ShowModalAsync<T>(Window window, Func<Window, Task<T>> show)
     {
         var owner = Owner;

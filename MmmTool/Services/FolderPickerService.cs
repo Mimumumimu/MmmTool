@@ -5,6 +5,7 @@ using MmmTool.Views;
 namespace MmmTool.Services;
 
 /// <summary>フォルダ選択を開く</summary>
+/// <param name="services">メインウィンドウを取得する DI のサービスプロバイダー</param>
 public sealed class FolderPickerService(IServiceProvider services) : IFolderPickerService
 {
     /// <inheritdoc />

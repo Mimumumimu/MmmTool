@@ -10,6 +10,7 @@ public sealed partial class DebugPage : Page
     public DebugViewModel ViewModel { get; }
 
     /// <summary>ページを作る</summary>
+    /// <param name="viewModel">ページの ViewModel</param>
     public DebugPage(DebugViewModel viewModel)
     {
         ViewModel = viewModel;

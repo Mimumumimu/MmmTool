@@ -1,6 +1,7 @@
 namespace MmmTool.Core.Services;
 
 /// <summary>添付ファイルの一時保存先（%TEMP%\MmmTool\session_日時\）の管理</summary>
+/// <param name="timeProvider">現在時刻の提供元</param>
 /// <remarks>
 /// アプリ全体で 1 つ。
 /// <list type="bullet">
@@ -29,7 +30,9 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
     private bool _staleCleaned;
 
     /// <summary>ファイルをコピーして添付する</summary>
-    /// <remarks>保存先のパスを返す。</remarks>
+    /// <param name="sourcePath">コピー元のファイルのパス</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存先のパス</returns>
     public async Task<string> AddFileAsync(string sourcePath, CancellationToken cancellationToken = default)
     {
         var destination = NextPath(Path.GetFileName(sourcePath));
@@ -40,7 +43,10 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
     }
 
     /// <summary>データをファイルとして添付する</summary>
-    /// <remarks>保存先のパスを返す。</remarks>
+    /// <param name="content">ファイルの内容</param>
+    /// <param name="fileName">保存するファイル名</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存先のパス</returns>
     public async Task<string> AddAsync(byte[] content, string fileName, CancellationToken cancellationToken = default)
     {
         var destination = NextPath(fileName);
@@ -49,6 +55,7 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
     }
 
     /// <summary>添付を取り除く</summary>
+    /// <param name="filePath">取り除く添付ファイルのパス</param>
     /// <remarks>セッションに何も残らなければフォルダごと削除する。</remarks>
     public void Remove(string filePath)
     {
@@ -77,6 +84,8 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
     }
 
     /// <summary>次に保存するファイルのパスを決める</summary>
+    /// <param name="fileName">元のファイル名</param>
+    /// <returns>連番を付けた保存先のパス</returns>
     private string NextPath(string fileName)
     {
         if (_session is null)
@@ -123,6 +132,7 @@ public sealed class AttachmentStore(TimeProvider timeProvider) : IDisposable
     }
 
     /// <summary>フォルダを削除する</summary>
+    /// <param name="directory">削除するフォルダ</param>
     /// <remarks>失敗しても無視する。</remarks>
     private static void TryDeleteDirectory(string directory)
     {

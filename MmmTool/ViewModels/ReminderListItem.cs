@@ -4,6 +4,7 @@ using MmmTool.Core.Services;
 namespace MmmTool.ViewModels;
 
 /// <summary>リマインダー一覧の 1 行</summary>
+/// <param name="source">元のリマインダー</param>
 /// <remarks>表示用の文字列を持つ。一覧は変更があるたびに作り直すので、値は変わらない。</remarks>
 public sealed class ReminderListItem(Reminder source)
 {

@@ -194,6 +194,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
     }
 
     /// <summary>シェルのプロセスを擬似コンソールに接続して起動する</summary>
+    /// <returns>起動したプロセスのハンドル</returns>
     private unsafe SafeWaitHandle StartProcess()
     {
         nint size = 0;
@@ -244,6 +245,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
     }
 
     /// <summary>シェルの出力を読み続けて通知する（パイプが閉じるまで）</summary>
+    /// <param name="output">シェルからの出力パイプ</param>
     private void ReadLoop(FileStream output)
     {
         var buffer = new byte[16 * 1024];
@@ -270,6 +272,9 @@ public sealed class PseudoConsoleSession : ITerminalSession
     }
 
     /// <summary>列数・行数から端末サイズの構造体を作る</summary>
+    /// <param name="columns">端末の桁数</param>
+    /// <param name="rows">端末の行数</param>
+    /// <returns>端末サイズ</returns>
     private static COORD ToCoord(int columns, int rows)
         => new() { X = (short)Math.Clamp(columns, 1, short.MaxValue), Y = (short)Math.Clamp(rows, 1, short.MaxValue) };
 
@@ -277,6 +282,7 @@ public sealed class PseudoConsoleSession : ITerminalSession
     private sealed class ProcessWaitHandle : WaitHandle
     {
         /// <summary>ハンドルを借りて待機用にする</summary>
+        /// <param name="handle">プロセスのハンドル</param>
         public ProcessWaitHandle(SafeWaitHandle handle)
         {
             // 待機用に借りるだけで、ハンドルの所有はセッション側

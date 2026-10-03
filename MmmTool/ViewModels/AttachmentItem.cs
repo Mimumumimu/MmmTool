@@ -3,6 +3,8 @@ namespace MmmTool.ViewModels;
 /// <summary>
 /// 送信欄に添付したファイル 1 件。
 /// </summary>
+/// <param name="filePath">一時保存先の絶対パス</param>
+/// <param name="displayName">表示名（元のファイル名）</param>
 public sealed class AttachmentItem(string filePath, string displayName)
 {
     /// <summary>画像として扱う拡張子</summary>

@@ -30,6 +30,9 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     private int _version;
 
     /// <summary>ViewModel を作る</summary>
+    /// <param name="reminders">リマインダーの読み書き</param>
+    /// <param name="dialogs">ダイアログを開く</param>
+    /// <param name="time">現在時刻の提供元</param>
     public ReminderListViewModel(ReminderService reminders, IDialogService dialogs, TimeProvider time)
     {
         _reminders = reminders;
@@ -60,6 +63,7 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     public bool HasError => ErrorMessage is not null;
 
     /// <summary>最初の読み込み</summary>
+    /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。</remarks>
     public async Task InitializeAsync()
     {
@@ -71,16 +75,21 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     public void Dispose() => _reminders.Changed -= OnRemindersChanged;
 
     /// <summary>「削除済みを表示」が変わったら読み直す</summary>
+    /// <param name="value">変更後の「削除済みを表示」</param>
     partial void OnShowDeletedChanged(bool value) => _ = RefreshAsync();
 
     /// <summary>「過去の予定を表示」が変わったら読み直す</summary>
+    /// <param name="value">変更後の「過去の予定を表示」</param>
     partial void OnShowPastChanged(bool value) => _ = RefreshAsync();
 
     /// <summary>新規追加（入力画面を開く）</summary>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task AddAsync() => _dialogs.ShowReminderInputAsync(null);
 
     /// <summary>編集（入力画面を開く）</summary>
+    /// <param name="item">編集する行</param>
+    /// <returns>編集の完了を表すタスク</returns>
     /// <remarks>論理削除済みは、保存すると削除が取り消されることを確認してから開く。</remarks>
     [RelayCommand]
     private async Task EditAsync(ReminderListItem item)
@@ -94,16 +103,22 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>コピーして新規追加（入力画面を開く）</summary>
+    /// <param name="item">コピー元の行</param>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     /// <remarks>日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ。連番・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
     [RelayCommand]
     private Task CopyAsNewAsync(ReminderListItem item)
         => _dialogs.ShowReminderInputAsync(item.Source with { Seq = 0, No = 0, IsDeleted = false });
 
     /// <summary>削除（論理削除）</summary>
+    /// <param name="item">削除する行</param>
+    /// <returns>削除の完了を表すタスク</returns>
     [RelayCommand]
     private Task DeleteAsync(ReminderListItem item) => RunAsync(() => _reminders.DeleteAsync(item.Source.Seq));
 
     /// <summary>完全削除（物理削除）</summary>
+    /// <param name="item">完全削除する行</param>
+    /// <returns>完全削除の完了を表すタスク</returns>
     /// <remarks>元に戻せないので確認してから。</remarks>
     [RelayCommand]
     private async Task PurgeAsync(ReminderListItem item)
@@ -115,6 +130,8 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>保存を伴う操作を行い、失敗したらエラーに出す</summary>
+    /// <param name="action">行う操作</param>
+    /// <returns>操作の完了を表すタスク</returns>
     private async Task RunAsync(Func<Task> action)
     {
         try
@@ -129,6 +146,8 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>保存内容が変わったら、UI スレッドで読み直す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>任意のスレッドから来る。</remarks>
     private void OnRemindersChanged(object? sender, EventArgs e)
     {
@@ -143,6 +162,7 @@ public sealed partial class ReminderListViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>一覧を読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
     /// <remarks>変わった行だけを差し替える（全部を作り直すとスクロール位置が先頭へ戻るため）。</remarks>
     private async Task RefreshAsync()
     {

@@ -26,6 +26,7 @@ public static class CliCommandDefaults
     }
 
     /// <summary>既定の定型コマンドを作る</summary>
+    /// <returns>既定の定型コマンド</returns>
     public static CliCommandSet Create() => new()
     {
         Terminal =
@@ -63,10 +64,18 @@ public static class CliCommandDefaults
     };
 
     /// <summary>フォルダ（子を持つノード）を作る</summary>
+    /// <param name="label">表示名</param>
+    /// <param name="children">子要素</param>
+    /// <returns>フォルダのノード</returns>
     private static CliCommandNode Group(string label, params CliCommandNode[] children)
         => new() { Label = label, Children = [.. children] };
 
     /// <summary>コマンド（葉）を作る</summary>
+    /// <param name="label">表示名</param>
+    /// <param name="command">ターミナルへ送るコマンド文字列</param>
+    /// <param name="switchTo">送信後に切り替えるタブ。切り替えないなら null</param>
+    /// <param name="focus">送信後にフォーカスを移す先。移さないなら null</param>
+    /// <returns>コマンドのノード</returns>
     private static CliCommandNode Leaf(string label, string command, string? switchTo = null, string? focus = null)
         => new() { Label = label, Command = command, SwitchTo = switchTo, Focus = focus };
 }

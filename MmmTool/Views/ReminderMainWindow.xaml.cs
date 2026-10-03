@@ -33,6 +33,7 @@ public sealed partial class ReminderMainWindow : Window
     public ReminderMainViewModel ViewModel { get; }
 
     /// <summary>ウィンドウを作る</summary>
+    /// <param name="viewModel">ウィンドウの ViewModel</param>
     public ReminderMainWindow(ReminderMainViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -45,6 +46,7 @@ public sealed partial class ReminderMainWindow : Window
     }
 
     /// <summary>読み込んでから、主モニターの作業領域の中央に表示する</summary>
+    /// <returns>読み込みと表示の完了を表すタスク</returns>
     public async Task ShowAsync()
     {
         // 空の画面が一瞬見えないよう、読み込んでから出す
@@ -90,6 +92,8 @@ public sealed partial class ReminderMainWindow : Window
     private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x16, 0xA3, 0x4A));
 
     /// <summary>状態の色（未＝グレー / スヌーズ＝アンバー / 完了＝グリーン）</summary>
+    /// <param name="status">対応状態</param>
+    /// <returns>状態を表すブラシ</returns>
     /// <remarks>ライト・ダークのどちらでも見分けやすい不透明の固定色。</remarks>
     public static Brush StatusBrush(ReminderStatus status) => status switch
     {
@@ -99,12 +103,18 @@ public sealed partial class ReminderMainWindow : Window
     };
 
     /// <summary>完了の件名は淡くする</summary>
+    /// <param name="isDone">完了か</param>
+    /// <returns>件名の不透明度</returns>
     public static double DoneOpacity(bool isDone) => isDone ? 0.5 : 1.0;
 
     /// <summary>完了の件名は取り消し線を引く</summary>
+    /// <param name="isDone">完了か</param>
+    /// <returns>文字の装飾</returns>
     public static TextDecorations Strike(bool isDone) => isDone ? TextDecorations.Strikethrough : TextDecorations.None;
 
     /// <summary>件名を押したら、リンクがあれば開く</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">タップの情報</param>
     private async void OnTitleTapped(object sender, TappedRoutedEventArgs e)
     {
         var item = ItemOf(sender);
@@ -115,18 +125,28 @@ public sealed partial class ReminderMainWindow : Window
     }
 
     /// <summary>メニュー「リンクを開く」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnOpenLinkClick(object sender, RoutedEventArgs e) => await ViewModel.OpenLinkCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>メニュー「編集」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnEditClick(object sender, RoutedEventArgs e) => await ViewModel.EditCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>メニュー「削除」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>エラーを閉じたら消す（同じエラーがまた起きたときに出し直せるように）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">閉じたイベントの情報</param>
     private void OnErrorCloseClick(InfoBar sender, object args) => ViewModel.ErrorMessage = null;
 
     /// <summary>押された要素の行</summary>
+    /// <param name="sender">メニュー項目</param>
+    /// <returns>メニュー項目の行</returns>
     /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は Tag に入れてある。</remarks>
     private static ReminderTodayItem ItemOf(object sender) => (ReminderTodayItem)((FrameworkElement)sender).Tag;
 }

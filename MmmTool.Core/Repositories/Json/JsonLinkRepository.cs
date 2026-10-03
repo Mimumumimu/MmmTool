@@ -5,6 +5,7 @@ using MmmTool.Core.Entities;
 namespace MmmTool.Core.Repositories.Json;
 
 /// <summary>リンクメニューを JSON ファイルに保存する</summary>
+/// <param name="store">JSON ファイルの読み書き</param>
 public sealed class JsonLinkRepository(JsonFileStore store) : ILinkRepository
 {
     /// <summary>保存先のファイル名</summary>
@@ -28,6 +29,8 @@ public sealed class JsonLinkRepository(JsonFileStore store) : ILinkRepository
     }
 
     /// <summary>空の構成を作って保存する</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存した空の構成</returns>
     /// <remarks>手で書き始めるときの雛形として、空の構成をファイルに出しておく。</remarks>
     private async Task<LinkMenu> WriteEmptyAsync(CancellationToken cancellationToken)
     {

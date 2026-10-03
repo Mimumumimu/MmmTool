@@ -7,6 +7,8 @@ namespace MmmTool.Services.Tray;
 /// <summary>
 /// トレイメニューの「リンク」。リンク編集ページで保存した構成を階層メニューにする。
 /// </summary>
+/// <param name="links">リンクメニューの構成</param>
+/// <param name="opener">パスを開く処理</param>
 public sealed class LinkTrayMenuSource(LinkMenuService links, PathOpener opener) : ITrayMenuSource
 {
     /// <inheritdoc />
@@ -24,6 +26,8 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, PathOpener opener)
     /// <summary>
     /// 子要素があればサブメニュー、名前が「-」なら区切り線、パスがあれば開く項目、どれでもなければ押せない項目にする。
     /// </summary>
+    /// <param name="node">リンクメニューの要素</param>
+    /// <returns>トレイメニューの項目</returns>
     /// <remarks>中身が空のフォルダも、開く先が無いので押せない項目として出す。</remarks>
     private TrayMenuItem ToMenuItem(LinkNode node)
     {

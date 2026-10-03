@@ -19,6 +19,7 @@ public sealed partial class CliAssistPage : Page
     public CliAssistViewModel ViewModel { get; }
 
     /// <summary>ページを作る</summary>
+    /// <param name="viewModel">ページの ViewModel</param>
     public CliAssistPage(CliAssistViewModel viewModel)
     {
         ViewModel = viewModel;
@@ -49,6 +50,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>フォーカスの移動を求められたら、移す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="target">フォーカスを移す先</param>
     private void OnFocusRequested(object? sender, FocusTarget target)
     {
         // クリックしたツリーが自分にフォーカスを取り終えてから移す（すぐ移すとツリーに取り返される）
@@ -68,6 +71,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>読み込み時の処理（入力欄の高さ調整と ViewModel の初期化）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         FitInputBoxToThreeLines();
@@ -94,6 +99,8 @@ public sealed partial class CliAssistPage : Page
     #region 定型コマンド
 
     /// <summary>タブが選ばれたら、ViewModel に反映する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">選択の変更の情報</param>
     private void OnCategorySelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         => ViewModel.SelectedCategory = sender.SelectedItem == SessionCategoryItem ? CommandCategory.Session : CommandCategory.Terminal;
 
@@ -109,6 +116,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>ViewModel の要素から、ツリーのノードを作る（子も展開した状態）</summary>
+    /// <param name="item">ツリーの要素</param>
+    /// <returns>ツリーのノード</returns>
     private static TreeViewNode CreateNode(CommandTreeItem item)
     {
         var node = new TreeViewNode { Content = item, IsExpanded = true };
@@ -120,6 +129,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>ツリーを横にもスクロールできるようにする。</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>TreeView は既定で横スクロールが無効（長い名前は右が切れる）。テンプレート内の ScrollViewer に直接設定する。</remarks>
     private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
@@ -131,6 +142,9 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>子孫から、指定の型の要素を探す</summary>
+    /// <typeparam name="T">探す要素の型</typeparam>
+    /// <param name="parent">探し始める要素</param>
+    /// <returns>見つかった要素。無ければ null</returns>
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
@@ -145,6 +159,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>ツリーの項目が選ばれたら、コマンドを実行する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">選ばれた項目の情報</param>
     private void OnCommandTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
         // 手作りのノードでは、InvokedItem はノード自身で、データはその Content にある
@@ -162,6 +178,8 @@ public sealed partial class CliAssistPage : Page
     #region 送信欄
 
     /// <summary>入力欄で Ctrl+Enter が押されたら、送信する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">キー入力の情報</param>
     private void OnInputPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         // Ctrl+Enter で送信（Enter だけなら改行）
@@ -177,6 +195,8 @@ public sealed partial class CliAssistPage : Page
     private bool _imeInitialized;
 
     /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする（日本語をすぐ打てるように）</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     /// <remarks>以降はユーザーの切り替えを尊重する。</remarks>
     private void OnInputGotFocus(object sender, RoutedEventArgs e)
     {
@@ -186,6 +206,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">貼り付けの情報</param>
     private async void OnInputPaste(object sender, TextControlPasteEventArgs e)
     {
         var content = Clipboard.GetContent();
@@ -210,6 +232,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>ドラッグ中、ファイルなら添付できると示す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ドラッグの情報</param>
     private void OnComposerDragOver(object sender, DragEventArgs e)
     {
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -220,6 +244,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>ドロップされたファイルを添付する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ドロップの情報</param>
     private async void OnComposerDrop(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -232,6 +258,8 @@ public sealed partial class CliAssistPage : Page
     }
 
     /// <summary>添付の削除ボタンが押されたときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnRemoveAttachmentClick(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is AttachmentItem item)
@@ -245,9 +273,13 @@ public sealed partial class CliAssistPage : Page
     #region 送信履歴
 
     /// <summary>履歴の一覧が開くときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
     private void OnHistoryFlyoutOpening(object sender, object e) => ViewModel.PrepareHistory();
 
     /// <summary>履歴の項目が選ばれたら、入力欄に戻す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">クリックされた項目の情報</param>
     private void OnHistoryItemClick(object sender, ItemClickEventArgs e)
     {
         ViewModel.RestoreHistory((SendHistoryItem)e.ClickedItem);

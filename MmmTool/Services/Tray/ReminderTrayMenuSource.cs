@@ -3,6 +3,7 @@ namespace MmmTool.Services.Tray;
 /// <summary>
 /// トレイメニューの「リマインダー」。押すとリマインダーのメイン画面を開く。
 /// </summary>
+/// <param name="windows">リマインダーのメイン画面を開くサービス</param>
 public sealed class ReminderTrayMenuSource(ReminderWindowService windows) : ITrayMenuSource
 {
     /// <inheritdoc />

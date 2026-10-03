@@ -6,6 +6,7 @@ using MmmTool.Core.Services;
 namespace MmmTool.Core.Repositories.Json;
 
 /// <summary>定型コマンドを JSON ファイルに保存する</summary>
+/// <param name="store">JSON ファイルの読み書き</param>
 public sealed class JsonCliCommandRepository(JsonFileStore store) : ICliCommandRepository
 {
     /// <summary>保存先のファイル名</summary>
@@ -33,6 +34,8 @@ public sealed class JsonCliCommandRepository(JsonFileStore store) : ICliCommandR
     }
 
     /// <summary>既定の定型コマンドを作って保存する</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存した既定の定型コマンド</returns>
     private async Task<CliCommandSet> WriteDefaultsAsync(CancellationToken cancellationToken)
     {
         var defaults = CliCommandDefaults.Create();
