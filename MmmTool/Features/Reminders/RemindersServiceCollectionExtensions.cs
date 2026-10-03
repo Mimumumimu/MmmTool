@@ -2,6 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Tray;
 using MmmTool.Core.Reminders;
 using MmmTool.Core.Reminders.Json;
+using MmmTool.Features.Reminders.Input;
+using MmmTool.Features.Reminders.List;
+using MmmTool.Features.Reminders.Main;
 using MmmTool.Shell;
 
 namespace MmmTool.Features.Reminders;

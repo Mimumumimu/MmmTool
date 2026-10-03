@@ -8,8 +8,8 @@ public static class CliCommandDefaults
     /// <summary>switchTo（切り替え先のタブ）の値</summary>
     private static class Tab
     {
-        /// <summary>ターミナルのタブ</summary>
-        public const string Terminal = "terminal";
+        /// <summary>シェルのタブ</summary>
+        public const string Shell = "shell";
         /// <summary>AI セッションのタブ</summary>
         public const string Session = "session";
     }
@@ -27,7 +27,7 @@ public static class CliCommandDefaults
     /// <returns>既定の定型コマンド</returns>
     public static CliCommandSet Create() => new()
     {
-        Terminal =
+        Shell =
         [
             Group("Claude Code",
                 // 起動したら、以降はセッション内のコマンドを使うので AI セッションのタブへ切り替え、すぐ指示を書けるよう送信欄へ
@@ -52,8 +52,8 @@ public static class CliCommandDefaults
                 Leaf("モデル切替", "/model", focus: Focus.Terminal),
                 Leaf("会話履歴と再開", "/resume", focus: Focus.Terminal),
                 Leaf("コスト確認", "/cost", focus: Focus.Terminal),
-                // 終了したらシェルに戻るので、ターミナルのタブへ切り替える
-                Leaf("終了", "/exit", switchTo: Tab.Terminal)),
+                // 終了したらシェルに戻るので、シェルのタブへ切り替える
+                Leaf("終了", "/exit", switchTo: Tab.Shell)),
         ],
     };
 

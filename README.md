@@ -18,7 +18,7 @@ MmmTool は、開発作業を補助する常駐型の WinUI 3 デスクトップ
 ### CLI補助
 
 - アプリ内のターミナル（ConPTY + xterm.js）。シェルは PowerShell 7（`pwsh.exe`）があればそれ、無ければ Windows PowerShell
-- 定型コマンドのツリー（「ターミナル」/「AI セッション」の 2 タブ）。クリックでターミナルへ送信
+- 定型コマンドのツリー（「シェル」/「AI セッション」の 2 タブ）。クリックでターミナルへ送信
 - 作業ディレクトリの変更ダイアログ（最近使ったフォルダの履歴 20 件）
 - 下部の送信欄から複数行のテキストを一括送信（Ctrl+Enter）
 - 送信履歴（起動中のみ・50 件。絞り込み可）
@@ -124,7 +124,7 @@ dotnet build .\MmmTool.slnx -p:Platform=x64
 dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
 ```
 
-発行プロファイル `MmmTool/Properties/PublishProfiles/win-x64.pubxml` の設定で、`MmmTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/` に出力されます。このフォルダをそのままコピーして配布します（インストーラーはありません）。
+発行したファイルは `MmmTool/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/` に出力されます。このフォルダをそのままコピーして配布します（インストーラーはありません）。
 
 ## データ保存場所
 
@@ -149,11 +149,11 @@ dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
 
 ### 定型コマンドの書き方
 
-`Data/CliCommands.json` は `terminal`（シェルで打つコマンド）と `session`（AI エージェントのセッション内で打つコマンド）の 2 つのツリーです。`children` を持つ項目はフォルダー、`command` を持つ項目はクリックで送信するコマンドになります。
+`Data/CliCommands.json` は `shell`（シェルで打つコマンド）と `session`（AI エージェントのセッション内で打つコマンド）の 2 つのツリーです。`children` を持つ項目はフォルダー、`command` を持つ項目はクリックで送信するコマンドになります。
 
 ```json
 {
-  "terminal": [
+  "shell": [
     {
       "label": "Claude Code",
       "children": [
@@ -165,7 +165,7 @@ dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
 }
 ```
 
-- `switchTo` … 送信後に切り替えるタブ（`"terminal"` / `"session"`）。省略すると切り替えません
+- `switchTo` … 送信後に切り替えるタブ（`"shell"` / `"session"`）。省略すると切り替えません
 - `focus` … 送信後のフォーカスの移動先（`"terminal"` / `"input"`＝送信欄）。省略すると移しません
 - コマンド中の `{AppDir}` は、送信時に EXE のあるフォルダーに置き換わります
 

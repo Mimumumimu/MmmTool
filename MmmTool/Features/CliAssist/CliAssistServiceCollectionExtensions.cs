@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
+using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Features.CliAssist.Terminal;
+using MmmTool.Features.CliAssist.WorkingDirectory;
 using MmmTool.Shell;
 
 namespace MmmTool.Features.CliAssist;

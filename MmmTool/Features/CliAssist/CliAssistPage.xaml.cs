@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using MmmSdk.WinUI.VisualTree;
 using MmmTool.Core.CliAssist;
+using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Interop;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -40,7 +41,7 @@ public sealed partial class CliAssistPage : Page
                     // コマンドの実行などでタブが切り替わったら、タブの見た目も合わせる
                     CategorySelector.SelectedItem = ViewModel.SelectedCategory == CommandCategory.Session
                         ? SessionCategoryItem
-                        : TerminalCategoryItem;
+                        : ShellCategoryItem;
                     break;
             }
         };
@@ -102,7 +103,7 @@ public sealed partial class CliAssistPage : Page
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
     private void OnCategorySelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
-        => ViewModel.SelectedCategory = sender.SelectedItem == SessionCategoryItem ? CommandCategory.Session : CommandCategory.Terminal;
+        => ViewModel.SelectedCategory = sender.SelectedItem == SessionCategoryItem ? CommandCategory.Session : CommandCategory.Shell;
 
     /// <summary>ツリーのノードを作り直す</summary>
     /// <remarks>すべてのノードを最初から展開した状態にする。</remarks>
