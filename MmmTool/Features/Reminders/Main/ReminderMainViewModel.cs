@@ -10,7 +10,7 @@ namespace MmmTool.Features.Reminders.Main;
 /// <remarks>
 /// 未対応（未・スヌーズ）を <see cref="Pending"/>、完了を <see cref="Done"/> に分け、どちらも時刻 → 参照番号の順に並べる。
 /// 保存内容が変わったら（<see cref="ReminderService.Changed"/>）読み直し、日付が変わったら新しい日の対象に切り替える。
-/// UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。画面を閉じたら <see cref="Dispose"/> する。
+/// UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> する。
 /// </remarks>
 public sealed partial class ReminderMainViewModel : ReminderViewModelBase
 {
