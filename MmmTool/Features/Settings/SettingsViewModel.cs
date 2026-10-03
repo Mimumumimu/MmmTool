@@ -13,10 +13,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string Title => "設定";
 
     /// <summary>スヌーズ間隔の下限（分）</summary>
-    public double SnoozeIntervalMin => ReminderMonitor.MinSnoozeInterval;
+    public double SnoozeIntervalMin => ReminderSettingsService.MinSnoozeInterval;
 
     /// <summary>スヌーズ間隔の上限（分）</summary>
-    public double SnoozeIntervalMax => ReminderMonitor.MaxSnoozeInterval;
+    public double SnoozeIntervalMax => ReminderSettingsService.MaxSnoozeInterval;
 
     /// <summary>リマインダーのスヌーズ再通知間隔（分）</summary>
     /// <remarks>変わったら即保存する。範囲外・空は下限・上限に収めて画面にも反映する。</remarks>
@@ -36,8 +36,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnSnoozeIntervalMinutesChanged(double value)
     {
         // NumberBox は空にすると NaN になる
-        var minutes = double.IsNaN(value) ? ReminderMonitor.DefaultSnoozeInterval : (int)Math.Round(value);
-        var clamped = Math.Clamp(minutes, ReminderMonitor.MinSnoozeInterval, ReminderMonitor.MaxSnoozeInterval);
+        var minutes = double.IsNaN(value) ? ReminderSettingsService.DefaultSnoozeInterval : (int)Math.Round(value);
+        var clamped = ReminderSettingsService.ClampSnoozeInterval(minutes);
         if (clamped != value)
         {
             SnoozeIntervalMinutes = clamped;
