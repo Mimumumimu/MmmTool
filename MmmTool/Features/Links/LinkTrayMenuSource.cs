@@ -1,4 +1,5 @@
 using MmmSdk.Core.Paths;
+using MmmSdk.WinUI.Notifications;
 using MmmSdk.WinUI.Tray;
 using MmmTool.Core.Links;
 
@@ -9,7 +10,8 @@ namespace MmmTool.Features.Links;
 /// </summary>
 /// <param name="links">リンクメニューの構成</param>
 /// <param name="opener">パスを開く処理</param>
-public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener) : ITrayMenuSource
+/// <param name="notifications">通知ダイアログの表示（リンクを開けなかったことを知らせる）</param>
+public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener, INotificationDialogService notifications) : ITrayMenuSource
 {
     /// <inheritdoc />
     public IReadOnlyList<TrayMenuItem> GetItems()
@@ -21,6 +23,23 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
                 : [TrayMenuItem.Disabled("リンクはまだありません")];
 
         return [TrayMenuItem.Submenu("リンク", children)];
+    }
+
+    /// <summary>リンクを開く</summary>
+    /// <param name="name">リンクの表示名</param>
+    /// <param name="path">開くパス</param>
+    /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>パスが存在しない・開けない（<see cref="PathOpenException"/>）ときは、通知ダイアログで知らせる。それ以外の失敗は、バグとして、アプリの安全網が受ける。</remarks>
+    private async Task OpenAsync(string name, string path)
+    {
+        try
+        {
+            await opener.OpenAsync(path);
+        }
+        catch (PathOpenException ex)
+        {
+            notifications.Show($"リンクを開けません: {name}", ex.Message);
+        }
     }
 
     /// <summary>
@@ -42,7 +61,7 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
         if (node.ResolveKind() == LinkNodeKind.Link && !string.IsNullOrWhiteSpace(node.Path))
         {
             var path = node.Path;
-            return TrayMenuItem.Command(node.Name, () => opener.OpenAsync(path));
+            return TrayMenuItem.Command(node.Name, () => OpenAsync(node.Name, path));
         }
         return TrayMenuItem.Disabled(node.Name);
     }
