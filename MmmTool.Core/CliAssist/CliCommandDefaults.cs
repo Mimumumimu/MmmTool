@@ -47,10 +47,6 @@ public static class CliCommandDefaults
                     Leaf("新規チャット", "/clear", focus: Focus.Input),
                     Leaf("読み込みファイル一覧", "/context"),
                     Leaf("会話要約（コンテキスト圧縮）", "/compact"),
-                    // 粒度は引数で指定する（medium は指摘を絞る、high は広く拾う）
-                    Group("コードレビュー",
-                        Leaf("標準", "/code-review medium"),
-                        Leaf("詳細", "/code-review high")),
                     Leaf("CLAUDE.md を作成", "/init")),
                 // 一覧から選ぶ操作になるので、キー操作できるようターミナルへ
                 Leaf("モデル切替", "/model", focus: Focus.Terminal),
