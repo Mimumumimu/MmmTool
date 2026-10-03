@@ -1,8 +1,8 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using MmmSdk.WinUI.Dialogs;
 using MmmTool.Core.Reminders;
 using MmmTool.Interop;
-using MmmTool.Services;
 using Windows.Foundation;
 using Windows.Graphics;
 

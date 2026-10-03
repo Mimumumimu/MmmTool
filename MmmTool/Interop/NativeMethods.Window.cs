@@ -127,32 +127,6 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetForegroundWindow(nint hWnd);
 
-    /// <summary>オーナーウィンドウを表す <see cref="SetWindowLongPtr"/> の番号</summary>
-    private const int GWLP_HWNDPARENT = -8;
-
-    /// <summary>ウィンドウの属性を設定する</summary>
-    /// <param name="hWnd">ウィンドウのハンドル</param>
-    /// <param name="nIndex">設定する値のインデックス（<c>GWLP_*</c>）</param>
-    /// <param name="dwNewLong">新しい値</param>
-    /// <returns>設定前の値</returns>
-    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
-    private static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
-
-    /// <summary>ウィンドウのオーナー（持ち主のウィンドウ）を設定する</summary>
-    /// <param name="hWnd">ウィンドウのハンドル</param>
-    /// <param name="owner">オーナーにするウィンドウのハンドル</param>
-    /// <remarks>オーナーより常に手前に表示され、オーナーと一緒に最小化される。</remarks>
-    public static void SetOwner(nint hWnd, nint owner) => SetWindowLongPtr(hWnd, GWLP_HWNDPARENT, owner);
-
-    /// <summary>ウィンドウのマウス・キーボード入力を有効・無効にする</summary>
-    /// <param name="hWnd">ウィンドウのハンドル</param>
-    /// <param name="bEnable">有効にするなら true、無効にするなら false</param>
-    /// <returns>直前に無効だったなら true</returns>
-    /// <remarks>モーダル表示の間、親ウィンドウを操作できないようにするために使う。</remarks>
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool EnableWindow(nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool bEnable);
-
     /// <summary>ウィンドウの DPI（ウィンドウがあるモニターの DPI）</summary>
     /// <param name="hWnd">ウィンドウのハンドル</param>
     /// <returns>DPI（100% で 96）</returns>

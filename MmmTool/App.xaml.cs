@@ -2,14 +2,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
+using MmmSdk.Core.SingleInstance;
 using MmmSdk.WinUI;
+using MmmSdk.WinUI.Dialogs;
 using MmmTool.Features.CliAssist;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Links;
 using MmmTool.Features.Reminders;
 using MmmTool.Features.Settings;
 using MmmTool.Interop;
-using MmmTool.Services;
 using MmmTool.Shell;
 using MmmTool.Shell.Tray;
 
@@ -19,7 +20,7 @@ namespace MmmTool;
 public partial class App : Application
 {
     /// <summary>多重起動の防止</summary>
-    private readonly SingleInstanceGuard _instanceGuard = new();
+    private readonly SingleInstanceGuard _instanceGuard = new("MmmTool");
     /// <summary>DI・ログなどを扱う Host</summary>
     private readonly IHost _host;
     /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
@@ -51,15 +52,9 @@ public partial class App : Application
     {
         services.AddSingleton(TimeProvider.System);
 
-        // SDK（JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ）。JsonFileStore はアプリ固有の保存でも共有する
+        // SDK（JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択）。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(Path.Combine(AppContext.BaseDirectory, "Data"));
         services.AddMmmSdkWinUI();
-
-        // 機能をまたいで使う UI のサービス
-        services.AddSingleton<DialogService>();
-        services.AddSingleton<IDialogService>(provider => provider.GetRequiredService<DialogService>());
-        services.AddSingleton<IFolderPickerService, FolderPickerService>();
-        services.AddSingleton<IFilePickerService, FilePickerService>();
 
         // 画面の枠（メインウィンドウ・サイドバー・トレイ）
         services.AddShell();

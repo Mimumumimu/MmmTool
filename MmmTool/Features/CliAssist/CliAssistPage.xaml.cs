@@ -2,7 +2,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
+using MmmSdk.WinUI.VisualTree;
 using MmmTool.Core.CliAssist;
 using MmmTool.Interop;
 using Windows.ApplicationModel.DataTransfer;
@@ -134,28 +134,11 @@ public sealed partial class CliAssistPage : Page
     /// <remarks>TreeView は既定で横スクロールが無効（長い名前は右が切れる）。テンプレート内の ScrollViewer に直接設定する。</remarks>
     private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
-        if (FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)
+        if (VisualTreeSearch.FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)
         {
             scrollViewer.HorizontalScrollMode = ScrollMode.Auto;
             scrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         }
-    }
-
-    /// <summary>子孫から、指定の型の要素を探す</summary>
-    /// <typeparam name="T">探す要素の型</typeparam>
-    /// <param name="parent">探し始める要素</param>
-    /// <returns>見つかった要素。無ければ null</returns>
-    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if ((child as T ?? FindDescendant<T>(child)) is { } found)
-            {
-                return found;
-            }
-        }
-        return null;
     }
 
     /// <summary>ツリーの項目が選ばれたら、コマンドを実行する</summary>
