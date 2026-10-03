@@ -40,6 +40,19 @@ public static class ShellServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>設定ページに、機能ごとの設定の部品を登録する</summary>
+    /// <typeparam name="TControl">設定の部品（<c>UserControl</c>）の型</typeparam>
+    /// <param name="services">登録先のサービスコレクション</param>
+    /// <returns>登録先のサービスコレクション（続けて登録するため）</returns>
+    /// <remarks>部品は設定ページを開くときに DI から作る（Transient）。登録した順に並ぶ。値の読み書きと画面の状態は、その機能の ViewModel・サービスが持つ。</remarks>
+    public static IServiceCollection AddSettingsSection<TControl>(this IServiceCollection services)
+        where TControl : UserControl
+    {
+        services.AddTransient<TControl>();
+        services.AddSingleton(new SettingsSection(typeof(TControl)));
+        return services;
+    }
+
     /// <summary>起動時の準備を登録する</summary>
     /// <typeparam name="TTask">起動時の準備の型</typeparam>
     /// <param name="services">登録先のサービスコレクション</param>

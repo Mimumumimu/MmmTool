@@ -1,88 +1,27 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.Core.Storage;
-using MmmSdk.Core.Tasks;
+using MmmSdk.Core.Settings;
 using MmmSdk.WinUI.Errors;
-using MmmTool.Core.Reminders;
 
 namespace MmmTool.Features.Settings;
 
 /// <summary>設定ページの ViewModel</summary>
-public sealed partial class SettingsViewModel : ObservableObject
+/// <remarks>各機能の設定の値と画面の状態は、機能ごとの部品（<see cref="MmmTool.Shell.SettingsSection"/>）が持つ。ここは、ページ全体のこと（タイトル・設定ファイルを読めなかったときの知らせ）だけ。</remarks>
+public sealed class SettingsViewModel : ObservableObject
 {
-    /// <summary>リマインダーの設定</summary>
-    private readonly ReminderSettingsService _reminderSettings;
-
     /// <summary>ページのタイトル</summary>
     public string Title => "設定";
 
     /// <summary>画面に出すエラー（設定ファイルを読めなかったとき）</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>設定を変更できるか（設定ファイルを読めなかったときは、上書きして消さないよう、変更させない）</summary>
-    public bool IsEditable { get; }
-
-    /// <summary>スヌーズ間隔の下限（分）</summary>
-    public double SnoozeIntervalMin => ReminderSettingsService.MinSnoozeInterval;
-
-    /// <summary>スヌーズ間隔の上限（分）</summary>
-    public double SnoozeIntervalMax => ReminderSettingsService.MaxSnoozeInterval;
-
-    /// <summary>リマインダーのスヌーズ再通知間隔（分）</summary>
-    /// <remarks>変わったら即保存する。範囲外・空は下限・上限に収めて画面にも反映する。</remarks>
-    [ObservableProperty]
-    public partial double SnoozeIntervalMinutes { get; set; }
-
-    /// <summary>保存済みの値を読み込んで表示する</summary>
-    /// <param name="reminderSettings">リマインダーの設定</param>
-    public SettingsViewModel(ReminderSettingsService reminderSettings)
+    /// <summary>ページを作る</summary>
+    /// <param name="settings">汎用設定ストア</param>
+    /// <remarks>設定ファイルを読めなかったときは、各部品が上書きして消さないよう、変更を止める（部品は、そのサービスの <c>IsReadOnly</c> で入力欄を無効にする）。</remarks>
+    public SettingsViewModel(ISettingsStore settings)
     {
-        _reminderSettings = reminderSettings;
-        SnoozeIntervalMinutes = reminderSettings.SnoozeIntervalMinutes;
-        IsEditable = !reminderSettings.IsReadOnly;
-        if (reminderSettings.LoadError is { } loadError)
+        if (settings.LoadError is { } loadError)
         {
             Error.Show($"{loadError}\n設定を読み込めなかったため、変更を保存できません。");
-        }
-    }
-
-    /// <summary>値が変わったら範囲に収めて保存する</summary>
-    /// <param name="value">変更後のスヌーズ間隔（分）</param>
-    partial void OnSnoozeIntervalMinutesChanged(double value)
-    {
-        // NumberBox は空にすると NaN になる
-        var minutes = double.IsNaN(value) ? ReminderSettingsService.DefaultSnoozeInterval : (int)Math.Round(value);
-        var clamped = ReminderSettingsService.ClampSnoozeInterval(minutes);
-        if (clamped != value)
-        {
-            SnoozeIntervalMinutes = clamped;
-            return;
-        }
-        SaveSnoozeIntervalAsync(clamped).Forget();
-    }
-
-    /// <summary>スヌーズ間隔を保存する</summary>
-    /// <param name="minutes">保存するスヌーズ間隔（分）</param>
-    /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>
-    /// 保存できない状態（設定ファイルを読めなかった）では、入力欄を無効にしてあるので、ここへは来ない（来たら、保存されなかったことを知らせる）。
-    /// 保存の失敗（ロック・権限など）は、画面に出す。
-    /// </remarks>
-    private async Task SaveSnoozeIntervalAsync(int minutes)
-    {
-        try
-        {
-            if (await _reminderSettings.SetSnoozeIntervalMinutesAsync(minutes))
-            {
-                Error.Clear();
-            }
-            else
-            {
-                Error.Show("設定を読み込めなかったため、変更を保存できませんでした。");
-            }
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
         }
     }
 }
