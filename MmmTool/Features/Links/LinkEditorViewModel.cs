@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Paths;
 using MmmSdk.Core.Storage;
+using MmmSdk.Core.Tasks;
 using MmmSdk.WinUI.Dialogs;
 using MmmSdk.WinUI.Errors;
 using MmmTool.Core.Links;
@@ -38,8 +39,8 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>初期化済みか</summary>
     private bool _initialized;
 
-    /// <summary>パスの種類を調べる処理の取り消し用</summary>
-    private CancellationTokenSource? _pathCheck;
+    /// <summary>パスの種類を調べる処理の待ち合わせ（入力・選択が変わったら、前の確認を取り消す）</summary>
+    private readonly Debouncer _pathDebouncer = new(PathCheckDelay);
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="linkMenu">リンクメニューの読み書き</param>
@@ -214,30 +215,15 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>入力が止まるのを待ってから、パスの種類を調べ直す。</summary>
     private async void UpdatePathKind()
     {
-        _pathCheck?.Cancel();
-        _pathCheck = null;
-
         if (SelectedItem is not { Kind: LinkNodeKind.Link } link || string.IsNullOrWhiteSpace(link.Path))
         {
+            _pathDebouncer.Cancel();
             PathKind = PathTargetKind.Empty;
             return;
         }
 
-        var cancellation = _pathCheck = new CancellationTokenSource();
         var path = link.Path;
-        try
-        {
-            await Task.Delay(PathCheckDelay, cancellation.Token);
-            var kind = await Task.Run(() => PathTarget.Classify(path), cancellation.Token);
-            if (!cancellation.IsCancellationRequested)
-            {
-                PathKind = kind;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 次の入力・選択で調べ直す
-        }
+        await _pathDebouncer.RunAsync(() => PathTarget.Classify(path), kind => PathKind = kind);
     }
 
     /// <summary>選択中のリンクを開く</summary>

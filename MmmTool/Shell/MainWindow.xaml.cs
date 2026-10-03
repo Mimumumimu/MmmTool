@@ -62,19 +62,6 @@ public sealed partial class MainWindow : Window
     /// <remarks>トレイの「終了」から呼ぶ。</remarks>
     public void PrepareExit() => _isExiting = true;
 
-    /// <summary>トレイ・最小化から確実に戻して前面に出す</summary>
-    /// <remarks>復元 → 表示 → 前面化の順に行う。</remarks>
-    public void ShowAndActivate()
-    {
-        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
-        {
-            presenter.Restore();
-        }
-        AppWindow.Show(activateWindow: true);
-        Activate();
-        this.SetForeground();
-    }
-
     #endregion
 
     /// <summary>選択が変わったら、そのページへ移動する</summary>

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Attachments;
 using MmmSdk.Core.Shells;
 using MmmSdk.Core.Storage;
+using MmmSdk.WinUI.Attachments;
 using MmmSdk.WinUI.Errors;
 using MmmSdk.WinUI.Terminal;
 using MmmTool.Core.CliAssist;

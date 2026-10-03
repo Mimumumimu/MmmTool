@@ -4,7 +4,6 @@ using MmmSdk.Core.Storage;
 using MmmSdk.WinUI.Terminal;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
-using MmmTool.Features.CliAssist.Attachments;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 using MmmTool.Shell;
 
@@ -30,7 +29,6 @@ public static class CliAssistServiceCollectionExtensions
         services.AddSingleton(provider => new AttachmentStore("MmmTool", provider.GetRequiredService<TimeProvider>()));
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();
-        services.AddSingleton<IImageConverter, ImageConverter>();
         services.AddSingleton<IWorkingDirectoryDialogService, WorkingDirectoryDialogService>();
 
         services.AddTransient<WorkingDirectoryDialog>();

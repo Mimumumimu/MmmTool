@@ -5,7 +5,6 @@ using MmmSdk.WinUI.Windowing;
 using MmmTool.Shell;
 using Windows.Foundation;
 using Windows.Graphics;
-using Windows.UI.Text;
 
 namespace MmmTool.Features.Reminders.List;
 
@@ -69,16 +68,6 @@ public sealed partial class ReminderListWindow : Window
         _modal.Show();
         await _closed.Task;
     }
-
-    /// <summary>削除済みの行は半透明にする</summary>
-    /// <param name="isDeleted">削除済みか</param>
-    /// <returns>行の不透明度</returns>
-    public static double RowOpacity(bool isDeleted) => isDeleted ? 0.5 : 1.0;
-
-    /// <summary>削除済みの行は取り消し線を引く</summary>
-    /// <param name="isDeleted">削除済みか</param>
-    /// <returns>文字の装飾</returns>
-    public static TextDecorations Strike(bool isDeleted) => isDeleted ? TextDecorations.Strikethrough : TextDecorations.None;
 
     /// <summary>false のときだけ表示する</summary>
     /// <param name="value">表示を隠す条件</param>

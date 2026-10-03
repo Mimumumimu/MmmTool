@@ -11,7 +11,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
   - 作業ディレクトリ変更: `ShellCommands.TryChangeDirectory(Terminal.Shell, …)`。cmd でパスに `%` があると作れない（`false`）ので、移動せずにエラー表示する
   - xterm.js のファイル（`Assets/Terminal/`）は SDK の csproj が出力フォルダーへ配る。アプリの csproj には書かない
 - 作業ディレクトリ変更ダイアログ（最近使ったフォルダの履歴・フォルダ選択・存在確認）
-  - 存在確認（`Directory.Exists`）は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから（デバウンス）確認する。起動時の作業ディレクトリ（`CliSettingsService.StartDirectory`）も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
+  - 存在確認（`Directory.Exists`）は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから確認する（SDK の `Debouncer`。リンク編集のパスの種類の調べ方も同じ）。起動時の作業ディレクトリ（`CliSettingsService.StartDirectory`）も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
 
 ## 定型コマンド
 - 「シェル」と「AI セッション」の 2 タブ固定（「ターミナル」は中央のペインの名前で、タブとは別。ターミナルは「シェルのタブ」「AI セッションのタブ」のどちらのコマンドも受け取る）。最初は全部開いた状態（開閉は自由。タブを切り替えると開いた状態に戻る）
@@ -40,7 +40,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 ## 添付
 - 画像は Ctrl+V で貼り付け（JPEG に変換）。ファイルはドラッグ＆ドロップまたは貼り付け
 - `%TEMP%\MmmTool\session_日時\` に連番で保存する（SDK の `AttachmentStore`。フォルダ名はアプリ側が `"MmmTool"` を渡す）。送信後は一覧だけ空にし、ファイルは終了時に削除する（`AttachmentStore.Dispose`）。1 日より古い残りは、次回の初回添付時に削除する
-- サムネイルは `ThumbnailImage.FromFile`（ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する）
+- サムネイルは SDK の `ThumbnailImage.FromFile`（ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する）。JPEG への変換も SDK の `IImageConverter`（詳細は SDK の `docs/controls.md`）
 
 ## 補助スクリプト：会話履歴の削除
 - `Assets/Tools/Remove-ClaudeSession.ps1`：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る（`~/.claude/projects` 配下の `.jsonl` が対象）

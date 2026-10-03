@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MmmSdk.WinUI.Controls"
     xmlns:local="using:MmmTool.Features.Reminders.Main"
+    xmlns:reminders="using:MmmTool.Features.Reminders"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     Title="リマインダー">
 
@@ -77,7 +78,7 @@
                         ColumnSpacing="4"
                         CornerRadius="4"
                         IsLinkEnabled="{x:Bind HasLink, Mode=OneWay}"
-                        Opacity="{x:Bind local:ReminderMainWindow.DoneOpacity(IsDone), Mode=OneWay}"
+                        Opacity="{x:Bind reminders:ReminderRowStyle.Opacity(IsDone), Mode=OneWay}"
                         Tag="{x:Bind}"
                         Tapped="OnTitleTapped">
                         <Grid.ColumnDefinitions>
@@ -96,7 +97,7 @@
                             FontSize="13"
                             FontWeight="SemiBold"
                             Text="{x:Bind Title, Mode=OneWay}"
-                            TextDecorations="{x:Bind local:ReminderMainWindow.Strike(IsDone), Mode=OneWay}"
+                            TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDone), Mode=OneWay}"
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
                     </controls:LinkArea>

@@ -1,3 +1,5 @@
+using MmmSdk.Core.Collections;
+
 namespace MmmTool.Core.CliAssist;
 
 /// <summary>
@@ -23,12 +25,7 @@ public sealed class SendHistory
             return;
         }
 
-        _entries.RemoveAll(entry => entry.Text == text);
-        _entries.Insert(0, new SendHistoryEntry(text, sentAt));
-        if (_entries.Count > MaxCount)
-        {
-            _entries.RemoveRange(MaxCount, _entries.Count - MaxCount);
-        }
+        _entries.AddRecent(new SendHistoryEntry(text, sentAt), entry => entry.Text == text, MaxCount);
     }
 
     /// <summary>絞り込み文字列に合う履歴を返す</summary>
