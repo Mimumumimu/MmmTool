@@ -49,12 +49,11 @@ public sealed partial class LinkEditorPage : Page
 
     #region ツリー
 
-    // TreeView.SelectedItem は object 型で x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる
-
     /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
     /// <remarks>
+    /// TreeView.SelectedItem は object 型で x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。
     /// このイベントの中では sender.SelectedItem がまだ前の選択を返すので、args の追加分から取る。
     /// 追加分はクリックでの選択ならデータだが、コードから選択したときは TreeViewNode で来ることがあるので、両方から取り出す。
     /// </remarks>
