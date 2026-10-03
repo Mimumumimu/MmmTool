@@ -12,7 +12,7 @@ namespace MmmTool.Features.Reminders.List;
 /// <remarks>
 /// 並びは 日付 → 時刻 → 連番 の昇順（曜日指定は日付なしの特殊値なので日付指定の後ろに来る）。
 /// 保存内容が変わったら（<see cref="ReminderService.Changed"/>）一覧を読み直す。UI スレッドで作ること（変更の通知を作ったスレッドへ戻して反映するため）。
-/// 画面を閉じたら <see cref="Dispose"/> で購読をやめる。
+/// 画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> で購読をやめる。
 /// </remarks>
 public sealed partial class ReminderListViewModel : ReminderViewModelBase
 {
