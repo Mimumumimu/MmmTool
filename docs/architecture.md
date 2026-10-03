@@ -72,7 +72,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - ロックは `System.Threading.Lock`
 - 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは SDK の `ThumbnailImage.FromFile`、完了・削除済みの見た目は `Features/Reminders/ReminderRowStyle`）
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`（TwoWay）と `Message` に結び付ける（閉じる処理は書かない）。ファイルの読み込み結果は SDK の `LoadStatus` で持つ
-- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）
+- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）。アプリの名前・Data / Logs フォルダー・トレイのクラス名は `Shell/AppInfo` の 1 か所（多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う）
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格（保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化）を `Features/Reminders/ReminderViewModelBase` に持つ
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
 - ターミナルの後始末（SDK の `PseudoConsoleSession` の `Dispose`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため
