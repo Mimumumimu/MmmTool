@@ -1,5 +1,5 @@
 using MmmSdk.Core.Notifications;
-using MmmSdk.Core.Settings;
+using MmmSdk.Core.Scheduling;
 using MmmSdk.Core.Storage;
 
 namespace MmmTool.Core.Reminders;
@@ -8,14 +8,14 @@ namespace MmmTool.Core.Reminders;
 /// リマインダーの時刻監視。発動時刻を過ぎた未対応・スヌーズのリマインダーを通知する。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="reminders">リマインダーの読み書き</param>
-/// <param name="settings">汎用設定ストア</param>
+/// <param name="settings">リマインダー用の設定（スヌーズの再通知間隔）</param>
 /// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する
-/// （固定間隔ではなく、次の 00 秒までの残り時間をその都度計算する単発タイマーの掛け直し）。
+/// （タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/>。ここはそれらをつなぎ、スヌーズの通知時刻を覚える）。
 /// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる（通知 UI に依存しないため）。
 /// </remarks>
-public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore settings, TimeProvider timeProvider) : IDisposable
+public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, TimeProvider timeProvider) : IDisposable
 {
     /// <summary>通知のタイトル</summary>
     private const string NotificationTitle = "リマインダー";
@@ -23,15 +23,11 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
     /// <summary>状態を守るロック</summary>
     private readonly Lock _gate = new();
 
-    /// <summary>判定のタイマー。開始前・破棄後は null</summary>
-    private ITimer? _timer;
+    /// <summary>毎分 00 秒の呼び出し</summary>
+    private readonly MinuteScheduler _scheduler = new(timeProvider);
 
     /// <summary>通知を表示するコールバック</summary>
     private Action<string, IReadOnlyList<NotificationItem>>? _notify;
-
-    /// <summary>最後に判定した分（秒以下を切り捨てた時刻）</summary>
-    /// <remarks>タイマーが 00 秒より少し早く来たときに、同じ分を 2 回判定しないために使う。</remarks>
-    private DateTime? _lastCheckedMinute;
 
     /// <summary>前回スヌーズ分を通知した分（秒以下を切り捨てた時刻）。まだ無ければ null</summary>
     /// <remarks>スヌーズの再通知間隔は、リマインダーごとではなくモニター全体でこの時刻から数える。メモリ上だけに持つ。</remarks>
@@ -48,103 +44,14 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_timer is not null)
+            if (_notify is not null)
             {
                 throw new InvalidOperationException("リマインダーの監視はすでに開始しています。");
             }
-
             _notify = notify;
-            // 1 回目の判定が掛け直しで _timer を使うので、代入してから動かす
-            _timer = timeProvider.CreateTimer(_ => OnTick(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-        }
-    }
-
-    /// <summary>タイマーが来たら判定して、次の 00 秒に掛け直す</summary>
-    /// <remarks>判定中の想定外の例外は握りつぶさない（async void なのでアプリの未処理例外になる）。</remarks>
-    private async void OnTick()
-    {
-        try
-        {
-            await CheckAsync();
-        }
-        finally
-        {
-            ScheduleNext();
-        }
-    }
-
-    /// <summary>次の 00 秒にタイマーを掛け直す</summary>
-    private void ScheduleNext()
-    {
-        lock (_gate)
-        {
-            if (_disposed || _timer is null)
-            {
-                return;
-            }
-
-            var now = timeProvider.GetLocalNow().DateTime;
-            var next = TruncateToMinute(now).AddMinutes(1);
-            _timer.Change(next - now, Timeout.InfiniteTimeSpan);
-        }
-    }
-
-    /// <summary>今の分の発動対象を判定して、あれば通知する</summary>
-    /// <returns>判定の完了を表すタスク</returns>
-    private async Task CheckAsync()
-    {
-        var now = timeProvider.GetLocalNow().DateTime;
-        var minute = TruncateToMinute(now);
-        lock (_gate)
-        {
-            // 00 秒より少し早く来たときは、まだ前の分なので判定しない（次の掛け直しで 00 秒過ぎに来る）
-            if (_lastCheckedMinute == minute)
-            {
-                return;
-            }
-            _lastCheckedMinute = minute;
         }
 
-        var targets = await GetTriggeredAsync(now);
-        if (targets.Count == 0)
-        {
-            return;
-        }
-
-        Action<string, IReadOnlyList<NotificationItem>>? notify;
-        List<NotificationItem> items = [];
-        lock (_gate)
-        {
-            var interval = ReminderSettingsService.ClampSnoozeInterval(settings.Get(ReminderSettingsService.SnoozeIntervalKey, ReminderSettingsService.DefaultSnoozeInterval));
-            var snoozeDue = _lastSnoozeNotifiedMinute is not { } last || (minute - last).TotalMinutes >= interval;
-            var includesSnooze = false;
-
-            foreach (var (reminder, status) in targets)
-            {
-                switch (status)
-                {
-                    case ReminderStatus.None:
-                        items.Add(ToItem(reminder));
-                        break;
-                    case ReminderStatus.Snooze when snoozeDue:
-                        items.Add(ToItem(reminder));
-                        includesSnooze = true;
-                        break;
-                }
-            }
-
-            if (includesSnooze)
-            {
-                _lastSnoozeNotifiedMinute = minute;
-            }
-            notify = _disposed ? null : _notify;
-        }
-
-        if (items.Count > 0)
-        {
-            notify?.Invoke(NotificationTitle, items);
-        }
+        _scheduler.Start(CheckAsync);
     }
 
     /// <summary>発動済みで未対応のリマインダーを、今日のスヌーズにする</summary>
@@ -167,30 +74,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
 
         lock (_gate)
         {
-            _lastSnoozeNotifiedMinute = TruncateToMinute(now);
+            _lastSnoozeNotifiedMinute = MinuteScheduler.TruncateToMinute(now);
         }
     }
-
-    /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）と、その対応状態</summary>
-    /// <param name="now">現在の日時</param>
-    /// <returns>発動済みのリマインダーと今日の対応状態（今日の対象の組み立ては <see cref="ReminderService.GetTargetsAsync"/>）</returns>
-    private async Task<List<ReminderTarget>> GetTriggeredAsync(DateTime now)
-    {
-        var nowTime = ReminderDates.ToTimeValue(now);
-        return [.. (await reminders.GetTargetsAsync(now)).Where(target => target.Reminder.Time <= nowTime)];
-    }
-
-    /// <summary>リマインダーを通知の項目にする（件名をテキスト、リンクがあればリンク先に）</summary>
-    /// <param name="reminder">リマインダー</param>
-    /// <returns>通知の項目</returns>
-    private static NotificationItem ToItem(Reminder reminder)
-        => new(reminder.Title, string.IsNullOrWhiteSpace(reminder.Link) ? null : reminder.Link);
-
-    /// <summary>秒以下を切り捨てる</summary>
-    /// <param name="value">日時</param>
-    /// <returns>秒以下を 0 にした日時</returns>
-    private static DateTime TruncateToMinute(DateTime value)
-        => new(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0, value.Kind);
 
     /// <summary>監視を止める</summary>
     public void Dispose()
@@ -202,9 +88,47 @@ public sealed class ReminderMonitor(ReminderService reminders, ISettingsStore se
                 return;
             }
             _disposed = true;
-            _timer?.Dispose();
-            _timer = null;
             _notify = null;
         }
+        _scheduler.Dispose();
+    }
+
+    /// <summary>今の分の発動対象を判定して、あれば通知する</summary>
+    /// <param name="now">現在の日時</param>
+    /// <returns>判定の完了を表すタスク</returns>
+    private async Task CheckAsync(DateTime now)
+    {
+        var targets = await GetTriggeredAsync(now);
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        var minute = MinuteScheduler.TruncateToMinute(now);
+        Action<string, IReadOnlyList<NotificationItem>>? notify;
+        ReminderEvaluation evaluation;
+        lock (_gate)
+        {
+            evaluation = ReminderEvaluator.Evaluate(targets, minute, _lastSnoozeNotifiedMinute, settings.SnoozeIntervalMinutes);
+            if (evaluation.IncludesSnooze)
+            {
+                _lastSnoozeNotifiedMinute = minute;
+            }
+            notify = _disposed ? null : _notify;
+        }
+
+        if (evaluation.Items.Count > 0)
+        {
+            notify?.Invoke(NotificationTitle, evaluation.Items);
+        }
+    }
+
+    /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）と、その対応状態</summary>
+    /// <param name="now">現在の日時</param>
+    /// <returns>発動済みのリマインダーと今日の対応状態（今日の対象の組み立ては <see cref="ReminderService.GetTargetsAsync"/>）</returns>
+    private async Task<List<ReminderTarget>> GetTriggeredAsync(DateTime now)
+    {
+        var nowTime = ReminderDates.ToTimeValue(now);
+        return [.. (await reminders.GetTargetsAsync(now)).Where(target => target.Reminder.Time <= nowTime)];
     }
 }

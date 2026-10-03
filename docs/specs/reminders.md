@@ -21,6 +21,7 @@
 - `GetTargetsAsync(now)`：ある日の対象（その日に発生するリマインダー）と、その日の対応状態（`ReminderTarget`）を、時刻 → `No` の順で返す。本体と状態を同じロックの中で読む。メイン画面と通知（`ReminderMonitor`）の両方がこれを使うので、「今日の状態」の組み立てはここだけ
 
 ## 監視（`ReminderMonitor`、Singleton）
+- 役割分担：タイマーの管理は SDK の `MinuteScheduler`（毎分 00 秒の単発タイマーの掛け直し・同じ分に 2 回呼ばない）、通知する項目の判定は `ReminderEvaluator`（時刻・タイマー・設定に依存しない純粋な判定）、`ReminderMonitor` はそれらをつなぎ、スヌーズの通知時刻を覚える。スヌーズ間隔は `ReminderSettingsService` から読む（設定ストアに直接触れない）
 - 起動時の準備 `ReminderStartup`（`IStartupTask`）で `Start(コールバック)`。コールバックは `DispatcherQueue` で UI スレッドへ移し、`INotificationDialogService.Show(タイトル, 項目)` を呼ぶ。Host の破棄で停止する
 - `TimeProvider` の単発タイマー：開始直後に 1 回、以後は毎分 00 秒に判定する。次の 00 秒までの時間をその都度計算して掛け直す（早く来て同じ分になったら、判定せず掛け直すだけ）
 - 対象：発動する日で、時刻が来たもの（`GetTargetsAsync` の結果のうち、時刻が過ぎたもの）。並びは時刻 → `No`

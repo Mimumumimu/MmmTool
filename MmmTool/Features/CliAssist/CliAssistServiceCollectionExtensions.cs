@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Attachments;
+using MmmSdk.Core.Storage;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
 using MmmTool.Features.CliAssist.Attachments;
@@ -19,7 +20,8 @@ public static class CliAssistServiceCollectionExtensions
     public static IServiceCollection AddCliAssist(this IServiceCollection services)
     {
         // 保存先
-        services.AddSingleton<ICliCommandRepository, JsonCliCommandRepository>();
+        // 既定の定型コマンドはアプリが決める（補助スクリプトの配置を知っているため）
+        services.AddSingleton<ICliCommandRepository>(provider => new JsonCliCommandRepository(provider.GetRequiredService<IJsonFileStore>(), CliCommandDefaults.Create));
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
 
         services.AddSingleton<CliSettingsService>();

@@ -23,7 +23,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <summary>入力・一覧画面</summary>
     private readonly IReminderDialogService _dialogs;
     /// <summary>リンクを開く処理</summary>
-    private readonly PathOpener _opener;
+    private readonly IPathOpener _opener;
     /// <summary>日付が変わったら読み直すタイマー</summary>
     private readonly ITimer _dayTimer;
 
@@ -33,7 +33,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <param name="dialogs">入力・一覧画面を開く</param>
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderMainViewModel(ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, PathOpener opener, TimeProvider time)
+    public ReminderMainViewModel(ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IPathOpener opener, TimeProvider time)
         : base(reminders, time)
     {
         _monitor = monitor;

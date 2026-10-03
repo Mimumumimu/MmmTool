@@ -5,7 +5,7 @@ namespace MmmTool.Core.Reminders.Json;
 /// <summary>リマインダーを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
 /// <remarks>本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する（汎用設定ストアとは別）。</remarks>
-public sealed class JsonReminderRepository(JsonFileStore store) : IReminderRepository
+public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepository
 {
     /// <summary>本体の保存先のファイル名</summary>
     private const string RemindersFileName = "Reminders.json";

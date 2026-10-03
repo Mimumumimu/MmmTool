@@ -4,7 +4,7 @@ namespace MmmTool.Core.Links.Json;
 
 /// <summary>リンクメニューを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-public sealed class JsonLinkRepository(JsonFileStore store) : ILinkRepository
+public sealed class JsonLinkRepository(IJsonFileStore store) : ILinkRepository
 {
     /// <summary>保存先のファイル名</summary>
     private const string FileName = "Links.json";
