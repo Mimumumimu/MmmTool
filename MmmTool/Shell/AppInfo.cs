@@ -12,8 +12,12 @@ public static class AppInfo
     public static string DataDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Data");
 
     /// <summary>エラーのログの保存先フォルダー</summary>
-    /// <remarks>EXE と同じ場所の <c>Logs</c>。</remarks>
-    public static string LogDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Logs");
+    /// <remarks><see cref="DataDirectory"/> の下の <c>Logs</c>（アプリが書くものは Data にまとめ、EXE の横にフォルダーを増やさない）。</remarks>
+    public static string LogDirectory { get; } = Path.Combine(DataDirectory, "Logs");
+
+    /// <summary>WebView2 のデータ（キャッシュなど）の保存先フォルダー</summary>
+    /// <remarks><see cref="DataDirectory"/> の下の <c>WebView2</c>（WebView2 の既定の EXE の横ではなく、Data にまとめる）。</remarks>
+    public static string WebView2Directory { get; } = Path.Combine(DataDirectory, "WebView2");
 
     /// <summary>トレイのウィンドウクラス名</summary>
     /// <remarks>別のアプリと重ならないよう、アプリの名前から作る。</remarks>

@@ -15,5 +15,18 @@
     <!-- 検査用に作る XML ファイルは配布物に含めない（配布物のファイル数を増やさないため） -->
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
+    <!--
+      XML ファイルは、検査のために obj には作るが、ビルドの出力にもコピーしない（実行には使わないため。決定 0015）。
+      参照先（SDK）の XML ファイルもコピーしない（参照先の付随ファイルの既定 .pdb;.xml;.pri;.dll.config;.exe.config から .xml を外す）
+    -->
+    <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
+    <AllowedReferenceRelatedFileExtensions>.pdb;.pri;.dll.config;.exe.config</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+  <!--
+    Release では .pdb（デバッグ情報）を作らず、参照先（SDK）の .pdb も出力へコピーしない（ユーザーの決定。Debug では作る）。決定 0015
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <AllowedReferenceRelatedFileExtensions>.pri;.dll.config;.exe.config</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 </Project>

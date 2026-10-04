@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MmmTool.Features.CliAssist.Main"
     xmlns:sdkAttachments="using:MmmSdk.WinUI.Components.Attachments"
+    xmlns:shell="using:MmmTool.Shell"
     xmlns:terminal="using:MmmSdk.WinUI.Components.Terminal"
     Loaded="OnLoaded">
 
@@ -67,7 +68,10 @@
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="8">
-            <terminal:TerminalControl x:Name="TerminalView" Session="{x:Bind ViewModel.Terminal}" />
+            <terminal:TerminalControl
+                x:Name="TerminalView"
+                Session="{x:Bind ViewModel.Terminal}"
+                UserDataFolder="{x:Bind shell:AppInfo.WebView2Directory}" />
         </Border>
 
         <!--

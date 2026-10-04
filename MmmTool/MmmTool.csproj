@@ -8,6 +8,12 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!--
+      ビルドも x64 専用にする。ネイティブ DLL が全 CPU 分の runtimes フォルダーではなく、EXE の横に x64 の分だけ置かれる。
+      出力先のパスには RID を付けない（bin\x64\<構成>\<TFM>\ のまま）。決定 0014
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <!-- 非パッケージ（WindowsPackageType=None）でも、WinUI のリソース（resources.pri）の生成にこの MSIX ツールを使うため、true のままにする -->
@@ -54,7 +60,17 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <!--
+      Windows App SDK は全部入りのパッケージを参照する（CommunityToolkit が古い全部入り 1.6 に依存しているため、部品だけの参照にはできない）。
+      そのうえで、使わない部品（AI・ML・検索・ウィジェット）と、それらだけが使う依存（MachineLearning・Tensors）は、中身を出力に入れない（DLL を減らすため。決定 0015）
+    -->
     <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MmmTool.Core\MmmTool.Core.csproj" />
@@ -82,6 +98,22 @@
     <Delete Files="@(_MuiBuild)" />
     <RemoveDir Directories="@(_MuiBuildDir-&gt;Distinct())" />
   </Target>
+  <!--
+    ビルドの出力から、画面の XAML（.xbf・SDK の .xaml）のばらのファイルを削除する（Features・Shell・MmmSdk.WinUI フォルダーを残さない）。
+    中身は MmmTool.pri に入っていて、実行時はそちらから読む。WinUI のビルド（CopyGeneratedXaml）は、.pri に入れたうえで、ばらのファイルも出力へコピーするため。
+    発行（publish）の出力には、もともとばらのファイルが出ない。ここで消すことで、ビルドの出力を発行物と同じ形にそろえる。決定 0014
+    消すのは、EXE の横の .xbf と、中身が .xbf・.xaml だけのフォルダー（Assets・Data のように、ほかのファイルがあるフォルダーには触れない）。
+  -->
+  <Target Name="RemoveLooseXamlAfterBuild" AfterTargets="Build">
+    <ItemGroup>
+      <_OutSubDir Include="$([System.IO.Directory]::GetDirectories('$(OutDir)'))" />
+      <_LooseXamlDir Include="@(_OutSubDir)"
+                     Condition="$([System.IO.Directory]::GetFiles('%(Identity)', '*', System.IO.SearchOption.AllDirectories).Length) == $([MSBuild]::Add($([System.IO.Directory]::GetFiles('%(Identity)', '*.xbf', System.IO.SearchOption.AllDirectories).Length), $([System.IO.Directory]::GetFiles('%(Identity)', '*.xaml', System.IO.SearchOption.AllDirectories).Length))) and $([System.IO.Directory]::GetFiles('%(Identity)', '*', System.IO.SearchOption.AllDirectories).Length) &gt; 0" />
+      <_LooseXbf Include="$(OutDir)*.xbf" />
+    </ItemGroup>
+    <Delete Files="@(_LooseXbf)" />
+    <RemoveDir Directories="@(_LooseXamlDir)" />
+  </Target>
   <Target Name="PruneMuiAfterPublish" AfterTargets="Publish">
     <ItemGroup>
       <_MuiPub Include="$(PublishDir)*\*.mui" Exclude="$(PublishDir)ja-JP\*.mui;$(PublishDir)en-us\*.mui" />
@@ -90,6 +122,74 @@
     <Delete Files="@(_MuiPub)" />
     <RemoveDir Directories="@(_MuiPubDir-&gt;Distinct())" />
   </Target>
+
+  <!--
+    NuGet パッケージの DLL（マネージド・ネイティブ）を、EXE の横ではなく Lib フォルダーに置く（決定 0015）。
+    置き場所は、コピー先（DestinationSubPath）を Lib\ に変えて決める。ビルド・発行のどちらのコピーも、これに従う。
+    起動時に .NET が DLL を見つけられるよう、MmmTool.deps.json の各ファイルに localPath（実際の置き場所）を書き足す（.NET SDK には、これを書く設定が無いため）。
+    パッケージ以外の参照・Windows SDK と WinRT の DLL も、下の MoveReferencesToLib・MoveRuntimePackFilesToLib で Lib に置く。EXE の横に残る DLL は MmmTool.dll と Microsoft.Web.WebView2.Core.dll だけ。
+  -->
+  <PropertyGroup>
+    <PackageFilesFolder>Lib</PackageFilesFolder>
+  </PropertyGroup>
+  <Target Name="MovePackageFilesToLib" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <RuntimeCopyLocalItems DestinationSubDirectory="$(PackageFilesFolder)\" DestinationSubPath="$(PackageFilesFolder)\%(Filename)%(Extension)" />
+      <NativeCopyLocalItems DestinationSubDirectory="$(PackageFilesFolder)\" DestinationSubPath="$(PackageFilesFolder)\%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
+  <!--
+    パッケージ以外の参照（自分のプロジェクト・Windows SDK・WinRT・WebView2 の参照用）も Lib に置く。プロジェクトの .pri など、付随するファイルも一緒に移る。
+    Microsoft.Web.WebView2.Core.dll は EXE の横に残す（deps.json に載らないネイティブの部品で、WinUI の WebView2 が EXE のフォルダーから読むため）。
+  -->
+  <!-- 発行では、Windows SDK・WinRT の DLL（ランタイムパックの分）は、別の経路（RuntimePackAsset）でコピーされるので、そちらのコピー先も Lib にする -->
+  <Target Name="MoveRuntimePackFilesToLib" AfterTargets="ResolveRuntimePackAssets">
+    <ItemGroup>
+      <RuntimePackAsset DestinationSubPath="$(PackageFilesFolder)\%(RuntimePackAsset.Filename)%(RuntimePackAsset.Extension)"
+                        DestinationSubDirectory="$(PackageFilesFolder)\"
+                        Condition="'%(RuntimePackAsset.RuntimePackAlwaysCopyLocal)' == 'true' and '%(RuntimePackAsset.DestinationSubPath)' == '%(RuntimePackAsset.Filename)%(RuntimePackAsset.Extension)'" />
+    </ItemGroup>
+  </Target>
+  <Target Name="MoveReferencesToLib" BeforeTargets="_CopyFilesMarkedCopyLocal">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths DestinationSubDirectory="$(PackageFilesFolder)\"
+                               Condition="'%(ReferenceCopyLocalPaths.DestinationSubDirectory)' == '' and '%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)' != 'Microsoft.Web.WebView2.Core.dll'" />
+      <_FilesInLib Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.DestinationSubDirectory)' == '$(PackageFilesFolder)\' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+    </ItemGroup>
+  </Target>
+  <Target Name="AddLocalPathToBuildDepsFile" AfterTargets="CopyFilesToOutputDirectory">
+    <AddLocalPathToDepsFile DepsFile="$(ProjectDepsFilePath)" Files="@(_FilesInLib)" />
+  </Target>
+  <!-- 発行の deps.json は、ビルドのものを写すときと、作り直すときがあるので、発行の出力に置かれたものに足す -->
+  <Target Name="AddLocalPathToPublishDepsFile" AfterTargets="Publish">
+    <AddLocalPathToDepsFile DepsFile="$(PublishDir)$(ProjectDepsFileName)" Files="@(_FilesInLib)" />
+  </Target>
+  <!--
+    deps.json の、ファイルごとの項目（"…/名前.dll": { … }）に "localPath": "Lib/名前.dll" を足す。
+    deps.json は .NET SDK が決まった形で書くので、ファイル名をキーにして文字列で足す（すでに足してあれば何もしない）。
+  -->
+  <UsingTask TaskName="AddLocalPathToDepsFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <DepsFile ParameterType="System.String" Required="true" />
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var text = File.ReadAllText(DepsFile);
+        foreach (var file in Files)
+        {
+            var localPath = (file.GetMetadata("DestinationSubDirectory") + file.GetMetadata("Filename") + file.GetMetadata("Extension")).Replace('\\', '/');
+            var key = "(\"(?:[^\"/]*/)*" + Regex.Escape(Path.GetFileName(localPath)) + "\": \\{)";
+            // 中身が空の項目（{}）と、中身がある項目（{ "assemblyVersion": … }）
+            text = Regex.Replace(text, key + "\\}", "$1 \"localPath\": \"" + localPath + "\" }");
+            text = Regex.Replace(text, key + "(?!\\s*\"localPath\")(?=\\s*\")", "$1\n            \"localPath\": \"" + localPath + "\",");
+        }
+        File.WriteAllText(DepsFile, text);
+      ]]></Code>
+    </Task>
+  </UsingTask>
 
   <!-- Publish Properties -->
   <PropertyGroup>

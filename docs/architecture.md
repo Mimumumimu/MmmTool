@@ -48,7 +48,7 @@ MmmTool/Shell/Main/             メインウィンドウ（MainWindow・MainView
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`（閉じる要求を素通しにする）→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能（起動時の準備を含む）より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
 ## エラーの扱い
-3 段階。予測できる失敗は、先に確かめる（`TryXxx`・検証・ガード節）。それでも起きる失敗（ファイル・JSON・OS・COM）は、範囲を絞った `catch` で受けて画面に出す（InfoBar）。復旧が難しい失敗・予想外の失敗（バグ）は、ログ（`AppContext.BaseDirectory/Logs/yyyy-MM-dd.log`）→ ダイアログ → 終了（SDK の `FatalErrorHandler`）。隠さず、握りつぶさない。
+3 段階。予測できる失敗は、先に確かめる（`TryXxx`・検証・ガード節）。それでも起きる失敗（ファイル・JSON・OS・COM）は、範囲を絞った `catch` で受けて画面に出す（InfoBar）。復旧が難しい失敗・予想外の失敗（バグ）は、ログ（`AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`）→ ダイアログ → 終了（SDK の `FatalErrorHandler`）。隠さず、握りつぶさない。
 - `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` し（Host を作る前の失敗も拾うため）、DI にも登録する（トレイが使う）
 - `try/catch` を書けない場所（`async void`・タイマー・待たれないタスク。例: SDK の `MinuteScheduler` の毎分の処理）の例外は、`AttachTo` の安全網が、同じ処理（ログ → ダイアログ → 終了）で受ける
 - 待たずに走らせるタスクは `_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`（SDK の `MmmSdk.Core.Utilities`）にする。捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる（いつ落ちるか読めない）。`Forget` は、失敗した時点で未処理例外にして、安全網が受ける。起きると分かっている失敗（`DataFileException` など）は、タスクの中で受けて画面に出す（例: `SettingsViewModel.SaveSnoozeIntervalAsync`、`ReminderViewModelBase.RunAsync`）
@@ -60,9 +60,9 @@ MmmTool/Shell/Main/             メインウィンドウ（MainWindow・MainView
 JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときはアプリを閉じてから行う。保存先は将来 SQL Server / DynamoDB などに替える可能性があり、Repository + DI で差し替えられる形にしている。詳細は [specs/storage.md](specs/storage.md)。
 
 ## ビルドの共通設定
-- リポジトリ直下に `Directory.Build.props`（バージョン・Nullable・ImplicitUsings・`GenerateDocumentationFile`・`EnforceCodeStyleInBuild`・XML ファイルを発行物に含めない）、`Directory.Packages.props`（中央パッケージ管理。csproj の `PackageReference` にはバージョンを書かない）、`.editorconfig`（`root = true`）を置く。3 つとも slnx の「Solution Items」に入れている
+- リポジトリ直下に `Directory.Build.props`（バージョン・Nullable・ImplicitUsings・`GenerateDocumentationFile`・`EnforceCodeStyleInBuild`・XML ファイルをビルドの出力・発行物に含めない・Release では .pdb を作らない）、`Directory.Packages.props`（中央パッケージ管理。csproj の `PackageReference` にはバージョンを書かない）、`.editorconfig`（`root = true`）を置く。3 つとも slnx の「Solution Items」に入れている
 - `.editorconfig`: 未使用 using・ファイル単位の名前空間・using の位置・複数行の本体の波かっこを warning にしてビルドで検査する。1 行の早期 return（`if (x) return;`）は波かっこを省略してよい。`charset` は書かない（BOM 付きの ps1 があるため）
-- SDK はリポジトリ直下に自分の同じ 1 組を持つ。MSBuild・.editorconfig は近いほうを使うので、アプリと SDK の設定は混ざらない。共通のパッケージ（CommunityToolkit.Mvvm・WindowsAppSDK・SDK.BuildTools）は SDK を先に上げて、アプリを同じバージョンにする
+- SDK はリポジトリ直下に自分の同じ 1 組を持つ。MSBuild・.editorconfig は近いほうを使うので、アプリと SDK の設定は混ざらない。共通のパッケージ（CommunityToolkit.Mvvm・Windows App SDK（SDK は部品のパッケージ、アプリは全部入り）・SDK.BuildTools）は SDK を先に上げて、アプリを同じバージョンにする
 - バージョンは `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。製品バージョンの後ろにはコミット番号が付く（.NET の標準の動作）
 - XML コメントの検査と未使用 using の検査は、普通の `dotnet build` / VS のビルドでかかる
 
@@ -72,14 +72,20 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - 発行プロファイル（`.pubxml`）は使わない（`.gitignore` で除外されており、clone 直後に再現できないため）。設定は csproj の `Publish Properties` に書く。MSIX 用のマニフェスト・ロゴは持たない（非パッケージで配布する）。`EnableMsixTooling` は、非パッケージでも WinUI のリソース生成に使うため true のまま残している
 - リリースビルドには DEBUG ページ（コード・XAML）を含めない（csproj の条件付き `Remove`）
 - WinUI の多言語リソース（言語名フォルダ内の `.mui`）は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
-- `MmmTool.exe.WebView2`（WebView2 のキャッシュ）は起動時に exe の隣へ作られる実行時データで、1 フォルダなので放置する
+- EXE の横のフォルダは `Assets`（配布物）・`Data`（アプリが書くもの）・`Lib`（パッケージの DLL）の 3 つだけにする（[decisions/0014-output-folders.md](decisions/0014-output-folders.md)・[decisions/0015-dll-reduction-and-lib.md](decisions/0015-dll-reduction-and-lib.md)）
+  - `MmmTool.dll` 以外の DLL は `Lib` に置く（csproj の `MovePackageFilesToLib`・`MoveReferencesToLib`・`MoveRuntimePackFilesToLib`）。起動時に見つけられるよう、`MmmTool.deps.json` の各ファイルに `localPath` を書き足す（インラインタスク `AddLocalPathToDepsFile`）。EXE の横に残るのは `MmmTool.*` の 5 ファイル（exe・dll・deps.json・runtimeconfig.json・pri）と `Microsoft.Web.WebView2.Core.dll`（WinUI の WebView2 が EXE のフォルダから読むネイティブの部品）
+  - Release では `.pdb` を出力に入れない（`Directory.Build.props`。Debug では入れる）。`.xml`（XML ドキュメントコメント）は、Debug・Release とも出力に入れない（検査のために obj には作る）
+  - Windows App SDK の使わない部品（AI・ML・検索・ウィジェット）は出力に入れない。SDK は使う部品のパッケージだけを参照し、アプリは全部入りを参照したうえで使わない部品を `ExcludeAssets="all"` にする（CommunityToolkit が古い全部入りに依存しているため）。全部入りを上げるときは、`Directory.Packages.props` の部品の版も、新しい全部入りの依存に合わせる
+  - ビルドも x64 専用（`RuntimeIdentifier=win-x64`。出力先のパスに RID は付けない）。ネイティブ DLL は `runtimes\` ではなく EXE の横に置かれる
+  - 画面の XAML（`.xbf`・SDK の `.xaml`）は `MmmTool.pri` の中に入る。WinUI のビルドがばらのファイルも出力へコピーするので、csproj の `RemoveLooseXamlAfterBuild` がビルドのあとに消す（中身が `.xbf`・`.xaml` だけのフォルダと、EXE の横の `.xbf`）。発行の出力には、もともと出ない
+  - WebView2 のキャッシュは `Data\WebView2`、エラーのログは `Data\Logs`（`Shell/AppInfo`）
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0（MIT）は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/`（ライセンスファイルも同じ場所）。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
 - 値の変換は `IValueConverter` ではなく `x:Bind` の関数呼び出し（添付のサムネイルは SDK の `ThumbnailImage.FromFile`、完了・削除済みの見た目は `Features/Reminders/ReminderRowStyle`）
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`（TwoWay）と `Message` に結び付ける（閉じる処理は書かない）。ファイルの読み込み結果は SDK の `LoadStatus` で持つ
-- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）。アプリの名前・Data / Logs フォルダー・トレイのクラス名は `Shell/AppInfo` の 1 か所（多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う）
+- ウィンドウの共通の設定（アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ）は SDK の `Window` 拡張メソッド（`UseCustomTitleBar` など）。アイコンのパスは `Shell/AppIcon`（ウィンドウ・トレイで共通）。アプリの名前・Data フォルダー（とその下の Logs・WebView2）・トレイのクラス名は `Shell/AppInfo` の 1 か所（多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う）
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格（保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化）を `Features/Reminders/ReminderViewModelBase` に持つ
 - 受け取って持つだけのクラスはプライマリコンストラクタ。コンストラクタの中に初期化の処理があるものは従来の形
 - ターミナルの後始末（SDK の `PseudoConsoleSession` の `Dispose`）は同期のまま。`IAsyncDisposable` にすると DI コンテナが `ConfigureAwait(false)` で待ち、後から破棄されるトレイアイコンなどが UI スレッドの外で破棄されるため

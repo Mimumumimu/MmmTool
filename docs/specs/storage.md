@@ -2,6 +2,7 @@
 
 ## 方針
 - 保存は JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときは、アプリを閉じてから行う（起動中はメモリ上の内容で上書きされることがある）
+- `Data` の下には、JSON のほかに、アプリが書くフォルダとして `Logs`（エラーのログ）と `WebView2`（ターミナルの画面のキャッシュ）がある。EXE の横には `Data` 以外の書き込み先を作らない（[decisions/0014-output-folders.md](../decisions/0014-output-folders.md)）
 - 保存先は将来 SQL Server / DynamoDB などに替える可能性がある。Repository のインターフェース（非同期）と DI で差し替える
 - JSON はソース生成（`JsonSerializerContext`）で読み書きする。Context は機能ごと（`CliAssistJsonContext` / `LinkJsonContext` / `ReminderJsonContext`）。書式（インデント・日本語非エスケープ・コメント可・大文字小文字を区別しない等）は SDK の `ReadableJsonOptions.Create()` に 1 か所だけ書く
 - JSON の読み込みはプロパティ名の大文字小文字を区別しない（アプリの全機能に適用）

@@ -44,7 +44,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - リマインダー監視・通知
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
-なし。
+- EXE の横を `Assets`・`Data`・`Lib` と少数のファイルだけにする（[decisions/0014-output-folders.md](docs/decisions/0014-output-folders.md)・[0015](docs/decisions/0015-dll-reduction-and-lib.md)）。実装・ビルド・発行・docs は済み。Release の起動（トレイ常駐まで）は確認済み。残り: VS での画面の確認（メイン画面・各ページ・リマインダーの画面・通知・ターミナル。ばらの `.xbf` を消しても `.pri` から画面が読めるか、`Lib` の DLL（WebView2Loader など）が読めるか、`Data\WebView2` ができるか）。確認が済んだら、この項目を消す
 - この環境（Claude Code on the web）には `dotnet` が無く、ビルドできない。ビルドと動作確認は、grep での確認と、手元の VS で代える
 
 ## 未実装・残りの作業（2026-10-04 時点）
@@ -54,9 +54,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 既定シェルの差し替え: 設定ページの項目ではなく、CLI補助の機能として組み込む。目的は Kiro でも動かすこと、できれば WSL でも動かすこと（パスの問題などがある）
 - クリップボード転送
 - Backlog 連携（設定ページに API キーの欄も足す）
-
-### ユーザー側の作業
-- 正本のスキル `~/.claude/skills/winui3-mvvm/SKILL.md` にも、このリポジトリの写し（`.claude/skills/winui3-mvvm/SKILL.md`）と同じ直しを入れる（プロジェクト設定の「アンパッケージ」の項。決定 0003 の意図は「DLL の数を少なく・単一ファイルにはしない」）
 
 ## 作業の注意（要点。詳細は docs）
 - 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行（`Add<機能>()`）で済む形を保つ。共通部分（`Shell/`）は特定の機能を参照しない
