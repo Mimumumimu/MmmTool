@@ -44,23 +44,19 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - リマインダー監視・通知
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
-依頼: レビュー P-08 の残り（ブランチ `claude/review-fixes`。SDK とアプリの両方）。ユーザーが決めた `ImageConverter` の「大きさは無制限（意図した仕様）」も、各所に書く。
-制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
-- [x] SDK: `TerminalControl` の `NavigationStarting`（仮想ホスト以外へ移動しない）
-- [x] SDK: `TrayMenuRenderer` のフォント列挙を 1 度だけ
-- [x] SDK: `PseudoConsole.Start` の引用符の注意・`MmmSdk.WinUI.csproj` の `IsTrimmable` / `IsAotCompatible`・README のログの注意
-- [x] 無制限の明記: SDK の `ImageConverter` / `IImageConverter` / `docs/controls.md` / CLAUDE.md、アプリの CLAUDE.md
-- [x] アプリ README: WebView2 キャッシュと `Logs` の注意
-- [ ] 手元の VS でビルド（特に、WinUI の `IsAotCompatible` で警告が出ないか。出たら直す）・動作確認（ターミナルが表示される・トレイメニューの見た目）→ PR（SDK を先に merge commit でマージ）
-- 後で: 正本のスキル `~/.claude/skills/winui3-mvvm/SKILL.md`（ユーザー側）にも、このリポジトリの写しと同じ直しを入れる（プロジェクト設定の「アンパッケージ」の項。決定 0003 の意図は「DLL の数を少なく・単一ファイルにはしない」）
+なし。
+- この環境（Claude Code on the web）には `dotnet` が無く、ビルドできない。ビルドと動作確認は、grep での確認と、手元の VS で代える
 
-## 未実装・残りの作業（2026-10-03 時点）
+## 未実装・残りの作業（2026-10-04 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。
 
 ### 未実装（後回し・優先度低）
 - 既定シェルの差し替え: 設定ページの項目ではなく、CLI補助の機能として組み込む。目的は Kiro でも動かすこと、できれば WSL でも動かすこと（パスの問題などがある）
 - クリップボード転送
 - Backlog 連携（設定ページに API キーの欄も足す）
+
+### ユーザー側の作業
+- 正本のスキル `~/.claude/skills/winui3-mvvm/SKILL.md` にも、このリポジトリの写し（`.claude/skills/winui3-mvvm/SKILL.md`）と同じ直しを入れる（プロジェクト設定の「アンパッケージ」の項。決定 0003 の意図は「DLL の数を少なく・単一ファイルにはしない」）
 
 ## 作業の注意（要点。詳細は docs）
 - 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行（`Add<機能>()`）で済む形を保つ。共通部分（`Shell/`）は特定の機能を参照しない
