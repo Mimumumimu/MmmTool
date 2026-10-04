@@ -43,14 +43,15 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - リマインダー監視・通知
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
-依頼: レビュー対応の観点 4（ブランチ `claude/review-fixes`。SDK とアプリの両方）。ユーザーが判断しなくてよい P-03・P-04・P-05・P-08 を行う。P-06 は保留（ユーザーの判断待ち）。
+依頼: レビュー対応の観点 4（ブランチ `claude/review-fixes`。SDK とアプリの両方）。ユーザーが判断しなくてよい P-03・P-04・P-05・P-08 を行う。P-06 は対応不要と決まった。
 制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
 - [x] P-08: SDK `JsonFileStore`（失敗時に `.tmp` を消す・ファイル名の `:` を拒否）
 - [x] P-03: SDK `NativeMethods.Menu`（ビルド 18362 以上でだけ序数を呼ぶ・uxtheme は読み込み済みのものを 1 度だけ引く）
 - [x] P-05: SDK（ロックをファイル名ごとに・`ISettingsStore.EnsureLoadedAsync`）、アプリ（`Shell/SettingsStoreStartup`）
 - [x] P-04: SDK `AttachmentStore`（EXE パスのハッシュごとのフォルダ・セッション名の重なりに接尾辞）。`ExePathHash` を `SingleInstanceGuard` と共有
 - [ ] 手元の VS でビルド・動作確認（トレイメニューのダーク、添付の保存先 `%TEMP%\MmmTool\<ハッシュ>\`、起動）→ PR（SDK を先に merge commit でマージ）
-- 保留: P-06（ReadyToRun と配布サイズ。ユーザーの判断待ち）
+- P-06: 対応不要（ユーザーの判断。決定 0003 の意図は「DLL の数を少なく・単一ファイルにはしない」で、ReadyToRun は使う。0003・ルール文・csproj のコメントを直した）
+- 後で: 正本のスキル `~/.claude/skills/winui3-mvvm/SKILL.md`（ユーザー側）にも、このリポジトリの写しと同じ直しを入れる（プロジェクト設定の「アンパッケージ」の項）
 
 ## 未実装・残りの作業（2026-10-03 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。

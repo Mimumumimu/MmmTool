@@ -12,7 +12,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- .editorconfig のコードスタイルをビルド時にも検査する -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- 検査用に作る XML ファイルは配布物に含めない（配布を小さくするため） -->
+    <!-- 検査用に作る XML ファイルは配布物に含めない（配布物のファイル数を増やさないため） -->
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
   </PropertyGroup>
