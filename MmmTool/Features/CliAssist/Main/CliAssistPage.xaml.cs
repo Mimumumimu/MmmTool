@@ -202,8 +202,7 @@ public sealed partial class CliAssistPage : Page
             if (content.Contains(StandardDataFormats.StorageItems))
             {
                 e.Handled = true;
-                var items = await content.GetStorageItemsAsync();
-                await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
+                await AddAttachmentFilesAsync(await content.GetStorageItemsAsync());
                 return;
             }
 
@@ -246,12 +245,40 @@ public sealed partial class CliAssistPage : Page
 
         try
         {
-            var items = await e.DataView.GetStorageItemsAsync();
-            await ViewModel.AddAttachmentFilesAsync(items.OfType<StorageFile>().Select(file => file.Path));
+            await AddAttachmentFilesAsync(await e.DataView.GetStorageItemsAsync());
         }
         catch (COMException ex)
         {
             ViewModel.Error.Show($"ドロップされたファイルを読めませんでした。{ex.Message}");
+        }
+    }
+
+    /// <summary>ドロップ・貼り付けされたファイルを添付する</summary>
+    /// <param name="items">ドロップ・貼り付けされた項目（フォルダーは添付しない）</param>
+    /// <returns>添付の完了を表すタスク</returns>
+    /// <remarks>
+    /// ディスク上のファイルは、元のパスをそのまま添付する。
+    /// パスの無いファイル（メールの添付ファイルなど、ディスク上に無いもの）は、中身を読んで一時保存する。
+    /// </remarks>
+    private async Task AddAttachmentFilesAsync(IReadOnlyList<IStorageItem> items)
+    {
+        foreach (var file in items.OfType<StorageFile>())
+        {
+            if (!string.IsNullOrEmpty(file.Path))
+            {
+                ViewModel.AddAttachmentFile(file.Path);
+                continue;
+            }
+
+            try
+            {
+                using var content = await file.OpenStreamForReadAsync();
+                await ViewModel.AddAttachmentContentAsync(content, file.Name);
+            }
+            catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
+            {
+                ViewModel.Error.Show($"{file.Name} を添付できませんでした。{ex.Message}");
+            }
         }
     }
 

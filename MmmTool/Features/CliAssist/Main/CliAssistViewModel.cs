@@ -266,22 +266,28 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>添付があるか</summary>
     public bool HasAttachments => Attachments.Count > 0;
 
-    /// <summary>ファイルを添付する（ドラッグ＆ドロップ・ファイルの貼り付け）。</summary>
-    /// <param name="filePaths">添付するファイルのパス</param>
+    /// <summary>ディスク上のファイルを添付する（ドラッグ＆ドロップ・ファイルの貼り付け）。</summary>
+    /// <param name="filePath">添付するファイルのパス</param>
+    /// <remarks>コピーせず、元のパスをそのまま送る（ローカルで動く CLI は、元の場所のファイルを直接読めるため）。</remarks>
+    public void AddAttachmentFile(string filePath)
+        => Attachments.Add(new AttachmentItem(filePath, Path.GetFileName(filePath), isTemporary: false));
+
+    /// <summary>ディスク上に無いファイルを一時保存して添付する（メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付け）。</summary>
+    /// <param name="content">ファイルの内容のストリーム</param>
+    /// <param name="fileName">ファイル名</param>
     /// <returns>添付の完了を表すタスク</returns>
-    public async Task AddAttachmentFilesAsync(IEnumerable<string> filePaths)
+    public async Task AddAttachmentContentAsync(Stream content, string fileName)
     {
-        foreach (var filePath in filePaths)
+        try
         {
-            try
-            {
-                var savedPath = await _attachmentStore.AddFileAsync(filePath);
-                Attachments.Add(new AttachmentItem(savedPath, Path.GetFileName(filePath)));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Error.Show($"{Path.GetFileName(filePath)} を添付できませんでした。{ex.Message}");
-            }
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer);
+            var savedPath = await _attachmentStore.AddAsync(buffer.ToArray(), fileName);
+            Attachments.Add(new AttachmentItem(savedPath, fileName, isTemporary: true));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Error.Show($"{fileName} を添付できませんでした。{ex.Message}");
         }
     }
 
@@ -294,7 +300,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         {
             var jpeg = await _imageConverter.ToJpegAsync(image);
             var savedPath = await _attachmentStore.AddAsync(jpeg, "clipboard.jpg");
-            Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像"));
+            Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像", isTemporary: true));
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
         {
@@ -305,10 +311,16 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     /// <summary>添付を取り除く</summary>
     /// <param name="item">取り除く添付</param>
+    /// <remarks>一時保存したファイルだけを削除する。元の場所のファイルは一覧から外すだけで、決して消さない。</remarks>
     [RelayCommand]
     private void RemoveAttachment(AttachmentItem item)
     {
         Attachments.Remove(item);
+        if (!item.IsTemporary)
+        {
+            return;
+        }
+
         try
         {
             _attachmentStore.Remove(item.FilePath);
