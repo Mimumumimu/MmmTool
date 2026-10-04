@@ -7,8 +7,12 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
-  <Project Path="MmmTool.Core/MmmTool.Core.csproj" />
-  <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj" />
+  <Project Path="MmmTool.Core/MmmTool.Core.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
+    <Platform Project="x64" />
+  </Project>
   <Project Path="external/MmmSdk/MmmSdk.WinUI/MmmSdk.WinUI.csproj">
     <Platform Project="x64" />
   </Project>

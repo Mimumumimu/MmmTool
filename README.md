@@ -105,7 +105,7 @@ git submodule update --init --recursive
 ```powershell
 cd MmmTool
 dotnet restore .\MmmTool.slnx
-dotnet build .\MmmTool.slnx -p:Platform=x64
+dotnet build .\MmmTool.slnx
 ```
 
 ビルドの共通設定はリポジトリ直下にまとめています（`external/MmmSdk` は SDK 自身の同名ファイルを使います）。
@@ -120,11 +120,25 @@ dotnet build .\MmmTool.slnx -p:Platform=x64
 
 ### 配布用の発行
 
+Visual Studio では、ソリューション エクスプローラーで `MmmTool` プロジェクトを右クリックし、「発行」を選びます。発行プロファイル `win-x64`（構成は Release | x64）を選んで「発行」を押します。
+
+コマンドで発行するときは、次のとおりです（Visual Studio と同じ結果になります）。
+
 ```powershell
-dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
+dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
-発行したファイルは `MmmTool/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/publish/` に出力されます。このフォルダをそのままコピーして配布します（インストーラーはありません）。EXE の横のフォルダは `Assets`（配布物）と `Lib`（使っているライブラリの DLL）だけで、実行すると `Data`（アプリが書くもの）ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください（起動できなくなります）。
+発行すると、版ごとのフォルダ `MmmTool/bin/Release/publish/MmmTool_<版>/`（版は `Directory.Build.props` の `Version`。例: `MmmTool_0.1.0`）ができます。この版のフォルダをそのままコピーして配布します（インストーラーはありません）。
+
+```
+MmmTool_0.1.0\
+  README.txt                ← 利用者向けの説明書（必要なもの・使い方・データの場所・入れ替え方・変更履歴）
+  MmmTool\                  ← アプリ本体（これを D:\Tools\MmmTool などへコピーして使う）
+    Assets\Licenses\LICENSE.txt               ← MmmTool のライセンス（MIT）
+    Assets\Licenses\THIRD-PARTY-NOTICES.txt   ← 同梱しているライブラリのライセンスと通知の全文
+```
+
+アプリ本体のフォルダ名は版が変わっても `MmmTool` のままなので、コピー先のショートカットなどはそのまま使えます。ライセンスの文書はアプリ本体の中にあるので、`MmmTool` フォルダだけをコピー・再配布しても一緒に付いていきます。`README.txt` の元は `MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のもの、`THIRD-PARTY-NOTICES.txt` は発行のたびに、配布物に入るパッケージから自動で作ります。`Version` を上げずに発行し直すと、同じ版のフォルダに、前回のファイルを消さずに上書きします。前の版にだけあったファイルを残したくないときは、発行の前に版のフォルダを消してください。EXE の横のフォルダは `Assets`（配布物）と `Lib`（使っているライブラリの DLL）だけで、実行すると `Data`（アプリが書くもの）ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください（起動できなくなります）。
 
 ## データ保存場所
 
@@ -294,7 +308,7 @@ git submodule update --remote external/MmmSdk
 
 このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。
 
-同梱している外部ライブラリのライセンスは、それぞれ次のファイルを参照してください。
+同梱している外部ライブラリ（NuGet パッケージを含む）のライセンスと通知の全文は、発行した配布物の `MmmTool\Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています（発行のたびに、配布物に入るパッケージから自動で作ります）。リポジトリに直接入れているものは、次のファイルです。
 
 - xterm.js（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
 - @xterm/addon-fit（MIT License）… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)

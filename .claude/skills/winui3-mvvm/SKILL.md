@@ -199,11 +199,13 @@ internal sealed partial class ReminderJsonContext : JsonSerializerContext
   - `Package.appxmanifest` は動作確認が取れるまで削除しない
 - .NET は最新安定版、`Nullable` / `ImplicitUsings` 有効
 - ビルドの共通設定は、リポジトリの根元に 1 組だけ置く（csproj に同じ設定を書き並べない）
-  - `Directory.Build.props` … 全プロジェクト共通の設定（`Nullable` / `ImplicitUsings` / `GenerateDocumentationFile`（XML コメントの検査。IDE0005 の検査にも必要）/ `EnforceCodeStyleInBuild`）。アプリ側は `PublishDocumentationFile` / `PublishReferencesDocumentationFiles` を false にして、XML ファイルを配布物に含めない。対象フレームワーク・WinUI・`Platforms` など、プロジェクトごとに違うものは csproj に書く
+  - `Directory.Build.props` … 全プロジェクト共通の設定（`Nullable` / `ImplicitUsings` / `GenerateDocumentationFile`（XML コメントの検査。IDE0005 の検査にも必要）/ `EnforceCodeStyleInBuild` / `Platforms` と既定の `Platform`（下の「構成は x64 のみ」））。アプリ側は `PublishDocumentationFile` / `PublishReferencesDocumentationFiles` を false にして、XML ファイルを配布物に含めない。対象フレームワーク・WinUI など、プロジェクトごとに違うものは csproj に書く
   - `Directory.Packages.props` … 中央パッケージ管理（`ManagePackageVersionsCentrally`）。バージョンはここだけに書き、csproj の `PackageReference` には書かない
   - `.editorconfig`（`root = true`）… コードスタイル。守らせたいもの（未使用 using・ファイル単位の名前空間・using の位置・複数行の本体の波かっこ）は `warning` にしてビルドで検査する。好みの範囲のもの（`var`・コレクション式・プライマリコンストラクタ・名前の付け方）は `suggestion`。`charset` は書かない（BOM が要るファイルがあるため）
   - 3 つともソリューションの「Solution Items」フォルダに入れて、VS から見えるようにする
   - サブモジュールで取り込む SDK は、SDK のリポジトリの根元に自分の 1 組を持つ。MSBuild と .editorconfig は近いほうを使うので、アプリと SDK の設定は混ざらない（SDK はアプリを知らないまま）。両方で使うパッケージのバージョンは各リポジトリに 1 か所ずつになるので、上げるときは SDK を先に上げてアプリを同じバージョンにする
-- 構成は x64 のみ（`Platforms` = x64、`RuntimeIdentifiers` = win-x64）
+- 構成は x64 のみ（`Platforms` = x64、`RuntimeIdentifiers` = win-x64）。Core などの UI の無いプロジェクトも含めて、全プロジェクトを x64 にする（AnyCPU を使わない）
+  - `Directory.Build.props` に `<Platforms>x64</Platforms>` と `<Platform Condition="'$(Platform)' == ''">x64</Platform>` を書く（`Platforms` は VS で選べる一覧で、既定値ではない。既定の `Platform` も x64 にしないと、`-p:Platform` を付けないビルド・発行が AnyCPU になる）。slnx の全プロジェクトにも `<Platform Project="x64" />` を付ける
+  - 出力先に `x64` の段を作らない（`Directory.Build.props` に `<AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>`。出力は `bin\<構成>\<TFM>\`）。プラットフォームが 1 つだけなので、段を作っても区別の役に立たない
 - 多重起動の扱いはプロジェクトごとに決める（プロジェクトの CLAUDE.md / 仕様に従う）。禁止する場合は、EXE パスのハッシュで Mutex 名を作り、同一 EXE の二重起動だけを防ぐ（Debug / Release など別パスの EXE は同時起動できる）
-- 配布が必要な場合は `dotnet publish -c Release -r win-x64` の出力フォルダをコピーする
+- 配布が必要な場合は、発行の出力フォルダをコピーする。発行プロファイル（フォルダーへの発行。構成・プラットフォーム・RID・出力先だけを書く）をリポジトリに入れ（`.gitignore` の `*.pubxml` から、そのファイルだけを外す）、VS の「発行」とコマンドの `dotnet publish <csproj> -p:PublishProfile=<名前>` の両方で同じものを使う

@@ -6,14 +6,12 @@
     <RootNamespace>MmmTool</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <!--
       ビルドも x64 専用にする。ネイティブ DLL が全 CPU 分の runtimes フォルダーではなく、EXE の横に x64 の分だけ置かれる。
-      出力先のパスには RID を付けない（bin\x64\<構成>\<TFM>\ のまま）。決定 0014
+      出力先のパスには RID を付けない（Directory.Build.props の AppendRuntimeIdentifierToOutputPath。bin\<構成>\<TFM>\ のまま）。決定 0014
     -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <!-- 非パッケージ（WindowsPackageType=None）でも、WinUI のリソース（resources.pri）の生成にこの MSIX ツールを使うため、true のままにする -->
@@ -31,6 +29,19 @@
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
     <!-- ターミナルの定型コマンドから呼ぶ補助スクリプト（{AppDir}\Assets\Tools\...）。出力フォルダへコピーする -->
     <Content Include="Assets\Tools\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      配布用の説明書（変更履歴を含む）。発行のときだけ、アプリ本体の外側の版のフォルダに置く（下の PackageDistribution。ビルドの出力には入れない）
+    -->
+    <DistributionDocument Include="Distribution\README.txt" />
+    <!--
+      ライセンス（MIT License の本文。ライセンスの条件として、配布物に入れる）。アプリ本体の Assets\Licenses に置く。
+      アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため（EXE の横は増やさない）。
+      同梱ライブラリのライセンス全文（THIRD-PARTY-NOTICES.txt）も、下の GenerateThirdPartyNotices が作って同じ場所に置く
+    -->
+    <None Include="..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -187,6 +198,175 @@
             text = Regex.Replace(text, key + "(?!\\s*\"localPath\")(?=\\s*\")", "$1\n            \"localPath\": \"" + localPath + "\",");
         }
         File.WriteAllText(DepsFile, text);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    発行（配布物）は、全プロジェクトを Release でビルドしたものだけにする（Debug の DLL・.pdb を配布物に入れないため）。
+    構成は、全プロジェクトに渡る形（VS の「発行」・dotnet publish・-p:Configuration=Release）で指定する。
+    発行プロファイルの Configuration だけに頼る呼び方（MSBuild を直接呼ぶなど）では、このプロジェクトにしか効かず、
+    参照先が Debug でビルドされ、Directory.Build.props の Release の設定（.pdb を作らない）も効かないので、エラーで止める。
+    DebugType が none でないことで、Directory.Build.props の評価のときに Release ではなかったことを見分ける
+  -->
+  <Target Name="EnsureReleaseForPublish" BeforeTargets="PrepareForPublish">
+    <Error Condition="'$(Configuration)' != 'Release' or '$(DebugType)' != 'none'"
+           Text="発行は Release でだけ行います。VS の「発行」か、dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64 で発行してください（MSBuild を直接呼ぶときは -p:Configuration=Release も付ける）。" />
+  </Target>
+
+  <!--
+    同梱しているライブラリのライセンス全文（THIRD-PARTY-NOTICES.txt）を、発行のたびに、実際に配布物へ入るファイルから作って、アプリ本体の Assets\Licenses に置く。
+    手で書くと、パッケージを足したり版を上げたりしたときに中身がずれるため、発行するファイルの一覧（ResolvedFileToPublish）から作る。
+    - NuGet パッケージ: パッケージの中のライセンスファイル（無ければ、MIT なら nuspec の著作権表示で本文を作る）と、第三者の通知（NOTICE・ThirdPartyNotices）
+    - パッケージ以外: 配布物の中の「名前.LICENSE.txt」（xterm.js など）
+    中身が同じものは 1 つにまとめ、対象の名前を並べる
+  -->
+  <Target Name="GenerateThirdPartyNotices" AfterTargets="ComputeResolvedFilesToPublishList">
+    <PropertyGroup>
+      <_ThirdPartyNoticesPath>$(IntermediateOutputPath)THIRD-PARTY-NOTICES.txt</_ThirdPartyNoticesPath>
+    </PropertyGroup>
+    <GenerateThirdPartyNoticesFile Files="@(ResolvedFileToPublish)" PackageRoot="$(NuGetPackageRoot)" OutputFile="$(_ThirdPartyNoticesPath)" />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(_ThirdPartyNoticesPath)" RelativePath="Assets\Licenses\THIRD-PARTY-NOTICES.txt" CopyToPublishDirectory="Always" />
+      <FileWrites Include="$(_ThirdPartyNoticesPath)" />
+    </ItemGroup>
+  </Target>
+  <!--
+    発行のあとに、配布物を作る（ユーザーの決定）。
+      bin\<構成>\publish\MmmTool_<版>\     版のフォルダ（版は Directory.Build.props の Version）。説明書とアプリ本体だけを並べる
+        README.txt
+        MmmTool\                           アプリ本体（発行の出力をそのまま写す）。コピー先のフォルダ名が版ごとに変わらない
+    発行の出力先（PublishDir）は、発行プロファイルで版を含まない途中のフォルダ（obj\<構成>\publish\）にしている。
+    VS の「発行」はプロファイルを単体で読むので、プロファイルではプロジェクトの Version を使えないため、版を付けるのはここで行う。
+    発行の出力を直す処理（.mui の削除・deps.json の localPath）が済んでから写す
+  -->
+  <PropertyGroup>
+    <DistributionDir Condition="'$(DistributionDir)' == ''">$(MSBuildProjectDirectory)\bin\$(Configuration)\publish\MmmTool_$(Version)\</DistributionDir>
+  </PropertyGroup>
+  <Target Name="PackageDistribution" AfterTargets="Publish" DependsOnTargets="PruneMuiAfterPublish;AddLocalPathToPublishDepsFile">
+    <ItemGroup>
+      <_PublishedFile Include="$(PublishDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PublishedFile)" DestinationFiles="@(_PublishedFile->'$(DistributionDir)MmmTool\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DistributionDocument)" DestinationFolder="$(DistributionDir)" />
+    <Message Importance="high" Text="$(MSBuildProjectName) の配布物 -> $(DistributionDir)" />
+  </Target>
+  <UsingTask TaskName="GenerateThirdPartyNoticesFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Files ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <PackageRoot ParameterType="System.String" Required="true" />
+      <OutputFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Xml.Linq" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        const string MitTemplate =
+            "MIT License\n\n{0}\n\n" +
+            "Permission is hereby granted, free of charge, to any person obtaining a copy\n" +
+            "of this software and associated documentation files (the \"Software\"), to deal\n" +
+            "in the Software without restriction, including without limitation the rights\n" +
+            "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n" +
+            "copies of the Software, and to permit persons to whom the Software is\n" +
+            "furnished to do so, subject to the following conditions:\n\n" +
+            "The above copyright notice and this permission notice shall be included in all\n" +
+            "copies or substantial portions of the Software.\n\n" +
+            "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n" +
+            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n" +
+            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n" +
+            "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n" +
+            "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n" +
+            "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n" +
+            "SOFTWARE.\n";
+
+        Func<string, string> normalize = s => s.Replace("\r\n", "\n").Replace("\r", "\n").Trim('\n', ' ', '﻿');
+
+        // 発行するファイルから、パッケージ（名前 → 版）と、パッケージ以外のライセンスファイルを集める
+        var packages = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var looseLicenses = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Files)
+        {
+            var id = file.GetMetadata("NuGetPackageId");
+            // 自分のプロジェクト（MmmTool.Core・MmmSdk）もパッケージ名を持つが、ライセンスは LICENSE.txt なので含めない
+            if (file.GetMetadata("ReferenceSourceTarget") == "ProjectReference") continue;
+            if (id.Length > 0)
+            {
+                packages[id] = file.GetMetadata("NuGetPackageVersion");
+            }
+            else if (file.GetMetadata("Filename").EndsWith(".LICENSE", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = file.GetMetadata("Filename");
+                looseLicenses[name.Substring(0, name.Length - ".LICENSE".Length)] = file.ItemSpec;
+            }
+        }
+
+        // ライセンスの本文ごとに、対象の名前をまとめる（本文 → 名前の一覧）
+        var groups = new Dictionary<string, List<string>>();
+        Action<string, string> add = (text, name) =>
+        {
+            text = normalize(text);
+            if (!groups.TryGetValue(text, out var names)) groups[text] = names = new List<string>();
+            names.Add(name);
+        };
+
+        foreach (var package in packages)
+        {
+            var directory = Path.Combine(PackageRoot, package.Key.ToLowerInvariant(), package.Value.ToLowerInvariant());
+            if (!Directory.Exists(directory))
+            {
+                Log.LogError("THIRD-PARTY-NOTICES: パッケージ " + package.Key + " " + package.Value + " のフォルダーが見つかりません（" + directory + "）。");
+                return false;
+            }
+            var nuspec = XDocument.Load(Directory.GetFiles(directory, "*.nuspec").First());
+            Func<string, XElement> element = localName => nuspec.Descendants().FirstOrDefault(e => e.Name.LocalName == localName);
+            var license = element("license");
+            var copyright = element("copyright")?.Value.Trim() ?? "";
+            var rootFiles = Directory.GetFiles(directory);
+
+            var parts = new List<string>();
+            if (license?.Attribute("type")?.Value == "file")
+            {
+                parts.Add(File.ReadAllText(Path.Combine(directory, license.Value)));
+            }
+            else
+            {
+                var licenseFile = rootFiles.FirstOrDefault(f => Path.GetFileName(f).StartsWith("license", StringComparison.OrdinalIgnoreCase));
+                if (licenseFile != null)
+                    parts.Add(File.ReadAllText(licenseFile));
+                else if (license?.Value == "MIT")
+                    parts.Add(string.Format(MitTemplate, copyright));
+                else
+                    parts.Add("License: " + (license?.Value ?? element("licenseUrl")?.Value ?? "(not specified)") + (copyright.Length > 0 ? "\n" + copyright : ""));
+            }
+            foreach (var notice in rootFiles.Where(f => Path.GetFileName(f).IndexOf("notice", StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                parts.Add(File.ReadAllText(notice));
+            }
+            add(string.Join("\n\n", parts.Select(normalize)), package.Key + " " + package.Value);
+        }
+        foreach (var loose in looseLicenses)
+        {
+            add(File.ReadAllText(loose.Value), loose.Key);
+        }
+
+        var output = new StringBuilder();
+        output.Append("THIRD-PARTY NOTICES\n\n");
+        output.Append("MmmTool に同梱しているソフトウェアと、そのライセンス・通知の全文です（発行のときに自動で作っています）。\n");
+        output.Append("This file lists the third-party software included with MmmTool and their licenses and notices.\n");
+        foreach (var group in groups.OrderBy(g => g.Value[0], StringComparer.OrdinalIgnoreCase))
+        {
+            output.Append("\n\n").Append(new string('=', 78)).Append('\n');
+            foreach (var name in group.Value) output.Append(name).Append('\n');
+            output.Append(new string('=', 78)).Append("\n\n");
+            output.Append(group.Key).Append('\n');
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(OutputFile));
+        File.WriteAllText(OutputFile, output.ToString().Replace("\n", "\r\n"), new UTF8Encoding(true));
       ]]></Code>
     </Task>
   </UsingTask>

@@ -21,6 +21,19 @@
     -->
     <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
     <AllowedReferenceRelatedFileExtensions>.pdb;.pri;.dll.config;.exe.config</AllowedReferenceRelatedFileExtensions>
+    <!--
+      全プロジェクトを x64 専用にする（Core も含めて AnyCPU を使わない。SDK も同じ設定）。
+      Platforms は VS で選べる一覧なので、既定の Platform も x64 にする（-p:Platform を付けないビルド・発行で AnyCPU にならないように）
+    -->
+    <Platforms>x64</Platforms>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <!-- プラットフォームは x64 だけなので、出力先（bin・obj）に x64 の段を作らない（bin\<構成>\<TFM>\。配布物は bin\Release\publish\MmmTool_<版>\） -->
+    <AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
+    <!--
+      RID も win-x64 だけなので、出力先に RID の段を作らない（SDK も同じ設定）。
+      VS の「発行」は RID を参照先にも渡すので、段を作ると、RID の有無で出力先が変わり、先にビルドした DLL を見つけられずに失敗する
+    -->
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
   <!--
     Release では .pdb（デバッグ情報）を作らず、参照先（SDK）の .pdb も出力へコピーしない（ユーザーの決定。Debug では作る）。決定 0015

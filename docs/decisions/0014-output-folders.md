@@ -5,7 +5,7 @@
 
 ## 決定
 EXE の横のフォルダは `Assets`（配布物）と `Data`（アプリが書くもの）の 2 つだけにする。
-- `runtimes`: アプリの csproj で `RuntimeIdentifier` を `win-x64` にし、ビルドも x64 専用にする。ネイティブ DLL（`WebView2Loader.dll` など）は、全 CPU 分の `runtimes\` ではなく、EXE の横に x64 の分だけ置かれる。出力先のパスには RID を付けない（`AppendRuntimeIdentifierToOutputPath=false`。`bin\x64\<構成>\<TFM>\` のまま）
+- `runtimes`: アプリの csproj で `RuntimeIdentifier` を `win-x64` にし、ビルドも x64 専用にする。ネイティブ DLL（`WebView2Loader.dll` など）は、全 CPU 分の `runtimes\` ではなく、EXE の横に x64 の分だけ置かれる。出力先のパスには RID を付けない（`Directory.Build.props` の `AppendRuntimeIdentifierToOutputPath=false`。SDK も同じ。VS の「発行」が参照先にも RID を渡したときに、参照先の出力先が変わらないようにするため。`bin\<構成>\<TFM>\` のまま。プラットフォームの段も `AppendPlatformToOutputPath=false` で付けない）
 - `Features`・`Shell`・`MmmSdk.WinUI`（画面の XAML を変換した `.xbf` と、SDK の `.xaml`）: 中身は `MmmTool.pri` に入っていて、実行時はそちらから読む。ビルドの出力に残る、ばらのファイルは、csproj の `RemoveLooseXamlAfterBuild` で、ビルドのあとに消す
 - `MmmTool.exe.WebView2`（WebView2 のキャッシュ）: `Data\WebView2` に置く。SDK の `TerminalControl.UserDataFolder` に、アプリの `AppInfo.WebView2Directory` を渡す
 - `Logs`（エラーのログ）: `Data\Logs` に置く（`AppInfo.LogDirectory`）
