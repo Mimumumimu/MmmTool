@@ -13,7 +13,7 @@
     <!-- 非パッケージ（WindowsPackageType=None）でも、WinUI のリソース（resources.pri）の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <!-- ランタイム（Windows App Runtime / .NET）は PC 側にインストールする前提。出力ファイル数を減らすため -->
+    <!-- ランタイム（Windows App Runtime / .NET）は PC 側にインストールする前提。出力の DLL の数を減らすため（単一ファイルにはしない。決定 0003） -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <SelfContained>false</SelfContained>
     <!-- 言語別リソース（NuGet 由来のサテライト DLL）を日本語・英語だけにする -->

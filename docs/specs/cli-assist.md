@@ -40,7 +40,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
 
 ## 添付
 - 画像は Ctrl+V で貼り付け（JPEG に変換）。ファイルはドラッグ＆ドロップまたは貼り付け
-- `%TEMP%\MmmTool\session_日時\` に連番で保存する（SDK の `AttachmentStore`。フォルダ名はアプリ側が `"MmmTool"` を渡す）。送信後は一覧だけ空にし、ファイルは終了時に削除する（`AttachmentStore.Dispose`）。1 日より古い残りは、次回の初回添付時に削除する
+- `%TEMP%\MmmTool\<EXE パスのハッシュ>\session_日時\` に連番で保存する（SDK の `AttachmentStore`。フォルダ名はアプリ側が `"MmmTool"` を渡す）。送信後は一覧だけ空にし、ファイルは終了時に削除する（`AttachmentStore.Dispose`）。同じ EXE のフォルダの中の、1 日より古い残りは、次回の初回添付時に削除する（Debug / Release など別パスの EXE は別のフォルダなので、互いに消さない）
 - サムネイルは SDK の `ThumbnailImage.FromFile`（ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する）。JPEG への変換も SDK の `IImageConverter`（詳細は SDK の `docs/controls.md`）
 
 ## 補助スクリプト：会話履歴の削除

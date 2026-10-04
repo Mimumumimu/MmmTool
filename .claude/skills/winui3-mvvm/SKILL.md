@@ -191,8 +191,9 @@ internal sealed partial class ReminderJsonContext : JsonSerializerContext
   - `<inheritdoc />` を使う場合は上記の対象外（インターフェース側に書く）
 
 ## プロジェクト設定
-- アンパッケージ。配布サイズを小さくするため、既定はフレームワーク依存（実行する PC に .NET Desktop Runtime と Windows App Runtime が必要。ランタイムを入れてもらえない配布先のときだけセルフコンテインにする）
+- アンパッケージ。DLL の数をできるだけ少なくするため、既定はフレームワーク依存（実行する PC に .NET Desktop Runtime と Windows App Runtime が必要。ランタイムを入れてもらえない配布先のときだけセルフコンテインにする）
   - `.csproj`: `<WindowsPackageType>None</WindowsPackageType>` / `<SelfContained>false</SelfContained>` / `<WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>`
+  - 単一ファイル化（`PublishSingleFile`）はしない（巨大な 1 つの EXE にしないため）。ReadyToRun は、DLL の数を増やさず起動を速くするので使ってよい。「配布を小さく」は、サイズを最小にする意味ではない（ランタイムを同梱しない結果として小さくなる）
   - フレームワーク依存ではトリミング（`PublishTrimmed`）は使えない。それでもトリミングに戻せるよう、JSON はソース生成のまま書く
   - `launchSettings.json` は `"commandName": "Project"` のプロファイルのみにする
   - `Package.appxmanifest` は動作確認が取れるまで削除しない
