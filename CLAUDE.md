@@ -28,6 +28,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 共有部品は別リポジトリの `MmmSdk`（`https://github.com/Mimumumimu/MmmSdk`。`MmmSdk.Core` / `MmmSdk.WinUI`）。JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄（TimeInputBox）・LinkArea・IME 操作・添付の一時保存（AttachmentStore）・ConPTY（PseudoConsole）・標準のメッセージボックス（NativeMessageBox）は SDK 側にある。Win32 の宣言（P/Invoke）は SDK の CsWin32 に集め、アプリには持たない（[decisions/0011-cswin32.md](docs/decisions/0011-cswin32.md)）。アプリは Git サブモジュール `external/MmmSdk` として取り込み、プロジェクト参照でつなぐ（clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`）。DI は `AddMmmSdkCore(dataDirectory)` / `AddMmmSdkWinUI()`。アプリ固有の Entities・Repository は `MmmTool.Core` に残す。SDK を直したら、`external/MmmSdk` の中（master ブランチ）でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする（SDK を先に push）
 - エラーの扱い: `try/catch` は最小限（範囲を絞る。広い `catch` で隠さない・握りつぶさない）。予測できる失敗は先に確かめる（`TryXxx`・検証）。それでも起きる失敗で、続けられるものは画面に出す（InfoBar）。**これ以上進められない失敗・予想外の失敗（バグ）が出たら、ダイアログに例外の内容を出して、アプリを落とす**（先にログを書く。SDK の `FatalErrorHandler`。[architecture.md](docs/architecture.md) の「エラーの扱い」）
 - バージョンは `Directory.Build.props` の `Version`（現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0）。SDK は別に持つ
+- 画像の添付（SDK の `ImageConverter`）と添付ファイルの大きさに、上限は設けない（ユーザーの決定。意図した仕様。SDK の CLAUDE.md・`docs/controls.md` にも書いてある）。レビューで「大きな画像を元の解像度のまま展開する・添付に上限が無い」と指摘・提案しない。**Why:** 上限を付けると、添付したい画像・ファイルが添付できなくなるため
 - テストプロジェクト: ユーザーの決定で、作らない（ユーザーが「作る」と言うまで）。レビューや作業のまとめで、テストが無いことを指摘・提案しない。ユーザーが作ると決めたら、Core の処理（リマインダーの判定・日付の変換・壊れた JSON の退避など）から作る
 - 通知ウィンドウのリンクのクリック判定（SDK の `NotificationWindow`。`Hyperlink.Click` でフラグを立て、閉じる判定を Low 優先度で 1 サイクル遅らせる方式）: ユーザーの決定で、変えない。レビューで「発火順に依存していて将来壊れうる（Q-19）」と指摘・提案しない。**Why:** 今の動きは実機で問題なく動いている。押下位置から判定する方式は、WinUI 3 の `TextBlock` に使える API が無く、`RichTextBlock` へ替えると見た目・操作（テキスト選択・カーソル形状・クリックで閉じる）が壊れるため、採らないと決めた。
 - アプリの起動など目に見える動作の確認は、1 回ずつ事前に告知してから行う。画面操作が必要な確認は、VS で行ってもらう
@@ -43,8 +44,14 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - リマインダー監視・通知
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
-なし。レビュー対応は観点 1〜4 まで完了（P-06 は対応不要）。
-制約（次に作業するとき）: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
+依頼: レビュー P-08 の残り（ブランチ `claude/review-fixes`。SDK とアプリの両方）。ユーザーが決めた `ImageConverter` の「大きさは無制限（意図した仕様）」も、各所に書く。
+制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
+- [x] SDK: `TerminalControl` の `NavigationStarting`（仮想ホスト以外へ移動しない）
+- [x] SDK: `TrayMenuRenderer` のフォント列挙を 1 度だけ
+- [x] SDK: `PseudoConsole.Start` の引用符の注意・`MmmSdk.WinUI.csproj` の `IsTrimmable` / `IsAotCompatible`・README のログの注意
+- [x] 無制限の明記: SDK の `ImageConverter` / `IImageConverter` / `docs/controls.md` / CLAUDE.md、アプリの CLAUDE.md
+- [x] アプリ README: WebView2 キャッシュと `Logs` の注意
+- [ ] 手元の VS でビルド（特に、WinUI の `IsAotCompatible` で警告が出ないか。出たら直す）・動作確認（ターミナルが表示される・トレイメニューの見た目）→ PR（SDK を先に merge commit でマージ）
 - 後で: 正本のスキル `~/.claude/skills/winui3-mvvm/SKILL.md`（ユーザー側）にも、このリポジトリの写しと同じ直しを入れる（プロジェクト設定の「アンパッケージ」の項。決定 0003 の意図は「DLL の数を少なく・単一ファイルにはしない」）
 
 ## 未実装・残りの作業（2026-10-03 時点）
