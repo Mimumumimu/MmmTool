@@ -5,6 +5,7 @@ using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.Core.CliAssist;
 using MmmTool.Core.CliAssist.Json;
 using MmmTool.Features.CliAssist.Main;
+using MmmTool.Features.CliAssist.Setup;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 using MmmTool.Shell;
 
@@ -20,20 +21,27 @@ public static class CliAssistServiceCollectionExtensions
     public static IServiceCollection AddCliAssist(this IServiceCollection services)
     {
         // 保存先
-        // 既定の定型コマンドはアプリが決める（補助スクリプトの配置を知っているため）
-        services.AddSingleton<ICliCommandRepository>(provider => new JsonCliCommandRepository(provider.GetRequiredService<IJsonFileStore>(), CliCommandDefaults.Create));
+        // 既定の定型コマンドはアプリが決める（補助スクリプトの配置を知っているため）。環境と使うツールは、作るときにユーザーが選ぶ（初期設定のダイアログ）
+        services.AddSingleton<ICliCommandRepository>(provider => new JsonCliCommandRepository(
+            provider.GetRequiredService<IJsonFileStore>(),
+            async _ => CliCommandDefaults.Create(await provider.GetRequiredService<ICliSetupDialogService>().ShowFirstRunAsync())));
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
 
         services.AddSingleton<CliSettingsService>();
-        // 終了時（Host の破棄時）に添付の一時フォルダを削除する
-        // 添付の一時保存先（%TEMP%\MmmTool\session_日時\）
-        services.AddSingleton(provider => new AttachmentStore(AppInfo.Name, provider.GetRequiredService<TimeProvider>()));
+        // 添付の一時保存先。環境ごとに 1 つ。使うのは、定型コマンドで決まった環境のほうだけ
+        // Windows: %TEMP%\MmmTool\session_日時\。終了時（Host の破棄時）に削除する
+        services.AddKeyedSingleton(CliEnvironment.Windows, (provider, _) => new AttachmentStore(AppInfo.Name, provider.GetRequiredService<TimeProvider>()));
+        // WSL: /tmp/MmmTool/session_日時/。終了時には削除しない（WSL の再起動で空になるのに任せる）
+        services.AddKeyedSingleton(CliEnvironment.Wsl, (provider, _) => AttachmentStore.ForWsl(AppInfo.Name, provider.GetRequiredService<TimeProvider>()));
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();
         services.AddSingleton<IWorkingDirectoryDialogService, WorkingDirectoryDialogService>();
+        services.AddSingleton<ICliSetupDialogService, CliSetupDialogService>();
 
         services.AddTransient<WorkingDirectoryDialog>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
+        services.AddTransient<CliSetupDialog>();
+        services.AddTransient<CliSetupDialogViewModel>();
         services.AddTransient<CliAssistViewModel>();
         services.AddNavigationPage<CliAssistPage>("CLI補助", "", NavigationArea.Top);
 

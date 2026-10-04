@@ -11,7 +11,7 @@
 ## ファイル
 | ファイル | 内容 | 備考 |
 | --- | --- | --- |
-| `Data/CliCommands.json` | CLI補助の定型コマンド | ローカル専用。ID なしの入れ子 JSON。無ければ既定を生成 |
+| `Data/CliCommands.json` | CLI補助の定型コマンドと、動かす環境（`environment`: `windows` / `wsl`） | ローカル専用。ID なしの入れ子 JSON。無ければ、初期設定ダイアログ（使うツール・環境）を出してから既定を生成 |
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴（20 件） | ローカル専用 |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある（ID あり） |
@@ -20,7 +20,7 @@
 
 ## 壊れたファイル（全 JSON 共通）
 - JSON として読めないファイルは、同じフォルダに `名前.broken-yyyyMMdd-HHmmss.json`（同じ秒なら `-2` 以降）へ名前を変えて退避し（自動では消さない）、値 null とメッセージが返る
-- 呼ぶ側は「ファイルが無いとき」と同じに作り直す：Links は空、CliCommands は既定、CliSettings / AppSettings / リマインダーは空
+- 呼ぶ側は「ファイルが無いとき」と同じに作り直す：Links は空、CliCommands は既定（環境を選び直す）、CliSettings / AppSettings / リマインダーは空
 - 0 バイト・空白だけ・`null` は、退避せず空として扱う
 - ロック・権限などの IO エラーは退避できないので、従来どおり `DataFileException`。リンク・CLI設定・リマインダーは、元のデータを消さないよう保存を止める
 - Repository の `LoadAsync` は `DataLoadResult<T>` を返し、サービスは `RecoveryMessage` を持つ（リマインダーは、1 件単位の操作の保存先が `LoadError` / `RecoveryMessage` を持つ。[reminders.md](reminders.md)）

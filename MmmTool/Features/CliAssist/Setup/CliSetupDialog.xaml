@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 題名・ボタンの文言は、開き方（初回 / 初期化）で変わるので、コードビハインドで決める -->
+<ContentDialog
+    x:Class="MmmTool.Features.CliAssist.Setup.CliSetupDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Closing="OnClosing"
+    IsPrimaryButtonEnabled="{x:Bind ViewModel.CanConfirm, Mode=OneWay}"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <StackPanel Width="440" Spacing="16">
+        <TextBlock
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="使う AI ツールと、動かす環境を選んでください。"
+            TextWrapping="Wrap" />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="使うツール" />
+            <CheckBox Content="Claude Code" IsChecked="{x:Bind ViewModel.UsesClaudeCode, Mode=TwoWay}" />
+            <CheckBox Content="Kiro" IsChecked="{x:Bind ViewModel.UsesKiro, Mode=TwoWay}" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <RadioButtons Header="動かす環境" SelectedIndex="{x:Bind ViewModel.EnvironmentIndex, Mode=TwoWay}">
+                <x:String>Windows（PowerShell）</x:String>
+                <x:String>WSL</x:String>
+            </RadioButtons>
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="WSL では、作業ディレクトリ・添付ファイルのパスを WSL の形（/mnt/d/... など）にして渡します。"
+                TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- 初回だけ、あとで変える方法を案内する（初期化のときは、今まさにその方法で開いているので出さない） -->
+        <TextBlock
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="あとで変えるときは、左の一覧の右上の「⋯」メニューの「定型コマンドを初期化…」から選び直せます。"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind ViewModel.IsFirstRun, Mode=OneWay}" />
+
+        <!-- 初期化のときだけ、消えるもの・終了するものを知らせる -->
+        <InfoBar
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.IsReset, Mode=OneWay}"
+            Message="定型コマンドは既定の内容に置き換わり、追加・編集したコマンドは失われます。ターミナルは再起動し、実行中の CLI は終了します。環境を変えた場合は、送信欄の添付も解除されます。"
+            Severity="Warning" />
+    </StackPanel>
+</ContentDialog>

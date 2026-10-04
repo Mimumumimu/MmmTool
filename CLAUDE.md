@@ -52,13 +52,15 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
 - EXE の横を `Assets`・`Data`・`Lib` と少数のファイルだけにする（[decisions/0014-output-folders.md](docs/decisions/0014-output-folders.md)・[0015](docs/decisions/0015-dll-reduction-and-lib.md)）。実装・ビルド・発行・docs は済み。Release の起動（トレイ常駐まで）は確認済み。残り: VS での画面の確認（メイン画面・各ページ・リマインダーの画面・通知・ターミナル。ばらの `.xbf` を消しても `.pri` から画面が読めるか、`Lib` の DLL（WebView2Loader など）が読めるか、`Data\WebView2` ができるか）。確認が済んだら、この項目を消す
+- CLI補助の WSL 対応（[decisions/0016-wsl.md](docs/decisions/0016-wsl.md)・`docs/specs/cli-assist.md` の「初期設定（使うツール・環境）」）。実装・ビルド・docs は済み。残り: ユーザーの WSL の Claude Code ができたら、VS で確認（環境の選択ダイアログ・WSL のシェルの起動・作業ディレクトリ変更・添付のパス（ドロップ・貼り付けの画像が /tmp/MmmTool に置かれるか）・`Remove-ClaudeSession.py` の操作とごみ箱への移動・「定型コマンドを初期化…」で環境を切り替えたときのターミナルの起動し直しと添付の外し）。確認が済んだら、この項目と docs の「制約: 実機で未確認」を消す
+- CLI補助の Kiro 対応（[decisions/0017-cli-tools.md](docs/decisions/0017-cli-tools.md)・`docs/specs/cli-assist.md` の「定型コマンド」の表）。実装・ビルド・docs は済み。残り: VS で確認（初期設定ダイアログ（初回は Esc で閉じない・ツールを 1 つも選ばないと決定できない・初期化は警告付き）・Kiro の各コマンド・「会話履歴の削除（一覧で Ctrl+D）」で Kiro の一覧から消せるか）。確認が済んだら、この項目と docs の「制約: 実機で未確認」を消す
 - この環境（Claude Code on the web）には `dotnet` が無く、ビルドできない。ビルドと動作確認は、grep での確認と、手元の VS で代える
 
-## 未実装・残りの作業（2026-10-04 時点）
+## 未実装・残りの作業（2026-10-05 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。
 
 ### 未実装（後回し・優先度低）
-- 既定シェルの差し替え: 設定ページの項目ではなく、CLI補助の機能として組み込む。目的は Kiro でも動かすこと、できれば WSL でも動かすこと（パスの問題などがある）
+- 今のところなし（Kiro・WSL 対応は済み。`docs/specs/cli-assist.md` の「初期設定（使うツール・環境）」）
 
 ### ユーザーが用意するもの待ち
 - README.md の画像（制約: 画像はユーザーが用意する。リンクの中身などがまだ決まっておらず、撮れない）。届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える（CLI補助の `cli-assist.jpg` と同じ形）: リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`・通知ダイアログ `notification.png`・リマインダーのメイン画面 `reminders.png`

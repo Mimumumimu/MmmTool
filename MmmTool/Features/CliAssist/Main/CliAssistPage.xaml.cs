@@ -3,6 +3,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.CliAssist;
 using Windows.ApplicationModel.DataTransfer;
@@ -47,6 +48,7 @@ public sealed partial class CliAssistPage : Page
         RebuildCommandTree();
 
         ViewModel.FocusRequested += OnFocusRequested;
+        ViewModel.TerminalRestartRequested += (_, _) => TerminalView.RestartSessionAsync().Forget();
     }
 
     /// <summary>フォーカスの移動を求められたら、移す</summary>
@@ -70,13 +72,18 @@ public sealed partial class CliAssistPage : Page
         });
     }
 
-    /// <summary>読み込み時の処理（入力欄の高さ調整と ViewModel の初期化）</summary>
+    /// <summary>読み込み時の処理（入力欄の高さ調整・ViewModel の初期化・ターミナルの接続）</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 起動するシェル（Windows / WSL）は、初期化で読み込む定型コマンドで決まるので、初期化が済んでからターミナルにつなぐ。
+    /// ターミナルは、つないだとき（表示の準備がまだなら、準備ができたとき）にシェルを起動する。
+    /// </remarks>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         FitInputBoxToThreeLines();
         await ViewModel.InitializeAsync();
+        TerminalView.Session ??= ViewModel.Terminal;
     }
 
     /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>

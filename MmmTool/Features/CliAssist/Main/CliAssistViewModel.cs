@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Attachments;
 using MmmSdk.Core.Components.Shells;
 using MmmSdk.Core.Components.Storage;
@@ -9,6 +10,7 @@ using MmmSdk.WinUI.Components.Attachments;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.Core.CliAssist;
+using MmmTool.Features.CliAssist.Setup;
 using MmmTool.Features.CliAssist.WorkingDirectory;
 
 namespace MmmTool.Features.CliAssist.Main;
@@ -20,12 +22,16 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private readonly ICliCommandRepository _commandRepository;
     /// <summary>CLI補助の利用状態</summary>
     private readonly CliSettingsService _settings;
-    /// <summary>添付ファイルの一時保存先</summary>
-    private readonly AttachmentStore _attachmentStore;
+    /// <summary>添付ファイルの一時保存先（Windows の %TEMP%）</summary>
+    private readonly AttachmentStore _windowsAttachmentStore;
+    /// <summary>添付ファイルの一時保存先（WSL の /tmp）</summary>
+    private readonly AttachmentStore _wslAttachmentStore;
     /// <summary>画像の変換</summary>
     private readonly IImageConverter _imageConverter;
     /// <summary>作業ディレクトリ変更ダイアログ</summary>
     private readonly IWorkingDirectoryDialogService _workingDirectoryDialog;
+    /// <summary>初期設定ダイアログ</summary>
+    private readonly ICliSetupDialogService _setupDialog;
     /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
 
@@ -38,25 +44,31 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <param name="terminal">ターミナルのセッション</param>
     /// <param name="commandRepository">定型コマンドの保存先</param>
     /// <param name="settings">CLI補助の利用状態</param>
-    /// <param name="attachmentStore">添付ファイルの一時保存先</param>
+    /// <param name="windowsAttachmentStore">添付ファイルの一時保存先（Windows の %TEMP%）</param>
+    /// <param name="wslAttachmentStore">添付ファイルの一時保存先（WSL の /tmp）</param>
     /// <param name="imageConverter">画像の変換</param>
     /// <param name="workingDirectoryDialog">作業ディレクトリ変更ダイアログを開く</param>
+    /// <param name="setupDialog">初期設定ダイアログを開く</param>
     /// <param name="timeProvider">現在時刻の提供元</param>
     public CliAssistViewModel(
         ITerminalSession terminal,
         ICliCommandRepository commandRepository,
         CliSettingsService settings,
-        AttachmentStore attachmentStore,
+        [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
+        [FromKeyedServices(CliEnvironment.Wsl)] AttachmentStore wslAttachmentStore,
         IImageConverter imageConverter,
         IWorkingDirectoryDialogService workingDirectoryDialog,
+        ICliSetupDialogService setupDialog,
         TimeProvider timeProvider)
     {
         Terminal = terminal;
         _commandRepository = commandRepository;
         _settings = settings;
-        _attachmentStore = attachmentStore;
+        _windowsAttachmentStore = windowsAttachmentStore;
+        _wslAttachmentStore = wslAttachmentStore;
         _imageConverter = imageConverter;
         _workingDirectoryDialog = workingDirectoryDialog;
+        _setupDialog = setupDialog;
         _timeProvider = timeProvider;
 
         CommandItems = [];
@@ -74,7 +86,14 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>中央のターミナルで動くシェルのセッション。</summary>
+    /// <remarks>
+    /// 起動するシェルは定型コマンドの環境（<see cref="CliCommandSet.Environment"/>）で決まるので、<see cref="InitializeAsync"/> が済んでから画面につなぐ（つないだときに起動する）。
+    /// 今どちらの環境で動いているかは、このシェルの種類（<see cref="ShellInfo.Kind"/>）で見る（ここ 1 か所に持つ）。
+    /// </remarks>
     public ITerminalSession Terminal { get; }
+
+    /// <summary>今の環境で使う、添付ファイルの一時保存先</summary>
+    private AttachmentStore AttachmentStore => Terminal.Shell.Kind == ShellKind.Wsl ? _wslAttachmentStore : _windowsAttachmentStore;
 
     #region 定型コマンド
 
@@ -86,13 +105,20 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <remarks>ViewModel は UI に触れないため。</remarks>
     public event EventHandler<FocusTarget>? FocusRequested;
 
+    /// <summary>ターミナルのシェルの起動し直しを View に頼む</summary>
+    /// <remarks>起動し直すには端末の大きさが要り、それは画面（ターミナルのコントロール）が持っているため。</remarks>
+    public event EventHandler? TerminalRestartRequested;
+
     /// <summary>左ペインのツリーに表示する要素。</summary>
     [ObservableProperty]
     public partial IReadOnlyList<CommandTreeItem> CommandItems { get; private set; }
 
     /// <summary>定型コマンドを読み込んで表示を初期化する</summary>
     /// <returns>初期化の完了を表すタスク</returns>
-    /// <remarks>最初の 1 回だけ行う。</remarks>
+    /// <remarks>
+    /// 最初の 1 回だけ行う。定型コマンドのファイルが無いときは、読み込みの中で、環境を選ぶダイアログが開く。
+    /// 読み込んだ環境に合わせて、ターミナルで起動するシェルを決める。読み込めなかったときは Windows のまま。
+    /// </remarks>
     public async Task InitializeAsync()
     {
         if (_initialized)
@@ -109,6 +135,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             (_commandSet, recoveryMessage) = await _commandRepository.LoadAsync();
             messages.Add(recoveryMessage);
             messages.AddRange(_commandSet.Validate());
+            Terminal.Shell = ShellFor(_commandSet);
         }
         catch (DataFileException ex)
         {
@@ -121,6 +148,51 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         RebuildCommandItems();
     }
+
+    /// <summary>定型コマンドを既定の内容に作り直す（初期化）</summary>
+    /// <returns>初期化の完了を表すタスク</returns>
+    /// <remarks>
+    /// 初期設定ダイアログ（警告を出して、確認を兼ねる）で、使うツールと環境を選び直し、その既定の内容で上書きする（今の内容は引き継がない）。
+    /// ターミナルは、環境が変わらなくても、いつも起動し直す（ユーザーの決定）。動いている CLI は終了する。
+    /// 環境が変わったときは、添付を外す（パスの形・一時保存先が環境ごとに違うため）。一時保存した添付は消す。
+    /// </remarks>
+    [RelayCommand]
+    private async Task ResetCommandsAsync()
+    {
+        if (await _setupDialog.ShowResetAsync(_commandSet.GetEnvironment()) is not { } setup)
+        {
+            return;
+        }
+
+        var commandSet = CliCommandDefaults.Create(setup);
+        try
+        {
+            await _commandRepository.SaveAsync(commandSet);
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+            return;
+        }
+        _commandSet = commandSet;
+
+        var shell = ShellFor(_commandSet);
+        if (shell.Kind != Terminal.Shell.Kind)
+        {
+            RemoveAllAttachments();
+        }
+        Terminal.Shell = shell;
+
+        SelectedCategory = CommandCategory.Shell;
+        RebuildCommandItems();
+        TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>定型コマンドの環境で起動するシェルを決める</summary>
+    /// <param name="commandSet">定型コマンド</param>
+    /// <returns>WSL なら WSL のシェル、そうでなければ既定のシェル</returns>
+    private static ShellInfo ShellFor(CliCommandSet commandSet)
+        => commandSet.GetEnvironment() == CliEnvironment.Wsl ? ShellLocator.Wsl : ShellLocator.Default;
 
     /// <summary>タブが切り替わったら、ツリーを作り直す</summary>
     /// <param name="value">切り替え後のタブ</param>
@@ -150,7 +222,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         switch (item.Kind)
         {
             case CommandItemKind.Command when item.Command is { } command:
-                if (!TrySubmit(CommandPlaceholders.Expand(command, AppContext.BaseDirectory)))
+                if (!TrySubmit(CommandPlaceholders.Expand(command, AppDirectoryForShell())))
                 {
                     break;
                 }
@@ -169,6 +241,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
     }
 
+    /// <summary>アプリの EXE があるフォルダを、シェルから見たパスにする（<see cref="CommandPlaceholders.AppDir"/> の展開に使う）</summary>
+    /// <returns>シェルから見たパス。WSL から開けない場所（ネットワークのフォルダーなど）に置いたときは、Windows のパスのまま</returns>
+    private string AppDirectoryForShell()
+        => ShellCommands.TryConvertPath(Terminal.Shell, AppContext.BaseDirectory, out var path) ? path : AppContext.BaseDirectory;
+
     /// <summary>作業ディレクトリ変更ダイアログを開き、選ばれたフォルダへ移動する</summary>
     /// <returns>作業ディレクトリの変更の完了を表すタスク</returns>
     private async Task ChangeWorkingDirectoryAsync()
@@ -180,7 +257,9 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         if (!ShellCommands.TryChangeDirectory(Terminal.Shell, directory, out var command))
         {
-            Error.Show($"cmd では、% を含むフォルダーへ移動できません（環境変数として展開されるため）: {directory}");
+            Error.Show(Terminal.Shell.Kind == ShellKind.Wsl
+                ? $"WSL からは開けないフォルダーです（ドライブ文字のあるフォルダーか、WSL のフォルダーを選んでください）: {directory}"
+                : $"cmd では、% を含むフォルダーへ移動できません（環境変数として展開されるため）: {directory}");
             return;
         }
 
@@ -208,11 +287,12 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public partial string InputText { get; set; }
 
     /// <summary>入力欄のテキスト（と添付ファイルの指示文・パス）をターミナルへ送る。</summary>
+    /// <remarks>添付のパスは、シェルから見たパス（WSL では <c>/mnt/d/...</c>・<c>/tmp/...</c>）にして送る。変換できるかは、添付したときに確かめてある。</remarks>
     [RelayCommand]
     private void Send()
     {
         var text = InputText;
-        var attachmentPaths = Attachments.Select(item => item.FilePath).ToList();
+        var attachmentPaths = Attachments.Select(item => ToShellPath(item.FilePath)).ToList();
         if (string.IsNullOrWhiteSpace(text) && attachmentPaths.Count == 0)
         {
             return;
@@ -226,7 +306,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         InputText = string.Empty;
         Attachments.Clear();
-        _attachmentStore.CloseSession();
+        AttachmentStore.CloseSession();
 
         // 履歴には入力欄の本文だけを残す（自動で付け足した指示文・パスは残さない）
         AddSendHistory(text.TrimEnd('\r', '\n'));
@@ -268,9 +348,28 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     /// <summary>ディスク上のファイルを添付する（ドラッグ＆ドロップ・ファイルの貼り付け）。</summary>
     /// <param name="filePath">添付するファイルのパス</param>
-    /// <remarks>コピーせず、元のパスをそのまま送る（ローカルで動く CLI は、元の場所のファイルを直接読めるため）。</remarks>
+    /// <remarks>
+    /// コピーせず、元のパスをそのまま送る（ローカルで動く CLI は、元の場所のファイルを直接読めるため）。
+    /// WSL では、WSL から開けない場所（ネットワークのフォルダーなど）のファイルは添付せず、知らせる（送ってから読めないと分かるより、先に分かるほうがよいため）。
+    /// </remarks>
     public void AddAttachmentFile(string filePath)
-        => Attachments.Add(new AttachmentItem(filePath, Path.GetFileName(filePath), isTemporary: false));
+    {
+        if (!ShellCommands.TryConvertPath(Terminal.Shell, filePath, out _))
+        {
+            Error.Show($"WSL からは開けない場所のファイルなので、添付できません（ドライブ文字のある場所か、WSL のフォルダーに置いてください）: {filePath}");
+            return;
+        }
+        Attachments.Add(new AttachmentItem(filePath, Path.GetFileName(filePath), isTemporary: false));
+    }
+
+    /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
+    /// <param name="filePath">添付ファイルのパス（Windows のパス）</param>
+    /// <returns>シェルから見たパス</returns>
+    /// <exception cref="InvalidOperationException">変換できない（添付したときに確かめてあるので、起きればバグ）。</exception>
+    private string ToShellPath(string filePath)
+        => ShellCommands.TryConvertPath(Terminal.Shell, filePath, out var path)
+            ? path
+            : throw new InvalidOperationException($"添付ファイルのパスを、シェルから見たパスにできません: {filePath}");
 
     /// <summary>ディスク上に無いファイルを一時保存して添付する（メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付け）。</summary>
     /// <param name="content">ファイルの内容のストリーム</param>
@@ -282,7 +381,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         {
             using var buffer = new MemoryStream();
             await content.CopyToAsync(buffer);
-            var savedPath = await _attachmentStore.AddAsync(buffer.ToArray(), fileName);
+            var savedPath = await AttachmentStore.AddAsync(buffer.ToArray(), fileName);
             Attachments.Add(new AttachmentItem(savedPath, fileName, isTemporary: true));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -299,13 +398,23 @@ public sealed partial class CliAssistViewModel : ObservableObject
         try
         {
             var jpeg = await _imageConverter.ToJpegAsync(image);
-            var savedPath = await _attachmentStore.AddAsync(jpeg, "clipboard.jpg");
+            var savedPath = await AttachmentStore.AddAsync(jpeg, "clipboard.jpg");
             Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像", isTemporary: true));
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
         {
             // COMException: 画像のデコード・変換の失敗（未対応の形式など）
             Error.Show($"画像を添付できませんでした。{ex.Message}");
+        }
+    }
+
+    /// <summary>添付をすべて取り除く</summary>
+    /// <remarks>環境が変わるとき、今の環境の一時保存先から消すために、環境を切り替える前に呼ぶ。</remarks>
+    private void RemoveAllAttachments()
+    {
+        foreach (var item in Attachments.ToList())
+        {
+            RemoveAttachment(item);
         }
     }
 
@@ -323,7 +432,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         try
         {
-            _attachmentStore.Remove(item.FilePath);
+            AttachmentStore.Remove(item.FilePath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -4,8 +4,9 @@ namespace MmmTool.Core.CliAssist.Json;
 
 /// <summary>定型コマンドを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理（既定の中身はアプリが決める）</param>
-public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CliCommandSet> createDefaults) : ICliCommandRepository
+/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理（既定の中身と、初期設定（環境・使うツール）の選び方はアプリが決める）</param>
+/// <remarks><paramref name="createDefaults"/> は、<see cref="LoadAsync"/> を呼んだスレッド（UI スレッド）で呼ぶ（アプリが初期設定のダイアログを出すため）。</remarks>
+public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CancellationToken, Task<CliCommandSet>> createDefaults) : ICliCommandRepository
 {
     /// <summary>保存先のファイル名</summary>
     private const string FileName = "CliCommands.json";
@@ -35,12 +36,16 @@ public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CliComma
         return new(set);
     }
 
+    /// <inheritdoc />
+    public Task SaveAsync(CliCommandSet commandSet, CancellationToken cancellationToken = default)
+        => store.WriteAsync(FileName, commandSet, CliAssistJsonContext.Readable.CliCommandSet, cancellationToken);
+
     /// <summary>既定の定型コマンドを作って保存する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した既定の定型コマンド</returns>
     private async Task<CliCommandSet> WriteDefaultsAsync(CancellationToken cancellationToken)
     {
-        var defaults = createDefaults();
+        var defaults = await createDefaults(cancellationToken);
         await store.WriteAsync(FileName, defaults, CliAssistJsonContext.Readable.CliCommandSet, cancellationToken);
         return defaults;
     }

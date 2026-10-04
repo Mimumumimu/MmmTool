@@ -23,10 +23,10 @@ public sealed class CliCommandNode
     public List<CliCommandNode>? Children { get; set; }
 
     /// <summary>列挙値を、JSON に書く文字列にする</summary>
-    /// <typeparam name="T">列挙型（<see cref="CommandCategory"/> / <see cref="FocusTarget"/>）</typeparam>
+    /// <typeparam name="T">列挙型（<see cref="CommandCategory"/> / <see cref="FocusTarget"/> / <see cref="CliEnvironment"/>）</typeparam>
     /// <param name="value">列挙値</param>
     /// <returns>JSON に書く文字列（名前の小文字。例: <c>"session"</c>）</returns>
-    /// <remarks>文字列との変換は、読む側（<see cref="GetSwitchTo"/> / <see cref="GetFocus"/>）とこの 1 か所に集める。</remarks>
+    /// <remarks>文字列との変換は、読む側（<see cref="Parse{T}"/>）とこの 1 か所に集める。</remarks>
     public static string ToJsonValue<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     /// <summary><see cref="SwitchTo"/> を列挙値にする</summary>
@@ -41,8 +41,8 @@ public sealed class CliCommandNode
     /// <typeparam name="T">変換先の列挙型</typeparam>
     /// <param name="value">変換する文字列</param>
     /// <returns>変換した列挙値。変換できなければ null</returns>
-    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する（何もしない）。</remarks>
-    private static T? Parse<T>(string? value) where T : struct, Enum
+    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する（何もしない）。<see cref="CliCommandSet"/> の項目の変換にも使う。</remarks>
+    internal static T? Parse<T>(string? value) where T : struct, Enum
         => !string.IsNullOrWhiteSpace(value) && Enum.TryParse<T>(value.Trim(), ignoreCase: true, out var result) && Enum.IsDefined(result)
             ? result
             : null;
