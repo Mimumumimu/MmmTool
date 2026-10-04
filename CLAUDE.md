@@ -43,9 +43,14 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - リマインダー監視・通知
 
 ## 作業中の依頼（途中で止まったら、ここから再開する。区切りごとに更新して push する）
-フォルダ整理（① SDK の Components / Controls / Utilities の層、② アプリの `Main/` と 1 画面 1 フォルダ）は、どちらもマージまで完了（決定記録 0012・0013）。
-残っている依頼: レビュー対応の観点 4（P-03・P-04・P-05・P-08 未着手、P-06 保留でユーザーの判断待ち）。ユーザーが指示したら再開する。
-制約: Claude Code on the web の環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
+依頼: レビュー対応の観点 4（ブランチ `claude/review-fixes`。SDK とアプリの両方）。ユーザーが判断しなくてよい P-03・P-04・P-05・P-08 を行う。P-06 は保留（ユーザーの判断待ち）。
+制約: この環境には `dotnet` が無く、ビルドできない。grep での確認と、手元の VS でのビルド確認で代える。
+- [x] P-08: SDK `JsonFileStore`（失敗時に `.tmp` を消す・ファイル名の `:` を拒否）
+- [x] P-03: SDK `NativeMethods.Menu`（ビルド 18362 以上でだけ序数を呼ぶ・uxtheme は読み込み済みのものを 1 度だけ引く）
+- [x] P-05: SDK（ロックをファイル名ごとに・`ISettingsStore.EnsureLoadedAsync`）、アプリ（`Shell/SettingsStoreStartup`）
+- [x] P-04: SDK `AttachmentStore`（EXE パスのハッシュごとのフォルダ・セッション名の重なりに接尾辞）。`ExePathHash` を `SingleInstanceGuard` と共有
+- [ ] 手元の VS でビルド・動作確認（トレイメニューのダーク、添付の保存先 `%TEMP%\MmmTool\<ハッシュ>\`、起動）→ PR（SDK を先に merge commit でマージ）
+- 保留: P-06（ReadyToRun と配布サイズ。ユーザーの判断待ち）
 
 ## 未実装・残りの作業（2026-10-03 時点）
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く（実装したら消し、説明は docs に移す）。

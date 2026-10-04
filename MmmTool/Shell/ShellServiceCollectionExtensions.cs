@@ -17,6 +17,8 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<PageProvider>();
+        // 共通の設定ファイルを、各機能の準備より先に読んでおく（各機能が最初に設定を読むとき、UI スレッドで止まらないように）
+        services.AddStartupTask<SettingsStoreStartup>();
         // メニューの項目は、各機能が登録した ITrayMenuSource から作る
         services.AddMmmSdkTray(new TrayIconOptions(
             ToolTip: AppInfo.Name,

@@ -30,4 +30,4 @@
 
 ## 保存データの扱い
 - 送信履歴（50 件）は、プライバシーと実用性の理由で保存しない。`SendHistory`（Core）として `CliAssistViewModel` がメモリ上だけに持つ（起動中のみ。どのフォルダ・チャットかは持たない）
-- 添付ファイルは `%TEMP%\MmmTool\session_日時\` に連番で保存する（[cli-assist.md](cli-assist.md)）
+- 添付ファイルは `%TEMP%\MmmTool\<EXE パスのハッシュ>\session_日時\` に連番で保存する（[cli-assist.md](cli-assist.md)）

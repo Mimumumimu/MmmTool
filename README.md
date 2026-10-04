@@ -146,7 +146,7 @@ dotnet publish .\MmmTool\MmmTool.csproj -c Release -p:Platform=x64
 
 そのほか、次の場所にも実行時のファイルが作られます。
 
-- `%TEMP%\MmmTool\session_日時\` … CLI補助の添付ファイル（終了時に削除。残ったものは 1 日たつと次回の添付時に削除）
+- `%TEMP%\MmmTool\<EXE パスのハッシュ>\session_日時\` … CLI補助の添付ファイル（終了時に削除。同じ EXE のものだけ。残ったものは 1 日たつと次回の添付時に削除）
 - `MmmTool.exe.WebView2\` … WebView2 のキャッシュ（EXE と同じ場所）
 
 ### 定型コマンドの書き方
