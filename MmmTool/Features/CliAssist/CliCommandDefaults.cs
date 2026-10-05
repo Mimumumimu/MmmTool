@@ -43,8 +43,8 @@ public static class CliCommandDefaults
             Leaf("起動", "kiro-cli chat", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             Leaf("続きから再開", "kiro-cli chat --resume", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             Leaf("最新化", "kiro-cli update"),
-            // Kiro は履歴を 1 つのデータベースに持つので、補助スクリプトではなく、Kiro 自身のセッション一覧 (Ctrl+D で削除)を開く
-            Leaf("会話履歴の削除 (一覧で Ctrl+D)", "kiro-cli chat --resume-picker", focus: FocusTarget.Terminal)),
+            // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
+            Leaf("会話履歴の削除", RemoveSessionCommand("Remove-KiroSession", environment), focus: FocusTarget.Terminal)),
         _ => Group("Claude Code",
             // 起動したら、以降はセッション内のコマンドを使うので AI セッションのタブへ切り替え、すぐ指示を書けるよう送信欄へ
             Leaf("起動", "claude", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
@@ -52,7 +52,7 @@ public static class CliCommandDefaults
             Leaf("続きから再開", "claude --continue", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             Leaf("最新化", "claude update"),
             // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
-            Leaf("会話履歴の削除", ClaudeRemoveSessionCommand(environment), focus: FocusTarget.Terminal)),
+            Leaf("会話履歴の削除", RemoveSessionCommand("Remove-ClaudeSession", environment), focus: FocusTarget.Terminal)),
     };
 
     /// <summary>AI のセッション内で打つコマンドのフォルダを作る</summary>
@@ -85,13 +85,14 @@ public static class CliCommandDefaults
             Leaf("終了", "/exit", switchTo: CommandCategory.Shell)),
     };
 
-    /// <summary>Claude Code の会話履歴の削除の補助スクリプトを動かすコマンドを作る</summary>
+    /// <summary>会話履歴の削除の補助スクリプトを動かすコマンドを作る</summary>
+    /// <param name="scriptName">スクリプトの名前 (拡張子なし。<c>Assets/Tools/</c> の <c>.ps1</c> と <c>.py</c> の組)</param>
     /// <param name="environment">コマンドを動かす環境</param>
     /// <returns>ターミナルへ送るコマンド文字列</returns>
-    private static string ClaudeRemoveSessionCommand(CliEnvironment environment) => environment switch
+    private static string RemoveSessionCommand(string scriptName, CliEnvironment environment) => environment switch
     {
-        CliEnvironment.Wsl => $"python3 \"{CommandPlaceholders.AppDir}/Assets/Tools/Remove-ClaudeSession.py\"",
-        _ => $"{ShellLocator.Default.FileName} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\Remove-ClaudeSession.ps1\"",
+        CliEnvironment.Wsl => $"python3 \"{CommandPlaceholders.AppDir}/Assets/Tools/{scriptName}.py\"",
+        _ => $"{ShellLocator.Default.FileName} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\{scriptName}.ps1\"",
     };
 
     /// <summary>フォルダ (子を持つノード)を作る</summary>

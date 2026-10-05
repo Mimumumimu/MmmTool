@@ -45,7 +45,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   | 起動 | `claude` | `kiro-cli chat` | |
   | 続きから再開 | `claude --continue` | `kiro-cli chat --resume` | |
   | 最新化 | `claude update` | `kiro-cli update` | |
-  | 会話履歴の削除 | 補助スクリプト ([cli-history-cleanup.md](cli-history-cleanup.md)) | `kiro-cli chat --resume-picker`(表示名は「会話履歴の削除 (一覧で Ctrl+D)」) | Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。Kiro 自身のセッション一覧で Ctrl+D で消す (戻せない) |
+  | 会話履歴の削除 | 補助スクリプト `Remove-ClaudeSession` ([cli-history-cleanup.md](cli-history-cleanup.md)) | 補助スクリプト `Remove-KiroSession` ([cli-history-cleanup.md](cli-history-cleanup.md)) | Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ごみ箱へは送らず、公式コマンドで消す (戻せない) |
   | 新規チャット | `/clear` | `/chat new` | Kiro の `/clear` は同じ会話のまま中身を消すだけなので使わない |
   | 読み込みファイル一覧 | `/context` | `/context` | |
   | 会話要約 (コンテキスト圧縮) | `/compact` | `/compact` | |
@@ -120,7 +120,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
 - Kiro のコマンドは、Claude Code と同じ働きのものを、公式ドキュメント (kiro.dev)で確かめて当てる。同じ働きのコマンドは、同じ表示名・同じ順にそろえる
   - 新規チャットは `/chat new`(Kiro の `/clear` は、同じ会話のまま中身を消すだけで、Claude Code の `/clear` とは働きが違う)
   - CLAUDE.md の作成 (`/init`)にあたるコマンドは Kiro の CLI に無いので、「steering を作成」として、`.kiro/steering/` に product.md・tech.md・structure.md を作るよう頼む文を送る (ユーザーの決定。Kiro の IDE の「Generate Steering Docs」と同じ 3 つのファイルで、`/init` と同じ目的を果たす)
-  - 会話履歴の削除は、補助スクリプトを作らず、Kiro 自身のセッション一覧 (`kiro-cli chat --resume-picker`。Ctrl+D で削除)を開く (ユーザーの決定)。Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。一覧の出力を読んで `--delete-session` を呼ぶスクリプトは、Kiro の出力の形が変わると壊れるので採らなかった。Kiro での削除は戻せない
+  - 会話履歴の削除は、Claude Code と同じ操作の補助スクリプト (`Remove-KiroSession`。[cli-history-cleanup.md](cli-history-cleanup.md))にする (ユーザーの決定。Kiro 自身の一覧 (`--resume-picker`)は、いまのフォルダの履歴しか出ず、Ctrl+D で 1 件ずつ消すので、全フォルダの履歴をまとめて選んで消せない。Claude Code と同じ操作にそろえると、ツールを替えても迷わない)。Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。前の決定は「一覧の出力の形が変わると壊れる」ことを理由に採らなかったが、操作をそろえる利点のほうを取った。壊れる範囲を狭めるため、ファイル (SQLite・`.history`)の中身は読まず、公式コマンド (`--list-sessions --all-cwds --format json` と `--delete-session`)だけを使う。依存は `--format json` の出力の形 (作業フォルダごとの配列で、`cwd` と `sessions` を持つ)に残るので、変わったら直す。Kiro での削除は戻せない
 
 ### 画像の添付と添付ファイルの大きさに、上限を設けない
 - 画像の変換と添付ファイルの大きさに、上限は設けない (ユーザーの決定。意図した仕様)。理由は SDK の `docs/controls.md`

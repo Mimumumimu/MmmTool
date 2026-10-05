@@ -24,7 +24,7 @@
 - [Windows App Runtime 2.5](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) (x64)
 - [Microsoft Edge WebView2 ランタイム](https://developer.microsoft.com/microsoft-edge/webview2/) (Windows 11 には標準で入っています)
 - PowerShell 7 (任意。入っていればターミナルで優先して使います)
-- WSL (任意。CLI補助で、WSL に入れた Claude Code・Kiro を使うとき。Claude Code の会話履歴の削除の補助スクリプトには、WSL の中に Python 3 が要ります。Ubuntu には標準で入っています)
+- WSL (任意。CLI補助で、WSL に入れた Claude Code・Kiro を使うとき。会話履歴の削除の補助スクリプトには、WSL の中に Python 3 が要ります。Ubuntu には標準で入っています)
 
 ランタイムはアプリに同梱していません。.NET と Windows App Runtime は、入っていなければ `MmmTool.exe` を起動したときに案内のダイアログが出るので、そこからダウンロードしてインストールできます。
 
@@ -64,7 +64,7 @@
 - 送信履歴 (起動中のみ・50 件。絞り込み可)
 - 画像の添付 (Ctrl+V で貼り付け → JPEG で一時保存)、ファイルの添付 (ドラッグ＆ドロップ・貼り付け。コピーせず、元のファイルのパスを渡す。× で添付から外しても、元のファイルは消えません)
 - 添付したファイルは、送信時に「参照してほしい」という指示文とパスを付けて送ります。指示文には「ファイルを変更するのは、指示で求められたときだけ」とも書くので、「このファイルを直して」と頼んだときだけ AI が直します
-- 補助スクリプト「会話履歴の削除」 (Claude Code の会話履歴を矢印キーで選んでごみ箱へ。WSL では、Linux のごみ箱 `~/.local/share/Trash` へ移します。操作は同じです)。Kiro では、Kiro 自身のセッション一覧を開くので、Ctrl+D で消します (Kiro の削除は戻せません)
+- 補助スクリプト「会話履歴の削除」 (Claude Code の会話履歴を矢印キーで選んでごみ箱へ。WSL では、Linux のごみ箱 `~/.local/share/Trash` へ移します。操作は同じです)。Kiro でも同じ操作で、全作業フォルダの履歴から選んで消せます (Kiro の公式コマンドで消すので、ごみ箱へは送らず、戻せません)
 - Kiro には CLAUDE.md の作成 (`/init`)にあたるコマンドが無いので、「steering を作成」で、`.kiro/steering/` に steering ファイルを作るよう Kiro に頼む文を送ります
 
 ### クリップボード転送
