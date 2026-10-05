@@ -108,10 +108,8 @@ public partial class App : Application
         var tray = _host.Services.GetRequiredService<TrayIcon>();
 
         // 各機能の起動時の準備（設定の読み込み・時刻監視の開始など）。画面を作る前に行う（前回の作業ディレクトリでシェルを始めるため等）
-        foreach (var startup in _host.Services.GetServices<IStartupTask>())
-        {
-            await startup.StartAsync();
-        }
+        // オフにした機能の準備は行わない（オンにしたときに行う）
+        await _host.Services.GetRequiredService<FeatureService>().StartAsync();
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         // メインウィンドウから開くダイアログを、メインウィンドウの上に出すため（リマインダーのメイン画面と使い分ける）

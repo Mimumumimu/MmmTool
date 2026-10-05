@@ -26,7 +26,8 @@ public sealed partial class MainWindow : Window
     /// <param name="viewModel">ウィンドウの ViewModel</param>
     /// <param name="pages">項目に対応するページ</param>
     /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
-    public MainWindow(MainViewModel viewModel, PageProvider pages, IWindowPositionService positions)
+    /// <param name="features">機能のオン・オフ</param>
+    public MainWindow(MainViewModel viewModel, PageProvider pages, IWindowPositionService positions, FeatureService features)
     {
         ViewModel = viewModel;
         _pages = pages;
@@ -39,7 +40,18 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing += OnClosing;
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+        features.Changed += OnFeatureChanged;
         NavigateTo(ViewModel.SelectedItem);
+    }
+
+    /// <summary>機能のオン・オフが切り替わったら、サイドバーの項目を作り直し、オフにした機能のページを捨てる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="featureKey">切り替わった機能のキー</param>
+    /// <remarks>表示中のページが消えるときは、項目の更新の中で別のページへ移る。ページを捨てるのは、そのあと（表示中のページを捨てないため）。</remarks>
+    private void OnFeatureChanged(object? sender, string featureKey)
+    {
+        ViewModel.Refresh();
+        _pages.EvictDisabledPages();
     }
 
     #region トレイへの退避・再表示

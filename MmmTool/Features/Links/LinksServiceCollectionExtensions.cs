@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Links;
 using MmmTool.Core.Links.Json;
 using MmmTool.Features.Links.Main;
@@ -21,7 +20,7 @@ public static class LinksServiceCollectionExtensions
 
         // 最後に読み込み・保存した構成を、編集ページとトレイのリンクメニューで共有するため、アプリ全体で 1 つ
         services.AddSingleton<LinkMenuService>();
-        services.AddSingleton<ITrayMenuSource, LinkTrayMenuSource>();
+        services.AddTrayMenuSource<LinkTrayMenuSource>();
 
         services.AddTransient<LinkEditorViewModel>();
         services.AddNavigationPage<LinkEditorPage>("リンク", "", NavigationArea.Top);

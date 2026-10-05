@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.WinUI.Components.Tray;
 using MmmTool.Core.Reminders;
 using MmmTool.Core.Reminders.Json;
 using MmmTool.Features.Reminders.Input;
@@ -30,7 +29,7 @@ public static class RemindersServiceCollectionExtensions
         services.AddSingleton<IReminderDialogService, ReminderDialogService>();
         // メイン画面はアプリ内で 1 枚だけ（開いていれば前面に出す）
         services.AddSingleton<ReminderWindowService>();
-        services.AddSingleton<ITrayMenuSource, ReminderTrayMenuSource>();
+        services.AddTrayMenuSource<ReminderTrayMenuSource>();
 
         // 閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddTransient<ReminderInputWindow>();

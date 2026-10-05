@@ -43,9 +43,12 @@ public static class CliAssistServiceCollectionExtensions
         services.AddTransient<CliSetupDialog>();
         services.AddTransient<CliSetupDialogViewModel>();
         services.AddTransient<CliAssistViewModel>();
-        services.AddNavigationPage<CliAssistPage>("CLI補助", "", NavigationArea.Top);
+        // 設定でオン・オフできる機能。オフの間は、ページ・起動時の準備を使わない
+        services.AddFeature(CliAssistFeature.Key, CliAssistFeature.DisplayName);
+        services.AddSingleton<IFeatureDisableConfirmation, CliAssistDisableConfirmation>();
+        services.AddNavigationPage<CliAssistPage>(CliAssistFeature.DisplayName, "", NavigationArea.Top, CliAssistFeature.Key);
 
-        services.AddStartupTask<CliAssistStartup>();
+        services.AddStartupTask<CliAssistStartup>(CliAssistFeature.Key);
         return services;
     }
 }

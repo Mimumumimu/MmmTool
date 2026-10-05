@@ -2,7 +2,8 @@
 <Page
     x:Class="MmmTool.Features.Settings.Main.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.Features.Settings.Main">
 
     <Grid Padding="24,16,24,24" RowSpacing="16">
         <Grid.RowDefinitions>
@@ -18,6 +19,21 @@
                 IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
                 Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
                 Severity="Error" />
+            <!-- 機能のオン・オフ（オフにできる機能だけ。切り替えはすぐ反映する）。行は、リマインダーの項目と同じ、左に名前・右に操作 -->
+            <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:FeatureItem">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                            <ToggleSwitch
+                                IsOn="{x:Bind IsOn, Mode=TwoWay}"
+                                OffContent="オフ"
+                                OnContent="オン"
+                                Toggled="OnFeatureToggled" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <!-- 設定項目。各機能が登録した部品を、登録順に縦に並べる（コードビハインドで足す） -->
             <StackPanel x:Name="SectionsPanel" Spacing="12" />
         </StackPanel>

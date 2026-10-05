@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.CliAssist;
+using MmmTool.Shell;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
@@ -14,7 +15,7 @@ using Windows.UI.Core;
 namespace MmmTool.Features.CliAssist.Main;
 
 /// <summary>CLI補助ページ</summary>
-public sealed partial class CliAssistPage : Page
+public sealed partial class CliAssistPage : Page, IReleasablePage
 {
     /// <summary>ページの ViewModel</summary>
     public CliAssistViewModel ViewModel { get; }
@@ -50,6 +51,10 @@ public sealed partial class CliAssistPage : Page
         ViewModel.FocusRequested += OnFocusRequested;
         ViewModel.TerminalRestartRequested += (_, _) => TerminalView.RestartSessionAsync().Forget();
     }
+
+    /// <inheritdoc />
+    /// <remarks>機能をオフにしたとき。ターミナルのコントロールからセッションを外す。シェル（とその中の CLI）は、このあとのスコープの破棄で終了する。</remarks>
+    public void Release() => TerminalView.Session = null;
 
     /// <summary>フォーカスの移動を求められたら、移す</summary>
     /// <param name="sender">イベントの送信元</param>

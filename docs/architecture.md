@@ -27,6 +27,7 @@ MmmTool/Features/<機能>/<画面>/ そのほかの画面（Reminders/{Input, Li
                                 1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 MmmTool/Shell/                  画面の枠。直下に DI 登録と、機能が登録に使う型・アプリ全体で使う型
                                 （NavigationItem / NavigationPage / NavigationArea・SettingsSection・IStartupTask・
+                                FeatureInfo / FeatureService・IFeatureDisableConfirmation・IReleasablePage・
                                 AppIcon・AppInfo・ShellServiceCollectionExtensions）
 MmmTool/Shell/Main/             メインウィンドウ（MainWindow・MainViewModel・PageProvider）
 ```
@@ -39,11 +40,12 @@ MmmTool/Shell/Main/             メインウィンドウ（MainWindow・MainView
 ## DI と起動
 - Generic Host（`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定（appsettings.json・環境変数）とロガーの既定は無効）で DI を組む。ログは SDK の `ErrorLog`（エラーのファイル）だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
 - 機能を登録した順（CLI補助 → リマインダー → リンク → DEBUG → 設定）に、サイドバーの項目（上部・下部それぞれ）・トレイメニューの項目（リマインダーがリンクより上）・起動時の準備が並ぶ
-- 開くたびに作るウィンドウ（`IDisposable` の ViewModel を持つもの）は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する（ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため）。常駐するもの（`PseudoConsoleSession` など）は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
+- 開くたびに作るウィンドウ（`IDisposable` の ViewModel を持つもの）は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する（ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため）。サイドバーのページも、ページごとのスコープから解決する（`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する）。常駐するもの（リマインダーの監視など）は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先（Repository の実装）は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ（[specs/settings.md](specs/settings.md)）
+- 機能のオン・オフ: オフにできる機能（今は CLI補助）は、`Add<機能>()` の中で `AddFeature(キー, 表示名)` を登録し、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す（`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能）。`FeatureService`（Shell）が状態の保存・起動時の準備の実行・切り替えの通知（`Changed`）を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ（[decisions/0018-feature-toggle.md](decisions/0018-feature-toggle.md)）
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する（ページは Transient・キーは型名）。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`（初回に DI から作ってキャッシュ）からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
-- 起動時の準備（`IStartupTask`）: `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `StartAsync` を待つ（共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み）。決めた理由は [decisions/0002-startup-task.md](decisions/0002-startup-task.md)
+- 起動時の準備（`IStartupTask`）: `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ（共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み）。決めた理由は [decisions/0002-startup-task.md](decisions/0002-startup-task.md)
 - ダイアログ: 共通の `IDialogService`（SDK）は確認ダイアログだけ。機能固有の画面は各機能の口から開く（`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`）。実装は SDK の `IDialogHost` の `Owner`（親の決定）と `ShowModalAsync`（開いている間モーダルとして覚える）を使う（具象の `DialogService` には依存しない）。ピッカーの親も `IDialogHost.Owner`
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`（閉じる要求を素通しにする）→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能（起動時の準備を含む）より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 

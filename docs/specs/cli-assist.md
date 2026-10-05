@@ -27,6 +27,7 @@ AI のコマンドラインツール（Claude Code・Kiro など）を使うと�
   - ターミナルで起動するシェル: Windows は既定のシェル（`ShellLocator.Default`）、WSL は `wsl.exe`（`ShellLocator.Wsl`。既定のディストリビューションの既定のシェル）。定型コマンドを読み込んでから決めるので、ターミナルは読み込み（`CliAssistViewModel.InitializeAsync`）が済んでから画面につなぐ（`CliAssistPage.OnLoaded`。つないだときに起動する）
   - 既定の定型コマンド: 違うのは Claude Code の「会話履歴の削除」の補助スクリプトだけ（下の「補助スクリプト」）
   - 貼り付けた画像の一時保存先（下の「添付」）
+- 設定でオフにできる（[settings.md](settings.md) の「機能のオン・オフ」）。オフにすると、ページ（ターミナルのセッション・入力欄・添付の一覧）を捨てて、シェルとその中の CLI を終了する。オンに戻すと、ページとセッションを新しく作る（入力中の内容・添付は引き継がない。一時保存した添付は、終了時の掃除で消える）。起動時にオフなら、CLI補助の準備（利用状態の読み込み・シェルの探索）も行わない
 - 今どちらの環境で動いているかは、ターミナルのシェルの種類（`Terminal.Shell.Kind`）1 か所で見る
 - WSL では、シェルへ渡すパスを Linux の形にする（SDK の `ShellCommands.TryConvertPath`・`WslPath`。`D:\work` → `/mnt/d/work`、`\\wsl.localhost\Ubuntu\tmp\a.jpg` → `/tmp/a.jpg`）。画面（作業ディレクトリ変更ダイアログ・添付の一覧・履歴）は Windows のパスのまま扱い、送るときだけ変換する
   - 作業ディレクトリ変更: `cd -- '/mnt/d/...'`（SDK の `ShellCommands.TryChangeDirectory`）。WSL から開けないフォルダー（`\\server\share` などのネットワークのフォルダー）は、移動せずにエラー表示する。シェルの再起動時の開始位置（`Terminal.WorkingDirectory`）は Windows のパスのまま（wsl.exe が変換する）
