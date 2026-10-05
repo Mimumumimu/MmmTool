@@ -3,41 +3,42 @@
 C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐型ツール。当面は個人利用だが、将来公開する可能性がある。
 
 - 各チャットの最初の応答の前に、必ず `/winui3-mvvm` スキルを Skill ツールで読み込み、そのルールに従うこと。例外はない (質問・調査・確認だけの場合も、コードを触らない場合も読み込む。「作業ではないから不要」と自分で判断しない。コメントの書き方などのルールはスキル側にしかないため、読まずに答えると誤る)
-- チャットは機能 (画面)単位で分ける運用。機能の区切りがついたら、`docs/`(仕様・決定記録)・`README.md`(アプリ・MmmSdk の両方。利用者向けの説明。機能・必要環境・データ保存場所・使い方などを詳しく)・下の「未実装・残りの作業」を更新してから終える (実装したものは消して docs に説明を移す)。どれもコミットの有無に関係なく、作業ツリーの最新の状態で書く
+- チャットは機能 (画面)単位で分ける運用。機能の区切りがついたら、`docs/`(仕様・決定の理由)・`README.md`(アプリ・MmmSdk の両方。利用者向けの説明。機能・必要環境・データ保存場所・使い方などを詳しく)・下の「未実装・残りの作業」を更新してから終える (実装したものは消して docs に説明を移す)。どれもコミットの有無に関係なく、作業ツリーの最新の状態で書く
 
 ## 設計の基本姿勢
 常に**最終形から逆算して**、今の形を決める。置き場所だけでなく、道具 (ライブラリ・コード生成・仕組み)の選び方、名前、インターフェースの切り方、すべてが対象。
 
 - 最終形: 共通の部品は SDK (MmmSdk)に集まり、複数のアプリが使える。アプリ (MmmTool)には、このアプリ固有のものだけを置く。Win32 の宣言は、SDK の 1 か所 (CsWin32)にあり、アプリには無い
 - 判断や見送りの理由に**使ってはいけない言い方**: 「今は〜だけ」「使うアプリが 1 つだけ」「他のアプリで使う予定がない」「優先度が低い」「宣言・件数が少ない」「増えたら (倍になったら)見直す」「必要になってから」。これらを書きそうになったら、最終形に合わせて今やる
-- 例外は、本当の制約だけ (例: この環境ではビルドして確かめられない、ユーザーがまだ決めていない)。理由に使うときは、「制約」だと明記し、制約が無くなったらやることも書く (先延ばしと区別する)
+- 例外は、ユーザーがまだ決めていないことだけ
 - 判断を書くときは、「最終形にどう近づくか」を 1 行で書く。レビューで「現状維持」「対応不要」と判定した項目には、必ず理由 (なぜ今の形・場所が最終形に合っているか)を書く。「未対応」の項目にも、いつ・なぜやらないかを書く
 
 ## ドキュメント
-- `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・ビルドの共通設定・配布・C# の書き方・開発時の注意)
-- `docs/specs/`: 機能ごとの仕様と実装メモ (`cli-assist.md` / `clipboard-transfer.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
-- `docs/decisions/`: 決定記録 (なぜそう決めたか。1 件 1 ファイル)。大きな決定をしたら、番号を続けて足す
-- `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `controls.md`)
+- `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・エラーの扱い・C# の書き方・開発時の注意)と、その決定の理由
+- `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
+- `docs/specs/`: 機能ごとの仕様と実装メモ (`cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
+- 決定の理由 (なぜそう決めたか)は、その決定を説明する文書の末尾の「決定の理由」見出しに書く (機能の決定は `docs/specs/<機能>.md`、全体構成は `docs/architecture.md`、配布・ビルドは `docs/build-and-distribution.md`、SDK の決定は SDK の `docs/`)。決定記録だけを集めたフォルダは作らない (機能の説明と理由を、別の場所に分けないため)。大きな決定をしたら、該当する文書の見出しに足す
+- `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md`)
 
 ## 作業のルール
 - 決めていない操作・項目 (一般的な慣習のものも含む)は、勝手に足さない。必要そうなら先に聞く (トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり)
 - エラーの扱い: `try/catch` は最小限 (範囲を絞る。広い `catch` で隠さない・握りつぶさない)。予測できる失敗は先に確かめる。続けられる失敗は画面に出す (InfoBar)。進められない失敗・予想外の失敗 (バグ)は、ログ → ダイアログ → 終了 (詳細は [architecture.md](docs/architecture.md) の「エラーの扱い」)
-- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [architecture.md](docs/architecture.md) の「ビルドの共通設定」)
+- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
 - 画面操作が必要な確認は、VS でユーザーに行ってもらう
 - 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
 - 次のものは、ユーザーの決定で、意図した仕様。レビューや作業のまとめで、指摘・提案しない (理由は各決定記録)
-  - 画像の添付と添付ファイルの大きさに、上限が無い ([0019](docs/decisions/0019-no-attachment-size-limit.md))
-  - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([0020](docs/decisions/0020-attachment-temp-folder-shared.md))
-  - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([0021](docs/decisions/0021-no-test-project.md))
-  - 通知ウィンドウのリンクのクリック判定の方式 ([0022](docs/decisions/0022-notification-link-click.md))
-- コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えはしない。共有部品の SDK (`external/MmmSdk`。[0008](docs/decisions/0008-sdk-submodule.md))を直したときは、SDK の中 (master)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
+  - 画像の添付と添付ファイルの大きさに、上限が無い ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
+  - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
+  - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
+  - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「決定の理由」)
+- コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えはしない。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (master)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
   - **ローカル (ユーザーの PC の Claude Code。CLI・デスクトップアプリ・IDE)**: コミット・push は、ユーザーが指示したときだけ行う (共通ルール)。指示されたら、**master に直接コミット・push してよい**(作業用ブランチ・PR は作らない)
     - **Why:** 下のブランチ・PR の決まりは、クラウドセッションのためのもの。ローカルではユーザーが手元で見て確かめてから指示するので、ブランチを挟む必要が無い (ユーザーの決定)
   - **クラウドセッション (Claude Code on the web。claude.ai/code)**: master へ直接コミット・push しない。作業用ブランチ (`claude/...` など)には、区切りのよいところで自由にコミット・push してよい (指示を待たなくてよい)。PR の作成とマージは、ユーザーが指示したときだけ行う
 - Claude Code on the web (claude.ai/code)で作業するとき: 同じ会話の中では、PR を出したあとにユーザーがブランチを消していなければ、そのブランチをそのまま使い続けて続きを積む (作り直し・付け替え・強制 push はしない。履歴を書き換えると、ユーザーの手元のブランチと食い違うため)。最新の `master` が必要なときは `git merge origin/master` で取り込む。ユーザーがブランチを消していたら、最新の `master` から新しく作る。SDK 側とアプリ側の対応する PR は、同じブランチ名にする
 - SDK と同時に変える作業の順序: SDK の PR を先に「Create a merge commit」でマージ (スカッシュ・リベースは、アプリが指すコミットが消えるので不可)→ アプリの PR をマージ。動作確認は、マージの前に、ブランチを取得して行う
 
-## 未実装・残りの作業 (2026-10-05 時点)
+## 未実装・残りの作業
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く (実装したら消し、説明は docs に移す)。
 
 ### ユーザーが用意するもの待ち
@@ -47,6 +48,5 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## 作業の注意 (要点。詳細は docs)
 - 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行 (`Add<機能>()`)で済む形を保つ。共通部分 (`Shell/`)は特定の機能を参照しない
 - UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。Core の機能別フォルダは、保存するデータが決まった機能から作る (空の置き場は作らない)
-- 終了の順序 (トレイアイコンを各機能の後始末のあとに消す)と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md` と `docs/decisions/0002-startup-task.md`
+- 終了の順序 (トレイアイコンを各機能の後始末のあとに消す)と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md`(「起動時の準備」)
 - VS で通知ダイアログを閉じると落ちるときは、VS の「XAML 診断」をオフにする (`docs/architecture.md` の「開発時の注意」)
-- この環境 (Claude Code on the web)には `dotnet` が無く、ビルドできない。ビルドと動作確認は、grep での確認と、手元の VS で代える

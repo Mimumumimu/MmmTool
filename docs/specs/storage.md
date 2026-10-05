@@ -2,7 +2,7 @@
 
 ## 方針
 - 保存は JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときは、アプリを閉じてから行う (起動中はメモリ上の内容で上書きされることがある)
-- `Data` の下には、JSON のほかに、アプリが書くフォルダとして `Logs`(エラーのログ)と `WebView2`(ターミナルの画面のキャッシュ)がある。EXE の横には `Data` 以外の書き込み先を作らない ([decisions/0014-output-folders.md](../decisions/0014-output-folders.md))
+- `Data` の下には、JSON のほかに、アプリが書くフォルダとして `Logs`(エラーのログ)と `WebView2`(ターミナルの画面のキャッシュ)がある。EXE の横には `Data` 以外の書き込み先を作らない (理由は [../build-and-distribution.md](../build-and-distribution.md) の「EXE の横のフォルダと DLL」)
 - 保存先は将来 SQL Server / DynamoDB などに替える可能性がある。Repository のインターフェース (非同期)と DI で差し替える
 - JSON はソース生成 (`JsonSerializerContext`)で読み書きする。Context は機能ごと (`CliAssistJsonContext` / `LinkJsonContext` / `ReminderJsonContext`)。書式 (インデント・日本語非エスケープ・コメント可・大文字小文字を区別しない等)は SDK の `ReadableJsonOptions.Create()` に 1 か所だけ書く
 - JSON の読み込みはプロパティ名の大文字小文字を区別しない (アプリの全機能に適用)
@@ -32,3 +32,15 @@
 ## 保存データの扱い
 - 送信履歴 (50 件)は、プライバシーと実用性の理由で保存しない。`SendHistory`(Core)として `CliAssistViewModel` がメモリ上だけに持つ (起動中のみ。どのフォルダ・チャットかは持たない)
 - 添付のうち、元がファイルではないもの (貼り付けた画像など)だけを `%TEMP%\MmmTool\session_日時\` に連番で保存する。ドロップ・貼り付けしたディスク上のファイルはコピーせず、元のパスを送る ([cli-assist.md](cli-assist.md))
+
+## 決定の理由
+
+### 壊れた保存ファイルは退避して作り直す
+- 保存ファイル (JSON)は、手で修正する運用なので、書式の誤りで壊れることがある。壊れたファイルを読めないまま起動時に空で作り直すと、次の保存で元のデータが消える
+- そのため、JSON として読めないファイルは、同じフォルダに `名前.broken-yyyyMMdd-HHmmss.json` へ名前を変えて退避し (自動では消さない)、画面でユーザーに知らせ、呼ぶ側は「ファイルが無いとき」と同じに作り直す。手で修正した内容は貴重なので、壊れていても消さずに残す
+- 0 バイト・空白だけ・`null` は、壊れていないとみなして退避しない
+- ロック・権限などの IO エラーは退避できないので、保存を止める (元のデータを消さない)。読めるようになってから、アプリを再起動して使う
+- 仕組みは SDK の `docs/storage.md`
+
+### EXE の横に書き込み先を増やさない
+`Data` の下に `Logs` と `WebView2` を置く理由は [../build-and-distribution.md](../build-and-distribution.md) の「EXE の横のフォルダと DLL」。

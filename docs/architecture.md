@@ -13,7 +13,7 @@
 何をどこに置くか：UI・Windows に依存しない処理はアプリの Core、どのアプリでも使える汎用の部品は SDK、アプリ固有の画面・機能はアプリ本体。
 
 ## フォルダ (機能別)
-プロジェクトの中は機能ごとのフォルダ (Vertical Slice)。層ごとのフォルダ (`Views/` `ViewModels/` 等)は作らない。名前空間はフォルダどおり。MVVM の役割はクラス名で分かるようにする (View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・サービス)。決めた理由は [decisions/0001-feature-folders.md](decisions/0001-feature-folders.md)。
+プロジェクトの中は機能ごとのフォルダ (Vertical Slice)。層ごとのフォルダ (`Views/` `ViewModels/` 等)は作らない。名前空間はフォルダどおり。MVVM の役割はクラス名で分かるようにする (View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・サービス)。決めた理由は下の「決定の理由」の「機能別フォルダ」。
 
 ```
 MmmTool.Core/<機能>/            Entity・Repository のインターフェース・サービス (CliAssist / Links / Reminders)
@@ -32,8 +32,8 @@ MmmTool/Shell/                  画面の枠。直下に DI 登録と、機能�
 MmmTool/Shell/Main/             メインウィンドウ (MainWindow・MainViewModel・PageProvider)
 ```
 
-- 共有ライブラリ (`external/MmmSdk`)のフォルダは、アプリとは別に、プロジェクトの直下を `Components/<部品>/`・`Controls/`・`Utilities/` の 3 層に分けている ([decisions/0012-sdk-layer-folders.md](decisions/0012-sdk-layer-folders.md))。アプリの `Features/<機能>/` には同じ層を作らない
-- フォルダの決まり (機能の直下 = つなぎ、`Main/` = 入口の画面、`<画面>/` = 1 画面 1 フォルダ)の理由は [decisions/0013-screen-folders.md](decisions/0013-screen-folders.md)。Core には同じ形を当てない (画面が無い)
+- 共有ライブラリ (`external/MmmSdk`)のフォルダは、アプリとは別に、プロジェクトの直下を `Components/<部品>/`・`Controls/`・`Utilities/` の 3 層に分けている ([SDK の architecture.md](../external/MmmSdk/docs/architecture.md))。アプリの `Features/<機能>/` には同じ層を作らない
+- フォルダの決まり (機能の直下 = つなぎ、`Main/` = 入口の画面、`<画面>/` = 1 画面 1 フォルダ)の理由は下の「決定の理由」の「機能のフォルダの形」。Core には同じ形を当てない (画面が無い)
 - `Shell/` は特定の機能を参照しない (機能から共通部分への一方向)。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`(`Debug` にすると `System.Diagnostics.Debug` を隠すため)
 
@@ -44,9 +44,9 @@ MmmTool/Shell/Main/             メインウィンドウ (MainWindow・MainViewM
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ ([specs/settings.md](specs/settings.md))
-- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送)は、`Add<機能>()` の中で `AddFeature(キー, 表示名)` を登録し、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ ([decisions/0018-feature-toggle.md](decisions/0018-feature-toggle.md))
+- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送)は、`Add<機能>()` の中で `AddFeature(キー, 表示名)` を登録し、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
-- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み)。決めた理由は [decisions/0002-startup-task.md](decisions/0002-startup-task.md)
+- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み)。決めた理由は下の「決定の理由」の「起動時の準備」
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)と `ShowModalAsync`(開いている間モーダルとして覚える)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
@@ -61,38 +61,6 @@ MmmTool/Shell/Main/             メインウィンドウ (MainWindow・MainViewM
 
 ## 保存
 JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときはアプリを閉じてから行う。保存先は将来 SQL Server / DynamoDB などに替える可能性があり、Repository + DI で差し替えられる形にしている。詳細は [specs/storage.md](specs/storage.md)。
-
-## ビルドの共通設定
-- リポジトリ直下に `Directory.Build.props`(バージョン・Nullable・ImplicitUsings・`GenerateDocumentationFile`・`EnforceCodeStyleInBuild`・全プロジェクトを x64 専用にする (`Platforms` と既定の `Platform`。Core も含めて AnyCPU を使わない。`-p:Platform` を付けずにビルド・発行しても x64 になる。SDK も同じ設定)・XML ファイルをビルドの出力・発行物に含めない・Release では .pdb を作らない)、`Directory.Packages.props`(中央パッケージ管理。csproj の `PackageReference` にはバージョンを書かない)、`.editorconfig`(`root = true`)を置く。3 つとも slnx の「Solution Items」に入れている
-- `.editorconfig`: 未使用 using・ファイル単位の名前空間・using の位置・複数行の本体の波かっこを warning にしてビルドで検査する。1 行の早期 return (`if (x) return;`)は波かっこを省略してよい。`charset` は書かない (BOM 付きの ps1 があるため)
-- SDK はリポジトリ直下に自分の同じ 1 組を持つ。MSBuild・.editorconfig は近いほうを使うので、アプリと SDK の設定は混ざらない。共通のパッケージ (CommunityToolkit.Mvvm・Windows App SDK (SDK は部品のパッケージ、アプリは全部入り)・SDK.BuildTools)は SDK を先に上げて、アプリを同じバージョンにする
-- バージョンは `Version`(現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0)。製品バージョンの後ろにはコミット番号が付く (.NET の標準の動作)
-  - 変更履歴は、配布用の説明書 `MmmTool/Distribution/README.txt` の「変更履歴」に書く (Keep a Changelog の形)。利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、先頭の「未リリース」の見出しの下に 1 行ずつ書き足す (見出しが無ければ作る)
-  - 次の版の番号は、公開するとき (ユーザーが決めたとき)に、「未リリース」に溜まった中身から決める (セマンティックバージョニング。機能の追加は真ん中、不具合の修正だけなら最後を上げる。1.0.0 未満のあいだは、大きな変更でも真ん中を上げる)。公開するときに、「未リリース」を「<版>(<日付>)」に書き換え、`Version` も同じ値にする。SDK の版は別に持つ
-  - ライセンスは MIT (`LICENSE.txt`。著作者 mimumu。SDK も同じ)。ライセンスの文書 (`LICENSE.txt`・自動で作る同梱ライブラリのライセンス全文 `THIRD-PARTY-NOTICES.txt`。手で直さない)は、アプリ本体の `Assets\Licenses\` に入る (「配布」)
-- XML コメントの検査と未使用 using の検査は、普通の `dotnet build` / VS のビルドでかかる
-
-## 配布
-- フレームワーク依存 (`SelfContained=false` / `WindowsAppSDKSelfContained=false`)。実行する PC に .NET 10 Desktop Runtime と Windows App Runtime 2.5 が必要。決めた理由は [decisions/0003-framework-dependent.md](decisions/0003-framework-dependent.md)
-- 発行は VS の「発行」 (プロファイル `win-x64`)、またはコマンドの `dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64`。どちらも、配布物は `MmmTool/bin/Release/publish/MmmTool_<版>/` にでき、アプリ本体はその中の `MmmTool/`(版は `Directory.Build.props` の `Version`。通常のビルドの出力 `bin/Release/net10.0-windows10.0.19041.0/` の隣。対象の .NET・RID は 1 つずつなので、出力先の名前に入れない)。
-  - 2 段階にしている: 発行 (`PublishDir`)は、版を含まない途中のフォルダ `obj/Release/publish/` に出し、発行のあとに csproj の `PackageDistribution` が、アプリ本体を `MmmTool_<版>/MmmTool/` へ写し、説明書類を `MmmTool_<版>/` に置く (配布物の場所は `DistributionDir`。試すときは `-p:DistributionDir=...` で変えられる)
-  - 版をプロファイルの出力先に書かない理由: VS の「発行」は、発行プロファイルを単体で読んで出力先を決めるので、プロジェクトの `Version`(`Directory.Build.props`)が見えず、`MmmTool_\` になる。プロファイルで `Directory.Build.props` を `Import` すると、VS がプロファイルを読めなくなる (一覧から消える)。そのため、版はプロジェクトの中 (`PackageDistribution`)で付ける
-- 外側の版のフォルダ (`MmmTool_<版>`)をそのままコピーして配布する。外側が版、内側がアプリ本体の形はユーザーの決定 (`dotnet publish` の標準は発行フォルダの直下に出す形だが、手でコピーして配る運用に合わせた。アプリ本体だけをコピーすれば、コピー先のフォルダ名が版ごとに変わらない。版ごとにフォルダが分かれるので、前の版の控えも残る。`bin` の下にあるので、`bin` を丸ごと消すと一緒に消える点に注意する)。発行の前に既存のファイルを消す設定 (`DeleteExistingFiles`)は使わない (ユーザーの決定)
-- ビルドの出力先は `bin\<構成>\<TFM>\`、中間ファイルは `obj\<構成>\<TFM>\`(`Directory.Build.props` の `AppendPlatformToOutputPath=false`・`AppendRuntimeIdentifierToOutputPath=false`。プラットフォーム・RID は x64・win-x64 だけなので、段を作らない。SDK も同じ)
-  - RID の段を作らない理由: VS の「発行」は、発行プロファイルの RID を参照先 (SDK)にも渡し、参照先はビルドし直さない。段を作ると、発行のときだけ `...\win-x64\MmmSdk.WinUI.dll` を探しに行き、先にビルドした DLL (段なし)を見つけられずに失敗する
-- 発行は Release でだけ行う (csproj の `EnsureReleaseForPublish`)。構成は、全プロジェクトに渡る形 (VS の「発行」・`dotnet publish`・`-p:Configuration=Release`)で決める。発行プロファイルの `Configuration` だけに頼る呼び方 (MSBuild を直接呼ぶなど)では、構成がこのプロジェクトにしか効かず、参照先が Debug でビルドされて配布物に入る。`Directory.Build.props` の Release の設定 (`.pdb` を作らない)も効かない (プロファイルは `Directory.Build.props` より後に読まれる)。そのため、そのときはエラーで止める
-- 発行プロファイルは `MmmTool/Properties/PublishProfiles/win-x64.pubxml` の 1 つだけで、リポジトリに入れる (`.gitignore` の `*.pubxml` から、このファイルだけを外している。フォルダーへの発行なので秘密の情報を含まない)。プロファイルに書くのは構成 (Release)・プラットフォーム・RID・出力先 (版を含まない `obj\Release\publish\`)のプロパティだけで (VS は `Import` などを書いたプロファイルを読めない)、コマンドの発行と同じ結果になるようにする。発行の設定の本体 (ReadyToRun・トリミングなし・フレームワーク依存)は csproj の `Publish Properties` などに書き、プロファイルに重ねて書かない。MSIX 用のマニフェスト・ロゴは持たない (非パッケージで配布する)。`EnableMsixTooling` は、非パッケージでも WinUI のリソース生成に使うため true のまま残している
-- 配布物の版のフォルダ (アプリ本体の 1 つ外側)には、配布用の説明書 `README.txt`(元は `MmmTool/Distribution/README.txt`。必要なもの・起動と終了・置き場所・データの保存場所・入れ替え・アンインストール・変更履歴・ライセンス)だけを置く。ライセンスの文書 (`LICENSE.txt`(リポジトリ直下のもの。MIT)・`THIRD-PARTY-NOTICES.txt`)は、アプリ本体の `Assets\Licenses\` に入れる (アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため。EXE の横は増やさない。ユーザーの決定)。`THIRD-PARTY-NOTICES.txt` は、csproj の `GenerateThirdPartyNotices`(インラインタスク `GenerateThirdPartyNoticesFile`)が、発行のたびに、発行するファイルの一覧 (`ResolvedFileToPublish`)から作る (手で書くと、パッケージの追加・版の更新でずれるため)。中身は、NuGet パッケージのライセンスファイル (無ければ、MIT なら nuspec の著作権表示で本文を作る)と第三者の通知 (`NOTICE`・`ThirdPartyNotices`)、配布物の中の `名前.LICENSE.txt`(xterm.js など)。同じ本文のものは 1 つにまとめる。自分のプロジェクト (`MmmTool.Core`・MmmSdk)は含めない (`LICENSE.txt`)。説明書は csproj の `DistributionDocument` に並べ、`PackageDistribution` が発行のあとに版のフォルダへコピーする (ビルドの出力には入れない)。説明書をアプリ本体の外に置くのは、受け取った人が最初に開くフォルダに説明書とアプリ本体だけを並べるため (ユーザーの決定)。`README.txt` はメモ帳で開く前提で、UTF-8 (BOM 付き)・CRLF にする (古いメモ帳でも文字化けしないように)
-- リリースビルドには DEBUG ページ (コード・XAML)を含めない (csproj の条件付き `Remove`)
-- WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
-- EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Lib`(パッケージの DLL)の 3 つだけにする ([decisions/0014-output-folders.md](decisions/0014-output-folders.md)・[decisions/0015-dll-reduction-and-lib.md](decisions/0015-dll-reduction-and-lib.md))
-  - `MmmTool.dll` 以外の DLL は `Lib` に置く (csproj の `MovePackageFilesToLib`・`MoveReferencesToLib`・`MoveRuntimePackFilesToLib`)。起動時に見つけられるよう、`MmmTool.deps.json` の各ファイルに `localPath` を書き足す (インラインタスク `AddLocalPathToDepsFile`)。EXE の横に残るのは `MmmTool.*` の 5 ファイル (exe・dll・deps.json・runtimeconfig.json・pri)と `Microsoft.Web.WebView2.Core.dll`(WinUI の WebView2 が EXE のフォルダから読むネイティブの部品)
-  - Release では `.pdb` を出力に入れない (`Directory.Build.props`。Debug では入れる)。`.xml`(XML ドキュメントコメント)は、Debug・Release とも出力に入れない (検査のために obj には作る)
-  - Windows App SDK の使わない部品 (AI・ML・検索・ウィジェット)は出力に入れない。SDK は使う部品のパッケージだけを参照し、アプリは全部入りを参照したうえで使わない部品を `ExcludeAssets="all"` にする (CommunityToolkit が古い全部入りに依存しているため)。全部入りを上げるときは、`Directory.Packages.props` の部品の版も、新しい全部入りの依存に合わせる
-  - ビルドも x64 専用 (`RuntimeIdentifier=win-x64`。出力先のパスに RID は付けない。`Directory.Build.props`)。ネイティブ DLL は `runtimes\` ではなく EXE の横に置かれる
-  - 画面の XAML (`.xbf`・SDK の `.xaml`)は `MmmTool.pri` の中に入る。WinUI のビルドがばらのファイルも出力へコピーするので、csproj の `RemoveLooseXamlAfterBuild` がビルドのあとに消す (中身が `.xbf`・`.xaml` だけのフォルダと、EXE の横の `.xbf`)。発行の出力には、もともと出ない
-  - WebView2 のキャッシュは `Data\WebView2`、エラーのログは `Data\Logs`(`Shell/AppInfo`)
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/`(ライセンスファイルも同じ場所)。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
@@ -109,3 +77,34 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - VS の F5 で通知ダイアログを閉じると `Microsoft.UI.Xaml.dll` 内で `0xC000027B` / `E_UNEXPECTED` で落ちることがある。原因は VS の「XAML 診断」 (オプション → デバッグ → XAML 診断)で、オフにすると解消する (Ctrl+F5 や VS なしでは起きない)。開発時はオフにしておく
 - 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
 - 既定の定型コマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない (無いときだけ生成する)。反映するにはアプリを閉じて JSON を削除する
+
+## 決定の理由
+上の各項目を「なぜそう決めたか」。大きな決定をしたら、該当する文書のこの見出しに足す (機能の決定はその機能の `specs/*.md`、SDK の決定は SDK の `docs/`)。
+
+### 機能別フォルダ
+- 層ごとのフォルダ (`Views/` `ViewModels/` `Entities/`)にすると、1 つの機能を触るたびに複数のフォルダを行き来し、機能が増えるほど関係するファイルが散らばる。機能ごとに View・ViewModel・Entity・サービスを同じフォルダに置けば、機能を足す・直すときに触るのは、その機能のフォルダと `App` の 1 行で済む
+- 保存先を替えるときも、その機能の `Add<機能>()` の 1 行を差し替えるだけで済む
+- MVVM の役割は、フォルダではなくクラス名で分かるようにする
+- 機能をまたぐものは、アプリ固有なら `Shell/`、汎用なら SDK に置き、どちらも特定の機能を参照しない (機能 → 共通部分の一方向)。サイドバーのページ・トレイメニューの項目・起動時の準備も、機能側から登録する
+- 影響: フォルダ名が名前空間になる。XAML で同じ名前空間の型は `local:` で参照する。名前空間がよく使う型名を隠さないよう、フォルダ名に注意する (例: `Debug` ではなく `Debugging`)
+
+### 機能のフォルダの形
+- 入口の画面の置き場所が機能ごとに違い (直下の機能と `Main/` の機能が混ざっていた)、「機能全体のつなぎ」と画面の View・ViewModel が同じ段に並んで見分けにくかった。どの機能 (と `Shell/`)も同じ形 (つなぎ + `Main/` + 画面ごとのフォルダ)にそろえた
+- 画面が 1 つだけの機能も `Main/` に入れる理由: フォルダが 1 段増えても、どの機能も同じ形にそろえることを優先する (1 つを覚えれば全部が読める)
+- Core に同じ形を当てない理由: Core には画面が無く、中身は「その機能のデータと処理」の 1 種類だけ (保存先の実装は `Json/` に分かれている)
+- XAML では、移した画面から、親のフォルダ (機能の直下)に残った型を、`local:` ではなく親の名前空間の xmlns で参照する (例: `MainWindow.xaml` の `shell:NavigationItem`)
+- 最終形にどう近づくか: 新しい機能・画面を足すときの置き場所が、迷わず決まる
+
+### 起動時の準備 (`IStartupTask`)
+- 起動時に、CLI補助の利用状態の読み込み・リマインダー監視の開始・リンクの先読みなどを行いたい。これらは UI スレッド (`DispatcherQueue`)で動く必要がある
+- `IHostedService` にしない理由: Generic Host の `IHostedService` は、Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証がない。そのため、`App.OnLaunched` で `TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `await` する
+- 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
+
+### 共有部品を別リポジトリの SDK に分ける
+- JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログは、このアプリ以外でも使える汎用の部品。別リポジトリ `MmmSdk` に分け、Git サブモジュールとして取り込み、プロジェクト参照でつなぐ。アプリ固有の Entity・Repository は、アプリの Core に残す
+- 複数のアプリで同じ部品を使い回せる。SDK はアプリを知らない (参照の向きは一方向)
+- 影響: 共通のパッケージ (Windows App SDK など)のバージョンは、各リポジトリに 1 か所ずつ書くので、上げるときは SDK を先にする。SDK を直したら、SDK が先にコミット・push する
+
+### テストプロジェクトを作らない
+- テストプロジェクトは、ユーザーの決定で、ユーザーが「作る」と言うまで作らない (画面を目で見て確認する運用で進めているため)。レビューや作業のまとめで、テストが無いことを指摘・提案しない
+- 作ると決めたら、Core の処理 (リマインダーの判定・日付の変換・壊れた JSON の退避・クリップボード転送の変換など)から作る

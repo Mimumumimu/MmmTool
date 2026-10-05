@@ -13,7 +13,7 @@
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <!--
-      Windows App SDK の使わない部品。アプリの csproj で、中身を出力に入れないように (ExcludeAssets="all")参照する (決定 0015)。
+      Windows App SDK の使わない部品。アプリの csproj で、中身を出力に入れないように (ExcludeAssets="all")参照する (理由は docs/build-and-distribution.md の「決定の理由」)。
       バージョンは、全部入りのパッケージ (Microsoft.WindowsAppSDK)の依存と同じにする (全部入りを上げるときは、ここも写す)。
     -->
     <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" />

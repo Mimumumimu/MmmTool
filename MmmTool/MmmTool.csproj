@@ -9,7 +9,7 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <!--
       ビルドも x64 専用にする。ネイティブ DLL が全 CPU 分の runtimes フォルダーではなく、EXE の横に x64 の分だけ置かれる。
-      出力先のパスには RID を付けない (Directory.Build.props の AppendRuntimeIdentifierToOutputPath。bin\<構成>\<TFM>\ のまま)。決定 0014
+      出力先のパスには RID を付けない (Directory.Build.props の AppendRuntimeIdentifierToOutputPath。bin\<構成>\<TFM>\ のまま)。理由は docs/build-and-distribution.md の「決定の理由」
     -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
@@ -17,7 +17,7 @@
     <!-- 非パッケージ (WindowsPackageType=None)でも、WinUI のリソース (resources.pri)の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提。出力の DLL の数を減らすため (単一ファイルにはしない。決定 0003) -->
+    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提。出力の DLL の数を減らすため (単一ファイルにはしない。理由は docs/build-and-distribution.md の「決定の理由」) -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <SelfContained>false</SelfContained>
     <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする -->
@@ -73,7 +73,7 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <!--
       Windows App SDK は全部入りのパッケージを参照する (CommunityToolkit が古い全部入り 1.6 に依存しているため、部品だけの参照にはできない)。
-      そのうえで、使わない部品 (AI・ML・検索・ウィジェット)と、それらだけが使う依存 (MachineLearning・Tensors)は、中身を出力に入れない (DLL を減らすため。決定 0015)
+      そのうえで、使わない部品 (AI・ML・検索・ウィジェット)と、それらだけが使う依存 (MachineLearning・Tensors)は、中身を出力に入れない (DLL を減らすため。理由は docs/build-and-distribution.md の「決定の理由」)
     -->
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
@@ -112,7 +112,7 @@
   <!--
     ビルドの出力から、画面の XAML (.xbf・SDK の .xaml)のばらのファイルを削除する (Features・Shell・MmmSdk.WinUI フォルダーを残さない)。
     中身は MmmTool.pri に入っていて、実行時はそちらから読む。WinUI のビルド (CopyGeneratedXaml)は、.pri に入れたうえで、ばらのファイルも出力へコピーするため。
-    発行 (publish)の出力には、もともとばらのファイルが出ない。ここで消すことで、ビルドの出力を発行物と同じ形にそろえる。決定 0014
+    発行 (publish)の出力には、もともとばらのファイルが出ない。ここで消すことで、ビルドの出力を発行物と同じ形にそろえる。理由は docs/build-and-distribution.md の「決定の理由」
     消すのは、EXE の横の .xbf と、中身が .xbf・.xaml だけのフォルダー (Assets・Data のように、ほかのファイルがあるフォルダーには触れない)。
   -->
   <Target Name="RemoveLooseXamlAfterBuild" AfterTargets="Build">
@@ -135,7 +135,7 @@
   </Target>
 
   <!--
-    NuGet パッケージの DLL (マネージド・ネイティブ)を、EXE の横ではなく Lib フォルダーに置く (決定 0015)。
+    NuGet パッケージの DLL (マネージド・ネイティブ)を、EXE の横ではなく Lib フォルダーに置く (理由は docs/build-and-distribution.md の「決定の理由」)。
     置き場所は、コピー先 (DestinationSubPath)を Lib\ に変えて決める。ビルド・発行のどちらのコピーも、これに従う。
     起動時に .NET が DLL を見つけられるよう、MmmTool.deps.json の各ファイルに localPath (実際の置き場所)を書き足す (.NET SDK には、これを書く設定が無いため)。
     パッケージ以外の参照・Windows SDK と WinRT の DLL も、下の MoveReferencesToLib・MoveRuntimePackFilesToLib で Lib に置く。EXE の横に残る DLL は MmmTool.dll と Microsoft.Web.WebView2.Core.dll だけ。

@@ -15,7 +15,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   - 存在確認 (`Directory.Exists`)は、ネットワークパスで止まることがあるため、UI スレッドの外で行う。入力欄の変更は少し待ってから確認する (SDK の `Debouncer`。リンク編集のパスの種類の調べ方も同じ)。起動時の作業ディレクトリ (`CliSettingsService.StartDirectory`)も、読み込みの中でバックグラウンドで確認し、存在するときだけ使う
 
 ## 初期設定 (使うツール・環境)
-使う AI ツール (Claude Code / Kiro。両方も可)と、動かす環境 (Windows (PowerShell)/ WSL)を選べる。決めた理由は [../decisions/0016-wsl.md](../decisions/0016-wsl.md) (環境)・[../decisions/0017-cli-tools.md](../decisions/0017-cli-tools.md) (ツール)。
+使う AI ツール (Claude Code / Kiro。両方も可)と、動かす環境 (Windows (PowerShell)/ WSL)を選べる。決めた理由は、下の「決定の理由」の「WSL でも動かす」 (環境)・「Claude Code と Kiro を選べるようにする」 (ツール)。
 - 選ぶのは、定型コマンドのファイル (`Data/CliCommands.json`)を作るとき (無い・壊れていた)と、初期化するときだけ。初期設定ダイアログ (`Setup/CliSetupDialog`。ツールはチェックボックス・環境はラジオボタン。ツールを 1 つも選ばないと決定できない)
   - 初回 (CLI補助のページを開いたとき): 題名「CLI補助の初期設定」・ボタン「作成」だけ。キャンセルは無く、Esc でも閉じない (ファイルを作るのに、選んだ内容が要るため)。最初は Claude Code・Windows を選んだ状態
   - 選んだツールは、定型コマンドのフォルダとして作る (下の「定型コマンド」)。ツールは別には保存しない (フォルダの中身そのものなので)。環境は、ファイルの `"environment": "windows" | "wsl"` に書く (省略・この項目が無い古いファイルは Windows。知らない値は Windows として動かし、InfoBar で知らせる)
@@ -25,7 +25,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   - アプリを終了してから `Data/CliCommands.json` を消しても、次に開いたときに選び直せる
 - 環境で決まるもの
   - ターミナルで起動するシェル: Windows は既定のシェル (`ShellLocator.Default`)、WSL は `wsl.exe`(`ShellLocator.Wsl`。既定のディストリビューションの既定のシェル)。定型コマンドを読み込んでから決めるので、ターミナルは読み込み (`CliAssistViewModel.InitializeAsync`)が済んでから画面につなぐ (`CliAssistPage.OnLoaded`。つないだときに起動する)
-  - 既定の定型コマンド: 違うのは Claude Code の「会話履歴の削除」の補助スクリプトだけ (下の「補助スクリプト」)
+  - 既定の定型コマンド: 違うのは Claude Code の「会話履歴の削除」の補助スクリプトだけ ([cli-history-cleanup.md](cli-history-cleanup.md))
   - 貼り付けた画像の一時保存先 (下の「添付」)
 - 設定でオフにできる ([settings.md](settings.md) の「機能のオン・オフ」)。オフにすると、ページ (ターミナルのセッション・入力欄・添付の一覧)を捨てて、シェルとその中の CLI を終了する。オンに戻すと、ページとセッションを新しく作る (入力中の内容・添付は引き継がない。一時保存した添付は、終了時の掃除で消える)。起動時にオフなら、CLI補助の準備 (利用状態の読み込み・シェルの探索)も行わない
 - 今どちらの環境で動いているかは、ターミナルのシェルの種類 (`Terminal.Shell.Kind`)1 か所で見る
@@ -33,7 +33,6 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   - 作業ディレクトリ変更: `cd -- '/mnt/d/...'`(SDK の `ShellCommands.TryChangeDirectory`)。WSL から開けないフォルダー (`\\server\share` などのネットワークのフォルダー)は、移動せずにエラー表示する。シェルの再起動時の開始位置 (`Terminal.WorkingDirectory`)は Windows のパスのまま (wsl.exe が変換する)
   - 添付: 送るときに変換する。WSL から開けない場所のファイルは、添付するときに断ってエラー表示する (送ってから読めないと分かるより、先に分かるほうがよいため)
   - 定型コマンドの `{AppDir}`: WSL では `/mnt/d/...` に展開する
-- 制約: WSL での動作は、ユーザーの WSL の環境ができるまで、実機で確かめられていない ([../decisions/0016-wsl.md](../decisions/0016-wsl.md))
 
 ## 定型コマンド
 - 「シェル」と「AI セッション」の 2 タブ固定 (「ターミナル」は中央のペインの名前で、タブとは別。ターミナルは「シェルのタブ」「AI セッションのタブ」のどちらのコマンドも受け取る)。最初は全部開いた状態 (開閉は自由。タブを切り替えると開いた状態に戻る)
@@ -46,7 +45,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   | 起動 | `claude` | `kiro-cli chat` | |
   | 続きから再開 | `claude --continue` | `kiro-cli chat --resume` | |
   | 最新化 | `claude update` | `kiro-cli update` | |
-  | 会話履歴の削除 | 補助スクリプト (下) | `kiro-cli chat --resume-picker`(表示名は「会話履歴の削除 (一覧で Ctrl+D)」) | Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。Kiro 自身のセッション一覧で Ctrl+D で消す (戻せない)。制約: この一覧で Ctrl+D が効くかは実機で未確認 |
+  | 会話履歴の削除 | 補助スクリプト ([cli-history-cleanup.md](cli-history-cleanup.md)) | `kiro-cli chat --resume-picker`(表示名は「会話履歴の削除 (一覧で Ctrl+D)」) | Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。Kiro 自身のセッション一覧で Ctrl+D で消す (戻せない) |
   | 新規チャット | `/clear` | `/chat new` | Kiro の `/clear` は同じ会話のまま中身を消すだけなので使わない |
   | 読み込みファイル一覧 | `/context` | `/context` | |
   | 会話要約 (コンテキスト圧縮) | `/compact` | `/compact` | |
@@ -64,7 +63,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
 
 ## 送信
 - 送信は Ctrl+Enter。`ITerminalSession.Submit` → xterm.js の `term.paste`(ブラケットペースト)で貼り付け、そのあと Enter で確定する。複数行でも CLI がひとまとまりで受け取る
-- Enter を送るタイミングは、貼り付け後に一度出力があり、それが 200ms 途切れたとき (最低 150ms・最長 2 秒)。決めた理由は [../decisions/0007-submit-enter-wait.md](../decisions/0007-submit-enter-wait.md)
+- Enter を送るタイミングは、貼り付け後に一度出力があり、それが 200ms 途切れたとき (最低 150ms・最長 2 秒)。決めた理由は、下の「決定の理由」の「送信の Enter は、貼り付けの出力が落ち着いてから送る」
 - 送信履歴：Flyout に最大 50 件・絞り込み付き。保存せず、メモリ上だけに持つ (`SendHistory`。Core)。空白のみは無視し、同じ本文は先頭へ移す。絞り込みは前後の空白を無視し、大文字小文字を区別しない
 
 ## 送信欄
@@ -79,34 +78,50 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
 - 画像は Ctrl+V で貼り付け (JPEG に変換)。ファイルはドラッグ＆ドロップまたは貼り付け (エクスプローラーでコピーしたもの)。フォルダーは添付しない
 - 元がディスク上のファイルかどうかで扱いを分ける (`AttachmentItem.IsTemporary`)
   - **ディスク上のファイル**(ドロップ・貼り付けしたファイル): コピーせず、元のパスをそのまま送る (`CliAssistViewModel.AddAttachmentFile`)。ローカルで動く CLI は元の場所のファイルを直接読めるので、置き場所 (どのプロジェクトのファイルか・隣のファイル)も AI の手がかりになる。今どきのローカルの AI ツール (VS Code の Copilot Chat など)と同じ形。取り除く (× ボタン)ときは一覧から外すだけで、元のファイルは決して消さない
-  - **ファイルではないもの**(クリップボードの画像)と、**パスの無いファイル**(メールの添付ファイルなど、ディスク上に無いもの。`StorageFile.Path` が空): 一時保存して、そのパスを送る (`AddAttachmentImageAsync` / `AddAttachmentContentAsync`)。パスの無いファイルのドロップは、制約: 実機で未確認 (送り元のアプリが手元に無い)
+  - **ファイルではないもの**(クリップボードの画像)と、**パスの無いファイル**(メールの添付ファイルなど、ディスク上に無いもの。`StorageFile.Path` が空): 一時保存して、そのパスを送る (`AddAttachmentImageAsync` / `AddAttachmentContentAsync`)。
 - WSL の環境では、一時保存先を WSL の /tmp (`\\wsl.localhost\<既定のディストリビューション名>\tmp\MmmTool\session_日時\`。CLI へは `/tmp/MmmTool/...` で渡す)にする (SDK の `AttachmentStore.ForWsl`。DI は環境ごとのキー付きの Singleton で、ViewModel が今の環境のほうを使う)。終了時の削除・古いものの掃除はしない (ユーザーの決定。WSL の /tmp は、systemd が有効なら WSL の起動のたびに空になる)。送信前に × で取り除いたものは、すぐ削除する。ディストリビューションが見つからない (WSL が入っていない)ときは、添付が失敗して InfoBar に出る
 - Windows の環境では、一時保存は `%TEMP%\MmmTool\session_日時\` に連番で保存する (SDK の `AttachmentStore`。フォルダ名はアプリ側が `"MmmTool"` を渡す)。送信前に取り除いたものはすぐ削除する。送信後は一覧だけ空にし、ファイルは終了時に削除する (`AttachmentStore.Dispose`)。1 日より古い残りは、次回の初回添付時に削除する
-  - フォルダは Debug / Release など別の場所の EXE と共有するので、同時に動いている別ビルドの 1 日より古いセッションも消える。これは想定内 (ユーザーの決定)。添付は CLI が読み込めば用済みの一時ファイルで、元は読み込んだらすぐ消す仕様だったものを緩めて残しているだけのため。EXE ごとに分けるとパスが長くなるだけなので、分けない (SDK の `docs/controls.md`)
+  - フォルダは Debug / Release など別の場所の EXE と共有するので、同時に動いている別ビルドの 1 日より古いセッションも消える。これは想定内 (ユーザーの決定。理由は SDK の `docs/controls.md`)
 - 送信時は、本文のあとに指示文と各ファイルの絶対パス (1 行ずつ)を付ける (Core の `SendText.Compose`)
   - 指示文は「次のファイルも参照してください (バイナリでも読めるものは読む)。これらのファイルを変更するのは、上記の指示で求められたときだけにしてください」。元の場所のファイルを渡すので、AI が頼まれていないのに書き換えないようにする。ただし「このファイルを直して」のように頼んだときは直してほしいので、一律には禁じず、本文の指示に従わせる
   - 本文が無い (空白だけ)ときは、指す先の「上記の指示」が無いので、「上記の指示に関連して」「上記の」を外した言い回しにする
 - サムネイルは SDK の `ThumbnailImage.FromFile`(ファイルを開いたままにしない＝削除できなくならないよう、中身をメモリに読み込んでから表示する)。JPEG への変換も SDK の `IImageConverter`(詳細は SDK の `docs/controls.md`)
 
-## 補助スクリプト：会話履歴の削除 (Claude Code)
-Kiro の「会話履歴の削除」は補助スクリプトを使わず、Kiro 自身のセッション一覧を開く (上の「定型コマンド」の表)。
-- `Assets/Tools/Remove-ClaudeSession.ps1`(Windows)・`Assets/Tools/Remove-ClaudeSession.py`(WSL)：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る (`~/.claude/projects` 配下の `.jsonl` が対象)。2 つは同じ流れ・同じ操作にしている (直すときは両方を直す)
-- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」 (シェル › Claude Code)から呼ぶ。Windows は `<シェル> -NoProfile -File "{AppDir}\Assets\Tools\Remove-ClaudeSession.ps1"`、WSL は `python3 "{AppDir}/Assets/Tools/Remove-ClaudeSession.py"`(`{AppDir}` は `/mnt/d/...` に展開される)
-- WSL 版 (Python 3)
-  - WSL には Windows のごみ箱が無く、PowerShell 版を WSL の履歴 (`\\wsl.localhost\...`)に向けると、ネットワークのパスなので戻せない形で消えてしまうため、別に作った。Linux の標準のごみ箱 (freedesktop.org の Trash。`~/.local/share/Trash` の `files/` と `info/*.trashinfo`)へ移す。戻すときは、`files/` から元の場所 (`.trashinfo` の `Path`)へ移す (trash-cli の `trash-restore`・`gio trash --restore` でも戻せる)
-  - Python 3 は Ubuntu に標準で入っている。キー入力は端末を raw モードにして読む (`termios`)。Ctrl+C もキーとして受け取る。Esc キー単独か、矢印などの続きかは、50ms 待って見分ける
-  - オプションは `--all` / `--what-if` / `--root`(PowerShell 版の `-All` / `-WhatIf` / `-Root`)
-  - 改行は LF にする (`.gitattributes` の `*.py text eol=lf`。Windows で取り出しても CRLF にしない)
-  - 制約: WSL の環境ができるまで、実機で動かせていない (構文の検査だけ済み)
-- PowerShell 版のファイルは日本語を含むので BOM 付き UTF-8 (PowerShell 5.1 の文字化け対策)。Python 版は BOM なしの UTF-8
-- タイトルの取得は、`.jsonl` を 1 行ずつ文字列で探して最後の `ai-title` 行を使う (`Select-String` のパイプラインを通さない)。制約: PowerShell をこの環境で動かせず、速さと動作は実機で未確認。遅いままなら、ファイルの末尾から読む方式に替える
-- 実行中のセッションかどうかは調べない。削除はごみ箱への移動なので、間違えても戻せるため。実行中かを確実に判定する方法 (ファイルが開かれたままか)が無いことも理由
-- 矢印キーの選択画面は実ターミナルが必要 (入力がリダイレクトされているときは番号入力に切り替わる)
-- 操作：↑↓ 移動 / Space 選択 / Tab 選択して下へ (Shift+Tab は上へ) / a 全選択 / Enter 決定 (未選択ならカーソル行) / Esc・Backspace 戻る / q・Ctrl+C 終了。削除後は同じプロジェクトのセッション選択へ戻る (残りが 1 件も無ければプロジェクト選択へ)
-- IME がオンのままだと Space が全角スペース (キーの種類なし・文字だけ)で届き選択できなかったので、全角スペース・全角の a / q も文字から読み替える
-
 ## 保存データ
 `Data/CliCommands.json`(定型コマンド)・`Data/CliSettings.json`(最終ディレクトリ・履歴 20 件)。どちらもローカル専用で、読み込みに失敗したときは上書きせず InfoBar で知らせる。詳細は [storage.md](storage.md)。
 
-## 後回し
-- 今のところなし (Kiro・WSL で動かすことは、上の「初期設定 (使うツール・環境)」で対応した)
+## 決定の理由
+
+### 送信の Enter は、貼り付けの出力が落ち着いてから送る
+- 検討した案: 貼り付けの 50ms 後に Enter → CLI が Enter を本文の改行として扱い、送信されなかった。出力を待たず一定時間で Enter → 数行以上を貼り付けると、CLI が「[Pasted text …]」にまとめることがあり、まとめの描画より先に Enter が届くと確定されなかった
+- 決定: 貼り付けのあとに一度出力があり、それが 200ms 途切れたら Enter を送る (最低 150ms・最長 2 秒)。CLI が貼り付けを受け取り終えたことを、出力の途切れで判断するほうが、固定の待ち時間より確実だった
+- 影響: 送信までに最低 150ms かかる。CLI の描画が長く続く状況では、最長 2 秒で打ち切って Enter を送る
+
+### 「ターミナル」「シェル」「AI セッション」の呼び分け
+- 「Terminal」が同じ CLI補助の中で 4 つの意味に使われ、JSON の `"terminal"`(定型コマンドのタブ)と `"focus": "terminal"`(ペイン)が紛らわしかった。タブとペインで同じ語を使うと、`switchTo` と `focus` の値が読み間違いやすい
+- **ターミナル**: 中央のペインと、その実体 (ConPTY・xterm.js)だけを指す。`MmmSdk.WinUI.Components.Terminal`・`TerminalControl`・`ITerminalSession`・`FocusTarget.Terminal`(`"focus": "terminal"`)はこの意味
+- **シェル**: 定型コマンドの左のタブのうち、シェルで打つコマンド (AI エージェント起動前)。`CommandCategory.Shell`・`CliCommandSet.Shell`・JSON の `"shell"` と `"switchTo": "shell"`・画面の表記「シェル」
+- **AI セッション**: もう一方のタブ (`CommandCategory.Session`・`"session"`)
+- 影響: 定型コマンドの JSON は `terminal` → `shell` に変わった。古いキー (`terminal`)は読まない (個人利用で、既定から作り直せるため、互換のための読み替えは持たない)。作り直すには、アプリを閉じて `Data/CliCommands.json` を削除する
+
+### WSL でも動かす (シェル自体を WSL にする)
+- WSL の中の CLI には、Windows のパス (`D:\work\a.txt`)を渡しても読めないので、作業ディレクトリの移動・添付のパスを、WSL から見たパス (`/mnt/d/work/a.txt`)にして渡す必要がある。また、今どちらの環境で動いているかを、1 か所で決めて持つ必要がある
+- ターミナルのシェル自体を WSL (`wsl.exe`)にする (ユーザーの決定)。PowerShell のまま `wsl claude` で起動する形にはしない。シェルのコマンド (cd・`claude update` など)も、すべて Linux 側で動き、どちらで動いているかはシェルの種類 (`ShellKind.Wsl`)で決まって、途中で混ざらない。PowerShell の中で `wsl claude` を起動する形だと、起動したものが WSL かどうかを、コマンドごとに覚えておく仕組みが要る。起動時の作業ディレクトリは、Windows のパスのまま渡せば wsl.exe が変換する
+- 環境は、定型コマンドのファイルの `environment` に持つ (ユーザーの決定)。定型コマンドは、その環境向けに書かれたものなので、まとめて持つ。変えるときは、既定の内容に作り直して選び直す (今の内容は引き継がない。ターミナルはいつも起動し直す。ユーザーの決定)
+- パスの変換は、文字列だけで行い、`wslpath` は呼ばない (パスごとに WSL のプロセスを起動すると遅いため)。UI は Windows のパスのまま扱い、シェルへ渡すときだけ変換する
+- 貼り付けた画像の一時保存先は、WSL の /tmp にする (ユーザーの決定)。終了時の削除・古いものの掃除はしない (ユーザーの決定。systemd が有効なら、WSL の起動のたびに /tmp は空になるため)。送信前に × で取り除いたものは、それ以降使わないことがはっきりしているので、Windows と同じくすぐ消す
+- 会話履歴の削除の補助スクリプトは、WSL 用を Python 3 で別に作る (ユーザーの依頼。理由は [cli-history-cleanup.md](cli-history-cleanup.md))。Python 3 にしたのは、Ubuntu に標準で入っていて、JSON の読み込みとキー入力の処理を、追加の道具 (jq など)なしで書けるため。bash だけでは JSON を確実に読めない
+
+### Claude Code と Kiro を選べるようにする (初期設定で選ぶ)
+- Kiro (`kiro-cli`)の CLI は、Windows でもそのまま動き (CLI 2.0 から)、WSL でも動くので、環境とは別に選べる
+- 使うツール (両方も可)を、環境と一緒に「初期設定」のダイアログで選び、選んだツールのフォルダだけを、定型コマンドの「シェル」「AI セッション」の両方のタブに作る。片方しか使わない人は一覧が短くなり、両方使う人にも対応できる。「いつも両方のフォルダを入れる」形は、使わないほうが常に並ぶので採らなかった
+- ツールは別に保存しない (作ったフォルダの中身そのものなので、手で直せる。別に持つと食い違う)。初期化のときは、Claude Code だけを選んだ状態から始める
+- 初期化は、確認のダイアログを別に重ねず、初期設定のダイアログ 1 つに警告 (InfoBar)を付けて確認を兼ねる。既定のボタンは置かない (取り消せない操作なので Enter で実行させない。キャンセルを既定にすると、キャンセルが強調色になって主な操作に見えるため、どちらも強調しない。SDK の確認ダイアログも同じ)。初回は、選ばずには閉じられない
+- Kiro のコマンドは、Claude Code と同じ働きのものを、公式ドキュメント (kiro.dev)で確かめて当てる。同じ働きのコマンドは、同じ表示名・同じ順にそろえる
+  - 新規チャットは `/chat new`(Kiro の `/clear` は、同じ会話のまま中身を消すだけで、Claude Code の `/clear` とは働きが違う)
+  - CLAUDE.md の作成 (`/init`)にあたるコマンドは Kiro の CLI に無いので、「steering を作成」として、`.kiro/steering/` に product.md・tech.md・structure.md を作るよう頼む文を送る (ユーザーの決定。Kiro の IDE の「Generate Steering Docs」と同じ 3 つのファイルで、`/init` と同じ目的を果たす)
+  - 会話履歴の削除は、補助スクリプトを作らず、Kiro 自身のセッション一覧 (`kiro-cli chat --resume-picker`。Ctrl+D で削除)を開く (ユーザーの決定)。Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ファイルをごみ箱へ送る方式は使えない。一覧の出力を読んで `--delete-session` を呼ぶスクリプトは、Kiro の出力の形が変わると壊れるので採らなかった。Kiro での削除は戻せない
+
+### 画像の添付と添付ファイルの大きさに、上限を設けない
+- 画像の変換と添付ファイルの大きさに、上限は設けない (ユーザーの決定。意図した仕様)。理由は SDK の `docs/controls.md`
+- クリップボード転送の 1 ファイル 160 MB の上限は、この決定とは別のもの (Base64 の文字列としてクリップボードに載るため。[clipboard-transfer.md](clipboard-transfer.md))

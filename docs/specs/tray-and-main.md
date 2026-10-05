@@ -18,7 +18,7 @@
 - DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録 (`#if DEBUG`)だけでなく、コードと XAML も含めない (`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す)
 
 ## トレイアイコン・トレイメニュー
-アイコンとメニューの仕組み (Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応)は SDK の `MmmSdk.WinUI.Components.Tray`(SDK の `docs/tray.md`)。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
+アイコンとメニューの仕組み (Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応)は SDK の `MmmSdk.WinUI.Components.Tray`(SDK の `docs/tray.md`)。決めた理由は、下の「決定の理由」。
 
 - アプリ側の設定は `ShellServiceCollectionExtensions.AddShell` の `AddMmmSdkTray(new TrayIconOptions(...))`：ツールチップ `MmmTool`、ウィンドウクラス名 `MmmTool_Tray`(どちらも `Shell/AppInfo` から作る)、アイコン `Assets/app.ico`(EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える)、終了の文言は「終了」 (アプリが渡す)
 - 左クリックでメインウィンドウを開き (`OpenRequested`)、メニューの「終了」で完全終了する (`ExitRequested`)
@@ -28,3 +28,10 @@
 - 青のグラデーションのタイルに、とがったアーチの小文字 m を 3 つ白で重ね (奥ほど透明)、下に細い線を入れたデザイン。小さいサイズでは溶け合って「m」1 文字に見える
 - 24px 以下 (トレイ)だけ、見た目の中心合わせをしている (いちばん濃い m が右上にあって右上寄りに見えたため、濃さで重み付けした重心を中央に寄せ、さらに 1px 下げた)。32px 以上は元の配置
 - 生成は Python + Pillow のスクリプトで行っている (24px 以下は線を太くした別描画)
+
+## 決定の理由
+
+### トレイは Win32 を直接呼び、メニューはオーナードローにする
+- `Shell_NotifyIcon` を直接 P/Invoke し、WinForms の `NotifyIcon` / `ContextMenuStrip` は使わない。WinForms に依存せず、WinUI 3 のアプリに別の UI 基盤を混ぜないため
+- メニューは Win32 のポップアップメニューで、項目はオーナードロー (SDK の `TrayMenuRenderer`)で描く。標準のメニューは、文字の大きさ・色を変えられない。ダーク / ライトの切り替えや、日本語に合うフォントのために、描画を自分で持つ
+- 影響: メニューの見た目 (フォント・配色・余白・矢印・枠)は自分で面倒を見る (詳細は SDK の `docs/tray.md`)。枠 (外周・影)は Windows が描くので、uxtheme の非公開序数でシステムのダーク設定に従わせている。非公開の仕組みに頼るため、動かない環境ではライトのままになる

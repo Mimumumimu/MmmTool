@@ -16,7 +16,7 @@
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <!--
-      XML ファイルは、検査のために obj には作るが、ビルドの出力にもコピーしない (実行には使わないため。決定 0015)。
+      XML ファイルは、検査のために obj には作るが、ビルドの出力にもコピーしない (実行には使わないため。理由は docs/build-and-distribution.md の「決定の理由」)。
       参照先 (SDK)の XML ファイルもコピーしない (参照先の付随ファイルの既定 .pdb;.xml;.pri;.dll.config;.exe.config から .xml を外す)
     -->
     <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
@@ -36,7 +36,7 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
   <!--
-    Release では .pdb (デバッグ情報)を作らず、参照先 (SDK)の .pdb も出力へコピーしない (ユーザーの決定。Debug では作る)。決定 0015
+    Release では .pdb (デバッグ情報)を作らず、参照先 (SDK)の .pdb も出力へコピーしない (ユーザーの決定。Debug では作る)。理由は docs/build-and-distribution.md の「決定の理由」
   -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
