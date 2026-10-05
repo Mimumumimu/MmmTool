@@ -10,6 +10,7 @@ using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Features.CliAssist;
+using MmmTool.Features.ClipboardTransfer;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Links;
 using MmmTool.Features.Reminders;
@@ -74,6 +75,7 @@ public partial class App : Application
 
         // 機能。登録した順に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目・起動時の準備が並ぶ
         services.AddCliAssist();
+        services.AddClipboardTransfer();
         services.AddReminders();
         services.AddLinks();
         services.AddDebugging();
