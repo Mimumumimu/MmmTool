@@ -13,7 +13,7 @@
 
     <Grid x:Name="RootGrid">
         <Grid.Resources>
-            <!-- 列の幅（見出しと行で共通）。日付 / 曜日 / 時刻 / 件名（残り全部） -->
+            <!-- 列の幅 (見出しと行で共通)。日付 / 曜日 / 時刻 / 件名 (残り全部) -->
             <GridLength x:Key="DateColumnWidth">120</GridLength>
             <GridLength x:Key="WeekdayColumnWidth">120</GridLength>
             <GridLength x:Key="TimeColumnWidth">80</GridLength>
@@ -24,7 +24,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯（ドラッグで移動できる）。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"
@@ -64,7 +64,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- 一覧（見出しは固定で、行だけスクロール） -->
+        <!-- 一覧 (見出しは固定で、行だけスクロール) -->
         <Grid
             Grid.Row="2"
             Margin="24,0,24,24"
@@ -77,7 +77,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- 見出し。左右の余白は行（ListViewItem の外側 4 + 内側 12）に合わせる -->
+            <!-- 見出し。左右の余白は行 (ListViewItem の外側 4 + 内側 12)に合わせる -->
             <Grid
                 Grid.Row="0"
                 Padding="16,10,16,10"

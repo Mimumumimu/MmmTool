@@ -1,4 +1,4 @@
-# コードの書き方の決まり。severity が warning のものはビルド時にも検査する（Directory.Build.props の EnforceCodeStyleInBuild）
+# コードの書き方の決まり。severity が warning のものはビルド時にも検査する (Directory.Build.props の EnforceCodeStyleInBuild)
 root = true
 
 [*]
@@ -31,16 +31,16 @@ csharp_style_var_for_built_in_types = true:suggestion
 csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_elsewhere = true:suggestion
 
-# 波かっこ: 1 行で書く早期 return（if (x) return;）だけ省略してよい。本体を次の行に書くときは必ず付ける
+# 波かっこ: 1 行で書く早期 return (if (x) return;)だけ省略してよい。本体を次の行に書くときは必ず付ける
 csharp_prefer_braces = when_multiline:warning
 dotnet_diagnostic.IDE0011.severity = warning
 
-# 新しい書き方（コレクション式・target-typed new・プライマリコンストラクタ等）は提案にとどめる
+# 新しい書き方 (コレクション式・target-typed new・プライマリコンストラクタ等)は提案にとどめる
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
 csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
 csharp_style_prefer_primary_constructors = true:suggestion
 
-# 名前: 定数・static readonly は PascalCase、それ以外の private フィールドは _camelCase（上のルールが優先）
+# 名前: 定数・static readonly は PascalCase、それ以外の private フィールドは _camelCase (上のルールが優先)
 dotnet_naming_rule.constants_pascal.symbols = constants
 dotnet_naming_rule.constants_pascal.style = pascal
 dotnet_naming_rule.constants_pascal.severity = suggestion

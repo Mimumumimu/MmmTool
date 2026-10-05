@@ -11,7 +11,7 @@ public sealed class SendHistory
     /// <summary>履歴の最大件数</summary>
     public const int MaxCount = 50;
 
-    /// <summary>履歴（先頭が最新）</summary>
+    /// <summary>履歴 (先頭が最新)</summary>
     private readonly List<SendHistoryEntry> _entries = [];
 
     /// <summary>送信した本文を履歴の先頭に追加する</summary>
@@ -29,8 +29,8 @@ public sealed class SendHistory
     }
 
     /// <summary>絞り込み文字列に合う履歴を返す</summary>
-    /// <param name="filter">絞り込み文字列（前後の空白は無視。大文字小文字は区別しない）。空なら全件</param>
-    /// <returns>合う履歴（新しい順）</returns>
+    /// <param name="filter">絞り込み文字列 (前後の空白は無視。大文字小文字は区別しない)。空なら全件</param>
+    /// <returns>合う履歴 (新しい順)</returns>
     public IReadOnlyList<SendHistoryEntry> Search(string filter)
     {
         var trimmed = filter.Trim();

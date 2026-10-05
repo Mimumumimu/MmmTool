@@ -56,7 +56,7 @@
             Style="{StaticResource BodyStrongTextBlockStyle}"
             Text="最近使ったフォルダ" />
 
-        <!-- 履歴（クリックで入力、ダブルクリックでそのまま変更、× で削除） -->
+        <!-- 履歴 (クリックで入力、ダブルクリックでそのまま変更、× で削除) -->
         <Grid Grid.Row="4">
             <ListView
                 MaxHeight="260"

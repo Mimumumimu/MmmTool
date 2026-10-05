@@ -10,14 +10,14 @@ namespace MmmTool.Features.Links;
 /// </summary>
 /// <param name="links">リンクメニューの構成</param>
 /// <param name="opener">パスを開く処理</param>
-/// <param name="notifications">通知ダイアログの表示（リンクを開けなかったことを知らせる）</param>
+/// <param name="notifications">通知ダイアログの表示 (リンクを開けなかったことを知らせる)</param>
 public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener, INotificationDialogService notifications) : ITrayMenuSource
 {
     /// <inheritdoc />
     public IReadOnlyList<TrayMenuItem> GetItems()
     {
         IReadOnlyList<TrayMenuItem> children = links.LoadError is not null
-            ? [TrayMenuItem.Disabled("Links.json を読み込めません（リンク画面で確認してください）")]
+            ? [TrayMenuItem.Disabled("Links.json を読み込めません (リンク画面で確認してください)")]
             : links.Current?.Items is { Count: > 0 } items
                 ? [.. items.Select(ToMenuItem)]
                 : [TrayMenuItem.Disabled("リンクはまだありません")];
@@ -29,7 +29,7 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
     /// <param name="name">リンクの表示名</param>
     /// <param name="path">開くパス</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>パスが存在しない・開けない（<see cref="PathOpenException"/>）ときは、通知ダイアログで知らせる。それ以外の失敗は、バグとして、アプリの安全網が受ける。</remarks>
+    /// <remarks>パスが存在しない・開けない (<see cref="PathOpenException"/>)ときは、通知ダイアログで知らせる。それ以外の失敗は、バグとして、アプリの安全網が受ける。</remarks>
     private async Task OpenAsync(string name, string path)
     {
         try

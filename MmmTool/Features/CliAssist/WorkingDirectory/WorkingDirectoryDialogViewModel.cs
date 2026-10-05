@@ -23,7 +23,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private DirectoryCheck _check;
 
-    /// <summary>存在の確認の待ち合わせ（入力が変わったら、前の確認を取り消す）</summary>
+    /// <summary>存在の確認の待ち合わせ (入力が変わったら、前の確認を取り消す)</summary>
     private readonly Debouncer _checkDebouncer = new(CheckDelay);
 
     /// <summary>ViewModel を作る</summary>
@@ -37,7 +37,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         Directories.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoDirectories));
     }
 
-    /// <summary>最近使ったフォルダ（先頭が最新）。</summary>
+    /// <summary>最近使ったフォルダ (先頭が最新)。</summary>
     public ObservableCollection<string> Directories { get; } = [];
 
     /// <summary>最近使ったフォルダが無いか</summary>
@@ -47,20 +47,20 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     [ObservableProperty]
     public partial string DirectoryPath { get; set; }
 
-    /// <summary>入力されたフォルダが存在する（変更できる）。</summary>
+    /// <summary>入力されたフォルダが存在する (変更できる)。</summary>
     /// <remarks>存在の確認は、入力が止まってから、バックグラウンドで行う。確認が終わるまでは false。</remarks>
     public bool IsValid => _check == DirectoryCheck.Found;
 
     /// <summary>入力はあるがフォルダが見つからない。</summary>
-    /// <remarks>確認が終わるまでは false（確認中に、見つからないと表示して、ちらつかせないため）。</remarks>
+    /// <remarks>確認が終わるまでは false (確認中に、見つからないと表示して、ちらつかせないため)。</remarks>
     public bool IsNotFound => _check == DirectoryCheck.NotFound;
 
     /// <summary>エラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>履歴のフォルダを入力欄に入れて、存在するかを（デバウンスを待たずに）確認する</summary>
+    /// <summary>履歴のフォルダを入力欄に入れて、存在するかを (デバウンスを待たずに)確認する</summary>
     /// <param name="directory">履歴のフォルダのパス</param>
-    /// <returns>存在すれば true（ダブルクリックで、そのまま決定してよいか）</returns>
+    /// <returns>存在すれば true (ダブルクリックで、そのまま決定してよいか)</returns>
     /// <remarks>存在の確認は、UI スレッドを止めないよう、バックグラウンドで行う。</remarks>
     public async Task<bool> UseDirectoryAsync(string directory)
     {
@@ -108,7 +108,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private enum DirectoryCheck
     {
-        /// <summary>入力が空（確認しない）</summary>
+        /// <summary>入力が空 (確認しない)</summary>
         None,
 
         /// <summary>確認中</summary>
@@ -117,7 +117,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         /// <summary>フォルダがある</summary>
         Found,
 
-        /// <summary>フォルダが無い（ファイルなど、フォルダでないものを含む）</summary>
+        /// <summary>フォルダが無い (ファイルなど、フォルダでないものを含む)</summary>
         NotFound,
     }
 

@@ -1,42 +1,42 @@
 <Project>
   <!--
-    アプリの全プロジェクト共通の設定。プロジェクト固有の設定（対象フレームワーク・WinUI 等）は各 csproj に書く。
-    サブモジュールの MmmSdk は自分の Directory.Build.props を使う（MSBuild は近いほうを使うので、ここの設定は SDK に届かない）。
+    アプリの全プロジェクト共通の設定。プロジェクト固有の設定 (対象フレームワーク・WinUI 等)は各 csproj に書く。
+    サブモジュールの MmmSdk は自分の Directory.Build.props を使う (MSBuild は近いほうを使うので、ここの設定は SDK に届かない)。
   -->
   <PropertyGroup>
-    <!-- 製品のバージョン（major.minor.patch）。ファイル・アセンブリのバージョンはここから自動で 4 桁（0.1.0.0）になる -->
+    <!-- 製品のバージョン (major.minor.patch)。ファイル・アセンブリのバージョンはここから自動で 4 桁 (0.1.0.0)になる -->
     <Version>0.1.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- XML ドキュメントコメントの検査（書き漏れ・参照切れを警告にする）。未使用 using の検査（IDE0005）にも必要 -->
+    <!-- XML ドキュメントコメントの検査 (書き漏れ・参照切れを警告にする)。未使用 using の検査 (IDE0005)にも必要 -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- .editorconfig のコードスタイルをビルド時にも検査する -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <!-- 検査用に作る XML ファイルは配布物に含めない（配布物のファイル数を増やさないため） -->
+    <!-- 検査用に作る XML ファイルは配布物に含めない (配布物のファイル数を増やさないため) -->
     <PublishDocumentationFile>false</PublishDocumentationFile>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <!--
-      XML ファイルは、検査のために obj には作るが、ビルドの出力にもコピーしない（実行には使わないため。決定 0015）。
-      参照先（SDK）の XML ファイルもコピーしない（参照先の付随ファイルの既定 .pdb;.xml;.pri;.dll.config;.exe.config から .xml を外す）
+      XML ファイルは、検査のために obj には作るが、ビルドの出力にもコピーしない (実行には使わないため。決定 0015)。
+      参照先 (SDK)の XML ファイルもコピーしない (参照先の付随ファイルの既定 .pdb;.xml;.pri;.dll.config;.exe.config から .xml を外す)
     -->
     <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
     <AllowedReferenceRelatedFileExtensions>.pdb;.pri;.dll.config;.exe.config</AllowedReferenceRelatedFileExtensions>
     <!--
-      全プロジェクトを x64 専用にする（Core も含めて AnyCPU を使わない。SDK も同じ設定）。
-      Platforms は VS で選べる一覧なので、既定の Platform も x64 にする（-p:Platform を付けないビルド・発行で AnyCPU にならないように）
+      全プロジェクトを x64 専用にする (Core も含めて AnyCPU を使わない。SDK も同じ設定)。
+      Platforms は VS で選べる一覧なので、既定の Platform も x64 にする (-p:Platform を付けないビルド・発行で AnyCPU にならないように)
     -->
     <Platforms>x64</Platforms>
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
-    <!-- プラットフォームは x64 だけなので、出力先（bin・obj）に x64 の段を作らない（bin\<構成>\<TFM>\。配布物は bin\Release\publish\MmmTool_<版>\） -->
+    <!-- プラットフォームは x64 だけなので、出力先 (bin・obj)に x64 の段を作らない (bin\<構成>\<TFM>\。配布物は bin\Release\publish\MmmTool_<版>\) -->
     <AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
     <!--
-      RID も win-x64 だけなので、出力先に RID の段を作らない（SDK も同じ設定）。
+      RID も win-x64 だけなので、出力先に RID の段を作らない (SDK も同じ設定)。
       VS の「発行」は RID を参照先にも渡すので、段を作ると、RID の有無で出力先が変わり、先にビルドした DLL を見つけられずに失敗する
     -->
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
   <!--
-    Release では .pdb（デバッグ情報）を作らず、参照先（SDK）の .pdb も出力へコピーしない（ユーザーの決定。Debug では作る）。決定 0015
+    Release では .pdb (デバッグ情報)を作らず、参照先 (SDK)の .pdb も出力へコピーしない (ユーザーの決定。Debug では作る)。決定 0015
   -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>

@@ -18,7 +18,7 @@ namespace MmmTool.Features.Links.Main;
 public sealed partial class LinkEditorViewModel : ObservableObject
 {
     /// <summary>パスの入力が止まってから種類を調べるまでの待ち時間。</summary>
-    /// <remarks>1 文字ごとにファイルの有無を調べないため（ネットワーク上のパスは時間がかかる）。</remarks>
+    /// <remarks>1 文字ごとにファイルの有無を調べないため (ネットワーク上のパスは時間がかかる)。</remarks>
     private static readonly TimeSpan PathCheckDelay = TimeSpan.FromMilliseconds(300);
 
     /// <summary>リンクメニューの読み書き</summary>
@@ -39,7 +39,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>初期化済みか</summary>
     private bool _initialized;
 
-    /// <summary>パスの種類を調べる処理の待ち合わせ（入力・選択が変わったら、前の確認を取り消す）</summary>
+    /// <summary>パスの種類を調べる処理の待ち合わせ (入力・選択が変わったら、前の確認を取り消す)</summary>
     private readonly Debouncer _pathDebouncer = new(PathCheckDelay);
 
     /// <summary>ViewModel を作る</summary>
@@ -83,14 +83,14 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     /// <summary>初回表示時に読み込む。</summary>
     /// <returns>初回の読み込みの完了を表すタスク</returns>
-    /// <remarks>ページはキャッシュされ表示のたびに呼ばれるので、2 回目以降は何もしない（編集中の内容を読み直して消さないため）。</remarks>
+    /// <remarks>ページはキャッシュされ表示のたびに呼ばれるので、2 回目以降は何もしない (編集中の内容を読み直して消さないため)。</remarks>
     public async Task InitializeAsync()
     {
         if (_initialized) return;
         _initialized = true;
         await LoadAsync();
 
-        // 起動時の読み込みで作り直した場合もここで知らせる（読み込みエラーを表示中なら、そちらを優先）
+        // 起動時の読み込みで作り直した場合もここで知らせる (読み込みエラーを表示中なら、そちらを優先)
         if (_linkMenu.RecoveryMessage is { } recoveryMessage && !_loadFailed)
         {
             Error.Show(Error.IsOpen ? $"{recoveryMessage}\n\n{Error.Message}" : recoveryMessage);
@@ -124,7 +124,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         SelectedItem = null;
         IsDirty = false;
 
-        // 手で編集した JSON の書き間違い（知らない kind）は、無視して続け、画面で知らせる
+        // 手で編集した JSON の書き間違い (知らない kind)は、無視して続け、画面で知らせる
         if (menu.Validate() is { Count: > 0 } problems)
         {
             Error.Show(string.Join("\n", problems));
@@ -146,10 +146,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>フォルダーを選択中か</summary>
     public bool IsFolderSelected => SelectedItem?.Kind == LinkNodeKind.Folder;
 
-    /// <summary>編集欄を出すか（リンク・フォルダーを選択中）。</summary>
+    /// <summary>編集欄を出すか (リンク・フォルダーを選択中)。</summary>
     public bool IsEditorVisible => IsLinkSelected || IsFolderSelected;
 
-    /// <summary>編集欄の代わりに案内を出すか（未選択・区切り線）。</summary>
+    /// <summary>編集欄の代わりに案内を出すか (未選択・区切り線)。</summary>
     public bool IsEditorHintVisible => !IsEditorVisible;
 
     /// <summary>編集欄の代わりに出す案内の文</summary>
@@ -193,10 +193,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>パスの種類の説明</summary>
     public string PathKindText => PathKind switch
     {
-        PathTargetKind.Url => "URL（ブラウザなど既定のアプリで開きます）",
-        PathTargetKind.Folder => "フォルダー（エクスプローラーで開きます）",
-        PathTargetKind.Executable => "実行ファイル（起動します）",
-        PathTargetKind.File => "ファイル（関連付けられたアプリで開きます）",
+        PathTargetKind.Url => "URL (ブラウザなど既定のアプリで開きます)",
+        PathTargetKind.Folder => "フォルダー (エクスプローラーで開きます)",
+        PathTargetKind.Executable => "実行ファイル (起動します)",
+        PathTargetKind.File => "ファイル (関連付けられたアプリで開きます)",
         PathTargetKind.NotFound => "見つかりません。パスを確認してください",
         _ => "",
     };
@@ -215,7 +215,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>パスが見つからないか</summary>
     public bool IsPathNotFound => PathKind == PathTargetKind.NotFound;
 
-    /// <summary>パスが見つかったか（空・見つからない以外）</summary>
+    /// <summary>パスが見つかったか (空・見つからない以外)</summary>
     public bool IsPathFound => PathKind is not (PathTargetKind.Empty or PathTargetKind.NotFound);
 
     /// <summary>入力が止まるのを待ってから、パスの種類を調べ直す。</summary>
@@ -327,7 +327,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>選択を削除する。</summary>
     /// <returns>削除の完了を表すタスク</returns>
     /// <remarks>
-    /// 中身のあるフォルダだけ確認する（配下のリンクをまとめて失うため）。リンク・区切り線・空のフォルダは 1 件単位で作り直しやすく、
+    /// 中身のあるフォルダだけ確認する (配下のリンクをまとめて失うため)。リンク・区切り線・空のフォルダは 1 件単位で作り直しやすく、
     /// 保存前なら「変更を破棄」でも戻せるので、確認せずに削除する。
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanDelete))]
@@ -356,7 +356,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <returns>削除できるなら true</returns>
     private bool CanDelete() => SelectedItem is not null;
 
-    /// <summary>要素が今入っているコレクション（ルートまたは親フォルダの子要素）を探す。</summary>
+    /// <summary>要素が今入っているコレクション (ルートまたは親フォルダの子要素)を探す。</summary>
     /// <param name="item">探す要素</param>
     /// <returns>要素が入っているコレクション。見つからなければ null</returns>
     /// <remarks>ドラッグ＆ドロップで並べ替えたあとも、その時点の構造から探す。</remarks>
@@ -434,7 +434,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>コレクションが変わったら、新しい要素を監視して、変更ありにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">コレクションの変更の情報</param>
-    /// <remarks>追加・削除・並べ替え（ドラッグ＆ドロップによるコレクションの変更を含む）と、名前・パスの編集で、変更ありにする。</remarks>
+    /// <remarks>追加・削除・並べ替え (ドラッグ＆ドロップによるコレクションの変更を含む)と、名前・パスの編集で、変更ありにする。</remarks>
     private void OnChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.NewItems is not null)

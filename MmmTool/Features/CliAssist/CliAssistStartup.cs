@@ -4,9 +4,9 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.CliAssist;
 
-/// <summary>CLI補助の起動時の準備（利用状態の読み込み・既定のシェルの探索）</summary>
+/// <summary>CLI補助の起動時の準備 (利用状態の読み込み・既定のシェルの探索)</summary>
 /// <param name="settings">CLI補助の利用状態</param>
-/// <remarks>画面を作る前に読み込む（前回の作業ディレクトリでシェルを始めるため）。失敗は画面側で通知する。既定のシェルの探索は PATH の全項目へ触れるので、UI スレッドで初めて読まないよう、ここでバックグラウンドから済ませておく。</remarks>
+/// <remarks>画面を作る前に読み込む (前回の作業ディレクトリでシェルを始めるため)。失敗は画面側で通知する。既定のシェルの探索は PATH の全項目へ触れるので、UI スレッドで初めて読まないよう、ここでバックグラウンドから済ませておく。</remarks>
 public sealed class CliAssistStartup(CliSettingsService settings) : IStartupTask
 {
     /// <inheritdoc />

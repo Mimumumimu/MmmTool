@@ -11,7 +11,7 @@
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error" />
         <StackPanel Orientation="Horizontal" Spacing="16">
-            <TextBlock VerticalAlignment="Center" Text="リマインダーのスヌーズ間隔（分）" />
+            <TextBlock VerticalAlignment="Center" Text="リマインダーのスヌーズ間隔 (分)" />
             <NumberBox
                 Width="160"
                 GotFocus="OnNumberBoxGotFocus"

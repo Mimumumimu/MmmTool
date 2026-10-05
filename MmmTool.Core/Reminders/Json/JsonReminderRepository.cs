@@ -5,11 +5,11 @@ namespace MmmTool.Core.Reminders.Json;
 /// <summary>リマインダーを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
 /// <remarks>
-/// 本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する（汎用設定ストアとは別）。
-/// 最初のアクセスで 1 度だけ読み込み、メモリに持つ。書き込みは、変更後のコピーをファイルに書き、成功してからメモリを差し替える（保存に失敗したとき、メモリだけが新しい状態にならない）。
+/// 本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する (汎用設定ストアとは別)。
+/// 最初のアクセスで 1 度だけ読み込み、メモリに持つ。書き込みは、変更後のコピーをファイルに書き、成功してからメモリを差し替える (保存に失敗したとき、メモリだけが新しい状態にならない)。
 /// 番号は、ロックの中で「最大 + 1」を計算して決める。
-/// ファイルが無い・空・壊れているときは空の一覧として扱う（壊れていたファイルは退避して <see cref="RecoveryMessage"/> に残す）。
-/// ロック・権限などで読めなかったときも空の一覧として扱うが、元のファイルを空で上書きしないよう、書き込みは止める（書こうとすると例外）。
+/// ファイルが無い・空・壊れているときは空の一覧として扱う (壊れていたファイルは退避して <see cref="RecoveryMessage"/> に残す)。
+/// ロック・権限などで読めなかったときも空の一覧として扱うが、元のファイルを空で上書きしないよう、書き込みは止める (書こうとすると例外)。
 /// </remarks>
 public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepository
 {
@@ -22,10 +22,10 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     /// <summary>読み書きを順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>読み込みの結果（失敗したか・壊れたファイルを退避したか）</summary>
+    /// <summary>読み込みの結果 (失敗したか・壊れたファイルを退避したか)</summary>
     private readonly LoadStatus _status = new();
 
-    /// <summary>リマインダー本体の一覧（論理削除済みも含む）。読み込むまでは null</summary>
+    /// <summary>リマインダー本体の一覧 (論理削除済みも含む)。読み込むまでは null</summary>
     /// <remarks>書き換えず、保存に成功したときに、新しい一覧へ差し替える。</remarks>
     private List<Reminder>? _reminders;
 

@@ -14,12 +14,12 @@
         <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind ViewModel.Title}" />
 
         <StackPanel Grid.Row="1" Spacing="12">
-            <!-- 設定ファイルを読めなかったとき（変更は保存できない） -->
+            <!-- 設定ファイルを読めなかったとき (変更は保存できない) -->
             <InfoBar
                 IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
                 Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
                 Severity="Error" />
-            <!-- 機能のオン・オフ（オフにできる機能だけ。切り替えはすぐ反映する）。行は、リマインダーの項目と同じ、左に名前・右に操作 -->
+            <!-- 機能のオン・オフ (オフにできる機能だけ。切り替えはすぐ反映する)。行は、リマインダーの項目と同じ、左に名前・右に操作 -->
             <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:FeatureItem">
@@ -34,7 +34,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <!-- 設定項目。各機能が登録した部品を、登録順に縦に並べる（コードビハインドで足す） -->
+            <!-- 設定項目。各機能が登録した部品を、登録順に縦に並べる (コードビハインドで足す) -->
             <StackPanel x:Name="SectionsPanel" Spacing="12" />
         </StackPanel>
     </Grid>

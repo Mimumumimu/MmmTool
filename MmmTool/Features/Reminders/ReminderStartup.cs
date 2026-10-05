@@ -6,13 +6,13 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.Reminders;
 
-/// <summary>リマインダーの起動時の準備（時刻監視の開始）</summary>
+/// <summary>リマインダーの起動時の準備 (時刻監視の開始)</summary>
 /// <param name="monitor">リマインダーの時刻監視</param>
 /// <param name="notifications">通知ダイアログの表示</param>
 /// <param name="reminderWindows">リマインダーのメイン画面を開く</param>
 /// <remarks>
 /// 監視はタイマーのスレッドから通知を求めてくるので、UI スレッドに切り替えて通知ダイアログを出す。
-/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く（発動済みの未対応はスヌーズに進む）。
+/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く (発動済みの未対応はスヌーズに進む)。
 /// </remarks>
 public sealed class ReminderStartup(
     ReminderMonitor monitor,
@@ -20,7 +20,7 @@ public sealed class ReminderStartup(
     ReminderWindowService reminderWindows) : IStartupTask
 {
     /// <inheritdoc />
-    /// <remarks>UI スレッドから呼ぶ（通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う）。</remarks>
+    /// <remarks>UI スレッドから呼ぶ (通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う)。</remarks>
     public Task StartAsync()
     {
         var dispatcher = DispatcherQueue.GetForCurrentThread();

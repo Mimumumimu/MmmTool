@@ -2,7 +2,7 @@
 ================================================================
 
 開発作業を補助する、タスクトレイ常駐型のデスクトップアプリです。
-AI エージェント（Claude Code・Kiro）の CLI 操作の補助、よく使うリンクの呼び出し、
+AI エージェント (Claude Code・Kiro)の CLI 操作の補助、よく使うリンクの呼び出し、
 リマインダーの通知などを 1 つのアプリにまとめています。
 
 詳しい説明・ソースコード: https://github.com/Mimumumimu/MmmTool
@@ -11,16 +11,16 @@ AI エージェント（Claude Code・Kiro）の CLI 操作の補助、よく使
 ■ 必要なもの
 ----------------------------------------------------------------
 
-- Windows 10 (1809) 以上（x64）
-- .NET 10 Desktop Runtime（x64）
+- Windows 10 (1809) 以上 (x64)
+- .NET 10 Desktop Runtime (x64)
     https://dotnet.microsoft.com/download/dotnet/10.0
-- Windows App Runtime 2.5（x64）
+- Windows App Runtime 2.5 (x64)
     https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads
-- Microsoft Edge WebView2 ランタイム（Windows 11 には標準で入っています）
+- Microsoft Edge WebView2 ランタイム (Windows 11 には標準で入っています)
     https://developer.microsoft.com/microsoft-edge/webview2/
-- PowerShell 7（任意。入っていれば、ターミナルで優先して使います）
-- WSL（任意。CLI補助で WSL の Claude Code・Kiro を使うとき。Claude Code の会話履歴の削除には
-  WSL の中の Python 3 が要ります。Ubuntu には標準で入っています）
+- PowerShell 7 (任意。入っていれば、ターミナルで優先して使います)
+- WSL (任意。CLI補助で WSL の Claude Code・Kiro を使うとき。Claude Code の会話履歴の削除には
+  WSL の中の Python 3 が要ります。Ubuntu には標準で入っています)
 
 ランタイムは同梱していません。.NET と Windows App Runtime は、入っていなければ
 MmmTool.exe を起動したときに案内のダイアログが出るので、そこからダウンロードして
@@ -42,13 +42,13 @@ MmmTool.exe を起動したときに案内のダイアログが出るので、�
 
 この README.txt と同じ場所にある MmmTool フォルダが、アプリ本体です。
 インストールは不要で、展開したまま使えます。MmmTool フォルダは、好きな場所
-（例: D:\Tools\MmmTool）へ移して使うこともできます。版が変わってもフォルダ名は MmmTool のままなので、
+(例: D:\Tools\MmmTool)へ移して使うこともできます。版が変わってもフォルダ名は MmmTool のままなので、
 ショートカットなどはそのまま使えます。
 
 - 自分だけが書き込めるフォルダに置いてください。
   他の人が書き込めるフォルダに置くと、Data フォルダの定型コマンドやリンクを書き換えられ、
   意図しないコマンドを実行されるおそれがあります。
-- Lib フォルダの中身を動かしたり、EXE の横へ移したりしないでください（起動できなくなります）。
+- Lib フォルダの中身を動かしたり、EXE の横へ移したりしないでください (起動できなくなります)。
 
 
 ■ データの保存場所
@@ -57,13 +57,13 @@ MmmTool.exe を起動したときに案内のダイアログが出るので、�
 アプリのデータは、すべて EXE と同じ場所の Data フォルダに保存されます。
 
   Data\*.json      設定・リンク・定型コマンド・リマインダーなど
-  Data\Logs\       エラーのログ（自動では消えません）
-  Data\WebView2\   ターミナルの画面のキャッシュ（消しても作り直されます）
+  Data\Logs\       エラーのログ (自動では消えません)
+  Data\WebView2\   ターミナルの画面のキャッシュ (消しても作り直されます)
 
 - JSON を手で直すときは、アプリを終了してから行ってください。
-- CLI補助で貼り付けた画像だけは、%TEMP%\MmmTool\ に一時保存されます（終了時に削除）。
-  CLI補助を WSL で使うときは、WSL の /tmp/MmmTool/ に置きます（終了時には削除せず、
-  WSL の再起動で消えるのに任せます）。
+- CLI補助で貼り付けた画像だけは、%TEMP%\MmmTool\ に一時保存されます (終了時に削除)。
+  CLI補助を WSL で使うときは、WSL の /tmp/MmmTool/ に置きます (終了時には削除せず、
+  WSL の再起動で消えるのに任せます)。
   ドラッグ＆ドロップなどで添付したファイルはコピーせず、元のファイルのパスを渡します。
 
 
@@ -73,7 +73,7 @@ MmmTool.exe を起動したときに案内のダイアログが出るので、�
 1. トレイの「終了」で MmmTool を終了します。
 2. 新しい版の MmmTool フォルダの中身を、今使っている MmmTool フォルダに上書きコピーします。
    Data フォルダは新しい版に含まれていないので、そのまま残ります
-   （新しい版のフォルダに Data があるときは、それはコピーしないでください）。
+  (新しい版のフォルダに Data があるときは、それはコピーしないでください)。
 
 
 ■ アンインストール
@@ -87,17 +87,17 @@ MmmTool を終了してから、MmmTool フォルダを丸ごと削除します�
 ----------------------------------------------------------------
 
 未リリース
-- 追加: 設定で機能をオン・オフできるようにした（今は CLI補助。オフにすると、サイドバー・トレイメニューから消え、すぐ反映される。ターミナルが動いている間にオフにすると確認が出る）
-- 変更: CLI補助でドラッグ＆ドロップ・貼り付けしたファイルを一時フォルダーへコピーせず、元のファイルのパスを渡すようにした（× で添付から外しても、元のファイルは消えない）
+- 追加: 設定で機能をオン・オフできるようにした (今は CLI補助。オフにすると、サイドバー・トレイメニューから消え、すぐ反映される。ターミナルが動いている間にオフにすると確認が出る)
+- 変更: CLI補助でドラッグ＆ドロップ・貼り付けしたファイルを一時フォルダーへコピーせず、元のファイルのパスを渡すようにした (× で添付から外しても、元のファイルは消えない)
 - 変更: CLI補助の添付の指示文に「ファイルを変更するのは、指示で求められたときだけ」を加えた
 - 変更: CLI補助の添付の一時保存先を %TEMP%\MmmTool\ の直下にして、送るパスを短くした
 - 修正: CLI補助で本文を書かずにファイルだけを送ったとき、指示文が「上記の指示に関連して」で始まっていた
-- 追加: CLI補助を WSL でも動かせるようにした（初めて開いたときに Windows / WSL を選ぶ。WSL では作業ディレクトリ・添付のパスを /mnt/d/... の形にして渡す。貼り付けた画像は WSL の /tmp に置く）
-- 追加: CLI補助で Kiro を使えるようにした（初めて開いたときに、使うツール（Claude Code / Kiro。両方も可）を選ぶ）
-- 追加: CLI補助の「定型コマンドを初期化…」（定型コマンドを既定の内容に作り直し、使うツールと Windows / WSL を選び直す）
-- 追加: WSL 版の補助スクリプト「会話履歴の削除」（Python 3。操作は Windows 版と同じ。Linux のごみ箱 ~/.local/share/Trash へ移す）
+- 追加: CLI補助を WSL でも動かせるようにした (初めて開いたときに Windows / WSL を選ぶ。WSL では作業ディレクトリ・添付のパスを /mnt/d/... の形にして渡す。貼り付けた画像は WSL の /tmp に置く)
+- 追加: CLI補助で Kiro を使えるようにした (初めて開いたときに、使うツール (Claude Code / Kiro。両方も可)を選ぶ)
+- 追加: CLI補助の「定型コマンドを初期化…」 (定型コマンドを既定の内容に作り直し、使うツールと Windows / WSL を選び直す)
+- 追加: WSL 版の補助スクリプト「会話履歴の削除」 (Python 3。操作は Windows 版と同じ。Linux のごみ箱 ~/.local/share/Trash へ移す)
 
-0.1.0（2026-10-04）
+0.1.0 (2026-10-04)
 - 初版
 
 
@@ -107,10 +107,10 @@ MmmTool を終了してから、MmmTool フォルダを丸ごと削除します�
 MmmTool は MIT License で公開しています。
 Copyright (c) 2026 mimumu
 
-ライセンスの文書は、アプリ本体の中にあります（MmmTool フォルダだけをコピーしても一緒に付いていきます）。
+ライセンスの文書は、アプリ本体の中にあります (MmmTool フォルダだけをコピーしても一緒に付いていきます)。
 
-  MmmTool\Assets\Licenses\LICENSE.txt                MmmTool のライセンス（MIT License）
-  MmmTool\Assets\Licenses\THIRD-PARTY-NOTICES.txt    同梱している他のソフトウェア（xterm.js・
+  MmmTool\Assets\Licenses\LICENSE.txt                MmmTool のライセンス (MIT License)
+  MmmTool\Assets\Licenses\THIRD-PARTY-NOTICES.txt    同梱している他のソフトウェア (xterm.js・
                                                      CommunityToolkit・.NET のライブラリ・
-                                                     Windows App SDK・WebView2 など）の
+                                                     Windows App SDK・WebView2 など)の
                                                      ライセンスと通知の全文

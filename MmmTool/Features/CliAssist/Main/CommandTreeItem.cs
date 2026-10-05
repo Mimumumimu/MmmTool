@@ -37,7 +37,7 @@ public sealed class CommandTreeItem
     /// <summary>種類</summary>
     public CommandItemKind Kind { get; }
 
-    /// <summary>ターミナルへ送るコマンド文字列（葉のとき）</summary>
+    /// <summary>ターミナルへ送るコマンド文字列 (葉のとき)</summary>
     public string? Command { get; }
 
     /// <summary>コマンドを送ったあとに切り替えるタブ</summary>
@@ -59,7 +59,7 @@ public sealed class CommandTreeItem
         _ => "",
     };
 
-    /// <summary>ツールチップ（送るコマンド文字列）。</summary>
+    /// <summary>ツールチップ (送るコマンド文字列)。</summary>
     public string? ToolTip => Command;
 
     /// <summary>作業ディレクトリ変更の項目を作る</summary>
@@ -71,7 +71,7 @@ public sealed class CommandTreeItem
     /// <returns>表示用の要素</returns>
     public static CommandTreeItem From(CliCommandNode node)
     {
-        // 子を持てば中間ノード（コマンドより子を優先）、無ければコマンドを送る葉
+        // 子を持てば中間ノード (コマンドより子を優先)、無ければコマンドを送る葉
         var children = node.Children?.Select(From).ToList() ?? [];
         return children.Count > 0 || string.IsNullOrWhiteSpace(node.Command)
             ? new CommandTreeItem(node.Label, CommandItemKind.Group, null, children)

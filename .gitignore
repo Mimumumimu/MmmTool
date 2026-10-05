@@ -185,7 +185,7 @@ publish/
 # Note: Comment the next line if you want to checkin your web deploy settings,
 # but database connection strings (with potential passwords) will be unencrypted
 *.pubxml
-# フォルダーへの発行プロファイル（秘密の情報を含まない）は入れる。VS の「発行」を clone 直後から使えるようにするため
+# フォルダーへの発行プロファイル (秘密の情報を含まない)は入れる。VS の「発行」を clone 直後から使えるようにするため
 !MmmTool/Properties/PublishProfiles/win-x64.pubxml
 *.publishproj
 
@@ -363,7 +363,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-# ローカル専用（リポジトリに含めない）: 一時ファイル置き場
+# ローカル専用 (リポジトリに含めない): 一時ファイル置き場
 /_local/
 
 # Claude Code personal settings

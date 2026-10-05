@@ -16,12 +16,12 @@ public static class CliAssistServiceCollectionExtensions
 {
     /// <summary>CLI補助を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
-    /// <returns>登録先のサービスコレクション（続けて登録するため）</returns>
-    /// <remarks>保存先（定型コマンド・利用状態）はローカル専用の JSON。</remarks>
+    /// <returns>登録先のサービスコレクション (続けて登録するため)</returns>
+    /// <remarks>保存先 (定型コマンド・利用状態)はローカル専用の JSON。</remarks>
     public static IServiceCollection AddCliAssist(this IServiceCollection services)
     {
         // 保存先
-        // 既定の定型コマンドはアプリが決める（補助スクリプトの配置を知っているため）。環境と使うツールは、作るときにユーザーが選ぶ（初期設定のダイアログ）
+        // 既定の定型コマンドはアプリが決める (補助スクリプトの配置を知っているため)。環境と使うツールは、作るときにユーザーが選ぶ (初期設定のダイアログ)
         services.AddSingleton<ICliCommandRepository>(provider => new JsonCliCommandRepository(
             provider.GetRequiredService<IJsonFileStore>(),
             async _ => CliCommandDefaults.Create(await provider.GetRequiredService<ICliSetupDialogService>().ShowFirstRunAsync())));
@@ -29,9 +29,9 @@ public static class CliAssistServiceCollectionExtensions
 
         services.AddSingleton<CliSettingsService>();
         // 添付の一時保存先。環境ごとに 1 つ。使うのは、定型コマンドで決まった環境のほうだけ
-        // Windows: %TEMP%\MmmTool\session_日時\。終了時（Host の破棄時）に削除する
+        // Windows: %TEMP%\MmmTool\session_日時\。終了時 (Host の破棄時)に削除する
         services.AddKeyedSingleton(CliEnvironment.Windows, (provider, _) => new AttachmentStore(AppInfo.Name, provider.GetRequiredService<TimeProvider>()));
-        // WSL: /tmp/MmmTool/session_日時/。終了時には削除しない（WSL の再起動で空になるのに任せる）
+        // WSL: /tmp/MmmTool/session_日時/。終了時には削除しない (WSL の再起動で空になるのに任せる)
         services.AddKeyedSingleton(CliEnvironment.Wsl, (provider, _) => AttachmentStore.ForWsl(AppInfo.Name, provider.GetRequiredService<TimeProvider>()));
         // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();

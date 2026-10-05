@@ -8,14 +8,14 @@ namespace MmmTool.Shell.Main;
 /// <param name="features">機能のオン・オフ</param>
 /// <param name="scopeFactory">ページごとのスコープを作る</param>
 /// <remarks>
-/// ページは初回の表示で、ページごとのスコープから DI で作り、以後は同じインスタンスを使う（入力中の内容やターミナルを保つため）。
-/// 機能がオフの間はページを作らず、オフにしたときは、作ったページを捨てる（<see cref="EvictDisabledPages"/>）。
-/// スコープごとに作るのは、捨てたページが持つ <c>IDisposable</c>（ターミナルのセッションなど）を、スコープの破棄で解放するため
-/// （ルートのプロバイダーから作ると、オン・オフのたびに増えて、Host の破棄まで残る）。残りのスコープは、この <c>Dispose</c>（Host の破棄）で破棄する。
+/// ページは初回の表示で、ページごとのスコープから DI で作り、以後は同じインスタンスを使う (入力中の内容やターミナルを保つため)。
+/// 機能がオフの間はページを作らず、オフにしたときは、作ったページを捨てる (<see cref="EvictDisabledPages"/>)。
+/// スコープごとに作るのは、捨てたページが持つ <c>IDisposable</c>(ターミナルのセッションなど)を、スコープの破棄で解放するため
+/// (ルートのプロバイダーから作ると、オン・オフのたびに増えて、Host の破棄まで残る)。残りのスコープは、この <c>Dispose</c>(Host の破棄)で破棄する。
 /// </remarks>
 public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureService features, IServiceScopeFactory scopeFactory) : IDisposable
 {
-    /// <summary>作ったページと、それを作ったスコープ（項目のキー → ページ・スコープ）</summary>
+    /// <summary>作ったページと、それを作ったスコープ (項目のキー → ページ・スコープ)</summary>
     private readonly Dictionary<string, (Page Page, IServiceScope Scope)> _cache = [];
 
     /// <summary>項目に対応するページを取得する</summary>
@@ -40,7 +40,7 @@ public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureServi
         return page;
     }
 
-    /// <summary>作ったことのあるページを取得する（作っていなければ作らない）</summary>
+    /// <summary>作ったことのあるページを取得する (作っていなければ作らない)</summary>
     /// <typeparam name="TPage">ページの型</typeparam>
     /// <returns>作ってあるページ。まだ作っていなければ null</returns>
     public TPage? GetCreatedPage<TPage>()
@@ -49,8 +49,8 @@ public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureServi
 
     /// <summary>オフになった機能のページを捨てる</summary>
     /// <remarks>
-    /// 画面の後始末が要るページ（<see cref="IReleasablePage"/>）は、先に <c>Release</c> を呼び、そのあと、ページを作ったスコープを破棄する（ターミナルのセッションなどを解放する）。
-    /// 画面は、このページから別のページへ移したあとに呼ぶこと（表示中のページを捨てないため）。
+    /// 画面の後始末が要るページ (<see cref="IReleasablePage"/>)は、先に <c>Release</c> を呼び、そのあと、ページを作ったスコープを破棄する (ターミナルのセッションなどを解放する)。
+    /// 画面は、このページから別のページへ移したあとに呼ぶこと (表示中のページを捨てないため)。
     /// 再びオンにしたときは、新しく作る。
     /// </remarks>
     public void EvictDisabledPages()
@@ -65,7 +65,7 @@ public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureServi
         }
     }
 
-    /// <summary>作ったページのスコープをすべて破棄する（Host の破棄時）</summary>
+    /// <summary>作ったページのスコープをすべて破棄する (Host の破棄時)</summary>
     public void Dispose()
     {
         foreach (var (_, scope) in _cache.Values)

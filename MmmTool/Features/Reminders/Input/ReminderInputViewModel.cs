@@ -10,7 +10,7 @@ namespace MmmTool.Features.Reminders.Input;
 /// リマインダー入力画面。リマインダー 1 件を新規登録・編集して保存する。
 /// </summary>
 /// <remarks>
-/// 発動の指定は「日付を指定する」のオン（日付指定）とオフ（曜日指定）の 2 通り。曜日を 1 つも選ばない曜日指定は毎日通知になる。
+/// 発動の指定は「日付を指定する」のオン (日付指定)とオフ (曜日指定)の 2 通り。曜日を 1 つも選ばない曜日指定は毎日通知になる。
 /// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class ReminderInputViewModel : ObservableObject
@@ -42,7 +42,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     public event EventHandler<Reminder?>? CloseRequested;
 
     /// <summary>画面のタイトル</summary>
-    /// <remarks>新規は「リマインダー入力」、編集（採番済み）は「リマインダー編集」。</remarks>
+    /// <remarks>新規は「リマインダー入力」、編集 (採番済み)は「リマインダー編集」。</remarks>
     [ObservableProperty]
     public partial string WindowTitle { get; private set; } = "";
 
@@ -58,26 +58,26 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>件名のエラーがあるか</summary>
     public bool HasTitleError => TitleError is not null;
 
-    /// <summary>日付を指定するか（オフなら曜日指定）</summary>
+    /// <summary>日付を指定するか (オフなら曜日指定)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWeekdaySpecified))]
     public partial bool IsDateSpecified { get; set; }
 
-    /// <summary>曜日指定か（<see cref="IsDateSpecified"/> の逆）</summary>
+    /// <summary>曜日指定か (<see cref="IsDateSpecified"/> の逆)</summary>
     public bool IsWeekdaySpecified => !IsDateSpecified;
 
-    /// <summary>発動日（日付指定のとき）</summary>
+    /// <summary>発動日 (日付指定のとき)</summary>
     [ObservableProperty]
     public partial DateTimeOffset? Date { get; set; }
 
-    /// <summary>曜日の選択肢（月〜日）</summary>
+    /// <summary>曜日の選択肢 (月〜日)</summary>
     public IReadOnlyList<WeekdayOption> WeekdayOptions { get; }
 
-    /// <summary>発動時刻の時（0〜23）</summary>
+    /// <summary>発動時刻の時 (0〜23)</summary>
     [ObservableProperty]
     public partial int Hour { get; set; }
 
-    /// <summary>発動時刻の分（0〜59）</summary>
+    /// <summary>発動時刻の分 (0〜59)</summary>
     [ObservableProperty]
     public partial int Minute { get; set; }
 
@@ -85,7 +85,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial string Note { get; set; } = "";
 
-    /// <summary>リンク（URL・ファイル・フォルダのパス）</summary>
+    /// <summary>リンク (URL・ファイル・フォルダのパス)</summary>
     [ObservableProperty]
     public partial string Link { get; set; } = "";
 
@@ -94,7 +94,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集するリマインダー。新規なら null</param>
-    /// <remarks>新規は 日付＝今日・時刻＝現在時刻・曜日指定（曜日は未選択）・ほかは空。編集は対象の値を読み込む（曜日指定なら日付欄は今日）。</remarks>
+    /// <remarks>新規は 日付＝今日・時刻＝現在時刻・曜日指定 (曜日は未選択)・ほかは空。編集は対象の値を読み込む (曜日指定なら日付欄は今日)。</remarks>
     public void Load(Reminder? target)
     {
         _target = target;
@@ -123,7 +123,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             (Hour, Minute) = (time.Hour, time.Minute);
         }
 
-        // 読み込みで件名が変わってもエラーは出さない（エラーは保存しようとしたときだけ）
+        // 読み込みで件名が変わってもエラーは出さない (エラーは保存しようとしたときだけ)
         TitleError = null;
         SaveError.Clear();
     }

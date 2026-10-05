@@ -6,10 +6,10 @@ using MmmTool.Core.Links;
 namespace MmmTool.Features.Links.Main;
 
 /// <summary>
-/// リンク編集ツリーの 1 要素（編集用）。保存時に <see cref="LinkNode"/> へ変換する。
+/// リンク編集ツリーの 1 要素 (編集用)。保存時に <see cref="LinkNode"/> へ変換する。
 /// </summary>
 /// <remarks>
-/// 種類は作成時（読み込み・追加時）に決めて変えない。名前で決めると、入力途中に「-」と打っただけで区切り線に変わってしまうため。
+/// 種類は作成時 (読み込み・追加時)に決めて変えない。名前で決めると、入力途中に「-」と打っただけで区切り線に変わってしまうため。
 /// 保存する JSON にも種類を書くので、「-」という名前のリンクも、読み直して区切り線に変わらない。
 /// </remarks>
 public sealed partial class LinkTreeItem : ObservableObject
@@ -18,7 +18,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     /// <param name="kind">種類</param>
     /// <param name="name">表示名</param>
     /// <param name="path">開くパス</param>
-    /// <param name="children">子要素（フォルダのとき。それ以外は null）</param>
+    /// <param name="children">子要素 (フォルダのとき。それ以外は null)</param>
     /// <remarks>生成は <see cref="CreateLink"/> などから行う。</remarks>
     private LinkTreeItem(LinkNodeKind kind, string name, string path, ObservableCollection<LinkTreeItem>? children)
     {
@@ -29,7 +29,7 @@ public sealed partial class LinkTreeItem : ObservableObject
 
         if (children is not null)
         {
-            // フォルダは開いた状態が基本（閉じるのはユーザーが閉じたときだけ）。中に項目が入ったら（追加・ドロップ）開く
+            // フォルダは開いた状態が基本 (閉じるのはユーザーが閉じたときだけ)。中に項目が入ったら (追加・ドロップ)開く
             IsExpanded = true;
             children.CollectionChanged += (_, e) =>
             {
@@ -49,7 +49,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     [ObservableProperty]
     public partial string Name { get; set; }
 
-    /// <summary>開くパス（リンクのとき）。</summary>
+    /// <summary>開くパス (リンクのとき)。</summary>
     [ObservableProperty]
     public partial string Path { get; set; }
 
@@ -103,7 +103,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     };
 
     /// <summary>保存用の構成に変換する</summary>
-    /// <returns>保存用の構成の要素（種類を必ず書く）</returns>
+    /// <returns>保存用の構成の要素 (種類を必ず書く)</returns>
     public LinkNode ToNode() => Kind switch
     {
         LinkNodeKind.Folder => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Folder), Name = Name, Children = [.. Children!.Select(child => child.ToNode())] },
@@ -111,7 +111,7 @@ public sealed partial class LinkTreeItem : ObservableObject
         _ => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Link), Name = Name, Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim() },
     };
 
-    /// <summary>子孫の数（フォルダのとき）。</summary>
+    /// <summary>子孫の数 (フォルダのとき)。</summary>
     /// <returns>子孫の数</returns>
     public int CountDescendants() => Children?.Sum(child => 1 + child.CountDescendants()) ?? 0;
 }

@@ -8,12 +8,12 @@ namespace MmmTool.Core.Reminders;
 /// リマインダーの時刻監視。発動時刻を過ぎた未対応・スヌーズのリマインダーを通知する。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="reminders">リマインダーの読み書き</param>
-/// <param name="settings">リマインダー用の設定（スヌーズの再通知間隔）</param>
+/// <param name="settings">リマインダー用の設定 (スヌーズの再通知間隔)</param>
 /// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する
-/// （タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/>。ここはそれらをつなぎ、スヌーズの通知時刻を覚える）。
-/// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる（通知 UI に依存しないため）。
+/// (タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/>。ここはそれらをつなぎ、スヌーズの通知時刻を覚える)。
+/// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる (通知 UI に依存しないため)。
 /// </remarks>
 public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, TimeProvider timeProvider) : IDisposable
 {
@@ -29,7 +29,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     /// <summary>通知を表示するコールバック</summary>
     private Action<string, IReadOnlyList<NotificationItem>>? _notify;
 
-    /// <summary>前回スヌーズ分を通知した分（秒以下を切り捨てた時刻）。まだ無ければ null</summary>
+    /// <summary>前回スヌーズ分を通知した分 (秒以下を切り捨てた時刻)。まだ無ければ null</summary>
     /// <remarks>スヌーズの再通知間隔は、リマインダーごとではなくモニター全体でこの時刻から数える。メモリ上だけに持つ。</remarks>
     private DateTime? _lastSnoozeNotifiedMinute;
 
@@ -37,7 +37,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     private bool _disposed;
 
     /// <summary>監視を始める</summary>
-    /// <param name="notify">通知を表示するコールバック（タイトル・項目）。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
+    /// <param name="notify">通知を表示するコールバック (タイトル・項目)。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
     /// <exception cref="InvalidOperationException">すでに開始している。</exception>
     public void Start(Action<string, IReadOnlyList<NotificationItem>> notify)
     {
@@ -121,9 +121,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
         }
     }
 
-    /// <summary>今日の発動対象で、発動時刻を過ぎたもの（時刻 → 参照番号の順）と、その対応状態</summary>
+    /// <summary>今日の発動対象で、発動時刻を過ぎたもの (時刻 → 参照番号の順)と、その対応状態</summary>
     /// <param name="now">現在の日時</param>
-    /// <returns>発動済みのリマインダーと今日の対応状態（今日の対象の組み立ては <see cref="ReminderService.GetTargetsAsync"/>）</returns>
+    /// <returns>発動済みのリマインダーと今日の対応状態 (今日の対象の組み立ては <see cref="ReminderService.GetTargetsAsync"/>)</returns>
     private async Task<List<ReminderTarget>> GetTriggeredAsync(DateTime now)
     {
         var nowTime = ReminderDates.ToTimeValue(now);

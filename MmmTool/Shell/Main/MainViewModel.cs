@@ -3,17 +3,17 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace MmmTool.Shell.Main;
 
-/// <summary>メイン画面（ナビゲーション）の ViewModel</summary>
+/// <summary>メイン画面 (ナビゲーション)の ViewModel</summary>
 public sealed partial class MainViewModel : ObservableObject
 {
-    /// <summary>各機能が登録したページ（登録順）</summary>
+    /// <summary>各機能が登録したページ (登録順)</summary>
     private readonly IReadOnlyList<NavigationPage> _pages;
 
     /// <summary>機能のオン・オフ</summary>
     private readonly FeatureService _features;
 
     /// <summary>登録されたページから、サイドバーの項目を作る</summary>
-    /// <param name="pages">各機能が登録したページ（登録順）</param>
+    /// <param name="pages">各機能が登録したページ (登録順)</param>
     /// <param name="features">機能のオン・オフ</param>
     /// <remarks>オンの機能の項目だけを並べる。最初は上部の先頭の項目を選択した状態にする。</remarks>
     public MainViewModel(IEnumerable<NavigationPage> pages, FeatureService features)
@@ -37,7 +37,7 @@ public sealed partial class MainViewModel : ObservableObject
     public partial NavigationItem? SelectedItem { get; set; }
 
     /// <summary>機能のオン・オフに合わせて、サイドバーの項目を作り直す</summary>
-    /// <remarks>選択中の項目が消えるときは、先に上部の先頭の項目へ移す（ページの切り替えは、選択の変更で行われる）。</remarks>
+    /// <remarks>選択中の項目が消えるときは、先に上部の先頭の項目へ移す (ページの切り替えは、選択の変更で行われる)。</remarks>
     public void Refresh()
     {
         var top = EnabledItems(NavigationArea.Top);
@@ -59,8 +59,8 @@ public sealed partial class MainViewModel : ObservableObject
         => [.. _pages.Where(p => p.Area == area && _features.IsEnabled(p.FeatureKey)).Select(p => p.Item)];
 
     /// <summary>一覧を、同じ順序のまま、足りない項目を足し、余る項目を消して合わせる</summary>
-    /// <param name="target">合わせる一覧（画面にバインドしているので、作り直さず、項目ごとに足し引きする）</param>
-    /// <param name="desired">あるべき項目（順序つき）</param>
+    /// <param name="target">合わせる一覧 (画面にバインドしているので、作り直さず、項目ごとに足し引きする)</param>
+    /// <param name="desired">あるべき項目 (順序つき)</param>
     private static void Sync(ObservableCollection<NavigationItem> target, List<NavigationItem> desired)
     {
         for (var i = target.Count - 1; i >= 0; i--)

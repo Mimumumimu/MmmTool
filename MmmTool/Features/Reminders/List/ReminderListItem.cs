@@ -13,15 +13,15 @@ public sealed class ReminderListItem(Reminder source)
     /// <summary>元のリマインダー</summary>
     public Reminder Source { get; } = source;
 
-    /// <summary>日付（日付指定は yyyy/MM/dd、曜日指定は「－」）</summary>
+    /// <summary>日付 (日付指定は yyyy/MM/dd、曜日指定は「－」)</summary>
     public string DateText { get; } = ReminderDates.ToDate(source.Date) is { } date ? date.ToString("yyyy/MM/dd") : None;
 
-    /// <summary>曜日（「月火水」形式。曜日を選んでいない曜日指定は「毎日」、日付指定は「－」）</summary>
+    /// <summary>曜日 (「月火水」形式。曜日を選んでいない曜日指定は「毎日」、日付指定は「－」)</summary>
     public string WeekdayText { get; } = ReminderDates.IsWeekdaySpecified(source.Date)
         ? ReminderDates.DescribeWeekdays(source.Weekdays)
         : None;
 
-    /// <summary>時刻（HH:mm）</summary>
+    /// <summary>時刻 (HH:mm)</summary>
     public string TimeText { get; } = ReminderDates.ToTime(source.Time) is { } time ? time.ToString("HH:mm") : None;
 
     /// <summary>件名</summary>

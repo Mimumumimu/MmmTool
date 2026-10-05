@@ -9,9 +9,9 @@ namespace MmmTool.Features.Links;
 /// <summary>リンクの DI 登録</summary>
 public static class LinksServiceCollectionExtensions
 {
-    /// <summary>リンク（編集ページ・トレイのリンクメニュー）を登録する</summary>
+    /// <summary>リンク (編集ページ・トレイのリンクメニュー)を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
-    /// <returns>登録先のサービスコレクション（続けて登録するため）</returns>
+    /// <returns>登録先のサービスコレクション (続けて登録するため)</returns>
     /// <remarks>保存先はローカル専用の JSON。</remarks>
     public static IServiceCollection AddLinks(this IServiceCollection services)
     {

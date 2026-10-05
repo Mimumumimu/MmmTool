@@ -55,7 +55,7 @@
                         <FontIcon FontSize="14" Glyph="&#xE712;" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <!-- 定型コマンドを既定の内容に作り直す（環境の選び直しを含む）。確認してから行う -->
+                                <!-- 定型コマンドを既定の内容に作り直す (環境の選び直しを含む)。確認してから行う -->
                                 <MenuFlyoutItem Command="{x:Bind ViewModel.ResetCommandsCommand}" Text="定型コマンドを初期化…">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE777;" />
@@ -71,9 +71,9 @@
                     ItemInvoked="OnCommandTreeItemInvoked"
                     Loaded="OnCommandTreeLoaded"
                     SelectionMode="None">
-                    <!-- ノードはコードビハインドで作る。最初はすべて開いた状態（閉じるのは自由） -->
+                    <!-- ノードはコードビハインドで作る。最初はすべて開いた状態 (閉じるのは自由) -->
                     <TreeView.ItemTemplate>
-                        <!-- 手作りのノードでは、行に渡されるデータはノード自身。中身（Content）が CommandTreeItem -->
+                        <!-- 手作りのノードでは、行に渡されるデータはノード自身。中身 (Content)が CommandTreeItem -->
                         <DataTemplate x:DataType="TreeViewNode">
                             <StackPanel
                                 Orientation="Horizontal"
@@ -94,14 +94,14 @@
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1"
             CornerRadius="8">
-            <!-- Session は、起動するシェル（環境）が決まってから、コードビハインドでつなぐ（OnLoaded） -->
+            <!-- Session は、起動するシェル (環境)が決まってから、コードビハインドでつなぐ (OnLoaded) -->
             <terminal:TerminalControl
                 x:Name="TerminalView"
                 UserDataFolder="{x:Bind shell:AppInfo.WebView2Directory}" />
         </Border>
 
         <!--
-            エラー通知。ターミナルの上部に重ねて表示する（レイアウトに場所を取ると、出たときにターミナルが縮んでちらつくため）。
+            エラー通知。ターミナルの上部に重ねて表示する (レイアウトに場所を取ると、出たときにターミナルが縮んでちらつくため)。
             InfoBar の背景は半透明なので、下の端末の文字が透けないよう不透明な下地に載せる
         -->
         <Border
@@ -118,7 +118,7 @@
                 Severity="Error" />
         </Border>
 
-        <!-- 下部: 送信欄（添付・入力・履歴・送信を 1 枚のカードにまとめる） -->
+        <!-- 下部: 送信欄 (添付・入力・履歴・送信を 1 枚のカードにまとめる) -->
         <Border
             x:Name="Composer"
             Grid.Row="1"
@@ -130,8 +130,8 @@
             BorderThickness="1"
             CornerRadius="8">
             <!--
-                入力欄は 3 行分の高さ固定（超えた分は欄内でスクロール）。入力で伸びるとターミナルが縮み、CLI が全画面を描き直してちらつくため。
-                添付の行（48px）は添付があるときだけ出す。高さが変わるのは最初の添付時と送信時だけなので許容する
+                入力欄は 3 行分の高さ固定 (超えた分は欄内でスクロール)。入力で伸びるとターミナルが縮み、CLI が全画面を描き直してちらつくため。
+                添付の行 (48px)は添付があるときだけ出す。高さが変わるのは最初の添付時と送信時だけなので許容する
             -->
             <Grid>
                 <Grid.RowDefinitions>
@@ -139,7 +139,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- 添付（画像はサムネイル、それ以外はアイコン＋ファイル名。多いときは横スクロール） -->
+                <!-- 添付 (画像はサムネイル、それ以外はアイコン＋ファイル名。多いときは横スクロール) -->
                 <ListView
                     Height="48"
                     Margin="0,0,0,6"
@@ -227,12 +227,12 @@
                         GotFocus="OnInputGotFocus"
                         Paste="OnInputPaste"
                         PlaceholderForeground="{ThemeResource TextFillColorDisabledBrush}"
-                        PlaceholderText="ターミナルへ送るテキスト（Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付）"
+                        PlaceholderText="ターミナルへ送るテキスト (Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付)"
                         PreviewKeyDown="OnInputPreviewKeyDown"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                         Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap">
-                        <!-- カードの中に溶け込ませる（枠と背景を消す） -->
+                        <!-- カードの中に溶け込ませる (枠と背景を消す) -->
                         <TextBox.Resources>
                             <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
                             <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
@@ -325,7 +325,7 @@
                             AutomationProperties.Name="送信"
                             Command="{x:Bind ViewModel.SendCommand}"
                             Style="{StaticResource AccentButtonStyle}"
-                            ToolTipService.ToolTip="送信（Ctrl+Enter）">
+                            ToolTipService.ToolTip="送信 (Ctrl+Enter)">
                             <FontIcon FontSize="16" Glyph="&#xE724;" />
                         </Button>
                     </StackPanel>

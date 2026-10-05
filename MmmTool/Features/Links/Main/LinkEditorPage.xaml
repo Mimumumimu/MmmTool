@@ -68,7 +68,7 @@
             <AppBarButton
                 Command="{x:Bind ViewModel.DeleteCommand}"
                 Label="削除"
-                ToolTipService.ToolTip="削除（Delete）">
+                ToolTipService.ToolTip="削除 (Delete)">
                 <AppBarButton.Icon>
                     <FontIcon Glyph="&#xE74D;" />
                 </AppBarButton.Icon>
@@ -89,7 +89,7 @@
             </AppBarButton>
         </CommandBar>
 
-        <!-- 本体: 左ツリー / 右編集欄（2:3） -->
+        <!-- 本体: 左ツリー / 右編集欄 (2:3) -->
         <Grid Grid.Row="2" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*" />
@@ -99,7 +99,7 @@
             <!-- 左: ツリー -->
             <Border Padding="4,8" Style="{StaticResource CardStyle}">
                 <Grid>
-                    <!-- 並べ替え・階層移動はドラッグ＆ドロップ。リンクと区切り線は子を持てないので、その上へは落とせない（AllowDrop） -->
+                    <!-- 並べ替え・階層移動はドラッグ＆ドロップ。リンクと区切り線は子を持てないので、その上へは落とせない (AllowDrop) -->
                     <TreeView
                         x:Name="LinkTree"
                         AllowDrop="True"
@@ -262,7 +262,7 @@
                                 Header="名前"
                                 Text="{x:Bind ViewModel.SelectedItem.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
 
-                            <!-- パス（リンクのとき）。手入力が基本で、参照は補助 -->
+                            <!-- パス (リンクのとき)。手入力が基本で、参照は補助 -->
                             <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.IsLinkSelected, Mode=OneWay}">
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -299,7 +299,7 @@
                                     </DropDownButton>
                                 </Grid>
 
-                                <!-- パスの種類（存在しなければ注意） -->
+                                <!-- パスの種類 (存在しなければ注意) -->
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <StackPanel
                                         Orientation="Horizontal"
@@ -367,7 +367,7 @@
                 </Grid>
             </Border>
 
-            <!-- 通知（保存完了・エラー）。レイアウトに場所を取らないよう、本体の下部に重ねて出す -->
+            <!-- 通知 (保存完了・エラー)。レイアウトに場所を取らないよう、本体の下部に重ねて出す -->
             <StackPanel
                 Grid.ColumnSpan="2"
                 MaxWidth="560"

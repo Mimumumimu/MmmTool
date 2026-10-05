@@ -6,7 +6,7 @@ namespace MmmTool.Core.Links;
 /// リンクメニューを読み書きし、最後に読み込み・保存した構成を持つ。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="repository">リンクメニューの保存先</param>
-/// <remarks>トレイのリンクメニューは <see cref="Current"/> から作る（メニューを開くたびにファイルを読まないため）。</remarks>
+/// <remarks>トレイのリンクメニューは <see cref="Current"/> から作る (メニューを開くたびにファイルを読まないため)。</remarks>
 public sealed class LinkMenuService(ILinkRepository repository)
 {
     /// <summary>最後に読み込み・保存した構成</summary>
@@ -14,7 +14,7 @@ public sealed class LinkMenuService(ILinkRepository repository)
     public LinkMenu? Current { get; private set; }
 
     /// <summary>読み込みの結果</summary>
-    /// <remarks>読み込みに失敗しても保存は止めない（編集ページが、読み直すまで保存させない）。</remarks>
+    /// <remarks>読み込みに失敗しても保存は止めない (編集ページが、読み直すまで保存させない)。</remarks>
     private readonly LoadStatus _status = new();
 
     /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
@@ -28,7 +28,7 @@ public sealed class LinkMenuService(ILinkRepository repository)
     /// <summary>リンクメニューを読み込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだリンクメニュー</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した（<see cref="LoadError"/> にも残す）。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した (<see cref="LoadError"/> にも残す)。</exception>
     public async Task<LinkMenu> LoadAsync(CancellationToken cancellationToken = default)
     {
         try

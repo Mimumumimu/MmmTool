@@ -18,7 +18,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯（ドラッグで移動できる）。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"
@@ -36,7 +36,7 @@
             Padding="24,16,24,0"
             Spacing="12">
 
-            <!-- 件名。エラーの行は場所を空けておく（出たり消えたりで下の欄が動かないように） -->
+            <!-- 件名。エラーの行は場所を空けておく (出たり消えたりで下の欄が動かないように) -->
             <StackPanel Spacing="4">
                 <TextBox
                     x:Name="TitleBox"
@@ -50,17 +50,17 @@
                     Text="{x:Bind ViewModel.TitleError, Mode=OneWay}" />
             </StackPanel>
 
-            <!-- 発動の指定（日付指定 / 曜日指定） -->
+            <!-- 発動の指定 (日付指定 / 曜日指定) -->
             <StackPanel Spacing="4">
                 <ToggleSwitch Header="日付を指定する" IsOn="{x:Bind ViewModel.IsDateSpecified, Mode=TwoWay}" />
 
-                <!-- 日付指定と曜日指定を同じ場所に出す。高さは高いほうに合わせる（切り替えで下の欄が動かないように） -->
+                <!-- 日付指定と曜日指定を同じ場所に出す。高さは高いほうに合わせる (切り替えで下の欄が動かないように) -->
                 <Grid x:Name="DateArea">
                     <CalendarDatePicker
                         x:Name="DatePanel"
                         VerticalAlignment="Top"
                         Date="{x:Bind ViewModel.Date, Mode=TwoWay}"
-                        DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}（{dayofweek.abbreviated}）"
+                        DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}({dayofweek.abbreviated})"
                         Visibility="{x:Bind ViewModel.IsDateSpecified, Mode=OneWay}" />
 
                     <StackPanel
@@ -91,7 +91,7 @@
                 </Grid>
             </StackPanel>
 
-            <!-- 時刻（24 時間。1 つの枠に「時 : 分」） -->
+            <!-- 時刻 (24 時間。1 つの枠に「時 : 分」) -->
             <StackPanel Spacing="8">
                 <TextBlock Text="時刻" />
                 <controls:TimeInputBox Hour="{x:Bind ViewModel.Hour, Mode=TwoWay}" Minute="{x:Bind ViewModel.Minute, Mode=TwoWay}" />
@@ -110,7 +110,7 @@
                 Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
         </StackPanel>
 
-        <!-- 操作ボタン（Windows の流儀で、肯定を左・キャンセルを右に） -->
+        <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
         <StackPanel
             Grid.Row="2"
             Padding="24,24,24,24"

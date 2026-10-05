@@ -16,7 +16,7 @@ public interface ICliCommandRepository
     /// <param name="commandSet">保存する定型コマンド</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>初期化（既定の内容への作り直し）に使う。今の内容は引き継がず、退避もしない。</remarks>
+    /// <remarks>初期化 (既定の内容への作り直し)に使う。今の内容は引き継がず、退避もしない。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task SaveAsync(CliCommandSet commandSet, CancellationToken cancellationToken = default);
 }

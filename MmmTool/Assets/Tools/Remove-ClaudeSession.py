@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Claude Code の会話履歴（~/.claude/projects 配下の .jsonl）を選んでごみ箱へ移動する（WSL・Linux 版）。
+"""Claude Code の会話履歴 (~/.claude/projects 配下の .jsonl)を選んでごみ箱へ移動する (WSL・Linux 版)。
 
-Remove-ClaudeSession.ps1（Windows 版）と同じ流れ・同じ操作にしている。直すときは両方を直す。
+Remove-ClaudeSession.ps1 (Windows 版)と同じ流れ・同じ操作にしている。直すときは両方を直す。
 
-ターミナル内で完結する（別ウィンドウなし）。
+ターミナル内で完結する (別ウィンドウなし)。
   1. プロジェクトの一覧から選ぶ
   2. 選んだプロジェクト内のセッションを選ぶ
-  3. 確認のうえ、ごみ箱へ移動 → 2 に戻る（q で終了するまで繰り返せる）
+  3. 確認のうえ、ごみ箱へ移動 → 2 に戻る (q で終了するまで繰り返せる)
 
-操作: ↑↓ 移動 / Space 選択・解除 / Tab 選択・解除して下へ（Shift+Tab は上へ） / a 全選択・全解除 / Enter 決定（未選択ならカーソル行）
+操作: ↑↓ 移動 / Space 選択・解除 / Tab 選択・解除して下へ (Shift+Tab は上へ) / a 全選択・全解除 / Enter 決定 (未選択ならカーソル行)
       Backspace Esc 1 つ前に戻る / q 終了
-入力がリダイレクトされている場合は番号入力（例: 1,3,5-7 / a / b=戻る / q=終了）になる。
+入力がリダイレクトされている場合は番号入力 (例: 1,3,5-7 / a / b=戻る / q=終了)になる。
 
 --all を付けると手順 2 を省略し、選んだプロジェクトの全セッションを対象にする。
 --what-if を付けると、削除せず対象を表示するだけ。
-Claude Code で開いているセッションは消さないこと（先に閉じる）。
+Claude Code で開いているセッションは消さないこと (先に閉じる)。
 
-ごみ箱は、Linux のデスクトップの決まり（freedesktop.org の Trash）の形（~/.local/share/Trash の files/ と info/）。
-WSL には Windows のごみ箱が無いので、こちらへ移す。戻すときは files/ から元の場所（info/ の .trashinfo の Path）へ移す
-（trash-cli の trash-restore・gio trash --restore でも戻せる）。
+ごみ箱は、Linux のデスクトップの決まり (freedesktop.org の Trash)の形 (~/.local/share/Trash の files/ と info/)。
+WSL には Windows のごみ箱が無いので、こちらへ移す。戻すときは files/ から元の場所 (info/ の .trashinfo の Path)へ移す
+(trash-cli の trash-restore・gio trash --restore でも戻せる)。
 """
 
 import argparse
@@ -44,7 +44,7 @@ CLEAR_LINE = f"{ESC}[K"
 
 
 def first_user_message(path):
-    """最初のユーザー発言（先頭 60 行だけ読む）"""
+    """最初のユーザー発言 (先頭 60 行だけ読む)"""
     with open(path, encoding="utf-8", errors="replace") as file:
         for index, line in enumerate(file):
             if index >= 60:
@@ -69,7 +69,7 @@ def first_user_message(path):
 
 
 def session_title(path):
-    """/resume に出るタイトル（ai-title 行の最後のもの）。無ければ最初のユーザー発言"""
+    """/resume に出るタイトル (ai-title 行の最後のもの)。無ければ最初のユーザー発言"""
     title = None
     hit_line = None
     with open(path, encoding="utf-8", errors="replace") as file:
@@ -138,7 +138,7 @@ class KeyReader:
         return True
 
     def read(self):
-        """キーを 1 つ読んで、名前（UpArrow・Spacebar・A など。PowerShell 版のキー名に合わせる）を返す"""
+        """キーを 1 つ読んで、名前 (UpArrow・Spacebar・A など。PowerShell 版のキー名に合わせる)を返す"""
         while not self._buffer:
             self._fill()
         if self._buffer[0] == ESC:
@@ -160,7 +160,7 @@ class KeyReader:
             if len(self._buffer) == 1:
                 self._buffer = ""
                 return "Escape"
-            # 知らない続き（左右の矢印など）は、まとめて捨てる
+            # 知らない続き (左右の矢印など)は、まとめて捨てる
             match = re.match(r"\x1b(\[[0-9;]*[ -/]*[@-~]|O.|.)", self._buffer)
             self._buffer = self._buffer[match.end() if match else 1:]
             return ""
@@ -190,7 +190,7 @@ def read_selection_menu(items, label, prompt, back_label):
     out = sys.stdout
     print(prompt)
     print(f"{GRAY}↑↓:移動  Space:選択/解除  Tab:選択して下へ  a:全選択/全解除  Enter:決定(未選択ならカーソル行)  Esc:{back_label}  q/Ctrl+C:終了{RESET}")
-    # 一覧と件数の行の場所を先に空けて（下端ならスクロールして）から、先頭へ戻ってその位置を覚える
+    # 一覧と件数の行の場所を先に空けて (下端ならスクロールして)から、先頭へ戻ってその位置を覚える
     out.write("\n" * (rows + 1))
     out.write(f"{ESC}[{rows + 1}A{ESC}7{ESC}[?25l")
     out.flush()
@@ -231,7 +231,7 @@ def read_selection_menu(items, label, prompt, back_label):
                 elif key == "Spacebar":
                     selected ^= {cursor}
                 elif key in ("Tab", "ShiftTab"):
-                    # 選択/解除して隣へ進む（Tab=下、Shift+Tab=上）。連続した行を続けて選びやすい
+                    # 選択/解除して隣へ進む (Tab=下、Shift+Tab=上)。連続した行を続けて選びやすい
                     selected ^= {cursor}
                     cursor = max(0, cursor - 1) if key == "ShiftTab" else min(len(items) - 1, cursor + 1)
                 elif key == "A":
@@ -243,19 +243,19 @@ def read_selection_menu(items, label, prompt, back_label):
                 elif key in ("Backspace", "Escape"):
                     return "back", []
     finally:
-        # 件数の行の次の行へ移る（下端ならスクロールする）
+        # 件数の行の次の行へ移る (下端ならスクロールする)
         out.write(f"{ESC}8{ESC}[{rows}B\r\n{ESC}[?25h")
         out.flush()
 
 
 def read_selection_text(items, label, prompt, back_label):
-    """番号入力で選ぶ（キー操作できないとき用）"""
+    """番号入力で選ぶ (キー操作できないとき用)"""
     print(prompt)
     for i, item in enumerate(items):
         print(f"{i + 1:3}. {label(item)}")
     while True:
         try:
-            text = input(f"番号（例: 1,3,5-7 / a=すべて / b={back_label} / q=終了）: ")
+            text = input(f"番号 (例: 1,3,5-7 / a=すべて / b={back_label} / q=終了): ")
         except EOFError:
             return "quit", []
         text = text.strip()
@@ -335,7 +335,7 @@ def trash_directory():
 
 
 def move_to_trash(path):
-    """ごみ箱（~/.local/share/Trash）へ移動する。同じ名前があれば、名前に番号を付ける"""
+    """ごみ箱 (~/.local/share/Trash)へ移動する。同じ名前があれば、名前に番号を付ける"""
     trash = trash_directory()
     files_dir = os.path.join(trash, "files")
     info_dir = os.path.join(trash, "info")
@@ -347,7 +347,7 @@ def move_to_trash(path):
     number = 2
     while True:
         try:
-            # 戻すときの情報を先に書く（同時に同じ名前を作らないよう、新規作成でだけ開く）
+            # 戻すときの情報を先に書く (同時に同じ名前を作らないよう、新規作成でだけ開く)
             info = os.open(os.path.join(info_dir, name + ".trashinfo"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             break
         except FileExistsError:
@@ -362,7 +362,7 @@ def move_to_trash(path):
 
 def remove_session(file):
     move_to_trash(file)
-    # セッションに付随するフォルダ（<セッションID>/）があれば一緒に移動
+    # セッションに付随するフォルダ (<セッションID>/)があれば一緒に移動
     sub = os.path.splitext(file)[0]
     if os.path.isdir(sub):
         move_to_trash(sub)

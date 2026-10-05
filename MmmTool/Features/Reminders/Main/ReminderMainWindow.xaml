@@ -15,14 +15,14 @@
 
     <Grid x:Name="RootGrid">
         <Grid.Resources>
-            <!-- 状態の切り替えの各ボタン。幅 360 でも件名が見えるよう、小さめに詰める（見た目・テンプレートは部品の既定のまま） -->
+            <!-- 状態の切り替えの各ボタン。幅 360 でも件名が見えるよう、小さめに詰める (見た目・テンプレートは部品の既定のまま) -->
             <Style TargetType="toolkit:SegmentedItem">
                 <Setter Property="Padding" Value="10,4" />
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="FontSize" Value="12" />
             </Style>
 
-            <!-- 1 行（カード）。左から 状態の色の縦線 / 時刻 / 件名（リンクがあれば押して開く） / 状態の切り替え -->
+            <!-- 1 行 (カード)。左から 状態の色の縦線 / 時刻 / 件名 (リンクがあれば押して開く) / 状態の切り替え -->
             <DataTemplate x:Key="RowTemplate" x:DataType="local:ReminderTodayItem">
                 <Grid
                     Height="48"
@@ -106,7 +106,7 @@
                         Margin="0,0,8,0"
                         VerticalAlignment="Center"
                         SelectedIndex="{x:Bind StatusIndex, Mode=TwoWay}">
-                        <!-- 既定はいちばん広いボタン（スヌーズ）に幅をそろえるので、文字の幅だけにして件名の場所を空ける -->
+                        <!-- 既定はいちばん広いボタン (スヌーズ)に幅をそろえるので、文字の幅だけにして件名の場所を空ける -->
                         <toolkit:Segmented.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Orientation="Horizontal" />
@@ -131,7 +131,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯（ドラッグで移動できる）。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"

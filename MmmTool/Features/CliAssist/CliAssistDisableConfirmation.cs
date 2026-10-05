@@ -6,8 +6,8 @@ using MmmTool.Shell.Main;
 
 namespace MmmTool.Features.CliAssist;
 
-/// <summary>CLI補助をオフにする前の確認（ターミナルが動いているときだけ）</summary>
-/// <param name="services">作ったページを引くための DI のサービスプロバイダー（ターミナルは、ページの ViewModel が持つ）</param>
+/// <summary>CLI補助をオフにする前の確認 (ターミナルが動いているときだけ)</summary>
+/// <param name="services">作ったページを引くための DI のサービスプロバイダー (ターミナルは、ページの ViewModel が持つ)</param>
 /// <param name="dialogs">確認ダイアログ</param>
 /// <remarks>
 /// ページをまだ開いていない・シェルが始まっていない・すでに終わっているときは、失うものが無いので、確認しない。

@@ -3,16 +3,16 @@ using MmmSdk.Core.Components.Settings;
 
 namespace MmmTool.Shell;
 
-/// <summary>機能のオン・オフの管理（状態の保存・起動時の準備の実行・切り替えの通知）</summary>
+/// <summary>機能のオン・オフの管理 (状態の保存・起動時の準備の実行・切り替えの通知)</summary>
 /// <param name="features">オン・オフを切り替えられる機能</param>
 /// <param name="confirmations">オフにする前の確認</param>
 /// <param name="startups">起動時の準備</param>
 /// <param name="settings">汎用設定ストア</param>
 /// <param name="services">起動時の準備を作る DI のサービスプロバイダー</param>
 /// <remarks>
-/// 状態は設定ストアに、機能のキーごとに保存する。保存が無い機能はオン（機能を足しても、移行は要らない）。
+/// 状態は設定ストアに、機能のキーごとに保存する。保存が無い機能はオン (機能を足しても、移行は要らない)。
 /// 切り替えはすぐ反映する。サイドバー・トレイ・設定ページは、<see cref="Changed"/> または <see cref="IsEnabled"/> で見る。
-/// 機能の登録（<see cref="ShellServiceCollectionExtensions.AddFeature"/> 等）は各機能が行い、このクラスは特定の機能を知らない。
+/// 機能の登録 (<see cref="ShellServiceCollectionExtensions.AddFeature"/> 等)は各機能が行い、このクラスは特定の機能を知らない。
 /// </remarks>
 public sealed class FeatureService(
     IEnumerable<FeatureInfo> features,
@@ -21,14 +21,14 @@ public sealed class FeatureService(
     ISettingsStore settings,
     IServiceProvider services)
 {
-    /// <summary>オン・オフを切り替えられる機能（登録順）</summary>
+    /// <summary>オン・オフを切り替えられる機能 (登録順)</summary>
     public IReadOnlyList<FeatureInfo> Features { get; } = [.. features];
 
-    /// <summary>機能のオン・オフが切り替わったとき（引数は、切り替わった機能のキー）</summary>
+    /// <summary>機能のオン・オフが切り替わったとき (引数は、切り替わった機能のキー)</summary>
     public event EventHandler<string>? Changed;
 
     /// <summary>機能がオンか</summary>
-    /// <param name="featureKey">機能のキー。null（オフにできない機能）なら常にオン</param>
+    /// <param name="featureKey">機能のキー。null (オフにできない機能)なら常にオン</param>
     /// <returns>オンなら true。保存が無いときもオン</returns>
     public bool IsEnabled(string? featureKey)
         => featureKey is null || settings.Get(SettingKey(featureKey), true);
@@ -36,7 +36,7 @@ public sealed class FeatureService(
     /// <summary>オンの機能の起動時の準備を、登録順に実行する</summary>
     /// <returns>準備の完了を表すタスク</returns>
     /// <remarks>
-    /// 画面を作る前に、UI スレッドで行う。共通の設定ファイルの先読み（<see cref="SettingsStoreStartup"/>）が最初に登録されているので、
+    /// 画面を作る前に、UI スレッドで行う。共通の設定ファイルの先読み (<see cref="SettingsStoreStartup"/>)が最初に登録されているので、
     /// 機能のオン・オフの判定は、読み込み済みの設定で行われる。
     /// </remarks>
     public async Task StartAsync()
@@ -52,9 +52,9 @@ public sealed class FeatureService(
     /// <param name="enabled">オンにするなら true</param>
     /// <returns>切り替えた結果</returns>
     /// <remarks>
-    /// オフにするときは、先に確認（<see cref="IFeatureDisableConfirmation"/>）を取る。
+    /// オフにするときは、先に確認 (<see cref="IFeatureDisableConfirmation"/>)を取る。
     /// オンにするときは、その機能の起動時の準備を実行してから <see cref="Changed"/> を出す。
-    /// オフにするときは、保存してから <see cref="Changed"/> を出す（受け取った側がページを捨てる）。
+    /// オフにするときは、保存してから <see cref="Changed"/> を出す (受け取った側がページを捨てる)。
     /// </remarks>
     public async Task<FeatureChangeResult> SetEnabledAsync(string featureKey, bool enabled)
     {

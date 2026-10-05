@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 題名・ボタンの文言は、開き方（初回 / 初期化）で変わるので、コードビハインドで決める -->
+<!-- 題名・ボタンの文言は、開き方 (初回 / 初期化)で変わるので、コードビハインドで決める -->
 <ContentDialog
     x:Class="MmmTool.Features.CliAssist.Setup.CliSetupDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -22,17 +22,17 @@
 
         <StackPanel Spacing="4">
             <RadioButtons Header="動かす環境" SelectedIndex="{x:Bind ViewModel.EnvironmentIndex, Mode=TwoWay}">
-                <x:String>Windows（PowerShell）</x:String>
+                <x:String>Windows (PowerShell)</x:String>
                 <x:String>WSL</x:String>
             </RadioButtons>
             <TextBlock
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                 Style="{StaticResource CaptionTextBlockStyle}"
-                Text="WSL では、作業ディレクトリ・添付ファイルのパスを WSL の形（/mnt/d/... など）にして渡します。"
+                Text="WSL では、作業ディレクトリ・添付ファイルのパスを WSL の形 (/mnt/d/... など)にして渡します。"
                 TextWrapping="Wrap" />
         </StackPanel>
 
-        <!-- 初回だけ、あとで変える方法を案内する（初期化のときは、今まさにその方法で開いているので出さない） -->
+        <!-- 初回だけ、あとで変える方法を案内する (初期化のときは、今まさにその方法で開いているので出さない) -->
         <TextBlock
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
             Style="{StaticResource CaptionTextBlockStyle}"

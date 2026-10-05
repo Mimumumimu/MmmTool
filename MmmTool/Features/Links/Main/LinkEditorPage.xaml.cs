@@ -28,7 +28,7 @@ public sealed partial class LinkEditorPage : Page
         ViewModel = viewModel;
         InitializeComponent();
 
-        // 行（中身は ListView の行）が右クリックを処理済みにしてからメニューを出すため、XAML の属性での登録では届かない。処理済みでも受け取る
+        // 行 (中身は ListView の行)が右クリックを処理済みにしてからメニューを出すため、XAML の属性での登録では届かない。処理済みでも受け取る
         LinkTree.AddHandler(RightTappedEvent, new RightTappedEventHandler((_, e) => SelectForContextMenu(e.OriginalSource)), handledEventsToo: true);
         LinkTree.AddHandler(ContextRequestedEvent, new TypedEventHandler<UIElement, ContextRequestedEventArgs>((_, e) => SelectForContextMenu(e.OriginalSource)), handledEventsToo: true);
 
@@ -84,7 +84,7 @@ public sealed partial class LinkEditorPage : Page
     {
         var item = FindItem(source);
         ViewModel.SelectedItem = item;
-        // メニューが出る前に、画面上の選択もその行へ移す（どこに追加されるか見えるように）
+        // メニューが出る前に、画面上の選択もその行へ移す (どこに追加されるか見えるように)
         LinkTree.SelectedItem = item;
     }
 
@@ -103,7 +103,7 @@ public sealed partial class LinkEditorPage : Page
     /// <summary>画面上の要素から、その行の項目を探す。</summary>
     /// <param name="source">画面上の要素</param>
     /// <returns>その行の項目。見つからなければ null</returns>
-    /// <remarks>行（TreeViewItem）の DataContext はデータではなく TreeViewNode のことがあるので、TreeView に行からデータを引かせる。</remarks>
+    /// <remarks>行 (TreeViewItem)の DataContext はデータではなく TreeViewNode のことがあるので、TreeView に行からデータを引かせる。</remarks>
     private LinkTreeItem? FindItem(object source)
     {
         for (var current = source as DependencyObject; current is not null and not TreeView; current = VisualTreeHelper.GetParent(current))

@@ -37,7 +37,7 @@ public sealed partial class SettingsPage : Page
         BuildSections();
         features.Changed += (_, featureKey) =>
         {
-            // 設定の部品を持つ機能のときだけ並べ直す（ほかの部品を作り直さない）
+            // 設定の部品を持つ機能のときだけ並べ直す (ほかの部品を作り直さない)
             if (_sections.Any(s => s.FeatureKey == featureKey))
             {
                 BuildSections();
@@ -56,7 +56,7 @@ public sealed partial class SettingsPage : Page
     }
 
     /// <summary>機能のスイッチが切り替わったときの処理</summary>
-    /// <param name="sender">イベントの送信元（スイッチ。データの行を持つ）</param>
+    /// <param name="sender">イベントの送信元 (スイッチ。データの行を持つ)</param>
     /// <param name="e">イベントの情報</param>
     private async void OnFeatureToggled(object sender, RoutedEventArgs e)
     {

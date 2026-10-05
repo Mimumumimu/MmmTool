@@ -10,19 +10,19 @@ namespace MmmTool.Features.Reminders.List;
 
 /// <summary>リマインダー一覧ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル（閉じるまで親を操作できない）で出す。大きさは変えられる（最大化・最小化はできない）。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す（閉じたウィンドウは再表示できないため）。
-/// 行のダブルタップで編集、右クリックで行のメニュー（削除済みでない行は「削除」、削除済みの行は「完全削除」を出す）。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる (最大化・最小化はできない)。
+/// タイトル帯をドラッグして移動できる。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 行のダブルタップで編集、右クリックで行のメニュー (削除済みでない行は「削除」、削除済みの行は「完全削除」を出す)。
 /// </remarks>
 public sealed partial class ReminderListWindow : Window
 {
-    /// <summary>最初の幅（DIP）</summary>
+    /// <summary>最初の幅 (DIP)</summary>
     private const double InitialWidth = 760;
-    /// <summary>最初の高さ（DIP）</summary>
+    /// <summary>最初の高さ (DIP)</summary>
     private const double InitialHeight = 560;
-    /// <summary>最小の幅（DIP）。日付・曜日・時刻の列と件名が少し見える幅</summary>
+    /// <summary>最小の幅 (DIP)。日付・曜日・時刻の列と件名が少し見える幅</summary>
     private const double MinimumWidth = 560;
-    /// <summary>最小の高さ（DIP）</summary>
+    /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 360;
 
     /// <summary>閉じたら完了する</summary>
@@ -44,7 +44,7 @@ public sealed partial class ReminderListWindow : Window
         this.UseCustomTitleBar(TitleBarArea, AppIcon.FilePath);
         _modal = new PseudoModal(this);
 
-        // 右クリック（メニューキー）した行を選択してからメニューを出す。行がメニューを出すときに処理済みにするので、処理済みでも受け取る
+        // 右クリック (メニューキー)した行を選択してからメニューを出す。行がメニューを出すときに処理済みにするので、処理済みでも受け取る
         ReminderList.AddHandler(UIElement.RightTappedEvent, new RightTappedEventHandler((_, e) => SelectRowOf(e.OriginalSource)), handledEventsToo: true);
         ReminderList.AddHandler(UIElement.ContextRequestedEvent, new TypedEventHandler<UIElement, ContextRequestedEventArgs>((_, e) => SelectRowOf(e.OriginalSource)), handledEventsToo: true);
 

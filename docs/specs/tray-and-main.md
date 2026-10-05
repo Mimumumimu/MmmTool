@@ -2,29 +2,29 @@
 
 ## 常駐の挙動
 - 起動時はウィンドウを出さず、トレイアイコンだけ出す。ウィンドウはトレイアイコンの左クリックで開く
-- ウィンドウの × / Alt+F4 はトレイへ退避（非表示）。最小化は通常どおりタスクバーへ（Win+D でトレイに消えるのを避けるため）
+- ウィンドウの × / Alt+F4 はトレイへ退避 (非表示)。最小化は通常どおりタスクバーへ (Win+D でトレイに消えるのを避けるため)
 - 完全終了はトレイメニューの「終了」だけ。未保存の編集内容は、確認せずに破棄して終了する
-- 決めていない操作・項目（トレイの「〜を開く」・F2・ダブルクリックなど、一般的な慣習のものも含む）は、勝手に足さない。必要そうなときは先に聞く
+- 決めていない操作・項目 (トレイの「〜を開く」・F2・ダブルクリックなど、一般的な慣習のものも含む)は、勝手に足さない。必要そうなときは先に聞く
 
 ## 多重起動
-- 禁止する（同一 EXE のみ）。EXE パスのハッシュで Mutex 名を作る（SDK の `SingleInstanceGuard`。Mutex 名は `MmmTool_` + EXE パスのハッシュ。Debug / Release など別パスの EXE は同時に起動できる）
-- 2 つ目は「すでに起動しています」のメッセージを出して終了する。起動済みのウィンドウは出さない（メインウィンドウは必ず開くものではないため）
+- 禁止する (同一 EXE のみ)。EXE パスのハッシュで Mutex 名を作る (SDK の `SingleInstanceGuard`。Mutex 名は `MmmTool_` + EXE パスのハッシュ。Debug / Release など別パスの EXE は同時に起動できる)
+- 2 つ目は「すでに起動しています」のメッセージを出して終了する。起動済みのウィンドウは出さない (メインウィンドウは必ず開くものではないため)
 
 ## メイン画面
-- 左サイドバー（`NavigationView`）+ 右コンテンツ。下部に「設定」
-- トレイの `WndProc` で予想外の例外が出たときは、ログ・ダイアログ・終了にする（`FatalErrorHandler`。`docs/architecture.md` の「エラーの扱い」）
-- ウィンドウの位置と大きさは、変更から 1 秒後に保存し（`WindowBoundsKeeper.Attach`。SDK）、次回の起動で復元する。保存が無い・画面外（面積の 50% 未満しか見えない）ときは、既定の 1280×720 DIP（DPI に合わせる）で作業領域の中央に出す。最小化・最大化・非表示の間は保存しない
-- ページは、ページごとのスコープから DI で生成してキャッシュする（`PageProvider`）。オフにできる機能のページは、オフにしたときにキャッシュから外してスコープを破棄し（`IReleasablePage`）、オンに戻したときに作り直す。サイドバーの項目も、`MainViewModel.Refresh` で出し入れする（[settings.md](settings.md)）。サイドバーの項目は、各機能が `AddNavigationPage` で登録する（[../architecture.md](../architecture.md)）
-- DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録（`#if DEBUG`）だけでなく、コードと XAML も含めない（`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す）
+- 左サイドバー (`NavigationView`)+ 右コンテンツ。下部に「設定」
+- トレイの `WndProc` で予想外の例外が出たときは、ログ・ダイアログ・終了にする (`FatalErrorHandler`。`docs/architecture.md` の「エラーの扱い」)
+- ウィンドウの位置と大きさは、変更から 1 秒後に保存し (`WindowBoundsKeeper.Attach`。SDK)、次回の起動で復元する。保存が無い・画面外 (面積の 50% 未満しか見えない)ときは、既定の 1280×720 DIP (DPI に合わせる)で作業領域の中央に出す。最小化・最大化・非表示の間は保存しない
+- ページは、ページごとのスコープから DI で生成してキャッシュする (`PageProvider`)。オフにできる機能のページは、オフにしたときにキャッシュから外してスコープを破棄し (`IReleasablePage`)、オンに戻したときに作り直す。サイドバーの項目も、`MainViewModel.Refresh` で出し入れする ([settings.md](settings.md))。サイドバーの項目は、各機能が `AddNavigationPage` で登録する ([../architecture.md](../architecture.md))
+- DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録 (`#if DEBUG`)だけでなく、コードと XAML も含めない (`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す)
 
 ## トレイアイコン・トレイメニュー
-アイコンとメニューの仕組み（Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応）は SDK の `MmmSdk.WinUI.Components.Tray`（SDK の `docs/tray.md`）。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
+アイコンとメニューの仕組み (Win32 直接・非表示ウィンドウ・オーナードロー・ダーク/ライト対応)は SDK の `MmmSdk.WinUI.Components.Tray`(SDK の `docs/tray.md`)。決めた理由は [../decisions/0004-tray-win32.md](../decisions/0004-tray-win32.md)。
 
-- アプリ側の設定は `ShellServiceCollectionExtensions.AddShell` の `AddMmmSdkTray(new TrayIconOptions(...))`：ツールチップ `MmmTool`、ウィンドウクラス名 `MmmTool_Tray`（どちらも `Shell/AppInfo` から作る）、アイコン `Assets/app.ico`（EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える）、終了の文言は「終了」（アプリが渡す）
-- 左クリックでメインウィンドウを開き（`OpenRequested`）、メニューの「終了」で完全終了する（`ExitRequested`）
-- メニューの項目は、各機能が `ITrayMenuSource` を DI に登録して足す（登録した順に区切り線で分けて並ぶ。リンク・リマインダー）。項目の処理の失敗は、トレイの通知（バルーン）で知らせる
+- アプリ側の設定は `ShellServiceCollectionExtensions.AddShell` の `AddMmmSdkTray(new TrayIconOptions(...))`：ツールチップ `MmmTool`、ウィンドウクラス名 `MmmTool_Tray`(どちらも `Shell/AppInfo` から作る)、アイコン `Assets/app.ico`(EXE・ウィンドウ・トレイで共通。差し替えはこのファイルを置き換える)、終了の文言は「終了」 (アプリが渡す)
+- 左クリックでメインウィンドウを開き (`OpenRequested`)、メニューの「終了」で完全終了する (`ExitRequested`)
+- メニューの項目は、各機能が `ITrayMenuSource` を DI に登録して足す (登録した順に区切り線で分けて並ぶ。リンク・リマインダー)。項目の処理の失敗は、トレイの通知 (バルーン)で知らせる
 
 ## アイコン
-- 青のグラデーションのタイルに、とがったアーチの小文字 m を 3 つ白で重ね（奥ほど透明）、下に細い線を入れたデザイン。小さいサイズでは溶け合って「m」1 文字に見える
-- 24px 以下（トレイ）だけ、見た目の中心合わせをしている（いちばん濃い m が右上にあって右上寄りに見えたため、濃さで重み付けした重心を中央に寄せ、さらに 1px 下げた）。32px 以上は元の配置
-- 生成は Python + Pillow のスクリプトで行っている（24px 以下は線を太くした別描画）
+- 青のグラデーションのタイルに、とがったアーチの小文字 m を 3 つ白で重ね (奥ほど透明)、下に細い線を入れたデザイン。小さいサイズでは溶け合って「m」1 文字に見える
+- 24px 以下 (トレイ)だけ、見た目の中心合わせをしている (いちばん濃い m が右上にあって右上寄りに見えたため、濃さで重み付けした重心を中央に寄せ、さらに 1px 下げた)。32px 以上は元の配置
+- 生成は Python + Pillow のスクリプトで行っている (24px 以下は線を太くした別描画)

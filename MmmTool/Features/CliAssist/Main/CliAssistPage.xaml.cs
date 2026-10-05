@@ -27,7 +27,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         ViewModel = viewModel;
         InitializeComponent();
 
-        // 入力欄（TextBox）が先にドラッグを処理しても受け取れるよう、処理済みのイベントも拾う
+        // 入力欄 (TextBox)が先にドラッグを処理しても受け取れるよう、処理済みのイベントも拾う
         Composer.AddHandler(DragOverEvent, new DragEventHandler(OnComposerDragOver), handledEventsToo: true);
         Composer.AddHandler(DropEvent, new DragEventHandler(OnComposerDrop), handledEventsToo: true);
 
@@ -53,7 +53,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     }
 
     /// <inheritdoc />
-    /// <remarks>機能をオフにしたとき。ターミナルのコントロールからセッションを外す。シェル（とその中の CLI）は、このあとのスコープの破棄で終了する。</remarks>
+    /// <remarks>機能をオフにしたとき。ターミナルのコントロールからセッションを外す。シェル (とその中の CLI)は、このあとのスコープの破棄で終了する。</remarks>
     public void Release() => TerminalView.Session = null;
 
     /// <summary>フォーカスの移動を求められたら、移す</summary>
@@ -61,7 +61,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <param name="target">フォーカスを移す先</param>
     private void OnFocusRequested(object? sender, FocusTarget target)
     {
-        // クリックしたツリーが自分にフォーカスを取り終えてから移す（すぐ移すとツリーに取り返される）
+        // クリックしたツリーが自分にフォーカスを取り終えてから移す (すぐ移すとツリーに取り返される)
         DispatcherQueue.TryEnqueue(() =>
         {
             switch (target)
@@ -77,12 +77,12 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         });
     }
 
-    /// <summary>読み込み時の処理（入力欄の高さ調整・ViewModel の初期化・ターミナルの接続）</summary>
+    /// <summary>読み込み時の処理 (入力欄の高さ調整・ViewModel の初期化・ターミナルの接続)</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 起動するシェル（Windows / WSL）は、初期化で読み込む定型コマンドで決まるので、初期化が済んでからターミナルにつなぐ。
-    /// ターミナルは、つないだとき（表示の準備がまだなら、準備ができたとき）にシェルを起動する。
+    /// 起動するシェル (Windows / WSL)は、初期化で読み込む定型コマンドで決まるので、初期化が済んでからターミナルにつなぐ。
+    /// ターミナルは、つないだとき (表示の準備がまだなら、準備ができたとき)にシェルを起動する。
     /// </remarks>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -127,7 +127,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         }
     }
 
-    /// <summary>ViewModel の要素から、ツリーのノードを作る（子も展開した状態）</summary>
+    /// <summary>ViewModel の要素から、ツリーのノードを作る (子も展開した状態)</summary>
     /// <param name="item">ツリーの要素</param>
     /// <returns>ツリーのノード</returns>
     private static TreeViewNode CreateNode(CommandTreeItem item)
@@ -143,7 +143,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>ツリーを横にもスクロールできるようにする。</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>TreeView は既定で横スクロールが無効（長い名前は右が切れる）。テンプレート内の ScrollViewer に直接設定する。</remarks>
+    /// <remarks>TreeView は既定で横スクロールが無効 (長い名前は右が切れる)。テンプレート内の ScrollViewer に直接設定する。</remarks>
     private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
         if (VisualTreeSearch.FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)
@@ -161,7 +161,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         // 手作りのノードでは、InvokedItem はノード自身で、データはその Content にある
         var item = args.InvokedItem is TreeViewNode node ? node.Content : args.InvokedItem;
 
-        // 中間ノードは開閉だけ（TreeView が行う）
+        // 中間ノードは開閉だけ (TreeView が行う)
         if (item is CommandTreeItem { Kind: not CommandItemKind.Group } commandItem)
         {
             ViewModel.InvokeCommandItemCommand.Execute(commandItem);
@@ -177,7 +177,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <param name="e">キー入力の情報</param>
     private void OnInputPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        // Ctrl+Enter で送信（Enter だけなら改行）
+        // Ctrl+Enter で送信 (Enter だけなら改行)
         if (e.Key == VirtualKey.Enter
             && InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down))
         {
@@ -189,7 +189,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>IME をオンにしたか</summary>
     private bool _imeInitialized;
 
-    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする（日本語をすぐ打てるように）</summary>
+    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする (日本語をすぐ打てるように)</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>以降はユーザーの切り替えを尊重する。</remarks>
@@ -218,7 +218,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
                 return;
             }
 
-            // 画像だけのとき（スクリーンショット等）は添付する。テキストも含むとき（Excel のセル等）は通常の貼り付けにする
+            // 画像だけのとき (スクリーンショット等)は添付する。テキストも含むとき (Excel のセル等)は通常の貼り付けにする
             if (content.Contains(StandardDataFormats.Bitmap) && !content.Contains(StandardDataFormats.Text))
             {
                 e.Handled = true;
@@ -266,11 +266,11 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     }
 
     /// <summary>ドロップ・貼り付けされたファイルを添付する</summary>
-    /// <param name="items">ドロップ・貼り付けされた項目（フォルダーは添付しない）</param>
+    /// <param name="items">ドロップ・貼り付けされた項目 (フォルダーは添付しない)</param>
     /// <returns>添付の完了を表すタスク</returns>
     /// <remarks>
     /// ディスク上のファイルは、元のパスをそのまま添付する。
-    /// パスの無いファイル（メールの添付ファイルなど、ディスク上に無いもの）は、中身を読んで一時保存する。
+    /// パスの無いファイル (メールの添付ファイルなど、ディスク上に無いもの)は、中身を読んで一時保存する。
     /// </remarks>
     private async Task AddAttachmentFilesAsync(IReadOnlyList<IStorageItem> items)
     {

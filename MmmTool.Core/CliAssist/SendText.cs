@@ -10,7 +10,7 @@ public static partial class SendText
 {
     /// <summary>本文があるときの、添付ファイルを参照させる指示文</summary>
     /// <remarks>
-    /// 添付には元の場所のファイル（ドロップ・貼り付けしたファイル）も含まれる。
+    /// 添付には元の場所のファイル (ドロップ・貼り付けしたファイル)も含まれる。
     /// 「直して」と頼まれたときは直してよいので、変更を一律には禁じず、本文の指示に従わせる。
     /// </remarks>
     private const string AttachmentInstructionWithBody =
@@ -27,7 +27,7 @@ public static partial class SendText
     /// <param name="text">入力欄の本文</param>
     /// <param name="attachmentPaths">添付ファイルの絶対パス</param>
     /// <returns>送信するテキスト</returns>
-    /// <remarks>指示文と、各ファイルの絶対パス（1 行ずつ）を付ける。本文が空白だけのときは、本文が無いものとして扱う。</remarks>
+    /// <remarks>指示文と、各ファイルの絶対パス (1 行ずつ)を付ける。本文が空白だけのときは、本文が無いものとして扱う。</remarks>
     public static string Compose(string text, IReadOnlyList<string> attachmentPaths)
     {
         var body = text.TrimEnd('\r', '\n');

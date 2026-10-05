@@ -1,10 +1,10 @@
 namespace MmmTool.Core.Reminders;
 
-/// <summary>曜日フラグ（月〜日のビット OR）</summary>
+/// <summary>曜日フラグ (月〜日のビット OR)</summary>
 [Flags]
 public enum Weekdays
 {
-    /// <summary>指定なし（日付指定）</summary>
+    /// <summary>指定なし (日付指定)</summary>
     None = 0,
     /// <summary>月曜日</summary>
     Monday = 1,

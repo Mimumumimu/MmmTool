@@ -7,13 +7,13 @@ using MmmSdk.WinUI.Utilities;
 
 namespace MmmTool.Shell.Main;
 
-/// <summary>メインウィンドウ（左にナビゲーション、右にページを表示する）</summary>
+/// <summary>メインウィンドウ (左にナビゲーション、右にページを表示する)</summary>
 public sealed partial class MainWindow : Window
 {
-    /// <summary>既定の幅（DIP）</summary>
+    /// <summary>既定の幅 (DIP)</summary>
     private const double DefaultWidth = 1280;
 
-    /// <summary>既定の高さ（DIP）</summary>
+    /// <summary>既定の高さ (DIP)</summary>
     private const double DefaultHeight = 720;
 
     /// <summary>項目に対応するページ</summary>
@@ -35,7 +35,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
-        // 前回の位置と大きさを復元する（無い・画面外のときは、既定の 1280×720 DIP。DPI に合わせる）。変わったら保存する。ウィンドウが閉じたら自分で後始末する
+        // 前回の位置と大きさを復元する (無い・画面外のときは、既定の 1280×720 DIP。DPI に合わせる)。変わったら保存する。ウィンドウが閉じたら自分で後始末する
         WindowBoundsKeeper.Attach(this, positions, "MainWindow", DefaultWidth, DefaultHeight);
         AppWindow.Closing += OnClosing;
 
@@ -47,7 +47,7 @@ public sealed partial class MainWindow : Window
     /// <summary>機能のオン・オフが切り替わったら、サイドバーの項目を作り直し、オフにした機能のページを捨てる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="featureKey">切り替わった機能のキー</param>
-    /// <remarks>表示中のページが消えるときは、項目の更新の中で別のページへ移る。ページを捨てるのは、そのあと（表示中のページを捨てないため）。</remarks>
+    /// <remarks>表示中のページが消えるときは、項目の更新の中で別のページへ移る。ページを捨てるのは、そのあと (表示中のページを捨てないため)。</remarks>
     private void OnFeatureChanged(object? sender, string featureKey)
     {
         ViewModel.Refresh();

@@ -1,7 +1,7 @@
 namespace MmmTool.Core.CliAssist;
 
 /// <summary>
-/// CLI補助の利用状態（Data/CliSettings.json）。DB には載せないローカル専用の設定。
+/// CLI補助の利用状態 (Data/CliSettings.json)。DB には載せないローカル専用の設定。
 /// </summary>
 public sealed class CliSettings
 {
@@ -9,6 +9,6 @@ public sealed class CliSettings
     /// <remarks>次回起動時のシェルの開始位置にも使う。</remarks>
     public string? LastDirectory { get; set; }
 
-    /// <summary>作業ディレクトリの履歴（先頭が最新）。</summary>
+    /// <summary>作業ディレクトリの履歴 (先頭が最新)。</summary>
     public List<string> DirectoryHistory { get; set; } = [];
 }

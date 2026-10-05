@@ -4,7 +4,7 @@ using MmmSdk.Core.Utilities;
 namespace MmmTool.Core.CliAssist;
 
 /// <summary>
-/// CLI補助の利用状態（作業ディレクトリ）をメモリに持ち、変更のたびに保存する。アプリ全体で 1 つ。
+/// CLI補助の利用状態 (作業ディレクトリ)をメモリに持ち、変更のたびに保存する。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="repository">CLI補助の利用状態の保存先</param>
 public sealed class CliSettingsService(ICliSettingsRepository repository)
@@ -14,17 +14,17 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
 
     /// <summary>現在の設定</summary>
     /// <remarks>
-    /// 書き換えず、変更のたびに新しい設定へ差し替える。保存の途中（スレッドプールでの JSON への変換）に、UI スレッドで履歴を変えても、
-    /// 保存中のものは変わらない（列挙中の変更による例外を防ぐ）。
+    /// 書き換えず、変更のたびに新しい設定へ差し替える。保存の途中 (スレッドプールでの JSON への変換)に、UI スレッドで履歴を変えても、
+    /// 保存中のものは変わらない (列挙中の変更による例外を防ぐ)。
     /// </remarks>
     private CliSettings _settings = new();
 
-    /// <summary>保存の順序を守るロック（古い内容が後から書かれないように）</summary>
+    /// <summary>保存の順序を守るロック (古い内容が後から書かれないように)</summary>
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
     /// <summary>読み込みの結果</summary>
     /// <remarks>
-    /// ファイルを読めなかったとき（ロック・権限など）は、元のファイルを上書きで消さないよう保存を止める（黙って保存しない。補助的な設定なので、例外にはしない）。
+    /// ファイルを読めなかったとき (ロック・権限など)は、元のファイルを上書きで消さないよう保存を止める (黙って保存しない。補助的な設定なので、例外にはしない)。
     /// 中身が壊れていたときは退避済みなので止めない。
     /// </remarks>
     private readonly LoadStatus _status = new();
@@ -41,11 +41,11 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <summary>起動時にシェルを始める作業ディレクトリ</summary>
     /// <remarks>
     /// 最後に移動した作業ディレクトリが、読み込み時に存在していたときだけ。無い・調べていないときは null。
-    /// 存在の確認は、UI スレッドを止めないよう、読み込み（<see cref="LoadAsync"/>）の中でバックグラウンドで行う（ネットワークパスで止まることがあるため）。
+    /// 存在の確認は、UI スレッドを止めないよう、読み込み (<see cref="LoadAsync"/>)の中でバックグラウンドで行う (ネットワークパスで止まることがあるため)。
     /// </remarks>
     public string? StartDirectory { get; private set; }
 
-    /// <summary>作業ディレクトリの履歴（新しい順）</summary>
+    /// <summary>作業ディレクトリの履歴 (新しい順)</summary>
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
     /// <summary>設定を読み込む</summary>
@@ -69,7 +69,7 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         }
     }
 
-    /// <summary>作業ディレクトリを移動したことを記録する（最終ディレクトリ・履歴の先頭）。</summary>
+    /// <summary>作業ディレクトリを移動したことを記録する (最終ディレクトリ・履歴の先頭)。</summary>
     /// <param name="directory">移動した作業ディレクトリ</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>

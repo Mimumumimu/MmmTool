@@ -13,7 +13,7 @@ public sealed class JsonCliSettingsRepository(IJsonFileStore store) : ICliSettin
     public async Task<DataLoadResult<CliSettings>> LoadAsync(CancellationToken cancellationToken = default)
     {
         var result = await store.ReadAsync(FileName, CliAssistJsonContext.Readable.CliSettings, cancellationToken);
-        // 壊れていたときも、無いときと同じく空の設定から始める（ファイルは次の保存で作られる）
+        // 壊れていたときも、無いときと同じく空の設定から始める (ファイルは次の保存で作られる)
         var settings = result.Value ?? new CliSettings();
         // JSON に null と書かれていたときも、空として扱う
         settings.DirectoryHistory ??= [];

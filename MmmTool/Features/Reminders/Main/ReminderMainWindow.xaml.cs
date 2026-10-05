@@ -12,19 +12,19 @@ namespace MmmTool.Features.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面</summary>
 /// <remarks>
-/// トレイメニュー・通知から開く普通のウィンドウ（モーダルではない）。アプリ内で 1 枚だけで、開いていれば前面に出す（<see cref="ReminderWindowService"/>）。
-/// 閉じたら破棄する（閉じたウィンドウは再表示できないため、次は作り直す）。大きさは変えられるが保存はせず、開くたびに最初の大きさに戻る。
+/// トレイメニュー・通知から開く普通のウィンドウ (モーダルではない)。アプリ内で 1 枚だけで、開いていれば前面に出す (<see cref="ReminderWindowService"/>)。
+/// 閉じたら破棄する (閉じたウィンドウは再表示できないため、次は作り直す)。大きさは変えられるが保存はせず、開くたびに最初の大きさに戻る。
 /// 最大化・最小化はできない。タイトル帯をドラッグして移動できる。
 /// </remarks>
 public sealed partial class ReminderMainWindow : Window
 {
-    /// <summary>最初の幅（DIP）</summary>
+    /// <summary>最初の幅 (DIP)</summary>
     private const double InitialWidth = 360;
-    /// <summary>最初の高さ（DIP）</summary>
+    /// <summary>最初の高さ (DIP)</summary>
     private const double InitialHeight = 440;
-    /// <summary>最小の幅（DIP）。最初の幅より狭いと、状態の切り替えに押されて件名が見えなくなるため</summary>
+    /// <summary>最小の幅 (DIP)。最初の幅より狭いと、状態の切り替えに押されて件名が見えなくなるため</summary>
     private const double MinimumWidth = 360;
-    /// <summary>最小の高さ（DIP）</summary>
+    /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 320;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -59,15 +59,15 @@ public sealed partial class ReminderMainWindow : Window
         Activate();
     }
 
-    /// <summary>未対応の色（グレー）</summary>
+    /// <summary>未対応の色 (グレー)</summary>
     private static readonly SolidColorBrush NoneBrush = new(ColorHelper.FromArgb(0xFF, 0x9E, 0x9E, 0x9E));
-    /// <summary>スヌーズの色（アンバー）</summary>
+    /// <summary>スヌーズの色 (アンバー)</summary>
     private static readonly SolidColorBrush SnoozeBrush = new(ColorHelper.FromArgb(0xFF, 0xF5, 0x9E, 0x0B));
-    /// <summary>完了の色（エメラルド系のグリーン）</summary>
-    /// <remarks>濃い緑（#2E7D32 など）は暗くくすんでアンバーと釣り合わず、ダークテーマで沈むため、明るめにした。</remarks>
+    /// <summary>完了の色 (エメラルド系のグリーン)</summary>
+    /// <remarks>濃い緑 (#2E7D32 など)は暗くくすんでアンバーと釣り合わず、ダークテーマで沈むため、明るめにした。</remarks>
     private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x16, 0xA3, 0x4A));
 
-    /// <summary>状態の色（未＝グレー / スヌーズ＝アンバー / 完了＝グリーン）</summary>
+    /// <summary>状態の色 (未＝グレー / スヌーズ＝アンバー / 完了＝グリーン)</summary>
     /// <param name="status">対応状態</param>
     /// <returns>状態を表すブラシ</returns>
     /// <remarks>ライト・ダークのどちらでも見分けやすい不透明の固定色。</remarks>

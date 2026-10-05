@@ -4,8 +4,8 @@ namespace MmmTool.Core.CliAssist.Json;
 
 /// <summary>定型コマンドを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理（既定の中身と、初期設定（環境・使うツール）の選び方はアプリが決める）</param>
-/// <remarks><paramref name="createDefaults"/> は、<see cref="LoadAsync"/> を呼んだスレッド（UI スレッド）で呼ぶ（アプリが初期設定のダイアログを出すため）。</remarks>
+/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理 (既定の中身と、初期設定 (環境・使うツール)の選び方はアプリが決める)</param>
+/// <remarks><paramref name="createDefaults"/> は、<see cref="LoadAsync"/> を呼んだスレッド (UI スレッド)で呼ぶ (アプリが初期設定のダイアログを出すため)。</remarks>
 public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CancellationToken, Task<CliCommandSet>> createDefaults) : ICliCommandRepository
 {
     /// <summary>保存先のファイル名</summary>
@@ -28,7 +28,7 @@ public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<Cancella
             return new(await WriteDefaultsAsync(cancellationToken), result.RecoveryMessage);
         }
 
-        // 中身が null（手修正で空にした等）でも既定で上書きはせず、空のまま扱う
+        // 中身が null (手修正で空にした等)でも既定で上書きはせず、空のまま扱う
         var set = result.Value ?? new CliCommandSet();
         // JSON に null と書かれていたときも、空として扱う
         set.Shell ??= [];

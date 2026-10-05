@@ -1,20 +1,20 @@
 ﻿<#
 .SYNOPSIS
-  Claude Code の会話履歴（~/.claude/projects 配下の .jsonl）を選んでごみ箱へ移動する。
+  Claude Code の会話履歴 (~/.claude/projects 配下の .jsonl)を選んでごみ箱へ移動する。
 
 .DESCRIPTION
-  ターミナル内で完結する（別ウィンドウなし）。
+  ターミナル内で完結する (別ウィンドウなし)。
   1. プロジェクトの一覧から選ぶ
   2. 選んだプロジェクト内のセッションを選ぶ
-  3. 確認のうえ、ごみ箱へ移動 → 1 に戻る（q で終了するまで繰り返せる）
+  3. 確認のうえ、ごみ箱へ移動 → 1 に戻る (q で終了するまで繰り返せる)
 
-  操作: ↑↓ 移動 / Space 選択・解除 / Tab 選択・解除して下へ（Shift+Tab は上へ） / a 全選択・全解除 / Enter 決定（未選択ならカーソル行）
+  操作: ↑↓ 移動 / Space 選択・解除 / Tab 選択・解除して下へ (Shift+Tab は上へ) / a 全選択・全解除 / Enter 決定 (未選択ならカーソル行)
         Backspace Esc 1 つ前に戻る / q 終了
-  入力がリダイレクトされている場合は番号入力（例: 1,3,5-7 / a / b=戻る / q=終了）になる。
+  入力がリダイレクトされている場合は番号入力 (例: 1,3,5-7 / a / b=戻る / q=終了)になる。
 
   -All を付けると手順 2 を省略し、選んだプロジェクトの全セッションを対象にする。
   -WhatIf を付けると、削除せず対象を表示するだけ。
-  Claude Code で開いているセッションは消さないこと（先に閉じる）。
+  Claude Code で開いているセッションは消さないこと (先に閉じる)。
 #>
 [CmdletBinding()]
 param(
@@ -31,7 +31,7 @@ if (-not (Test-Path $Root)) {
     return
 }
 
-# 最初のユーザー発言（先頭 60 行だけ読む）
+# 最初のユーザー発言 (先頭 60 行だけ読む)
 function Get-FirstUserMessage([string]$Path) {
     foreach ($line in (Get-Content -LiteralPath $Path -TotalCount 60 -Encoding UTF8)) {
         try { $obj = $line | ConvertFrom-Json } catch { continue }
@@ -45,10 +45,10 @@ function Get-FirstUserMessage([string]$Path) {
     return '(発言なし)'
 }
 
-# /resume に出るタイトル（ai-title 行の最後のもの）。無ければ最初のユーザー発言
+# /resume に出るタイトル (ai-title 行の最後のもの)。無ければ最初のユーザー発言
 function Get-SessionTitle([string]$Path) {
     $title = $null
-    # 1 行ずつ文字列で探す（Select-String はパイプラインを通るので、大きいファイルでは遅い）
+    # 1 行ずつ文字列で探す (Select-String はパイプラインを通るので、大きいファイルでは遅い)
     $hitLine = $null
     foreach ($line in [System.IO.File]::ReadLines($Path, [System.Text.Encoding]::UTF8)) {
         if ($line.Contains('"type":"ai-title"')) { $hitLine = $line }
@@ -136,7 +136,7 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
             if ($key.Key -eq 'C' -and ($key.Modifiers -band [ConsoleModifiers]::Control)) {
                 return New-SelectionResult 'quit'
             }
-            # IME がオンだと Space・a・q が全角文字（キーの種類なし）で届くので、文字から読み替える
+            # IME がオンだと Space・a・q が全角文字 (キーの種類なし)で届くので、文字から読み替える
             $keyName = switch ($key.KeyChar) {
                 ([char]0x3000) { 'Spacebar' }
                 { 'ａ', 'Ａ' -ccontains $_ } { 'A' }
@@ -152,7 +152,7 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
                 'End'       { $cursor = $Items.Count - 1 }
                 'Spacebar'  { if (-not $selected.Add($cursor)) { [void]$selected.Remove($cursor) } }
                 'Tab'       {
-                    # 選択/解除して隣へ進む（Tab=下、Shift+Tab=上）。連続した行を続けて選びやすい
+                    # 選択/解除して隣へ進む (Tab=下、Shift+Tab=上)。連続した行を続けて選びやすい
                     if (-not $selected.Add($cursor)) { [void]$selected.Remove($cursor) }
                     if ($key.Modifiers -band [ConsoleModifiers]::Shift) { if ($cursor -gt 0) { $cursor-- } }
                     elseif ($cursor -lt $Items.Count - 1) { $cursor++ }
@@ -179,14 +179,14 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
     }
 }
 
-# 番号入力で選ぶ（キー操作できないとき用）
+# 番号入力で選ぶ (キー操作できないとき用)
 function Read-SelectionText([object[]]$Items, [scriptblock]$Format, [string]$Prompt, [string]$BackLabel) {
     Write-Host $Prompt
     for ($i = 0; $i -lt $Items.Count; $i++) {
         Write-Host ('{0,3}. {1}' -f ($i + 1), (& $Format $Items[$i]))
     }
     while ($true) {
-        $in = Read-Host "番号（例: 1,3,5-7 / a=すべて / b=$BackLabel / q=終了）"
+        $in = Read-Host "番号 (例: 1,3,5-7 / a=すべて / b=$BackLabel / q=終了)"
         if ($null -eq $in -or $in.Trim() -match '^[qQ]$') { return New-SelectionResult 'quit' }
         $in = $in.Trim()
         if ($in -eq '' -or $in -match '^[bB]$') { return New-SelectionResult 'back' }
@@ -241,7 +241,7 @@ function Get-Sessions([object[]]$Projects) {
 
 function Remove-ToRecycleBin([string]$File) {
     [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($File, 'OnlyErrorDialogs', 'SendToRecycleBin')
-    # セッションに付随するフォルダ（<セッションID>/）があれば一緒に移動
+    # セッションに付随するフォルダ (<セッションID>/)があれば一緒に移動
     $sub = [IO.Path]::Combine([IO.Path]::GetDirectoryName($File), [IO.Path]::GetFileNameWithoutExtension($File))
     if (Test-Path -LiteralPath $sub -PathType Container) {
         [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($sub, 'OnlyErrorDialogs', 'SendToRecycleBin')

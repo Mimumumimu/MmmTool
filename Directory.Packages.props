@@ -1,7 +1,7 @@
 <Project>
   <!--
-    パッケージのバージョンをここに集める（中央パッケージ管理）。各 csproj の PackageReference にはバージョンを書かない。
-    MmmSdk は自分の Directory.Packages.props を使う。共通のパッケージ（Windows App SDK 等）を上げるときは、SDK を先に上げてから同じバージョンにする。
+    パッケージのバージョンをここに集める (中央パッケージ管理)。各 csproj の PackageReference にはバージョンを書かない。
+    MmmSdk は自分の Directory.Packages.props を使う。共通のパッケージ (Windows App SDK 等)を上げるときは、SDK を先に上げてから同じバージョンにする。
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
@@ -13,8 +13,8 @@
     <PackageVersion Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2705" />
     <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
     <!--
-      Windows App SDK の使わない部品。アプリの csproj で、中身を出力に入れないように（ExcludeAssets="all"）参照する（決定 0015）。
-      バージョンは、全部入りのパッケージ（Microsoft.WindowsAppSDK）の依存と同じにする（全部入りを上げるときは、ここも写す）。
+      Windows App SDK の使わない部品。アプリの csproj で、中身を出力に入れないように (ExcludeAssets="all")参照する (決定 0015)。
+      バージョンは、全部入りのパッケージ (Microsoft.WindowsAppSDK)の依存と同じにする (全部入りを上げるときは、ここも写す)。
     -->
     <PackageVersion Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" />
     <PackageVersion Include="Microsoft.WindowsAppSDK.AI" Version="2.5.5" />
