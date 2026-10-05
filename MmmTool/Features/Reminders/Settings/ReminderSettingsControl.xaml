@@ -10,9 +10,14 @@
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error" />
-        <StackPanel Orientation="Horizontal" Spacing="16">
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center" Text="リマインダーのスヌーズ間隔 (分)" />
             <NumberBox
+                Grid.Column="1"
                 Width="160"
                 GotFocus="OnNumberBoxGotFocus"
                 IsEnabled="{x:Bind ViewModel.IsEditable}"
@@ -23,6 +28,6 @@
                 SmallChange="1"
                 SpinButtonPlacementMode="Inline"
                 Value="{x:Bind ViewModel.SnoozeIntervalMinutes, Mode=TwoWay}" />
-        </StackPanel>
+        </Grid>
     </StackPanel>
 </UserControl>

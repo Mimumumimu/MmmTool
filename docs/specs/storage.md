@@ -16,7 +16,10 @@
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある (ID あり) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
-| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。スヌーズ間隔・ウィンドウ位置など |
+| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。スヌーズ間隔・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |
+
+## ファイルに書かないもの
+- Backlog の API キーは、Data フォルダーに書かず、Windows の資格情報マネージャー (汎用資格情報 `MmmTool.Backlog`)に保存する。手で開いて見られる設定ファイルに、秘密を置かないため ([backlog.md](backlog.md))
 
 ## 壊れたファイル (全 JSON 共通)
 - JSON として読めないファイルは、同じフォルダに `名前.broken-yyyyMMdd-HHmmss.json`(同じ秒なら `-2` 以降)へ名前を変えて退避し (自動では消さない)、値 null とメッセージが返る

@@ -10,7 +10,8 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            <!-- 設定ページの各行で、名前の列の幅をそろえる (スイッチ・入力欄の左端が縦にそろう) -->
+            <GridLength x:Key="SettingNameColumnWidth">240</GridLength>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -5,10 +5,11 @@
 ## 構成 (機能ごとの部品を並べる)
 - 設定の項目は、各機能が `AddSettingsSection<TControl>()`(`Shell/ShellServiceCollectionExtensions`。サイドバーの `AddNavigationPage` と同じ形)で、設定の部品 (`UserControl`)を登録する。設定ページは、登録順に縦に並べるだけで、特定の機能を知らない。機能を足すときに触るのは、その機能のフォルダと `App` の 1 行だけ
 - 部品は設定ページを開くときに DI から作る (Transient)。値の読み書きと画面の状態は、その機能の ViewModel・サービスが持つ (部品の見た目は設定ページと同じ縦並び)
+- 各行は「名前の列 + 操作」の 2 列の Grid で、名前の列の幅は共通のリソース (`App.xaml` の `SettingNameColumnWidth`。240)にそろえる。名前の長さが違っても、スイッチ・入力欄の左端が縦にそろう (WinUI 3 には `SharedSizeGroup` が無いため、固定の幅にする。名前がこの幅を超えるときは、リソースの値を広げる)
 - `SettingsViewModel` はページ全体のことだけ：タイトルと、設定ファイルを読めなかったとき (`ISettingsStore.LoadError`)の InfoBar。読めなかったときは、各部品が、自分のサービスの `IsReadOnly` で入力欄を無効にする (元のファイルを上書きで消さないため)
 
 ## 機能のオン・オフ
-- ページの先頭に、機能の一覧を出す (見出しは付けない。リマインダーの項目と同じ、左に名前・右に操作の横並び)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送)を、登録順に `ToggleSwitch`(オン / オフ)で並べる。リンク・リマインダーはオフにできないので出さない。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`SettingsViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
+- ページの先頭に、機能の一覧を出す (見出しは付けない。リマインダーの項目と同じ、左に名前・右に操作の横並び)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送・Backlog)を、登録順に `ToggleSwitch`(オン / オフ)で並べる。リンク・リマインダーはオフにできないので出さない。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`SettingsViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
 - 切り替えはすぐ反映する (再起動は要らない)。サイドバー・トレイメニュー・設定ページの部品が、`FeatureService.Changed` で変わる。オフにした機能のページは捨て (`PageProvider.EvictDisabledPages`)、表示中なら先頭のページへ移る。オンにしたときは、その機能の起動時の準備を実行する
 - 状態は設定ストアの `Feature.<キー>.Enabled`(bool)。保存が無い機能はオン
 - CLI補助を、ターミナルが動いている間にオフにするときは、確認ダイアログを出す (「実行中のターミナルと、その中の作業が終了します」。`CliAssistDisableConfirmation`)。ターミナルが動いていなければ確認しない。取りやめると、スイッチは元に戻る
@@ -21,6 +22,10 @@
 - 保存は `ReminderSettingsService`(Core)経由で、設定ストアの `Reminder.SnoozeIntervalMinutes` に委譲する
 - 範囲は 5〜999 分 (定数と補正は `ReminderSettingsService` の `MinSnoozeInterval` / `MaxSnoozeInterval` / `ClampSnoozeInterval`)、既定は 15。範囲外・空は範囲内に補正して、画面にも反映する (`NumberBox` は空にすると NaN になる)
 - 保存の失敗 (`DataFileException`)は、画面の InfoBar に出して続ける (`SaveSnoozeIntervalAsync`)。想定外の失敗は、握りつぶさず安全網 (ログ → ダイアログ → 終了)へ流す
+
+### Backlog の API キー (`Features/Backlog/Settings/BacklogSettingsControl` ＋ `BacklogSettingsViewModel`)
+- `PasswordBox` に API キーを入れる。入力欄からフォーカスが外れたときに保存する。保存先は設定ストアではなく、資格情報マネージャー ([backlog.md](backlog.md))
+- 保管庫を読めない・書けない失敗 (`SecretStoreException`)は、画面の InfoBar に出して続ける。Backlog の機能がオフの間は、この項目も並べない
 
 ## 決定の理由
 

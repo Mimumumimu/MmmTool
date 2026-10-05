@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
@@ -79,7 +80,7 @@ public sealed partial class ClipboardTransferViewModel(
             clipboard.SetText(result.Json);
 
             var skipped = skippedCount + paths.Count - result.FileNames.Count;
-            var message = $"{ListNames(result.FileNames)}\n合計 {FormatSize(result.TotalBytes)}";
+            var message = $"{ListNames(result.FileNames)}\n合計 {FileSizeFormatter.Format(result.TotalBytes)}";
             if (skipped > 0)
             {
                 message += $"\nフォルダー・ディスク上にないものは送れないため、{skipped} 件を除きました。";
@@ -332,15 +333,4 @@ public sealed partial class ClipboardTransferViewModel(
         var listed = string.Join("\n", names.Take(MaxListedNames));
         return names.Count > MaxListedNames ? $"{listed}\nほか {names.Count - MaxListedNames} 件" : listed;
     }
-
-    /// <summary>バイト数を、読みやすい単位にする</summary>
-    /// <param name="bytes">バイト数</param>
-    /// <returns>KB・MB・GB のいずれかで表した文字列</returns>
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
-        < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024:0.#} MB",
-        _ => $"{bytes / 1024.0 / 1024 / 1024:0.#} GB",
-    };
 }

@@ -5,8 +5,8 @@
 | --- | --- | --- |
 | `MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | アプリ本体 (画面・UI サービス・Win32 呼び出し) |
 | `MmmTool.Core` | `net10.0` | UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない |
-| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (JSON の保存・設定ストア・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
-| `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの (通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める) |
+| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
+| `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの (通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める) |
 
 参照の向きは `MmmTool → MmmTool.Core → MmmSdk.Core`、`MmmTool → MmmSdk.WinUI → MmmSdk.Core`。SDK はアプリを知らない。SDK は別リポジトリ (`https://github.com/Mimumumimu/MmmSdk`)で、Git サブモジュール `external/MmmSdk` として取り込む (clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`)。SDK を直したら、サブモジュールの中 (master)でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする (SDK が先)。
 
@@ -16,11 +16,11 @@
 プロジェクトの中は機能ごとのフォルダ (Vertical Slice)。層ごとのフォルダ (`Views/` `ViewModels/` 等)は作らない。名前空間はフォルダどおり。MVVM の役割はクラス名で分かるようにする (View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・サービス)。決めた理由は下の「決定の理由」の「機能別フォルダ」。
 
 ```
-MmmTool.Core/<機能>/            Entity・Repository のインターフェース・サービス (CliAssist / Links / Reminders)
+MmmTool.Core/<機能>/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Reminders)
 MmmTool.Core/<機能>/Json/       JSON の実装 (Json<名前>Repository)と機能ごとのソース生成 Context
 MmmTool/Features/<機能>/        機能全体のつなぎ (Add<機能>()・<機能>Startup・<機能>TrayMenuSource など、Shell へ登録するもの)と、
                                 複数の画面で共有するもの (ViewModel の基底クラス・行の書式・I<機能>DialogService)だけ
-                               (CliAssist / Links / Reminders / Settings / Debugging)
+                               (Backlog / CliAssist / ClipboardTransfer / Links / Reminders / Settings / Debugging)
 MmmTool/Features/<機能>/Main/   その機能の入口の画面 (サイドバーのページ、またはトレイから開くメインのウィンドウ)の
                                 View・ViewModel・行の型。画面が 1 つだけの機能も Main/ に入れる
 MmmTool/Features/<機能>/<画面>/ そのほかの画面 (Reminders/{Input, List, Settings}、CliAssist/WorkingDirectory)。
@@ -39,12 +39,12 @@ MmmTool/Shell/Main/             メインウィンドウ (MainWindow・MainViewM
 
 ## DI と起動
 - Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
-- SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
-- 機能を登録した順 (CLI補助 → クリップボード転送 → リマインダー → リンク → DEBUG → 設定)に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目 (リマインダーがリンクより上)・起動時の準備が並ぶ
+- SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
+- 機能を登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → DEBUG → 設定)に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目 (リマインダーがリンクより上)・起動時の準備が並ぶ
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ ([specs/settings.md](specs/settings.md))
-- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送)は、`Add<機能>()` の中で `AddFeature(キー, 表示名)` を登録し、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
+- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog)は、`Add<機能>()` の中で `AddFeature(キー, 表示名)` を登録し、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み)。決めた理由は下の「決定の理由」の「起動時の準備」
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)と `ShowModalAsync`(開いている間モーダルとして覚える)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`

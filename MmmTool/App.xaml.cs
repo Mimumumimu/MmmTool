@@ -9,6 +9,7 @@ using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
+using MmmTool.Features.Backlog;
 using MmmTool.Features.CliAssist;
 using MmmTool.Features.ClipboardTransfer;
 using MmmTool.Features.Debugging;
@@ -77,6 +78,7 @@ public partial class App : Application
         services.AddCliAssist();
         services.AddClipboardTransfer();
         services.AddReminders();
+        services.AddBacklog();
         services.AddLinks();
         services.AddDebugging();
         services.AddSettings();

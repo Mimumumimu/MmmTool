@@ -23,14 +23,19 @@
             <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:FeatureItem">
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
                             <ToggleSwitch
+                                Grid.Column="1"
                                 IsOn="{x:Bind IsOn, Mode=TwoWay}"
                                 OffContent="オフ"
                                 OnContent="オン"
                                 Toggled="OnFeatureToggled" />
-                        </StackPanel>
+                        </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
