@@ -108,6 +108,8 @@
                 InputScope="Url"
                 PlaceholderText="URL / ファイル / フォルダーのパス"
                 Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
+
+            <ToggleSwitch Header="通知を読み上げる" IsOn="{x:Bind ViewModel.IsSpeak, Mode=TwoWay}" />
         </StackPanel>
 
         <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->

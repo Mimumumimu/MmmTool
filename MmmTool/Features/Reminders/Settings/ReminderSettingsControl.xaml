@@ -5,11 +5,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel Spacing="12">
-        <!-- 保存に失敗したとき -->
+        <!-- 保存に失敗したとき (閉じている間は、Spacing の分の場所も取らない) -->
         <InfoBar
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
-            Severity="Error" />
+            Severity="Error"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
         <Grid ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
@@ -28,6 +29,21 @@
                 SmallChange="1"
                 SpinButtonPlacementMode="Inline"
                 Value="{x:Bind ViewModel.SnoozeIntervalMinutes, Mode=TwoWay}" />
+        </Grid>
+
+        <!-- 読み上げの声と速さは Windows の音声の設定に従う。外へ出るだけなので、強調しないリンク型にする -->
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center" Text="読み上げの声・速さ" />
+            <HyperlinkButton Grid.Column="1" Command="{x:Bind ViewModel.OpenSpeechSettingsCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Windows の音声設定を開く" />
+                    <FontIcon VerticalAlignment="Center" FontSize="12" Glyph="&#xE8A7;" />
+                </StackPanel>
+            </HyperlinkButton>
         </Grid>
     </StackPanel>
 </UserControl>

@@ -89,6 +89,10 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial string Link { get; set; } = "";
 
+    /// <summary>通知のときに読み上げるか</summary>
+    [ObservableProperty]
+    public partial bool IsSpeak { get; set; }
+
     /// <summary>保存のエラー</summary>
     public ErrorState SaveError { get; } = new();
 
@@ -105,6 +109,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         Title = target?.Title ?? "";
         Note = target?.Note ?? "";
         Link = target?.Link ?? "";
+        IsSpeak = target?.IsSpeak ?? false;
 
         if (target is null)
         {
@@ -166,6 +171,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             Time = ReminderDates.ToTimeValue(new TimeOnly(Math.Clamp(Hour, 0, 23), Math.Clamp(Minute, 0, 59))),
             Note = string.IsNullOrWhiteSpace(Note) ? null : Note,
             Link = string.IsNullOrWhiteSpace(Link) ? null : Link.Trim(),
+            IsSpeak = IsSpeak,
         };
 
         try

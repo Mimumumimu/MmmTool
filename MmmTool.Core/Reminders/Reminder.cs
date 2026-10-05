@@ -34,4 +34,8 @@ public sealed record Reminder
 
     /// <summary>リンク (URL・ファイル・フォルダのパス)</summary>
     public string? Link { get; init; }
+
+    /// <summary>通知のときに読み上げるか</summary>
+    /// <remarks>既存のデータ (この項目が無い JSON)は false (読み上げない)で読み込む。</remarks>
+    public bool IsSpeak { get; init; }
 }

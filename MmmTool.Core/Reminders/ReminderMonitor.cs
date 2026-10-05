@@ -27,7 +27,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     private readonly MinuteScheduler _scheduler = new(timeProvider);
 
     /// <summary>通知を表示するコールバック</summary>
-    private Action<string, IReadOnlyList<NotificationItem>>? _notify;
+    private Action<string, IReadOnlyList<NotificationItem>, string?>? _notify;
 
     /// <summary>前回スヌーズ分を通知した分 (秒以下を切り捨てた時刻)。まだ無ければ null</summary>
     /// <remarks>スヌーズの再通知間隔は、リマインダーごとではなくモニター全体でこの時刻から数える。メモリ上だけに持つ。</remarks>
@@ -37,9 +37,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     private bool _disposed;
 
     /// <summary>監視を始める</summary>
-    /// <param name="notify">通知を表示するコールバック (タイトル・項目)。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
+    /// <param name="notify">通知を表示するコールバック (タイトル・項目・読み上げる文。読み上げ対象が無ければ文は null)。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
     /// <exception cref="InvalidOperationException">すでに開始している。</exception>
-    public void Start(Action<string, IReadOnlyList<NotificationItem>> notify)
+    public void Start(Action<string, IReadOnlyList<NotificationItem>, string?> notify)
     {
         lock (_gate)
         {
@@ -103,7 +103,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
         }
 
         var minute = MinuteScheduler.TruncateToMinute(now);
-        Action<string, IReadOnlyList<NotificationItem>>? notify;
+        Action<string, IReadOnlyList<NotificationItem>, string?>? notify;
         ReminderEvaluation evaluation;
         lock (_gate)
         {
@@ -117,7 +117,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
 
         if (evaluation.Items.Count > 0)
         {
-            notify?.Invoke(NotificationTitle, evaluation.Items);
+            notify?.Invoke(NotificationTitle, evaluation.Items, evaluation.SpeechText);
         }
     }
 

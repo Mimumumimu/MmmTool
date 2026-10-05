@@ -6,6 +6,7 @@
 - 設定の項目は、各機能が `AddSettingsSection<TControl>()`(`Shell/ShellServiceCollectionExtensions`。サイドバーの `AddNavigationPage` と同じ形)で、設定の部品 (`UserControl`)を登録する。設定ページは、登録順に縦に並べるだけで、特定の機能を知らない。機能を足すときに触るのは、その機能のフォルダと `App` の 1 行だけ
 - 部品は設定ページを開くときに DI から作る (Transient)。値の読み書きと画面の状態は、その機能の ViewModel・サービスが持つ (部品の見た目は設定ページと同じ縦並び)
 - 各行は「名前の列 + 操作」の 2 列の Grid で、名前の列の幅は共通のリソース (`App.xaml` の `SettingNameColumnWidth`。240)にそろえる。名前の長さが違っても、スイッチ・入力欄の左端が縦にそろう (WinUI 3 には `SharedSizeGroup` が無いため、固定の幅にする。名前がこの幅を超えるときは、リソースの値を広げる)
+- 行の縦の間隔は、ページ・各部品とも `StackPanel Spacing="12"` でそろえる。各部品の先頭にあるエラーの `InfoBar` は、閉じている間も要素が残って `Spacing` の 12 を取ってしまい、欄の先頭だけ間隔が広がるので、`Visibility` を `ErrorState.IsOpen` にバインドして、閉じている間は場所を取らないようにしている。新しい設定の部品を足すときも、同じにする
 - `SettingsViewModel` はページ全体のことだけ：タイトルと、設定ファイルを読めなかったとき (`ISettingsStore.LoadError`)の InfoBar。読めなかったときは、各部品が、自分のサービスの `IsReadOnly` で入力欄を無効にする (元のファイルを上書きで消さないため)
 
 ## 機能のオン・オフ
@@ -22,6 +23,11 @@
 - 保存は `ReminderSettingsService`(Core)経由で、設定ストアの `Reminder.SnoozeIntervalMinutes` に委譲する
 - 範囲は 5〜999 分 (定数と補正は `ReminderSettingsService` の `MinSnoozeInterval` / `MaxSnoozeInterval` / `ClampSnoozeInterval`)、既定は 15。範囲外・空は範囲内に補正して、画面にも反映する (`NumberBox` は空にすると NaN になる)
 - 保存の失敗 (`DataFileException`)は、画面の InfoBar に出して続ける (`SaveSnoozeIntervalAsync`)。想定外の失敗は、握りつぶさず安全網 (ログ → ダイアログ → 終了)へ流す
+
+### リマインダーの読み上げの声・速さ (同じ `ReminderSettingsControl` の 2 行目)
+- 声と速さはアプリでは持たず、Windows の音声の設定 (時刻と言語 > 音声)に従う。そこへ移るリンク「Windows の音声設定を開く」(`HyperlinkButton` ＋ 外部リンクのアイコン)を置く。`ms-settings:speech` を `IPathOpener` で開く (`OpenSpeechSettingsAsync`)
+- 強調しないリンク型にしたのは、アプリの外へ出るだけの操作で、この画面の主な操作ではないため
+- 開けなかったとき (`PathOpenException`)は、画面の InfoBar に出す
 
 ### Backlog の API キー (`Features/Backlog/Settings/BacklogSettingsControl` ＋ `BacklogSettingsViewModel`)
 - `PasswordBox` に API キーを入れる。入力欄からフォーカスが外れたときに保存する。保存先は設定ストアではなく、資格情報マネージャー ([backlog.md](backlog.md))

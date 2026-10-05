@@ -77,7 +77,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <summary>コピーして新規追加 (入力画面を開く)</summary>
     /// <param name="item">コピー元の行</param>
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
-    /// <remarks>日付・時刻・曜日・件名・備考・リンクだけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
+    /// <remarks>日付・時刻・曜日・件名・備考・リンク・読み上げの有無だけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
     [RelayCommand]
     private Task CopyAsNewAsync(ReminderListItem item)
         => _reminderDialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false });

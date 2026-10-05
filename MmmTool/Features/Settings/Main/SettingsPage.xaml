@@ -14,11 +14,12 @@
         <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind ViewModel.Title}" />
 
         <StackPanel Grid.Row="1" Spacing="12">
-            <!-- 設定ファイルを読めなかったとき (変更は保存できない) -->
+            <!-- 設定ファイルを読めなかったとき (変更は保存できない)。閉じている間は、Spacing の分の場所も取らない -->
             <InfoBar
                 IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
                 Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
-                Severity="Error" />
+                Severity="Error"
+                Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
             <!-- 機能のオン・オフ (オフにできる機能だけ。切り替えはすぐ反映する)。行は、リマインダーの項目と同じ、左に名前・右に操作 -->
             <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
                 <ItemsControl.ItemTemplate>

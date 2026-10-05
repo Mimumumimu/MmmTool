@@ -39,7 +39,7 @@ MmmTool/Shell/Main/             メインウィンドウ (MainWindow・MainViewM
 
 ## DI と起動
 - Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ
-- SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
+- SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
 - 機能を登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → DEBUG → 設定)に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目 (リマインダーがリンクより上)・起動時の準備が並ぶ
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は各 `Add<機能>()` の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える

@@ -1,4 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
@@ -11,6 +13,12 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
 {
     /// <summary>リマインダーの設定</summary>
     private readonly ReminderSettingsService _reminderSettings;
+
+    /// <summary>Windows の設定を開く処理</summary>
+    private readonly IPathOpener _pathOpener;
+
+    /// <summary>Windows の音声の設定 (声・速さ)を開くアドレス</summary>
+    private const string SpeechSettingsUri = "ms-settings:speech";
 
     /// <summary>保存済みの値を入れている最中か</summary>
     /// <remarks>true の間は、値の変更で保存しない (読み込んだだけの値で、設定ファイルを書き換えないため)。</remarks>
@@ -35,13 +43,31 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
 
     /// <summary>保存済みの値を読み込んで表示する</summary>
     /// <param name="reminderSettings">リマインダーの設定</param>
-    public ReminderSettingsViewModel(ReminderSettingsService reminderSettings)
+    /// <param name="pathOpener">Windows の設定を開く処理</param>
+    public ReminderSettingsViewModel(ReminderSettingsService reminderSettings, IPathOpener pathOpener)
     {
         _reminderSettings = reminderSettings;
+        _pathOpener = pathOpener;
         _isInitializing = true;
         SnoozeIntervalMinutes = reminderSettings.SnoozeIntervalMinutes;
         _isInitializing = false;
         IsEditable = !reminderSettings.IsReadOnly;
+    }
+
+    /// <summary>Windows の音声の設定を開く</summary>
+    /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>読み上げの声と速さは、Windows の音声の設定に従う。開けなかったとき (<see cref="PathOpenException"/>)は、画面に出す。</remarks>
+    [RelayCommand]
+    private async Task OpenSpeechSettingsAsync()
+    {
+        try
+        {
+            await _pathOpener.OpenAsync(SpeechSettingsUri);
+        }
+        catch (PathOpenException ex)
+        {
+            Error.Show(ex.Message);
+        }
     }
 
     /// <summary>値が変わったら範囲に収めて保存する</summary>
