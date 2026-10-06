@@ -34,7 +34,7 @@ Data/MmmTool.Data/Connection/         DB への接続の設定 (DatabaseSettings
 Data/MmmTool.Data/<機能>/             DB の行のクラス (<名前>Row)と、アプリの型との変換 (全機能の分。機能ごとのフォルダ)
 Data/MmmTool.Data.<種類>/Connection/  その DB への接続を作る処理 (SqlServerConnectionFactoryBuilder。設定とパスワードから SDK の接続の部品を作る)
 Data/MmmTool.Data.<種類>/<機能>/      その DB の Repository の実装 (<種類><名前>Repository)
-MmmTool/Features/<機能>/              ホストが持つ機能 (Settings / Debugging / Users。Users は DB モードのユーザーの特定と、登録の画面)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
+MmmTool/Features/<機能>/              ホストが持つ機能 (Settings / Debugging / Users / Database。Users は DB モードのユーザーの特定と、登録の画面。Database は保存先 (ローカル / DB)の設定ページの部品と、初回の選択の画面)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
 MmmTool/Shell/                        画面の枠 (ホスト側)。直下に DI 登録と、アプリ全体で使う型
                                      (SettingsStoreStartup・
                                       AppIcon・AppInfo・ShellServiceCollectionExtensions)

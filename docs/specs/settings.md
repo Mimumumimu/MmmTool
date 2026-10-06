@@ -33,6 +33,12 @@
 - `PasswordBox` に API キーを入れる。入力欄からフォーカスが外れたときに保存する。保存先は設定ストアではなく、資格情報マネージャー ([backlog.md](backlog.md))
 - 保管庫を読めない・書けない失敗 (`SecretStoreException`)は、画面の InfoBar に出して続ける。Backlog の機能がオフの間は、この項目も並べない
 
+### 保存先と DB への接続 (`MmmTool/Features/Database/Settings/DatabaseSettingsControl` ＋ `DatabaseSettingsViewModel`)
+- ホスト側の部品で、`AddDatabaseScreens()` が `AddSettingsSection` で登録する (どの機能にも属さず、オフにならない)。設計は [database.md](database.md)
+- 「保存先」の `ComboBox`(ローカル / DB)。DB のときだけ、接続の入力欄 (サーバー名・データベース名・ログインの方式・ユーザー名・パスワード・証明書の信頼)と「接続を確認」を出す。入力欄は、初回の保存先の選択の画面と共有する部品 (`DatabaseConnectionForm`)
+- 保存は「保存」ボタンを押したときだけ (入力の途中を保存しない)。保存先は起動時に決まるので、説明の 1 行「変更は次の起動から反映されます。」を添える
+- 失敗は、部品の先頭の InfoBar で知らせる。成功 (「保存しました。」「接続できました。」)も InfoBar。設定ファイルを読めなかったとき (`IsReadOnly`)は、入力と「保存」を無効にする
+
 ## 決定の理由
 
 ### 機能のオン・オフ
