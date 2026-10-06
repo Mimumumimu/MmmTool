@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MmmTool.Reminders.Core\MmmTool.Reminders.Core.csproj" />
+    <ProjectReference Include="..\..\Shared\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
     <ProjectReference Include="..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 

@@ -1,8 +1,10 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Reminders.Core;
+using MmmTool.Users.Core;
 
 namespace MmmTool.Reminders.Input;
 
@@ -20,6 +22,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>リマインダーの読み書き</summary>
     private readonly ReminderService _reminders;
+    /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
+    private readonly IAppUserRepository _users;
     /// <summary>現在日時</summary>
     private readonly TimeProvider _time;
 
@@ -28,10 +32,12 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
+    /// <param name="users">ユーザーの保存先</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderInputViewModel(ReminderService reminders, TimeProvider time)
+    public ReminderInputViewModel(ReminderService reminders, IAppUserRepository users, TimeProvider time)
     {
         _reminders = reminders;
+        _users = users;
         _time = time;
         WeekdayOptions = [.. ReminderDates.WeekdayNames.Select(weekday => new WeekdayOption(weekday.Flag, weekday.Name))];
         Load(null);
@@ -93,8 +99,63 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSpeak { get; set; }
 
+    /// <summary>宛先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できているときだけ)</summary>
+    public bool IsTargetVisible => _reminders.CurrentUserId != 0;
+
+    /// <summary>宛先の選択肢 (自分・全員・ほかの使えるユーザー)</summary>
+    public ObservableCollection<ReminderTargetOption> TargetOptions { get; } = [];
+
+    /// <summary>選んでいる宛先</summary>
+    [ObservableProperty]
+    public partial ReminderTargetOption? SelectedTarget { get; set; }
+
     /// <summary>保存のエラー</summary>
     public ErrorState SaveError { get; } = new();
+
+    /// <summary>宛先の選択肢を作り、新規なら「自分」・編集なら保存されている宛先を選ぶ</summary>
+    /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>
+    /// <see cref="Load"/> のあとに呼ぶ。宛先を出さないとき (<see cref="IsTargetVisible"/> が false)は何もしない。
+    /// ユーザーの一覧を読めなかったときは、エラーを出して、「自分」と「全員」だけにする。
+    /// </remarks>
+    public async Task LoadTargetsAsync()
+    {
+        TargetOptions.Clear();
+        if (!IsTargetVisible)
+        {
+            SelectedTarget = null;
+            return;
+        }
+
+        var selfId = _reminders.CurrentUserId;
+        TargetOptions.Add(new ReminderTargetOption(selfId, "自分"));
+        TargetOptions.Add(new ReminderTargetOption(0, "全員"));
+
+        IReadOnlyList<AppUser> users = [];
+        try
+        {
+            users = await _users.GetUsersAsync();
+        }
+        catch (DataFileException ex)
+        {
+            SaveError.Show(ex.Message);
+        }
+
+        var today = DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
+        foreach (var user in users.Where(user => user.Id != selfId && user.IsActiveOn(today)).OrderBy(user => user.DisplayName, StringComparer.CurrentCulture))
+        {
+            TargetOptions.Add(new ReminderTargetOption(user.Id, user.DisplayName));
+        }
+
+        // 編集で、宛先がもう選べない (削除済み・期間外のユーザー)ときも、保存で宛先が変わらないよう、選択肢に足す
+        var targetId = _target?.TargetUserId ?? selfId;
+        if (TargetOptions.All(option => option.UserId != targetId))
+        {
+            var name = users.FirstOrDefault(user => user.Id == targetId)?.DisplayName ?? $"ユーザー {targetId}";
+            TargetOptions.Add(new ReminderTargetOption(targetId, name));
+        }
+        SelectedTarget = TargetOptions.First(option => option.UserId == targetId);
+    }
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集するリマインダー。新規なら null</param>
@@ -172,6 +233,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             Note = string.IsNullOrWhiteSpace(Note) ? null : Note,
             Link = string.IsNullOrWhiteSpace(Link) ? null : Link.Trim(),
             IsSpeak = IsSpeak,
+            TargetUserId = SelectedTarget?.UserId ?? _target?.TargetUserId ?? 0,
         };
 
         try

@@ -49,9 +49,11 @@ public sealed partial class ReminderInputWindow : Window
     /// <param name="owner">親ウィンドウ</param>
     /// <param name="target">編集するリマインダー。新規なら null (コピーして新規追加のときは連番 0 の内容)</param>
     /// <returns>保存した内容。キャンセル・× なら null</returns>
-    public Task<Reminder?> ShowModalAsync(Window owner, Reminder? target)
+    public async Task<Reminder?> ShowModalAsync(Window owner, Reminder? target)
     {
         ViewModel.Load(target);
+        // 宛先の欄が空のまま見えないよう、選択肢を作ってから出す
+        await ViewModel.LoadTargetsAsync();
 
         _modal.SetOwner(owner);
         this.UseFixedPresenter(isDialog: true, isResizable: false);
@@ -62,7 +64,7 @@ public sealed partial class ReminderInputWindow : Window
         _modal.CenterOnOwner();
 
         _modal.Show();
-        return _closed.Task;
+        return await _closed.Task;
     }
 
     /// <summary>中身に合わせて高さを決め、親の中央に置き直す</summary>

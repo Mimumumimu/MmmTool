@@ -114,6 +114,15 @@
                 Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
 
             <ToggleSwitch Header="通知を読み上げる" IsOn="{x:Bind ViewModel.IsSpeak, Mode=TwoWay}" />
+
+            <!-- 宛先 (DB モードで、今のユーザーを特定できているときだけ) -->
+            <ComboBox
+                HorizontalAlignment="Stretch"
+                DisplayMemberPath="Name"
+                Header="宛先"
+                ItemsSource="{x:Bind ViewModel.TargetOptions}"
+                SelectedItem="{x:Bind ViewModel.SelectedTarget, Mode=TwoWay}"
+                Visibility="{x:Bind ViewModel.IsTargetVisible}" />
         </StackPanel>
 
         <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
