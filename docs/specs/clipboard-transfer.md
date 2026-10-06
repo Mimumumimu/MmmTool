@@ -1,6 +1,6 @@
 # クリップボード転送
 
-ファイルをクリップボードのテキスト (JSON)に載せて別の PC へ渡し、受け取った側でファイルに戻す機能。クリップボードを共有できる環境 (リモートデスクトップなど)で、ファイルを運ぶために使う。サイドバーの CLI補助の下に出るページ 1 つ。`Features/ClipboardTransfer/`(Core 側は `MmmTool.Core/ClipboardTransfer/`)。設定ページでオン・オフできる ([settings.md](settings.md))。
+ファイルをクリップボードのテキスト (JSON)に載せて別の PC へ渡し、受け取った側でファイルに戻す機能。クリップボードを共有できる環境 (リモートデスクトップなど)で、ファイルを運ぶために使う。サイドバーの CLI補助の下に出るページ 1 つ。`Plugins/MmmTool.ClipboardTransfer/`(Core 側は `Plugins/MmmTool.ClipboardTransfer.Core/`)。設定ページでオン・オフできる ([settings.md](settings.md))。
 
 ## データ
 - 保存するデータは無い (`Data/` にファイルを作らない)。ファイルの内容は、クリップボードのテキストにだけ載る

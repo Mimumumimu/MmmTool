@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.ClipboardTransfer.Main.ClipboardTransferPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Page.Resources>
+        <!-- 送信・受信のカード (リンクのページと同じ) -->
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="DropStates">
+                <VisualState x:Name="DropIdle" />
+                <VisualState x:Name="DropActive">
+                    <VisualState.Setters>
+                        <Setter Target="DropOutline.Stroke" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                        <Setter Target="DropOutline.Fill" Value="{ThemeResource SystemFillColorAttentionBackgroundBrush}" />
+                        <Setter Target="DropIcon.Foreground" Value="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="クリップボード転送" />
+
+        <!-- 進行・結果・エラー (処理のたびに、前の分は消える) -->
+        <StackPanel Grid.Row="1" Spacing="8">
+            <ProgressBar IsIndeterminate="True" Visibility="{x:Bind ViewModel.IsProcessing, Mode=OneWay}" />
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
+                Severity="Success"
+                Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}" />
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+                Severity="Error" />
+        </StackPanel>
+
+        <Grid Grid.Row="2" VerticalAlignment="Top" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 送信 -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon FontSize="16" Glyph="&#xE898;" />
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="送信" />
+                    </StackPanel>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="ファイルをクリップボードにコピーします。"
+                        TextWrapping="Wrap" />
+
+                    <!-- ドロップ領域 -->
+                    <Grid
+                        MinHeight="200"
+                        AllowDrop="True"
+                        Background="Transparent"
+                        DragEnter="OnDragEnter"
+                        DragLeave="OnDragLeave"
+                        DragOver="OnDragOver"
+                        Drop="OnDrop">
+                        <Rectangle
+                            x:Name="DropOutline"
+                            RadiusX="8"
+                            RadiusY="8"
+                            Stroke="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                            StrokeDashArray="4 3"
+                            StrokeThickness="1.5" />
+                        <StackPanel
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                            <FontIcon
+                                x:Name="DropIcon"
+                                FontSize="32"
+                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                Glyph="&#xE8E5;" />
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="ここにファイルをドロップ" />
+                            <Button
+                                HorizontalAlignment="Center"
+                                Command="{x:Bind ViewModel.SelectFilesCommand}"
+                                Content="ファイルを選択" />
+                        </StackPanel>
+                    </Grid>
+
+                </StackPanel>
+            </Border>
+
+            <!-- 受信 -->
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}">
+                <StackPanel Spacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon FontSize="16" Glyph="&#xE896;" />
+                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="受信" />
+                    </StackPanel>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="クリップボードのファイルを保存します。"
+                        TextWrapping="Wrap" />
+                    <Button
+                        Command="{x:Bind ViewModel.SaveFromClipboardCommand}"
+                        Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon FontSize="16" Glyph="&#xE74E;" />
+                            <TextBlock Text="クリップボードから保存" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Notifications;
 using MmmSdk.WinUI.Components.Notifications;
-using MmmTool.Core.Reminders;
-using MmmTool.Features.Reminders;
+using MmmTool.Reminders.Core;
+using MmmTool.Reminders;
 
 namespace MmmTool.Features.Debugging.Main;
 

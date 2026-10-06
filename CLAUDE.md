@@ -26,6 +26,8 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
 - 画面操作が必要な確認は、VS でユーザーに行ってもらう
 - 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
+- `MmmTool/bin/Release/publish/MmmTool_local/` は、ユーザーが普段使いしているローカル環境 (発行の出力 `bin/Release/publish/MmmTool_<版>/` をコピーして使っている。実行中のことがある。`Data/` に実データが入っている)。**この `MmmTool_local` だけは、削除・上書き・移動をしない** (ビルドのやり直しで `bin` を消すときも含む。`MmmTool_local` を残して消す)。それ以外の `bin` / `obj` / 発行の出力は、消してよい。削除の前に、`MmmTool_local` が対象に入っていないことを確かめる
+  - **Why:** `bin` を丸ごと消して、起動中の `MmmTool_local` の EXE・DLL・`Data/` の JSON が消え、戻せなかったことがある
 - 次のものは、ユーザーの決定で、意図した仕様。レビューや作業のまとめで、指摘・提案しない (理由は各決定記録)
   - 画像の添付と添付ファイルの大きさに、上限が無い ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
@@ -49,7 +51,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 無音ループ (無音の音を流し続けて、Bluetooth・USB の音声機器が眠って読み上げの頭が切れるのを防ぐ仕組み。旧アプリ MSchedule にはあった)。読み上げとは別の機能で、入れるかどうかはユーザーがまだ決めていない。実機で読み上げの頭が切れたときに、あらためて相談する
 
 ## 作業の注意 (要点。詳細は docs)
-- 機能の追加は、その機能のフォルダと `App.ConfigureServices` の 1 行 (`Add<機能>()`)で済む形を保つ。共通部分 (`Shell/`)は特定の機能を参照しない
-- UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。Core の機能別フォルダは、保存するデータが決まった機能から作る (空の置き場は作らない)
+- 機能の追加は、機能のライブラリ (`Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>()`)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない
+- UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。機能の `.Core`(`Plugins/MmmTool.<機能>.Core`)は、保存するデータが決まった機能から作る (空の置き場は作らない)
 - 終了の順序 (トレイアイコンを各機能の後始末のあとに消す)と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md`(「起動時の準備」)
 - VS で通知ダイアログを閉じると落ちるときは、VS の「XAML 診断」をオフにする (`docs/architecture.md` の「開発時の注意」)

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" />
+    <!--
+      CommunityToolkit.WinUI.Controls.Segmented は古い全部入りの Windows App SDK (1.6)に依存するため、アプリ本体と同じく、全部入りの新しい版を直接参照して版を合わせる。
+      使わない部品 (AI・ML・検索・ウィジェット)は、中身を使わない (アプリ本体の MmmTool.csproj と同じ指定)
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmmTool.Reminders.Core\MmmTool.Reminders.Core.csproj" />
+    <ProjectReference Include="..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
+  </ItemGroup>
+
+</Project>

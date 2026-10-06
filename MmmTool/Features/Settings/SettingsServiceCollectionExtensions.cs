@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using MmmSdk.WinUI.Components.Pages;
 using MmmTool.Features.Settings.Main;
-using MmmTool.Shell;
 
 namespace MmmTool.Features.Settings;
 

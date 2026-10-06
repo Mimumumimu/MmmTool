@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Logging;
 using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
@@ -9,13 +10,13 @@ using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
-using MmmTool.Features.Backlog;
-using MmmTool.Features.CliAssist;
-using MmmTool.Features.ClipboardTransfer;
+using MmmTool.Backlog;
+using MmmTool.CliAssist;
+using MmmTool.ClipboardTransfer;
 using MmmTool.Features.Debugging;
-using MmmTool.Features.Links;
-using MmmTool.Features.Reminders;
 using MmmTool.Features.Settings;
+using MmmTool.Links;
+using MmmTool.Reminders;
 using MmmTool.Shell;
 using MmmTool.Shell.Main;
 
@@ -75,11 +76,11 @@ public partial class App : Application
         services.AddShell();
 
         // 機能。登録した順に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目・起動時の準備が並ぶ
-        services.AddCliAssist();
-        services.AddClipboardTransfer();
-        services.AddReminders();
-        services.AddBacklog();
-        services.AddLinks();
+        services.AddFeaturePlugin<CliAssistPlugin>();
+        services.AddFeaturePlugin<ClipboardTransferPlugin>();
+        services.AddFeaturePlugin<RemindersPlugin>();
+        services.AddFeaturePlugin<BacklogPlugin>();
+        services.AddFeaturePlugin<LinksPlugin>();
         services.AddDebugging();
         services.AddSettings();
     }
@@ -101,7 +102,7 @@ public partial class App : Application
     /// <summary>Host を始めて、トレイと各機能を用意する</summary>
     /// <returns>起動の完了を表すタスク</returns>
     /// <remarks>
-    /// 読み込みの失敗など、起動を止めたくない例外は、各機能の起動時の準備 (<see cref="IStartupTask"/>)の中で受け止め、画面を開いたときに知らせる。
+    /// 読み込みの失敗など、起動を止めたくない例外は、各機能の起動時の準備 (<see cref="MmmSdk.Core.Components.Features.IStartupTask"/>)の中で受け止め、画面を開いたときに知らせる。
     /// ここまで届いた例外は、復旧できない失敗として <see cref="OnLaunched"/> が報告する。
     /// </remarks>
     private async Task StartAsync()

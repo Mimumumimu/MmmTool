@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Settings;
 
 namespace MmmTool.Shell;
@@ -12,14 +13,14 @@ namespace MmmTool.Shell;
 /// <remarks>
 /// 状態は設定ストアに、機能のキーごとに保存する。保存が無い機能はオン (機能を足しても、移行は要らない)。
 /// 切り替えはすぐ反映する。サイドバー・トレイ・設定ページは、<see cref="Changed"/> または <see cref="IsEnabled"/> で見る。
-/// 機能の登録 (<see cref="ShellServiceCollectionExtensions.AddFeature"/> 等)は各機能が行い、このクラスは特定の機能を知らない。
+/// 機能の登録 (<see cref="FeatureServiceCollectionExtensions.AddFeature"/> 等)は各機能が行い、このクラスは特定の機能を知らない。
 /// </remarks>
 public sealed class FeatureService(
     IEnumerable<FeatureInfo> features,
     IEnumerable<IFeatureDisableConfirmation> confirmations,
     IEnumerable<StartupTaskRegistration> startups,
     ISettingsStore settings,
-    IServiceProvider services)
+    IServiceProvider services) : IFeatureStatus
 {
     /// <summary>オン・オフを切り替えられる機能 (登録順)</summary>
     public IReadOnlyList<FeatureInfo> Features { get; } = [.. features];

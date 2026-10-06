@@ -3,7 +3,7 @@
     x:Class="MmmTool.Shell.Main.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:shell="using:MmmTool.Shell"
+    xmlns:pages="using:MmmSdk.WinUI.Components.Pages"
     Title="MmmTool">
 
     <Window.SystemBackdrop>
@@ -36,7 +36,7 @@
             SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}">
 
             <NavigationView.MenuItemTemplate>
-                <DataTemplate x:DataType="shell:NavigationItem">
+                <DataTemplate x:DataType="pages:NavigationItem">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <FontIcon FontSize="16" Glyph="{x:Bind Glyph}" />
                         <TextBlock VerticalAlignment="Center" Text="{x:Bind Title}" />

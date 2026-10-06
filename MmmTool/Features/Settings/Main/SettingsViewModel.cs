@@ -7,7 +7,7 @@ using MmmTool.Shell;
 namespace MmmTool.Features.Settings.Main;
 
 /// <summary>設定ページの ViewModel</summary>
-/// <remarks>各機能の設定の値と画面の状態は、機能ごとの部品 (<see cref="MmmTool.Shell.SettingsSection"/>)が持つ。ここは、ページ全体のこと (タイトル・設定ファイルを読めなかったときの知らせ・機能のオン・オフの一覧)だけ。</remarks>
+/// <remarks>各機能の設定の値と画面の状態は、機能ごとの部品 (<see cref="MmmSdk.WinUI.Components.Pages.SettingsSection"/>)が持つ。ここは、ページ全体のこと (タイトル・設定ファイルを読めなかったときの知らせ・機能のオン・オフの一覧)だけ。</remarks>
 public sealed class SettingsViewModel : ObservableObject
 {
     /// <summary>機能のオン・オフ</summary>

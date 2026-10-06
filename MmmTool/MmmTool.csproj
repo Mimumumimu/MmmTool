@@ -27,8 +27,6 @@
   <ItemGroup>
     <!-- アプリのアイコン (EXE に埋め込むほか、トレイ・ウィンドウのアイコンとして実行時にファイルから読む) -->
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
-    <!-- ターミナルの定型コマンドから呼ぶ補助スクリプト ({AppDir}\Assets\Tools\...)。出力フォルダへコピーする -->
-    <Content Include="Assets\Tools\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,9 +51,9 @@
     XAML は #if DEBUG で囲めないため、ここで外す。DI への登録 (DebuggingServiceCollectionExtensions)は #if DEBUG で何も登録しない。
   -->
   <ItemGroup Condition="'$(Configuration)' != 'Debug'">
-    <Page Remove="Features\Debugging\DebugPage.xaml" />
-    <Compile Remove="Features\Debugging\DebugPage.xaml.cs" />
-    <Compile Remove="Features\Debugging\DebugViewModel.cs" />
+    <Page Remove="Features\Debugging\Main\DebugPage.xaml" />
+    <Compile Remove="Features\Debugging\Main\DebugPage.xaml.cs" />
+    <Compile Remove="Features\Debugging\Main\DebugViewModel.cs" />
   </ItemGroup>
 
   <!--
@@ -84,7 +82,11 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MmmTool.Core\MmmTool.Core.csproj" />
+    <ProjectReference Include="..\Plugins\MmmTool.Links\MmmTool.Links.csproj" />
+    <ProjectReference Include="..\Plugins\MmmTool.Backlog\MmmTool.Backlog.csproj" />
+    <ProjectReference Include="..\Plugins\MmmTool.ClipboardTransfer\MmmTool.ClipboardTransfer.csproj" />
+    <ProjectReference Include="..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
+    <ProjectReference Include="..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
     <ProjectReference Include="..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 
@@ -291,7 +293,7 @@
         foreach (var file in Files)
         {
             var id = file.GetMetadata("NuGetPackageId");
-            // 自分のプロジェクト (MmmTool.Core・MmmSdk)もパッケージ名を持つが、ライセンスは LICENSE.txt なので含めない
+            // 自分のプロジェクト (機能のライブラリ・MmmSdk)もパッケージ名を持つが、ライセンスは LICENSE.txt なので含めない
             if (file.GetMetadata("ReferenceSourceTarget") == "ProjectReference") continue;
             if (id.Length > 0)
             {

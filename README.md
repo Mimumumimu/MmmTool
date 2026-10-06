@@ -366,13 +366,14 @@ git submodule update --remote external/MmmSdk
 
 | フォルダー | 内容 |
 | --- | --- |
-| `MmmTool.Core/` | UI に依存しない層 (`net10.0`)。機能ごとのフォルダー (`CliAssist/`・`Links/`・`Reminders/`)に、保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は各フォルダーの `Json/` に置く |
-| `MmmTool/Features/` | WinUI 3 アプリの機能ごとのフォルダー (`CliAssist/`・`Links/`・`Reminders/`・`Settings/`・`Debugging/`)。機能ごとに、直下に DI への登録・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダ (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
+| `Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Reminders` |
+| `Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダ (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
+| `MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`) |
 | `MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
-機能を足すときは、`MmmTool.Core/<機能>/` と `MmmTool/Features/<機能>/` を作り、`App.xaml.cs` で `Add<機能>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、各機能の `Add<機能>()` の中で登録します。
+機能を足すときは、`Plugins/MmmTool.<機能>.Core/` と `Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、機能の入口 (`<機能>Plugin.Register`)の中で登録します。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます。DEBUG ページはリマインダーを使うので、リマインダーを外すときは DEBUG ページも直します)。
 
 ## ドキュメント
 

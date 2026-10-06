@@ -3,7 +3,7 @@
 CLI補助の定型コマンド「会話履歴の削除」から呼ぶ補助スクリプト。画面・定型コマンドは [cli-assist.md](cli-assist.md)。ツールごとにスクリプトが 1 組 (`.ps1` と `.py`)あり、矢印キーで選ぶ画面は共通の部品を使う。
 - 共通の部品: `Assets/Tools/SessionMenu.ps1`(Windows)・`Assets/Tools/session_menu.py`(WSL)。矢印キーで選ぶ画面 (キーの読み取り・一覧の表示・番号入力への切り替え)。2 つは同じ操作にしている (直すときは両方を直す)。各スクリプトが読み込む (`.ps1` は dot-source、`.py` は `import`。Python は出力フォルダに `__pycache__` を作らない)。画面の流れ (プロジェクト選択 → セッション選択 → 確認・削除)は、データの持ち方がツールごとに違うので、各スクリプトに書く
 - `Assets/Tools/Remove-ClaudeSession.ps1`(Windows)・`Assets/Tools/Remove-ClaudeSession.py`(WSL)：Claude Code の会話履歴を矢印キーで選んでごみ箱へ送る (`~/.claude/projects` 配下の `.jsonl` が対象)。2 つは同じ流れ・同じ操作にしている (直すときは両方を直す)
-- 出力フォルダへコピーされ、定型コマンド「会話履歴の削除」 (シェル › Claude Code)から呼ぶ。Windows は `<シェル> -NoProfile -File "{AppDir}\Assets\Tools\Remove-ClaudeSession.ps1"`、WSL は `python3 "{AppDir}/Assets/Tools/Remove-ClaudeSession.py"`(`{AppDir}` は `/mnt/d/...` に展開される)
+- 出力フォルダ (`Assets\Tools\`。ソースは `Plugins/MmmTool.CliAssist/Tools/`)へコピーされ、定型コマンド「会話履歴の削除」 (シェル › Claude Code)から呼ぶ。Windows は `<シェル> -NoProfile -File "{AppDir}\Assets\Tools\Remove-ClaudeSession.ps1"`、WSL は `python3 "{AppDir}/Assets/Tools/Remove-ClaudeSession.py"`(`{AppDir}` は `/mnt/d/...` に展開される)
 - WSL 版 (Python 3)
   - WSL には Windows のごみ箱が無く、PowerShell 版を WSL の履歴 (`\\wsl.localhost\...`)に向けると、ネットワークのパスなので戻せない形で消えてしまうため、別に作った。Linux の標準のごみ箱 (freedesktop.org の Trash。`~/.local/share/Trash` の `files/` と `info/*.trashinfo`)へ移す。戻すときは、`files/` から元の場所 (`.trashinfo` の `Path`)へ移す (trash-cli の `trash-restore`・`gio trash --restore` でも戻せる)
   - Python 3 は Ubuntu に標準で入っている。キー入力は端末を raw モードにして読む (`termios`)。Ctrl+C もキーとして受け取る。Esc キー単独か、矢印などの続きかは、50ms 待って見分ける

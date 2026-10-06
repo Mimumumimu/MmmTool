@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml.Controls;
+using MmmSdk.WinUI.Components.Pages;
 
 namespace MmmTool.Shell.Main;
 
@@ -13,7 +14,7 @@ namespace MmmTool.Shell.Main;
 /// スコープごとに作るのは、捨てたページが持つ <c>IDisposable</c>(ターミナルのセッションなど)を、スコープの破棄で解放するため
 /// (ルートのプロバイダーから作ると、オン・オフのたびに増えて、Host の破棄まで残る)。残りのスコープは、この <c>Dispose</c>(Host の破棄)で破棄する。
 /// </remarks>
-public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureService features, IServiceScopeFactory scopeFactory) : IDisposable
+public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureService features, IServiceScopeFactory scopeFactory) : IPageCache, IDisposable
 {
     /// <summary>作ったページと、それを作ったスコープ (項目のキー → ページ・スコープ)</summary>
     private readonly Dictionary<string, (Page Page, IServiceScope Scope)> _cache = [];
@@ -40,9 +41,7 @@ public sealed class PageProvider(IEnumerable<NavigationPage> pages, FeatureServi
         return page;
     }
 
-    /// <summary>作ったことのあるページを取得する (作っていなければ作らない)</summary>
-    /// <typeparam name="TPage">ページの型</typeparam>
-    /// <returns>作ってあるページ。まだ作っていなければ null</returns>
+    /// <inheritdoc />
     public TPage? GetCreatedPage<TPage>()
         where TPage : Page
         => _cache.TryGetValue(typeof(TPage).Name, out var cached) ? cached.Page as TPage : null;

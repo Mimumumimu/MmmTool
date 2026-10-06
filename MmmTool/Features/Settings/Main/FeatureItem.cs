@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmTool.Shell;
+using MmmSdk.Core.Components.Features;
 
 namespace MmmTool.Features.Settings.Main;
 

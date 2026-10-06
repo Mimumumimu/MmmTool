@@ -1,6 +1,6 @@
 # リマインダー
 
-指定した日時 (または曜日・時刻)に通知し、今日の分を一覧して対応状態 (未・スヌーズ・完了)を管理する機能。データと監視、入力画面、一覧画面、メイン画面、設定 (スヌーズ間隔)からなる。`Features/Reminders/`(中は `Main/`・`Input/`・`List/` に分けている。Core 側は `MmmTool.Core/Reminders/`)。
+指定した日時 (または曜日・時刻)に通知し、今日の分を一覧して対応状態 (未・スヌーズ・完了)を管理する機能。データと監視、入力画面、一覧画面、メイン画面、設定 (スヌーズ間隔)からなる。`Plugins/MmmTool.Reminders/`(中は `Main/`・`Input/`・`List/` に分けている。Core 側は `Plugins/MmmTool.Reminders.Core/`)。
 
 ## データ
 - `Data/Reminders.json` / `Data/ReminderStates.json`：どちらも `{ "items": [...] }`(ラッパー型は `Json/ReminderFile.cs`・`Json/ReminderStateFile.cs` の internal)

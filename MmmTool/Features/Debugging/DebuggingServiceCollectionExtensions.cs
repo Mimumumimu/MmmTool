@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 #if DEBUG
+using MmmSdk.WinUI.Components.Pages;
 using MmmTool.Features.Debugging.Main;
-using MmmTool.Shell;
 #endif
 
 namespace MmmTool.Features.Debugging;
