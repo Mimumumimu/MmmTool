@@ -5,15 +5,26 @@ namespace MmmTool.Reminders.Core;
 /// <summary>
 /// リマインダー (本体・対応状態)を読み書きする。アプリ全体で 1 つ。
 /// </summary>
-/// <param name="repository">リマインダーの保存先</param>
 /// <remarks>
 /// 保存先 (<see cref="IReminderRepository"/>)の 1 件単位の操作に、業務の決まり (論理削除・物理削除・今日の対象の組み立て)を載せる。
 /// 一覧は持たず、そのつど保存先から読む (番号の採番・排他・読み込みの失敗の扱いは保存先の仕事)。
 /// </remarks>
-public sealed class ReminderService(IReminderRepository repository)
+public sealed class ReminderService
 {
+    /// <summary>リマインダーの保存先</summary>
+    private readonly IReminderRepository _repository;
+
     /// <summary>時刻が正しくないリマインダーがあるときの警告。無ければ null</summary>
     private volatile string? _timeWarning;
+
+    /// <summary>リマインダー (本体・対応状態)を読み書きするサービスを作る</summary>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <remarks>保存先の外での変更 (<see cref="IReminderRepository.ExternalChanged"/>)も、<see cref="Changed"/> として知らせる。</remarks>
+    public ReminderService(IReminderRepository repository)
+    {
+        _repository = repository;
+        _repository.ExternalChanged += (_, _) => Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>本体・状態のどちらかが変わった</summary>
     /// <remarks>保存したスレッドから発火する (任意のスレッドになりうる)。UI スレッドへの切り替えは受け取る側で行う。</remarks>
@@ -21,11 +32,19 @@ public sealed class ReminderService(IReminderRepository repository)
 
     /// <summary>ファイルを読めなかったときのメッセージ。正常なら null。</summary>
     /// <remarks>ロック・権限などで読めなかったとき (最初に読んだあとに分かる)。元のファイルを上書きで消さないよう、このときは保存を止める (保存しようとすると例外)。</remarks>
-    public string? LoadError => repository.LoadError;
+    public string? LoadError => _repository.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。通常は null。</summary>
     /// <remarks>最初に読んだあとに分かる。</remarks>
-    public string? RecoveryMessage => repository.RecoveryMessage;
+    public string? RecoveryMessage => _repository.RecoveryMessage;
+
+    /// <summary>今のユーザーの番号。ローカルモードは 0</summary>
+    /// <remarks>一覧で、削除の操作を出すか (作成者だけができる: <see cref="Reminder.CreatedByUserId"/>)を判断するために使う。</remarks>
+    public int CurrentUserId => _repository.CurrentUserId;
+
+    /// <summary>完全削除ができるか (DB モードではできない)</summary>
+    /// <remarks>false のとき、画面は、完全削除の操作を出さない。</remarks>
+    public bool CanPurge => _repository.CanPurge;
 
     /// <summary>時刻が正しくないリマインダーがあるときの警告 (番号つき)。無ければ null。</summary>
     /// <remarks>
@@ -40,7 +59,7 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <returns>リマインダー本体の一覧</returns>
     public async Task<IReadOnlyList<Reminder>> GetRemindersAsync(bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
-        var reminders = await repository.GetRemindersAsync(includeDeleted, cancellationToken);
+        var reminders = await _repository.GetRemindersAsync(includeDeleted, cancellationToken);
         UpdateTimeWarning(reminders);
         return reminders;
     }
@@ -52,17 +71,20 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <remarks>画面 (メイン画面)と通知 (<see cref="ReminderMonitor"/>)が同じ内容を見るよう、「今日の状態」の組み立てはここだけで行う。</remarks>
     public async Task<IReadOnlyList<ReminderTarget>> GetTargetsAsync(DateTime now, CancellationToken cancellationToken = default)
     {
-        var reminders = await repository.GetRemindersAsync(includeDeleted: false, cancellationToken);
-        var states = await repository.GetStatesAsync(cancellationToken);
+        var reminders = await _repository.GetRemindersAsync(includeDeleted: false, cancellationToken);
+        var states = await _repository.GetStatesAsync(cancellationToken);
         UpdateTimeWarning(reminders);
 
         var today = DateOnly.FromDateTime(now);
         var todayValue = ReminderDates.ToDateValue(now);
+        var currentUserId = _repository.CurrentUserId;
         var statuses = states
             .Where(state => state.Date == todayValue)
             .GroupBy(state => state.BaseNo)
             .ToDictionary(group => group.Key, group => group.Last().Status);
         return [.. reminders
+            // 通知・今日のリマインダーの対象は、宛先が自分と全員宛てだけ (自分が作成した他人宛ては、一覧には出るが、対象にしない)
+            .Where(reminder => reminder.TargetUserId == 0 || reminder.TargetUserId == currentUserId)
             .Where(reminder => ReminderDates.ToTime(reminder.Time) is not null && ReminderDates.OccursOn(reminder, today))
             .OrderBy(reminder => reminder.Time)
             .ThenBy(reminder => reminder.No)
@@ -84,12 +106,12 @@ public sealed class ReminderService(IReminderRepository repository)
         Reminder saved;
         if (reminder.No == 0)
         {
-            saved = await repository.AddAsync(reminder with { IsDeleted = false }, cancellationToken);
+            saved = await _repository.AddAsync(reminder with { IsDeleted = false }, cancellationToken);
         }
         else
         {
             saved = reminder with { IsDeleted = false };
-            if (!await repository.UpdateAsync(saved, cancellationToken))
+            if (!await _repository.UpdateAsync(saved, cancellationToken))
             {
                 throw new ArgumentException($"番号 {reminder.No} のリマインダーがありません。", nameof(reminder));
             }
@@ -106,7 +128,7 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public async Task<bool> DeleteAsync(int no, CancellationToken cancellationToken = default)
     {
-        var found = await repository.SetDeletedAsync(no, isDeleted: true, cancellationToken);
+        var found = await _repository.SetDeletedAsync(no, isDeleted: true, cancellationToken);
         if (found)
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -122,7 +144,7 @@ public sealed class ReminderService(IReminderRepository repository)
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     public async Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
     {
-        var purged = await repository.PurgeAsync(no, cancellationToken);
+        var purged = await _repository.PurgeAsync(no, cancellationToken);
         if (purged)
         {
             Changed?.Invoke(this, EventArgs.Empty);
@@ -143,7 +165,7 @@ public sealed class ReminderService(IReminderRepository repository)
             return;
         }
 
-        await repository.SetStatesAsync(changes, cancellationToken);
+        await _repository.SetStatesAsync(changes, cancellationToken);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 

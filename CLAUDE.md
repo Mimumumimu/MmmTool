@@ -16,7 +16,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## ドキュメント
 - `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・エラーの扱い・C# の書き方・開発時の注意)と、その決定の理由
 - `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
-- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
+- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `database.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
 - 決定の理由 (なぜそう決めたか)は、その決定を説明する文書の末尾の「決定の理由」見出しに書く (機能の決定は `docs/specs/<機能>.md`、全体構成は `docs/architecture.md`、配布・ビルドは `docs/build-and-distribution.md`、SDK の決定は SDK の `docs/`)。決定記録だけを集めたフォルダは作らない (機能の説明と理由を、別の場所に分けないため)。大きな決定をしたら、該当する文書の見出しに足す
 - `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md` / `speech.md` / `db-sqlserver.md`)
 
@@ -35,6 +35,8 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
   - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「決定の理由」)
+  - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、MAC によるユーザーの特定など)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
+  - DB のコードを、機能ごとではなく 1 か所 (`MmmTool.Data` と `MmmTool.Data.<種類>`)に集める。`MmmTool.Data` が複数の機能の Core を参照する。DB の行のクラスと、アプリの型 (`Reminder` など)が別 ([docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」)
   - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
 - コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えはしない。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (master)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
   - **ローカル (ユーザーの PC の Claude Code。CLI・デスクトップアプリ・IDE)**: コミット・push は、ユーザーが指示したときだけ行う (共通ルール)。指示されたら、**master に直接コミット・push してよい**(作業用ブランチ・PR は作らない)
@@ -45,6 +47,16 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## 未実装・残りの作業
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く (実装したら消し、説明は docs に移す)。
+
+### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
+実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)は実装済みで、残りは画面。
+- リマインダー入力画面に、宛先の選択 (DB モードだけ。`Reminder.TargetUserId` は実装済み)。作るときにユーザーと決める点: 宛先に、自分・全員のほか、他のユーザーも選べるか (選んでも、作成者には一覧に出る。通知は宛先の人だけ。[database.md](docs/specs/database.md) の「見え方」)
+- 一覧・メイン画面の、DB モードでの出し分け (作るときにユーザーと決める): 完全削除の操作を出さない (`ReminderService.CanPurge` が false)。削除の操作は、作成者だけに出す (`Reminder.CreatedByUserId` と `ReminderService.CurrentUserId` を比べる)
+- 設定ページに、保存先 (ローカル / DB)と接続の設定 (`DatabaseSettingsService` は実装済み)を足す。設定値が無い初回だけ、起動時に保存先を選ぶ画面を出す (`DatabaseStartup` の前、リマインダーの保存先を使う前に出す。画面の部品は、作るときにユーザーと決める)
+- この PC の MAC が、削除済み・使える期間の外 (`ValidTo` を過ぎた)のユーザーの行にあるとき、特定されず、MAC の一意制約で、再登録もできない (DB を手で直すしかない)。再登録の扱い (たとえば、削除済みの行の復活)を、ユーザーと決める
+- DB のバックアップの計画 (今は一度も取っていない。復旧モデルは単純なので、全体のバックアップを定期的に取る形を、ユーザーと相談する)
+- 接続用のパスワード (検証用に簡単なもの)を、本番用に替えるか (`ALTER LOGIN [MmmTool] WITH PASSWORD = N'新しいもの'`。アプリの設定画面で入れ直す)
+- 方向だけ決めている後回し: ユーザーごとの設定を DB に置くときは、縦持ち (`(UserId, SettingKey)` の主キー・キーは `Reminder.SnoozeIntervalMinutes` のような文字列・値は JSON)にし、`ISettingsStore` と同じ形で読み書きする
 
 ### ユーザーが用意するもの待ち
 - README.md の画像 (制約: 画像はユーザーが用意する。リンクの中身などがまだ決まっておらず、撮れない)。届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える (CLI補助の `cli-assist.jpg` と同じ形): リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`・通知ダイアログ `notification.png`・リマインダーのメイン画面 `reminders.png`

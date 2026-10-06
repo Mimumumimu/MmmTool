@@ -51,6 +51,19 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Data/">
+    <Project Path="Data/MmmTool.Data/MmmTool.Data.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/MmmSdk/">
     <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
       <Platform Project="x64" />

@@ -87,6 +87,7 @@
     <ProjectReference Include="..\Plugins\MmmTool.ClipboardTransfer\MmmTool.ClipboardTransfer.csproj" />
     <ProjectReference Include="..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
+    <ProjectReference Include="..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
     <ProjectReference Include="..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 
@@ -152,6 +153,15 @@
     </ItemGroup>
   </Target>
   <!--
+    パッケージの言語別リソース (日本語などの衛星アセンブリ。例: ja\Microsoft.Data.SqlClient.resources.dll)も、EXE の横の言語フォルダーではなく Lib の中 (Lib\ja\)に置く。
+    deps.json の resources の項目にも localPath を書く (下の MoveReferencesToLib が _FilesInLib に集める)。.NET はそれを見て Lib\ja\ から読む。
+  -->
+  <Target Name="MoveSatellitesToLib" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <ResourceCopyLocalItems DestinationSubDirectory="$(PackageFilesFolder)\%(ResourceCopyLocalItems.DestinationSubDirectory)" DestinationSubPath="$(PackageFilesFolder)\%(ResourceCopyLocalItems.DestinationSubPath)" />
+    </ItemGroup>
+  </Target>
+  <!--
     パッケージ以外の参照 (自分のプロジェクト・Windows SDK・WinRT・WebView2 の参照用)も Lib に置く。プロジェクトの .pri など、付随するファイルも一緒に移る。
     Microsoft.Web.WebView2.Core.dll は EXE の横に残す (deps.json に載らないネイティブの部品で、WinUI の WebView2 が EXE のフォルダーから読むため)。
   -->
@@ -168,6 +178,7 @@
       <ReferenceCopyLocalPaths DestinationSubDirectory="$(PackageFilesFolder)\"
                                Condition="'%(ReferenceCopyLocalPaths.DestinationSubDirectory)' == '' and '%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)' != 'Microsoft.Web.WebView2.Core.dll'" />
       <_FilesInLib Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.DestinationSubDirectory)' == '$(PackageFilesFolder)\' and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
+      <_FilesInLib Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.DestinationSubDirectory)' != '$(PackageFilesFolder)\' and $([System.String]::Copy('%(ReferenceCopyLocalPaths.DestinationSubDirectory)').StartsWith('$(PackageFilesFolder)\')) and '%(ReferenceCopyLocalPaths.Extension)' == '.dll'" />
     </ItemGroup>
   </Target>
   <Target Name="AddLocalPathToBuildDepsFile" AfterTargets="CopyFilesToOutputDirectory">

@@ -40,6 +40,22 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     public string? RecoveryMessage => _status.RecoveryMessage;
 
     /// <inheritdoc />
+    /// <remarks>JSON は 1 人用なので、0。</remarks>
+    public int CurrentUserId => 0;
+
+    /// <inheritdoc />
+    /// <remarks>JSON は、完全削除ができる。</remarks>
+    public bool CanPurge => true;
+
+    /// <inheritdoc />
+    /// <remarks>JSON は 1 つの PC だけの保存先なので、発火しない。</remarks>
+    public event EventHandler? ExternalChanged
+    {
+        add { }
+        remove { }
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Reminder>> GetRemindersAsync(bool includeDeleted, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);

@@ -21,6 +21,24 @@ public interface IReminderRepository
     /// <remarks>ファイルを使わない保存先は、常に null。</remarks>
     string? RecoveryMessage { get; }
 
+    /// <summary>今のユーザーの番号 (<c>AppUser.Id</c>)。ローカルモードは 0</summary>
+    /// <remarks>
+    /// 通知・今日のリマインダーの対象 (宛先が自分と全員宛て)を決めるために使う。一覧に出るのは、これに加えて、自分が作成したもの
+    /// (<see cref="Reminder.CreatedByUserId"/>)。まだ特定していないときも 0。
+    /// </remarks>
+    int CurrentUserId { get; }
+
+    /// <summary>完全削除 (<see cref="PurgeAsync"/>)ができるか</summary>
+    /// <remarks>JSON は true。DB は、行を消さない方針なので false (<see cref="PurgeAsync"/> は <see cref="NotSupportedException"/>)。画面は、false のときは、完全削除の操作を出さない。</remarks>
+    bool CanPurge { get; }
+
+    /// <summary>このアプリの外 (ほかの PC など)で、保存先の内容が変わった</summary>
+    /// <remarks>
+    /// このアプリ自身の書き込みでは発火しない (それは <see cref="ReminderService.Changed"/> が知らせる)。ほかの PC と共有する保存先 (DB)だけが発火し、
+    /// JSON のように 1 つの PC だけの保存先は発火しない。任意のスレッドから発火する。
+    /// </remarks>
+    event EventHandler? ExternalChanged;
+
     /// <summary>リマインダー本体の一覧を取得する</summary>
     /// <param name="includeDeleted">論理削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -65,6 +83,7 @@ public interface IReminderRepository
     /// ファイルへの保存は、状態のファイルを先に書く (途中で失敗しても、状態が残るだけの側に倒す。本体が残って状態だけ消えるのは、未対応に戻るだけで害が小さい)。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <exception cref="NotSupportedException">完全削除ができない保存先 (<see cref="CanPurge"/> が false)。呼ぶ側のバグ。</exception>
     Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default);
 
     /// <summary>対応状態をまとめて保存する</summary>

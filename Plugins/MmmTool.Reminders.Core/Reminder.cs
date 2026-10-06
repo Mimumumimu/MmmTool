@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace MmmTool.Reminders.Core;
 
 /// <summary>リマインダー 1 件 (本体)</summary>
@@ -38,4 +40,19 @@ public sealed record Reminder
     /// <summary>通知のときに読み上げるか</summary>
     /// <remarks>既存のデータ (この項目が無い JSON)は false (読み上げない)で読み込む。</remarks>
     public bool IsSpeak { get; init; }
+
+    /// <summary>宛先のユーザー (<c>AppUser.Id</c>)。0 は全員宛て</summary>
+    /// <remarks>
+    /// DB モードだけで使う。ローカルモードでは常に 0 で、JSON には書かない (この項目が無い既存の JSON は 0 で読み込む)。
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int TargetUserId { get; init; }
+
+    /// <summary>作成者のユーザー (<c>AppUser.Id</c>)。0 は作成者を持たない (ローカルモード)</summary>
+    /// <remarks>
+    /// DB モードだけで使い、DB が持つ値を読むだけ (作成するときに、保存先が今のユーザーを入れる。更新では変えない)。ローカルモードでは常に 0 で、JSON には書かない。
+    /// 削除できるのは、作成者だけ (一覧で、削除の操作を出すかどうかの判断に使う)。
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int CreatedByUserId { get; init; }
 }

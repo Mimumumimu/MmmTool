@@ -5,7 +5,7 @@
 ## データ
 - `Data/Reminders.json` / `Data/ReminderStates.json`：どちらも `{ "items": [...] }`(ラッパー型は `Json/ReminderFile.cs`・`Json/ReminderStateFile.cs` の internal)
 - `Reminder`(record。複製しやすいため)
-  - `No`(番号。登録順の一意の連番で、状態の `BaseNo` が指すキー。0 は未採番)・`IsDeleted`・`Date`(yyyyMMdd。曜日指定は `NoDate` = 99999999)・`Time`(HHmm)・`Weekdays`・`Title`・`Note`・`Link`・`IsSpeak`(通知のときに読み上げるか。この項目が無い既存の JSON は false)
+  - `No`(番号。登録順の一意の連番で、状態の `BaseNo` が指すキー。0 は未採番)・`IsDeleted`・`Date`(yyyyMMdd。曜日指定は `NoDate` = 99999999)・`Time`(HHmm)・`Weekdays`・`Title`・`Note`・`Link`・`IsSpeak`(通知のときに読み上げるか。この項目が無い既存の JSON は false)・`TargetUserId`(宛先のユーザー番号。0 は全員宛て。DB モードだけで使い、ローカルモードでは常に 0。0 のときは JSON に書かず (`Reminder` に `[JsonIgnore(WhenWritingDefault)]` を付けている。ローカルモードの既存の JSON を、変えないため)、この項目が無い既存の JSON は 0 で読み込む)
 - 値は作ったあとに書き換えず、`with` で新しく作る (`init`)。`ReminderState`：`Seq`・`BaseNo`・`Date`・`Status`
 - `Weekdays` は `[Flags]`(月 = 1 … 日 = 64)、`ReminderStatus` は None = 0 / Done = 1 / Snooze = 2。JSON には数値で入る
 - 変換は `ReminderDates`(`DateOnly` / `TimeOnly` / `DayOfWeek` との相互変換、`ToJapanese` で「月火水」、`DescribeWeekdays` で画面に出す曜日の文字列＝曜日が 1 つも無ければ「毎日」)
@@ -16,6 +16,8 @@
 - 番号 (`Reminder.No`)と対応状態の連番 (`ReminderState.Seq`)は、保存先が決める (`AddAsync` は `No` を無視し、番号つきの内容を返す)。JSON は、ロックの中で「最大 + 1」を計算する。SQL Server は IDENTITY かトランザクション内の最大 + 1 (一意制約と再試行)、DynamoDB はカウンター項目の原子的な加算。型は `int` のまま (人が登録する件数で、`int` の範囲を超えないため。DB 側も `int` の IDENTITY で足りる)
 - `PurgeAsync` は対応状態も一緒に消す。残すと、最大の番号を消したあとの新規作成で同じ番号が採番されたとき、前の状態を引き継ぐため。JSON は状態のファイルを先に書く (途中で失敗しても、状態が残るだけの側に倒す)
 - 読み書きはスレッドセーフ。返す値は `init` の record なので、複製しない
+- 今のユーザーの番号 (`CurrentUserId`。ローカルモードは 0)と、完全削除ができるか (`CanPurge`。JSON は true、DB は false。false のとき `PurgeAsync` は `NotSupportedException`で、画面は、完全削除の操作を出さない)を持つ。`ReminderService.GetTargetsAsync` (通知・今日の対象)は、宛先が 0 (全員宛て)か自分のものだけに絞る。一覧 (`GetRemindersAsync`)は、保存先が見せるものを、そのまま返す (DB は、自分が作成したほかの人宛てを含む)
+- 保存先の外での変更 (ほかの PC など)は、`ExternalChanged` で知らせる。`ReminderService` が受けて、自分の書き込みと同じ `Changed` として画面・監視に伝える。JSON は 1 つの PC だけなので、発火しない。DB (SQL Server)の保存先の動きは [database.md](database.md) の「Repository の動き」
 - JSON 実装 (`JsonReminderRepository`): 最初のアクセスで両ファイルを読んでメモリに持ち、`SemaphoreSlim` で順番に読み書きする。書き込みは、変更後のコピーをファイルに書き、成功してからメモリを差し替える (保存に失敗しても、メモリだけが新しい状態にならない)
 - IO エラーで読めなかったときは、空として扱い `LoadError` に残す。書き込みは `DataFileException`(元データを消さないため)。読み込み結果は SDK の `LoadStatus` で持つ (ファイル固有の仕組みなので、保存先の中に閉じる。ファイルを使わない保存先は、`LoadError` / `RecoveryMessage` を常に null にする)
 
@@ -65,6 +67,7 @@
   - 区画は枠・消去ボタンを持たない最小テンプレートの `TextBox`。外側の枠が、標準の入力欄の見た目 (ポインタ上・フォーカス中の背景とアクセントの下線)を受け持つ
 - 日付は `CalendarDatePicker`(選択中の日付を押して空になったら元に戻す)
 - 件名は前後の空白を除いて、空ならエラー (件名欄の下に赤字。件名を変えたら消す)
+- 文字数の上限は、件名 200・備考 1,000・リンク 2,000 (`ReminderLimits`。`TextBox.MaxLength`)。上限に達すると、それ以上は入力できない (メッセージは出さない)。数え方は UTF-16 の 1 単位 (絵文字は 2)で、DB の列の長さ ([database.md](database.md))と同じ。上限は、保存先 (JSON・DB)に関係なく付ける
 - 保存の失敗 (読み込み失敗中・IO エラー・編集中に対象が完全削除)は、上部の InfoBar で知らせて閉じない
 - 「通知を読み上げる」の `ToggleSwitch` を、リンクの下に置く (「日付を指定する」と同じ作り)。読み上げの内容と回数は、上の「監視」
 - IME：件名・備考はフォーカスでオン、リンクはオフ (SDK の `ImeControl.TurnOn/TurnOff`)

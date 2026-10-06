@@ -13,8 +13,10 @@ using MmmSdk.WinUI.Utilities;
 using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
+using MmmTool.Data.SqlServer;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Settings;
+using MmmTool.Features.Users;
 using MmmTool.Links;
 using MmmTool.Reminders;
 using MmmTool.Shell;
@@ -75,12 +77,19 @@ public partial class App : Application
         // 画面の枠 (メインウィンドウ・サイドバー・トレイ)
         services.AddShell();
 
+        // ユーザーの特定 (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
+        services.AddUserRegistration();
+
         // 機能。登録した順に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目・起動時の準備が並ぶ
         services.AddFeaturePlugin<CliAssistPlugin>();
         services.AddFeaturePlugin<ClipboardTransferPlugin>();
         services.AddFeaturePlugin<RemindersPlugin>();
         services.AddFeaturePlugin<BacklogPlugin>();
         services.AddFeaturePlugin<LinksPlugin>();
+
+        // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
+        services.AddSqlServerData();
+
         services.AddDebugging();
         services.AddSettings();
     }
@@ -124,6 +133,9 @@ public partial class App : Application
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();
+
+        // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
+        await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync();
     }
 
     /// <summary>アプリを完全に終了する (トレイメニューの「終了」から)。</summary>

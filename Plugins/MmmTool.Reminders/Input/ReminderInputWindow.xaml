@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MmmSdk.WinUI.Controls"
+    xmlns:core="using:MmmTool.Reminders.Core"
     xmlns:local="using:MmmTool.Reminders.Input"
     Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}">
 
@@ -42,6 +43,7 @@
                     x:Name="TitleBox"
                     GotFocus="OnJapaneseBoxGotFocus"
                     Header="件名"
+                    MaxLength="{x:Bind core:ReminderLimits.TitleMaxLength}"
                     Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock
                     MinHeight="16"
@@ -100,12 +102,14 @@
             <TextBox
                 GotFocus="OnJapaneseBoxGotFocus"
                 Header="備考"
+                MaxLength="{x:Bind core:ReminderLimits.NoteMaxLength}"
                 Text="{x:Bind ViewModel.Note, Mode=TwoWay}" />
 
             <TextBox
                 GotFocus="OnLinkBoxGotFocus"
                 Header="リンク"
                 InputScope="Url"
+                MaxLength="{x:Bind core:ReminderLimits.LinkMaxLength}"
                 PlaceholderText="URL / ファイル / フォルダーのパス"
                 Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
 

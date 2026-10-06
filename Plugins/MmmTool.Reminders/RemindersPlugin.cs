@@ -15,11 +15,12 @@ namespace MmmTool.Reminders;
 public sealed class RemindersPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存先は JSON (将来 DB に替える可能性がある。替えるときは「保存先」の行だけを差し替える)。</remarks>
+    /// <remarks>保存先は JSON。設定が DB のときだけ、ホストが、登録のあとで SQL Server の保存先に置き換える (<c>MmmTool.Data.SqlServer</c>)。</remarks>
     public void Register(IServiceCollection services)
     {
-        // 保存先
-        services.AddSingleton<IReminderRepository, JsonReminderRepository>();
+        // 保存先 (JSON。DB に置き換えるために、実体の型でも取り出せるようにする)
+        services.AddSingleton<JsonReminderRepository>();
+        services.AddSingleton<IReminderRepository>(provider => provider.GetRequiredService<JsonReminderRepository>());
 
         // 変更の通知 (Changed)を各画面と時刻監視で共有するため、アプリ全体で 1 つ。監視は Host の破棄時に止まる
         services.AddSingleton<ReminderService>();
