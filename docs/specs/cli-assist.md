@@ -44,6 +44,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   | --- | --- | --- | --- |
   | 起動 | `claude` | `kiro-cli chat` | |
   | 続きから再開 | `claude --continue` | `kiro-cli chat --resume` | |
+  | 履歴から選んで再開 | `claude --resume` | `kiro-cli chat --resume-picker` | 会話の一覧から矢印キーで選ぶ画面が開く (引数なしの `--resume` / `--resume-picker`)。選ぶ操作のため、送信後はターミナルへフォーカスを移す。Kiro の `--list-sessions` は一覧を表示するだけで選べないので使わない |
   | 最新化 | `claude update` | `kiro-cli update` | |
   | 会話履歴の削除 | 補助スクリプト `Remove-ClaudeSession` ([cli-history-cleanup.md](cli-history-cleanup.md)) | 補助スクリプト `Remove-KiroSession` ([cli-history-cleanup.md](cli-history-cleanup.md)) | Kiro は履歴を 1 つの SQLite (`~/.kiro/`)に持つので、ごみ箱へは送らず、公式コマンドで消す (戻せない) |
   | 新規チャット | `/clear` | `/chat new` | Kiro の `/clear` は同じ会話のまま中身を消すだけなので使わない |
@@ -55,8 +56,8 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   | コスト確認 / 使用量の確認 | `/cost` | `/usage` | Kiro は料金・残りクレジットを出す |
   | 終了 | `/exit` | `/quit` | |
 - 葉のコマンドの設定 (値は列挙型 `CommandCategory` / `FocusTarget`(Core)に変換する。`CliCommandNode.GetSwitchTo()` / `GetFocus()`。手で編集した JSON なので、大文字小文字は区別せず、知らない値は読み込みでは無視する。ただし、書き間違いに気づけるよう、読み込んだあとに `CliCommandSet.Validate()` で調べ、誤りを画面の警告 (InfoBar)に出す)
-  - `"switchTo": "shell" | "session"`：送信後にそのタブへ切り替える。既定では「起動」「続きから再開」→ AI セッション、「終了」→ シェル
-  - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先 (input = 送信欄)。既定では、起動・新規チャット → input、モデル切替・会話履歴と再開 → terminal (一覧から選ぶ操作でキーを使うため)
+  - `"switchTo": "shell" | "session"`：送信後にそのタブへ切り替える。既定では「起動」「続きから再開」「履歴から選んで再開」→ AI セッション、「終了」→ シェル
+  - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先 (input = 送信欄)。既定では、起動・新規チャット → input、履歴から選んで再開・モデル切替・会話履歴と再開 → terminal (一覧から選ぶ操作でキーを使うため)
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する (`CommandPlaceholders`)
 - 既定のコマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない (無いときだけ生成)。反映するには「定型コマンドを初期化…」を選ぶ (上の「初期設定 (使うツール・環境)」)
 - 既定のコマンドの定義はアプリ側 (`Features/CliAssist/CliCommandDefaults`)にあり、Core の `JsonCliCommandRepository` には「既定を作る処理」 (初回の初期設定ダイアログを開いてから、その既定を作る。非同期)を DI で渡す (Core がアプリの配置と画面を知らないようにするため)。Windows では、補助スクリプトを動かすシェルを、ターミナルで使うシェル (`ShellLocator.Default`)に合わせる (pwsh が無い環境でも動く)

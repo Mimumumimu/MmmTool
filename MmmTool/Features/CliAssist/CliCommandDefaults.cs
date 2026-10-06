@@ -42,6 +42,8 @@ public static class CliCommandDefaults
         CliTool.Kiro => Group("Kiro",
             Leaf("起動", "kiro-cli chat", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             Leaf("続きから再開", "kiro-cli chat --resume", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
+            // 会話の一覧から矢印キーで選ぶ画面を開くので、キー操作できるようターミナルへ
+            Leaf("履歴から選んで再開", "kiro-cli chat --resume-picker", switchTo: CommandCategory.Session, focus: FocusTarget.Terminal),
             Leaf("最新化", "kiro-cli update"),
             // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
             Leaf("会話履歴の削除", RemoveSessionCommand("Remove-KiroSession", environment), focus: FocusTarget.Terminal)),
@@ -50,6 +52,8 @@ public static class CliCommandDefaults
             Leaf("起動", "claude", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             // 直前の会話を引き継いで起動するので、起動と同じく AI セッションのタブ・送信欄へ
             Leaf("続きから再開", "claude --continue", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
+            // 引数なしの --resume は、会話の一覧から選ぶ画面を開くので、キー操作できるようターミナルへ
+            Leaf("履歴から選んで再開", "claude --resume", switchTo: CommandCategory.Session, focus: FocusTarget.Terminal),
             Leaf("最新化", "claude update"),
             // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
             Leaf("会話履歴の削除", RemoveSessionCommand("Remove-ClaudeSession", environment), focus: FocusTarget.Terminal)),

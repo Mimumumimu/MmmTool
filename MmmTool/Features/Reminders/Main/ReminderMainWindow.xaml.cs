@@ -1,8 +1,9 @@
 using Microsoft.UI;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MmmSdk.Core.Components.WindowPositions;
+using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Core.Reminders;
 using MmmTool.Shell;
@@ -13,8 +14,8 @@ namespace MmmTool.Features.Reminders.Main;
 /// <summary>リマインダーのメイン画面</summary>
 /// <remarks>
 /// トレイメニュー・通知から開く普通のウィンドウ (モーダルではない)。アプリ内で 1 枚だけで、開いていれば前面に出す (<see cref="ReminderWindowService"/>)。
-/// 閉じたら破棄する (閉じたウィンドウは再表示できないため、次は作り直す)。大きさは変えられるが保存はせず、開くたびに最初の大きさに戻る。
-/// 最大化・最小化はできない。タイトル帯をドラッグして移動できる。
+/// 閉じたら破棄する (閉じたウィンドウは再表示できないため、次は作り直す)。位置と大きさは SDK の <see cref="WindowBoundsKeeper"/> が保存し、次に開くとき復元する。
+/// 保存が無い・画面外のときは、最初の大きさで主モニターの作業領域の右下に出す。最大化・最小化はできない。タイトル帯をドラッグして移動できる。
 /// </remarks>
 public sealed partial class ReminderMainWindow : Window
 {
@@ -27,35 +28,37 @@ public sealed partial class ReminderMainWindow : Window
     /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 320;
 
+    /// <summary>ウィンドウの位置と大きさの保存・復元</summary>
+    private readonly IWindowPositionService _positions;
+
     /// <summary>ウィンドウの ViewModel</summary>
     public ReminderMainViewModel ViewModel { get; }
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    public ReminderMainWindow(ReminderMainViewModel viewModel)
+    /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
+    public ReminderMainWindow(ReminderMainViewModel viewModel, IWindowPositionService positions)
     {
         ViewModel = viewModel;
+        _positions = positions;
         InitializeComponent();
 
         this.UseCustomTitleBar(TitleBarArea, AppIcon.FilePath);
         Closed += (_, _) => ViewModel.Dispose();
     }
 
-    /// <summary>読み込んでから、主モニターの作業領域の中央に表示する</summary>
+    /// <summary>読み込んでから、前回の位置と大きさで表示する</summary>
     /// <returns>読み込みと表示の完了を表すタスク</returns>
     public async Task ShowAsync()
     {
         // 空の画面が一瞬見えないよう、読み込んでから出す
         await ViewModel.InitializeAsync();
 
-        // 大きさを決める倍率は、置くモニターのものを使うため、先にそのモニターへ移す
-        var workArea = DisplayArea.Primary.WorkArea;
-        AppWindow.Move(new PointInt32(workArea.X, workArea.Y));
+        // 最小の大きさの倍率は、置くモニターのものを使うため、位置を復元してから求める
+        WindowBoundsKeeper.Attach(this, _positions, "ReminderMainWindow", InitialWidth, InitialHeight, DefaultWindowPlacement.PrimaryBottomRight);
         var scale = this.GetDpiScale();
 
         this.UseFixedPresenter(isDialog: false, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)));
-        this.ResizeClientDip(InitialWidth, InitialHeight, scale);
-        this.MoveCentered(workArea);
         Activate();
     }
 
