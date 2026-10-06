@@ -21,7 +21,7 @@ public sealed class CliSetupDialogService(IServiceProvider services, IDialogHost
     private CliSetupDialog CreateDialog()
     {
         var dialog = services.GetRequiredService<CliSetupDialog>();
-        dialog.XamlRoot = dialogs.Owner.Content.XamlRoot;
+        dialogs.Attach(dialog);
         return dialog;
     }
 }

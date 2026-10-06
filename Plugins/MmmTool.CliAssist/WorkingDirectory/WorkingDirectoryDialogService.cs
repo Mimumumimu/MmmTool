@@ -13,7 +13,7 @@ public sealed class WorkingDirectoryDialogService(IServiceProvider services, IDi
     public Task<string?> ShowAsync(string title, string primaryButtonText, IReadOnlyList<string> openDirectories)
     {
         var dialog = services.GetRequiredService<WorkingDirectoryDialog>();
-        dialog.XamlRoot = dialogs.Owner.Content.XamlRoot;
+        dialogs.Attach(dialog);
         return dialog.PickAsync(title, primaryButtonText, openDirectories);
     }
 }

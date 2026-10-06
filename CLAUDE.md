@@ -28,6 +28,8 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
 - `MmmTool/bin/Release/publish/MmmTool_local/` は、ユーザーが普段使いしているローカル環境 (発行の出力 `bin/Release/publish/MmmTool_<版>/` をコピーして使っている。実行中のことがある。`Data/` に実データが入っている)。**この `MmmTool_local` だけは、削除・上書き・移動をしない** (ビルドのやり直しで `bin` を消すときも含む。`MmmTool_local` を残して消す)。それ以外の `bin` / `obj` / 発行の出力は、消してよい。削除の前に、`MmmTool_local` が対象に入っていないことを確かめる
   - **Why:** `bin` を丸ごと消して、起動中の `MmmTool_local` の EXE・DLL・`Data/` の JSON が消え、戻せなかったことがある
+- **プロセスを名前だけで止めない** (`Stop-Process -Name MmmTool`・`taskkill /IM MmmTool.exe` などは禁止)。`MmmTool_local` の `MmmTool.exe` も同じ名前なので、ユーザーが普段使いしているアプリまで終了してしまう。止めるのは、自分が起動したデバッグ版だけ。起動時に `Start-Process -PassThru` で PID を覚え、その PID を止める。PID が分からないときは、`Get-Process` の `Path` が `MmmTool_local` を含まないものだけを止める。判断がつかないときは、止めずにユーザーに閉じてもらう
+  - **Why:** 名前だけで止めて、ユーザーが使用中の `MmmTool_local` を途中で終了させてしまったことがある
 - 次のものは、ユーザーの決定で、意図した仕様。レビューや作業のまとめで、指摘・提案しない (理由は各決定記録)
   - 画像の添付と添付ファイルの大きさに、上限が無い ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
