@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
-using MmmTool.Shell;
 
 namespace MmmTool.Features.Settings.Main;
 

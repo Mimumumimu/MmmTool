@@ -1,19 +1,20 @@
+using System.Runtime.Versioning;
 using MmmSdk.Core.Components.Shells;
-using MmmTool.CliAssist.Core;
 
-namespace MmmTool.CliAssist;
+namespace MmmTool.CliAssist.Core;
 
 /// <summary>
 /// CliCommands.json が無いとき・初期化するときに作る既定の定型コマンド。
 /// </summary>
 /// <remarks>
-/// アプリの配置 (<c>{AppDir}\Assets\Tools\</c> の補助スクリプト)を知っているので、Core ではなくアプリ側に置く。
+/// 補助スクリプトは <c>{AppDir}\Assets\Tools\</c> に置かれる (置くのは CLI補助のプラグインのプロジェクト。ここでは相対パスだけを持つ)。
 /// 初期設定で選んだツールごとに、「シェル」「AI セッション」の両方のタブにフォルダを作る。ツールどうしで、同じ働きのコマンドは同じ表示名・同じ順にそろえる。
 /// 環境で違うのは、Claude Code の会話履歴の削除の補助スクリプトだけ (ほかのコマンドは同じ)。
 /// Windows では、補助スクリプトを動かすシェルを、ターミナルで使うシェル (<see cref="ShellLocator"/>)に合わせる (pwsh が無い環境では Windows PowerShell)。
 /// WSL では、Python 版 (Ubuntu に標準で入っている python3 で動かす)を使う。WSL には Windows のごみ箱が無く、PowerShell 版では WSL 側の履歴を戻せる形で消せないため。
 /// <c>{AppDir}</c> は、送るときに環境に合わせたパスへ展開する (WSL では <c>/mnt/d/...</c>)。
 /// </remarks>
+[SupportedOSPlatform("windows")]
 public static class CliCommandDefaults
 {
     /// <summary>Kiro に steering ファイルを作ってもらう指示</summary>

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.WindowPositions;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Windowing;

@@ -4,7 +4,7 @@ namespace MmmTool.CliAssist.Core.Json;
 
 /// <summary>定型コマンドを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
-/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理 (既定の中身と、初期設定 (環境・使うツール)の選び方はアプリが決める)</param>
+/// <param name="createDefaults">ファイルが無い・壊れていたときに作る、既定の定型コマンドを作る処理 (初期設定 (環境・使うツール)の選び方は、画面を出すアプリが決める。既定の中身は <see cref="CliCommandDefaults"/>)</param>
 /// <remarks><paramref name="createDefaults"/> は、<see cref="LoadAsync"/> を呼んだスレッド (UI スレッド)で呼ぶ (アプリが初期設定のダイアログを出すため)。</remarks>
 public sealed class JsonCliCommandRepository(IJsonFileStore store, Func<CancellationToken, Task<CliCommandSet>> createDefaults) : ICliCommandRepository
 {

@@ -23,10 +23,8 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<IPageCache>(provider => provider.GetRequiredService<PageProvider>());
         // 機能 (プラグイン)が、アプリの名前・データ・アイコンの置き場所を知る口
         services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppIcon.FilePath));
-        // 機能のオン・オフ (状態の保存・起動時の準備の実行・切り替えの通知)
-        services.AddSingleton<FeatureService>();
-        // 機能 (プラグイン)が、自分のキーのオン・オフを調べる口
-        services.AddSingleton<IFeatureStatus>(provider => provider.GetRequiredService<FeatureService>());
+        // 機能のオン・オフ (状態の保存・起動時の準備の実行・切り替えの通知)と、機能 (プラグイン)が自分のキーのオン・オフを調べる口
+        services.AddFeatureService();
         // 共通の設定ファイルを、各機能の準備より先に読んでおく (各機能が最初に設定を読むとき、UI スレッドで止まらないように)
         services.AddStartupTask<SettingsStoreStartup>();
         // メニューの項目は、各機能が登録した ITrayMenuSource から作る

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
-using MmmTool.Shell;
 
 namespace MmmTool.Features.Settings.Main;
 

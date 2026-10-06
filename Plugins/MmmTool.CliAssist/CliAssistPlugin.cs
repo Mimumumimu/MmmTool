@@ -21,7 +21,7 @@ public sealed class CliAssistPlugin : IFeaturePlugin
     public void Register(IServiceCollection services)
     {
         // 保存先
-        // 既定の定型コマンドはアプリが決める (補助スクリプトの配置を知っているため)。環境と使うツールは、作るときにユーザーが選ぶ (初期設定のダイアログ)
+        // 既定の定型コマンドは Core の CliCommandDefaults が作る。環境と使うツールは、作るときにユーザーが選ぶ (初期設定のダイアログ。画面なのでアプリが出す)
         services.AddSingleton<ICliCommandRepository>(provider => new JsonCliCommandRepository(
             provider.GetRequiredService<IJsonFileStore>(),
             async _ => CliCommandDefaults.Create(await provider.GetRequiredService<ICliSetupDialogService>().ShowFirstRunAsync())));

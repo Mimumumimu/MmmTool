@@ -27,7 +27,7 @@ Plugins/MmmTool.<機能>/<画面>/       そのほかの画面 (Reminders/{Input
                                       1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 MmmTool/Features/<機能>/              ホストが持つ機能 (Settings / Debugging)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
 MmmTool/Shell/                        画面の枠 (ホスト側)。直下に DI 登録と、アプリ全体で使う型
-                                     (FeatureService・FeatureChangeResult・SettingsStoreStartup・
+                                     (SettingsStoreStartup・
                                       AppIcon・AppInfo・ShellServiceCollectionExtensions)
 MmmTool/Shell/Main/                   メインウィンドウ (MainWindow・MainViewModel・PageProvider)
 ```
