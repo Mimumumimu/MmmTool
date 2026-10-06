@@ -83,7 +83,9 @@ public sealed partial class ReminderInputWindow : Window
 
         RootGrid.Measure(new Size(WindowWidth, double.PositiveInfinity));
         var scale = RootGrid.XamlRoot.RasterizationScale;
-        this.ResizeClientDip(WindowWidth, RootGrid.DesiredSize.Height, scale, roundUp: true);
+        // ResizeClient は、タイトルバーを自分で描いていても、タイトルバーの高さを上に足した大きさにする。中身だけの高さにするため、その分を引く
+        var height = RootGrid.DesiredSize.Height - AppWindow.TitleBar.Height / scale;
+        this.ResizeClientDip(WindowWidth, height, scale, roundUp: true);
         _modal.CenterOnOwner();
     }
 
