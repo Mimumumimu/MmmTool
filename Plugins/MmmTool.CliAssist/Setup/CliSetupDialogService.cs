@@ -14,7 +14,7 @@ public sealed class CliSetupDialogService(IServiceProvider services, IDialogHost
     public Task<CliSetup> ShowFirstRunAsync() => CreateDialog().ShowFirstRunAsync();
 
     /// <inheritdoc />
-    public Task<CliSetup?> ShowResetAsync(CliEnvironment currentEnvironment) => CreateDialog().ShowResetAsync(currentEnvironment);
+    public Task<CliSetup?> ShowResetAsync(CliSetup current) => CreateDialog().ShowResetAsync(current);
 
     /// <summary>ダイアログを作り、親のウィンドウに載せる</summary>
     /// <returns>開く前のダイアログ</returns>

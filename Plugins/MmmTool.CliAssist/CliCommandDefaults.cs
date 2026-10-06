@@ -39,7 +39,7 @@ public static class CliCommandDefaults
     /// <returns>ツールのフォルダ</returns>
     private static CliCommandNode ShellGroup(CliTool tool, CliEnvironment environment) => tool switch
     {
-        CliTool.Kiro => Group("Kiro",
+        CliTool.Kiro => Group(CliTool.Kiro.GetLabel(),
             Leaf("起動", "kiro-cli chat", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             Leaf("続きから再開", "kiro-cli chat --resume", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             // 会話の一覧から矢印キーで選ぶ画面を開くので、キー操作できるようターミナルへ
@@ -47,7 +47,7 @@ public static class CliCommandDefaults
             Leaf("最新化", "kiro-cli update"),
             // 一覧から矢印キーで選ぶ画面なので、キー操作できるようターミナルへ
             Leaf("会話履歴の削除", RemoveSessionCommand("Remove-KiroSession", environment), focus: FocusTarget.Terminal)),
-        _ => Group("Claude Code",
+        _ => Group(CliTool.ClaudeCode.GetLabel(),
             // 起動したら、以降はセッション内のコマンドを使うので AI セッションのタブへ切り替え、すぐ指示を書けるよう送信欄へ
             Leaf("起動", "claude", switchTo: CommandCategory.Session, focus: FocusTarget.Input),
             // 直前の会話を引き継いで起動するので、起動と同じく AI セッションのタブ・送信欄へ
@@ -64,7 +64,7 @@ public static class CliCommandDefaults
     /// <returns>ツールのフォルダ</returns>
     private static CliCommandNode SessionGroup(CliTool tool) => tool switch
     {
-        CliTool.Kiro => Group("Kiro",
+        CliTool.Kiro => Group(CliTool.Kiro.GetLabel(),
             Group("セッション内",
                 // Kiro の /clear は同じ会話のまま中身を消すだけなので、新しい会話を始める /chat new を使う
                 Leaf("新規チャット", "/chat new", focus: FocusTarget.Input),
@@ -75,7 +75,7 @@ public static class CliCommandDefaults
             Leaf("会話履歴と再開", "/chat resume", focus: FocusTarget.Terminal),
             Leaf("使用量の確認", "/usage", focus: FocusTarget.Terminal),
             Leaf("終了", "/quit", switchTo: CommandCategory.Shell)),
-        _ => Group("Claude Code",
+        _ => Group(CliTool.ClaudeCode.GetLabel(),
             Group("セッション内",
                 Leaf("新規チャット", "/clear", focus: FocusTarget.Input),
                 Leaf("読み込みファイル一覧", "/context"),

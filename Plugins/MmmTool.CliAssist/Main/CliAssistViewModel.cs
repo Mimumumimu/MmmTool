@@ -223,14 +223,14 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>定型コマンドを既定の内容に作り直す (初期化)</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
-    /// 初期設定ダイアログ (警告を出して、確認を兼ねる)で、使うツールと環境を選び直し、その既定の内容で上書きする (今の内容は引き継がない)。
+    /// 初期設定ダイアログ (警告を出して、確認を兼ねる)で、使うツールと環境を (今の値を選んだ状態から)選び直し、その既定の内容で上書きする (今の内容は引き継がない)。
     /// 全タブに効く。ターミナルは、環境が変わらなくても、いつも起動し直す (ユーザーの決定)。動いている CLI は終了する。
     /// 環境が変わったときは、添付を外す (パスの形・一時保存先が環境ごとに違うため)。一時保存した添付は消す。
     /// </remarks>
     [RelayCommand]
     private async Task ResetCommandsAsync()
     {
-        if (await _setupDialog.ShowResetAsync(_commandSet.GetEnvironment()) is not { } setup)
+        if (await _setupDialog.ShowResetAsync(new CliSetup(_commandSet.GetEnvironment(), _commandSet.GetTools())) is not { } setup)
         {
             return;
         }

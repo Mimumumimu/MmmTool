@@ -10,3 +10,12 @@ public enum CliTool
     /// <summary>Kiro (<c>kiro-cli</c>)</summary>
     Kiro,
 }
+
+/// <summary><see cref="CliTool"/> の拡張</summary>
+public static class CliToolExtensions
+{
+    /// <summary>定型コマンドのツールのフォルダの表示名を返す</summary>
+    /// <param name="tool">ツール</param>
+    /// <returns>フォルダの表示名</returns>
+    public static string GetLabel(this CliTool tool) => tool == CliTool.Kiro ? "Kiro" : "Claude Code";
+}

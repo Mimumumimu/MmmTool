@@ -41,6 +41,16 @@ public sealed class CliCommandSet
     /// <returns>コマンドを動かす環境。省略・不正な値なら Windows</returns>
     public CliEnvironment GetEnvironment() => CliCommandNode.Parse<CliEnvironment>(Environment) ?? CliEnvironment.Windows;
 
+    /// <summary>使っているツールを読み取る</summary>
+    /// <returns>使っているツール (<see cref="CliTool"/> の順)。読み取れなければ Claude Code だけ</returns>
+    /// <remarks>ツールは別に保存せず、「シェル」「AI セッション」の最上位にあるツールのフォルダの表示名から読む。手で表示名を変えたフォルダは読み取れない。</remarks>
+    public IReadOnlyList<CliTool> GetTools()
+    {
+        var labels = (Shell ?? []).Concat(Session ?? []).Select(node => node.Label?.Trim() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        List<CliTool> tools = [.. Enum.GetValues<CliTool>().Where(tool => labels.Contains(tool.GetLabel()))];
+        return tools.Count > 0 ? tools : [CliTool.ClaudeCode];
+    }
+
     /// <summary>ノードの木を調べて、誤りを足す</summary>
     /// <param name="nodes">調べるノード</param>
     /// <param name="path">ここまでの表示名のつながり (メッセージに出す)</param>

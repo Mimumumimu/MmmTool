@@ -36,13 +36,13 @@ public sealed partial class CliSetupDialogViewModel : ObservableObject
 
     /// <summary>開く前の状態にする</summary>
     /// <param name="environment">最初に選んでおく環境</param>
+    /// <param name="tools">最初に選んでおくツール</param>
     /// <param name="isReset">初期化として開くなら true</param>
-    /// <remarks>ツールは Claude Code だけを選んだ状態から始める。今の定型コマンドから、使っていたツールは読み取らない (ツールごとのフォルダは手で直せるため、確かな手がかりにならない)。</remarks>
-    public void Initialize(CliEnvironment environment, bool isReset)
+    public void Initialize(CliEnvironment environment, IReadOnlyList<CliTool> tools, bool isReset)
     {
         EnvironmentIndex = (int)environment;
-        UsesClaudeCode = true;
-        UsesKiro = false;
+        UsesClaudeCode = tools.Contains(CliTool.ClaudeCode);
+        UsesKiro = tools.Contains(CliTool.Kiro);
         IsReset = isReset;
     }
 

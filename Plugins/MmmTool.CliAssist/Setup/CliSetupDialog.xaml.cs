@@ -27,7 +27,7 @@ public sealed partial class CliSetupDialog : ContentDialog
     public async Task<CliSetup> ShowFirstRunAsync()
     {
         _isFirstRun = true;
-        ViewModel.Initialize(CliEnvironment.Windows, isReset: false);
+        ViewModel.Initialize(CliEnvironment.Windows, [CliTool.ClaudeCode], isReset: false);
         Title = "CLI補助の初期設定";
         PrimaryButtonText = "作成";
         DefaultButton = ContentDialogButton.Primary;
@@ -37,13 +37,13 @@ public sealed partial class CliSetupDialog : ContentDialog
     }
 
     /// <summary>初期化 (定型コマンドの作り直し)として開く</summary>
-    /// <param name="currentEnvironment">今の環境 (最初に選んでおく)</param>
+    /// <param name="current">今の初期設定 (環境と使っているツール。最初に選んでおく)</param>
     /// <returns>選んだ初期設定。キャンセルなら null</returns>
     /// <remarks>取り消せない操作なので、既定のボタンを置かない (Enter で誤って実行しない。キャンセルを既定にすると強調色になり、主な操作に見えるため。SDK の確認ダイアログと同じ)。</remarks>
-    public async Task<CliSetup?> ShowResetAsync(CliEnvironment currentEnvironment)
+    public async Task<CliSetup?> ShowResetAsync(CliSetup current)
     {
         _isFirstRun = false;
-        ViewModel.Initialize(currentEnvironment, isReset: true);
+        ViewModel.Initialize(current.Environment, current.Tools, isReset: true);
         Title = "定型コマンドを初期化";
         PrimaryButtonText = "初期化";
         CloseButtonText = "キャンセル";
