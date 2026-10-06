@@ -46,6 +46,11 @@ public sealed class ReminderService
     /// <remarks>false のとき、画面は、完全削除の操作を出さない。</remarks>
     public bool CanPurge => _repository.CanPurge;
 
+    /// <summary>今のユーザーが、このリマインダーを削除 (論理削除)できるか</summary>
+    /// <param name="reminder">対象のリマインダー</param>
+    /// <returns>作成者を持たない (ローカルモード)か、今のユーザーが作成者なら true</returns>
+    public bool CanDelete(Reminder reminder) => reminder.CreatedByUserId == 0 || reminder.CreatedByUserId == CurrentUserId;
+
     /// <summary>時刻が正しくないリマインダーがあるときの警告 (番号つき)。無ければ null。</summary>
     /// <remarks>
     /// リマインダーを読むたびに更新する。ファイルの退避 (<see cref="RecoveryMessage"/>)とは別の問題なので、別のプロパティにする。

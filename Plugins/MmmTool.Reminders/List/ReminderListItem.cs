@@ -4,8 +4,10 @@ namespace MmmTool.Reminders.List;
 
 /// <summary>リマインダー一覧の 1 行</summary>
 /// <param name="source">元のリマインダー</param>
+/// <param name="canDelete">今のユーザーが削除 (論理削除)できるか</param>
+/// <param name="canPurge">完全削除ができる保存先か</param>
 /// <remarks>表示用の文字列を持つ。一覧は変更があるたびに作り直すので、値は変わらない。</remarks>
-public sealed class ReminderListItem(Reminder source)
+public sealed class ReminderListItem(Reminder source, bool canDelete, bool canPurge)
 {
     /// <summary>該当なしの表示</summary>
     private const string None = "－";
@@ -29,4 +31,10 @@ public sealed class ReminderListItem(Reminder source)
 
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted => Source.IsDeleted;
+
+    /// <summary>メニューに「削除」を出すか (削除済みでなく、今のユーザーが削除できる)</summary>
+    public bool CanDelete { get; } = canDelete && !source.IsDeleted;
+
+    /// <summary>メニューに「完全削除」を出すか (削除済みで、保存先が完全削除に対応している)</summary>
+    public bool CanPurge { get; } = canPurge && source.IsDeleted;
 }

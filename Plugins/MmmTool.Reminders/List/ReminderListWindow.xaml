@@ -148,19 +148,19 @@
                                         Icon="Copy"
                                         Tag="{x:Bind}"
                                         Text="コピーして新規追加" />
-                                    <!-- 削除済みでない行は「削除」、削除済みの行は「完全削除」 -->
+                                    <!-- 削除済みでない行は「削除」(作成者だけ)、削除済みの行は「完全削除」(完全削除に対応する保存先だけ) -->
                                     <MenuFlyoutItem
                                         Click="OnDeleteClick"
                                         Icon="Delete"
                                         Tag="{x:Bind}"
                                         Text="削除"
-                                        Visibility="{x:Bind local:ReminderListWindow.VisibleUnless(IsDeleted)}" />
+                                        Visibility="{x:Bind CanDelete}" />
                                     <MenuFlyoutItem
                                         Click="OnPurgeClick"
                                         Icon="Delete"
                                         Tag="{x:Bind}"
                                         Text="完全削除"
-                                        Visibility="{x:Bind IsDeleted}" />
+                                        Visibility="{x:Bind CanPurge}" />
                                 </MenuFlyout>
                             </Grid.ContextFlyout>
 

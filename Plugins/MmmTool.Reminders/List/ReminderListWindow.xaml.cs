@@ -70,11 +70,6 @@ public sealed partial class ReminderListWindow : Window
         await _closed.Task;
     }
 
-    /// <summary>false のときだけ表示する</summary>
-    /// <param name="value">表示を隠す条件</param>
-    /// <returns>value が false のときだけ表示</returns>
-    public static Visibility VisibleUnless(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
-
     /// <summary>行のダブルタップで編集</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ダブルタップの情報</param>

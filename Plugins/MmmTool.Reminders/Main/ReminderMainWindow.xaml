@@ -53,7 +53,8 @@
                                 Click="OnDeleteClick"
                                 Icon="Delete"
                                 Tag="{x:Bind}"
-                                Text="削除" />
+                                Text="削除"
+                                Visibility="{x:Bind CanDelete}" />
                         </MenuFlyout>
                     </Grid.ContextFlyout>
 

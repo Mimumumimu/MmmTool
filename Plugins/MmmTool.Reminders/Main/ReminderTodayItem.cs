@@ -20,13 +20,18 @@ public sealed partial class ReminderTodayItem : ObservableObject
     /// <summary>行を作る</summary>
     /// <param name="source">リマインダー</param>
     /// <param name="status">今日の対応状態</param>
+    /// <param name="canDelete">今のユーザーが削除 (論理削除)できるか</param>
     /// <param name="statusChanged">ユーザーが状態を切り替えたときの処理 (新しい状態を受け取る)</param>
-    public ReminderTodayItem(Reminder source, ReminderStatus status, Func<ReminderTodayItem, ReminderStatus, Task> statusChanged)
+    public ReminderTodayItem(Reminder source, ReminderStatus status, bool canDelete, Func<ReminderTodayItem, ReminderStatus, Task> statusChanged)
     {
+        CanDelete = canDelete;
         _statusChanged = statusChanged;
         Source = source;
         Status = status;
     }
+
+    /// <summary>メニューに「削除」を出すか (作成者だけ。作成者は読み直しで変わらない)</summary>
+    public bool CanDelete { get; }
 
     /// <summary>参照番号 (行の同定に使う)</summary>
     public int No => Source.No;

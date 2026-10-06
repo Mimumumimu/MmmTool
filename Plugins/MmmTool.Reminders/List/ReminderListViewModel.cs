@@ -101,6 +101,11 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
         }
     }
 
+    /// <summary>一覧の行を作る</summary>
+    /// <param name="reminder">元のリマインダー</param>
+    /// <returns>削除・完全削除の操作を出すかを、今のユーザーと保存先に合わせた行</returns>
+    private ReminderListItem CreateItem(Reminder reminder) => new(reminder, Reminders.CanDelete(reminder), Reminders.CanPurge);
+
     /// <summary>一覧を読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
     /// <remarks>変わった行だけを差し替える (全部を作り直すとスクロール位置が先頭へ戻るため)。</remarks>
@@ -121,11 +126,11 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
         {
             if (i >= Items.Count)
             {
-                Items.Add(new ReminderListItem(sorted[i]));
+                Items.Add(CreateItem(sorted[i]));
             }
             else if (Items[i].Source != sorted[i])
             {
-                Items[i] = new ReminderListItem(sorted[i]);
+                Items[i] = CreateItem(sorted[i]);
             }
         }
         while (Items.Count > sorted.Count)
