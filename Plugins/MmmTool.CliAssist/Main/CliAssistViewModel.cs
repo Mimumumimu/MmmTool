@@ -1,14 +1,10 @@
 using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.DependencyInjection;
-using MmmSdk.Core.Components.Attachments;
 using MmmSdk.Core.Components.Shells;
 using MmmSdk.Core.Components.Storage;
-using MmmSdk.WinUI.Components.Attachments;
-using MmmSdk.WinUI.Components.Errors;
-using MmmSdk.WinUI.Components.Terminal;
+using MmmSdk.Core.Utilities;
+using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.CliAssist.Core;
 using MmmTool.CliAssist.Setup;
 using MmmTool.CliAssist.WorkingDirectory;
@@ -16,24 +12,24 @@ using MmmTool.CliAssist.WorkingDirectory;
 namespace MmmTool.CliAssist.Main;
 
 /// <summary>CLI補助ページの ViewModel</summary>
+/// <remarks>
+/// 定型コマンドと環境を持ち、セッション (タブ)の一覧を管理する。
+/// ターミナル・入力欄・添付はセッションごと (<see cref="CliSessionViewModel"/>)に持つ。送信履歴はセッションをまたいで共通。
+/// </remarks>
 public sealed partial class CliAssistViewModel : ObservableObject
 {
     /// <summary>定型コマンドの保存先</summary>
     private readonly ICliCommandRepository _commandRepository;
     /// <summary>CLI補助の利用状態</summary>
     private readonly CliSettingsService _settings;
-    /// <summary>添付ファイルの一時保存先 (Windows の %TEMP%)</summary>
-    private readonly AttachmentStore _windowsAttachmentStore;
-    /// <summary>添付ファイルの一時保存先 (WSL の /tmp)</summary>
-    private readonly AttachmentStore _wslAttachmentStore;
-    /// <summary>画像の変換</summary>
-    private readonly IImageConverter _imageConverter;
+    /// <summary>セッションを作る</summary>
+    private readonly CliSessionFactory _sessionFactory;
     /// <summary>作業ディレクトリ変更ダイアログ</summary>
     private readonly IWorkingDirectoryDialogService _workingDirectoryDialog;
     /// <summary>初期設定ダイアログ</summary>
     private readonly ICliSetupDialogService _setupDialog;
-    /// <summary>時刻の取得元</summary>
-    private readonly TimeProvider _timeProvider;
+    /// <summary>確認ダイアログ</summary>
+    private readonly IDialogService _dialogs;
 
     /// <summary>読み込んだ定型コマンド</summary>
     private CliCommandSet _commandSet = new();
@@ -41,73 +37,145 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private bool _initialized;
 
     /// <summary>ViewModel を作る</summary>
-    /// <param name="terminal">ターミナルのセッション</param>
     /// <param name="commandRepository">定型コマンドの保存先</param>
     /// <param name="settings">CLI補助の利用状態</param>
-    /// <param name="windowsAttachmentStore">添付ファイルの一時保存先 (Windows の %TEMP%)</param>
-    /// <param name="wslAttachmentStore">添付ファイルの一時保存先 (WSL の /tmp)</param>
-    /// <param name="imageConverter">画像の変換</param>
+    /// <param name="sessionFactory">セッションを作る</param>
     /// <param name="workingDirectoryDialog">作業ディレクトリ変更ダイアログを開く</param>
     /// <param name="setupDialog">初期設定ダイアログを開く</param>
-    /// <param name="timeProvider">現在時刻の提供元</param>
+    /// <param name="dialogs">確認ダイアログ</param>
     public CliAssistViewModel(
-        ITerminalSession terminal,
         ICliCommandRepository commandRepository,
         CliSettingsService settings,
-        [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
-        [FromKeyedServices(CliEnvironment.Wsl)] AttachmentStore wslAttachmentStore,
-        IImageConverter imageConverter,
+        CliSessionFactory sessionFactory,
         IWorkingDirectoryDialogService workingDirectoryDialog,
         ICliSetupDialogService setupDialog,
-        TimeProvider timeProvider)
+        IDialogService dialogs)
     {
-        Terminal = terminal;
         _commandRepository = commandRepository;
         _settings = settings;
-        _windowsAttachmentStore = windowsAttachmentStore;
-        _wslAttachmentStore = wslAttachmentStore;
-        _imageConverter = imageConverter;
+        _sessionFactory = sessionFactory;
         _workingDirectoryDialog = workingDirectoryDialog;
         _setupDialog = setupDialog;
-        _timeProvider = timeProvider;
+        _dialogs = dialogs;
 
         CommandItems = [];
-        InputText = string.Empty;
-        HistoryFilter = string.Empty;
+        Sessions.CollectionChanged += (_, _) => RefreshSessionTitles();
 
-        // 前回の作業ディレクトリでシェルを始める
-        if (_settings.StartDirectory is { } startDirectory)
-        {
-            Terminal.WorkingDirectory = startDirectory;
-        }
-
-        Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
-        HistoryItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
+        // 最初のセッションは、前回の作業ディレクトリで始める
+        var first = _sessionFactory.Create(_settings.StartDirectory);
+        AddSession(first);
+        SelectedSession = first;
     }
 
-    /// <summary>中央のターミナルで動くシェルのセッション。</summary>
-    /// <remarks>
-    /// 起動するシェルは定型コマンドの環境 (<see cref="CliCommandSet.Environment"/>)で決まるので、<see cref="InitializeAsync"/> が済んでから画面につなぐ (つないだときに起動する)。
-    /// 今どちらの環境で動いているかは、このシェルの種類 (<see cref="ShellInfo.Kind"/>)で見る (ここ 1 か所に持つ)。
-    /// </remarks>
-    public ITerminalSession Terminal { get; }
+    #region セッション (タブ)
 
-    /// <summary>今の環境で使う、添付ファイルの一時保存先</summary>
-    private AttachmentStore AttachmentStore => Terminal.Shell.Kind == ShellKind.Wsl ? _wslAttachmentStore : _windowsAttachmentStore;
+    /// <summary>セッション (タブ)の一覧 (タブの並び順)</summary>
+    public ObservableCollection<CliSessionViewModel> Sessions { get; } = [];
+
+    /// <summary>選ばれているセッション (中央に表示しているタブ)</summary>
+    /// <remarks>定型コマンドの送信・作業ディレクトリ変更は、このセッションへ向ける。</remarks>
+    [ObservableProperty]
+    public partial CliSessionViewModel SelectedSession { get; set; }
+
+    /// <summary>セッションを一覧に足す</summary>
+    /// <param name="session">足すセッション</param>
+    private void AddSession(CliSessionViewModel session)
+    {
+        // 作業ディレクトリが変わったら、タブ名を付け直す (同じフォルダ名のタブがあるかが変わるため)
+        session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(CliSessionViewModel.WorkingDirectory))
+            {
+                RefreshSessionTitles();
+            }
+        };
+        Sessions.Add(session);
+    }
+
+    /// <summary>全タブのタブ名を付け直す</summary>
+    private void RefreshSessionTitles()
+    {
+        var titles = SessionDirectory.CreateTitles([.. Sessions.Select(session => session.WorkingDirectory)]);
+        for (var i = 0; i < Sessions.Count; i++)
+        {
+            Sessions[i].Title = titles[i];
+        }
+    }
+
+    /// <summary>ほかのタブが開いているフォルダの一覧</summary>
+    /// <param name="session">除くセッション (自分のタブ)。新しいタブを作るときは null</param>
+    /// <returns>ほかのタブの作業ディレクトリ</returns>
+    private List<string> DirectoriesOpenInOthers(CliSessionViewModel? session)
+        => [.. Sessions.Where(other => other != session).Select(other => other.WorkingDirectory)];
+
+    /// <summary>新しいタブを開く</summary>
+    /// <returns>タブを開く操作の完了を表すタスク</returns>
+    /// <remarks>
+    /// 作業ディレクトリ変更ダイアログでフォルダを選んでから、そのフォルダでタブを作る (選ばずに作ると、ほかのタブと同じフォルダになりうるため)。
+    /// ほかのタブが開いているフォルダは、ダイアログで断る。
+    /// </remarks>
+    [RelayCommand]
+    private async Task AddSessionAsync()
+    {
+        if (await _workingDirectoryDialog.ShowAsync("新しいタブ", "開く", DirectoriesOpenInOthers(null)) is not { } directory)
+        {
+            return;
+        }
+
+        var session = _sessionFactory.Create(directory);
+        session.Terminal.Shell = ShellFor(_commandSet);
+        AddSession(session);
+        SelectedSession = session;
+
+        await RecordDirectoryAsync(session, directory);
+    }
+
+    /// <summary>タブを閉じる</summary>
+    /// <param name="session">閉じるセッション</param>
+    /// <returns>タブを閉じる操作の完了を表すタスク</returns>
+    /// <remarks>
+    /// 閉じる前に、いつも確認する (中で動いている CLI の有無は確実には分からないため)。
+    /// 最後の 1 つは閉じない (ターミナルが 1 つも無い画面は意味が無いため)。
+    /// </remarks>
+    [RelayCommand]
+    private async Task CloseSessionAsync(CliSessionViewModel session)
+    {
+        if (Sessions.Count <= 1 || !Sessions.Contains(session))
+        {
+            return;
+        }
+
+        var confirmed = await _dialogs.ConfirmAsync(
+            "タブを閉じますか？",
+            $"「{session.Title}」のターミナルと、実行中の CLI が終了します。",
+            "閉じる",
+            "キャンセル");
+        // 確認の間にタブが閉じられた・最後の 1 つになったときは、何もしない
+        if (!confirmed || Sessions.Count <= 1 || !Sessions.Contains(session))
+        {
+            return;
+        }
+
+        var index = Sessions.IndexOf(session);
+        var wasSelected = session == SelectedSession;
+        Sessions.Remove(session);
+        if (wasSelected)
+        {
+            SelectedSession = Sessions[Math.Min(index, Sessions.Count - 1)];
+        }
+
+        // 画面からターミナルを外したあと (Sessions の変更を受けた画面が外す)に、シェルを終了する
+        // シェルの終了待ち (数秒かかることがある)で UI スレッドを止めないよう、UI スレッドの外で行う
+        Task.Run(session.Dispose).Forget();
+    }
+
+    #endregion
 
     #region 定型コマンド
 
     /// <summary>左ペインで表示中のコマンド群 (シェル / AI セッション)。</summary>
     [ObservableProperty]
     public partial CommandCategory SelectedCategory { get; set; }
-
-    /// <summary>フォーカスの移動を View に頼む</summary>
-    /// <remarks>ViewModel は UI に触れないため。</remarks>
-    public event EventHandler<FocusTarget>? FocusRequested;
-
-    /// <summary>ターミナルのシェルの起動し直しを View に頼む</summary>
-    /// <remarks>起動し直すには端末の大きさが要り、それは画面 (ターミナルのコントロール)が持っているため。</remarks>
-    public event EventHandler? TerminalRestartRequested;
 
     /// <summary>左ペインのツリーに表示する要素。</summary>
     [ObservableProperty]
@@ -135,7 +203,10 @@ public sealed partial class CliAssistViewModel : ObservableObject
             (_commandSet, recoveryMessage) = await _commandRepository.LoadAsync();
             messages.Add(recoveryMessage);
             messages.AddRange(_commandSet.Validate());
-            Terminal.Shell = ShellFor(_commandSet);
+            foreach (var session in Sessions)
+            {
+                session.Terminal.Shell = ShellFor(_commandSet);
+            }
         }
         catch (DataFileException ex)
         {
@@ -144,7 +215,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
         if (messages.OfType<string>().ToList() is { Count: > 0 } errors)
         {
-            Error.Show(string.Join("\n\n", errors));
+            SelectedSession.Error.Show(string.Join("\n\n", errors));
         }
         RebuildCommandItems();
     }
@@ -153,7 +224,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
     /// 初期設定ダイアログ (警告を出して、確認を兼ねる)で、使うツールと環境を選び直し、その既定の内容で上書きする (今の内容は引き継がない)。
-    /// ターミナルは、環境が変わらなくても、いつも起動し直す (ユーザーの決定)。動いている CLI は終了する。
+    /// 全タブに効く。ターミナルは、環境が変わらなくても、いつも起動し直す (ユーザーの決定)。動いている CLI は終了する。
     /// 環境が変わったときは、添付を外す (パスの形・一時保存先が環境ごとに違うため)。一時保存した添付は消す。
     /// </remarks>
     [RelayCommand]
@@ -171,21 +242,27 @@ public sealed partial class CliAssistViewModel : ObservableObject
         }
         catch (DataFileException ex)
         {
-            Error.Show(ex.Message);
+            SelectedSession.Error.Show(ex.Message);
             return;
         }
         _commandSet = commandSet;
 
         var shell = ShellFor(_commandSet);
-        if (shell.Kind != Terminal.Shell.Kind)
+        foreach (var session in Sessions)
         {
-            RemoveAllAttachments();
+            if (shell.Kind != session.Terminal.Shell.Kind)
+            {
+                session.RemoveAllAttachments();
+            }
+            session.Terminal.Shell = shell;
         }
-        Terminal.Shell = shell;
 
         SelectedCategory = CommandCategory.Shell;
         RebuildCommandItems();
-        TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
+        foreach (var session in Sessions)
+        {
+            session.RequestTerminalRestart();
+        }
     }
 
     /// <summary>定型コマンドの環境で起動するシェルを決める</summary>
@@ -216,13 +293,15 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>ツリーの要素を実行する (コマンドなら送信、作業ディレクトリ変更ならダイアログ)。</summary>
     /// <param name="item">実行するツリーの要素</param>
     /// <returns>実行の完了を表すタスク</returns>
+    /// <remarks>送信と作業ディレクトリ変更は、選ばれているタブへ向ける。</remarks>
     [RelayCommand]
     private async Task InvokeCommandItemAsync(CommandTreeItem item)
     {
+        var session = SelectedSession;
         switch (item.Kind)
         {
             case CommandItemKind.Command when item.Command is { } command:
-                if (!TrySubmit(CommandPlaceholders.Expand(command, AppDirectoryForShell())))
+                if (!session.TrySubmit(CommandPlaceholders.Expand(command, session.AppDirectoryForShell())))
                 {
                     break;
                 }
@@ -232,271 +311,49 @@ public sealed partial class CliAssistViewModel : ObservableObject
                 }
                 if (item.Focus is { } focus)
                 {
-                    FocusRequested?.Invoke(this, focus);
+                    session.RequestFocus(focus);
                 }
                 break;
             case CommandItemKind.ChangeDirectory:
-                await ChangeWorkingDirectoryAsync();
+                await ChangeWorkingDirectoryAsync(session);
                 break;
         }
     }
 
-    /// <summary>アプリの EXE があるフォルダを、シェルから見たパスにする (<see cref="CommandPlaceholders.AppDir"/> の展開に使う)</summary>
-    /// <returns>シェルから見たパス。WSL から開けない場所 (ネットワークのフォルダーなど)に置いたときは、Windows のパスのまま</returns>
-    private string AppDirectoryForShell()
-        => ShellCommands.TryConvertPath(Terminal.Shell, AppContext.BaseDirectory, out var path) ? path : AppContext.BaseDirectory;
-
     /// <summary>作業ディレクトリ変更ダイアログを開き、選ばれたフォルダへ移動する</summary>
+    /// <param name="session">作業ディレクトリを変えるセッション</param>
     /// <returns>作業ディレクトリの変更の完了を表すタスク</returns>
-    private async Task ChangeWorkingDirectoryAsync()
+    /// <remarks>ほかのタブが開いているフォルダは、ダイアログで断る。</remarks>
+    private async Task ChangeWorkingDirectoryAsync(CliSessionViewModel session)
     {
-        if (await _workingDirectoryDialog.ShowAsync() is not { } directory)
+        if (await _workingDirectoryDialog.ShowAsync("作業ディレクトリ変更", "変更", DirectoriesOpenInOthers(session)) is not { } directory)
         {
             return;
         }
 
-        if (!ShellCommands.TryChangeDirectory(Terminal.Shell, directory, out var command))
+        if (!session.TryChangeDirectory(directory))
         {
-            Error.Show(Terminal.Shell.Kind == ShellKind.Wsl
-                ? $"WSL からは開けないフォルダーです (ドライブ文字のあるフォルダーか、WSL のフォルダーを選んでください): {directory}"
-                : $"cmd では、% を含むフォルダーへ移動できません (環境変数として展開されるため): {directory}");
             return;
         }
 
-        // 送れなかったときも、これから (再)起動するシェルは、この場所から始める
-        TrySubmit(command);
-        // シェルを再起動したときも同じ場所から始める
-        Terminal.WorkingDirectory = directory;
+        await RecordDirectoryAsync(session, directory);
+    }
 
+    /// <summary>選んだフォルダを、最近使ったフォルダの履歴に記録する</summary>
+    /// <param name="session">記録に失敗したときの、エラーを出すセッション</param>
+    /// <param name="directory">選んだフォルダ</param>
+    /// <returns>記録の完了を表すタスク</returns>
+    private async Task RecordDirectoryAsync(CliSessionViewModel session, string directory)
+    {
         try
         {
             await _settings.AddDirectoryAsync(directory);
         }
         catch (DataFileException ex)
         {
-            Error.Show(ex.Message);
+            session.Error.Show(ex.Message);
         }
     }
-
-    #endregion
-
-    #region 送信
-
-    /// <summary>下部の入力欄のテキスト。</summary>
-    [ObservableProperty]
-    public partial string InputText { get; set; }
-
-    /// <summary>入力欄のテキスト (と添付ファイルの指示文・パス)をターミナルへ送る。</summary>
-    /// <remarks>添付のパスは、シェルから見たパス (WSL では <c>/mnt/d/...</c>・<c>/tmp/...</c>)にして送る。変換できるかは、添付したときに確かめてある。</remarks>
-    [RelayCommand]
-    private void Send()
-    {
-        var text = InputText;
-        var attachmentPaths = Attachments.Select(item => ToShellPath(item.FilePath)).ToList();
-        if (string.IsNullOrWhiteSpace(text) && attachmentPaths.Count == 0)
-        {
-            return;
-        }
-
-        if (!TrySubmit(SendText.Compose(text, attachmentPaths)))
-        {
-            // 入力欄と添付は残す (送れるようになってから、もう一度送れるように)
-            return;
-        }
-
-        InputText = string.Empty;
-        Attachments.Clear();
-        AttachmentStore.CloseSession();
-
-        // 履歴には入力欄の本文だけを残す (自動で付け足した指示文・パスは残さない)
-        AddSendHistory(text.TrimEnd('\r', '\n'));
-    }
-
-    /// <summary>ターミナルが使える状態なら、テキストを送る (使えなければ、画面に知らせる)</summary>
-    /// <param name="text">送るテキスト</param>
-    /// <returns>送ったら true。ターミナルが起動していない・シェルが終了しているときは false</returns>
-    /// <remarks>
-    /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき (ターミナルの場所に理由が出る)。
-    /// 黙って捨てると、押したのに何も起きない状態になるので、知らせる。
-    /// </remarks>
-    private bool TrySubmit(string text)
-    {
-        if (!Terminal.IsStarted)
-        {
-            Error.Show("ターミナルが起動していないため、送信できませんでした。WebView2 を使えない環境では、ターミナルは使えません。");
-            return false;
-        }
-        if (Terminal.HasExited)
-        {
-            Error.Show("シェルが終了しています。ターミナルで何かキーを押して再起動してから、もう一度送信してください。");
-            return false;
-        }
-
-        Terminal.Submit(text);
-        return true;
-    }
-
-    #endregion
-
-    #region 添付
-
-    /// <summary>添付ファイルの一覧</summary>
-    public ObservableCollection<AttachmentItem> Attachments { get; } = [];
-
-    /// <summary>添付があるか</summary>
-    public bool HasAttachments => Attachments.Count > 0;
-
-    /// <summary>ディスク上のファイルを添付する (ドラッグ＆ドロップ・ファイルの貼り付け)。</summary>
-    /// <param name="filePath">添付するファイルのパス</param>
-    /// <remarks>
-    /// コピーせず、元のパスをそのまま送る (ローカルで動く CLI は、元の場所のファイルを直接読めるため)。
-    /// WSL では、WSL から開けない場所 (ネットワークのフォルダーなど)のファイルは添付せず、知らせる (送ってから読めないと分かるより、先に分かるほうがよいため)。
-    /// </remarks>
-    public void AddAttachmentFile(string filePath)
-    {
-        if (!ShellCommands.TryConvertPath(Terminal.Shell, filePath, out _))
-        {
-            Error.Show($"WSL からは開けない場所のファイルなので、添付できません (ドライブ文字のある場所か、WSL のフォルダーに置いてください): {filePath}");
-            return;
-        }
-        Attachments.Add(new AttachmentItem(filePath, Path.GetFileName(filePath), isTemporary: false));
-    }
-
-    /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
-    /// <param name="filePath">添付ファイルのパス (Windows のパス)</param>
-    /// <returns>シェルから見たパス</returns>
-    /// <exception cref="InvalidOperationException">変換できない (添付したときに確かめてあるので、起きればバグ)。</exception>
-    private string ToShellPath(string filePath)
-        => ShellCommands.TryConvertPath(Terminal.Shell, filePath, out var path)
-            ? path
-            : throw new InvalidOperationException($"添付ファイルのパスを、シェルから見たパスにできません: {filePath}");
-
-    /// <summary>ディスク上に無いファイルを一時保存して添付する (メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付け)。</summary>
-    /// <param name="content">ファイルの内容のストリーム</param>
-    /// <param name="fileName">ファイル名</param>
-    /// <returns>添付の完了を表すタスク</returns>
-    public async Task AddAttachmentContentAsync(Stream content, string fileName)
-    {
-        try
-        {
-            using var buffer = new MemoryStream();
-            await content.CopyToAsync(buffer);
-            var savedPath = await AttachmentStore.AddAsync(buffer.ToArray(), fileName);
-            Attachments.Add(new AttachmentItem(savedPath, fileName, isTemporary: true));
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Error.Show($"{fileName} を添付できませんでした。{ex.Message}");
-        }
-    }
-
-    /// <summary>画像を JPEG にして添付する (画像の貼り付け)。</summary>
-    /// <param name="image">添付する画像のストリーム</param>
-    /// <returns>添付の完了を表すタスク</returns>
-    public async Task AddAttachmentImageAsync(Stream image)
-    {
-        try
-        {
-            var jpeg = await _imageConverter.ToJpegAsync(image);
-            var savedPath = await AttachmentStore.AddAsync(jpeg, "clipboard.jpg");
-            Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像", isTemporary: true));
-        }
-        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
-        {
-            // COMException: 画像のデコード・変換の失敗 (未対応の形式など)
-            Error.Show($"画像を添付できませんでした。{ex.Message}");
-        }
-    }
-
-    /// <summary>添付をすべて取り除く</summary>
-    /// <remarks>環境が変わるとき、今の環境の一時保存先から消すために、環境を切り替える前に呼ぶ。</remarks>
-    private void RemoveAllAttachments()
-    {
-        foreach (var item in Attachments.ToList())
-        {
-            RemoveAttachment(item);
-        }
-    }
-
-    /// <summary>添付を取り除く</summary>
-    /// <param name="item">取り除く添付</param>
-    /// <remarks>一時保存したファイルだけを削除する。元の場所のファイルは一覧から外すだけで、決して消さない。</remarks>
-    [RelayCommand]
-    private void RemoveAttachment(AttachmentItem item)
-    {
-        Attachments.Remove(item);
-        if (!item.IsTemporary)
-        {
-            return;
-        }
-
-        try
-        {
-            AttachmentStore.Remove(item.FilePath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Error.Show($"添付ファイルを削除できませんでした。{ex.Message}");
-        }
-    }
-
-    #endregion
-
-    #region 送信履歴
-
-    /// <summary>送信履歴</summary>
-    private readonly SendHistory _sendHistory = new();
-
-    /// <summary>送信履歴の一覧 (絞り込み後)</summary>
-    public ObservableCollection<SendHistoryItem> HistoryItems { get; } = [];
-
-    /// <summary>表示する履歴が無いか</summary>
-    public bool HasNoHistory => HistoryItems.Count == 0;
-
-    /// <summary>履歴の絞り込み文字列。</summary>
-    [ObservableProperty]
-    public partial string HistoryFilter { get; set; }
-
-    /// <summary>絞り込み文字列が変わったら、一覧を作り直す</summary>
-    /// <param name="value">変更後の絞り込み文字列</param>
-    partial void OnHistoryFilterChanged(string value) => RefreshHistory();
-
-    /// <summary>履歴の一覧を開く前に、最新の内容にする。</summary>
-    public void PrepareHistory()
-    {
-        HistoryFilter = string.Empty;
-        RefreshHistory();
-    }
-
-    /// <summary>履歴の本文を入力欄へ戻す。</summary>
-    /// <param name="item">戻す履歴の行</param>
-    public void RestoreHistory(SendHistoryItem item) => InputText = item.Text;
-
-    /// <summary>送信した本文を履歴の先頭に追加する</summary>
-    /// <param name="text">送信した本文</param>
-    /// <remarks>空白のみは無視し、同じ本文は先頭へ移す。</remarks>
-    private void AddSendHistory(string text) => _sendHistory.Add(text, _timeProvider.GetLocalNow());
-
-    /// <summary>絞り込み文字列に合わせて、履歴の一覧を作り直す</summary>
-    private void RefreshHistory()
-    {
-        var today = _timeProvider.GetLocalNow().Date;
-
-        HistoryItems.Clear();
-        foreach (var entry in _sendHistory.Search(HistoryFilter))
-        {
-            var sentAt = entry.SentAt.ToLocalTime();
-            var sentAtText = sentAt.Date == today ? sentAt.ToString("HH:mm") : sentAt.ToString("M/d HH:mm");
-            HistoryItems.Add(new SendHistoryItem(entry.Text, SendText.ToSingleLine(entry.Text), sentAtText));
-        }
-    }
-
-    #endregion
-
-    #region エラー表示
-
-    /// <summary>画面に出すエラー</summary>
-    public ErrorState Error { get; } = new();
 
     #endregion
 }

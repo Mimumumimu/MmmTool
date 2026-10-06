@@ -22,7 +22,7 @@
 
         <TextBlock
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Text="移動先のフォルダを入力するか、最近使ったフォルダから選んでください。"
+            Text="フォルダを入力するか、最近使ったフォルダから選んでください。"
             TextWrapping="Wrap" />
 
         <!-- パス入力 + 参照 -->
@@ -43,12 +43,18 @@
             </Button>
         </Grid>
 
-        <TextBlock
-            Grid.Row="2"
-            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-            Style="{StaticResource CaptionTextBlockStyle}"
-            Text="フォルダが見つかりません"
-            Visibility="{x:Bind ViewModel.IsNotFound, Mode=OneWay}" />
+        <StackPanel Grid.Row="2">
+            <TextBlock
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="フォルダが見つかりません"
+                Visibility="{x:Bind ViewModel.IsNotFound, Mode=OneWay}" />
+            <TextBlock
+                Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="ほかのタブで開いているフォルダです"
+                Visibility="{x:Bind ViewModel.IsOpenInOtherSession, Mode=OneWay}" />
+        </StackPanel>
 
         <TextBlock
             Grid.Row="3"
@@ -100,7 +106,7 @@
             <TextBlock
                 Margin="0,8"
                 Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                Text="まだありません。変更したフォルダがここに追加されます。"
+                Text="まだありません。選んだフォルダが、ここに追加されます。"
                 TextWrapping="Wrap"
                 Visibility="{x:Bind ViewModel.HasNoDirectories, Mode=OneWay}" />
         </Grid>

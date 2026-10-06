@@ -23,6 +23,9 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private DirectoryCheck _check;
 
+    /// <summary>ほかのタブが開いているフォルダ (選べない)</summary>
+    private IReadOnlyList<string> _openDirectories = [];
+
     /// <summary>存在の確認の待ち合わせ (入力が変わったら、前の確認を取り消す)</summary>
     private readonly Debouncer _checkDebouncer = new(CheckDelay);
 
@@ -47,9 +50,14 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     [ObservableProperty]
     public partial string DirectoryPath { get; set; }
 
-    /// <summary>入力されたフォルダが存在する (変更できる)。</summary>
+    /// <summary>入力されたフォルダが存在し、ほかのタブが開いていない (決定できる)。</summary>
     /// <remarks>存在の確認は、入力が止まってから、バックグラウンドで行う。確認が終わるまでは false。</remarks>
-    public bool IsValid => _check == DirectoryCheck.Found;
+    public bool IsValid => _check == DirectoryCheck.Found && !IsOpenInOtherSession;
+
+    /// <summary>入力されたフォルダを、ほかのタブが開いている。</summary>
+    /// <remarks>同じフォルダのタブは開けない。パスの文字列だけで比べるので、入力のたびに呼んでよい。</remarks>
+    public bool IsOpenInOtherSession
+        => DirectoryPath.Trim() is { Length: > 0 } path && _openDirectories.Any(directory => SessionDirectory.IsSame(directory, path));
 
     /// <summary>入力はあるがフォルダが見つからない。</summary>
     /// <remarks>確認が終わるまでは false (確認中に、見つからないと表示して、ちらつかせないため)。</remarks>
@@ -67,12 +75,17 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         DirectoryPath = directory;
         var trimmed = directory.Trim();
         var exists = trimmed.Length > 0 && await Task.Run(() => Directory.Exists(trimmed));
-        return exists && DirectoryPath == directory;
+        return exists && DirectoryPath == directory && !IsOpenInOtherSession;
     }
 
     /// <summary>入力が変わったら、存在の確認をやり直す</summary>
     /// <param name="value">変更後のパス</param>
-    partial void OnDirectoryPathChanged(string value) => UpdateCheck(value);
+    partial void OnDirectoryPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsOpenInOtherSession));
+        OnPropertyChanged(nameof(IsValid));
+        UpdateCheck(value);
+    }
 
     /// <summary>入力が止まるのを待ってから、フォルダの存在をバックグラウンドで確認する</summary>
     /// <param name="path">入力されたパス</param>
@@ -122,14 +135,19 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     }
 
     /// <summary>履歴と最後のディレクトリを読み込んで、表示を初期化する</summary>
-    public void Initialize()
+    /// <param name="openDirectories">ほかのタブが開いているフォルダ (選べないようにする)</param>
+    public void Initialize(IReadOnlyList<string> openDirectories)
     {
+        _openDirectories = openDirectories;
         Directories.Clear();
         foreach (var directory in _settings.DirectoryHistory)
         {
             Directories.Add(directory);
         }
-        DirectoryPath = _settings.LastDirectory ?? string.Empty;
+        // 最後のフォルダは、ほかのタブが開いていると選べないので、そのときは空で始める
+        DirectoryPath = _settings.LastDirectory is { } last && !_openDirectories.Any(directory => SessionDirectory.IsSame(directory, last))
+            ? last
+            : string.Empty;
         Error.Clear();
     }
 

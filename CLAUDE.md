@@ -33,6 +33,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
   - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「決定の理由」)
+  - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
 - コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えはしない。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (master)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
   - **ローカル (ユーザーの PC の Claude Code。CLI・デスクトップアプリ・IDE)**: コミット・push は、ユーザーが指示したときだけ行う (共通ルール)。指示されたら、**master に直接コミット・push してよい**(作業用ブランチ・PR は作らない)
     - **Why:** 下のブランチ・PR の決まりは、クラウドセッションのためのもの。ローカルではユーザーが手元で見て確かめてから指示するので、ブランチを挟む必要が無い (ユーザーの決定)

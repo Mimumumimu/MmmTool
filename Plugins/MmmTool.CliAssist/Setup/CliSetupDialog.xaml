@@ -44,7 +44,7 @@
         <InfoBar
             IsClosable="False"
             IsOpen="{x:Bind ViewModel.IsReset, Mode=OneWay}"
-            Message="定型コマンドは既定の内容に置き換わり、追加・編集したコマンドは失われます。ターミナルは再起動し、実行中の CLI は終了します。環境を変えた場合は、送信欄の添付も解除されます。"
+            Message="定型コマンドは既定の内容に置き換わり、追加・編集したコマンドは失われます。すべてのタブのターミナルは再起動し、実行中の CLI は終了します。環境を変えた場合は、すべてのタブの添付も解除されます。"
             Severity="Warning" />
     </StackPanel>
 </ContentDialog>

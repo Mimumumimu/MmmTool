@@ -4,23 +4,16 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MmmTool.CliAssist.Main"
-    xmlns:sdkAttachments="using:MmmSdk.WinUI.Components.Attachments"
-    xmlns:terminal="using:MmmSdk.WinUI.Components.Terminal"
     Loaded="OnLoaded">
 
-    <Grid Padding="12" ColumnSpacing="12" RowSpacing="8">
+    <Grid Padding="12" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="280" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
 
         <!-- 左ペイン: 定型コマンド -->
         <Border
-            Grid.RowSpan="2"
             Padding="4,4,4,8"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -87,249 +80,43 @@
             </Grid>
         </Border>
 
-        <!-- 中央: ターミナル -->
-        <Border
-            Grid.Column="1"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
-            CornerRadius="8">
-            <!-- Session は、起動するシェル (環境)が決まってから、コードビハインドでつなぐ (OnLoaded) -->
-            <terminal:TerminalControl
-                x:Name="TerminalView"
-                UserDataFolder="{x:Bind WebView2Directory}" />
-        </Border>
-
         <!--
-            エラー通知。ターミナルの上部に重ねて表示する (レイアウトに場所を取ると、出たときにターミナルが縮んでちらつくため)。
-            InfoBar の背景は半透明なので、下の端末の文字が透けないよう不透明な下地に載せる
+            右: セッション (1 タブ = ターミナルと送信欄)。タブはコードビハインドで作る (ViewModel のセッションの一覧に合わせる)。
+            TabView は、タブの帯だけに使う。中身は、選んだタブの画面を下の枠に入れる
+            (TabView の中身の枠は、内容の大きさのまま左上に寄せて表示するため、ターミナルが大きさを持てない)。
+            タブの操作はマウスだけ。並べ替え・ドラッグはしない
         -->
-        <Border
-            Grid.Column="1"
-            Margin="12"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Top"
-            Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
-            CornerRadius="{ThemeResource OverlayCornerRadius}"
-            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}">
-            <InfoBar
-                IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
-                Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
-                Severity="Error" />
-        </Border>
-
-        <!-- 下部: 送信欄 (添付・入力・履歴・送信を 1 枚のカードにまとめる) -->
-        <Border
-            x:Name="Composer"
-            Grid.Row="1"
-            Grid.Column="1"
-            Padding="10"
-            AllowDrop="True"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
-            CornerRadius="8">
-            <!--
-                入力欄は 3 行分の高さ固定 (超えた分は欄内でスクロール)。入力で伸びるとターミナルが縮み、CLI が全画面を描き直してちらつくため。
-                添付の行 (48px)は添付があるときだけ出す。高さが変わるのは最初の添付時と送信時だけなので許容する
-            -->
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <!-- 添付 (画像はサムネイル、それ以外はアイコン＋ファイル名。多いときは横スクロール) -->
-                <ListView
-                    Height="48"
-                    Margin="0,0,0,6"
-                    ItemsSource="{x:Bind ViewModel.Attachments}"
-                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                    ScrollViewer.HorizontalScrollMode="Enabled"
-                    ScrollViewer.VerticalScrollMode="Disabled"
-                    SelectionMode="None"
-                    Visibility="{x:Bind ViewModel.HasAttachments, Mode=OneWay}">
-                    <ListView.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <ItemsStackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ListView.ItemsPanel>
-                    <ListView.ItemContainerStyle>
-                        <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="Margin" Value="0,0,8,0" />
-                            <Setter Property="MinWidth" Value="0" />
-                            <Setter Property="MinHeight" Value="0" />
-                            <Setter Property="Height" Value="48" />
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:AttachmentItem">
-                            <Grid
-                                Height="48"
-                                MinWidth="48"
-                                MaxWidth="200"
-                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                CornerRadius="6"
-                                ToolTipService.ToolTip="{x:Bind DisplayName}">
-                                <Image
-                                    Width="48"
-                                    Source="{x:Bind sdkAttachments:ThumbnailImage.FromFile(ThumbnailPath)}"
-                                    Stretch="UniformToFill"
-                                    Visibility="{x:Bind IsImage}" />
-                                <StackPanel
-                                    Padding="10,0,28,0"
-                                    VerticalAlignment="Center"
-                                    Orientation="Horizontal"
-                                    Spacing="8"
-                                    Visibility="{x:Bind IsNotImage}">
-                                    <FontIcon FontSize="16" Glyph="&#xE8A5;" />
-                                    <TextBlock
-                                        MaxWidth="130"
-                                        VerticalAlignment="Center"
-                                        Style="{StaticResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind DisplayName}"
-                                        TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                                <!-- 画像の上でも見えるよう、不透明な丸ボタンにする -->
-                                <Button
-                                    Width="18"
-                                    Height="18"
-                                    Margin="2"
-                                    Padding="0"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Top"
-                                    AutomationProperties.Name="添付を取り除く"
-                                    Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
-                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                    Click="OnRemoveAttachmentClick"
-                                    CornerRadius="9"
-                                    Tag="{x:Bind}"
-                                    ToolTipService.ToolTip="添付を取り除く">
-                                    <FontIcon FontSize="8" Glyph="&#xE711;" />
-                                </Button>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-
-                <!-- 入力欄 + 履歴・送信 -->
-                <Grid Grid.Row="1" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox
-                        x:Name="InputBox"
-                        Height="64"
-                        Padding="0,1"
-                        AcceptsReturn="True"
-                        GotFocus="OnInputGotFocus"
-                        Paste="OnInputPaste"
-                        PlaceholderForeground="{ThemeResource TextFillColorDisabledBrush}"
-                        PlaceholderText="ターミナルへ送るテキスト (Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付)"
-                        PreviewKeyDown="OnInputPreviewKeyDown"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto"
-                        Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        TextWrapping="Wrap">
-                        <!-- カードの中に溶け込ませる (枠と背景を消す) -->
-                        <TextBox.Resources>
-                            <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-                            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
-                        </TextBox.Resources>
-                    </TextBox>
-                    <StackPanel
-                        Grid.Column="1"
-                        VerticalAlignment="Center"
-                        Spacing="4">
-                        <Button
-                            Width="40"
-                            Height="30"
-                            Padding="0"
-                            AutomationProperties.Name="送信履歴"
-                            ToolTipService.ToolTip="送信履歴">
-                            <FontIcon FontSize="16" Glyph="&#xE81C;" />
-                            <Button.Flyout>
-                                <Flyout
-                                    x:Name="HistoryFlyout"
-                                    Opening="OnHistoryFlyoutOpening"
-                                    Placement="TopEdgeAlignedRight">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}" TargetType="FlyoutPresenter">
-                                            <Setter Property="MaxWidth" Value="600" />
-                                            <Setter Property="Padding" Value="12" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <Grid Width="520" RowSpacing="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="送信履歴" />
-                                        <AutoSuggestBox
-                                            Grid.Row="1"
-                                            PlaceholderText="履歴を絞り込む"
-                                            QueryIcon="Find"
-                                            Text="{x:Bind ViewModel.HistoryFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Grid Grid.Row="2">
-                                            <ListView
-                                                MaxHeight="360"
-                                                Margin="-12,0"
-                                                IsItemClickEnabled="True"
-                                                ItemClick="OnHistoryItemClick"
-                                                ItemsSource="{x:Bind ViewModel.HistoryItems}"
-                                                SelectionMode="None">
-                                                <ListView.ItemTemplate>
-                                                    <DataTemplate x:DataType="local:SendHistoryItem">
-                                                        <Grid
-                                                            Padding="0,8"
-                                                            ColumnSpacing="16"
-                                                            ToolTipService.ToolTip="{x:Bind Text}">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock
-                                                                MaxLines="1"
-                                                                Text="{x:Bind Preview}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock
-                                                                Grid.Column="1"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                                Text="{x:Bind SentAtText}" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ListView.ItemTemplate>
-                                            </ListView>
-                                            <TextBlock
-                                                Margin="0,8"
-                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                Text="該当する履歴はありません"
-                                                Visibility="{x:Bind ViewModel.HasNoHistory, Mode=OneWay}" />
-                                        </Grid>
-                                    </Grid>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-                        <Button
-                            Width="40"
-                            Height="30"
-                            Padding="0"
-                            AutomationProperties.Name="送信"
-                            Command="{x:Bind ViewModel.SendCommand}"
-                            Style="{StaticResource AccentButtonStyle}"
-                            ToolTipService.ToolTip="送信 (Ctrl+Enter)">
-                            <FontIcon FontSize="16" Glyph="&#xE724;" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Grid>
-        </Border>
+        <Grid Grid.Column="1" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TabView
+                x:Name="SessionTabs"
+                AddTabButtonClick="OnAddTabButtonClick"
+                CanDragTabs="False"
+                CanReorderTabs="False"
+                SelectionChanged="OnSessionTabSelectionChanged"
+                TabCloseRequested="OnTabCloseRequested">
+                <!--
+                    選択中のタブの枠線は、既定では薄いグラデーションで、背景と見分けにくい。
+                    枠線だけを、少し濃い色 (システムの「第 2 の枠線」。「強い枠線」は濃すぎた)にする。背景の色は既定のまま。
+                    ハイコントラストは、システムの配色に任せる (書かない)
+                -->
+                <TabView.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.ThemeDictionaries>
+                            <ResourceDictionary x:Key="Default">
+                                <StaticResource x:Key="TabViewSelectedItemBorderBrush" ResourceKey="ControlStrokeColorSecondaryBrush" />
+                            </ResourceDictionary>
+                            <ResourceDictionary x:Key="Light">
+                                <StaticResource x:Key="TabViewSelectedItemBorderBrush" ResourceKey="ControlStrokeColorSecondaryBrush" />
+                            </ResourceDictionary>
+                        </ResourceDictionary.ThemeDictionaries>
+                    </ResourceDictionary>
+                </TabView.Resources>
+            </TabView>
+            <Border x:Name="SessionHost" Grid.Row="1" />
+        </Grid>
     </Grid>
 </Page>

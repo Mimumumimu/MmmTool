@@ -6,7 +6,7 @@ using MmmTool.CliAssist.Main;
 
 namespace MmmTool.CliAssist;
 
-/// <summary>CLI補助をオフにする前の確認 (ターミナルが動いているときだけ)</summary>
+/// <summary>CLI補助をオフにする前の確認 (どれかのタブでターミナルが動いているときだけ)</summary>
 /// <param name="services">作ったページを引くための DI のサービスプロバイダー (ターミナルは、ページの ViewModel が持つ)</param>
 /// <param name="dialogs">確認ダイアログ</param>
 /// <remarks>
@@ -22,14 +22,15 @@ public sealed class CliAssistDisableConfirmation(IServiceProvider services, IDia
     public Task<bool> ConfirmAsync()
     {
         var pages = services.GetRequiredService<IPageCache>();
-        if (pages.GetCreatedPage<CliAssistPage>() is not { ViewModel.Terminal: { IsStarted: true, HasExited: false } })
+        if (pages.GetCreatedPage<CliAssistPage>() is not { } page
+            || !page.ViewModel.Sessions.Any(session => session.Terminal is { IsStarted: true, HasExited: false }))
         {
             return Task.FromResult(true);
         }
 
         return dialogs.ConfirmAsync(
             "CLI補助をオフにしますか？",
-            "実行中のターミナルと、その中の作業が終了します。",
+            "すべてのタブの実行中のターミナルと、その中の作業が終了します。",
             "オフにする",
             "オンのままにする");
     }

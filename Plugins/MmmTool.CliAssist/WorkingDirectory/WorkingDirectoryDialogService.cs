@@ -10,10 +10,10 @@ namespace MmmTool.CliAssist.WorkingDirectory;
 public sealed class WorkingDirectoryDialogService(IServiceProvider services, IDialogHost dialogs) : IWorkingDirectoryDialogService
 {
     /// <inheritdoc />
-    public Task<string?> ShowAsync()
+    public Task<string?> ShowAsync(string title, string primaryButtonText, IReadOnlyList<string> openDirectories)
     {
         var dialog = services.GetRequiredService<WorkingDirectoryDialog>();
         dialog.XamlRoot = dialogs.Owner.Content.XamlRoot;
-        return dialog.PickAsync();
+        return dialog.PickAsync(title, primaryButtonText, openDirectories);
     }
 }

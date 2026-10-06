@@ -28,12 +28,12 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
 
         services.AddSingleton<CliSettingsService>();
-        // 添付の一時保存先。環境ごとに 1 つ。使うのは、定型コマンドで決まった環境のほうだけ
-        // Windows: %TEMP%\MmmTool\session_日時\。終了時 (Host の破棄時)に削除する
-        services.AddKeyedSingleton(CliEnvironment.Windows, (provider, _) => new AttachmentStore(provider.GetRequiredService<AppEnvironment>().Name, provider.GetRequiredService<TimeProvider>()));
-        // WSL: /tmp/MmmTool/session_日時/。終了時には削除しない (WSL の再起動で空になるのに任せる)
-        services.AddKeyedSingleton(CliEnvironment.Wsl, (provider, _) => AttachmentStore.ForWsl(provider.GetRequiredService<AppEnvironment>().Name, provider.GetRequiredService<TimeProvider>()));
-        // セッションは利用側ごとに 1 つ。Host の破棄時に Dispose され、シェルも終了する
+        // 添付の一時保存先。セッション (タブ)ごと、環境ごとに 1 つ。使うのは、定型コマンドで決まった環境のほうだけ
+        // Windows: %TEMP%\MmmTool\session_日時\。タブを閉じるとき・ページの破棄時に削除する
+        services.AddKeyedTransient(CliEnvironment.Windows, (provider, _) => new AttachmentStore(provider.GetRequiredService<AppEnvironment>().Name, provider.GetRequiredService<TimeProvider>()));
+        // WSL: /tmp/MmmTool/session_日時/。削除しない (WSL の再起動で空になるのに任せる)
+        services.AddKeyedTransient(CliEnvironment.Wsl, (provider, _) => AttachmentStore.ForWsl(provider.GetRequiredService<AppEnvironment>().Name, provider.GetRequiredService<TimeProvider>()));
+        // ターミナルのセッションは利用側ごとに 1 つ。作ったスコープ (ページ)の破棄時に Dispose され、シェルも終了する
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();
         services.AddSingleton<IWorkingDirectoryDialogService, WorkingDirectoryDialogService>();
         services.AddSingleton<ICliSetupDialogService, CliSetupDialogService>();
@@ -42,6 +42,10 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddTransient<WorkingDirectoryDialogViewModel>();
         services.AddTransient<CliSetupDialog>();
         services.AddTransient<CliSetupDialogViewModel>();
+        // 送信履歴はページのスコープに 1 つ (セッションをまたいで共通。ページを捨てると一緒に消える)
+        services.AddScoped<SendHistory>();
+        services.AddScoped<CliSessionFactory>();
+        services.AddTransient<CliSessionViewModel>();
         services.AddTransient<CliAssistViewModel>();
         // 設定でオン・オフできる機能。オフの間は、ページ・起動時の準備を使わない
         services.AddFeature(CliAssistFeature.Key, CliAssistFeature.DisplayName);

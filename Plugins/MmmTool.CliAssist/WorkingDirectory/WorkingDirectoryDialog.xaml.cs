@@ -22,11 +22,15 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     }
 
     /// <summary>ダイアログを開き、選ばれたフォルダを返す</summary>
+    /// <param name="title">ダイアログのタイトル</param>
+    /// <param name="primaryButtonText">決定ボタンの文言</param>
+    /// <param name="openDirectories">ほかのタブが開いているフォルダ (選べないようにする)</param>
     /// <returns>選ばれたフォルダ。キャンセルなら null</returns>
-    /// <remarks>キャンセルなら null。</remarks>
-    public async Task<string?> PickAsync()
+    public async Task<string?> PickAsync(string title, string primaryButtonText, IReadOnlyList<string> openDirectories)
     {
-        ViewModel.Initialize();
+        Title = title;
+        PrimaryButtonText = primaryButtonText;
+        ViewModel.Initialize(openDirectories);
         _confirmedByDoubleTap = false;
 
         var result = await ShowAsync();
