@@ -14,6 +14,8 @@ using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
 using MmmTool.Data.SqlServer;
+using MmmTool.Features.Database;
+using MmmTool.Features.Database.Choice;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Settings;
 using MmmTool.Features.Users;
@@ -90,6 +92,9 @@ public partial class App : Application
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
 
+        // 保存先の画面 (設定ページの部品と、初回の選択)。設定ページの部品は登録順に並ぶので、機能の登録のあとに呼ぶ
+        services.AddDatabaseScreens();
+
         services.AddDebugging();
         services.AddSettings();
     }
@@ -133,6 +138,9 @@ public partial class App : Application
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();
+
+        // 保存先がまだ選ばれていない初回だけ、選択の画面を出す (メインウィンドウを作ったあと。選んだ内容は、次の起動から反映する)
+        await _host.Services.GetRequiredService<DatabaseChoiceService>().ShowIfNeededAsync();
 
         // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
         await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync();

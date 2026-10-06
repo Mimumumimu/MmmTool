@@ -28,6 +28,10 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     /// <summary>設定を保存できない状態か (設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている)</summary>
     public bool IsReadOnly => settings.IsReadOnly;
 
+    /// <summary>保存先の種類が、保存されているか</summary>
+    /// <remarks>false なら、まだ保存先を選んでいない (初回)。</remarks>
+    public bool IsModeSaved => settings.Contains(ModeKey);
+
     /// <summary>今の接続の設定を取得する</summary>
     /// <returns>接続の設定。保存されていない項目は既定値</returns>
     public DatabaseSettings Load() => new()
