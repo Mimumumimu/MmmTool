@@ -18,7 +18,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
 - `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
 - 決定の理由 (なぜそう決めたか)は、その決定を説明する文書の末尾の「決定の理由」見出しに書く (機能の決定は `docs/specs/<機能>.md`、全体構成は `docs/architecture.md`、配布・ビルドは `docs/build-and-distribution.md`、SDK の決定は SDK の `docs/`)。決定記録だけを集めたフォルダは作らない (機能の説明と理由を、別の場所に分けないため)。大きな決定をしたら、該当する文書の見出しに足す
-- `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md` / `speech.md`)
+- `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md` / `speech.md` / `db-sqlserver.md`)
 
 ## 作業のルール
 - 決めていない操作・項目 (一般的な慣習のものも含む)は、勝手に足さない。必要そうなら先に聞く (トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり)
