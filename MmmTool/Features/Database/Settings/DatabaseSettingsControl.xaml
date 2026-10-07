@@ -39,6 +39,14 @@
             HorizontalAlignment="Left"
             Visibility="{x:Bind ViewModel.IsSqlServer, Mode=OneWay}" />
 
+        <!-- 「保存」を押せない理由 (DB を選んでいて、つながると確認できていないとき) -->
+        <TextBlock
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="「接続を確認」で、つながることを確かめると、保存できます。"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind ViewModel.NeedsVerification, Mode=OneWay}" />
+
         <Button
             MinWidth="96"
             Command="{x:Bind ViewModel.SaveCommand}"

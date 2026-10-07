@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.WinUI.Components.Dialogs;
@@ -11,7 +12,7 @@ namespace MmmTool.Features.Database.Settings;
 /// 保存先 (ローカル / DB)と、DB への接続の設定 (設定ページの部品)の ViewModel。
 /// </summary>
 /// <remarks>
-/// 保存するのは「保存」を押したときだけ。保存先は起動時に決まって使い始めるので、保存先や接続が変わったときは、反映に再起動が要ることを確認して、
+/// 保存するのは「保存」を押したときだけ。DB のときは、「接続を確認」で、つながると確認できるまで、「保存」を押せない。保存先は起動時に決まって使い始めるので、保存先や接続が変わったときは、反映に再起動が要ることを確認して、
 /// 「今すぐ終了」ならアプリを終了する (起動し直すのは利用者)。
 /// </remarks>
 public sealed partial class DatabaseSettingsViewModel : ObservableObject
@@ -36,6 +37,7 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
         _settings = settings;
         _dialogs = dialogs;
         _exit = exit;
+        connection.PropertyChanged += OnConnectionPropertyChanged;
         IsEditable = !settings.IsReadOnly;
         Modes =
         [
@@ -56,11 +58,18 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
 
     /// <summary>選んでいる保存先</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSqlServer))]
+    [NotifyPropertyChangedFor(nameof(IsSqlServer), nameof(NeedsVerification))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial DatabaseModeOption? SelectedMode { get; set; }
 
     /// <summary>保存先が DB か (接続の入力欄を出す)</summary>
     public bool IsSqlServer => SelectedMode is { Value: DatabaseMode.SqlServer };
+
+    /// <summary>「接続を確認」が済んでいないため、「保存」を押せないか (DB を選んでいて、つながると確認できていない)</summary>
+    public bool NeedsVerification => IsSqlServer && !Connection.IsVerified;
+
+    /// <summary>「保存」を押せるか (ローカルか、DB でつながると確認できている)</summary>
+    private bool CanSave() => !NeedsVerification;
 
     /// <summary>保存先と接続の設定を保存する</summary>
     /// <returns>保存の完了を表すタスク</returns>
@@ -68,7 +77,7 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
     /// 保存できなかったとき (入力が足りない・設定ファイルを読めなかった)は、入力欄のエラーに出す。
     /// 保存先に関わる設定が変わったときは、再起動が要ることを確認する。
     /// </remarks>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
         if (SelectedMode is not { } mode)
@@ -88,6 +97,18 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
             && await _dialogs.ConfirmAsync("保存先の設定を変更しました", "反映するには、アプリの再起動が必要です。\n今すぐ終了しますか？", "今すぐ終了", "あとで"))
         {
             _exit.RequestExit();
+        }
+    }
+
+    /// <summary>接続の入力欄の確認の状態が変わったら、「保存」を押せるかを更新する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変わったプロパティの情報</param>
+    private void OnConnectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DatabaseConnectionViewModel.IsVerified))
+        {
+            OnPropertyChanged(nameof(NeedsVerification));
+            SaveCommand.NotifyCanExecuteChanged();
         }
     }
 

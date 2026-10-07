@@ -76,7 +76,7 @@ public sealed partial class DatabaseChoiceWindow : Window
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // お知らせは、出入り (IsOpen)と文面 (Message)が変わると、高さが変わる。ほかのプロパティの変更では、測り直さない
-        if (e.PropertyName is nameof(DatabaseChoiceViewModel.IsSqlServer) or nameof(DatabaseConnectionViewModel.NeedsCertificateConsent)
+        if (e.PropertyName is nameof(DatabaseChoiceViewModel.IsSqlServer) or nameof(DatabaseChoiceViewModel.NeedsVerification) or nameof(DatabaseConnectionViewModel.NeedsCertificateConsent)
             or nameof(ErrorState.IsOpen) or nameof(ErrorState.Message))
         {
             DispatcherQueue.TryEnqueue(FitHeight);

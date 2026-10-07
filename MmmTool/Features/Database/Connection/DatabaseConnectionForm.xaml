@@ -31,7 +31,7 @@
         <Button
             MinWidth="96"
             Command="{x:Bind ViewModel.TestCommand}"
-            Content="つながるか確かめる"
+            Content="接続を確認"
             IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
 
         <!-- サーバーの証明書が、信頼できない形のときだけ (初めての接続で 1 回)。閉じている間は、場所を取らない -->

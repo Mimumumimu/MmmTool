@@ -62,6 +62,14 @@
 
             <!-- DB を選んだときだけ (入力欄は、コードビハインドで入れる) -->
             <ContentPresenter x:Name="ConnectionHost" Visibility="{x:Bind ViewModel.IsSqlServer, Mode=OneWay}" />
+
+            <!-- 「決定」を押せない理由 (DB を選んでいて、つながると確認できていないとき) -->
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="「接続を確認」で、つながることを確かめると、決定できます。"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind ViewModel.NeedsVerification, Mode=OneWay}" />
         </StackPanel>
 
         <!-- 操作ボタン -->
