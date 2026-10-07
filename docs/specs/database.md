@@ -129,7 +129,7 @@
 
 ## SQL Server の場合
 - ドライバーは `Microsoft.Data.SqlClient`(SQL Server 専用。`System.Data.SqlClient` は非推奨)。SDK の `MmmSdk.Db.SqlServer`(接続の設定と接続の生成)に置き、表の操作 (行のクラスは `MmmTool.Data`、SQL Server の実装は `MmmTool.Data.SqlServer`)は、アプリの `MmmTool.Data*` に置く
-- 接続の設定は、設定ストアの `Database.` の接頭辞のキー: `Mode`(`Json` / `SqlServer`)・`Server`・`Name`(データベース名)・`Authentication`(`Sql` / `Windows`)・`UserName`・`TrustServerCertificate`
+- 接続の設定は、設定ストアの `Database.` の接頭辞のキー (データベース名とユーザー名は、保存されていなければ、初期値の `MmmTool`。入力欄にも最初から入る): `Mode`(`Json` / `SqlServer`)・`Server`・`Name`(データベース名)・`Authentication`(`Sql` / `Windows`)・`UserName`・`TrustServerCertificate`
   - パスワードは設定ファイルに書かず、`ISecretStore` の `MmmTool.Database` に保存する ([../../external/MmmSdk/docs/storage.md](../../external/MmmSdk/docs/storage.md))
   - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`。`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)。設定は `DatabaseSettings`(パスワードを除く)。種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
   - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない

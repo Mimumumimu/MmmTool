@@ -21,6 +21,12 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     private const string UserNameKey = "Database.UserName";
     private const string TrustServerCertificateKey = "Database.TrustServerCertificate";
 
+    /// <summary>データベース名の初期値 (保存されていないとき)</summary>
+    public const string DefaultName = "MmmTool";
+
+    /// <summary>ユーザー名の初期値 (保存されていないとき)</summary>
+    public const string DefaultUserName = "MmmTool";
+
     /// <summary>パスワードを保存する、秘密の保管庫の項目の名前</summary>
     /// <remarks>Windows の資格情報マネージャーでは、この名前の汎用資格情報として見える。変えると、保存済みのパスワードを読めなくなる。</remarks>
     public const string PasswordSecretName = "MmmTool.Database";
@@ -33,14 +39,14 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     public bool IsModeSaved => settings.Contains(ModeKey);
 
     /// <summary>今の接続の設定を取得する</summary>
-    /// <returns>接続の設定。保存されていない項目は既定値</returns>
+    /// <returns>接続の設定。保存されていない項目は既定値 (データベース名とユーザー名は <c>MmmTool</c>)</returns>
     public DatabaseSettings Load() => new()
     {
         Mode = GetEnum(ModeKey, DatabaseMode.Json),
         Server = settings.Get(ServerKey, ""),
-        Name = settings.Get(NameKey, ""),
+        Name = settings.Get(NameKey, DefaultName),
         Authentication = GetEnum(AuthenticationKey, DatabaseAuthentication.Sql),
-        UserName = settings.Get(UserNameKey, ""),
+        UserName = settings.Get(UserNameKey, DefaultUserName),
         TrustServerCertificate = settings.Get(TrustServerCertificateKey, false),
     };
 
