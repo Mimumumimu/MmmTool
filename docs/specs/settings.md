@@ -35,7 +35,7 @@
 
 ### 保存先と DB への接続 (`MmmTool/Features/Database/Settings/DatabaseSettingsControl` ＋ `DatabaseSettingsViewModel`)
 - ホスト側の部品で、`AddDatabaseScreens()` が `AddSettingsSection` で登録する (どの機能にも属さず、オフにならない)。設計は [database.md](database.md)
-- 「保存先」の `ComboBox`(ローカル / DB)。DB のときだけ、接続の入力欄 (サーバー名・データベース名・ログインの方式・ユーザー名・パスワード・証明書の信頼)と「接続を確認」を出す。入力欄は、初回の保存先の選択の画面と共有する部品 (`DatabaseConnectionForm`)
+- 「保存先」の `ComboBox`(ローカル / DB)。DB のときだけ、接続の入力欄 (接続先のサーバー・データベース名・ユーザー名・パスワード)と「つながるか確かめる」を出す (ログインの方式と証明書は、画面の項目にしない。理由と動きは [database.md](database.md))。入力欄は、初回の保存先の選択の画面と共有する部品 (`DatabaseConnectionForm`)
 - 保存は「保存」ボタンを押したときだけ (入力の途中を保存しない)。保存先は起動時に決まるので、保存先の種類が変わった・DB のまま接続が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認する (「今すぐ終了」でアプリを終了。「あとで」は保存だけ)。終了は `AppExitService` が、トレイの「終了」と同じ処理で行う
 - 失敗は、部品の先頭の InfoBar で知らせる。成功 (「保存しました。」「接続できました。」)も InfoBar。設定ファイルを読めなかったとき (`IsReadOnly`)は、入力と「保存」を無効にする
 

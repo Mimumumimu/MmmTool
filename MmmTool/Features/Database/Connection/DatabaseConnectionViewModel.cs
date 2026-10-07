@@ -10,11 +10,13 @@ using MmmTool.Data.SqlServer.Connection;
 namespace MmmTool.Features.Database.Connection;
 
 /// <summary>
-/// DB への接続の入力欄 (サーバー名・データベース名・ログインの方式・ユーザー名・パスワード・証明書) の ViewModel。
+/// DB への接続の入力欄 (サーバー・データベース名・ユーザー名・パスワード)の ViewModel。
 /// </summary>
 /// <remarks>
-/// 設定ページの「保存先」と、初回の保存先の選択の画面が、同じ入力欄 (<see cref="DatabaseConnectionForm"/>)として使う。
+/// 設定ページの「保存先」と、初回の保存先の選択の画面が、同じ入力欄 (<see cref="DatabaseConnectionForm"/>)として使う。ログインは、ユーザー名とパスワードで固定する。
 /// パスワードは、入力したときだけ保存する (空のままなら、登録済みのものを変えない)。保存・接続の確認の結果は、<see cref="Error"/> / <see cref="Success"/> に出す。
+/// サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバー (自己署名など)のときだけ、初めての接続で 1 回、「接続する」かを聞き
+/// (<see cref="NeedsCertificateConsent"/>)、答えた内容を、サーバーとセットで覚える (サーバーを変えたときは、また聞く)。
 /// </remarks>
 public sealed partial class DatabaseConnectionViewModel : ObservableObject
 {
@@ -24,24 +26,28 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     /// <summary>接続の設定の読み書き</summary>
     private readonly DatabaseSettingsService _settings;
 
+    /// <summary>証明書を信頼して接続するか (<see cref="_trustedServer"/> のサーバーのときだけ有効)</summary>
+    private bool _trustServerCertificate;
+
+    /// <summary>証明書を信頼すると答えたサーバー</summary>
+    private string _trustedServer;
+
+    /// <summary>証明書についての答えを待っているときの、答え。待っていなければ null</summary>
+    private TaskCompletionSource<bool>? _decision;
+
     /// <summary>ViewModel を作り、保存済みの設定を読み込む</summary>
     /// <param name="settings">接続の設定の読み書き</param>
     public DatabaseConnectionViewModel(DatabaseSettingsService settings)
     {
         _settings = settings;
         IsEditable = !settings.IsReadOnly;
-        Authentications =
-        [
-            new DatabaseAuthenticationOption(DatabaseAuthentication.Sql, "ユーザー名とパスワード"),
-            new DatabaseAuthenticationOption(DatabaseAuthentication.Windows, "Windows 認証 (今の Windows ユーザー)"),
-        ];
 
         var value = settings.Load();
         Server = value.Server;
         DatabaseName = value.Name;
         UserName = value.UserName;
-        TrustServerCertificate = value.TrustServerCertificate;
-        SelectedAuthentication = Authentications.First(option => option.Value == value.Authentication);
+        _trustServerCertificate = value.TrustServerCertificate;
+        _trustedServer = value.Server;
 
         try
         {
@@ -56,24 +62,13 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     /// <summary>入力欄を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
     public bool IsEditable { get; }
 
-    /// <summary>ログインの方式の選択肢</summary>
-    public IReadOnlyList<DatabaseAuthenticationOption> Authentications { get; }
-
-    /// <summary>サーバー名</summary>
+    /// <summary>サーバー (<c>ホスト名</c>・<c>ホスト名\インスタンス名</c>・<c>ホスト名,ポート</c>)</summary>
     [ObservableProperty]
     public partial string Server { get; set; } = "";
 
     /// <summary>データベース名</summary>
     [ObservableProperty]
     public partial string DatabaseName { get; set; } = "";
-
-    /// <summary>選んでいるログインの方式</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSqlLogin))]
-    public partial DatabaseAuthenticationOption? SelectedAuthentication { get; set; }
-
-    /// <summary>ユーザー名とパスワードのログインか (ユーザー名・パスワードの欄を出す)</summary>
-    public bool IsSqlLogin => SelectedAuthentication is not { Value: DatabaseAuthentication.Windows };
 
     /// <summary>ユーザー名</summary>
     [ObservableProperty]
@@ -91,17 +86,17 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     /// <summary>パスワードの欄の見出し (登録済みなら、変えるときだけ入力することを添える)</summary>
     public string PasswordHeader => HasPassword ? "パスワード (登録済み。変えるときだけ入力)" : "パスワード";
 
-    /// <summary>サーバーの証明書を検証せずに信頼するか</summary>
+    /// <summary>接続の確認・保存の最中か</summary>
     [ObservableProperty]
-    public partial bool TrustServerCertificate { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsNotBusy))]
+    public partial bool IsBusy { get; private set; }
 
-    /// <summary>接続を確認している最中か</summary>
+    /// <summary>接続の確認・保存の最中ではないか (「つながるか確かめる」を押せる)</summary>
+    public bool IsNotBusy => !IsBusy;
+
+    /// <summary>サーバーの証明書について、「接続する」かを聞いているか</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotTesting))]
-    public partial bool IsTesting { get; private set; }
-
-    /// <summary>接続を確認していないか (「接続を確認」を押せる)</summary>
-    public bool IsNotTesting => !IsTesting;
+    public partial bool NeedsCertificateConsent { get; private set; }
 
     /// <summary>画面に出すエラー (保存・接続の確認に失敗したとき)</summary>
     public ErrorState Error { get; } = new();
@@ -109,31 +104,46 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     /// <summary>画面に出す成功のお知らせ (保存・接続の確認ができたとき)</summary>
     public ErrorState Success { get; } = new();
 
+    /// <summary>今のサーバーに対して、証明書を信頼する答えを、覚えているか</summary>
+    private bool TrustsServerNow => _trustServerCertificate && Server.Trim() == _trustedServer;
+
     /// <summary>入力した内容を、保存先の種類を添えて保存する</summary>
     /// <param name="mode">保存する保存先の種類</param>
-    /// <returns>すべて保存できたら true。入力が足りない・保存できなかったときは、エラーを出して false</returns>
-    /// <remarks>保存先が DB のときは、サーバー名とデータベース名が要る。パスワードは、入力があるときだけ保存する。</remarks>
+    /// <returns>すべて保存できたら true。入力が足りない・つながらない・保存できなかったときは、エラーを出して false</returns>
+    /// <remarks>
+    /// 保存先が DB のときは、サーバーとデータベース名が要り、保存の前に、つながることを確かめる (つながらない設定を保存しないため)。
+    /// 証明書を聞かれて「やめる」と答えたときも false。パスワードは、入力があるときだけ保存する。
+    /// </remarks>
     public async Task<bool> SaveAsync(DatabaseMode mode)
     {
-        Error.Clear();
-        Success.Clear();
-
-        var value = ToSettings(mode);
-        if (mode == DatabaseMode.SqlServer && (value.Server.Length == 0 || value.Name.Length == 0))
+        if (IsBusy)
         {
-            Error.Show("サーバー名とデータベース名を入力してください。");
             return false;
         }
 
+        Error.Clear();
+        Success.Clear();
+        if (mode == DatabaseMode.SqlServer && (Server.Trim().Length == 0 || DatabaseName.Trim().Length == 0))
+        {
+            Error.Show("サーバーとデータベース名を入力してください。");
+            return false;
+        }
+
+        IsBusy = true;
         try
         {
-            if (!await _settings.SaveAsync(value))
+            if (mode == DatabaseMode.SqlServer && !await TryConnectAsync())
+            {
+                return false;
+            }
+
+            if (!await _settings.SaveAsync(ToSettings(mode)))
             {
                 Error.Show(ReadOnlyMessage);
                 return false;
             }
 
-            if (value.Authentication == DatabaseAuthentication.Sql && Password.Length > 0)
+            if (Password.Length > 0)
             {
                 _settings.SetPassword(Password);
                 Password = "";
@@ -146,36 +156,95 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
             Error.Show(ex.Message);
             return false;
         }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
-    /// <summary>入力した内容で、DB に接続できるか確認する</summary>
+    /// <summary>入力した内容で、DB につながるか確かめる</summary>
     /// <returns>確認の完了を表すタスク</returns>
     /// <remarks>保存はしない。パスワードを入力していなければ、登録済みのものを使う。足りない設定・接続の失敗は、画面に出す。</remarks>
     [RelayCommand]
     private async Task TestAsync()
     {
-        if (IsTesting)
+        if (IsBusy)
         {
             return;
         }
 
         Error.Clear();
         Success.Clear();
-        IsTesting = true;
+        IsBusy = true;
         try
         {
-            var value = ToSettings(DatabaseMode.SqlServer);
-            var password = value.Authentication != DatabaseAuthentication.Sql ? null : Password.Length > 0 ? Password : _settings.GetPassword();
-            await SqlServerConnectionFactoryBuilder.TestConnectionAsync(value, password);
-            Success.Show("接続できました。");
-        }
-        catch (Exception ex) when (ex is DatabaseSettingsException or SqlServerConnectionException or SecretStoreException)
-        {
-            Error.Show(ex.Message);
+            if (await TryConnectAsync())
+            {
+                Success.Show("接続できました。");
+            }
         }
         finally
         {
-            IsTesting = false;
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>証明書について、「接続する」と答える</summary>
+    /// <remarks>今のサーバーに対して、証明書を信頼する答えを覚えて、接続をやり直させる (保存するのは、「保存」・「決定」のとき)。</remarks>
+    [RelayCommand]
+    private void AcceptCertificate()
+    {
+        _trustServerCertificate = true;
+        _trustedServer = Server.Trim();
+        _decision?.TrySetResult(true);
+    }
+
+    /// <summary>証明書について、「やめる」と答える</summary>
+    [RelayCommand]
+    private void DeclineCertificate() => _decision?.TrySetResult(false);
+
+    /// <summary>入力した内容で接続を試す。失敗は画面に出す</summary>
+    /// <returns>つながったら true。つながらない・「やめる」と答えたときは false</returns>
+    /// <remarks>証明書を信頼できないとき (まだ答えていないサーバー)だけ、「接続する」かを聞き、「接続する」ならやり直す。</remarks>
+    private async Task<bool> TryConnectAsync()
+    {
+        while (true)
+        {
+            try
+            {
+                var password = Password.Length > 0 ? Password : _settings.GetPassword();
+                await SqlServerConnectionFactoryBuilder.TestConnectionAsync(ToSettings(DatabaseMode.SqlServer), password);
+                return true;
+            }
+            catch (SqlServerConnectionException ex) when (ex.IsUntrustedCertificate && !TrustsServerNow)
+            {
+                if (!await AskCertificateAsync())
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex) when (ex is DatabaseSettingsException or SqlServerConnectionException or SecretStoreException)
+            {
+                Error.Show(ex.Message);
+                return false;
+            }
+        }
+    }
+
+    /// <summary>証明書について聞いて、答えを待つ</summary>
+    /// <returns>「接続する」なら true。「やめる」なら false</returns>
+    private async Task<bool> AskCertificateAsync()
+    {
+        _decision = new TaskCompletionSource<bool>();
+        NeedsCertificateConsent = true;
+        try
+        {
+            return await _decision.Task;
+        }
+        finally
+        {
+            NeedsCertificateConsent = false;
+            _decision = null;
         }
     }
 
@@ -187,8 +256,8 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
         Mode = mode,
         Server = Server.Trim(),
         Name = DatabaseName.Trim(),
-        Authentication = SelectedAuthentication?.Value ?? DatabaseAuthentication.Sql,
+        Authentication = DatabaseAuthentication.Sql,
         UserName = UserName.Trim(),
-        TrustServerCertificate = TrustServerCertificate,
+        TrustServerCertificate = TrustsServerNow,
     };
 }

@@ -6,52 +6,59 @@
 
     <StackPanel Spacing="12">
         <!-- 入力欄 (設定ファイルを読めなかったときは、各欄を無効にして変更させない) -->
-        <StackPanel Spacing="12">
-            <TextBox
-                GotFocus="OnAsciiBoxGotFocus"
-                Header="サーバー名"
-                IsEnabled="{x:Bind ViewModel.IsEditable}"
-                Text="{x:Bind ViewModel.Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <TextBox
-                GotFocus="OnAsciiBoxGotFocus"
-                Header="データベース名"
-                IsEnabled="{x:Bind ViewModel.IsEditable}"
-                Text="{x:Bind ViewModel.DatabaseName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-            <ComboBox
-                HorizontalAlignment="Stretch"
-                DisplayMemberPath="Name"
-                Header="ログインの方式"
-                IsEnabled="{x:Bind ViewModel.IsEditable}"
-                ItemsSource="{x:Bind ViewModel.Authentications}"
-                SelectedItem="{x:Bind ViewModel.SelectedAuthentication, Mode=TwoWay}" />
-
-            <!-- ユーザー名とパスワードのログインのときだけ -->
-            <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.IsSqlLogin, Mode=OneWay}">
-                <TextBox
-                    GotFocus="OnAsciiBoxGotFocus"
-                    Header="ユーザー名"
-                    IsEnabled="{x:Bind ViewModel.IsEditable}"
-                    Text="{x:Bind ViewModel.UserName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <PasswordBox
-                    GotFocus="OnAsciiBoxGotFocus"
-                    Header="{x:Bind ViewModel.PasswordHeader, Mode=OneWay}"
-                    IsEnabled="{x:Bind ViewModel.IsEditable}"
-                    Password="{x:Bind ViewModel.Password, Mode=OneWay}"
-                    PasswordChanged="OnPasswordChanged" />
-            </StackPanel>
-
-            <ToggleSwitch
-                Header="サーバーの証明書を信頼する"
-                IsEnabled="{x:Bind ViewModel.IsEditable}"
-                IsOn="{x:Bind ViewModel.TrustServerCertificate, Mode=TwoWay}"
-                OffContent="オフ"
-                OnContent="オン" />
-        </StackPanel>
+        <TextBox
+            GotFocus="OnAsciiBoxGotFocus"
+            Header="接続先のサーバー"
+            IsEnabled="{x:Bind ViewModel.IsEditable}"
+            PlaceholderText="例: 192.168.1.10"
+            Text="{x:Bind ViewModel.Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox
+            GotFocus="OnAsciiBoxGotFocus"
+            Header="データベース名"
+            IsEnabled="{x:Bind ViewModel.IsEditable}"
+            Text="{x:Bind ViewModel.DatabaseName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox
+            GotFocus="OnAsciiBoxGotFocus"
+            Header="ユーザー名"
+            IsEnabled="{x:Bind ViewModel.IsEditable}"
+            Text="{x:Bind ViewModel.UserName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <PasswordBox
+            GotFocus="OnAsciiBoxGotFocus"
+            Header="{x:Bind ViewModel.PasswordHeader, Mode=OneWay}"
+            IsEnabled="{x:Bind ViewModel.IsEditable}"
+            Password="{x:Bind ViewModel.Password, Mode=OneWay}"
+            PasswordChanged="OnPasswordChanged" />
 
         <Button
             MinWidth="96"
             Command="{x:Bind ViewModel.TestCommand}"
-            Content="接続を確認"
-            IsEnabled="{x:Bind ViewModel.IsNotTesting, Mode=OneWay}" />
+            Content="つながるか確かめる"
+            IsEnabled="{x:Bind ViewModel.IsNotBusy, Mode=OneWay}" />
+
+        <!-- サーバーの証明書が、信頼できない形のときだけ (初めての接続で 1 回)。閉じている間は、場所を取らない -->
+        <InfoBar
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.NeedsCertificateConsent, Mode=OneWay}"
+            Message="自宅や社内で用意されたサーバーでは、よくあることです。教えてもらった接続先なら、「接続する」を押してください。"
+            Severity="Informational"
+            Title="このサーバーは、独自の証明書を使っています。"
+            Visibility="{x:Bind ViewModel.NeedsCertificateConsent, Mode=OneWay}">
+            <InfoBar.Content>
+                <StackPanel
+                    Margin="0,0,0,8"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <Button
+                        MinWidth="96"
+                        Command="{x:Bind ViewModel.AcceptCertificateCommand}"
+                        Content="接続する"
+                        Style="{StaticResource AccentButtonStyle}" />
+                    <Button
+                        MinWidth="96"
+                        Command="{x:Bind ViewModel.DeclineCertificateCommand}"
+                        Content="やめる" />
+                </StackPanel>
+            </InfoBar.Content>
+        </InfoBar>
     </StackPanel>
 </UserControl>
