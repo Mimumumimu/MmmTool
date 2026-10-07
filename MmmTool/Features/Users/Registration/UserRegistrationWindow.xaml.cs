@@ -10,7 +10,7 @@ namespace MmmTool.Features.Users.Registration;
 /// <summary>ユーザーの登録ウィンドウ</summary>
 /// <remarks>
 /// 親を持たない、独立したウィンドウ (起動のあと、メインウィンドウがまだ出ていないときに出すため)。主モニターの中央に出す。
-/// 幅は固定で、高さは中身に合わせて決めたら固定 (サイズ変更・最大化・最小化はできない)。× で閉じたときは「あとで」と同じ。
+/// 幅は固定で、高さは中身に合わせて決めたら固定 (サイズ変更・最大化・最小化はできない)。登録は必須で、× で閉じたときは、登録しないままなので、呼び出し側がアプリを終了する。
 /// 開くたびに作り直す (閉じたウィンドウは再表示できないため)。
 /// </remarks>
 public sealed partial class UserRegistrationWindow : Window
@@ -21,7 +21,7 @@ public sealed partial class UserRegistrationWindow : Window
     /// <summary>閉じたときに結果を返す</summary>
     private readonly TaskCompletionSource<AppUser?> _closed = new();
 
-    /// <summary>登録したユーザー。「あとで」・× なら null</summary>
+    /// <summary>登録したユーザー。× なら null</summary>
     private AppUser? _result;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -42,7 +42,7 @@ public sealed partial class UserRegistrationWindow : Window
     }
 
     /// <summary>主モニターの中央に表示し、閉じるまで待つ</summary>
-    /// <returns>登録したユーザー。「あとで」・× なら null</returns>
+    /// <returns>登録したユーザー。× で閉じたら null</returns>
     public Task<AppUser?> ShowAsync()
     {
         this.UseFixedPresenter(isDialog: true, isResizable: false);
@@ -78,9 +78,9 @@ public sealed partial class UserRegistrationWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnNameBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
-    /// <summary>登録・「あとで」で閉じる</summary>
+    /// <summary>登録して閉じる</summary>
     /// <param name="sender">イベントの送信元</param>
-    /// <param name="registered">登録したユーザー。「あとで」なら null</param>
+    /// <param name="registered">登録したユーザー</param>
     private void OnCloseRequested(object? sender, AppUser? registered)
     {
         _result = registered;

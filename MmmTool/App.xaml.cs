@@ -147,14 +147,20 @@ public partial class App : Application
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 設定ページなど、画面からの終了の依頼も、トレイの「終了」と同じ処理にする
         _host.Services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();
-        // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
-        tray.Show();
 
         // 保存先の選択の画面は、最後のウィンドウを閉じてアプリごと終了しないよう、メインウィンドウを作るまで隠して残していた。ここで閉じる
         databaseChoice.CloseWindow();
 
         // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
-        await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync();
+        // 登録を済ませないと先へ進ませない (トレイも出さない)。登録せずに閉じたときは、終了する
+        if (!await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync())
+        {
+            await ExitAsync();
+            return;
+        }
+
+        // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
+        tray.Show();
 
         // 初回の起動 (保存先を選んだとき)だけ、メインウィンドウを出す (トレイだけでは、何も起動していないように見えるため。ユーザーの登録が済んでから出す)
         if (databaseChoice.HasChosen)

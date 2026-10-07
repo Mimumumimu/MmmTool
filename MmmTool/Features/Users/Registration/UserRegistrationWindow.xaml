@@ -84,10 +84,6 @@
                 Command="{x:Bind ViewModel.RegisterCommand}"
                 Content="登録"
                 Style="{StaticResource AccentButtonStyle}" />
-            <Button
-                MinWidth="96"
-                Command="{x:Bind ViewModel.CancelCommand}"
-                Content="あとで" />
         </StackPanel>
 
         <!-- 登録のエラー。レイアウトに場所を取らず、入力欄の上部に重ねる -->

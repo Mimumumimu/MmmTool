@@ -48,7 +48,7 @@ public sealed partial class UserRegistrationViewModel : ObservableObject
     }
 
     /// <summary>画面を閉じてほしい</summary>
-    /// <remarks>登録したときは登録したユーザー、「あとで」のときは null を渡す。</remarks>
+    /// <remarks>登録したユーザーを渡す。</remarks>
     public event EventHandler<AppUser?>? CloseRequested;
 
     /// <summary>表示名の最大文字数</summary>
@@ -114,10 +114,6 @@ public sealed partial class UserRegistrationViewModel : ObservableObject
             SaveError.Show(ex.Message);
         }
     }
-
-    /// <summary>登録せずに閉じる (あとで登録する)</summary>
-    [RelayCommand]
-    private void Cancel() => CloseRequested?.Invoke(this, null);
 
     /// <summary>表示名を変えたら、エラーを消す</summary>
     /// <param name="value">変えたあとの表示名</param>
