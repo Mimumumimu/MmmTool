@@ -39,8 +39,8 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
         IsEditable = !settings.IsReadOnly;
         Modes =
         [
-            new DatabaseModeOption(DatabaseMode.Json, "ローカル (この PC だけで使う)"),
-            new DatabaseModeOption(DatabaseMode.SqlServer, "DB (複数の PC で共有する)"),
+            new DatabaseModeOption(DatabaseMode.Json, "ローカル (すべてこの PC に保存する)"),
+            new DatabaseModeOption(DatabaseMode.SqlServer, "DB (一部のデータをサーバーに保存する)"),
         ];
         SelectedMode = Modes.First(option => option.Value == settings.Load().Mode);
     }

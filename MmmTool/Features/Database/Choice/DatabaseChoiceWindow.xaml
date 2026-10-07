@@ -36,7 +36,7 @@
 
             <TextBlock
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="リマインダーなどを保存する場所を選びます。あとから設定ページで変えられます。"
+                Text="データを保存する場所を選びます。あとから設定ページで変えられます。"
                 TextWrapping="Wrap" />
 
             <!-- 選んだ内容の保存・接続の確認の結果 (閉じている間は、Spacing の分の場所も取らない) -->
@@ -51,29 +51,14 @@
                 Severity="Success"
                 Visibility="{x:Bind ViewModel.Connection.Success.IsOpen, Mode=OneWay}" />
 
-            <StackPanel Spacing="2">
-                <RadioButton
-                    Content="ローカル (この PC だけで使う)"
-                    GroupName="SaveTarget"
-                    IsChecked="{x:Bind ViewModel.IsLocal, Mode=OneWay}" />
-                <TextBlock
-                    Margin="28,0,0,0"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="データは、この PC のファイルに保存します。" />
-            </StackPanel>
-
-            <StackPanel Spacing="2">
-                <RadioButton
-                    Content="DB (複数の PC で共有する)"
-                    GroupName="SaveTarget"
-                    IsChecked="{x:Bind ViewModel.IsSqlServer, Mode=TwoWay}" />
-                <TextBlock
-                    Margin="28,0,0,0"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="SQL Server に保存して、複数の PC でリマインダーを共有します。" />
-            </StackPanel>
+            <RadioButton
+                Content="ローカル (すべてこの PC に保存する)"
+                GroupName="SaveTarget"
+                IsChecked="{x:Bind ViewModel.IsLocal, Mode=OneWay}" />
+            <RadioButton
+                Content="DB (一部のデータをサーバーに保存する)"
+                GroupName="SaveTarget"
+                IsChecked="{x:Bind ViewModel.IsSqlServer, Mode=TwoWay}" />
 
             <!-- DB を選んだときだけ (入力欄は、コードビハインドで入れる) -->
             <ContentPresenter x:Name="ConnectionHost" Visibility="{x:Bind ViewModel.IsSqlServer, Mode=OneWay}" />
