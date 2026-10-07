@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core.Components.Hosting;
+using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Features.Database.Connection;
 using Windows.Foundation;
@@ -42,6 +43,8 @@ public sealed partial class DatabaseChoiceWindow : Window
         ViewModel.CloseRequested += OnCloseRequested;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.Connection.PropertyChanged += OnViewModelPropertyChanged;
+        ViewModel.Connection.Error.PropertyChanged += OnViewModelPropertyChanged;
+        ViewModel.Connection.Success.PropertyChanged += OnViewModelPropertyChanged;
         RootGrid.Loaded += OnRootLoaded;
         Closed += OnClosed;
     }
@@ -66,13 +69,15 @@ public sealed partial class DatabaseChoiceWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnRootLoaded(object sender, RoutedEventArgs e) => FitHeight();
 
-    /// <summary>ローカル・DB の選択や、証明書の確認の表示が変わったら、中身の出入りに合わせて高さを決め直す</summary>
+    /// <summary>ローカル・DB の選択、証明書の確認、エラー・成功のお知らせが変わったら、中身の出入りに合わせて高さを決め直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変わったプロパティの情報</param>
     /// <remarks>入力欄の表示がバインドで切り替わったあとに測るため、UI スレッドの次の順番に回す。</remarks>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(DatabaseChoiceViewModel.IsSqlServer) or nameof(DatabaseConnectionViewModel.NeedsCertificateConsent))
+        // お知らせは、出入り (IsOpen)と文面 (Message)が変わると、高さが変わる。ほかのプロパティの変更では、測り直さない
+        if (e.PropertyName is nameof(DatabaseChoiceViewModel.IsSqlServer) or nameof(DatabaseConnectionViewModel.NeedsCertificateConsent)
+            or nameof(ErrorState.IsOpen) or nameof(ErrorState.Message))
         {
             DispatcherQueue.TryEnqueue(FitHeight);
         }
@@ -107,6 +112,8 @@ public sealed partial class DatabaseChoiceWindow : Window
         ViewModel.CloseRequested -= OnCloseRequested;
         ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         ViewModel.Connection.PropertyChanged -= OnViewModelPropertyChanged;
+        ViewModel.Connection.Error.PropertyChanged -= OnViewModelPropertyChanged;
+        ViewModel.Connection.Success.PropertyChanged -= OnViewModelPropertyChanged;
         _closed.TrySetResult(_result);
     }
 }

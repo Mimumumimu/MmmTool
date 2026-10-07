@@ -10,7 +10,6 @@
             GotFocus="OnAsciiBoxGotFocus"
             Header="接続先のサーバー"
             IsEnabled="{x:Bind ViewModel.IsEditable}"
-            PlaceholderText="例: 192.168.1.10"
             Text="{x:Bind ViewModel.Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <TextBox
             GotFocus="OnAsciiBoxGotFocus"
