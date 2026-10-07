@@ -5,20 +5,23 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel Spacing="12">
-        <!-- 入力欄 (設定ファイルを読めなかったときは変更させない) -->
-        <StackPanel IsEnabled="{x:Bind ViewModel.IsEditable}" Spacing="12">
+        <!-- 入力欄 (設定ファイルを読めなかったときは、各欄を無効にして変更させない) -->
+        <StackPanel Spacing="12">
             <TextBox
                 GotFocus="OnAsciiBoxGotFocus"
                 Header="サーバー名"
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
                 Text="{x:Bind ViewModel.Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             <TextBox
                 GotFocus="OnAsciiBoxGotFocus"
                 Header="データベース名"
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
                 Text="{x:Bind ViewModel.DatabaseName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             <ComboBox
                 HorizontalAlignment="Stretch"
                 DisplayMemberPath="Name"
                 Header="ログインの方式"
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
                 ItemsSource="{x:Bind ViewModel.Authentications}"
                 SelectedItem="{x:Bind ViewModel.SelectedAuthentication, Mode=TwoWay}" />
 
@@ -27,16 +30,19 @@
                 <TextBox
                     GotFocus="OnAsciiBoxGotFocus"
                     Header="ユーザー名"
+                    IsEnabled="{x:Bind ViewModel.IsEditable}"
                     Text="{x:Bind ViewModel.UserName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                 <PasswordBox
                     GotFocus="OnAsciiBoxGotFocus"
                     Header="{x:Bind ViewModel.PasswordHeader, Mode=OneWay}"
+                    IsEnabled="{x:Bind ViewModel.IsEditable}"
                     Password="{x:Bind ViewModel.Password, Mode=OneWay}"
                     PasswordChanged="OnPasswordChanged" />
             </StackPanel>
 
             <ToggleSwitch
                 Header="サーバーの証明書を信頼する"
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
                 IsOn="{x:Bind ViewModel.TrustServerCertificate, Mode=TwoWay}"
                 OffContent="オフ"
                 OnContent="オン" />
