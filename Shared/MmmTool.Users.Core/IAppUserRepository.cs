@@ -14,5 +14,6 @@ public interface IAppUserRepository
     /// <param name="user">登録するユーザー (<see cref="AppUser.Id"/> は無視する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>登録した内容 (保存先が決めた番号つき)</returns>
+    /// <remarks>同じ MAC アドレスの、削除されていない行は、削除済みにしてから登録する (呼ぶのは、この PC の MAC に当てはまる、使えるユーザーが無いときだけ)。</remarks>
     Task<AppUser> AddAsync(AppUser user, CancellationToken cancellationToken = default);
 }

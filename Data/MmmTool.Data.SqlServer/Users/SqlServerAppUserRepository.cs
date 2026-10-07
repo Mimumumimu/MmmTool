@@ -51,14 +51,29 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
         }, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>同じ MAC アドレスの、削除されていない行 (使えない期間の行)は、先に削除済みにしてから登録する (同じトランザクション)。</remarks>
     /// <exception cref="ArgumentException">表示名・MAC アドレス・使える期間が正しくない。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった・同じ MAC アドレスがすでに登録されている (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった・同じ MAC アドレスが同時に登録された (メッセージは画面に出せる)。</exception>
     public Task<AppUser> AddAsync(AppUser user, CancellationToken cancellationToken = default)
     {
         var row = AppUserRow.FromAppUser(user with { Id = 0, IsDeleted = false });
         return database.RunAsync(async connection =>
         {
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            // 登録のときは、この PC の MAC に当てはまる、使える行が無い (特定できなかった)ので、残っているのは、削除済みか、期間の外の行だけ
+            await using var retire = connection.CreateCommand();
+            retire.Transaction = transaction;
+            retire.CommandText =
+                """
+                UPDATE dbo.AppUser
+                SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
+                WHERE MacAddress = @MacAddress AND IsDeleted = 0
+                """;
+            retire.Parameters.Add(new SqlParameter("@MacAddress", SqlDbType.Char, 12) { Value = row.MacAddress });
+
             await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
             command.CommandText =
                 """
                 INSERT INTO dbo.AppUser (CreatedByUserId, UpdatedByUserId, DisplayName, MacAddress, ValidFrom, ValidTo)
@@ -72,7 +87,9 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
 
             try
             {
+                await retire.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 var id = (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 return (row with { Id = id }).ToAppUser();
             }
             catch (SqlException ex) when (DuplicateKeyErrors.Contains(ex.Number))

@@ -38,7 +38,7 @@ public sealed partial class UserRegistrationViewModel : ObservableObject
         _currentUser = currentUser;
         _time = time;
 
-        MacAddresses = [.. macAddresses.GetMacAddresses().Select(mac => new MacAddressOption(mac))];
+        MacAddresses = [.. macAddresses.GetRegistrationAdapters().Select(adapter => new MacAddressOption(adapter.MacAddress, adapter.Name))];
         SelectedMacAddress = MacAddresses.FirstOrDefault();
         DisplayName = Environment.UserName;
         if (MacAddresses.Count == 0)

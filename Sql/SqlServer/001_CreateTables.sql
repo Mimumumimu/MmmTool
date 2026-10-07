@@ -13,10 +13,19 @@ CREATE TABLE dbo.AppUser
     UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_AppUser_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_AppUser_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
     DisplayName     nvarchar(50)    NOT NULL,
-    MacAddress      char(12)        NOT NULL CONSTRAINT UQ_AppUser_MacAddress UNIQUE,
+    MacAddress      char(12)        NOT NULL,
     ValidFrom       date            NOT NULL,
     ValidTo         date            NOT NULL CONSTRAINT DF_AppUser_ValidTo DEFAULT ('9999-12-31')
 );
+GO
+
+-- MAC は、削除されていない行の間だけ一意 (同じ PC を、別の人が登録し直すとき、前の行を削除済みにして、新しい行を足すため)
+-- 以前の版で作った表には、列の一意の制約 (UQ_AppUser_MacAddress)があるので、あれば外す
+IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'UQ_AppUser_MacAddress' AND parent_object_id = OBJECT_ID(N'dbo.AppUser'))
+ALTER TABLE dbo.AppUser DROP CONSTRAINT UQ_AppUser_MacAddress;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUser_MacAddress' AND object_id = OBJECT_ID(N'dbo.AppUser'))
+CREATE UNIQUE INDEX UX_AppUser_MacAddress ON dbo.AppUser (MacAddress) WHERE IsDeleted = 0;
 GO
 
 -- リマインダー。宛先 TargetUserId の 0 は全員宛て。Weekdays は月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数 (0 は曜日指定では毎日)
