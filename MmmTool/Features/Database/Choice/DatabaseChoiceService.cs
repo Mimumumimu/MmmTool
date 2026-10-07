@@ -25,6 +25,9 @@ public sealed class DatabaseChoiceService(IServiceScopeFactory scopeFactory, Dat
     /// <summary>隠して残している画面。無ければ null</summary>
     private DatabaseChoiceWindow? _window;
 
+    /// <summary>今回の起動で、選択の画面を出して、保存先を選んだか (初回の起動か)</summary>
+    public bool HasChosen { get; private set; }
+
     /// <summary>保存先がまだ選ばれていなければ、選択の画面を出して、選ぶまで待つ</summary>
     /// <returns>先へ進んでよければ true (選んで保存した・選ぶ必要が無かった)。選ばずに閉じたら false (アプリを終了する)</returns>
     public async Task<bool> ShowIfNeededAsync()
@@ -40,6 +43,7 @@ public sealed class DatabaseChoiceService(IServiceScopeFactory scopeFactory, Dat
         _window = _scope.ServiceProvider.GetRequiredService<DatabaseChoiceWindow>();
         if (await _window.ShowAsync())
         {
+            HasChosen = true;
             return true;
         }
 

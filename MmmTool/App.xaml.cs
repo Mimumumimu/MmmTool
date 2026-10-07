@@ -155,6 +155,12 @@ public partial class App : Application
 
         // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
         await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync();
+
+        // 初回の起動 (保存先を選んだとき)だけ、メインウィンドウを出す (トレイだけでは、何も起動していないように見えるため。ユーザーの登録が済んでから出す)
+        if (databaseChoice.HasChosen)
+        {
+            _window.BringToFront();
+        }
     }
 
     /// <summary>アプリを完全に終了する (トレイメニューの「終了」から)。</summary>
