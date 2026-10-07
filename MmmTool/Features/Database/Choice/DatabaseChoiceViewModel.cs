@@ -9,10 +9,10 @@ namespace MmmTool.Features.Database.Choice;
 /// 初回の保存先の選択の画面の ViewModel。ローカル (この PC だけ)か DB (複数の PC で共有)かを選び、DB なら接続の設定も入れる。
 /// </summary>
 /// <param name="connection">接続の入力欄</param>
-/// <remarks>選んだ内容は保存するだけで、次の起動から反映する (保存先は、起動時に決まって使い始めるため)。保存できたら <see cref="CloseRequested"/> で画面を閉じてもらう。</remarks>
+/// <remarks>起動時の準備より前に出す画面なので、選んだ内容は、保存すれば、そのまま最初から効く。保存できたら <see cref="CloseRequested"/> で、決定したことを知らせる。</remarks>
 public sealed partial class DatabaseChoiceViewModel(DatabaseConnectionViewModel connection) : ObservableObject
 {
-    /// <summary>画面を閉じてほしい</summary>
+    /// <summary>決定した (画面を閉じてよい)</summary>
     /// <remarks>保存したら true を渡す。</remarks>
     public event EventHandler<bool>? CloseRequested;
 

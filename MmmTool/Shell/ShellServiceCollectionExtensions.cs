@@ -19,6 +19,8 @@ public static class ShellServiceCollectionExtensions
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<PageProvider>();
+        // 画面から、アプリの終了 (トレイの「終了」と同じ処理)を頼む口
+        services.AddSingleton<AppExitService>();
         // 機能 (プラグイン)が、作ったページを調べる口
         services.AddSingleton<IPageCache>(provider => provider.GetRequiredService<PageProvider>());
         // 機能 (プラグイン)が、アプリの名前・データ・アイコンの置き場所を知る口

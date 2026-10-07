@@ -12,7 +12,8 @@ namespace MmmTool.Features.Database.Choice;
 /// <remarks>
 /// 親を持たない、独立したウィンドウ (起動のあと、メインウィンドウがまだ出ていないときに出すため)。主モニターの中央に出す。
 /// 幅は固定で、高さは中身に合わせて決める (DB を選んで入力欄が出たら、決め直す)。サイズ変更・最大化・最小化はできない。
-/// × で閉じたときは、保存しない (次の起動で、もう一度出す)。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 「決定」では、保存したあと、画面を閉じずに隠す (最初のウィンドウなので、閉じるとアプリごと終了しうる。閉じるのは、呼び出し側が、メインウィンドウを作ったあとに行う)。
+/// × で閉じたときは、保存しない (呼び出し側がアプリを終了する)。閉じたウィンドウは再表示できないので、作り直して使う。
 /// </remarks>
 public sealed partial class DatabaseChoiceWindow : Window
 {
@@ -22,7 +23,7 @@ public sealed partial class DatabaseChoiceWindow : Window
     /// <summary>閉じたときに結果を返す</summary>
     private readonly TaskCompletionSource<bool> _closed = new();
 
-    /// <summary>保存して閉じたか。× なら false</summary>
+    /// <summary>保存して決定したか。× なら false</summary>
     private bool _result;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -44,8 +45,8 @@ public sealed partial class DatabaseChoiceWindow : Window
         Closed += OnClosed;
     }
 
-    /// <summary>主モニターの中央に表示し、閉じるまで待つ</summary>
-    /// <returns>保存して閉じたら true。× なら false</returns>
+    /// <summary>主モニターの中央に表示し、選ぶ (または閉じる)まで待つ</summary>
+    /// <returns>保存して決定したら true (画面は隠れるだけで、閉じていない)。× で閉じたら false</returns>
     public Task<bool> ShowAsync()
     {
         this.UseFixedPresenter(isDialog: true, isResizable: false);
@@ -87,13 +88,14 @@ public sealed partial class DatabaseChoiceWindow : Window
         this.MoveCentered(DisplayArea.Primary.WorkArea);
     }
 
-    /// <summary>保存して閉じる</summary>
+    /// <summary>保存して決定したら、画面を隠して、待っている側へ知らせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="saved">保存したか</param>
     private void OnCloseRequested(object? sender, bool saved)
     {
         _result = saved;
-        Close();
+        AppWindow.Hide();
+        _closed.TrySetResult(saved);
     }
 
     /// <summary>閉じたら結果を返す</summary>

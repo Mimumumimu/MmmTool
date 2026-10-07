@@ -126,6 +126,15 @@ public partial class App : Application
         // トレイは画面・各機能より先に作る。Host は作った順の逆に破棄するので、終了時に各機能の後始末が済んでからトレイアイコンが消える
         var tray = _host.Services.GetRequiredService<TrayIcon>();
 
+        // 保存先がまだ選ばれていない初回だけ、選択の画面を出す。各機能の準備より前に出し (保存先は準備で決まって使い始めるため)、選んだ内容を最初から効かせる
+        // 選ばずに閉じたときは、先へ進ませずに終了する
+        var databaseChoice = _host.Services.GetRequiredService<DatabaseChoiceService>();
+        if (!await databaseChoice.ShowIfNeededAsync())
+        {
+            await ExitAsync();
+            return;
+        }
+
         // 各機能の起動時の準備 (設定の読み込み・時刻監視の開始など)。画面を作る前に行う (前回の作業ディレクトリでシェルを始めるため等)
         // オフにした機能の準備は行わない (オンにしたときに行う)
         await _host.Services.GetRequiredService<FeatureService>().StartAsync();
@@ -136,11 +145,13 @@ public partial class App : Application
 
         tray.OpenRequested += (_, _) => _window.BringToFront();
         tray.ExitRequested += async (_, _) => await ExitAsync();
+        // 設定ページなど、画面からの終了の依頼も、トレイの「終了」と同じ処理にする
+        _host.Services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();
         // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();
 
-        // 保存先がまだ選ばれていない初回だけ、選択の画面を出す (メインウィンドウを作ったあと。選んだ内容は、次の起動から反映する)
-        await _host.Services.GetRequiredService<DatabaseChoiceService>().ShowIfNeededAsync();
+        // 保存先の選択の画面は、最後のウィンドウを閉じてアプリごと終了しないよう、メインウィンドウを作るまで隠して残していた。ここで閉じる
+        databaseChoice.CloseWindow();
 
         // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
         await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync();
