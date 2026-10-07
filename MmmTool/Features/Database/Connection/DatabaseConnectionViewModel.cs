@@ -172,7 +172,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
         }
     }
 
-    /// <summary>入力した内容で、DB に接続を確認</summary>
+    /// <summary>入力した内容で、DB につながるか確かめる</summary>
     /// <returns>確認の完了を表すタスク</returns>
     /// <remarks>保存はしない。パスワードを入力していなければ、登録済みのものを使う。足りない設定・接続の失敗は、画面に出す。</remarks>
     [RelayCommand]
