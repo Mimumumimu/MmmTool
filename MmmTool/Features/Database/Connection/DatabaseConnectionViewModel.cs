@@ -97,7 +97,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
     public partial bool IsBusy { get; private set; }
 
-    /// <summary>接続の確認・保存の最中ではないか (「つながるか確かめる」を押せる)</summary>
+    /// <summary>接続の確認・保存の最中ではないか (「接続を確認」を押せる)</summary>
     public bool IsNotBusy => !IsBusy;
 
     /// <summary>サーバーの証明書について、「接続する」かを聞いているか</summary>
@@ -172,7 +172,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
         }
     }
 
-    /// <summary>入力した内容で、DB につながるか確かめる</summary>
+    /// <summary>入力した内容で、DB に接続を確認</summary>
     /// <returns>確認の完了を表すタスク</returns>
     /// <remarks>保存はしない。パスワードを入力していなければ、登録済みのものを使う。足りない設定・接続の失敗は、画面に出す。</remarks>
     [RelayCommand]
