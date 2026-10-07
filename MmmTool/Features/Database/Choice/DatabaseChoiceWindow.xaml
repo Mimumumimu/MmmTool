@@ -77,11 +77,6 @@
 
             <!-- DB を選んだときだけ (入力欄は、コードビハインドで入れる) -->
             <ContentPresenter x:Name="ConnectionHost" Visibility="{x:Bind ViewModel.IsSqlServer, Mode=OneWay}" />
-
-            <TextBlock
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Style="{StaticResource CaptionTextBlockStyle}"
-                Text="選んだ内容は、次の起動から反映されます。" />
         </StackPanel>
 
         <!-- 操作ボタン -->
