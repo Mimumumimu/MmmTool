@@ -3,6 +3,7 @@ using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.Data.SqlServer.Users;
+using MmmTool.Data.Users;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
 using MmmTool.Users.Core;
@@ -30,6 +31,7 @@ public static class SqlServerDataServiceCollectionExtensions
         services.AddSingleton<SqlServerConnectionFactoryBuilder>();
         services.AddSingleton<SqlServerDatabase>();
         services.AddSingleton<IAppUserRepository, SqlServerAppUserRepository>();
+        services.AddSingleton<ISavedCredentialStore, SecretSavedCredentialStore>();
         services.AddSingleton<SqlServerReminderRepository>();
 
         services.AddSingleton<IReminderRepository>(provider =>

@@ -36,8 +36,11 @@ public sealed record AppUserRow
     /// <summary>表示名</summary>
     public string DisplayName { get; init; } = "";
 
-    /// <summary>MAC アドレス (大文字の 16 進 12 桁・区切りなし)</summary>
-    public string MacAddress { get; init; } = "";
+    /// <summary>ログイン名</summary>
+    public string LoginName { get; init; } = "";
+
+    /// <summary>パスワードのハッシュ。空文字は、新しく決める状態</summary>
+    public string PasswordHash { get; init; } = "";
 
     /// <summary>使い始める日</summary>
     public DateOnly ValidFrom { get; init; }
@@ -47,9 +50,10 @@ public sealed record AppUserRow
 
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="user">ユーザー</param>
+    /// <param name="passwordHash">パスワードのハッシュ</param>
     /// <returns>DB の行。作成・更新の日時と、作成者・更新者は決めない</returns>
-    /// <exception cref="ArgumentException">表示名が空か長すぎる (50 文字まで)、MAC アドレスが 12 桁の大文字の 16 進ではない、使い終わる日が使い始める日より前。</exception>
-    public static AppUserRow FromAppUser(AppUser user)
+    /// <exception cref="ArgumentException">表示名・ログイン名が空か長すぎる (50 文字まで)、ログイン名に制御文字がある、使い終わる日が使い始める日より前。</exception>
+    public static AppUserRow FromAppUser(AppUser user, string passwordHash)
     {
         ArgumentNullException.ThrowIfNull(user);
 
@@ -57,9 +61,9 @@ public sealed record AppUserRow
         {
             throw new ArgumentException($"表示名は、空でない {AppUser.DisplayNameMaxLength} 文字までにしてください。", nameof(user));
         }
-        if (user.MacAddress.Length != 12 || !user.MacAddress.All(character => character is (>= '0' and <= '9') or (>= 'A' and <= 'F')))
+        if (string.IsNullOrWhiteSpace(user.LoginName) || user.LoginName.Length > AppUser.LoginNameMaxLength || user.LoginName.Any(char.IsControl))
         {
-            throw new ArgumentException($"MAC アドレス {user.MacAddress} は、大文字の 16 進 12 桁ではありません。", nameof(user));
+            throw new ArgumentException($"ログイン名は、空でない {AppUser.LoginNameMaxLength} 文字までにしてください (改行などは使えません)。", nameof(user));
         }
         if (user.ValidTo < user.ValidFrom)
         {
@@ -71,20 +75,21 @@ public sealed record AppUserRow
             Id = user.Id,
             IsDeleted = user.IsDeleted,
             DisplayName = user.DisplayName,
-            MacAddress = user.MacAddress,
+            LoginName = user.LoginName,
+            PasswordHash = passwordHash,
             ValidFrom = user.ValidFrom,
             ValidTo = user.ValidTo,
         };
     }
 
     /// <summary>DB の行から、アプリの型にする</summary>
-    /// <returns>ユーザー</returns>
+    /// <returns>ユーザー (パスワードのハッシュは含まない)</returns>
     public AppUser ToAppUser() => new()
     {
         Id = Id,
         IsDeleted = IsDeleted,
         DisplayName = DisplayName,
-        MacAddress = MacAddress,
+        LoginName = LoginName,
         ValidFrom = ValidFrom,
         ValidTo = ValidTo,
     };

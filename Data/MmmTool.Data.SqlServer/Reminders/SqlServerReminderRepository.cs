@@ -38,8 +38,8 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>今のユーザー</summary>
     private readonly CurrentUser _currentUser;
 
-    /// <summary>ユーザーの特定</summary>
-    private readonly UserIdentificationService _identification;
+    /// <summary>ログイン</summary>
+    private readonly UserSignInService _signIn;
 
     /// <summary>現在の日付を知るための時計</summary>
     private readonly TimeProvider _time;
@@ -71,15 +71,15 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>DB に保存するリマインダーの保存先を作る</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="currentUser">今のユーザー</param>
-    /// <param name="identification">ユーザーの特定 (起動時に特定できなかったとき、読み直しのたびに、もう一度試す)</param>
+    /// <param name="signIn">ログイン (起動時にログインできなかったとき、読み直しのたびに、覚えているログイン名とパスワードで、もう一度試す)</param>
     /// <param name="time">現在の日付を知るための時計</param>
     /// <param name="pollInterval">ほかの PC の変更を読み直す間隔。省略すると 1 分</param>
     public SqlServerReminderRepository(
-        SqlServerDatabase database, CurrentUser currentUser, UserIdentificationService identification, TimeProvider time, TimeSpan? pollInterval = null)
+        SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, TimeSpan? pollInterval = null)
     {
         _database = database;
         _currentUser = currentUser;
-        _identification = identification;
+        _signIn = signIn;
         _time = time;
         _pollInterval = pollInterval ?? DefaultPollInterval;
         _currentUser.Changed += OnCurrentUserChanged;
@@ -252,7 +252,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         _stop.Dispose();
     }
 
-    /// <summary>今のユーザーが設定されたら、すぐに読み直す (登録した直後に、「ユーザー登録が必要」が、次の読み直しまで残らないように)</summary>
+    /// <summary>今のユーザーが設定されたら、すぐに読み直す (ログインした直後に、「ログインが必要」が、次の読み直しまで残らないように)</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
@@ -369,11 +369,11 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     {
         try
         {
-            // 起動時に特定できなかった (DB に届かなかった・まだ登録していない)ときは、読み直しのたびに、もう一度試す
+            // 起動時にログインできなかった (DB に届かなかった・まだログインしていない)ときは、読み直しのたびに、もう一度試す
             if (!_currentUser.IsIdentified
-                && await _identification.IdentifyAsync(DateOnly.FromDateTime(_time.GetLocalNow().DateTime), cancellationToken).ConfigureAwait(false) is null)
+                && await _signIn.TrySignInWithSavedAsync(DateOnly.FromDateTime(_time.GetLocalNow().DateTime), cancellationToken).ConfigureAwait(false) is null)
             {
-                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません (この PC のユーザー登録が必要です)。");
+                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません (ログインが必要です)。");
             }
 
             var userId = _currentUser.Id;
@@ -482,7 +482,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // 起動時に特定できていなかったときは、保存の前に、もう一度試す (登録したあと・DB が復旧したあとの最初の保存のため)
+            // 起動時にログインできていなかったときは、保存の前に、もう一度試す (ログインしたあと・DB が復旧したあとの最初の保存のため)
             if (!_currentUser.IsIdentified)
             {
                 await ReloadAsync(cancellationToken).ConfigureAwait(false);
@@ -490,9 +490,9 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
 
             if (!_currentUser.IsIdentified)
             {
-                // 特定できない理由 (DB に届かない・登録が無い)は、読み込みの失敗と同じ
+                // ログインできない理由 (DB に届かない・ログインしていない)は、読み込みの失敗と同じ
                 throw new DataFileException(
-                    _loadError ?? "ユーザーが特定されていないため、保存できません (この PC のユーザー登録が必要です)。",
+                    _loadError ?? "ユーザーが特定されていないため、保存できません (ログインが必要です)。",
                     new InvalidOperationException("今のユーザーが特定されていません。"));
             }
 

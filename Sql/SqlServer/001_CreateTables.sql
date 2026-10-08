@@ -2,7 +2,7 @@
 -- 設計は docs/specs/database.md。何度流しても壊れない (無いものだけを作る)。
 -- 使い方: 先に DB を作り、その DB を選んでから、表を作れる権限のあるユーザーで、全体を実行する。
 
--- ユーザー。1 行が 1 人の 1 台 (MAC で特定する)
+-- ユーザー。1 行が 1 人 (ログイン名とパスワードで特定する)。PasswordHash の空文字は、新しく決める状態 (管理者が再設定したあと)
 IF OBJECT_ID(N'dbo.AppUser', N'U') IS NULL
 CREATE TABLE dbo.AppUser
 (
@@ -13,19 +13,16 @@ CREATE TABLE dbo.AppUser
     UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_AppUser_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_AppUser_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
     DisplayName     nvarchar(50)    NOT NULL,
-    MacAddress      char(12)        NOT NULL,
+    LoginName       nvarchar(50)    COLLATE Latin1_General_100_CI_AS NOT NULL,
+    PasswordHash    varchar(200)    NOT NULL CONSTRAINT DF_AppUser_PasswordHash DEFAULT (''),
     ValidFrom       date            NOT NULL,
     ValidTo         date            NOT NULL CONSTRAINT DF_AppUser_ValidTo DEFAULT ('9999-12-31')
 );
 GO
 
--- MAC は、削除されていない行の間だけ一意 (同じ PC を、別の人が登録し直すとき、前の行を削除済みにして、新しい行を足すため)
--- 以前の版で作った表には、列の一意の制約 (UQ_AppUser_MacAddress)があるので、あれば外す
-IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name = N'UQ_AppUser_MacAddress' AND parent_object_id = OBJECT_ID(N'dbo.AppUser'))
-ALTER TABLE dbo.AppUser DROP CONSTRAINT UQ_AppUser_MacAddress;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUser_MacAddress' AND object_id = OBJECT_ID(N'dbo.AppUser'))
-CREATE UNIQUE INDEX UX_AppUser_MacAddress ON dbo.AppUser (MacAddress) WHERE IsDeleted = 0;
+-- ログイン名は、削除されていない行の間だけ一意 (大文字と小文字は区別しない)。削除済みのユーザーのログイン名は、新しい人が使える
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUser_LoginName' AND object_id = OBJECT_ID(N'dbo.AppUser'))
+CREATE UNIQUE INDEX UX_AppUser_LoginName ON dbo.AppUser (LoginName) WHERE IsDeleted = 0;
 GO
 
 -- リマインダー。宛先 TargetUserId の 0 は全員宛て。Weekdays は月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数 (0 は曜日指定では毎日)
