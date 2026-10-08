@@ -47,10 +47,4 @@ public interface IReminderSendStatusRepository
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     Task MarkFailedAsync(int id, string error, CancellationToken cancellationToken = default);
 
-    /// <summary>新しい順に、送信の状況の一覧を取得する</summary>
-    /// <param name="count">取得する最大の件数</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送信の状況 (更新日時の新しい順)</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
-    Task<IReadOnlyList<SendHistoryItem>> GetRecentAsync(int count, CancellationToken cancellationToken = default);
 }

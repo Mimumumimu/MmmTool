@@ -27,6 +27,18 @@ public static class SendDisplay
     /// <returns>今日は送らないもの (保存した時点で、送る時刻が過ぎていた)は「対象外 (過去)」。ほかは、送信の状況の文字列 (<see cref="StatusText"/>)</returns>
     public static string PlanStatusText(SendPlanItem item) => item.IsSkipped ? "対象外 (過去)" : StatusText(item.Status);
 
+    /// <summary>送った 1 回の結果を、画面に出す文字列にする</summary>
+    /// <param name="status">結果 (送信済み・失敗)</param>
+    /// <param name="error">失敗の理由。成功は空文字</param>
+    /// <returns>「送信済み」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>
+    public static string ResultText(SendStatus status, string error) => status switch
+    {
+        SendStatus.Sent => "送信済み",
+        SendStatus.Failed when error.Length == 0 => "失敗",
+        SendStatus.Failed => $"失敗 ({error})",
+        _ => status.ToString(),
+    };
+
     /// <summary>送信の状況を、画面に出す文字列にする</summary>
     /// <param name="status">送信の状況。まだ送ろうとしていなければ null</param>
     /// <returns>「未送信」「送信中」「送信済み」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>

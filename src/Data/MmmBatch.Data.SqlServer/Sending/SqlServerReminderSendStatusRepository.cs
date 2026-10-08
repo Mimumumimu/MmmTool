@@ -2,7 +2,6 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmBatch.Sending.Core;
 using MmmTool.Data.SqlServer.Connection;
-using MmmTool.Reminders.Core;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
@@ -132,33 +131,6 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             return 0;
         }, cancellationToken);
     }
-
-    /// <inheritdoc />
-    public Task<IReadOnlyList<SendHistoryItem>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
-        => SendTableAccess.RunAsync<IReadOnlyList<SendHistoryItem>>(database, async connection =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT TOP (@Count) st.Id, st.ReminderId, st.ChannelId, st.Date, st.Status, st.Attempts, st.LastError, st.SentAt, st.UpdatedAt,
-                       ISNULL(r.Title, N''), ISNULL(c.Name, N''), ISNULL(c.Kind, 0), ISNULL(u.DisplayName, N'')
-                FROM dbo.ReminderSendStatus AS st
-                LEFT JOIN dbo.Reminder AS r ON r.Id = st.ReminderId
-                LEFT JOIN dbo.NotificationChannel AS c ON c.Id = st.ChannelId
-                LEFT JOIN dbo.AppUser AS u ON u.Id = c.CreatedByUserId
-                ORDER BY st.UpdatedAt DESC, st.Id DESC
-                """;
-            command.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = count });
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            var items = new List<SendHistoryItem>();
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var kind = (NotificationChannelKind)reader.GetByte(11);
-                items.Add(new SendHistoryItem(ReadStatus(reader), reader.GetString(9), Enum.IsDefined(kind) ? kind : null, reader.GetString(10), reader.GetString(12)));
-            }
-            return items;
-        }, cancellationToken);
 
     /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="ReminderSendStatus"/> にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>

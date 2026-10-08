@@ -16,16 +16,18 @@ public static class SendingCoreServiceCollectionExtensions
 
     /// <summary>送信の処理を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
+    /// <param name="logDirectory">送信のログを置くフォルダー (<c>Data/Logs</c>)</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
     /// 通信の <see cref="HttpClient"/> は、アプリ全体で 1 つ (接続を使い回すため。NuGet は足さない)。
     /// 送る対象の読み出し口 (<see cref="ISendTargetSource"/>)と、送信の状況の保存先 (<see cref="IReminderSendStatusRepository"/>)は、DB の実装が登録する。
     /// </remarks>
-    public static IServiceCollection AddSendingCore(this IServiceCollection services)
+    public static IServiceCollection AddSendingCore(this IServiceCollection services, string logDirectory)
     {
         services.AddSingleton(new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime }) { Timeout = HttpTimeout });
         services.AddSingleton<INotifier, NtfyNotifier>();
         services.AddSingleton<INotifier, DiscordWebhookNotifier>();
+        services.AddSingleton<ISendLog>(new FileSendLog(logDirectory));
         services.AddSingleton<ReminderSendService>();
         services.AddSingleton<SendMonitor>();
         return services;
