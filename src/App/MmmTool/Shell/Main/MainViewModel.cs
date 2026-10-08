@@ -8,19 +8,19 @@ namespace MmmTool.Shell.Main;
 /// <summary>メイン画面 (ナビゲーション)の ViewModel</summary>
 public sealed partial class MainViewModel : ObservableObject
 {
-    /// <summary>各機能が登録したページ (登録順)</summary>
+    /// <summary>各機能が登録したページ (並び順の値の順。同じ値は登録順)</summary>
     private readonly IReadOnlyList<NavigationPage> _pages;
 
     /// <summary>機能のオン・オフ</summary>
     private readonly FeatureService _features;
 
     /// <summary>登録されたページから、サイドバーの項目を作る</summary>
-    /// <param name="pages">各機能が登録したページ (登録順)</param>
+    /// <param name="pages">各機能が登録したページ</param>
     /// <param name="features">機能のオン・オフ</param>
     /// <remarks>オンの機能の項目だけを並べる。最初は上部の先頭の項目を選択した状態にする。</remarks>
     public MainViewModel(IEnumerable<NavigationPage> pages, FeatureService features)
     {
-        _pages = [.. pages];
+        _pages = [.. pages.OrderBy(p => p.Order)];
         _features = features;
         MenuItems = [];
         FooterItems = [];
@@ -56,7 +56,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>場所ごとの、オンの機能の項目を取得する</summary>
     /// <param name="area">サイドバーの中の場所</param>
-    /// <returns>登録順の項目</returns>
+    /// <returns>並び順の値の順の項目</returns>
     private List<NavigationItem> EnabledItems(NavigationArea area)
         => [.. _pages.Where(p => p.Area == area && _features.IsEnabled(p.FeatureKey)).Select(p => p.Item)];
 

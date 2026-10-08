@@ -52,7 +52,7 @@
 - SDK の `PseudoModal`(`MmmSdk.WinUI.Components.Windowing`。ウィンドウに付ける部品。詳細は SDK の `docs/dialogs.md`)。`SetOwner`(`GWLP_HWNDPARENT`)で親を設定し、表示したら `EnableWindow(親, false)` で親を操作不可にし、閉じる前に戻して親を前面に出す
   - コードから閉じるときは `PseudoModal.Close()` を `Close()` の前に呼ぶ。× / Alt+F4 は `AppWindow.Closing`、念のため `Closed` でも戻す。自分が消える前に戻さないと、別のアプリが前面に来る
 - 親の中央に出し、作業領域からはみ出す分は内側へ寄せる (`CenterOnOwner`)。重ねてよい (メイン → 一覧 → 入力画面 / 確認)
-- 親は SDK の `IDialogHost`(実装は `DialogService`)が決める：開いているモーダルウィンドウを開いた順に覚えておき、いちばん手前を親にする。無ければ、最後にアクティブになった普通のウィンドウ (`TrackWindow` で覚えたメインウィンドウかリマインダーのメイン画面)。確認ダイアログ (`ContentDialog`)・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す
+- 親は SDK の `IDialogHost`(実装は `DialogService`)が決める：最後にアクティブになったウィンドウ (`TrackWindow` で覚えたメインウィンドウ・リマインダーのメイン画面と、開いているモーダルウィンドウ)を親にする。別のウィンドウでモーダルが開いていても、操作したほうの上に出る。まだアクティブになっていないときは、いちばん手前のモーダル。確認ダイアログ (`ContentDialog`)・作業ディレクトリ変更ダイアログも同じ親の `XamlRoot` に出す
 
 ## 入力画面 (`ReminderInputWindow` ＋ `ReminderInputViewModel`)
 - 開くのは `IReminderDialogService.ShowInputAsync(対象 or null)`。保存した内容 or null (キャンセル)を返す。`No` が 0 の内容を渡すと、それを初期値にした新規 (コピーして新規追加)になる
@@ -74,8 +74,10 @@
 - IME：件名・備考はフォーカスでオン、リンクはオフ (SDK の `ImeControl.TurnOn/TurnOff`)
 - 保存しても、今日の対応状態はそのまま
 
-## 一覧画面 (`ReminderListWindow` ＋ `ReminderListViewModel`)
-- 開くのは `IReminderDialogService.ShowListAsync()`。常にモーダル (2 枚目は開けない)。Transient で、閉じたら `Dispose` で `ReminderService.Changed` の購読をやめる。開くたびに DI のスコープ (`IServiceScopeFactory`)を作り、そこから画面・ViewModel を解決して、閉じたらスコープごと破棄する (ルートから解決した `IDisposable` の Transient は、アプリの終了まで DI コンテナが保持し続けるため。メイン画面・入力画面も同じ)
+## 一覧画面 (`ReminderListControl` ＋ `ReminderListViewModel`。置き場は `ReminderListPage` と `ReminderListWindow`)
+- 一覧の中身 (操作行・見出しつきの一覧・エラー)は UserControl の `ReminderListControl`(`List/`)で、ページとウィンドウが共有する。タイトル・外側の余白・読み込みは、置く側が受け持つ
+- サイドバーの「リマインダー」(`ReminderListPage`。常にオンの機能なのでキー無し・並び順の値 2・アイコン Segoe Fluent の Calendar `E787`)は、アプリの本体の画面。見出し (`TitleTextBlockStyle`)と余白 (24,16,24,24)はリンクのページと同じ。ページは作ったあと使い回されるので、表示のたびに読み直し (`Loaded`)、「過去の予定を表示」「削除済みを表示」の状態は、ページを切り替えても残る。最初の読み込みが済むまで一覧を隠す
+- ウィンドウ (`ReminderListWindow`)の開き方は次。常にモーダル (2 枚目は開けない)。Transient で、閉じたら `Dispose` で `ReminderService.Changed` の購読をやめる。開くたびに DI のスコープ (`IServiceScopeFactory`)を作り、そこから画面・ViewModel を解決して、閉じたらスコープごと破棄する (ルートから解決した `IDisposable` の Transient は、アプリの終了まで DI コンテナが保持し続けるため。メイン画面・入力画面も同じ)
 - Mica・タイトル帯でドラッグ。大きさは変えられる (最初 760×560・最小 560×360 DIP、最大化・最小化なし)
 - 上に「新規追加」 (Accent)、右に「過去の予定を表示」「削除済みを表示」の `ToggleSwitch`(どちらも既定オフ。状態は保存しない)
   - 「過去の予定」をオフにすると、日付が昨日以前の日付指定を隠す。今日の分は時刻が過ぎていても出す。過去日が日付順で一番上に並んで邪魔になるため (並び替えで下へ回す案より、隠す案にした)
@@ -92,7 +94,7 @@
 - メニュー項目は画面の外に出て DataContext が来ないので、行を `Tag="{x:Bind}"` で渡す
 - 変更 (`Changed`)は、ViewModel を作ったスレッドの `SynchronizationContext` に戻して読み直し、変わった行だけ差し替える (全部作り直すとスクロールが先頭へ戻るため)
 - エラー (読み込み失敗・壊れたファイルの退避・保存の失敗)は、一覧の上に重ねる InfoBar で知らせる (閉じたら消える)
-- 空の一覧が一瞬見えないよう、読み込んでから表示する
+- 空の一覧が一瞬見えないよう、読み込んでから表示する (ウィンドウは読み込んでから出す。ページは読み込みが済むまで隠す)
 
 ## メイン画面 (`ReminderMainWindow` ＋ `ReminderMainViewModel`)
 - 開くのは `ReminderWindowService`(Singleton)。1 枚だけ持ち、開いていれば前面に出す。読み込み中の 2 回目の呼び出しは、表示し終わるのを待つ
@@ -118,6 +120,10 @@
 スヌーズ間隔は設定ページ ([settings.md](settings.md))で変える。
 
 ## 決定の理由
+
+### 一覧は、ページとウィンドウで中身を共有する
+- サイドバーのページ (アプリの本体)と、リマインダーのメイン画面の「一覧」ボタンから開くウィンドウの両方に、同じ一覧を出す。中身を `ReminderListControl` に分け、置き場だけを分ける (最終形: リマインダーを単体のアプリにしたとき、サイドバーが無くても、ウィンドウで一覧を開ける。ユーザーの決定)
+- 分けるのは枠だけで、見た目を別にはしなかった。ページは大きい領域、ウィンドウは 760×560 だが、列は日付 120 / 曜日 120 / 時刻 80 / 件名 (残り)で、広くなる分は件名が使うので、どちらでも成り立つ
 
 ### モーダルは擬似モーダルで実現する
 - 一覧・入力画面は、開いている間、親のウィンドウを操作させたくないが、WinUI 3 のウィンドウには標準のモーダル表示がない。`OverlappedPresenter.IsModal = true` を試したが、親を操作できてしまった。モーダルらしく見えて動けば、やり方は問わないので、SDK の `PseudoModal` で実現する (仕組みは上の「擬似モーダル」)

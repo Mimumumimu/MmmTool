@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmSdk.Core.Components.Features;
 
-namespace MmmTool.Features.Settings.Main;
+namespace MmmTool.Features.Settings.FeatureList;
 
 /// <summary>設定ページの「機能」の一覧の 1 行 (機能のオン・オフのスイッチ)</summary>
 /// <param name="info">機能の登録情報</param>

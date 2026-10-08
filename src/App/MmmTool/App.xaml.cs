@@ -79,20 +79,24 @@ public partial class App : Application
         // 画面の枠 (メインウィンドウ・サイドバー・トレイ)
         services.AddShell();
 
+        // 設定ページの先頭の部品 (全般・機能の一覧)。設定ページの部品は並び順の値で並ぶので、呼ぶ位置は問わない
+        services.AddSettingsSections();
+
         // ログイン (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
         services.AddUserSignIn();
 
-        // 機能。登録した順に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目・起動時の準備が並ぶ
-        services.AddFeaturePlugin<CliAssistPlugin>();
-        services.AddFeaturePlugin<ClipboardTransferPlugin>();
-        services.AddFeaturePlugin<RemindersPlugin>();
-        services.AddFeaturePlugin<BacklogPlugin>();
-        services.AddFeaturePlugin<LinksPlugin>();
+        // 機能。起動時の準備は、登録した順に実行する。サイドバー・トレイメニュー・設定の機能の一覧・設定の部品は、order の順に並ぶ (登録の順は問わない)
+        // order の並び: よく使う順 (CLI補助が主な機能)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
+        services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
+        services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 4);
+        services.AddFeaturePlugin<RemindersPlugin>(order: 2);
+        services.AddFeaturePlugin<BacklogPlugin>(order: 5);
+        services.AddFeaturePlugin<LinksPlugin>(order: 3);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
 
-        // 保存先の画面 (設定ページの部品と、初回の選択)。設定ページの部品は登録順に並ぶので、機能の登録のあとに呼ぶ
+        // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();
 
         services.AddDebugging();
@@ -159,11 +163,13 @@ public partial class App : Application
             return;
         }
 
-        // 起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
+        // 既定では、起動時はトレイだけ。ウィンドウはトレイから開いたときに初めて出す
         tray.Show();
 
-        // 初回の起動 (保存先を選んだとき)だけ、メインウィンドウを出す (トレイだけでは、何も起動していないように見えるため。ユーザーの登録が済んでから出す)
-        if (databaseChoice.HasChosen)
+        // メインウィンドウを出すのは、次のとき (ユーザーの登録が済んでから出す)
+        // - 初回の起動 (保存先を選んだとき。トレイだけでは、何も起動していないように見えるため)
+        // - 設定で「起動時にメイン画面を開く」がオンのとき (設定ストアは、機能の準備の前に先読み済み)
+        if (databaseChoice.HasChosen || _host.Services.GetRequiredService<MainWindowSettingsService>().OpenOnStartup)
         {
             _window.BringToFront();
         }
@@ -178,6 +184,8 @@ public partial class App : Application
     private async Task ExitAsync()
     {
         _window?.PrepareExit();
+        // 開いているウィンドウ (モーダル・リマインダーのメイン画面など)は、Host が生きているうちに閉じる (閉じる処理が、破棄済みのサービスを触らないように。メインウィンドウは Exit が閉じる)
+        _host.Services.GetRequiredService<IDialogHost>().CloseAll(_window);
         await _host.StopAsync();
         _host.Dispose();
         Exit();
