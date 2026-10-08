@@ -73,7 +73,7 @@ public static class CliCommandDefaults
                 Leaf("会話要約 (コンテキスト圧縮)", "/compact"),
                 Leaf("steering を作成", KiroSteeringPrompt)),
             Leaf("モデル切替", "/model", focus: FocusTarget.Terminal),
-            Leaf("会話履歴と再開", "/chat resume", focus: FocusTarget.Terminal),
+            Leaf("会話履歴と再開", "/chat", focus: FocusTarget.Terminal),
             Leaf("使用量の確認", "/usage", focus: FocusTarget.Terminal),
             Leaf("終了", "/quit", switchTo: CommandCategory.Shell)),
         _ => Group(CliTool.ClaudeCode.GetLabel(),

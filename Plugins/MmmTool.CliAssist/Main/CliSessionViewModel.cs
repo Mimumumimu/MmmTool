@@ -31,6 +31,8 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly SendHistory _sendHistory;
     /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
+    /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
+    private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
     private bool _disposed;
 
@@ -60,8 +62,32 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         HistoryFilter = string.Empty;
         Title = string.Empty;
 
+        Category = CommandCategory.Shell;
+        _uiContext = SynchronizationContext.Current;
+        Terminal.Exited += OnShellExited;
+
         Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
         HistoryItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
+    }
+
+    /// <summary>左ペインで表示する定型コマンドの群 (シェル / AI セッション)</summary>
+    /// <remarks>
+    /// このタブのターミナルで、今シェルと AI セッションのどちらを動かしているかを表す。タブごとに持ち、タブを切り替えると左ペインが追従する。
+    /// 新しいタブはシェルから始まる。
+    /// </remarks>
+    [ObservableProperty]
+    public partial CommandCategory Category { get; set; }
+
+    /// <summary>シェルが終了したときの処理 (中の AI セッションも無くなるので、シェル側へ戻す)</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>終了はスレッドプールで通知されるので、UI スレッドへ移して値を変える。</remarks>
+    private void OnShellExited(object? sender, EventArgs e)
+    {
+        if (_uiContext is { } context)
+        {
+            context.Post(_ => Category = CommandCategory.Shell, null);
+        }
     }
 
     /// <summary>シェルのセッション。</summary>
@@ -359,6 +385,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
         _disposed = true;
 
+        Terminal.Exited -= OnShellExited;
         Terminal.Dispose();
         _windowsAttachmentStore.Dispose();
         _wslAttachmentStore.Dispose();
