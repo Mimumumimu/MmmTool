@@ -16,86 +16,109 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
     /// <summary>重複したキー (一意制約・一意インデックス)のエラー番号</summary>
     private static readonly int[] DuplicateKeyErrors = [2601, 2627];
 
+    /// <summary>ハッシュ以外の列を選ぶ SELECT の列 (ハッシュは <see cref="FindByLoginNameAsync"/> だけが読む)</summary>
+    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, DisplayName, LoginName, ValidFrom, ValidTo";
+
     /// <inheritdoc />
     /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
     public Task<IReadOnlyList<AppUser>> GetUsersAsync(CancellationToken cancellationToken = default)
         => database.RunAsync<IReadOnlyList<AppUser>>(async connection =>
         {
             await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                SELECT Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, DisplayName, MacAddress, ValidFrom, ValidTo
-                FROM dbo.AppUser
-                ORDER BY Id
-                """;
+            command.CommandText = $"SELECT {Columns} FROM dbo.AppUser ORDER BY Id";
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
             var users = new List<AppUser>();
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                users.Add(new AppUserRow
-                {
-                    Id = reader.GetInt32(0),
-                    IsDeleted = reader.GetBoolean(1),
-                    CreatedAt = reader.GetDateTimeOffset(2),
-                    CreatedByUserId = reader.GetInt32(3),
-                    UpdatedAt = reader.GetDateTimeOffset(4),
-                    UpdatedByUserId = reader.GetInt32(5),
-                    DisplayName = reader.GetString(6),
-                    MacAddress = reader.GetString(7),
-                    ValidFrom = DateOnly.FromDateTime(reader.GetDateTime(8)),
-                    ValidTo = DateOnly.FromDateTime(reader.GetDateTime(9)),
-                }.ToAppUser());
+                users.Add(ReadRow(reader).ToAppUser());
             }
             return users;
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <remarks>同じ MAC アドレスの、削除されていない行 (使えない期間の行)は、先に削除済みにしてから登録する (同じトランザクション)。</remarks>
-    /// <exception cref="ArgumentException">表示名・MAC アドレス・使える期間が正しくない。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった・同じ MAC アドレスが同時に登録された (メッセージは画面に出せる)。</exception>
-    public Task<AppUser> AddAsync(AppUser user, CancellationToken cancellationToken = default)
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    public Task<AppUserCredential?> FindByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
+        => database.RunAsync<AppUserCredential?>(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT {Columns}, PasswordHash FROM dbo.AppUser WHERE LoginName = @LoginName AND IsDeleted = 0";
+            command.Parameters.Add(new SqlParameter("@LoginName", SqlDbType.NVarChar, AppUser.LoginNameMaxLength) { Value = loginName });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return null;
+            }
+            return new AppUserCredential(ReadRow(reader).ToAppUser(), reader.GetString(10));
+        }, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">表示名・ログイン名・使える期間が正しくない。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="LoginNameTakenException">同じログイン名がすでにある。</exception>
+    public Task<AppUser> AddAsync(AppUser user, string passwordHash, CancellationToken cancellationToken = default)
     {
-        var row = AppUserRow.FromAppUser(user with { Id = 0, IsDeleted = false });
+        var row = AppUserRow.FromAppUser(user with { Id = 0, IsDeleted = false }, passwordHash);
         return database.RunAsync(async connection =>
         {
-            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-
-            // 登録のときは、この PC の MAC に当てはまる、使える行が無い (特定できなかった)ので、残っているのは、削除済みか、期間の外の行だけ
-            await using var retire = connection.CreateCommand();
-            retire.Transaction = transaction;
-            retire.CommandText =
-                """
-                UPDATE dbo.AppUser
-                SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
-                WHERE MacAddress = @MacAddress AND IsDeleted = 0
-                """;
-            retire.Parameters.Add(new SqlParameter("@MacAddress", SqlDbType.Char, 12) { Value = row.MacAddress });
-
             await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
             command.CommandText =
                 """
-                INSERT INTO dbo.AppUser (CreatedByUserId, UpdatedByUserId, DisplayName, MacAddress, ValidFrom, ValidTo)
+                INSERT INTO dbo.AppUser (CreatedByUserId, UpdatedByUserId, DisplayName, LoginName, PasswordHash, ValidFrom, ValidTo)
                 OUTPUT INSERTED.Id
-                VALUES (0, 0, @DisplayName, @MacAddress, @ValidFrom, @ValidTo)
+                VALUES (0, 0, @DisplayName, @LoginName, @PasswordHash, @ValidFrom, @ValidTo)
                 """;
-            command.Parameters.Add(new SqlParameter("@DisplayName", SqlDbType.NVarChar, 50) { Value = row.DisplayName });
-            command.Parameters.Add(new SqlParameter("@MacAddress", SqlDbType.Char, 12) { Value = row.MacAddress });
+            command.Parameters.Add(new SqlParameter("@DisplayName", SqlDbType.NVarChar, AppUser.DisplayNameMaxLength) { Value = row.DisplayName });
+            command.Parameters.Add(new SqlParameter("@LoginName", SqlDbType.NVarChar, AppUser.LoginNameMaxLength) { Value = row.LoginName });
+            command.Parameters.Add(new SqlParameter("@PasswordHash", SqlDbType.VarChar, 200) { Value = row.PasswordHash });
             command.Parameters.Add(new SqlParameter("@ValidFrom", SqlDbType.Date) { Value = row.ValidFrom.ToDateTime(TimeOnly.MinValue) });
             command.Parameters.Add(new SqlParameter("@ValidTo", SqlDbType.Date) { Value = row.ValidTo.ToDateTime(TimeOnly.MinValue) });
 
             try
             {
-                await retire.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 var id = (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 return (row with { Id = id }).ToAppUser();
             }
             catch (SqlException ex) when (DuplicateKeyErrors.Contains(ex.Number))
             {
-                throw new DataFileException("この PC の MAC アドレスは、すでに別のユーザーとして登録されています。", ex);
+                throw new LoginNameTakenException(ex);
             }
         }, cancellationToken);
     }
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    public Task<bool> SetPasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default)
+        => database.RunAsync(async connection =>
+        {
+            // 空のときだけ入れる (ほかの人が先に決めたパスワードを、上書きしないため)
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                UPDATE dbo.AppUser
+                SET PasswordHash = @PasswordHash, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+                WHERE Id = @UserId AND IsDeleted = 0 AND PasswordHash = ''
+                """;
+            command.Parameters.Add(new SqlParameter("@PasswordHash", SqlDbType.VarChar, 200) { Value = passwordHash });
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
+        }, cancellationToken);
+
+    /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="AppUserRow"/> にする</summary>
+    /// <param name="reader">読んでいる位置のリーダー</param>
+    /// <returns>DB の行 (パスワードのハッシュは含まない)</returns>
+    private static AppUserRow ReadRow(SqlDataReader reader) => new()
+    {
+        Id = reader.GetInt32(0),
+        IsDeleted = reader.GetBoolean(1),
+        CreatedAt = reader.GetDateTimeOffset(2),
+        CreatedByUserId = reader.GetInt32(3),
+        UpdatedAt = reader.GetDateTimeOffset(4),
+        UpdatedByUserId = reader.GetInt32(5),
+        DisplayName = reader.GetString(6),
+        LoginName = reader.GetString(7),
+        ValidFrom = DateOnly.FromDateTime(reader.GetDateTime(8)),
+        ValidTo = DateOnly.FromDateTime(reader.GetDateTime(9)),
+    };
 }

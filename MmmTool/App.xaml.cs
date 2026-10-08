@@ -79,8 +79,8 @@ public partial class App : Application
         // 画面の枠 (メインウィンドウ・サイドバー・トレイ)
         services.AddShell();
 
-        // ユーザーの特定 (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
-        services.AddUserRegistration();
+        // ログイン (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
+        services.AddUserSignIn();
 
         // 機能。登録した順に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目・起動時の準備が並ぶ
         services.AddFeaturePlugin<CliAssistPlugin>();
@@ -151,9 +151,9 @@ public partial class App : Application
         // 保存先の選択の画面は、最後のウィンドウを閉じてアプリごと終了しないよう、メインウィンドウを作るまで隠して残していた。ここで閉じる
         databaseChoice.CloseWindow();
 
-        // DB モードで、この PC のユーザーが未登録のとき、登録の画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
-        // 登録を済ませないと先へ進ませない (トレイも出さない)。登録せずに閉じたときは、終了する
-        if (!await _host.Services.GetRequiredService<UserRegistrationService>().ShowIfRequestedAsync())
+        // DB モードで、ログインできていないとき、ログインの画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
+        // ログインを済ませないと先へ進ませない (トレイも出さない)。ログインせずに閉じたときは、終了する
+        if (!await _host.Services.GetRequiredService<SignInPrompt>().ShowIfRequestedAsync())
         {
             await ExitAsync();
             return;

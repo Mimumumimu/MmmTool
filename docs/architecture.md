@@ -6,7 +6,7 @@
 | `MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト (メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページ・DEBUG ページ)。機能のプラグインを参照して登録する |
 | `Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders の 5 つ |
 | `Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
-| `Shared/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・この PC の MAC からの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
+| `Shared/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders)と `MmmTool.Users.Core` |
 | `Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`)。SDK の `MmmSdk.Db.<種類>` を参照する。ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 (`MmmSdk.Db.SqlServer`)。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
@@ -29,12 +29,12 @@ Plugins/MmmTool.<機能>/Main/         その機能の入口の画面 (サイド
                                       View・ViewModel・行の型。画面が 1 つだけの機能も Main/ に入れる
 Plugins/MmmTool.<機能>/<画面>/       そのほかの画面 (Reminders/{Input, List, Settings}、CliAssist/WorkingDirectory)。
                                       1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
-Shared/MmmTool.Users.Core/            機能をまたいで共有するユーザー (AppUser・CurrentUser・UserIdentificationService・IMacAddressProvider)
+Shared/MmmTool.Users.Core/            機能をまたいで共有するユーザー (AppUser・CurrentUser・UserSignInService・PasswordHasher)
 Data/MmmTool.Data/Connection/         DB への接続の設定 (DatabaseSettings・DatabaseSettingsService。機能をまたぐので、機能のフォルダではない)
 Data/MmmTool.Data/<機能>/             DB の行のクラス (<名前>Row)と、アプリの型との変換 (全機能の分。機能ごとのフォルダ)
 Data/MmmTool.Data.<種類>/Connection/  その DB への接続を作る処理 (SqlServerConnectionFactoryBuilder。設定とパスワードから SDK の接続の部品を作る)
 Data/MmmTool.Data.<種類>/<機能>/      その DB の Repository の実装 (<種類><名前>Repository)
-MmmTool/Features/<機能>/              ホストが持つ機能 (Settings / Debugging / Users / Database。Users は DB モードのユーザーの特定と、登録の画面。Database は保存先 (ローカル / DB)の設定ページの部品と、初回の選択の画面)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
+MmmTool/Features/<機能>/              ホストが持つ機能 (Settings / Debugging / Users / Database。Users は DB モードのユーザーの特定と、ログインの画面。Database は保存先 (ローカル / DB)の設定ページの部品と、初回の選択の画面)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
 MmmTool/Shell/                        画面の枠 (ホスト側)。直下に DI 登録と、アプリ全体で使う型
                                      (SettingsStoreStartup・
                                       AppIcon・AppInfo・ShellServiceCollectionExtensions)

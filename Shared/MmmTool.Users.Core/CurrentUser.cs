@@ -4,7 +4,7 @@ namespace MmmTool.Users.Core;
 /// このアプリを今使っている人。アプリ全体で 1 つ。
 /// </summary>
 /// <remarks>
-/// 起動時の準備で、この PC の MAC から特定して設定する (<see cref="UserIdentificationService"/>)。DB の保存先 (DB モード)だけが使う。
+/// 起動時の準備で、覚えているログイン名とパスワードから特定して設定する (<see cref="UserSignInService"/>)。DB の保存先 (DB モード)だけが使う。
 /// ローカルモードでは、特定しない (誰も設定されない)。
 /// </remarks>
 public sealed class CurrentUser
