@@ -39,7 +39,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
   - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「決定の理由」)
-  - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・サインアウトが無いなど)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
+  - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・忘れたときの再設定の画面が無いなど)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
   - DB のコードを、機能ごとではなく 1 か所 (`MmmTool.Data` と `MmmTool.Data.<種類>`)に集める。`MmmTool.Data` が複数の機能の Core を参照する。DB の行のクラスと、アプリの型 (`Reminder` など)が別 ([docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」)
   - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
 - **DB の `DELETE` 文は、基本、使わない (禁止)**。ユーザーに「消して」と言われたときだけ、対象 (サーバー・データベース・表・条件・消す行数)を伝えて、**確認を取ってから**実行する (確認の返事が、実行の許可。許可は、その 1 回の分だけ)。消すときは、条件を絞り (主キーなど。条件なしの `DELETE` は、しない)、実行の前に、対象の行を読んで見せる。実行のあとは、IDENTITY の次の番号に抜けが出る (嫌われている)ので、戻すか (`DBCC CHECKIDENT ... RESEED`)も、あわせて確認する。アプリのコードは、元から、物理削除をしない (論理削除だけ。[database.md](docs/specs/database.md))

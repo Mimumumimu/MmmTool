@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Features.Users.Settings.AccountSettingsControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- DB に保存していて、ログイン済みのときだけ並べる (部品そのものを隠す。コードビハインド。ページの Spacing の場所も取らない) -->
+    <StackPanel Spacing="4">
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="アカウント" />
+
+        <InfoBar
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            Severity="Error"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+
+        <controls:SettingsCard
+            Command="{x:Bind ViewModel.EditDisplayNameCommand}"
+            Description="{x:Bind ViewModel.DisplayName, Mode=OneWay}"
+            Header="表示名"
+            IsClickEnabled="True" />
+        <controls:SettingsCard
+            Command="{x:Bind ViewModel.EditLoginNameCommand}"
+            Description="{x:Bind ViewModel.LoginName, Mode=OneWay}"
+            Header="ログイン名"
+            IsClickEnabled="True" />
+        <controls:SettingsCard
+            Command="{x:Bind ViewModel.EditPasswordCommand}"
+            Header="パスワード"
+            IsClickEnabled="True" />
+
+        <!-- 押すと確認が出る。主な操作ではないので、強調しない -->
+        <controls:SettingsCard Description="ログアウトして、アプリを終了します" Header="ログアウト">
+            <Button Command="{x:Bind ViewModel.SignOutCommand}" Content="ログアウト" />
+        </controls:SettingsCard>
+    </StackPanel>
+</UserControl>

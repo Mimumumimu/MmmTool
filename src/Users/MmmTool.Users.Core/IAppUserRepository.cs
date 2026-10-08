@@ -30,4 +30,19 @@ public interface IAppUserRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>入れたら true。すでにパスワードがある (ほかの人が先に決めた)ときは false</returns>
     Task<bool> SetPasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default);
+
+    /// <summary>ユーザーの表示名とログイン名を変える</summary>
+    /// <param name="user">変えたあとの内容 (<see cref="AppUser.Id"/> のユーザーの、表示名とログイン名だけを書き換える)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>変更の完了を表すタスク</returns>
+    /// <exception cref="LoginNameTakenException">同じログイン名が、ほかの削除されていないユーザーにある。</exception>
+    Task UpdateAsync(AppUser user, CancellationToken cancellationToken = default);
+
+    /// <summary>ユーザーのパスワードのハッシュを入れ替える</summary>
+    /// <param name="userId">ユーザーの番号</param>
+    /// <param name="passwordHash">新しいパスワードのハッシュ</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>入れ替えたら true。ユーザーが見つからない (削除された)ときは false</returns>
+    /// <remarks>今のハッシュの確認は呼ぶ側が先に行う (<see cref="SetPasswordHashAsync"/> と違い、空でなくても書く)。</remarks>
+    Task<bool> ChangePasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default);
 }
