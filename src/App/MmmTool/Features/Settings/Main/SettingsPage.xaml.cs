@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 
@@ -26,11 +26,11 @@ public sealed partial class SettingsPage : Page
     /// <param name="sections">各機能が登録した設定の部品</param>
     /// <param name="features">機能のオン・オフ</param>
     /// <param name="services">部品を作る DI のサービスプロバイダー</param>
-    /// <remarks>部品は登録順に並べる。オフの機能の部品は並べず、オン・オフが切り替わったら並べ直す。</remarks>
+    /// <remarks>部品は並び順の値の順に並べる (同じ値は登録順)。オフの機能の部品は並べず、オン・オフが切り替わったら並べ直す。</remarks>
     public SettingsPage(SettingsViewModel viewModel, IEnumerable<SettingsSection> sections, FeatureService features, IServiceProvider services)
     {
         ViewModel = viewModel;
-        _sections = [.. sections];
+        _sections = [.. sections.OrderBy(s => s.Order)];
         _features = features;
         _services = services;
         InitializeComponent();
@@ -46,26 +46,13 @@ public sealed partial class SettingsPage : Page
         };
     }
 
-    /// <summary>オンの機能の設定の部品を、登録順に並べ直す</summary>
+    /// <summary>オンの機能の設定の部品を、並び順の値の順に並べ直す</summary>
     private void BuildSections()
     {
         SectionsPanel.Children.Clear();
         foreach (var section in _sections.Where(s => _features.IsEnabled(s.FeatureKey)))
         {
             SectionsPanel.Children.Add((UIElement)_services.GetRequiredService(section.ControlType));
-        }
-    }
-
-    /// <summary>機能のスイッチが切り替わったときの処理</summary>
-    /// <param name="sender">イベントの送信元 (スイッチ。データの行を持つ)</param>
-    /// <param name="e">イベントの情報</param>
-    private async void OnFeatureToggled(object sender, RoutedEventArgs e)
-    {
-        // バインドの書き戻しより先に呼ばれることがあるので、スイッチの状態を行へ写してから渡す
-        if (sender is ToggleSwitch { DataContext: FeatureItem item } toggle)
-        {
-            item.IsOn = toggle.IsOn;
-            await ViewModel.ToggleFeatureAsync(item);
         }
     }
 }

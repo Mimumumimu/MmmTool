@@ -44,6 +44,9 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddTransient<ReminderSettingsViewModel>();
         services.AddSettingsSection<ReminderSettingsControl>();
 
+        // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは付けない
+        services.AddNavigationPage<ReminderListPage>("リマインダー", "", NavigationArea.Top);
+
         services.AddStartupTask<ReminderStartup>();
     }
 }

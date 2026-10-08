@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.Reminders.List.ReminderListPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Loaded="OnLoaded">
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="リマインダー" />
+
+        <!-- 一覧の中身 (ウィンドウと共有する ReminderListControl。コードで入れる。最初の読み込みが済むまで隠す) -->
+        <Border
+            x:Name="ListHost"
+            Grid.Row="1"
+            Visibility="Collapsed" />
+    </Grid>
+</Page>

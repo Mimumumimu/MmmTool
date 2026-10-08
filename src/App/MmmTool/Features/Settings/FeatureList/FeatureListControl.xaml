@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Features.Settings.FeatureList.FeatureListControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:local="using:MmmTool.Features.Settings.FeatureList"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Spacing="4">
+        <!-- 機能のオン・オフ (オフにできる機能だけ。切り替えはすぐ反映する) -->
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="機能" />
+
+        <!-- 切り替えを保存できなかったとき (閉じている間は、Spacing の分の場所も取らない) -->
+        <InfoBar
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            Severity="Error"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+
+        <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:FeatureItem">
+                    <controls:SettingsCard Header="{x:Bind DisplayName}">
+                        <ToggleSwitch
+                            IsOn="{x:Bind IsOn, Mode=TwoWay}"
+                            OffContent="オフ"
+                            OnContent="オン"
+                            Toggled="OnFeatureToggled" />
+                    </controls:SettingsCard>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

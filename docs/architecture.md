@@ -54,17 +54,17 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 - DEBUG 用の機能のフォルダ名は `Debugging`(`Debug` にすると `System.Diagnostics.Debug` を隠すため)
 
 ## DI と起動
-- Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能 (`AddFeaturePlugin<<機能>Plugin>()`)」を呼ぶだけ
+- Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能 (`AddFeaturePlugin<<機能>Plugin>(order: n)`)」を呼ぶだけ
 - SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
-- 機能を登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → DEBUG → 設定)に、サイドバーの項目 (上部・下部それぞれ)・トレイメニューの項目 (リマインダーがリンクより上)・起動時の準備が並ぶ
+- 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる (CLI補助 1 → リマインダー 2 → リンク 3 → クリップボード転送 4 → Backlog 5)。サイドバーの項目 (上部・下部それぞれ。上部は CLI補助 → リマインダー → リンク → クリップボード転送 → Backlog)・トレイメニューの項目 (リマインダーがリンクより上)・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ (同じ値は登録順)。起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク)に実行する
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
-- 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは登録順に並べるだけ ([specs/settings.md](specs/settings.md))
+- 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
 - 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog)は、`<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録し (保存が無い初回起動のオン・オフが `defaultEnabled`。既定はオン。この 3 機能はオフ)、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み)。決めた理由は下の「決定の理由」の「起動時の準備」
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)・`ShowModalAsync`(開いている間モーダルとして覚える)・`Attach`(`ContentDialog` に親の画面とテーマを渡す)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`
-- 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
+- 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
 ## エラーの扱い
 3 段階。予測できる失敗は、先に確かめる (`TryXxx`・検証・ガード節)。それでも起きる失敗 (ファイル・JSON・OS・COM)は、範囲を絞った `catch` で受けて画面に出す (InfoBar)。復旧が難しい失敗・予想外の失敗 (バグ)は、ログ (`AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`)→ ダイアログ → 終了 (SDK の `FatalErrorHandler`)。隠さず、握りつぶさない。
@@ -116,10 +116,13 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - 最終形にどう近づくか: 新しい機能・画面を足すときの置き場所が、迷わず決まる
 
 ### 機能を、プラグインのライブラリに分ける
-- 機能 (リンク・Backlog・クリップボード転送・リマインダー・CLI補助)を、機能ごとのライブラリ (`src/Plugins/MmmTool.<機能>` と、UI に依存しない `.Core`)に分け、ホスト (`MmmTool`)は、使う機能のライブラリを参照して `AddFeaturePlugin<<機能>Plugin>()` で登録する。必要な機能だけを参照すれば、その機能だけを持つ配布物になる
+- 機能 (リンク・Backlog・クリップボード転送・リマインダー・CLI補助)を、機能ごとのライブラリ (`src/Plugins/MmmTool.<機能>` と、UI に依存しない `.Core`)に分け、ホスト (`MmmTool`)は、使う機能のライブラリを参照して `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する。必要な機能だけを参照すれば、その機能だけを持つ配布物になる
 - 機能がホストへ入るときの型 (`IFeaturePlugin`・サイドバーのページ・設定の部品・起動時の準備・機能のオン・オフ・トレイメニューの登録の口)は、SDK に置く。機能はホスト (exe)を参照できないため。ホスト側の値 (アプリの名前・データ・アイコンの置き場所・作ったページの参照)は、SDK の `AppEnvironment`・`IPageCache`・`IFeatureStatus` を DI から受け取る
 - 設定ページ・DEBUG ページは、全機能の設定を並べる側・開発用なので、ホストに残す (`src/App/MmmTool/Features/`)
-- サイドバー・トレイ・起動時の準備の並びは、ホストが `AddFeaturePlugin` を呼ぶ順で決まる
+- サイドバー・トレイ・設定の並びは、ホストが `AddFeaturePlugin` に渡す並び順の値 (`order`)で決まる。起動時の準備は、登録順のまま
+  - 理由: 登録の行の順で並べると、画面の並びを直したいときに、起動時の準備の順序まで変わってしまう。並びを、使い方 (よく使う順。CLI補助が主な機能なので先頭)で決められるように、値にした (旧: 登録順で、作った順に並んでいた)
+  - 値は、機能の登録 (`AddFeaturePlugin`)の間だけ `FeatureRegistrationScope` が持ち、サイドバー・設定の部品・機能の一覧・トレイの登録が記録する。機能ごとに値を渡さなくてよく、並びを `App` の 1 か所で決められる
+  - トレイは、メニューが下から開くので、下 (値が大きい)ほどカーソルに近い。よく使うリンクを下に置くため、リマインダー (2)をリンク (3)より上にしている (サイドバーは上ほどよく使う並びで、向きが逆。リマインダーとリンクは、サイドバーでもリマインダーが上なので、今は 1 つの値で両方成り立つ。リンクをリマインダーより上にしたくなったら、場所ごとの順に広げる)
 - 決定 (ユーザーの決定): 機能の選択はビルド時 (参照の追加・削除)で行う。配布物の `Plugins` フォルダーに DLL を置くだけで入る形 (実行時の読み込み)は作らない
 - 実行時の読み込みをユーザーが求めたときの設計上の条件: 実行時に読み込んだ DLL の XAML のリソース (`.pri`)の解決方法を、公式の情報で確かめる (確かめるまでは、画面をコードで組む・配置時に `.pri` をマージする・`XamlReader` で読む、のどれにするかを決めない)。動作中の DLL の入れ替えはできないので、追加・削除は再起動で反映する。WinAppSDK・CommunityToolkit・MmmSdk は、ホストと同じ版を 1 つだけ読み込む。サイドバーとトレイの並びは、登録順ではなく、明示の順序の値にする
 - 最終形にどう近づくか: 機能とホストの境界 (入口の型)を SDK に決めたので、機能の追加・削除はホストの参照と 1 行で済む。境界が決まっているので、ローダーを足すことになっても、機能側の作り直しは要らない
@@ -139,6 +142,12 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
   - ユーザーの本来の希望は、各機能のエンティティも `MmmTool.Data` に集めて、DB まわりを完全に一括管理すること。使わない機能のエンティティが入ることも承知のうえで、上の理由 (参照の向き・エンティティと処理が分かれる)を考えて、見送った (ユーザーの判断)
   - 再び検討するのは、機能をまたいで共有するエンティティが `AppUser` のほかにも出て、機能の Core に置けなくなったとき
 - 最終形にどう近づくか: DB の種類を足すときは、`MmmTool.Data.<種類>` を 1 つ足すだけで、機能の Core は変わらない。DB の情報は、2 種類のプロジェクト (作成用スクリプトも `Sql/` に入っている)を見れば分かる
+
+### 終了の前に、開いているウィンドウを閉じる
+- 終了の順序を「`PrepareExit` → `CloseAll` → Host 停止・破棄 → `Exit()`」にした。以前は「Host を破棄してから `Exit()`」で、ウィンドウは Host の破棄のあと、`Exit()` の中で閉じられていた
+- 理由: メイン画面にリマインダーのページを開き、リマインダーのメイン画面から一覧 (モーダル)を開いた状態でトレイから終了すると、`Exit()` の中 (WinUI のネイティブ側)で管理側の例外 (`0xE0434352`)が抜けられず、`ExecutionEngineException` になった (ログには残らない)。別の回は、`Exit()` が戻ったのにメイン画面が閉じず、プロセスが残った。ウィンドウの閉じる処理 (一覧の後始末・スコープの破棄など)が、破棄済みの Host のサービスを触る、または親子のウィンドウが順不同で閉じられる、のどちらかが原因と見て、閉じる処理を Host が生きているうちに、親子の順 (モーダル → リマインダーのメイン画面、いずれも新しいものから)に済ませるようにした (原因の特定は、直ったかどうかで確かめる)
+- メインウィンドウは閉じずに残す: 最後のウィンドウを閉じるとアプリごと終了し、トレイアイコンを各機能の後始末のあとに消す順序 (上の「終了の順序」)が崩れるため。`Exit()` に任せる
+- 最終形: 終了の後始末は、DI が生きている間に、画面の側から先に済ませ、サービスの破棄は最後にする
 
 ### 起動時の準備 (`IStartupTask`)
 - 起動時に、CLI補助の利用状態の読み込み・リマインダー監視の開始・リンクの先読みなどを行いたい。これらは UI スレッド (`DispatcherQueue`)で動く必要がある

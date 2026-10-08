@@ -112,7 +112,7 @@ public static class RemindersServiceCollectionExtensions
     }
 }
 ```
-- `App.ConfigureServices` は「外部の SDK → 共通の UI サービス → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ。機能を登録した順が、サイドバー・トレイメニュー・起動時の準備の並び順になる
+- `App.ConfigureServices` は「外部の SDK → 共通の UI サービス → `AddShell()` → 各機能の `Add<機能>()`」を呼ぶだけ。サイドバー・トレイメニュー・設定の並びは、機能ごとの並び順の値で決める (使う順。登録の行の順に依らない)。起動時の準備だけは、順序に依存するので、登録した順に実行する
 - ページは Transient で登録し、`PageProvider` が初回に DI から作ってキャッシュする (ナビゲーションのたびに作り直さない)。項目のキーはページの型名
 - `AddNavigationPage` / `AddStartupTask` は `ShellServiceCollectionExtensions` に置き、機能側から呼ぶ
 - DEBUG 専用の機能は、その機能の `Add<機能>()` の中を `#if DEBUG` で囲む (`App` 側で分岐しない)
@@ -177,7 +177,7 @@ internal sealed partial class ReminderJsonContext : JsonSerializerContext
 
 ## コメント
 - 変数・フィールド・プロパティ・メソッドなど宣言の上のコメントは、`//` の行コメントではなく XML ドキュメントコメント (`///` の `<summary>` 形式)で書く
-- 括弧は半角の `( )` で書く (全角は使わない)。開き括弧の前にだけ半角スペースを入れ、閉じ括弧の後ろには入れない (例: `設定 (既定値)を読み込む`)。docs・画面の文言も同じ
+- 括弧は半角の `( )` で書く (全角は使わない)。開き括弧の直前が日本語の文字 (漢字・かな)のときだけ半角スペースを入れ (英数字・記号・行頭の直後は入れない。例: `GetName()`)、閉じ括弧の後ろには入れない (例: `設定 (既定値)を読み込む`)。docs・画面の文言も同じ
 - `<summary>` は簡潔に (名前を和訳する程度の短さ)。長い説明・背景・理由・注意点は `<remarks>` に書く
 - 書く対象：基本はすべての宣言に `<summary>` を付ける。
   - public / internal の型・メソッド (コンストラクタ含む)・プロパティ・フィールド・イベント・定数・enum の値は、必ず書く (例外なし)

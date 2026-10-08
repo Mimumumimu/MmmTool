@@ -2,9 +2,7 @@
 <Page
     x:Class="MmmTool.Features.Settings.Main.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:local="using:MmmTool.Features.Settings.Main">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Grid Padding="24,16,0,0" RowSpacing="8">
         <Grid.RowDefinitions>
@@ -24,28 +22,7 @@
                     Severity="Error"
                     Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
 
-                <!-- 機能のオン・オフ (オフにできる機能だけ。切り替えはすぐ反映する) -->
-                <TextBlock Margin="1,12,0,4" Style="{StaticResource SettingsSectionHeaderStyle}" Text="機能" />
-                <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="4" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="local:FeatureItem">
-                            <controls:SettingsCard Header="{x:Bind DisplayName}">
-                                <ToggleSwitch
-                                    IsOn="{x:Bind IsOn, Mode=TwoWay}"
-                                    OffContent="オフ"
-                                    OnContent="オン"
-                                    Toggled="OnFeatureToggled" />
-                            </controls:SettingsCard>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- 設定項目。各機能が登録した部品を、登録順に縦に並べる (コードビハインドで足す)。各部品が、自分の見出しとカードを持つ -->
+                <!-- 設定項目。全般・機能の一覧・各機能が登録した部品を、並び順の値の順に縦に並べる (コードビハインドで足す)。各部品が、自分の見出しとカードを持つ -->
                 <StackPanel x:Name="SectionsPanel" Spacing="4" />
             </StackPanel>
         </ScrollViewer>

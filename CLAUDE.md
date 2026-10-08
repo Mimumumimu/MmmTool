@@ -68,7 +68,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 無音ループ (無音の音を流し続けて、Bluetooth・USB の音声機器が眠って読み上げの頭が切れるのを防ぐ仕組み。旧アプリ MSchedule にはあった)。読み上げとは別の機能で、入れるかどうかはユーザーがまだ決めていない。実機で読み上げの頭が切れたときに、あらためて相談する
 
 ## 作業の注意 (要点。詳細は docs)
-- 機能の追加は、機能のライブラリ (`src/Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>()`)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない
+- 機能の追加は、機能のライブラリ (`src/Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>(order: n)`。`order` はサイドバー・トレイ・設定の並び順の値)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない
 - UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。機能の `.Core`(`src/Plugins/MmmTool.<機能>.Core`)は、保存するデータが決まった機能から作る (空の置き場は作らない)
 - 終了の順序 (トレイアイコンを各機能の後始末のあとに消す)と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md`(「起動時の準備」)
 - VS で通知ダイアログを閉じると落ちるときは、VS の「XAML 診断」をオフにする (`docs/architecture.md` の「開発時の注意」)
