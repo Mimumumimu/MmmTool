@@ -10,8 +10,10 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- 設定ページの各行で、名前の列の幅をそろえる (スイッチ・入力欄の左端が縦にそろう) -->
-            <GridLength x:Key="SettingNameColumnWidth">240</GridLength>
+            <!-- 設定ページの区切りの見出し (各部品の先頭に置く。カードの上に、少し間を空ける) -->
+            <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="Margin" Value="1,20,0,4" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -2,56 +2,18 @@
 <UserControl
     x:Class="MmmTool.Features.Database.Settings.DatabaseSettingsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel Spacing="12">
-        <!-- 保存・接続の確認の結果 (閉じている間は、Spacing の分の場所も取らない) -->
-        <InfoBar
-            IsOpen="{x:Bind ViewModel.Connection.Error.IsOpen, Mode=TwoWay}"
-            Message="{x:Bind ViewModel.Connection.Error.Message, Mode=OneWay}"
-            Severity="Error"
-            Visibility="{x:Bind ViewModel.Connection.Error.IsOpen, Mode=OneWay}" />
-        <InfoBar
-            IsOpen="{x:Bind ViewModel.Connection.Success.IsOpen, Mode=TwoWay}"
-            Message="{x:Bind ViewModel.Connection.Success.Message, Mode=OneWay}"
-            Severity="Success"
-            Visibility="{x:Bind ViewModel.Connection.Success.IsOpen, Mode=OneWay}" />
+    <StackPanel Spacing="4">
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="保存先" />
 
-        <Grid ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock VerticalAlignment="Center" Text="保存先" />
-            <ComboBox
-                Grid.Column="1"
-                MinWidth="260"
-                DisplayMemberPath="Name"
-                IsEnabled="{x:Bind ViewModel.IsEditable}"
-                ItemsSource="{x:Bind ViewModel.Modes}"
-                SelectedItem="{x:Bind ViewModel.SelectedMode, Mode=TwoWay}" />
-        </Grid>
-
-        <!-- 保存先が DB のときだけ (入力欄は、コードビハインドで入れる) -->
-        <ContentPresenter
-            x:Name="ConnectionHost"
-            MaxWidth="480"
-            HorizontalAlignment="Left"
-            Visibility="{x:Bind ViewModel.IsSqlServer, Mode=OneWay}" />
-
-        <!-- 「保存」を押せない理由 (DB を選んでいて、つながると確認できていないとき) -->
-        <TextBlock
-            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Style="{StaticResource CaptionTextBlockStyle}"
-            Text="「接続を確認」で、つながることを確かめると、保存できます。"
-            TextWrapping="Wrap"
-            Visibility="{x:Bind ViewModel.NeedsVerification, Mode=OneWay}" />
-
-        <Button
-            MinWidth="96"
-            Command="{x:Bind ViewModel.SaveCommand}"
-            Content="保存"
-            IsEnabled="{x:Bind ViewModel.IsEditable}"
-            Style="{StaticResource AccentButtonStyle}" />
+        <!-- カード全体を押すと、編集画面が開く (保存は、編集画面の「保存」) -->
+        <controls:SettingsCard
+            Command="{x:Bind ViewModel.OpenCommand}"
+            Description="{x:Bind ViewModel.Summary, Mode=OneWay}"
+            Header="保存先"
+            IsClickEnabled="True"
+            IsEnabled="{x:Bind ViewModel.IsEditable}" />
     </StackPanel>
 </UserControl>

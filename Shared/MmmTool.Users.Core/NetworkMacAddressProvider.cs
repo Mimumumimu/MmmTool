@@ -40,11 +40,9 @@ public sealed class NetworkMacAddressProvider : IMacAddressProvider
                 NetworkInterfaceType.Ethernet or NetworkInterfaceType.GigabitEthernet
                 or NetworkInterfaceType.FastEthernetT or NetworkInterfaceType.FastEthernetFx
                 or NetworkInterfaceType.Wireless80211)
-            .Select(adapter => new Adapter(
-                adapter.GetPhysicalAddress().ToString(),
-                adapter.Description,
-                adapter.OperationalStatus == OperationalStatus.Up))
-            .Where(adapter => adapter.MacAddress.Length == 12 && adapter.MacAddress.Any(character => character != '0'))
+            .Select(adapter => (Mac: adapter.GetPhysicalAddress().ToString(), adapter.Description, IsUp: adapter.OperationalStatus == OperationalStatus.Up))
+            .Where(adapter => adapter.Mac.Length == 12 && adapter.Mac.Any(character => character != '0'))
+            .Select(adapter => new Adapter(adapter.Mac, adapter.Description, adapter.IsUp))
             .OrderByDescending(adapter => adapter.IsUp)
             .ThenBy(adapter => adapter.LooksVirtual),
     ];

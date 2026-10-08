@@ -2,28 +2,25 @@
 <UserControl
     x:Class="MmmTool.Backlog.Settings.BacklogSettingsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <StackPanel Spacing="12">
+    <StackPanel Spacing="4">
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="Backlog" />
+
         <!-- API キーを読めなかった・保存できなかったとき (閉じている間は、Spacing の分の場所も取らない) -->
         <InfoBar
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error"
             Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
-        <Grid ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="{StaticResource SettingNameColumnWidth}" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock VerticalAlignment="Center" Text="Backlog の API キー" />
+
+        <controls:SettingsCard Description="個人設定で発行したキー" Header="API キー">
             <PasswordBox
                 x:Name="ApiKeyBox"
-                Grid.Column="1"
                 Width="320"
                 LostFocus="OnApiKeyLostFocus"
-                Password="{x:Bind ViewModel.InitialApiKey}"
-                PlaceholderText="個人設定で発行したキー" />
-        </Grid>
+                Password="{x:Bind ViewModel.InitialApiKey}" />
+        </controls:SettingsCard>
     </StackPanel>
 </UserControl>
