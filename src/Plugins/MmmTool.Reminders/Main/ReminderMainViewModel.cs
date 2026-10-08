@@ -84,7 +84,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         }
         catch (PathOpenException ex)
         {
-            Error.Show(ex.Message);
+            ShowOperationError(ex.Message);
         }
     }
 

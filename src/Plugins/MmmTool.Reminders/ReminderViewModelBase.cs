@@ -24,6 +24,10 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     /// <summary>日付が変わったら読み直すタイマー</summary>
     private readonly ITimer _dayTimer;
 
+    /// <summary>直近の操作 (保存・リンクを開く)の失敗のメッセージ。無ければ null</summary>
+    /// <remarks>読み込みの失敗と違い、保存先の状態からは組み立てられないので、次の操作が成功するまで覚えておく。</remarks>
+    private string? _operationError;
+
     /// <summary>読み込みの世代。古い読み込みの結果で上書きしないためのもの</summary>
     private int _version;
 
@@ -56,8 +60,7 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     public async Task InitializeAsync()
     {
         await RefreshAsync();
-        var messages = new[] { Reminders.LoadError ?? Reminders.RecoveryMessage, Reminders.TimeWarning }.OfType<string>();
-        Error.Set(string.Join("\n", messages) is { Length: > 0 } message ? message : null);
+        UpdateError();
     }
 
     /// <summary>購読をやめ、日付変更のタイマーを止める</summary>
@@ -83,7 +86,32 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
 
     /// <summary>UI スレッドで読み直す</summary>
     /// <remarks>任意のスレッド (保存の通知・タイマー)から呼べる。</remarks>
-    protected void PostRefresh() => _context.Post(_ => RefreshAsync().Forget(), null);
+    protected void PostRefresh() => _context.Post(_ => RefreshAndUpdateErrorAsync().Forget(), null);
+
+    /// <summary>読み直して、エラーの表示を保存先の今の状態に合わせる</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    /// <remarks>初回にログインより先に読み込んで失敗した表示が、ログイン後の読み直しで成功したら消えるようにする。</remarks>
+    private async Task RefreshAndUpdateErrorAsync()
+    {
+        await RefreshAsync();
+        UpdateError();
+    }
+
+    /// <summary>エラーの表示を、直近の操作の失敗と保存先の今の状態 (読み込みの失敗・退避の通知・時計のずれの警告)から組み立て直す</summary>
+    private void UpdateError()
+    {
+        var messages = new[] { _operationError ?? Reminders.LoadError ?? Reminders.RecoveryMessage, Reminders.TimeWarning }.OfType<string>();
+        Error.Set(string.Join("\n", messages) is { Length: > 0 } message ? message : null);
+    }
+
+    /// <summary>操作の失敗をエラーに出す</summary>
+    /// <param name="message">表示するメッセージ</param>
+    /// <remarks>次の操作が成功する (<see cref="RunAsync"/>)まで残る。</remarks>
+    protected void ShowOperationError(string message)
+    {
+        _operationError = message;
+        UpdateError();
+    }
 
     /// <summary>次の 0 時に読み直すよう、タイマーを掛け直す</summary>
     /// <param name="now">読み直しの基準にした現在の日時</param>
@@ -105,11 +133,12 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
         try
         {
             await action();
-            Error.Clear();
+            _operationError = null;
+            UpdateError();
         }
         catch (DataFileException ex)
         {
-            Error.Show(ex.Message);
+            ShowOperationError(ex.Message);
             await OnSaveFailedAsync();
         }
     }
