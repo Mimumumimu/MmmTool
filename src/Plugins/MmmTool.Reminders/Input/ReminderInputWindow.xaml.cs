@@ -17,9 +17,13 @@ public sealed partial class ReminderInputWindow : Window
     /// <summary>ウィンドウの幅 (DIP)</summary>
     private const double WindowWidth = 480;
 
-    /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む。宛先の欄が出る場合の、中身がちょうど収まる高さ)</summary>
-    /// <remarks>宛先の欄が出ないときは、余った分がボタンの上に空く。</remarks>
+    /// <summary>ウィンドウの高さの見積もり (DIP。タイトルバーを含む。宛先の欄が出る場合)</summary>
+    /// <remarks>表示する前の仮の高さ。表示して中身が載ったら、中身の高さを測って、ちょうど合わせ直す (<see cref="OnRootLoaded"/>)。送信先の欄が出るときは、<see cref="ChannelFieldHeight"/> を足す。</remarks>
     private const double WindowHeight = 724;
+
+    /// <summary>送信先の欄の高さの見積もり (DIP。見出し + 選択欄 + 間隔)</summary>
+    /// <remarks>送信先の欄が出るとき (DB モードで、送信先を読み込めたとき)だけ、<see cref="WindowHeight"/> に足す。表示前の仮の高さのための数字で、最終の高さは、中身を測って決める。</remarks>
+    private const double ChannelFieldHeight = 76;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
@@ -62,11 +66,13 @@ public sealed partial class ReminderInputWindow : Window
         ViewModel.Load(target);
         // 宛先の欄が空のまま見えないよう、選択肢を作ってから出す
         await ViewModel.LoadTargetsAsync();
+        await ViewModel.LoadChannelsAsync();
 
         _modal.SetOwner(owner);
         this.UseFixedPresenter(isDialog: true, isResizable: false);
 
-        this.ResizeClientDip(WindowWidth, WindowHeight - TitleBarHeight, _modal.OwnerScale, roundUp: true);
+        var height = WindowHeight + (ViewModel.IsChannelVisible ? ChannelFieldHeight : 0);
+        this.ResizeClientDip(WindowWidth, height - TitleBarHeight, _modal.OwnerScale, roundUp: true);
         _modal.CenterOnOwner();
 
         _modal.Show();
@@ -88,6 +94,12 @@ public sealed partial class ReminderInputWindow : Window
         WeekdayPanel.Measure(new Size(WindowWidth, double.PositiveInfinity));
         DateArea.MinHeight = Math.Max(DatePanel.DesiredSize.Height, WeekdayPanel.DesiredSize.Height);
         Bindings.Update();
+
+        // ウィンドウの高さを、中身の高さにちょうど合わせる (欄の出入り・文字の大きさ・画面の倍率で、見積もりの数字とずれても、切れない)
+        if (this.ResizeToContentHeight(RootGrid, WindowWidth))
+        {
+            _modal.CenterOnOwner();
+        }
     }
 
     /// <summary>件名・備考にフォーカスが来たら IME をオンにする (日本語の入力が多いため)</summary>

@@ -12,7 +12,8 @@ namespace MmmTool.Data.Connection;
 /// </remarks>
 /// <param name="settings">汎用設定ストア</param>
 /// <param name="secrets">秘密の保管庫</param>
-public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStore secrets)
+/// <param name="defaults">アプリごとの、データベース名・ユーザー名の初期値と、パスワードの保存名</param>
+public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStore secrets, DatabaseSettingsDefaults defaults)
 {
     private const string ModeKey = "Database.Mode";
     private const string ServerKey = "Database.Server";
@@ -20,16 +21,6 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     private const string AuthenticationKey = "Database.Authentication";
     private const string UserNameKey = "Database.UserName";
     private const string TrustServerCertificateKey = "Database.TrustServerCertificate";
-
-    /// <summary>データベース名の初期値 (保存されていないとき)</summary>
-    public const string DefaultName = "MmmTool";
-
-    /// <summary>ユーザー名の初期値 (保存されていないとき)</summary>
-    public const string DefaultUserName = "MmmTool";
-
-    /// <summary>パスワードを保存する、秘密の保管庫の項目の名前</summary>
-    /// <remarks>Windows の資格情報マネージャーでは、この名前の汎用資格情報として見える。変えると、保存済みのパスワードを読めなくなる。</remarks>
-    public const string PasswordSecretName = "MmmTool.Database";
 
     /// <summary>設定を保存できない状態か (設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている)</summary>
     public bool IsReadOnly => settings.IsReadOnly;
@@ -44,9 +35,9 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     {
         Mode = GetEnum(ModeKey, DatabaseMode.Json),
         Server = settings.Get(ServerKey, ""),
-        Name = settings.Get(NameKey, DefaultName),
+        Name = settings.Get(NameKey, defaults.DatabaseName),
         Authentication = GetEnum(AuthenticationKey, DatabaseAuthentication.Sql),
-        UserName = settings.Get(UserNameKey, DefaultUserName),
+        UserName = settings.Get(UserNameKey, defaults.UserName),
         TrustServerCertificate = settings.Get(TrustServerCertificateKey, false),
     };
 
@@ -75,7 +66,7 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     /// <summary>登録済みのパスワードを取得する</summary>
     /// <returns>パスワード。登録が無ければ null</returns>
     /// <exception cref="SecretStoreException">秘密の保管庫を読めなかった。</exception>
-    public string? GetPassword() => secrets.Get(PasswordSecretName);
+    public string? GetPassword() => secrets.Get(defaults.PasswordSecretName);
 
     /// <summary>パスワードを登録する。空なら、登録を消す</summary>
     /// <param name="password">登録するパスワード</param>
@@ -84,11 +75,11 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     {
         if (string.IsNullOrEmpty(password))
         {
-            secrets.Remove(PasswordSecretName);
+            secrets.Remove(defaults.PasswordSecretName);
         }
         else
         {
-            secrets.Set(PasswordSecretName, password);
+            secrets.Set(defaults.PasswordSecretName, password);
         }
     }
 

@@ -6,6 +6,10 @@
 | プロジェクト | 対象 | 役割 |
 | --- | --- | --- |
 | `src/App/MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト (メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページ・DEBUG ページ)。機能のプラグインを参照して登録する |
+| `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホスト (別のソリューション `MmmBatch.slnx`)。リマインダーの送信 (ntfy・Discord)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
+| `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (送信の処理・送信の状況の画面)。**外部へ送る処理は、ここだけに置く** (MmmTool は参照しない)。`MmmTool.Reminders.Core` の型は使うが、`MmmTool.Reminders` の画面は参照しない |
+| `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)。MmmTool と MmmBatch で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
+| `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmBatch が使う DB の実装 (`ReminderSendStatus` と、送る対象を読む問い合わせ)。MmmTool には参照させない |
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders の 5 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
@@ -153,6 +157,13 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - 起動時に、CLI補助の利用状態の読み込み・リマインダー監視の開始・リンクの先読みなどを行いたい。これらは UI スレッド (`DispatcherQueue`)で動く必要がある
 - `IHostedService` にしない理由: Generic Host の `IHostedService` は、Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証がない。そのため、`App.OnLaunched` で `TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `await` する
 - 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
+
+### 外部へ送る処理を、別のアプリ MmmBatch に分ける
+- 外部へ送る処理は、MmmTool の発行物に入れない (ユーザーの決定)。送る処理を `MmmBatch.*` のプロジェクトだけに置き、MmmTool (`MmmTool.slnx`)は参照しない。DLL もコードも MmmTool に入らない
+- MmmTool に入るのは、送信先の登録と、リマインダーごとの送信先の選択 (保存と画面)だけ。これも DB モードだけで、ローカルの JSON には出ない ([specs/database.md](specs/database.md))
+- リポジトリは分けない: リマインダーの型・DB・SDK を共有し、ブランチと知識を 1 か所に置く。ソリューションを分けて、MmmTool 側に MmmBatch のプロジェクトが並ばないようにする
+- 一部の機能を抜いた版を発行する必要が出たときは、プロジェクトの参照を切り替える (機能ごとに別プロジェクトなので、作り直しにならない)
+- 詳細と、画面なしの exe にしない理由・枠 (`Shell/`)を SDK へ移さない理由は [specs/mmmbatch.md](specs/mmmbatch.md) の「決定の理由」
 
 ### 共有部品を別リポジトリの SDK に分ける
 - JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログは、このアプリ以外でも使える汎用の部品。別リポジトリ `MmmSdk` に分け、Git サブモジュールとして取り込み、プロジェクト参照でつなぐ。アプリ固有の Entity・Repository は、アプリの Core に残す

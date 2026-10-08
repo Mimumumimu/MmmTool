@@ -2,7 +2,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmTool.Data.Connection;
-using MmmTool.Features.Database.Connection;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmTool.Features.Database.Choice;
 

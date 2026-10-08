@@ -7,7 +7,7 @@ using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
 
-namespace MmmTool.Features.Database.Connection;
+namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
 /// <summary>
 /// DB への接続の入力欄 (サーバー・データベース名・ユーザー名・パスワード)の ViewModel。

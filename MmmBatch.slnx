@@ -1,0 +1,59 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/App/">
+    <Project Path="src/App/MmmBatch/MmmBatch.csproj">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/Sending/">
+    <Project Path="src/Plugins/MmmBatch.Sending.Core/MmmBatch.Sending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.Sending/MmmBatch.Sending.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/Reminders/">
+    <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Users/">
+    <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Data/">
+    <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.SqlServer.WinUI/MmmTool.Data.SqlServer.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmBatch.Data.SqlServer/MmmBatch.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/MmmSdk/">
+    <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.Db.SqlServer/MmmSdk.Db.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.WinUI/MmmSdk.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

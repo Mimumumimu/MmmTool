@@ -13,4 +13,13 @@ public interface IReminderDialogService
     /// <summary>リマインダー一覧画面を、いちばん手前の画面の上にモーダルで開き、閉じるまで待つ</summary>
     /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     Task ShowListAsync();
+
+    /// <summary>送信先の一覧画面を、いちばん手前の画面の上にモーダルで開き、閉じるまで待つ (DB モードだけ)</summary>
+    /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
+    Task ShowChannelListAsync();
+
+    /// <summary>送信先の登録画面を、いちばん手前の画面の上にモーダルで開く (DB モードだけ)</summary>
+    /// <param name="channel">編集する送信先。新規なら null</param>
+    /// <returns>保存した内容。キャンセルなら null</returns>
+    Task<NotificationChannel?> ShowChannelEditAsync(NotificationChannel? channel);
 }
