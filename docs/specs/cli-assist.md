@@ -67,7 +67,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   | 会話要約 (コンテキスト圧縮) | `/compact` | `/compact` | |
   | CLAUDE.md を作成 / steering を作成 | `/init` | 作成を頼む文 | Kiro の CLI に `/init` は無いので、`.kiro/steering/` に product.md・tech.md・structure.md (Kiro の IDE の「Generate Steering Docs」と同じ 3 つ)を作るよう頼む文を送る (ユーザーの決定) |
   | モデル切替 | `/model` | `/model` | |
-  | 会話履歴と再開 | `/resume` | `/chat resume` | |
+  | 会話履歴と再開 | `/resume` | `/chat` | |
   | コスト確認 / 使用量の確認 | `/cost` | `/usage` | Kiro は料金・残りクレジットを出す |
   | 終了 | `/exit` | `/quit` | |
 - 葉のコマンドの設定 (値は列挙型 `CommandCategory` / `FocusTarget`(Core)に変換する。`CliCommandNode.GetSwitchTo()` / `GetFocus()`。手で編集した JSON なので、大文字小文字は区別せず、知らない値は読み込みでは無視する。ただし、書き間違いに気づけるよう、読み込んだあとに `CliCommandSet.Validate()` で調べ、誤りを画面の警告 (InfoBar)に出す)
