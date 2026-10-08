@@ -174,20 +174,36 @@ public sealed class ReminderSendService(
 
     /// <summary>今日の分を、状態や時刻にかかわらず、今すぐ 1 回送る (画面の「再送」「今すぐ送る」)</summary>
     /// <param name="target">送る対象</param>
-    /// <param name="today">今日</param>
+    /// <param name="now">今の日時 (ローカル)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     /// <remarks>
-    /// 送信済み・回数の上限に達した失敗も送り直せる (回数は数え続ける)。まだ送ろうとしていないものは、行を作って送る。
+    /// <para>
+    /// まだ時刻が来ていない予定 (今日送る予定で、まだ送ろうとしていない)は、送るだけで、「今日の送信の状況」は作らない。
+    /// テスト送信が、予定の送信を消さないため (時刻になれば、予定どおり、もう一度送られる)。送ったことは、送信のログに残る。
+    /// </para>
+    /// <para>
+    /// それ以外は、送信済み・回数の上限に達した失敗も送り直せる (回数は数え続ける)。時刻が過ぎているのに、まだ送ろうとしていないものは、行を作って送る。
     /// 同じ送信を、別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
+    /// </para>
     /// </remarks>
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった (メッセージは画面に出せる)。</exception>
-    public async Task ResendAsync(SendTarget target, DateOnly today, CancellationToken cancellationToken = default)
+    public async Task ResendAsync(SendTarget target, DateTime now, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
 
+        var today = DateOnly.FromDateTime(now);
         var current = (await statuses.GetByDateAsync(today, cancellationToken).ConfigureAwait(false))
             .FirstOrDefault(status => status.ReminderId == target.Reminder.No && status.ChannelId == target.Channel.Id);
+
+        // まだ時刻が来ていない予定は、送るだけ (今日の送信の状況は作らない。時刻になれば、予定どおり送られる)
+        if (current is null && IsPlanned(target, today) && target.Reminder.Time > ReminderDates.ToTimeValue(now))
+        {
+            await SendWithoutStatusAsync(target, cancellationToken).ConfigureAwait(false);
+            Changed?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         ReminderSendStatus? claimed;
         if (current is null)
         {
@@ -207,6 +223,47 @@ public sealed class ReminderSendService(
 
         await SendAsync(target, claimed, cancellationToken).ConfigureAwait(false);
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>送信の状況を作らず・変えずに、1 回送って、結果を送信のログだけに残す (まだ時刻が来ていない予定へのテスト送信)</summary>
+    /// <param name="target">送る対象</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>送信と記録の完了を表すタスク</returns>
+    /// <remarks>回数は 0 で記録する (予定の送信の回数には数えない)。失敗は、ログに理由が残る (トレイの通知は出さない。操作した人が、画面で見ているため)。</remarks>
+    private async Task SendWithoutStatusAsync(SendTarget target, CancellationToken cancellationToken)
+    {
+        var status = SendStatus.Sent;
+        var error = "";
+        if (!_notifiers.TryGetValue(target.Channel.Kind, out var notifier))
+        {
+            status = SendStatus.Failed;
+            error = "この種類の送信先には、まだ送れません。";
+        }
+        else
+        {
+            try
+            {
+                await notifier.SendAsync(target.Channel, SendMessage.FromReminder(target.Reminder), cancellationToken).ConfigureAwait(false);
+            }
+            catch (SendFailedException ex)
+            {
+                status = SendStatus.Failed;
+                error = ex.Message;
+            }
+        }
+
+        try
+        {
+            await log.AppendAsync(
+                new SendLogEntry(
+                    time.GetLocalNow(), target.Reminder.No, target.Reminder.Title, target.OwnerName, target.Channel.Id, target.Channel.Kind, target.Channel.Name,
+                    0, status, error),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (DataFileException ex)
+        {
+            AlertRaised?.Invoke(this, ex.Message);
+        }
     }
 
     /// <summary>送る権利を取る (行を作る・送り直しの権利を取る)</summary>

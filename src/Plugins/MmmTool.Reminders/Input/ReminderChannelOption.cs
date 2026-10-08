@@ -15,8 +15,8 @@ public sealed partial class ReminderChannelOption(int id, NotificationChannelKin
     /// <summary>送信先の番号</summary>
     public int Id { get; } = id;
 
-    /// <summary>画面に出す名前 (種類と登録名。例: ntfy「リマインダー」)</summary>
-    public string Text { get; } = kind is { } value ? $"{NotificationChannelKinds.ToText(value)}「{name}」" : $"「{name}」";
+    /// <summary>画面に出す名前 (登録名と種類。例: リマインダー (ntfy))</summary>
+    public string Text { get; } = kind is { } value ? $"{name} ({NotificationChannelKinds.ToText(value)})" : name;
 
     /// <summary>選んでいるか</summary>
     [ObservableProperty]

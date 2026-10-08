@@ -22,6 +22,6 @@ public sealed class SendHistoryItemViewModel(SendLogEntry entry)
     /// <summary>送信先 (種類と登録名)</summary>
     public string ChannelText { get; } = SendDisplay.ChannelText(entry.ChannelKind, entry.ChannelName);
 
-    /// <summary>結果 (「送信済み」「送信中」。失敗は「失敗」と理由)</summary>
+    /// <summary>結果 (「成功」「失敗」。失敗は理由つき)</summary>
     public string ResultText { get; } = SendDisplay.ResultText(entry.Status, entry.Error);
 }
