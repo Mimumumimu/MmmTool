@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Pages;
 using MmmTool.Features.Database.Choice;
-using MmmTool.Features.Database.Connection;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 using MmmTool.Features.Database.Edit;
 using MmmTool.Features.Database.Settings;
 using MmmTool.Shell;

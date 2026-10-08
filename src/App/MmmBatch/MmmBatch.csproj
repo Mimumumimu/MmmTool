@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MmmBatch</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <!-- 非パッケージ (WindowsPackageType=None)でも、WinUI のリソース (resources.pri)の生成にこの MSIX ツールを使うため、true のままにする -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提 (MmmTool と同じ。単一ファイルにはしない) -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする -->
+    <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- アプリのアイコン (EXE に埋め込むほか、ウィンドウのアイコンとして実行時にファイルから読む) -->
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <!-- Windows App SDK は全部入りのパッケージを参照し、使わない部品の中身は出力に入れない (MmmTool と同じ。理由は docs/build-and-distribution.md の「決定の理由」) -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plugins\MmmBatch.Sending\MmmBatch.Sending.csproj" />
+    <ProjectReference Include="..\..\Data\MmmBatch.Data.SqlServer\MmmBatch.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <!-- トリミングは自己完結のときだけ使える。フレームワーク依存なので無効 -->
+    <PublishTrimmed>False</PublishTrimmed>
+  </PropertyGroup>
+</Project>

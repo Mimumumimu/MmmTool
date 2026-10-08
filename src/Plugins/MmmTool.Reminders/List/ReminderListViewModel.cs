@@ -21,18 +21,31 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     private readonly IDialogService _dialogs;
     /// <summary>入力画面</summary>
     private readonly IReminderDialogService _reminderDialogs;
+    /// <summary>送信先の保存先 (送信先の入口を出すかの判断に使う)</summary>
+    private readonly INotificationChannelRepository _channels;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="dialogs">確認ダイアログを開く</param>
     /// <param name="reminderDialogs">入力画面を開く</param>
+    /// <param name="channels">送信先の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderListViewModel(ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, TimeProvider time)
+    public ReminderListViewModel(
+        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time)
         : base(reminders, time)
     {
         _dialogs = dialogs;
         _reminderDialogs = reminderDialogs;
+        _channels = channels;
     }
+
+    /// <summary>「送信先」の入口を出すか (DB モードで、今のユーザーを特定できているときだけ)</summary>
+    public bool IsChannelsVisible => _channels.IsAvailable && Reminders.CurrentUserId != 0;
+
+    /// <summary>送信先の一覧画面を開く</summary>
+    /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
+    [RelayCommand]
+    private Task OpenChannelsAsync() => _reminderDialogs.ShowChannelListAsync();
 
     /// <summary>一覧の行</summary>
     public ObservableCollection<ReminderListItem> Items { get; } = [];

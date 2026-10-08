@@ -16,7 +16,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## ドキュメント
 - `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・エラーの扱い・C# の書き方・開発時の注意)と、その決定の理由
 - `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
-- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `database.md` / `links.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
+- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `database.md` / `links.md` / `mmmbatch.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md`)。機能を変更するときは、先に該当の仕様を読む
 - 決定の理由 (なぜそう決めたか)は、その決定を説明する文書の末尾の「決定の理由」見出しに書く (機能の決定は `docs/specs/<機能>.md`、全体構成は `docs/architecture.md`、配布・ビルドは `docs/build-and-distribution.md`、SDK の決定は SDK の `docs/`)。決定記録だけを集めたフォルダは作らない (機能の説明と理由を、別の場所に分けないため)。大きな決定をしたら、該当する文書の見出しに足す
 - `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md` / `speech.md` / `db-sqlserver.md`)
 
@@ -32,7 +32,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - **Why:** `bin` を丸ごと消して、起動中の `MmmTool_local` の EXE・DLL・`Data/` の JSON が消え、戻せなかったことがある
 - **プロセスを名前だけで止めない** (`Stop-Process -Name MmmTool`・`taskkill /IM MmmTool.exe` などは禁止)。`MmmTool_local` の `MmmTool.exe` も同じ名前なので、ユーザーが普段使いしているアプリまで終了してしまう。止めるのは、自分が起動したデバッグ版だけ。起動時に `Start-Process -PassThru` で PID を覚え、その PID を止める。PID が分からないときは、`Get-Process` の `Path` が `MmmTool_local` を含まないものだけを止める。判断がつかないときは、止めずにユーザーに閉じてもらう
   - **Why:** 名前だけで止めて、ユーザーが使用中の `MmmTool_local` を途中で終了させてしまったことがある
-- 次のものは、ユーザーの決定で、意図した仕様。レビューや作業のまとめで、指摘・提案しない (理由は各決定記録)
+- **外部送信の処理は、`MmmTool` に絶対に入れない**。コード・プロジェクト参照・パッケージ (DLL)のどれも入れない。外部送信は、サーバー用の別アプリ `MmmBatch`(同じリポジトリの別ソリューション `MmmBatch.slnx`)の機能 (`src/Plugins/MmmBatch.*`)として作る。`MmmTool.slnx` の側のプロジェクトから、`MmmBatch.*` を参照しない。共通の部品 (SDK など)に外部送信の処理を足すときも、MmmTool が参照するプロジェクトには入れない
+  - MmmTool に入れてよいのは、送信先の登録と、リマインダーごとの送信先の選択 (保存と画面。DB モードだけ)まで。ntfy・Discord などへ接続するコードは、入れない ([docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
+  - **Why:** MmmTool の発行物 (exe・DLL)に外部送信のコードが入らないことが、利用の条件 (ユーザーの決定。2026-10-08。利用先などの事情は書かない)
   - 画像の添付と添付ファイルの大きさに、上限が無い ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
@@ -50,9 +52,18 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - **クラウドセッション (Claude Code on the web。claude.ai/code)**: master へ直接コミット・push しない。作業用ブランチ (`claude/...` など)には、区切りのよいところで自由にコミット・push してよい (指示を待たなくてよい)。PR の作成とマージは、ユーザーが指示したときだけ行う
 - Claude Code on the web (claude.ai/code)で作業するとき: 同じ会話の中では、PR を出したあとにユーザーがブランチを消していなければ、そのブランチをそのまま使い続けて続きを積む (作り直し・付け替え・強制 push は、ユーザーが「OK」と許可したときだけ。履歴を書き換えると、ユーザーの手元のブランチと食い違うため)。最新の `master` が必要なときは `git merge origin/master` で取り込む。ユーザーがブランチを消していたら、最新の `master` から新しく作る。SDK 側とアプリ側の対応する PR は、同じブランチ名にする
 - SDK と同時に変える作業の順序: SDK の PR を先に「Create a merge commit」でマージ (スカッシュ・リベースは、アプリが指すコミットが消えるので不可)→ アプリの PR をマージ。動作確認は、マージの前に、ブランチを取得して行う
+- **MmmTool と MmmBatch の両方が参照するものを変えたら、報告の前に、`MmmTool.slnx` と `MmmBatch.slnx` の両方をビルドして確認する** (対象: `src/Data/`・`src/Users/`・`MmmTool.Reminders.Core`・`external/MmmSdk` など。片方だけ通って、もう片方が壊れるのを防ぐ)。VS で実行中のアプリがあって、DLL が使用中でビルドできないときは、止めない (ユーザーの実行を止めない)。止めてもらうよう頼むか、「そのアプリは確認できていない」と、報告に書く
+  - **Why:** MmmBatch の接続の入力欄を共有に移したとき、MmmTool 側のビルドの確認を、ユーザーに言われるまで入れていなかった (2026-10-08)
+- **同じ処理・同じ画面の部品を、複数のアプリ・複数の画面に写さない**。画面の部品 (入力欄・ウィンドウ・ViewModel・高さを合わせるなどの処理)も、最終形で共通になるものは、最初から共有の場所 (SDK・`src/Data/MmmTool.Data.SqlServer.WinUI` など)に置く。「今は使うアプリが 1 つだけ」を理由に、アプリの中に作らない。作る前に、似た処理が、すでにどこかにないか、探す
+  - **Why:** MmmBatch の接続の設定画面を、入力欄だけ共有に移し、保存・キャンセルの ViewModel とウィンドウは MmmBatch の中に作って、MmmTool の画面と同じ作り (確認できるまで保存できない・高さの測り直し)を、3 か所に別々に持った。1 か所の不具合 (ウィンドウを閉じたあとの測り直しで例外)が、3 か所に別々にあった (2026-10-08)
 
 ## 未実装・残りの作業
 実装済みの機能は `docs/specs/` を見る。ここには、これからやることだけを書く (実装したら消し、説明は docs に移す)。
+
+### MmmBatch (リマインダーの送信。設計は [docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
+土台 (ソリューション・exe・トレイ常駐・送信の処理・DB の保存先・送信の状況の画面・接続の設定画面)と、MmmTool 側の送信先の登録と選択は実装済み。DB の表は作成済み (2026-10-08)。実機で動かした確認は、まだ。
+- MmmBatch の配布の形 (MmmTool の csproj にある、Lib フォルダーへの DLL の移動・ライセンスの同梱・発行プロファイル・`Distribution/README.txt`・アプリのアイコン (今は MmmTool と同じ)・版の決め方)。MmmBatch の README
+- 実機の確認で、ntfy の `click` (通知のタップでリンクを開く)が動くか (MSchedule では、スマホ側で動かなかった)
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
 実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)と画面 (設定ページの保存先・初回の保存先の選択・宛先・削除の出し分け)は実装済み。

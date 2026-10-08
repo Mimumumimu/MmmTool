@@ -4,8 +4,7 @@ using MmmSdk.Core.Components.Hosting;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
-using MmmTool.Features.Database.Connection;
-using Windows.Foundation;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmTool.Features.Database.Edit;
 
@@ -87,12 +86,10 @@ public sealed partial class DatabaseEditWindow : Window
     /// <summary>中身の高さに合わせて、ウィンドウの大きさを決め、親の中央に置き直す</summary>
     private void FitHeight()
     {
-        RootGrid.Measure(new Size(WindowWidth, double.PositiveInfinity));
-        var scale = RootGrid.XamlRoot.RasterizationScale;
-        // ResizeClient は、タイトルバーを自分で描いていても、タイトルバーの高さを上に足した大きさにする。中身だけの高さにするため、その分を引く
-        var height = RootGrid.DesiredSize.Height - AppWindow.TitleBar.Height / scale;
-        this.ResizeClientDip(WindowWidth, height, scale, roundUp: true);
-        _modal.CenterOnOwner();
+        if (this.ResizeToContentHeight(RootGrid, WindowWidth))
+        {
+            _modal.CenterOnOwner();
+        }
     }
 
     /// <summary>保存・閉じるで閉じる</summary>

@@ -31,6 +31,11 @@
 | `dbo.AppUser` | ユーザー。1 行が 1 人 (ログイン名とパスワードで特定する) |
 | `dbo.Reminder` | リマインダー。作成者と宛先を持つ |
 | `dbo.ReminderState` | リマインダーの対応状態 (完了・スヌーズ)。人ごと・日ごと |
+| `dbo.NotificationChannel` | 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先 |
+| `dbo.ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
+| `dbo.ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
+
+最後の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
 ## 列
 「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
@@ -98,11 +103,62 @@
   - 未対応 (`None`)は行にしない。`FromReminderState` は `ArgumentException` にするので、`None` への変更は、Repository が行を消す。範囲外の対応状態・正しくない日付も、バグなので例外 (握りつぶさない)
   - アプリの型に人 (`UserId`)が無いので、変換では決めない。作成・更新の日時と、作成者・更新者も同じ (Repository が、操作した人を入れる)
 
+### `dbo.NotificationChannel`(送信先)
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ほかの表からは `ChannelId` で指す |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。この送信先を登録した人。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 (1 か 2 の検査) |
+| `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名 (画面に出す名前) |
+| `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL。秘密なので、画面の一覧には出さない |
+
+- 選べるのは、自分が登録したものだけ (`CreatedByUserId` が自分)
+
+### `dbo.ReminderSendSetting`(リマインダーの送信設定)
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。選ばなくなった送信先は 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `ReminderId` | 整数 | `int` | | 対象のリマインダー (`Reminder.Id`) |
+| `ChannelId` | 整数 | `int` | | 送る先 (`NotificationChannel.Id`) |
+
+- `(ReminderId, ChannelId)` は、削除されていない行の間で一意 (`UX_ReminderSendSetting_ReminderId_ChannelId`。条件つきの一意インデックス)。1 つのリマインダーに、送信先を複数選べる (1 つの送信先につき 1 行。ユーザーの決定。当初は 1 つだったが、ntfy と Discord のように、複数に送りたいため、複数にした)
+- 保存のたびに、選んだ送信先の行を、更新日時を今にして書き直す (無ければ追加、削除済みなら戻す)。選んでいない送信先の行は、論理削除する。まとめて 1 つのトランザクション
+
+### `dbo.ReminderSendStatus`(リマインダーの送信の状況)
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列) |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (送信を始めた日時) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者。MmmBatch はユーザーではないので、常に 0 (0 以上の検査) |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。常に 0 (0 以上の検査) |
+| `ReminderId` | 整数 | `int` | | 送ったリマインダー |
+| `ChannelId` | 整数 | `int` | | 送った先 |
+| `Date` | 日付 | `date` | | どの日の分か |
+| `Status` | 整数 (小) | `tinyint` | | Pending = 1 / Sent = 2 / Failed = 3 (1 から 3 の検査) |
+| `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
+| `LastError` | 文字列 (500) | `nvarchar(500)` | 空文字 | 最後の失敗の理由 |
+| `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
+
+- `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)。送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
+- ログではなく状態で、「送ったか」の判断に使う。画面の送信の状況の一覧も、この表から読む
+
 ## 画面 (保存先と宛先)
 - **設定ページの「保存先」** (`src/App/MmmTool/Features/Database/Settings`。`AddSettingsSection` で登録するホスト側の部品。詳細は [settings.md](settings.md)): 保存先を一行で見せるカード (「ローカル」「DB (サーバー名)」)。押すと開く編集のウィンドウ (`Edit/`)で、保存先 (ローカル / DB)と、DB のときの接続の入力欄・「接続を確認」を扱い、そこの「保存」で保存する。保存先の種類が変わった、または DB のまま接続 (パスワード含む)が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認し、「今すぐ終了」ならアプリを終了する (トレイの「終了」と同じ処理。`AppExitService`。起動し直すのは利用者)。「あとで」なら、保存だけして、今の保存先のまま動き続ける
 - **初回の保存先の選択** (`src/App/MmmTool/Features/Database/Choice`): `Database.Mode` が保存されていないとき (`DatabaseSettingsService.IsModeSaved` が false。設定ファイルを読めなかったときは除く)だけ、起動のとき、トレイを作ったあと、各機能の起動時の準備より前に、独立したウィンドウで出す。ローカル (この PC だけで使う。既定)と DB (一部のデータをサーバーに保存する)の 2 択で、DB のときは同じウィンドウで接続を入れる。「決定」で保存して先へ進み、選んだ保存先で最初から動く (再起動は要らない)。× で閉じたときは、保存せず、アプリを終了する (選ばないまま先へ進ませない。次の起動でもう一度出る)。「決定」のあと、メインウィンドウとログイン (DB のとき)が済んでから、メインウィンドウを出す (初回の起動だけ。トレイだけでは、何も起動していないように見えるため。2 回目以降はトレイだけ)。選択のウィンドウは、閉じずに隠して残し、メインウィンドウを作ってから閉じる (最初のウィンドウを閉じると、アプリごと終了しうるため)。画面の作りは、ログインの画面と同じ
-- 接続の入力欄 (`DatabaseConnectionForm` / `DatabaseConnectionViewModel`)は、この 2 つの画面 (編集のウィンドウと、初回の選択)で共有する: 接続先のサーバー・データベース名・ユーザー名・パスワード (`PasswordBox`)。ログインは、ユーザー名とパスワードで固定する (ログインの方式を選ぶ項目は、画面に無い)。データベース名とユーザー名の初期値は `MmmTool`。パスワードは入力したときだけ保存し (空のままなら、登録済みのものを変えない。登録済みなら見出しに添える)、「接続を確認」は、保存前の入力のまま、`SqlServerConnectionFactoryBuilder.TestConnectionAsync` で接続を試し、結果を InfoBar で知らせる。保存先が DB のときは、「接続を確認」で、つながると確認できる (`IsVerified`)まで、「決定」・「保存」を押せない (入力を直すと、確認済みを取り消す)。押せない間は、ボタンの近くに、「「接続を確認」で、つながることを確かめると、決定できます。」(保存先のウィンドウは「…保存できます。」)と出す。保存の処理も、確認できていなければ、保存の前に、つながることを確かめる (つながらない設定を保存しない)。確認の順序が、画面の見た目で分かるようにするため (裏で確認されるだけでは、利用者に伝わらない)。サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバーのとき (`SqlServerConnectionException.IsUntrustedCertificate`)だけ、初めての接続で 1 回、「このサーバーは、独自の証明書を使っています。」と知らせ、「接続する」かを聞く。「接続する」なら、`TrustServerCertificate` を true にして接続し直し、サーバーとセットで覚える (保存するのは、「保存」・「決定」のとき。サーバーを変えたときは、覚えた内容を使わず、また聞く)設定を読めなかったとき (`IsReadOnly`)は、入力を無効にして、保存しない
+- 接続の入力欄 (`DatabaseConnectionForm` / `DatabaseConnectionViewModel`。`src/Data/MmmTool.Data.SqlServer.WinUI/Connection/`)は、この 2 つの画面 (編集のウィンドウと、初回の選択)と、MmmBatch の接続の設定画面で共有する: 接続先のサーバー・データベース名・ユーザー名・パスワード (`PasswordBox`)。ログインは、ユーザー名とパスワードで固定する (ログインの方式を選ぶ項目は、画面に無い)。データベース名とユーザー名の初期値は `MmmTool`。パスワードは入力したときだけ保存し (空のままなら、登録済みのものを変えない。登録済みなら見出しに添える)、「接続を確認」は、保存前の入力のまま、`SqlServerConnectionFactoryBuilder.TestConnectionAsync` で接続を試し、結果を InfoBar で知らせる。保存先が DB のときは、「接続を確認」で、つながると確認できる (`IsVerified`)まで、「決定」・「保存」を押せない (入力を直すと、確認済みを取り消す)。押せない間は、ボタンの近くに、「「接続を確認」で、つながることを確かめると、決定できます。」(保存先のウィンドウは「…保存できます。」)と出す。保存の処理も、確認できていなければ、保存の前に、つながることを確かめる (つながらない設定を保存しない)。確認の順序が、画面の見た目で分かるようにするため (裏で確認されるだけでは、利用者に伝わらない)。サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバーのとき (`SqlServerConnectionException.IsUntrustedCertificate`)だけ、初めての接続で 1 回、「このサーバーは、独自の証明書を使っています。」と知らせ、「接続する」かを聞く。「接続する」なら、`TrustServerCertificate` を true にして接続し直し、サーバーとセットで覚える (保存するのは、「保存」・「決定」のとき。サーバーを変えたときは、覚えた内容を使わず、また聞く)設定を読めなかったとき (`IsReadOnly`)は、入力を無効にして、保存しない
 - **入力画面の「宛先」**: 今のユーザーを特定済み (`ReminderService.CurrentUserId` が 0 でない = DB モード)のときだけ出す。選択肢は、「自分」(新規の既定)・「全員」・ほかの使えるユーザー (`IsActiveOn(今日)`・名前の順)。編集 (コピーして新規追加を含む)は、保存されている宛先を選ぶ。宛先がもう選べないユーザー (削除済み・期間外)のときも、保存で宛先が変わらないよう、その名前を選択肢に足す。ユーザーの一覧を読めなかったときは、エラーを出して、「自分」「全員」だけにする
+- **送信先の登録と、入力画面の「送信先」**: DB モード (今のユーザーを特定済み)のときだけ出す。登録は、自分の送信先を、区分 (ntfy / Discord)・登録名・値で登録する画面 (リマインダーの機能の `ChannelList/` と `ChannelEdit/`。一覧は、リマインダーの一覧画面の「送信先」ボタンから開く)。ntfy は、値 (トピック名)を自動で作って見せ (コピー・再発行)、Discord は、Webhook の URL を貼る。URL は、一覧に出さず、編集でも伏せる。入力画面の「送信先」は、自分が登録した送信先と「なし」から 1 つ選ぶ。送る処理は、MmmTool に持たない ([mmmbatch.md](mmmbatch.md))
 - **一覧・メイン画面の出し分け**: 「完全削除」は、`ReminderService.CanPurge` が true のときだけ出す。「削除」(論理削除)は、`ReminderService.CanDelete(reminder)`(作成者を持たない = ローカルモード、または `CreatedByUserId` が今のユーザー)のときだけ出す
 
 ## 見え方
@@ -149,7 +205,7 @@
   - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`。`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)。設定は `DatabaseSettings`(パスワードを除く)。種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
   - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
-- 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)
+- 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)。送信のための表は、`002_CreateSendTables.sql`(`NotificationChannel`・`ReminderSendSetting`)と、MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql`(`ReminderSendStatus`)が作る (どちらも、何度流しても、無いものだけを作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、`-I` を付ける。SSMS は既定でオン)
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql
@@ -159,6 +215,18 @@
   CREATE USER [MmmTool] FOR LOGIN [MmmTool];
   GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO [MmmTool];
   ```
+  - MmmBatch は、今は `MmmTool` のログインをそのまま使う (ユーザーの決定。接続の入力欄の初期値も `MmmTool`)。パスワードの保存名だけは、アプリごとに分ける (`MmmBatch.Database`。同じ Windows アカウントで、ログインを変えたときに、お互いのパスワードを上書きしないため)。権限を、MmmBatch に必要な表だけに絞りたいときは、別のログイン `MmmBatch` を作る。その権限は、`Reminder`・`NotificationChannel`・`ReminderSendSetting` の `SELECT` と、`ReminderSendStatus` の `SELECT`・`INSERT`・`UPDATE` (リマインダーや送信先は、読むだけで書かない)。作る SQL は次のとおり。作ったら、MmmBatch の接続の設定で、ユーザー名を `MmmBatch` に直す
+
+    ```sql
+    -- サーバーのログイン (master で実行)
+    CREATE LOGIN [MmmBatch] WITH PASSWORD = N'<パスワード>', CHECK_POLICY = OFF, DEFAULT_DATABASE = [MmmTool];
+    -- 対象の DB を選んで実行 (MmmTool の 001・002 と、MmmBatch の 001 の作成用の SQL を流したあと)
+    CREATE USER [MmmBatch] FOR LOGIN [MmmBatch];
+    GRANT SELECT ON dbo.Reminder TO [MmmBatch];
+    GRANT SELECT ON dbo.NotificationChannel TO [MmmBatch];
+    GRANT SELECT ON dbo.ReminderSendSetting TO [MmmBatch];
+    GRANT SELECT, INSERT, UPDATE ON dbo.ReminderSendStatus TO [MmmBatch];
+    ```
   - パスワードポリシー (`CHECK_POLICY`)は適用しない (ユーザーの判断。意図した仕様で、指摘しない)。簡単なパスワードも許すが、小規模で、信頼できる LAN・VPN の中だけでつなぐ前提 (上の守る範囲)のため。ログイン名と同じパスワードは使わない
 - 認証は SQL 認証 (ドメインを使わない環境のため)。パスワードは、各 PC の設定画面から 1 度だけ入力し、資格情報マネージャーに保存する。EXE にも設定ファイルにも書かない。サーバー名・DB 名は秘密ではない。SQL Server は、同じ LAN か VPN の中だけでつなぐ (インターネットに出さない。通信は暗号化必須)
 - 自動採番は `IDENTITY(1,1)`。更新日時は更新の SQL の中で `SYSDATETIMEOFFSET()` を使って書く。0 以上の検査・1 か 2 の検査は `CHECK` 制約
@@ -195,6 +263,11 @@
   - DB の仕組みを増やさない: 外部キー・連動削除・行の版は、決まりと例外 (0 を入れる列には付けられない、など)を増やす。持たなければ、表の定義も SQL も単純になり、DB を替える (Oracle など)ときの違いも小さい
   - 上書きを防ぎたくなったときは、表を変えずに、更新の SQL の条件に更新日時を足せる (「表の決まり」)
 - 全部の表に同じ共通ヘッダー (5 列)を持たせる: 意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0 など)が混ざっても、全部の表の形をそろえる共通化を優先する。表ごとに持つ列を変えると、どの表に何があるかを覚える必要が出て、扱う処理も表ごとに分かれる (ユーザーの決定)
+
+### 送信の表を、`Reminder` や `ReminderState` に混ぜず、別の表にする
+- `Reminder` に送信先の列を足さない: `Reminder` の型・DB の表・ローカルの JSON を、送信のために変えない。ローカルモードでは、JSON に送信の項目が出ない (設定は、別の表と別の Repository にあり、JSON の Repository は実装しない)
+- `ReminderState` に送信済みのフラグを足さない: 状態は、操作した人ごと・日ごとの行で、操作が無ければ行を持たない。送信は操作と関係なく付ける必要があり、全員宛てでは、どの人の行に付けるかが決まらない。書き手 (ユーザーと MmmBatch)が違い、同時編集の上書きを検出しない仕様では、完了の操作と送信済みの印が衝突しうる
+- `ReminderSendStatus` は、ログではなく状態: 「見て、送っていなければ送る」判断に使う。先に行を作り、一意制約で、作れた 1 つだけが送る (二重送信の防止)。詳細は [mmmbatch.md](mmmbatch.md)
 
 ### 初回の保存先の選択を、各機能の準備より前に出して、すぐ反映する
 保存先 (`IReminderRepository` の選択)は、各機能の起動時の準備で最初に使われて決まり、そのあとは変わらない。初回に準備のあとで選ばせると、選ぶ前に、ローカルで動き出してしまう (DB を選んでも、そのあとの保存はローカルの JSON に入り、次の起動で見えなくなる)。そこで、準備より前に選ばせ、選んだ内容を最初から効かせる。最終形は、起動時に保存先が 1 回だけ決まり、あとは変わらない形で、初回の選択もその「1 回」の前に済ませる。選ばずに閉じたときに先へ進ませないのは、ユーザーの決定。

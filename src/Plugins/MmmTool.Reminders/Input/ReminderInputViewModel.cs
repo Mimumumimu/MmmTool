@@ -24,20 +24,34 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private readonly ReminderService _reminders;
     /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
     private readonly IAppUserRepository _users;
+    /// <summary>送信先の保存先 (送信先の選択肢に使う)</summary>
+    private readonly INotificationChannelRepository _channels;
+    /// <summary>リマインダーの送信設定の保存先</summary>
+    private readonly IReminderSendSettingRepository _sendSettings;
     /// <summary>現在日時</summary>
     private readonly TimeProvider _time;
 
     /// <summary>編集対象。新規なら null</summary>
     private Reminder? _target;
 
+    /// <summary>読み込んだときに選んでいた送信先の番号 (なければ空)</summary>
+    /// <remarks>ほかの人が登録した送信先も含む。保存のときに、選び直していなければ、選んだ内容を、そのまま書き直す (外さない)。</remarks>
+    private HashSet<int> _initialChannelIds = [];
+
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderInputViewModel(ReminderService reminders, IAppUserRepository users, TimeProvider time)
+    public ReminderInputViewModel(
+        ReminderService reminders, IAppUserRepository users, INotificationChannelRepository channels,
+        IReminderSendSettingRepository sendSettings, TimeProvider time)
     {
         _reminders = reminders;
         _users = users;
+        _channels = channels;
+        _sendSettings = sendSettings;
         _time = time;
         WeekdayOptions = [.. ReminderDates.WeekdayNames.Select(weekday => new WeekdayOption(weekday.Flag, weekday.Name))];
         Load(null);
@@ -109,8 +123,67 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial ReminderTargetOption? SelectedTarget { get; set; }
 
+    /// <summary>送信先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ)</summary>
+    [ObservableProperty]
+    public partial bool IsChannelVisible { get; private set; }
+
+    /// <summary>送信先の選択肢 (自分が登録した送信先と、保存されている送信先。チェックで、複数選べる)</summary>
+    public ObservableCollection<ReminderChannelOption> ChannelOptions { get; } = [];
+
+    /// <summary>送信先が 1 つも無いか (送信先の欄を出していて、選べるものが無い)</summary>
+    [ObservableProperty]
+    public partial bool HasNoChannels { get; private set; }
+
     /// <summary>保存のエラー</summary>
     public ErrorState SaveError { get; } = new();
+
+    /// <summary>送信先の選択肢を作り、編集なら、保存されている送信先にチェックを入れる</summary>
+    /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>
+    /// <see cref="Load"/> のあとに呼ぶ。送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
+    /// 編集で、保存されている送信先がほかの人の登録のときも、保存で外れないよう、選択肢に足す。
+    /// 読み込めなかったとき (接続できない・表が無い)は、エラーを出して、送信先の欄を出さない。
+    /// </remarks>
+    public async Task LoadChannelsAsync()
+    {
+        ChannelOptions.Clear();
+        _initialChannelIds = [];
+        HasNoChannels = false;
+        IsChannelVisible = _channels.IsAvailable && _sendSettings.IsAvailable && _reminders.CurrentUserId != 0;
+        if (!IsChannelVisible)
+        {
+            return;
+        }
+
+        try
+        {
+            var mine = await _channels.GetChannelsAsync(includeDeleted: false);
+            var settings = await _sendSettings.GetChannelIdsAsync();
+            if (_target is { No: > 0 } target && settings.TryGetValue(target.No, out var channelIds))
+            {
+                _initialChannelIds = [.. channelIds];
+            }
+
+            foreach (var channel in mine)
+            {
+                ChannelOptions.Add(new ReminderChannelOption(channel.Id, channel.Kind, channel.Name, _initialChannelIds.Contains(channel.Id)));
+            }
+
+            // 保存されている送信先がほかの人の登録のときも、保存で外れないよう、選択肢に足す (チェックを入れたまま)
+            foreach (var channelId in _initialChannelIds.Where(id => ChannelOptions.All(option => option.Id != id)))
+            {
+                var other = await _channels.FindAsync(channelId);
+                ChannelOptions.Add(new ReminderChannelOption(channelId, other?.Kind, other?.Name ?? $"送信先 {channelId}", isChecked: true));
+            }
+            HasNoChannels = ChannelOptions.Count == 0;
+        }
+        catch (DataFileException ex)
+        {
+            ChannelOptions.Clear();
+            IsChannelVisible = false;
+            SaveError.Show(ex.Message);
+        }
+    }
 
     /// <summary>宛先の選択肢を作り、新規なら「自分」・編集なら保存されている宛先を選ぶ</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
@@ -239,6 +312,16 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         try
         {
             var saved = await _reminders.SaveAsync(reminder);
+            // 送信設定の保存に失敗して画面が開いたままのとき、もう一度保存しても、新しいリマインダーを重ねて作らないよう、保存した内容を編集対象にする
+            _target = saved;
+            // 送信先を選んでいるときは、保存のたびに、送信設定を書き直して、更新日時を今に進める。
+            // MmmBatch は、更新日時が今日の発動時刻より後なら、今日の分は送らない。保存した時点で、送る時刻がもう過去なら今日は送らず、まだ先なら、その時刻に送る
+            var selected = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
+            if (IsChannelVisible && (selected.Count > 0 || !_initialChannelIds.SetEquals(selected)))
+            {
+                await _sendSettings.SetChannelsAsync(saved.No, selected);
+                _initialChannelIds = selected;
+            }
             CloseRequested?.Invoke(this, saved);
         }
         catch (Exception ex) when (ex is DataFileException or ArgumentException)

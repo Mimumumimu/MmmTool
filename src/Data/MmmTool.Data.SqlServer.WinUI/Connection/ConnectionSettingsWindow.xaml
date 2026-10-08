@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MmmTool.Data.SqlServer.WinUI.Connection.ConnectionSettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="接続の設定">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <Grid
+            x:Name="TitleBarArea"
+            Grid.Row="0"
+            Height="56"
+            Padding="24,0,48,0">
+            <TextBlock
+                VerticalAlignment="Bottom"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Text="接続の設定" />
+        </Grid>
+
+        <!-- 接続の入力欄 (コードで入れる) -->
+        <ContentControl
+            x:Name="ConnectionHost"
+            Grid.Row="1"
+            Padding="24,16,24,0"
+            HorizontalContentAlignment="Stretch" />
+
+        <!-- 保存・確認のお知らせ -->
+        <StackPanel
+            Grid.Row="2"
+            Padding="24,12,24,0"
+            Spacing="8">
+            <!-- 「保存」を押せない理由 (つながると、まだ確認できていないとき) -->
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="「接続を確認」で、つながることを確かめると、保存できます。"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind ViewModel.NeedsVerification, Mode=OneWay}" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.Connection.Error.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Connection.Error.Message, Mode=OneWay}"
+                Severity="Error" />
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.Connection.Success.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Connection.Success.Message, Mode=OneWay}"
+                Severity="Success" />
+        </StackPanel>
+
+        <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
+        <StackPanel
+            Grid.Row="3"
+            Padding="24,24,24,24"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal"
+            Spacing="8">
+            <Button
+                MinWidth="96"
+                Command="{x:Bind ViewModel.SaveCommand}"
+                Content="保存"
+                Style="{StaticResource AccentButtonStyle}" />
+            <Button
+                MinWidth="96"
+                Command="{x:Bind ViewModel.CancelCommand}"
+                Content="キャンセル" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -89,6 +89,7 @@
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 

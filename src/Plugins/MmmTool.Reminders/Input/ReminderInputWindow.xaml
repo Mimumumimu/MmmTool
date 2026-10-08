@@ -123,6 +123,29 @@
                 ItemsSource="{x:Bind ViewModel.TargetOptions}"
                 SelectedItem="{x:Bind ViewModel.SelectedTarget, Mode=TwoWay}"
                 Visibility="{x:Bind ViewModel.IsTargetVisible}" />
+
+            <!-- 送信先 (DB モードで、送信先を読み込めたときだけ。送る処理は MmmBatch が行う) -->
+            <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsChannelVisible, Mode=OneWay}">
+                <TextBlock Text="送信先" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="送信先が登録されていません。"
+                    Visibility="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}" />
+                <!-- 複数選べる (何も選ばなければ、送らない)。多いときは、この中だけがスクロールする -->
+                <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.ChannelOptions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:ReminderChannelOption">
+                                <CheckBox
+                                    MinHeight="32"
+                                    Content="{x:Bind Text}"
+                                    IsChecked="{x:Bind IsChecked, Mode=TwoWay}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
         </StackPanel>
 
         <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->

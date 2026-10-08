@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
+using MmmTool.Reminders.ChannelEdit;
+using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
 using MmmTool.Reminders.Input;
@@ -22,6 +24,12 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddSingleton<JsonReminderRepository>();
         services.AddSingleton<IReminderRepository>(provider => provider.GetRequiredService<JsonReminderRepository>());
 
+        // 送信先と送信設定 (DB モードだけで使う。ローカルモードは「使えない」保存先。DB に替えるときは、ホストが、登録のあとで置き換える)
+        services.AddSingleton<UnavailableNotificationChannelRepository>();
+        services.AddSingleton<INotificationChannelRepository>(provider => provider.GetRequiredService<UnavailableNotificationChannelRepository>());
+        services.AddSingleton<UnavailableReminderSendSettingRepository>();
+        services.AddSingleton<IReminderSendSettingRepository>(provider => provider.GetRequiredService<UnavailableReminderSendSettingRepository>());
+
         // 変更の通知 (Changed)を各画面と時刻監視で共有するため、アプリ全体で 1 つ。監視は Host の破棄時に止まる
         services.AddSingleton<ReminderService>();
         services.AddSingleton<ReminderMonitor>();
@@ -39,6 +47,10 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddTransient<ReminderInputViewModel>();
         services.AddTransient<ReminderListViewModel>();
         services.AddTransient<ReminderMainViewModel>();
+        services.AddTransient<NotificationChannelListWindow>();
+        services.AddTransient<NotificationChannelListViewModel>();
+        services.AddTransient<NotificationChannelEditWindow>();
+        services.AddTransient<NotificationChannelEditViewModel>();
 
         // 設定ページに並べる設定 (スヌーズ間隔)
         services.AddTransient<ReminderSettingsViewModel>();

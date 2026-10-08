@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.Data.Connection;
-using MmmTool.Features.Database.Connection;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 using MmmTool.Shell;
 
 namespace MmmTool.Features.Database.Edit;

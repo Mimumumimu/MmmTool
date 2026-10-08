@@ -11,7 +11,7 @@ namespace MmmTool.Data.SqlServer.Connection;
 /// </summary>
 /// <remarks>
 /// 接続は、処理のたびに開いて閉じる (実体は接続プールが使い回す)。接続を作るファクトリは、最初に成功したものを使い回す
-/// (設定の変更は、次の起動から反映する)。接続の失敗・設定の不足・実行中の失敗は、画面に出せるメッセージの
+/// (設定の変更は、次の起動から反映する。再起動せずに反映したいときは <see cref="ResetConnection"/>)。接続の失敗・設定の不足・実行中の失敗は、画面に出せるメッセージの
 /// <see cref="DataFileException"/> にして渡す (画面は、ほかの保存先と同じ <see cref="DataFileException"/> を受ける)。
 /// </remarks>
 /// <param name="builder">接続を作るファクトリを作る処理</param>
@@ -66,6 +66,16 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
             await work(connection).ConfigureAwait(false);
             return 0;
         }, cancellationToken);
+    }
+
+    /// <summary>覚えている接続のファクトリを捨てて、次の操作で、今の設定から作り直させる</summary>
+    /// <remarks>接続の設定を保存したあとに呼ぶ (再起動せずに、新しい設定を使うため)。実行中の操作は、そのまま続く。</remarks>
+    public void ResetConnection()
+    {
+        lock (_gate)
+        {
+            _factory = null;
+        }
     }
 
     /// <summary>接続を作るファクトリを取得する (まだ作っていなければ、今の設定から作る)</summary>

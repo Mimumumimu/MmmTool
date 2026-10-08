@@ -38,6 +38,18 @@ public static class SqlServerDataServiceCollectionExtensions
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
                 ? provider.GetRequiredService<SqlServerReminderRepository>()
                 : provider.GetRequiredService<JsonReminderRepository>());
+
+        // 送信先とリマインダーの送信設定は、DB モードだけで使う (ローカルモードは、機能が登録した「使えない」保存先のまま)
+        services.AddSingleton<SqlServerNotificationChannelRepository>();
+        services.AddSingleton<SqlServerReminderSendSettingRepository>();
+        services.AddSingleton<INotificationChannelRepository>(provider =>
+            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
+                ? provider.GetRequiredService<SqlServerNotificationChannelRepository>()
+                : provider.GetRequiredService<UnavailableNotificationChannelRepository>());
+        services.AddSingleton<IReminderSendSettingRepository>(provider =>
+            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
+                ? provider.GetRequiredService<SqlServerReminderSendSettingRepository>()
+                : provider.GetRequiredService<UnavailableReminderSendSettingRepository>());
         return services;
     }
 }

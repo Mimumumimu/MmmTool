@@ -4,8 +4,7 @@ using Microsoft.UI.Xaml;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Utilities;
-using MmmTool.Features.Database.Connection;
-using Windows.Foundation;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmTool.Features.Database.Choice;
 
@@ -86,12 +85,10 @@ public sealed partial class DatabaseChoiceWindow : Window
     /// <summary>中身の高さに合わせて、ウィンドウの大きさを決め、中央に置き直す</summary>
     private void FitHeight()
     {
-        RootGrid.Measure(new Size(WindowWidth, double.PositiveInfinity));
-        var scale = RootGrid.XamlRoot.RasterizationScale;
-        // ResizeClient は、タイトルバーを自分で描いていても、タイトルバーの高さを上に足した大きさにする。中身だけの高さにするため、その分を引く
-        var height = RootGrid.DesiredSize.Height - AppWindow.TitleBar.Height / scale;
-        this.ResizeClientDip(WindowWidth, height, scale, roundUp: true);
-        this.MoveCentered(DisplayArea.Primary.WorkArea);
+        if (this.ResizeToContentHeight(RootGrid, WindowWidth))
+        {
+            this.MoveCentered(DisplayArea.Primary.WorkArea);
+        }
     }
 
     /// <summary>保存して決定したら、画面を隠して、待っている側へ知らせる</summary>

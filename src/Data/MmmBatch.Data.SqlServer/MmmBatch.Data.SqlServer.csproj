@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmBatch.Sending.Core\MmmBatch.Sending.Core.csproj" />
+  </ItemGroup>
+
+</Project>

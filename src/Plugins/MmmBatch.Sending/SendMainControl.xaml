@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmBatch.Sending.SendMainControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24,16,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,8"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="送信の状況" />
+
+        <!-- 「今日」(今日の送信予定)と「履歴」の切り替え -->
+        <SelectorBar
+            x:Name="Selector"
+            Grid.Row="1"
+            Margin="0,0,0,12"
+            SelectionChanged="OnSelectionChanged">
+            <SelectorBarItem x:Name="TodayItem" IsSelected="True" Text="今日" />
+            <SelectorBarItem x:Name="HistoryItem" Text="履歴" />
+        </SelectorBar>
+
+        <ContentPresenter x:Name="ContentHost" Grid.Row="2" />
+    </Grid>
+</UserControl>
