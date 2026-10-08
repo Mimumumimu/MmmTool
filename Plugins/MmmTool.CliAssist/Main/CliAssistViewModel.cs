@@ -82,11 +82,17 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private void AddSession(CliSessionViewModel session)
     {
         // 作業ディレクトリが変わったら、タブ名を付け直す (同じフォルダ名のタブがあるかが変わるため)
+        // 左ペインの群が変わったら (選ばれているタブのときだけ)、左ペインも合わせる
         session.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(CliSessionViewModel.WorkingDirectory))
+            switch (e.PropertyName)
             {
-                RefreshSessionTitles();
+                case nameof(CliSessionViewModel.WorkingDirectory):
+                    RefreshSessionTitles();
+                    break;
+                case nameof(CliSessionViewModel.Category) when session == SelectedSession:
+                    OnSelectedCategoryChanged();
+                    break;
             }
         };
         Sessions.Add(session);
@@ -174,8 +180,23 @@ public sealed partial class CliAssistViewModel : ObservableObject
     #region 定型コマンド
 
     /// <summary>左ペインで表示中のコマンド群 (シェル / AI セッション)。</summary>
-    [ObservableProperty]
-    public partial CommandCategory SelectedCategory { get; set; }
+    /// <remarks>選ばれているセッションの値 (<see cref="CliSessionViewModel.Category"/>)。タブを切り替えると、そのタブの値に変わる。</remarks>
+    public CommandCategory SelectedCategory
+    {
+        get => SelectedSession.Category;
+        set => SelectedSession.Category = value;
+    }
+
+    /// <summary>選ばれたセッションが変わったら、左ペインをそのセッションの値に合わせる</summary>
+    /// <param name="value">選ばれたセッション</param>
+    partial void OnSelectedSessionChanged(CliSessionViewModel value) => OnSelectedCategoryChanged();
+
+    /// <summary>左ペインで表示する群が変わったことを知らせ、ツリーを作り直す</summary>
+    private void OnSelectedCategoryChanged()
+    {
+        OnPropertyChanged(nameof(SelectedCategory));
+        RebuildCommandItems();
+    }
 
     /// <summary>左ペインのツリーに表示する要素。</summary>
     [ObservableProperty]
@@ -257,7 +278,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
             session.Terminal.Shell = shell;
         }
 
-        SelectedCategory = CommandCategory.Shell;
+        // ターミナルを起動し直すので、全タブをシェル側へ戻す
+        foreach (var session in Sessions)
+        {
+            session.Category = CommandCategory.Shell;
+        }
         RebuildCommandItems();
         foreach (var session in Sessions)
         {
@@ -270,10 +295,6 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <returns>WSL なら WSL のシェル、そうでなければ既定のシェル</returns>
     private static ShellInfo ShellFor(CliCommandSet commandSet)
         => commandSet.GetEnvironment() == CliEnvironment.Wsl ? ShellLocator.Wsl : ShellLocator.Default;
-
-    /// <summary>タブが切り替わったら、ツリーを作り直す</summary>
-    /// <param name="value">切り替え後のタブ</param>
-    partial void OnSelectedCategoryChanged(CommandCategory value) => RebuildCommandItems();
 
     /// <summary>選択中のタブの定型コマンドで、ツリーを作り直す</summary>
     private void RebuildCommandItems()
