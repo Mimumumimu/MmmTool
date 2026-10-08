@@ -86,7 +86,7 @@ public partial class App : Application
             IconPath: AppIcon.FilePath));
 
         // リマインダーの送信 (送る処理と、送信の状況の画面)と、その DB (SQL Server)
-        services.AddSending();
+        services.AddSending(AppInfo.LogDirectory);
         services.AddMmmBatchSqlServer();
 
         // DB の接続の設定画面。閉じたウィンドウは再表示できないので、開くたびに作る

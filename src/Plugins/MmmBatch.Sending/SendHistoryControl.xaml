@@ -8,7 +8,7 @@
     <Grid>
         <Grid.Resources>
             <!-- 列の幅 (見出しと行で共通)。時刻 / 件名 (残り) / ユーザー / 送信先 / 結果 -->
-            <GridLength x:Key="TimeColumnWidth">130</GridLength>
+            <GridLength x:Key="TimeColumnWidth">160</GridLength>
             <GridLength x:Key="OwnerColumnWidth">100</GridLength>
             <GridLength x:Key="ChannelColumnWidth">150</GridLength>
             <GridLength x:Key="ResultColumnWidth">160</GridLength>

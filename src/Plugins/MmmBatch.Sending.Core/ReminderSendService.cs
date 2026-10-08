@@ -21,9 +21,10 @@ namespace MmmBatch.Sending.Core;
 /// <param name="source">送る対象の読み出し口</param>
 /// <param name="statuses">送信の状況の保存先</param>
 /// <param name="notifiers">外部へ送る口 (送信先の区分ごと)</param>
+/// <param name="log">送信のログ (送った 1 回ごとの記録)</param>
 /// <param name="time">現在時刻の提供元</param>
 public sealed class ReminderSendService(
-    ISendTargetSource source, IReminderSendStatusRepository statuses, IEnumerable<INotifier> notifiers, TimeProvider time)
+    ISendTargetSource source, IReminderSendStatusRepository statuses, IEnumerable<INotifier> notifiers, ISendLog log, TimeProvider time)
 {
     /// <summary>1 つの送信先へ送ろうとする回数の上限 (最初の 1 回を含む)</summary>
     public const int MaxAttempts = 5;
@@ -49,6 +50,9 @@ public sealed class ReminderSendService(
     /// <remarks>今日の送信予定の画面が、毎分、読み直すために使う。任意のスレッドから発火する。</remarks>
     public event EventHandler? Ran;
 
+    /// <summary>古いログのファイルを整理した日</summary>
+    private DateOnly? _archivedOn;
+
     /// <summary>最後の実行の失敗 (DB の読み書きができなかった)。無ければ null</summary>
     /// <remarks>次の実行が成功すると、消える。変わったときも <see cref="Changed"/> が発火する。</remarks>
     public string? LastError { get; private set; }
@@ -63,6 +67,20 @@ public sealed class ReminderSendService(
         var today = DateOnly.FromDateTime(now);
         var nowTime = ReminderDates.ToTimeValue(now);
         var changed = false;
+
+        // 日付が変わった最初の実行で、古い日のログのファイルを old フォルダーへ移す (ログは残し、移すだけ)
+        if (_archivedOn != today)
+        {
+            _archivedOn = today;
+            try
+            {
+                log.MoveOldFiles(today);
+            }
+            catch (DataFileException ex)
+            {
+                AlertRaised?.Invoke(this, ex.Message);
+            }
+        }
 
         try
         {
@@ -265,7 +283,7 @@ public sealed class ReminderSendService(
     {
         if (!_notifiers.TryGetValue(target.Channel.Kind, out var notifier))
         {
-            await statuses.MarkFailedAsync(claimed.Id, "この種類の送信先には、まだ送れません。", cancellationToken).ConfigureAwait(false);
+            await FinishAsync(target, claimed, SendStatus.Failed, "この種類の送信先には、まだ送れません。", cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -275,7 +293,7 @@ public sealed class ReminderSendService(
         }
         catch (SendFailedException ex)
         {
-            await statuses.MarkFailedAsync(claimed.Id, ex.Message, cancellationToken).ConfigureAwait(false);
+            await FinishAsync(target, claimed, SendStatus.Failed, ex.Message, cancellationToken).ConfigureAwait(false);
             if (claimed.Attempts == 1 || claimed.Attempts >= MaxAttempts)
             {
                 AlertRaised?.Invoke(this, $"「{target.Reminder.Title}」を「{target.Channel.Name}」へ送れませんでした。({ex.Message})");
@@ -283,7 +301,40 @@ public sealed class ReminderSendService(
             return;
         }
 
-        await statuses.MarkSentAsync(claimed.Id, cancellationToken).ConfigureAwait(false);
+        await FinishAsync(target, claimed, SendStatus.Sent, "", cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>結果を、送信の状況 (今の状態)に残し、送信のログに 1 行足す</summary>
+    /// <param name="target">送った対象</param>
+    /// <param name="claimed">送る権利を取った、送信中の行</param>
+    /// <param name="status">結果 (<see cref="SendStatus.Sent"/> か <see cref="SendStatus.Failed"/>)</param>
+    /// <param name="error">失敗の理由。成功は空文字</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>記録の完了を表すタスク</returns>
+    /// <remarks>ログを書けなくても、送信そのものは失敗にしない (気づけるよう、通知は出す)。</remarks>
+    private async Task FinishAsync(SendTarget target, ReminderSendStatus claimed, SendStatus status, string error, CancellationToken cancellationToken)
+    {
+        if (status == SendStatus.Sent)
+        {
+            await statuses.MarkSentAsync(claimed.Id, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await statuses.MarkFailedAsync(claimed.Id, error, cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await log.AppendAsync(
+                new SendLogEntry(
+                    time.GetLocalNow(), target.Reminder.No, target.Reminder.Title, target.OwnerName, target.Channel.Id, target.Channel.Kind, target.Channel.Name,
+                    claimed.Attempts, status, error),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (DataFileException ex)
+        {
+            AlertRaised?.Invoke(this, ex.Message);
+        }
     }
 
     /// <summary>最後の失敗を記録する</summary>
