@@ -1,6 +1,6 @@
 # Backlog
 
-Backlog の共有ファイル (ファイル画面の URL で示すフォルダー)の一覧を取得し、ファイルをダウンロードする機能。サイドバーのクリップボード転送の下に出るページ 1 つと、設定ページの API キー欄。`Plugins/MmmTool.Backlog/`(Core 側は `Plugins/MmmTool.Backlog.Core/`)。設定ページでオン・オフできる ([settings.md](settings.md))。
+Backlog の共有ファイル (ファイル画面の URL で示すフォルダー)の一覧を取得し、ファイルをダウンロードする機能。サイドバーのクリップボード転送の下に出るページ 1 つと、設定ページの API キー欄。`src/Plugins/MmmTool.Backlog/`(Core 側は `src/Plugins/MmmTool.Backlog.Core/`)。設定ページでオン・オフできる ([settings.md](settings.md))。
 
 追加・削除は Backlog の公開 API で行えないので、ブラウザーで Backlog の画面を開いて手で行う (「ブラウザで開く」)。
 

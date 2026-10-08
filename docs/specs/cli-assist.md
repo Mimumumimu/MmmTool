@@ -1,6 +1,6 @@
 # CLI補助
 
-AI のコマンドラインツール (Claude Code・Kiro など)を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`Plugins/MmmTool.CliAssist/`(中は入口の画面の `Main/` と、作業ディレクトリ変更ダイアログの `WorkingDirectory/`、初期設定ダイアログの `Setup/` に分けている。Core 側は `Plugins/MmmTool.CliAssist.Core/`。ターミナルとシェルの決定は SDK)。
+AI のコマンドラインツール (Claude Code・Kiro など)を使うときの補助画面。ターミナルの下に送信欄を置き、定型コマンドの送信・送信履歴・添付を助ける。`src/Plugins/MmmTool.CliAssist/`(中は入口の画面の `Main/` と、作業ディレクトリ変更ダイアログの `WorkingDirectory/`、初期設定ダイアログの `Setup/` に分けている。Core 側は `src/Plugins/MmmTool.CliAssist.Core/`。ターミナルとシェルの決定は SDK)。
 
 ## 画面
 - 3 領域のレイアウト：左に定型コマンドのツリー、中央にターミナル、下に送信欄
@@ -76,7 +76,7 @@ AI のコマンドラインツール (Claude Code・Kiro など)を使うとき�
   - `"focus": "terminal" | "input"`：送信後のフォーカスの移動先 (input = 送信欄)。既定では、起動・新規チャット → input、履歴から選んで再開・モデル切替・会話履歴と再開 → terminal (一覧から選ぶ操作でキーを使うため)
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する (`CommandPlaceholders`)
 - 既定のコマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない (無いときだけ生成)。反映するには「定型コマンドを初期化…」を選ぶ (上の「初期設定 (使うツール・環境)」)
-- 既定のコマンドの定義は Core (`Plugins/MmmTool.CliAssist.Core/CliCommandDefaults`。画面に依存しない。Windows 専用の `ShellLocator` を使うので `[SupportedOSPlatform("windows")]` を付ける (BCL だけで書ける処理は Windows 専用でも Core に置く決まり。SDK の `Paths`・`Shells` と同じ)。環境・ツールを読む `CliCommandSet.GetEnvironment` / `GetTools` と同じ場所にそろえる)にある。Core の `JsonCliCommandRepository` には「既定を作る処理」 (初回の初期設定ダイアログを開いてから、その既定を作る。非同期)を DI で渡す (Core が画面を知らないようにするため。補助スクリプトの置き場は、プラグインのプロジェクトが `Assets/Tools` へ配る)。Windows では、補助スクリプトを動かすシェルを、ターミナルで使うシェル (`ShellLocator.Default`)に合わせる (pwsh が無い環境でも動く)
+- 既定のコマンドの定義は Core (`src/Plugins/MmmTool.CliAssist.Core/CliCommandDefaults`。画面に依存しない。Windows 専用の `ShellLocator` を使うので `[SupportedOSPlatform("windows")]` を付ける (BCL だけで書ける処理は Windows 専用でも Core に置く決まり。SDK の `Paths`・`Shells` と同じ)。環境・ツールを読む `CliCommandSet.GetEnvironment` / `GetTools` と同じ場所にそろえる)にある。Core の `JsonCliCommandRepository` には「既定を作る処理」 (初回の初期設定ダイアログを開いてから、その既定を作る。非同期)を DI で渡す (Core が画面を知らないようにするため。補助スクリプトの置き場は、プラグインのプロジェクトが `Assets/Tools` へ配る)。Windows では、補助スクリプトを動かすシェルを、ターミナルで使うシェル (`ShellLocator.Default`)に合わせる (pwsh が無い環境でも動く)
 
 ## 送信
 - 送信は Ctrl+Enter。`ITerminalSession.Submit` → xterm.js の `term.paste`(ブラケットペースト)で貼り付け、そのあと Enter で確定する。複数行でも CLI がひとまとまりで受け取る

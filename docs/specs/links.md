@@ -1,6 +1,6 @@
 # リンク
 
-よく開くフォルダ・ファイル・URL を登録し、トレイのメニューから開く機能。編集ページとトレイのメニューからなる。`Plugins/MmmTool.Links/`(Core 側は `Plugins/MmmTool.Links.Core/`)。
+よく開くフォルダ・ファイル・URL を登録し、トレイのメニューから開く機能。編集ページとトレイのメニューからなる。`src/Plugins/MmmTool.Links/`(Core 側は `src/Plugins/MmmTool.Links.Core/`)。
 
 ## データ
 - `Data/Links.json`：`{ "items": [ { "kind", "name", "path", "children" } ] }`。ローカル専用・ID なしの入れ子。無ければ空で生成する

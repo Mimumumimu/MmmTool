@@ -23,12 +23,12 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## 作業のルール
 - 決めていない操作・項目 (一般的な慣習のものも含む)は、勝手に足さない。必要そうなら先に聞く (トレイの「〜を開く」・F2・ダブルクリックを足して外した経緯あり)
 - エラーの扱い: `try/catch` は最小限 (範囲を絞る。広い `catch` で隠さない・握りつぶさない)。予測できる失敗は先に確かめる。続けられる失敗は画面に出す (InfoBar)。進められない失敗・予想外の失敗 (バグ)は、ログ → ダイアログ → 終了 (詳細は [architecture.md](docs/architecture.md) の「エラーの扱い」)
-- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
+- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`src/App/MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
 - 画面操作が必要な確認は、VS でユーザーに行ってもらう
 - 共通の部品 (SDK。`external/MmmSdk`)は、最終形から見て SDK に置くのが正しいときは、SDK を変更する (「SDK は変更しない」と、制約にしない。作業の引き継ぎに、そう書いてあっても、同じ)。クラウドセッションでは、SDK 側にも、アプリと同じ名前の作業用ブランチ (`claude/...`)を作って、コミット・push する。SDK の書き込み権限が無いときは、アプリ側で回避せず、権限が要ることをユーザーに伝えて頼む (理由に、「SDK は変更しない決まりだから」と書かない)
 - 画面の文言 (ラベル・説明文・メッセージ・ダイアログの文面)を変えるときは、先に案を出してユーザーと決め、決まってからまとめて直す。1 つ直すたびに、コミット・push しない (無駄な push が増えるため)
 - 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
-- `MmmTool/bin/Release/publish/MmmTool_local/` は、ユーザーが普段使いしているローカル環境 (発行の出力 `bin/Release/publish/MmmTool_<版>/` をコピーして使っている。実行中のことがある。`Data/` に実データが入っている)。**この `MmmTool_local` だけは、削除・上書き・移動をしない** (ビルドのやり直しで `bin` を消すときも含む。`MmmTool_local` を残して消す)。それ以外の `bin` / `obj` / 発行の出力は、消してよい。削除の前に、`MmmTool_local` が対象に入っていないことを確かめる
+- `src/App/MmmTool/bin/Release/publish/MmmTool_local/` は、ユーザーが普段使いしているローカル環境 (発行の出力 `bin/Release/publish/MmmTool_<版>/` をコピーして使っている。実行中のことがある。`Data/` に実データが入っている)。**この `MmmTool_local` だけは、削除・上書き・移動をしない** (ビルドのやり直しで `bin` を消すときも含む。`MmmTool_local` を残して消す)。それ以外の `bin` / `obj` / 発行の出力は、消してよい。削除の前に、`MmmTool_local` が対象に入っていないことを確かめる。コードを `src/` に移す前の古い場所 (`MmmTool/bin/Release/publish/MmmTool_local/`)に `MmmTool_local` が残っているクローンもある。古い `MmmTool/` フォルダ (`bin` / `obj` だけ残ったもの)を消す前に、その中に `MmmTool_local` が無いことを確かめる
   - **Why:** `bin` を丸ごと消して、起動中の `MmmTool_local` の EXE・DLL・`Data/` の JSON が消え、戻せなかったことがある
 - **プロセスを名前だけで止めない** (`Stop-Process -Name MmmTool`・`taskkill /IM MmmTool.exe` などは禁止)。`MmmTool_local` の `MmmTool.exe` も同じ名前なので、ユーザーが普段使いしているアプリまで終了してしまう。止めるのは、自分が起動したデバッグ版だけ。起動時に `Start-Process -PassThru` で PID を覚え、その PID を止める。PID が分からないときは、`Get-Process` の `Path` が `MmmTool_local` を含まないものだけを止める。判断がつかないときは、止めずにユーザーに閉じてもらう
   - **Why:** 名前だけで止めて、ユーザーが使用中の `MmmTool_local` を途中で終了させてしまったことがある
@@ -67,7 +67,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 無音ループ (無音の音を流し続けて、Bluetooth・USB の音声機器が眠って読み上げの頭が切れるのを防ぐ仕組み。旧アプリ MSchedule にはあった)。読み上げとは別の機能で、入れるかどうかはユーザーがまだ決めていない。実機で読み上げの頭が切れたときに、あらためて相談する
 
 ## 作業の注意 (要点。詳細は docs)
-- 機能の追加は、機能のライブラリ (`Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>()`)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない
-- UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。機能の `.Core`(`Plugins/MmmTool.<機能>.Core`)は、保存するデータが決まった機能から作る (空の置き場は作らない)
+- 機能の追加は、機能のライブラリ (`src/Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>()`)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない
+- UI に依存しない処理は Core に置く。UI・Windows に依存するものだけをアプリ本体に置く。機能の `.Core`(`src/Plugins/MmmTool.<機能>.Core`)は、保存するデータが決まった機能から作る (空の置き場は作らない)
 - 終了の順序 (トレイアイコンを各機能の後始末のあとに消す)と、起動時の準備を UI スレッドで行う理由は `docs/architecture.md`(「起動時の準備」)
 - VS で通知ダイアログを閉じると落ちるときは、VS の「XAML 診断」をオフにする (`docs/architecture.md` の「開発時の注意」)

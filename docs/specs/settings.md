@@ -21,7 +21,7 @@
 - 仕組みと決めた理由は、下の「決定の理由」
 
 ## 項目
-### リマインダーのスヌーズ間隔 (`Plugins/MmmTool.Reminders/ReminderSettingsControl` ＋ `ReminderSettingsViewModel`)
+### リマインダーのスヌーズ間隔 (`src/Plugins/MmmTool.Reminders/ReminderSettingsControl` ＋ `ReminderSettingsViewModel`)
 - `NumberBox`(スピンは Inline・小さい刻み 1 / 大きい刻み 10)と双方向で、変わったら即保存する
 - 保存は `ReminderSettingsService`(Core)経由で、設定ストアの `Reminder.SnoozeIntervalMinutes` に委譲する
 - 範囲は 5〜999 分 (定数と補正は `ReminderSettingsService` の `MinSnoozeInterval` / `MaxSnoozeInterval` / `ClampSnoozeInterval`)、既定は 15。範囲外・空は範囲内に補正して、画面にも反映する (`NumberBox` は空にすると NaN になる)
@@ -32,11 +32,11 @@
 - 強調しないリンク型にしたのは、アプリの外へ出るだけの操作で、この画面の主な操作ではないため
 - 開けなかったとき (`PathOpenException`)は、画面の InfoBar に出す
 
-### Backlog の API キー (`Plugins/MmmTool.Backlog/Settings/BacklogSettingsControl` ＋ `BacklogSettingsViewModel`)
+### Backlog の API キー (`src/Plugins/MmmTool.Backlog/Settings/BacklogSettingsControl` ＋ `BacklogSettingsViewModel`)
 - `PasswordBox` に API キーを入れる。入力欄からフォーカスが外れたときに保存する。保存先は設定ストアではなく、資格情報マネージャー ([backlog.md](backlog.md))
 - 保管庫を読めない・書けない失敗 (`SecretStoreException`)は、画面の InfoBar に出して続ける。Backlog の機能がオフの間は、この項目も並べない
 
-### 保存先と DB への接続 (`MmmTool/Features/Database/Settings/DatabaseSettingsControl` ＋ `DatabaseSettingsViewModel`)
+### 保存先と DB への接続 (`src/App/MmmTool/Features/Database/Settings/DatabaseSettingsControl` ＋ `DatabaseSettingsViewModel`)
 - ホスト側の部品で、`AddDatabaseScreens()` が `AddSettingsSection` で登録する (どの機能にも属さず、オフにならない)。設計は [database.md](database.md)
 - 設定ページには、「保存先」の見出しの下に、カード 1 枚だけを出す (「保存先」。説明に、今の保存先を「ローカル」または「DB ・ サーバー名」で見せる)。カード全体が押せて (右に ›)、押すと編集のウィンドウが開く。閉じたら、説明を読み直す
 - 編集のウィンドウ (`Features/Database/Edit/DatabaseEditWindow`。開く口は `IDatabaseDialogService`): モーダルのウィンドウで、保存先 (ローカル / DB)を `RadioButton` で選ぶ。DB のときだけ、接続の入力欄 (接続先のサーバー・データベース名・ユーザー名・パスワード)と「接続を確認」を出す。DB のときは、つながると確認できるまで、「保存」を押せない (ログインの方式と証明書は、画面の項目にしない。理由と動きは [database.md](database.md))。入力欄は、初回の保存先の選択の画面と共有する部品 (`DatabaseConnectionForm`)
