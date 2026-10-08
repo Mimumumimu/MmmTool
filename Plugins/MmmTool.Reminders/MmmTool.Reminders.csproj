@@ -14,17 +14,6 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" />
-    <!--
-      CommunityToolkit.WinUI.Controls.Segmented・SettingsControls は古い全部入りの Windows App SDK (1.6)に依存するため、アプリ本体と同じく、全部入りの新しい版を直接参照して版を合わせる。
-      使わない部品 (AI・ML・検索・ウィジェット)は、中身を使わない (アプリ本体の MmmTool.csproj と同じ指定)
-    -->
-    <PackageReference Include="Microsoft.WindowsAppSDK" />
-    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
-    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
