@@ -350,6 +350,8 @@ Visual Studio では、ソリューション エクスプローラーで `MmmToo
 dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
+取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行します (どこにクローンしても動きます。途中で失敗すると、その時点で止まります)。
+
 発行すると、版ごとのフォルダ `MmmTool/bin/Release/publish/MmmTool_<版>/`(版は `Directory.Build.props` の `Version`。例: `MmmTool_0.1.0`)ができます。この版のフォルダをそのままコピーして配布します (インストーラーはありません)。
 
 ```

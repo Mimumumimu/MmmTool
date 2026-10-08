@@ -64,3 +64,6 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# バッチ (cmd)は、Windows で取り出しても CRLF のままにする
+*.bat text eol=crlf

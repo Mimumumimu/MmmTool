@@ -17,6 +17,7 @@
 - 発行は VS の「発行」 (プロファイル `win-x64`)、またはコマンドの `dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64`。どちらも、配布物は `MmmTool/bin/Release/publish/MmmTool_<版>/` にでき、アプリ本体はその中の `MmmTool/`(版は `Directory.Build.props` の `Version`。通常のビルドの出力 `bin/Release/net10.0-windows10.0.19041.0/` の隣。対象の .NET・RID は 1 つずつなので、出力先の名前に入れない)。
   - 2 段階にしている: 発行 (`PublishDir`)は、版を含まない途中のフォルダ `obj/Release/publish/` に出し、発行のあとに csproj の `PackageDistribution` が、アプリ本体を `MmmTool_<版>/MmmTool/` へ写し、説明書類を `MmmTool_<版>/` に置く (配布物の場所は `DistributionDir`。試すときは `-p:DistributionDir=...` で変えられる)
   - 版をプロファイルの出力先に書かない理由: VS の「発行」は、発行プロファイルを単体で読んで出力先を決めるので、プロジェクトの `Version`(`Directory.Build.props`)が見えず、`MmmTool_\` になる。プロファイルで `Directory.Build.props` を `Import` すると、VS がプロファイルを読めなくなる (一覧から消える)。そのため、版はプロジェクトの中 (`PackageDistribution`)で付ける
+- 別の PC で、クローン済みのフォルダを今のブランチの最新にして発行するには、`scripts/update_and_publish.bat` を実行する (リポジトリの根元は、バッチの 1 つ上のフォルダ。どこにクローンしても動く)。`git pull --ff-only` → `git submodule update --init --recursive` → 上の `dotnet publish` の順に実行し、どれかが失敗した時点で止まる。出力先の考え方は上と同じで、発行の前に既存のファイルは消さない。理由は下の「決定の理由」の「更新と発行のバッチをリポジトリに入れる」
 - 外側の版のフォルダ (`MmmTool_<版>`)をそのままコピーして配布する。外側が版、内側がアプリ本体の形はユーザーの決定 (`dotnet publish` の標準は発行フォルダの直下に出す形だが、手でコピーして配る運用に合わせた。アプリ本体だけをコピーすれば、コピー先のフォルダ名が版ごとに変わらない。版ごとにフォルダが分かれるので、前の版の控えも残る。`bin` の下にあるので、`bin` を丸ごと消すと一緒に消える点に注意する)。発行の前に既存のファイルを消す設定 (`DeleteExistingFiles`)は使わない (ユーザーの決定)
 - ビルドの出力先は `bin\<構成>\<TFM>\`、中間ファイルは `obj\<構成>\<TFM>\`(`Directory.Build.props` の `AppendPlatformToOutputPath=false`・`AppendRuntimeIdentifierToOutputPath=false`。プラットフォーム・RID は x64・win-x64 だけなので、段を作らない。SDK も同じ)
   - RID の段を作らない理由: VS の「発行」は、発行プロファイルの RID を参照先 (SDK)にも渡し、参照先はビルドし直さない。段を作ると、発行のときだけ `...\win-x64\MmmSdk.WinUI.dll` を探しに行き、先にビルドした DLL (段なし)を見つけられずに失敗する
@@ -62,3 +63,8 @@ EXE の横を、`Assets`(配布物)・`Data`(アプリが書くもの)・`Lib`(�
   - 公式の設定ではないので、.NET SDK の更新で deps.json の形が変わると、効かなくなるおそれがある。そのときは起動時に DLL が見つからずに落ちるので、気づける。`MovePackageFilesToLib`・`MoveRuntimePackFilesToLib`・`MoveReferencesToLib`・`MoveSatellitesToLib`・`AddLocalPathToBuildDepsFile`・`AddLocalPathToPublishDepsFile` を消せば、元の形 (EXE の横に並ぶ)に戻る
 - `.xml`(XML ドキュメントコメント)は、実行に使わないので、ビルドの出力にコピーしない (検査のために obj には作る)。Release では `.pdb` を出力に入れない (ユーザーの決定。Debug では入れる)
 - 最終形にどう近づくか: EXE の横は、`MmmTool.*` の 5 ファイルと `Microsoft.Web.WebView2.Core.dll`・`Assets`・`Data`・`Lib` だけになり、パッケージを足しても EXE の横は増えない。使わない Windows App SDK の部品は入らない
+
+### 更新と発行のバッチをリポジトリに入れる
+- `scripts/update_and_publish.bat` は、リポジトリに入れる (クローンの外の親フォルダには置かない)。別の PC にクローンしたときも、そのまま取得から発行までを実行できるようにするため (ユーザーの要望)。最終形では開発用の補助スクリプトが複数になるので、直下ではなく `scripts/` に置く。アプリが使う `Plugins/MmmTool.CliAssist/Tools/` の `.ps1` とは別
+- バッチは、最初に自分を `%TEMP%` へコピーし、コピーから続きを実行する。cmd は実行中のバッチを位置で読み直すので、`git pull` でバッチ自身が書き換わると、行の途中から読んで誤動作するため
+- `.gitattributes` で `*.bat` を CRLF にそろえる (LF だと cmd が行を読み違えることがある)。バッチの表示文は ASCII のみにする (コードページの違いで文字化けしないため)
