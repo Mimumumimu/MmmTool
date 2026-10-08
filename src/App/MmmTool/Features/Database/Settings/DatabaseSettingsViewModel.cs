@@ -44,10 +44,10 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
     }
 
     /// <summary>保存してある設定から、今の保存先の説明を作る</summary>
-    /// <returns>ローカルなら「ローカル」、DB なら「DB ・ サーバー名」</returns>
+    /// <returns>ローカルなら「ローカル」、DB なら「DB (サーバー名)」</returns>
     private string CreateSummary()
     {
         var saved = _settings.Load();
-        return saved.Mode == DatabaseMode.SqlServer ? $"DB ・ {saved.Server}" : "ローカル";
+        return saved.Mode == DatabaseMode.SqlServer ? $"DB ({saved.Server})" : "ローカル";
     }
 }
