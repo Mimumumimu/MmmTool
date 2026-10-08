@@ -22,11 +22,11 @@ git submodule update --init --recursive
 if errorlevel 1 goto :failed
 
 echo [3/3] dotnet publish
-dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
+dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 if errorlevel 1 goto :failed
 
 echo.
-echo Done. Output: %CD%\MmmTool\bin\Release\publish\MmmTool_^<version^>\
+echo Done. Output: %CD%\src\App\MmmTool\bin\Release\publish\MmmTool_^<version^>\
 popd
 pause
 exit /b 0

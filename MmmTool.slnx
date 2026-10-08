@@ -7,60 +7,62 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
-  <Project Path="MmmTool/MmmTool.csproj">
-    <Platform Project="x64" />
-    <Deploy />
-  </Project>
+  <Folder Name="/App/">
+    <Project Path="src/App/MmmTool/MmmTool.csproj">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+  </Folder>
   <Folder Name="/Plugins/Backlog/">
-    <Project Path="Plugins/MmmTool.Backlog.Core/MmmTool.Backlog.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.Backlog.Core/MmmTool.Backlog.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Plugins/MmmTool.Backlog/MmmTool.Backlog.csproj">
+    <Project Path="src/Plugins/MmmTool.Backlog/MmmTool.Backlog.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/Plugins/CliAssist/">
-    <Project Path="Plugins/MmmTool.CliAssist.Core/MmmTool.CliAssist.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.CliAssist.Core/MmmTool.CliAssist.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Plugins/MmmTool.CliAssist/MmmTool.CliAssist.csproj">
+    <Project Path="src/Plugins/MmmTool.CliAssist/MmmTool.CliAssist.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/Plugins/ClipboardTransfer/">
-    <Project Path="Plugins/MmmTool.ClipboardTransfer.Core/MmmTool.ClipboardTransfer.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.ClipboardTransfer.Core/MmmTool.ClipboardTransfer.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Plugins/MmmTool.ClipboardTransfer/MmmTool.ClipboardTransfer.csproj">
+    <Project Path="src/Plugins/MmmTool.ClipboardTransfer/MmmTool.ClipboardTransfer.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/Plugins/Links/">
-    <Project Path="Plugins/MmmTool.Links.Core/MmmTool.Links.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.Links.Core/MmmTool.Links.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Plugins/MmmTool.Links/MmmTool.Links.csproj">
+    <Project Path="src/Plugins/MmmTool.Links/MmmTool.Links.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/Plugins/Reminders/">
-    <Project Path="Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Plugins/MmmTool.Reminders/MmmTool.Reminders.csproj">
+    <Project Path="src/Plugins/MmmTool.Reminders/MmmTool.Reminders.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
-  <Folder Name="/Shared/">
-    <Project Path="Shared/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
+  <Folder Name="/Users/">
+    <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/Data/">
-    <Project Path="Data/MmmTool.Data/MmmTool.Data.csproj">
+    <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+    <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>

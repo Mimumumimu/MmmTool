@@ -249,7 +249,7 @@ OK で保存して閉じ、キャンセル (または ×)で保存せずに閉�
 ### DB モード (複数の PC で共有)
 既定の保存先は、上の JSON ファイルです (ローカルモード)。設定の `Database.Mode` を `SqlServer` にすると、リマインダーを SQL Server に保存して、複数の PC で共有できます (DB モード)。ローカルモードでは、DB に接続しません。
 
-- 表は、リポジトリの `Sql/SqlServer/001_CreateTables.sql` で作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます (詳しくは `docs/specs/database.md`)
+- 表は、リポジトリの `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` で作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます (詳しくは `docs/specs/database.md`)
 - 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します
 - DB モードの最初の起動で、ログインの画面が出ます。「新規登録」で、ログイン名・表示名・パスワードを決めて作り、次からは、同じログイン名とパスワードでログインします。ログインに成功すると、ログイン名とパスワードをこの PC (Windows アカウントごと)の資格情報マネージャーに覚え、次の起動からは自動でログインします。ログインは必須で、済ませないと先へ進めません (× で閉じると、アプリが終了します)。パスワードの文字数などの決まりはありません。パスワードを忘れたときは、管理者が SQL で `PasswordHash` を空文字にすると、次のログインで新しいパスワードを決められます。サインアウトはありません (PC を別の人に渡すときは、Windows のアカウントを分けるか、資格情報マネージャーの `MmmTool.Account.*` を消します)
 - 一覧に出るのは、宛先が自分・全員宛て・自分が作成したリマインダーです。通知は、宛先が自分と全員宛てのものだけです。DB モードでは、完全削除はできません (削除済みにするだけです)
@@ -347,12 +347,12 @@ Visual Studio では、ソリューション エクスプローラーで `MmmToo
 コマンドで発行するときは、次のとおりです (Visual Studio と同じ結果になります)。
 
 ```powershell
-dotnet publish .\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
+dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
 取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行します (どこにクローンしても動きます。途中で失敗すると、その時点で止まります)。
 
-発行すると、版ごとのフォルダ `MmmTool/bin/Release/publish/MmmTool_<版>/`(版は `Directory.Build.props` の `Version`。例: `MmmTool_0.1.0`)ができます。この版のフォルダをそのままコピーして配布します (インストーラーはありません)。
+発行すると、版ごとのフォルダ `src/App/MmmTool/bin/Release/publish/MmmTool_<版>/`(版は `Directory.Build.props` の `Version`。例: `MmmTool_0.1.0`)ができます。この版のフォルダをそのままコピーして配布します (インストーラーはありません)。
 
 ```
 MmmTool_0.1.0\
@@ -362,7 +362,7 @@ MmmTool_0.1.0\
     Assets\Licenses\THIRD-PARTY-NOTICES.txt   ← 同梱しているライブラリのライセンスと通知の全文
 ```
 
-アプリ本体のフォルダ名は版が変わっても `MmmTool` のままなので、コピー先のショートカットなどはそのまま使えます。ライセンスの文書はアプリ本体の中にあるので、`MmmTool` フォルダだけをコピー・再配布しても一緒に付いていきます。`README.txt` の元は `MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のもの、`THIRD-PARTY-NOTICES.txt` は発行のたびに、配布物に入るパッケージから自動で作ります。`Version` を上げずに発行し直すと、同じ版のフォルダに、前回のファイルを消さずに上書きします。前の版にだけあったファイルを残したくないときは、発行の前に版のフォルダを消してください。EXE の横のフォルダは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけで、実行すると `Data`(アプリが書くもの)ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください (起動できなくなります)。
+アプリ本体のフォルダ名は版が変わっても `MmmTool` のままなので、コピー先のショートカットなどはそのまま使えます。ライセンスの文書はアプリ本体の中にあるので、`MmmTool` フォルダだけをコピー・再配布しても一緒に付いていきます。`README.txt` の元は `src/App/MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のもの、`THIRD-PARTY-NOTICES.txt` は発行のたびに、配布物に入るパッケージから自動で作ります。`Version` を上げずに発行し直すと、同じ版のフォルダに、前回のファイルを消さずに上書きします。前の版にだけあったファイルを残したくないときは、発行の前に版のフォルダを消してください。EXE の横のフォルダは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけで、実行すると `Data`(アプリが書くもの)ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください (起動できなくなります)。
 
 ## MmmSdk を更新するとき
 
@@ -387,14 +387,14 @@ git submodule update --remote external/MmmSdk
 
 | フォルダー | 内容 |
 | --- | --- |
-| `Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Reminders` |
-| `Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダ (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
-| `MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
-| `MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
+| `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Reminders` |
+| `src/Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダ (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
+| `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
+| `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
-機能を足すときは、`Plugins/MmmTool.<機能>.Core/` と `Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、機能の入口 (`<機能>Plugin.Register`)の中で登録します。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます。DEBUG ページはリマインダーを使うので、リマインダーを外すときは DEBUG ページも直します)。
+機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>()` を 1 行呼びます。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、機能の入口 (`<機能>Plugin.Register`)の中で登録します。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます。DEBUG ページはリマインダーを使うので、リマインダーを外すときは DEBUG ページも直します)。
 
 ## ドキュメント
 
@@ -409,4 +409,4 @@ git submodule update --remote external/MmmSdk
 
 ## バージョン
 
-現在のバージョンは 0.1.0 です (`Directory.Build.props` の `Version`。ファイル・アセンブリのバージョンは 0.1.0.0 になります)。変更履歴は、配布物の説明書 (元は `MmmTool/Distribution/README.txt`)の「変更履歴」に書いています。
+現在のバージョンは 0.1.0 です (`Directory.Build.props` の `Version`。ファイル・アセンブリのバージョンは 0.1.0.0 になります)。変更履歴は、配布物の説明書 (元は `src/App/MmmTool/Distribution/README.txt`)の「変更履歴」に書いています。
