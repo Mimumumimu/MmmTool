@@ -62,7 +62,10 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ### MmmBatch (リマインダーの送信。設計は [docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
 土台 (ソリューション・exe・トレイ常駐・送信の処理・DB の保存先・送信の状況の画面・接続の設定画面)と、MmmTool 側の送信先の登録と選択は実装済み。DB の表は作成済み (2026-10-08)。実機で動かした確認は、まだ。
-- MmmBatch の配布の形 (MmmTool の csproj にある、Lib フォルダーへの DLL の移動・ライセンスの同梱・発行プロファイル・`Distribution/README.txt`・アプリのアイコン (今は MmmTool と同じ)・版の決め方)。MmmBatch の README
+- **MmmBatch の配布の形** (課題。2026-10-08)。今は暫定で、`scripts/update_and_publish.bat` が、MmmBatch を、普通のフレームワーク依存の発行 (`dotnet publish MmmBatch.csproj -c Release -r win-x64 --self-contained false -o src\App\MmmBatch\bin\Release\publish\MmmBatch`。DLL は EXE の横に並ぶ約 100 ファイル)で出す。MmmTool と同じ形にする作業が残っている
+  - 案 (おすすめ): MmmTool の `csproj` にある発行の仕組み (DLL を `Lib` へ移す・`THIRD-PARTY-NOTICES.txt` の自動生成・`PackageDistribution` で版のフォルダ + 説明書 + アプリ本体の形にする)を、共有のファイル (例: `build/AppDistribution.targets`)に取り出し、MmmTool と MmmBatch の両方が読み込む。アプリごとに違う値 (アプリ名・説明書の場所)だけを各 `csproj` に書く。複製しない (同じものを写さないルール)。MmmTool の発行が、これまでと同じ配布物になることを、中身を比べて確かめる
+  - 足すもの: MmmBatch の発行プロファイル・説明書 `Distribution/README.txt` (変更履歴つき・必要環境: .NET Desktop Runtime と Windows App Runtime をサーバーに入れる)・ライセンスの同梱・MmmBatch の README・版の決め方 (おすすめ: MmmTool とは別の版)・別のアプリのアイコン (今は MmmTool と同じ。画像は、ユーザーが用意する)
+  - 暫定の発行は、ライセンス全文 (`THIRD-PARTY-NOTICES.txt`)が付かない。公開・配布する前に、上の作業を済ませる
 - 実機の確認で、ntfy の `click` (通知のタップでリンクを開く)が動くか (MSchedule では、スマホ側で動かなかった)
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
