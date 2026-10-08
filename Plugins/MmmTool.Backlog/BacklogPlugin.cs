@@ -17,7 +17,7 @@ public sealed class BacklogPlugin : IFeaturePlugin
     /// </remarks>
     public void Register(IServiceCollection services)
     {
-        services.AddFeature(BacklogFeature.Key, BacklogFeature.DisplayName);
+        services.AddFeature(BacklogFeature.Key, BacklogFeature.DisplayName, defaultEnabled: false);
 
         // HttpClient をアプリ全体で 1 つにするため Singleton (Host の破棄で Dispose される)
         services.AddSingleton<BacklogClient>();

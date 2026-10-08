@@ -48,7 +48,7 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddTransient<CliSessionViewModel>();
         services.AddTransient<CliAssistViewModel>();
         // 設定でオン・オフできる機能。オフの間は、ページ・起動時の準備を使わない
-        services.AddFeature(CliAssistFeature.Key, CliAssistFeature.DisplayName);
+        services.AddFeature(CliAssistFeature.Key, CliAssistFeature.DisplayName, defaultEnabled: false);
         services.AddSingleton<IFeatureDisableConfirmation, CliAssistDisableConfirmation>();
         services.AddNavigationPage<CliAssistPage>(CliAssistFeature.DisplayName, "", NavigationArea.Top, CliAssistFeature.Key);
 
