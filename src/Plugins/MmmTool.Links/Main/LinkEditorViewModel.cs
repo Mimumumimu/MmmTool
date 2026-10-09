@@ -263,13 +263,14 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         }
     }
 
-    /// <summary>フォルダ選択を開いて、選ばれたパスを入れる</summary>
+    /// <summary>フォルダ選択を、入力済みのパスで開いて、選ばれたパスを入れる</summary>
     /// <returns>フォルダ選択の完了を表すタスク</returns>
+    /// <remarks>入力済みのパスがフォルダでないとき (ファイル・URL など)は、ピッカーの既定の場所で開く。</remarks>
     [RelayCommand(CanExecute = nameof(IsLinkSelected))]
     private async Task BrowseFolderAsync()
     {
         var link = SelectedItem!;
-        if (await _folderPicker.PickFolderAsync() is { } path)
+        if (await _folderPicker.PickFolderAsync(link.Path) is { } path)
         {
             link.Path = path;
         }

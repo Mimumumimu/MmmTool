@@ -14,6 +14,21 @@ public static class SessionDirectory
     public static bool IsSame(string first, string second)
         => string.Equals(Normalize(first), Normalize(second), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>入力されたフォルダを、作業フォルダとして使える形にする</summary>
+    /// <param name="path">入力されたパス</param>
+    /// <returns>前後の空白を取り除き、末尾を <c>\</c> にそろえたパス (空のときは空)。区切りの <c>/</c> は <c>\</c> にする</returns>
+    /// <remarks>
+    /// 「D:」のままだと、シェルが「そのドライブで最後にいたフォルダ」と解釈して、移動できない。
+    /// ドライブだけ <c>\</c> を付けると表記がばらつくので、すべてのフォルダの末尾を <c>\</c> にそろえる。
+    /// </remarks>
+    public static string ToWorkingDirectory(string path)
+    {
+        var normalized = path.Trim().Replace('/', '\\');
+        return normalized.Length == 0 || normalized.EndsWith('\\')
+            ? normalized
+            : normalized + '\\';
+    }
+
     /// <summary>タブ名を作る</summary>
     /// <param name="directories">タブごとの作業フォルダ (タブの並び順)</param>
     /// <returns>タブごとのタブ名 (入力と同じ並び順)</returns>
