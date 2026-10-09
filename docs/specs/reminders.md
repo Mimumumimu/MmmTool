@@ -111,7 +111,7 @@
   - 時刻 (15 SemiBold)
   - 件名 (13 SemiBold)：SDK の `LinkArea`(`MmmSdk.WinUI.Controls`。Grid 派生)。リンクがあると手のカーソル + ホバー背景で、押すと開く。完了は取り消し線 + 不透明度 0.5
   - 状態の切り替え：CommunityToolkit の `Segmented`(NuGet `CommunityToolkit.WinUI.Controls.Segmented`)を `StatusIndex` と双方向でつなぐ。ユーザーが変えたときだけ `SetStateAsync` を呼び、読み直しの反映では保存しない
-- 右クリック：リンクを開く (リンクのある行だけ有効)/ 編集 / 削除 (論理削除・確認なし。一覧と同じ。作成者だけに出す)
+- 右クリック：リンクを開く (リンクのある行だけ有効)/ 編集 / コピーして新規追加 (一覧と同じ) / 削除 (論理削除・確認なし。一覧と同じ。作成者だけに出す)
 - 変更は差分更新する (`No` で同定・不足は挿入・余剰は削除・順番は `Move`。完了の欄の開閉を保つため)。行は `ReminderTodayItem`(読み直しでは `Apply` で中身だけを差し替える)
 - 日付が変わったら新しい日に切り替える (読み直すたびに、次の 0 時 + 1 秒のタイマーを掛け直す。メイン画面・一覧画面の共通の骨格 `ReminderViewModelBase.ScheduleDayChange`。一覧は、開いたまま日付をまたいでも、「過去の予定」の判定が古くならない)。ViewModel は UI スレッドで作る (作れなければ例外)
 - 通知との連携：通知の本文クリックの `onClicked` から、`DispatcherQueue`(Low)でいったん後回しにして `ShowFromNotificationAsync` を呼ぶ (閉じかけの通知ウィンドウと、別のウィンドウの操作が重ならないように)。開いてから `ReminderMonitor.SnoozeTriggeredAsync` を呼ぶ

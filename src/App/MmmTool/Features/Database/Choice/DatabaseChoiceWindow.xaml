@@ -56,7 +56,7 @@
                 GroupName="SaveTarget"
                 IsChecked="{x:Bind ViewModel.IsLocal, Mode=OneWay}" />
             <RadioButton
-                Content="DB (一部のデータをサーバーに保存する)"
+                Content="サーバー (リマインダーなど一部のデータをサーバーに保存する)"
                 GroupName="SaveTarget"
                 IsChecked="{x:Bind ViewModel.IsSqlServer, Mode=TwoWay}" />
 

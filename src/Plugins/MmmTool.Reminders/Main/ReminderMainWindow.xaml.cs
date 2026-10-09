@@ -104,6 +104,11 @@ public sealed partial class ReminderMainWindow : Window
     /// <param name="e">イベントの情報</param>
     private async void OnEditClick(object sender, RoutedEventArgs e) => await ViewModel.EditCommand.ExecuteAsync(ItemOf(sender));
 
+    /// <summary>メニュー「コピーして新規追加」</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private async void OnCopyAsNewClick(object sender, RoutedEventArgs e) => await ViewModel.CopyAsNewCommand.ExecuteAsync(ItemOf(sender));
+
     /// <summary>メニュー「削除」</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>

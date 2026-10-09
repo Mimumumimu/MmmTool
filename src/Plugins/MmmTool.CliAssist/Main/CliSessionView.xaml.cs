@@ -26,6 +26,7 @@ public sealed partial class CliSessionView : UserControl
     public CliSessionView()
     {
         InitializeComponent();
+        InputBox.KeepCaretVisible();
 
         // 入力欄 (TextBox)が先にドラッグを処理しても受け取れるよう、処理済みのイベントも拾う
         Composer.AddHandler(DragOverEvent, new DragEventHandler(OnComposerDragOver), handledEventsToo: true);

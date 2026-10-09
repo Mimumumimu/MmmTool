@@ -30,7 +30,7 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
     /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
     public bool IsEditable { get; }
 
-    /// <summary>今の保存先の説明 (ローカル、または DB とサーバー名)</summary>
+    /// <summary>今の保存先の説明 (ローカル、またはサーバーとサーバー名)</summary>
     [ObservableProperty]
     public partial string Summary { get; private set; }
 
@@ -44,10 +44,10 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
     }
 
     /// <summary>保存してある設定から、今の保存先の説明を作る</summary>
-    /// <returns>ローカルなら「ローカル」、DB なら「DB (サーバー名)」</returns>
+    /// <returns>ローカルなら「ローカル」、DB なら「サーバー (サーバー名)」</returns>
     private string CreateSummary()
     {
         var saved = _settings.Load();
-        return saved.Mode == DatabaseMode.SqlServer ? $"DB ({saved.Server})" : "ローカル";
+        return saved.Mode == DatabaseMode.SqlServer ? $"サーバー ({saved.Server})" : "ローカル";
     }
 }
