@@ -15,6 +15,7 @@ public static class UsersServiceCollectionExtensions
     {
         services.AddSingleton<CurrentUser>();
         services.AddSingleton<UserSignInService>();
+        services.AddSingleton<UserAccountService>();
         return services;
     }
 }

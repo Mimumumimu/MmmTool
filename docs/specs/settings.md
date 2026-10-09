@@ -4,7 +4,7 @@
 
 ## 構成 (機能ごとの部品を並べる)
 - 設定の項目は、各機能が `AddSettingsSection<TControl>()`(`Shell/ShellServiceCollectionExtensions`。サイドバーの `AddNavigationPage` と同じ形)で、設定の部品 (`UserControl`)を登録する。設定ページは、並び順の値の順に縦に並べるだけで、特定の機能を知らない。機能を足すときに触るのは、その機能のフォルダと `App` の 1 行だけ
-- 並び順は、部品の並び順の値 (小さいほど先)。各機能の部品は、機能の並び順の値 (`AddFeaturePlugin` の `order`。0 以上)で並ぶ。機能に属さない部品は `Shell/SettingsSectionOrder` の値で、すべて機能より前に並ぶ。ページは「全般」→「保存先」→「機能」の一覧 → 各機能 (リマインダー → Backlog)の順に並べるだけで、どの部品も特別扱いしない。「保存先」はアプリ全体の基本設定なので、各機能の設定より上にする
+- 並び順は、部品の並び順の値 (小さいほど先)。各機能の部品は、機能の並び順の値 (`AddFeaturePlugin` の `order`。0 以上)で並ぶ。機能に属さない部品は `Shell/SettingsSectionOrder` の値で、すべて機能より前に並ぶ。ページは「全般」→「保存先」→「アカウント」(DB のログイン済みのときだけ)→「機能」の一覧 → 各機能 (リマインダー → Backlog)の順に並べるだけで、どの部品も特別扱いしない。「保存先」はアプリ全体の基本設定なので、各機能の設定より上にする
 - 部品は設定ページを開くときに DI から作る (Transient)。値の読み書きと画面の状態は、その機能の ViewModel・サービスが持つ (部品の見た目は設定ページと同じ縦並び)
 - 見た目は、Windows 11 の設定アプリと同じ「見出し + カード」。区切りの見出しは各部品が先頭に持ち (`App.xaml` の `SettingsSectionHeaderStyle`)、項目は `SettingsCard`(`CommunityToolkit.WinUI.Controls.SettingsControls`)の行にする。左に名前 (`Header`)と説明 (`Description`)、右に操作を置く。ページは特定の機能を知らないまま、部品を並べるだけ
 - 設定ページ全体は `ScrollViewer` に入れ、項目が画面に収まらないときも、下まで届く
@@ -43,9 +43,13 @@
 - `PasswordBox` に API キーを入れる。入力欄からフォーカスが外れたときに保存する。保存先は設定ストアではなく、資格情報マネージャー ([backlog.md](backlog.md))
 - 保管庫を読めない・書けない失敗 (`SecretStoreException`)は、画面の InfoBar に出して続ける。Backlog の機能がオフの間は、この項目も並べない
 
+### アカウント (`src/App/MmmTool/Features/Users/Settings/AccountSettingsControl` ＋ `AccountSettingsViewModel`)
+- ホスト側の部品で、`AddUserSignIn()` が `AddSettingsSection` で登録する (並びは「保存先」の次)。DB に保存していて、ログイン済みのときだけ出す (隠している間は、ページの `Spacing` の場所も取らない)。見出しは「アカウント」。内容と動きは [database.md](database.md) の「アカウントの変更とログアウト」
+- カード: 「表示名」「ログイン名」(説明に今の値)「パスワード」は、押すと編集のウィンドウが開く。「ログアウト」は、右に強調しないボタン (押すと確認が出る)
+
 ### 保存先と DB への接続 (`src/App/MmmTool/Features/Database/Settings/DatabaseSettingsControl` ＋ `DatabaseSettingsViewModel`)
 - ホスト側の部品で、`AddDatabaseScreens()` が `AddSettingsSection` で登録する (どの機能にも属さず、オフにならない)。設計は [database.md](database.md)
-- 設定ページには、「保存先」の見出しの下に、カード 1 枚だけを出す (「保存先」。説明に、今の保存先を「ローカル」または「DB (サーバー名)」で見せる)。カード全体が押せて (右に ›)、押すと編集のウィンドウが開く。閉じたら、説明を読み直す
+- 設定ページには、「保存先」の見出しの下に、カード 1 枚だけを出す (「保存先」。説明に、今の保存先を「ローカル」または「サーバー (サーバー名)」で見せる)。カード全体が押せて (右に ›)、押すと編集のウィンドウが開く。閉じたら、説明を読み直す
 - 編集のウィンドウ (`Features/Database/Edit/DatabaseEditWindow`。開く口は `IDatabaseDialogService`): モーダルのウィンドウで、保存先 (ローカル / DB)を `RadioButton` で選ぶ。DB のときだけ、接続の入力欄 (接続先のサーバー・データベース名・ユーザー名・パスワード)と「接続を確認」を出す。DB のときは、つながると確認できるまで、「保存」を押せない (ログインの方式と証明書は、画面の項目にしない。理由と動きは [database.md](database.md))。入力欄は、初回の保存先の選択の画面と共有する部品 (`DatabaseConnectionForm`)
 - 保存は「保存」ボタンを押したときだけ (入力の途中を保存しない)。保存先は起動時に決まるので、保存先の種類が変わった・DB のまま接続が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認する (「今すぐ終了」でアプリを終了。「あとで」は保存だけ)。終了は `AppExitService` が、トレイの「終了」と同じ処理で行う。保存できたら、ウィンドウを閉じる。「閉じる」・× は、保存しない
 - 失敗は、ウィンドウの先頭の InfoBar で知らせる。成功 (「接続できました。」)も InfoBar。設定ファイルを読めなかったとき (`IsReadOnly`)は、カードと入力・「保存」を無効にする

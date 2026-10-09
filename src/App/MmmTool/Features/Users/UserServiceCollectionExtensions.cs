@@ -1,6 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
+using MmmSdk.WinUI.Components.Pages;
+using MmmTool.Features.Users.Edit;
+using MmmTool.Features.Users.Settings;
 using MmmTool.Features.Users.SignIn;
+using MmmTool.Shell;
 
 namespace MmmTool.Features.Users;
 
@@ -24,6 +28,15 @@ public static class UserServiceCollectionExtensions
         // 閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddTransient<SignInWindow>();
         services.AddTransient<SignInViewModel>();
+
+        // 設定ページに並べる部品 (アカウントのカード)。DB に保存していて、ログイン済みのときだけ出る
+        services.AddTransient<AccountSettingsViewModel>();
+        services.AddSettingsSection<AccountSettingsControl>(order: SettingsSectionOrder.Account);
+
+        // アカウントの編集画面。閉じたウィンドウは再表示できないので、開くたびに作る
+        services.AddSingleton<IAccountDialogService, AccountDialogService>();
+        services.AddTransient<AccountEditWindow>();
+        services.AddTransient<AccountEditViewModel>();
         return services;
     }
 }

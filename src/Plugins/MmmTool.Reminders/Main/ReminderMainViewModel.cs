@@ -84,7 +84,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         }
         catch (PathOpenException ex)
         {
-            Error.Show(ex.Message);
+            ShowOperationError(ex.Message);
         }
     }
 
@@ -93,6 +93,14 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private Task EditAsync(ReminderTodayItem item) => _dialogs.ShowInputAsync(item.Source);
+
+    /// <summary>コピーして新規追加 (入力画面を開く)</summary>
+    /// <param name="item">コピー元の行</param>
+    /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
+    /// <remarks>日付・時刻・曜日・件名・備考・リンク・読み上げの有無だけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない (一覧画面と同じ)。</remarks>
+    [RelayCommand]
+    private Task CopyAsNewAsync(ReminderTodayItem item)
+        => _dialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false });
 
     /// <summary>削除 (論理削除)</summary>
     /// <param name="item">削除する行</param>

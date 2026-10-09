@@ -39,9 +39,11 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
   - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない ([docs/architecture.md](docs/architecture.md) の「決定の理由」)
   - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「決定の理由」)
-  - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・サインアウトが無いなど)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
+  - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・忘れたときの再設定の画面が無いなど)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
   - DB のコードを、機能ごとではなく 1 か所 (`MmmTool.Data` と `MmmTool.Data.<種類>`)に集める。`MmmTool.Data` が複数の機能の Core を参照する。DB の行のクラスと、アプリの型 (`Reminder` など)が別 ([docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」)
   - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
+- **DB の `DELETE` 文は、基本、使わない (禁止)**。ユーザーに「消して」と言われたときだけ、対象 (サーバー・データベース・表・条件・消す行数)を伝えて、**確認を取ってから**実行する (確認の返事が、実行の許可。許可は、その 1 回の分だけ)。消すときは、条件を絞り (主キーなど。条件なしの `DELETE` は、しない)、実行の前に、対象の行を読んで見せる。実行のあとは、IDENTITY の次の番号に抜けが出る (嫌われている)ので、戻すか (`DBCC CHECKIDENT ... RESEED`)も、あわせて確認する。アプリのコードは、元から、物理削除をしない (論理削除だけ。[database.md](docs/specs/database.md))
+  - **Why:** 動作確認のやり直しのために、確認なしで `DELETE` を流し、IDENTITY の番号が抜けた。ユーザーは、`DELETE` 文も、番号の抜けも、嫌い (2026-10-09)
 - コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えは、ユーザーが「OK」と許可したときだけ行う (許可が無いときはしない。許可は、その作業の分だけ。次回は、また許可を取る)。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (アプリ側と同じ種類のブランチ。下の判定に従う)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
   - **ローカル (ユーザーの PC の Claude Code。CLI・デスクトップアプリ・IDE)**: コミット・push は、ユーザーが指示したときだけ行う (共通ルール)。決まりは、**今チェックアウトしているブランチ** (`git branch --show-current`。アプリ・SDK それぞれ)で変わる
     - **`master` のとき**: `master` に直接コミット・push してよい (自分からブランチ・PR は作らない)
@@ -73,6 +75,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - DB のバックアップの計画 (今は一度も取っていない。復旧モデルは単純なので、全体のバックアップを定期的に取る形を、ユーザーと相談する)
 - 接続用のパスワード (検証用に簡単なもの)を、本番用に替えるか (`ALTER LOGIN [MmmTool] WITH PASSWORD = N'新しいもの'`。アプリの設定画面で入れ直す)
 - 方向だけ決めている後回し: ユーザーごとの設定を DB に置くときは、縦持ち (`(UserId, SettingKey)` の主キー・キーは `Reminder.SnoozeIntervalMinutes` のような文字列・値は JSON)にし、`ISettingsStore` と同じ形で読み書きする
+
+### 調査中
+- **CLI補助の送信で、まれに Enter が効かない** (貼り付けが `[Pasted text …]` のまま入力欄に残る。2026-10-09 から)。調査用の記録を SDK に入れてある (`TEMP-LOG` の印の行。未コミット。`%TEMP%\MmmTool\terminal-submit.log`)。失敗の記録が取れたら、Enter を出す条件を直し、記録を外す。経緯と方針は [docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「送信の Enter は、貼り付けの出力が落ち着いてから送る」
 
 ### ユーザーが用意するもの待ち
 - README.md の画像 (制約: 画像はユーザーが用意する。リンクの中身などがまだ決まっておらず、撮れない)。届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える (CLI補助の `cli-assist.jpg` と同じ形): リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`・通知ダイアログ `notification.png`・リマインダーのメイン画面 `reminders.png`

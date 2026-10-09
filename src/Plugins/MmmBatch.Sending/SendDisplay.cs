@@ -9,7 +9,7 @@ public static class SendDisplay
     /// <summary>送信先を、種類と登録名にして、画面に出す文字列にする</summary>
     /// <param name="kind">送信先の区分。送信先が無ければ null</param>
     /// <param name="name">送信先の登録名</param>
-    /// <returns>「ntfy「登録名」」「Discord「登録名」」の形。送信先が無ければ空文字</returns>
+    /// <returns>「登録名 (ntfy)」「登録名 (Discord)」の形 (名前を先に、種類を補足として添える)。送信先が無ければ空文字</returns>
     /// <remarks>送る先の値 (トピック名・Webhook の URL)は秘密なので、出さない。</remarks>
     public static string ChannelText(NotificationChannelKind? kind, string name)
     {
@@ -19,7 +19,12 @@ public static class SendDisplay
             NotificationChannelKind.Discord => "Discord",
             _ => "",
         };
-        return kindText.Length == 0 && name.Length == 0 ? "" : $"{kindText}「{name}」";
+        if (name.Length == 0 && kindText.Length == 0)
+        {
+            return "";
+        }
+
+        return kindText.Length == 0 ? name : $"{name} ({kindText})";
     }
 
     /// <summary>今日の送信予定の状態を、画面に出す文字列にする</summary>
@@ -30,10 +35,10 @@ public static class SendDisplay
     /// <summary>送った 1 回の結果を、画面に出す文字列にする</summary>
     /// <param name="status">結果 (送信済み・失敗)</param>
     /// <param name="error">失敗の理由。成功は空文字</param>
-    /// <returns>「送信済み」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>
+    /// <returns>「成功」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>
     public static string ResultText(SendStatus status, string error) => status switch
     {
-        SendStatus.Sent => "送信済み",
+        SendStatus.Sent => "成功",
         SendStatus.Failed when error.Length == 0 => "失敗",
         SendStatus.Failed => $"失敗 ({error})",
         _ => status.ToString(),

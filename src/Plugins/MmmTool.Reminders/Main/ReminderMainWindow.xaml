@@ -50,6 +50,11 @@
                                 Tag="{x:Bind}"
                                 Text="編集" />
                             <MenuFlyoutItem
+                                Click="OnCopyAsNewClick"
+                                Icon="Copy"
+                                Tag="{x:Bind}"
+                                Text="コピーして新規追加" />
+                            <MenuFlyoutItem
                                 Click="OnDeleteClick"
                                 Icon="Delete"
                                 Tag="{x:Bind}"

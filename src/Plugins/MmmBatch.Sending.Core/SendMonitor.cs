@@ -51,7 +51,7 @@ public sealed class SendMonitor(ReminderSendService service, TimeProvider time) 
         await _running.WaitAsync(_stop.Token).ConfigureAwait(false);
         try
         {
-            await service.ResendAsync(target, DateOnly.FromDateTime(time.GetLocalNow().DateTime), _stop.Token).ConfigureAwait(false);
+            await service.ResendAsync(target, time.GetLocalNow().DateTime, _stop.Token).ConfigureAwait(false);
         }
         finally
         {
