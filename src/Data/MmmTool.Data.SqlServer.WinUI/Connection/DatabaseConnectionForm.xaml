@@ -30,6 +30,7 @@
             Header="{x:Bind ViewModel.PasswordHeader, Mode=OneWay}"
             IsEnabled="{x:Bind ViewModel.IsEditable}"
             Password="{x:Bind ViewModel.Password, Mode=OneWay}"
+            PlaceholderText="{x:Bind ViewModel.PasswordPlaceholder, Mode=OneWay}"
             PasswordChanged="OnPasswordChanged" />
 
         <Button

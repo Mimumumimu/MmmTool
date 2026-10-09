@@ -15,6 +15,16 @@ public sealed record AppUser
     /// <summary>ログイン名の最大文字数 (UTF-16 の 1 単位で数える。DB の列の長さと同じ)</summary>
     public const int LoginNameMaxLength = 50;
 
+    /// <summary>ログイン名に使えない文字があるときの、画面に出す文言</summary>
+    public const string InvalidLoginNameMessage = "ログイン名に使えない文字があります。半角英数字と記号だけで入力してください。";
+
+    /// <summary>ログイン名として使える文字だけでできているか (半角英数字と半角記号。空白は不可。空は false)</summary>
+    /// <param name="loginName">調べるログイン名 (前後の空白は呼び出し側で取り除く)</param>
+    /// <returns>使えるなら true</returns>
+    /// <remarks>新規登録・変更・ログインの入力で使う。</remarks>
+    public static bool IsValidLoginName(string loginName) =>
+        loginName.Length > 0 && loginName.All(c => c is > ' ' and <= '~');
+
     /// <summary>番号 (ID)。0 は未登録 (保存先が採番する)</summary>
     public int Id { get; init; }
 

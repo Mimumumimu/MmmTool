@@ -151,12 +151,12 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         Error.Clear();
     }
 
-    /// <summary>フォルダ選択を開いて、選ばれたフォルダを入力欄に入れる</summary>
+    /// <summary>フォルダ選択を、入力欄のフォルダで開いて、選ばれたフォルダを入力欄に入れる</summary>
     /// <returns>選択の完了を表すタスク</returns>
     [RelayCommand]
     private async Task BrowseAsync()
     {
-        if (await _folderPicker.PickFolderAsync() is { } directory)
+        if (await _folderPicker.PickFolderAsync(DirectoryPath) is { } directory)
         {
             DirectoryPath = directory;
         }

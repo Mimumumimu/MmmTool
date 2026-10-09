@@ -42,8 +42,8 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddTransient<WorkingDirectoryDialogViewModel>();
         services.AddTransient<CliSetupDialog>();
         services.AddTransient<CliSetupDialogViewModel>();
-        // 送信履歴はページのスコープに 1 つ (セッションをまたいで共通。ページを捨てると一緒に消える)
-        services.AddScoped<SendHistory>();
+        // 送信履歴はセッション (タブ)ごとに 1 つ (タブを閉じると一緒に消える)
+        services.AddTransient<SendHistory>();
         services.AddScoped<CliSessionFactory>();
         services.AddTransient<CliSessionViewModel>();
         services.AddTransient<CliAssistViewModel>();

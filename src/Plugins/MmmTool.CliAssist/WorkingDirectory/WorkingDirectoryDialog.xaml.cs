@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.WorkingDirectory;
 
@@ -35,7 +36,7 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
 
         var result = await ShowAsync();
         return result == ContentDialogResult.Primary || _confirmedByDoubleTap
-            ? ViewModel.DirectoryPath.Trim()
+            ? SessionDirectory.ToWorkingDirectory(ViewModel.DirectoryPath)
             : null;
     }
 

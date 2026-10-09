@@ -32,6 +32,10 @@ public sealed partial class SignInViewModel : ObservableObject
         _signIn = signIn;
         _time = time;
         DisplayName = Environment.UserName;
+        if (AppUser.IsValidLoginName(Environment.UserName))
+        {
+            LoginName = Environment.UserName;
+        }
     }
 
     /// <summary>画面を閉じてほしい</summary>
@@ -89,7 +93,7 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <summary>副のボタンがあるか</summary>
     public bool HasSecondary => SecondaryText.Length > 0;
 
-    /// <summary>ログイン名</summary>
+    /// <summary>ログイン名 (初期値は Windows のユーザー名。半角英数字と記号だけのときのみ)</summary>
     [ObservableProperty]
     public partial string LoginName { get; set; } = "";
 
@@ -153,6 +157,7 @@ public sealed partial class SignInViewModel : ObservableObject
         Password = "";
         PasswordConfirm = "";
         Mode = Mode == SignInMode.SignIn ? SignInMode.Register : SignInMode.SignIn;
+        Error = GetLiveError();
     }
 
     /// <summary>ログインする</summary>
@@ -162,6 +167,11 @@ public sealed partial class SignInViewModel : ObservableObject
         if (LoginName.Trim().Length == 0 || Password.Length == 0)
         {
             Error = SignInFailedMessage;
+            return;
+        }
+        if (!AppUser.IsValidLoginName(LoginName.Trim()))
+        {
+            Error = AppUser.InvalidLoginNameMessage;
             return;
         }
 
@@ -191,9 +201,9 @@ public sealed partial class SignInViewModel : ObservableObject
             Error = "ログイン名を入力してください。";
             return;
         }
-        if (LoginName.Any(char.IsControl))
+        if (!AppUser.IsValidLoginName(LoginName.Trim()))
         {
-            Error = "ログイン名に使えない文字があります。";
+            Error = AppUser.InvalidLoginNameMessage;
             return;
         }
         if (DisplayName.Trim().Length == 0)
@@ -253,13 +263,23 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <returns>今日の日付</returns>
     private DateOnly Today() => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
 
-    /// <summary>入力を変えたら、エラーを消す</summary>
-    /// <param name="value">変えたあとの値</param>
-    partial void OnLoginNameChanged(string value) => Error = null;
+    /// <summary>入力中に出すエラーを求める (ログイン名に使えない文字があるときだけ)</summary>
+    /// <returns>エラーの文言。無ければ null</returns>
+    private string? GetLiveError()
+    {
+        var name = LoginName.Trim();
+        return IsLoginNameEditable && name.Length > 0 && !AppUser.IsValidLoginName(name)
+            ? AppUser.InvalidLoginNameMessage
+            : null;
+    }
 
-    /// <summary>入力を変えたら、エラーを消す</summary>
+    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは出す)</summary>
     /// <param name="value">変えたあとの値</param>
-    partial void OnPasswordChanged(string value) => Error = null;
+    partial void OnLoginNameChanged(string value) => Error = GetLiveError();
+
+    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
+    /// <param name="value">変えたあとの値</param>
+    partial void OnPasswordChanged(string value) => Error = GetLiveError();
 }
 
 /// <summary>ログインの画面の状態</summary>

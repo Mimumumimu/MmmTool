@@ -169,14 +169,14 @@ public sealed partial class AccountEditViewModel : ObservableObject
             Error = "ログイン名を入力してください。";
             return false;
         }
-        if (Value.Any(char.IsControl))
-        {
-            Error = "ログイン名に使えない文字があります。";
-            return false;
-        }
         if (Value.Trim() == _currentUser.User?.LoginName)
         {
             return true;
+        }
+        if (!AppUser.IsValidLoginName(Value.Trim()))
+        {
+            Error = AppUser.InvalidLoginNameMessage;
+            return false;
         }
         if (CurrentPassword.Length == 0)
         {
@@ -218,17 +218,28 @@ public sealed partial class AccountEditViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>入力を変えたら、エラーを消す</summary>
-    /// <param name="value">変えたあとの値</param>
-    partial void OnValueChanged(string value) => Error = null;
+    /// <summary>入力中に出すエラーを求める (ログイン名に使えない文字があるときだけ)</summary>
+    /// <returns>エラーの文言。無ければ null</returns>
+    /// <remarks>今のログイン名と同じなら出さない (ASCII 以外で登録済みのログイン名を、変えずに開いたとき)。</remarks>
+    private string? GetLiveError()
+    {
+        var name = Value.Trim();
+        return _kind == AccountEditKind.LoginName && name.Length > 0 && name != _currentUser.User?.LoginName && !AppUser.IsValidLoginName(name)
+            ? AppUser.InvalidLoginNameMessage
+            : null;
+    }
 
-    /// <summary>入力を変えたら、エラーを消す</summary>
+    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは出す)</summary>
     /// <param name="value">変えたあとの値</param>
-    partial void OnCurrentPasswordChanged(string value) => Error = null;
+    partial void OnValueChanged(string value) => Error = GetLiveError();
 
-    /// <summary>入力を変えたら、エラーを消す</summary>
+    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
     /// <param name="value">変えたあとの値</param>
-    partial void OnNewPasswordChanged(string value) => Error = null;
+    partial void OnCurrentPasswordChanged(string value) => Error = GetLiveError();
+
+    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
+    /// <param name="value">変えたあとの値</param>
+    partial void OnNewPasswordChanged(string value) => Error = GetLiveError();
 }
 
 /// <summary>アカウントの編集画面で編集する項目</summary>
