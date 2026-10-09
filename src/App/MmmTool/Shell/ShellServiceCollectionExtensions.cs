@@ -31,6 +31,9 @@ public static class ShellServiceCollectionExtensions
         services.AddFeatureService();
         // 共通の設定ファイルを、各機能の準備より先に読んでおく (各機能が最初に設定を読むとき、UI スレッドで止まらないように)
         services.AddStartupTask<SettingsStoreStartup>();
+        // 音声機器を眠らせない無音の出力 (設定と、起動時に始める準備)
+        services.AddSingleton<AudioKeepAliveSettingsService>();
+        services.AddStartupTask<AudioKeepAliveStartup>();
         // メニューの項目は、各機能が登録した ITrayMenuSource から作る
         services.AddMmmSdkTray(new TrayIconOptions(
             ToolTip: AppInfo.Name,

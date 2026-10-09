@@ -22,5 +22,15 @@
                 OffContent="オフ"
                 OnContent="オン" />
         </controls:SettingsCard>
+
+        <controls:SettingsCard
+            Description="無音を流し続けて、音声機器が休止するのを防ぎます。通知の読み上げの頭が切れるときに、オンにします。"
+            Header="音声機器を起こしておく">
+            <ToggleSwitch
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
+                IsOn="{x:Bind ViewModel.KeepAudioDeviceAwake, Mode=TwoWay}"
+                OffContent="オフ"
+                OnContent="オン" />
+        </controls:SettingsCard>
     </StackPanel>
 </UserControl>
