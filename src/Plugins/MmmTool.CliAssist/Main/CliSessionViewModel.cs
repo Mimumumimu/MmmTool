@@ -14,7 +14,7 @@ namespace MmmTool.CliAssist.Main;
 
 /// <summary>CLI のセッション 1 つ分 (ターミナル・入力欄・添付)の ViewModel</summary>
 /// <remarks>
-/// 定型コマンド・環境・送信履歴は、セッションをまたいで共通なので、<see cref="CliAssistViewModel"/> が持つ。
+/// 定型コマンド・環境は、セッションをまたいで共通なので、<see cref="CliAssistViewModel"/> が持つ。送信履歴はセッションごとに持つ。
 /// セッションは <see cref="CliSessionFactory"/> が DI から作る (Transient)。
 /// 添付の一時保存先もセッションごとに持つ (ほかのタブの送信で、送信前の添付が影響を受けないようにするため)。
 /// タブを閉じるときは <see cref="Dispose"/> を呼ぶ (シェルが終了し、一時保存した添付が消える)。呼ばなくても、作ったスコープ (ページ)の破棄で同じ後始末が行われる。
@@ -27,7 +27,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly AttachmentStore _wslAttachmentStore;
     /// <summary>画像の変換</summary>
     private readonly IImageConverter _imageConverter;
-    /// <summary>送信履歴 (セッションをまたいで共通)</summary>
+    /// <summary>送信履歴 (このセッション専用)</summary>
     private readonly SendHistory _sendHistory;
     /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
@@ -41,7 +41,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="windowsAttachmentStore">添付ファイルの一時保存先 (Windows の %TEMP%)</param>
     /// <param name="wslAttachmentStore">添付ファイルの一時保存先 (WSL の /tmp)</param>
     /// <param name="imageConverter">画像の変換</param>
-    /// <param name="sendHistory">送信履歴 (ページのスコープに 1 つ。セッションをまたいで共通)</param>
+    /// <param name="sendHistory">送信履歴 (セッションごとに 1 つ)</param>
     /// <param name="timeProvider">現在時刻の提供元</param>
     public CliSessionViewModel(
         ITerminalSession terminal,
