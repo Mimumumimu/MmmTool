@@ -98,8 +98,15 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <summary>削除 (論理削除)</summary>
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
+    /// <remarks>確認してから削除する。</remarks>
     [RelayCommand]
-    private Task DeleteAsync(ReminderListItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.No));
+    private async Task DeleteAsync(ReminderListItem item)
+    {
+        if (await _dialogs.ConfirmAsync("削除の確認", $"「{item.Title}」を削除しますか？", "削除", "キャンセル"))
+        {
+            await RunAsync(() => Reminders.DeleteAsync(item.Source.No));
+        }
+    }
 
     /// <summary>完全削除 (物理削除)</summary>
     /// <param name="item">完全削除する行</param>
