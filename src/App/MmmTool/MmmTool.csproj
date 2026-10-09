@@ -5,7 +5,9 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>MmmTool</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Debug は黄色のアイコン (トレイで普段使いの Release と見分けるため) -->
+    <ApplicationIcon Condition="'$(Configuration)' == 'Debug'">Assets\app-debug.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(Configuration)' != 'Debug'">Assets\app.ico</ApplicationIcon>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <!--
       ビルドも x64 専用にする。ネイティブ DLL が全 CPU 分の runtimes フォルダーではなく、EXE の横に x64 の分だけ置かれる。
@@ -26,7 +28,9 @@
 
   <ItemGroup>
     <!-- アプリのアイコン (EXE に埋め込むほか、トレイ・ウィンドウのアイコンとして実行時にファイルから読む) -->
-    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" Condition="'$(Configuration)' != 'Debug'" />
+    <!-- Debug は、出力では同じ名前 (Assets\app.ico)にして、AppIcon.cs を切り替えずに済ませる -->
+    <Content Include="Assets\app-debug.ico" Link="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" Condition="'$(Configuration)' == 'Debug'" />
   </ItemGroup>
 
   <ItemGroup>
