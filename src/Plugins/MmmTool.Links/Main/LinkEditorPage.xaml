@@ -222,7 +222,13 @@
                 <Grid>
                     <!-- リンク・フォルダーの編集欄 -->
                     <ScrollViewer Visibility="{x:Bind ViewModel.IsEditorVisible, Mode=OneWay}">
-                        <StackPanel MaxWidth="640" HorizontalAlignment="Stretch" Spacing="20">
+                        <!-- 入力欄は、左寄せのまま、広がっても 640 までにする -->
+                        <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MaxWidth="640" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="20">
                             <!-- 種類の見出し -->
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <Border
@@ -345,6 +351,7 @@
                                 </StackPanel>
                             </Button>
                         </StackPanel>
+                        </Grid>
                     </ScrollViewer>
 
                     <!-- 未選択・区切り線のときの案内 -->
