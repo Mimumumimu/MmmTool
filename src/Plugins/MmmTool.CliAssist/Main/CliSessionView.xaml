@@ -167,14 +167,14 @@
                     </TextBox>
                     <!-- よく使う文 (入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く) -->
                     <ScrollViewer
-                        Margin="0,0,8,4"
+                        Margin="0,0,8,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
                         HorizontalScrollBarVisibility="Hidden"
                         HorizontalScrollMode="Auto"
                         VerticalScrollMode="Disabled"
                         Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.QuickMessages}">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.QuickMessages, Mode=OneWay}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel Orientation="Horizontal" Spacing="6" />
@@ -183,7 +183,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="local:QuickMessageItem">
                                     <Button
-                                        Height="24"
+                                        Height="22"
                                         MaxWidth="240"
                                         Padding="10,0"
                                         AutomationProperties.Name="{x:Bind Text}"
@@ -192,6 +192,19 @@
                                         FontSize="12"
                                         Tag="{x:Bind}"
                                         ToolTipService.ToolTip="{x:Bind Text}">
+                                        <!-- 控えめな見た目 (枠だけ。押せることは枠で示し、マウスを乗せたときだけ薄く塗る) -->
+                                        <Button.Resources>
+                                            <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                        </Button.Resources>
                                         <TextBlock Text="{x:Bind Label}" TextTrimming="CharacterEllipsis" />
                                     </Button>
                                 </DataTemplate>

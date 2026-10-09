@@ -23,7 +23,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- 一覧 + 追加・削除・並べ替え -->
+            <!-- 一覧 (ドラッグで並べ替え) + 追加・削除 -->
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -31,15 +31,31 @@
                 </Grid.RowDefinitions>
                 <Grid>
                     <ListView
+                        AllowDrop="True"
+                        CanReorderItems="True"
                         ItemsSource="{x:Bind ViewModel.Items}"
                         SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
                         SelectionMode="Single">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:QuickMessageEditItem">
-                                <TextBlock
-                                    Text="{x:Bind DisplayName, Mode=OneWay}"
-                                    TextTrimming="CharacterEllipsis"
-                                    ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Glyph="&#xE76F;"
+                                        ToolTipService.ToolTip="ドラッグで並べ替え" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
@@ -53,18 +69,6 @@
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
                     <Button Command="{x:Bind ViewModel.AddCommand}" Content="追加" />
                     <Button Command="{x:Bind ViewModel.RemoveCommand}" Content="削除" />
-                    <Button
-                        AutomationProperties.Name="上へ"
-                        Command="{x:Bind ViewModel.MoveUpCommand}"
-                        ToolTipService.ToolTip="上へ">
-                        <FontIcon FontSize="14" Glyph="&#xE70E;" />
-                    </Button>
-                    <Button
-                        AutomationProperties.Name="下へ"
-                        Command="{x:Bind ViewModel.MoveDownCommand}"
-                        ToolTipService.ToolTip="下へ">
-                        <FontIcon FontSize="14" Glyph="&#xE70D;" />
-                    </Button>
                 </StackPanel>
             </Grid>
 

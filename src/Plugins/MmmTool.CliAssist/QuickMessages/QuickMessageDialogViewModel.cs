@@ -17,7 +17,7 @@ public sealed partial class QuickMessageDialogViewModel(CliQuickMessageService q
     /// <summary>一覧で選ばれている項目</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
-    [NotifyCanExecuteChangedFor(nameof(RemoveCommand), nameof(MoveUpCommand), nameof(MoveDownCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveCommand))]
     public partial QuickMessageEditItem? SelectedItem { get; set; }
 
     /// <summary>項目が選ばれているか (右の入力欄を出す条件)</summary>
@@ -64,36 +64,6 @@ public sealed partial class QuickMessageDialogViewModel(CliQuickMessageService q
         Items.Remove(item);
         OnPropertyChanged(nameof(HasNoItems));
         SelectedItem = Items.Count == 0 ? null : Items[Math.Min(index, Items.Count - 1)];
-    }
-
-    /// <summary>選ばれている項目を 1 つ上へ</summary>
-    [RelayCommand(CanExecute = nameof(CanMoveUp))]
-    private void MoveUp() => Move(-1);
-
-    /// <summary>選ばれている項目を 1 つ下へ</summary>
-    [RelayCommand(CanExecute = nameof(CanMoveDown))]
-    private void MoveDown() => Move(1);
-
-    /// <summary>上へ動かせるか</summary>
-    private bool CanMoveUp() => SelectedItem is { } item && Items.IndexOf(item) > 0;
-
-    /// <summary>下へ動かせるか</summary>
-    private bool CanMoveDown() => SelectedItem is { } item && Items.IndexOf(item) is var index && index >= 0 && index < Items.Count - 1;
-
-    /// <summary>選ばれている項目を動かす</summary>
-    /// <param name="offset">動かす数 (上は -1、下は 1)</param>
-    private void Move(int offset)
-    {
-        if (SelectedItem is not { } item)
-        {
-            return;
-        }
-        var index = Items.IndexOf(item);
-        Items.Move(index, index + offset);
-        // 一覧が、動かした項目の選びを外すことがあるので、選び直す
-        SelectedItem = item;
-        MoveUpCommand.NotifyCanExecuteChanged();
-        MoveDownCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>入力を調べて保存する</summary>
