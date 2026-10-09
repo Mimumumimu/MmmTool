@@ -167,6 +167,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #region 送信
 
+    /// <summary>複数行の貼り付けを CLI が取り込み終えたときに出す表示の先頭 (Claude Code の「[Pasted text #1 +4 lines]」)。</summary>
+    /// <remarks>Enter を、この表示が出てから送るために使う。出ない CLI では、待ちの上限 (2 秒)で送る。</remarks>
+    private const string PastedTextMarker = "[Pasted text";
+
     /// <summary>下部の入力欄のテキスト。</summary>
     [ObservableProperty]
     public partial string InputText { get; set; }
@@ -183,7 +187,8 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (!TrySubmit(SendText.Compose(text, attachmentPaths)))
+        var composed = SendText.Compose(text, attachmentPaths);
+        if (!TrySubmit(composed, composed.Contains('\n') ? PastedTextMarker : null))
         {
             // 入力欄と添付は残す (送れるようになってから、もう一度送れるように)
             return;
@@ -199,12 +204,13 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>ターミナルが使える状態なら、テキストを送る (使えなければ、画面に知らせる)</summary>
     /// <param name="text">送るテキスト</param>
+    /// <param name="readyMarker">貼り付けの取り込みが終わった合図になる出力の文字列 (無ければ null)</param>
     /// <returns>送ったら true。ターミナルが起動していない・シェルが終了しているときは false</returns>
     /// <remarks>
     /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき (ターミナルの場所に理由が出る)。
     /// 黙って捨てると、押したのに何も起きない状態になるので、知らせる。
     /// </remarks>
-    public bool TrySubmit(string text)
+    public bool TrySubmit(string text, string? readyMarker = null)
     {
         if (!Terminal.IsStarted)
         {
@@ -217,7 +223,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        Terminal.Submit(text);
+        Terminal.Submit(text, readyMarker);
         return true;
     }
 
