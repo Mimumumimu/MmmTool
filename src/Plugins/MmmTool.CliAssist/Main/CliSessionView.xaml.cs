@@ -270,4 +270,21 @@ public sealed partial class CliSessionView : UserControl
     }
 
     #endregion
+
+    #region よく使う文
+
+    /// <summary>よく使う文のチップが押されたら、入力欄に入れる (送信はしない)</summary>
+    /// <param name="sender">イベントの送信元 (チップのボタン)</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnQuickMessageClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is QuickMessageItem item)
+        {
+            ViewModel.UseQuickMessage(item);
+            InputBox.Focus(FocusState.Programmatic);
+            InputBox.SelectionStart = InputBox.Text.Length;
+        }
+    }
+
+    #endregion
 }

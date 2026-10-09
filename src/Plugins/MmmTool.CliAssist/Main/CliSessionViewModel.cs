@@ -9,6 +9,7 @@ using MmmSdk.WinUI.Components.Attachments;
 using MmmSdk.WinUI.Components.Errors;
 using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.CliAssist.Core;
+using MmmTool.CliAssist.QuickMessages;
 
 namespace MmmTool.CliAssist.Main;
 
@@ -31,6 +32,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly SendHistory _sendHistory;
     /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
+    /// <summary>よく使う文</summary>
+    private readonly CliQuickMessageService _quickMessageService;
+    /// <summary>よく使う文の編集ダイアログ</summary>
+    private readonly IQuickMessageDialogService _quickMessageDialog;
     /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
     private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
@@ -43,14 +48,23 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="imageConverter">画像の変換</param>
     /// <param name="sendHistory">送信履歴 (セッションごとに 1 つ)</param>
     /// <param name="timeProvider">現在時刻の提供元</param>
+    /// <param name="quickMessages">よく使う文</param>
+    /// <param name="quickMessageDialog">よく使う文の編集ダイアログ</param>
     public CliSessionViewModel(
         ITerminalSession terminal,
         [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
         [FromKeyedServices(CliEnvironment.Wsl)] AttachmentStore wslAttachmentStore,
         IImageConverter imageConverter,
         SendHistory sendHistory,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        CliQuickMessageService quickMessages,
+        IQuickMessageDialogService quickMessageDialog)
     {
+        _quickMessageService = quickMessages;
+        _quickMessageDialog = quickMessageDialog;
+        QuickMessages = CreateQuickMessageItems();
+        // 編集画面で保存したら、全タブのチップを作り直す
+        _quickMessageService.Changed += OnQuickMessagesChanged;
         Terminal = terminal;
         _windowsAttachmentStore = windowsAttachmentStore;
         _wslAttachmentStore = wslAttachmentStore;
@@ -175,6 +189,57 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial string InputText { get; set; }
 
+    /// <summary>入力欄が変わったとき、よく使う文の表示を更新する。</summary>
+    /// <param name="value">新しい入力欄のテキスト</param>
+    partial void OnInputTextChanged(string value) => OnPropertyChanged(nameof(ShowQuickMessages));
+
+    /// <summary>よく使う文のチップ</summary>
+    /// <remarks>編集画面で保存したときに作り直す。ファイルを手で直したときは、アプリを再起動して反映する。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowQuickMessages))]
+    public partial IReadOnlyList<QuickMessageItem> QuickMessages { get; private set; }
+
+    /// <summary>よく使う文が保存されたときの処理 (チップを作り直す)</summary>
+    private void OnQuickMessagesChanged() => QuickMessages = CreateQuickMessageItems();
+
+    /// <summary>よく使う文の編集ダイアログを開く</summary>
+    /// <returns>ダイアログが閉じるまでの完了を表すタスク</returns>
+    /// <remarks>読み込みに失敗しているときは、読めなかったファイルを上書きしないよう、開かずに理由を InfoBar で知らせる。</remarks>
+    [RelayCommand]
+    private async Task EditQuickMessagesAsync()
+    {
+        if (!_quickMessageService.CanEdit)
+        {
+            Error.Show(_quickMessageService.LoadError ?? "よく使う文を読み込めなかったため、編集できません。");
+            return;
+        }
+        await _quickMessageDialog.ShowAsync();
+    }
+
+    /// <summary>よく使う文から、チップの一覧を作る</summary>
+    /// <returns>チップの一覧</returns>
+    private List<QuickMessageItem> CreateQuickMessageItems() => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem)];
+
+    /// <summary>よく使う文のチップを出すか (入力欄が空で、文が 1 件以上あるとき)</summary>
+    public bool ShowQuickMessages => QuickMessages.Count > 0 && string.IsNullOrEmpty(InputText);
+
+    /// <summary>よく使う文を入力欄に入れる (送信はしない)。</summary>
+    /// <param name="item">選ばれたチップ</param>
+    public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text;
+
+    /// <summary>よく使う文からチップを作る</summary>
+    /// <param name="message">よく使う文 (本文は空でない)</param>
+    /// <returns>チップ (名前が無いときは、本文の 1 行目を名前にする)</returns>
+    private static QuickMessageItem CreateQuickMessageItem(CliQuickMessage message)
+    {
+        var text = message.Text!;
+        var source = string.IsNullOrWhiteSpace(message.Label)
+            ? text.Split('\n').First(line => !string.IsNullOrWhiteSpace(line))
+            : message.Label;
+        var label = SendText.ToSingleLine(source);
+        return new QuickMessageItem(label, text);
+    }
+
     /// <summary>入力欄のテキスト (と添付ファイルの指示文・パス)をターミナルへ送る。</summary>
     /// <remarks>添付のパスは、シェルから見たパス (WSL では <c>/mnt/d/...</c>・<c>/tmp/...</c>)にして送る。変換できるかは、添付したときに確かめてある。</remarks>
     [RelayCommand]
@@ -224,6 +289,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
 
         Terminal.Submit(text, readyMarker);
+        Error.Clear();
         return true;
     }
 
@@ -251,6 +317,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
             return;
         }
         Attachments.Add(new AttachmentItem(filePath, Path.GetFileName(filePath), isTemporary: false));
+        Error.Clear();
     }
 
     /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
@@ -274,6 +341,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
             await content.CopyToAsync(buffer);
             var savedPath = await AttachmentStore.AddAsync(buffer.ToArray(), fileName);
             Attachments.Add(new AttachmentItem(savedPath, fileName, isTemporary: true));
+            Error.Clear();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -291,6 +359,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
             var jpeg = await _imageConverter.ToJpegAsync(image);
             var savedPath = await AttachmentStore.AddAsync(jpeg, "clipboard.jpg");
             Attachments.Add(new AttachmentItem(savedPath, "貼り付けた画像", isTemporary: true));
+            Error.Clear();
         }
         catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
         {
@@ -391,6 +460,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
         _disposed = true;
 
+        _quickMessageService.Changed -= OnQuickMessagesChanged;
         Terminal.Exited -= OnShellExited;
         Terminal.Dispose();
         _windowsAttachmentStore.Dispose();

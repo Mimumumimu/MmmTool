@@ -22,6 +22,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private readonly ICliCommandRepository _commandRepository;
     /// <summary>CLI補助の利用状態</summary>
     private readonly CliSettingsService _settings;
+    /// <summary>よく使う文</summary>
+    private readonly CliQuickMessageService _quickMessages;
     /// <summary>セッションを作る</summary>
     private readonly CliSessionFactory _sessionFactory;
     /// <summary>作業ディレクトリ変更ダイアログ</summary>
@@ -39,6 +41,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>ViewModel を作る</summary>
     /// <param name="commandRepository">定型コマンドの保存先</param>
     /// <param name="settings">CLI補助の利用状態</param>
+    /// <param name="quickMessages">よく使う文</param>
     /// <param name="sessionFactory">セッションを作る</param>
     /// <param name="workingDirectoryDialog">作業ディレクトリ変更ダイアログを開く</param>
     /// <param name="setupDialog">初期設定ダイアログを開く</param>
@@ -46,6 +49,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     public CliAssistViewModel(
         ICliCommandRepository commandRepository,
         CliSettingsService settings,
+        CliQuickMessageService quickMessages,
         CliSessionFactory sessionFactory,
         IWorkingDirectoryDialogService workingDirectoryDialog,
         ICliSetupDialogService setupDialog,
@@ -53,6 +57,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     {
         _commandRepository = commandRepository;
         _settings = settings;
+        _quickMessages = quickMessages;
         _sessionFactory = sessionFactory;
         _workingDirectoryDialog = workingDirectoryDialog;
         _setupDialog = setupDialog;
@@ -217,7 +222,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         _initialized = true;
 
         // 読み込みの問題は複数あり得るので、まとめて 1 つの InfoBar で知らせる
-        List<string?> messages = [_settings.LoadError, _settings.RecoveryMessage];
+        List<string?> messages = [_settings.LoadError, _settings.RecoveryMessage, _quickMessages.LoadError, _quickMessages.RecoveryMessage];
         try
         {
             string? recoveryMessage;

@@ -8,6 +8,7 @@ using MmmSdk.WinUI.Components.Terminal;
 using MmmTool.CliAssist.Core;
 using MmmTool.CliAssist.Core.Json;
 using MmmTool.CliAssist.Main;
+using MmmTool.CliAssist.QuickMessages;
 using MmmTool.CliAssist.Setup;
 using MmmTool.CliAssist.WorkingDirectory;
 
@@ -27,7 +28,11 @@ public sealed class CliAssistPlugin : IFeaturePlugin
             async _ => CliCommandDefaults.Create(await provider.GetRequiredService<ICliSetupDialogService>().ShowFirstRunAsync())));
         services.AddSingleton<ICliSettingsRepository, JsonCliSettingsRepository>();
 
+        // よく使う文 (手で書いても、編集画面で書いてもよいファイル)
+        services.AddSingleton<ICliQuickMessageRepository, JsonCliQuickMessageRepository>();
+
         services.AddSingleton<CliSettingsService>();
+        services.AddSingleton<CliQuickMessageService>();
         // 添付の一時保存先。セッション (タブ)ごと、環境ごとに 1 つ。使うのは、定型コマンドで決まった環境のほうだけ
         // Windows: %TEMP%\MmmTool\session_日時\。タブを閉じるとき・ページの破棄時に削除する
         services.AddKeyedTransient(CliEnvironment.Windows, (provider, _) => new AttachmentStore(provider.GetRequiredService<AppEnvironment>().Name, provider.GetRequiredService<TimeProvider>()));
@@ -37,9 +42,12 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddTransient<ITerminalSession, PseudoConsoleSession>();
         services.AddSingleton<IWorkingDirectoryDialogService, WorkingDirectoryDialogService>();
         services.AddSingleton<ICliSetupDialogService, CliSetupDialogService>();
+        services.AddSingleton<IQuickMessageDialogService, QuickMessageDialogService>();
 
         services.AddTransient<WorkingDirectoryDialog>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
+        services.AddTransient<QuickMessageDialog>();
+        services.AddTransient<QuickMessageDialogViewModel>();
         services.AddTransient<CliSetupDialog>();
         services.AddTransient<CliSetupDialogViewModel>();
         // 送信履歴はセッション (タブ)ごとに 1 つ (タブを閉じると一緒に消える)

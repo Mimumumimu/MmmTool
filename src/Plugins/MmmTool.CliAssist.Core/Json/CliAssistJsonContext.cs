@@ -7,6 +7,7 @@ namespace MmmTool.CliAssist.Core.Json;
 /// <remarks>発行時のトリミングでも動くよう、JSON の読み書きはソース生成で行う。Context は機能ごとに分け、設定は SDK の <see cref="ReadableJsonOptions"/> で揃える。</remarks>
 [JsonSerializable(typeof(CliCommandSet))]
 [JsonSerializable(typeof(CliSettings))]
+[JsonSerializable(typeof(List<CliQuickMessage>))]
 internal sealed partial class CliAssistJsonContext : JsonSerializerContext
 {
     /// <summary>手で読み書きしやすい形の設定</summary>

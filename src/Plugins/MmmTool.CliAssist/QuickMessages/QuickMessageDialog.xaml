@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="MmmTool.CliAssist.QuickMessages.QuickMessageDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.CliAssist.QuickMessages"
+    Title="よく使う文の編集"
+    CloseButtonText="キャンセル"
+    DefaultButton="Primary"
+    PrimaryButtonText="保存"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <!-- ContentDialog の幅の上限 (ContentDialogMaxWidth = 548)に収まる幅 -->
+    <Grid Width="500" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Height="300" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 一覧 (ドラッグで並べ替え) + 追加・削除 -->
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <ListView
+                        AllowDrop="True"
+                        CanReorderItems="True"
+                        ItemsSource="{x:Bind ViewModel.Items}"
+                        SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
+                        SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:QuickMessageEditItem">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon
+                                        VerticalAlignment="Center"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Glyph="&#xE76F;"
+                                        ToolTipService.ToolTip="ドラッグで並べ替え" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Text="{x:Bind DisplayName, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis"
+                                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        Margin="4,8"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Text="よく使う文はありません。「追加」で作成します"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ViewModel.HasNoItems, Mode=OneWay}" />
+                </Grid>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
+                    <Button Command="{x:Bind ViewModel.AddCommand}" Content="追加" />
+                    <Button Command="{x:Bind ViewModel.RemoveCommand}" Content="削除" />
+                </StackPanel>
+            </Grid>
+
+            <!-- 選んだ項目の編集 -->
+            <StackPanel
+                Grid.Column="1"
+                Spacing="12"
+                Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                <TextBox
+                    Header="表示名 (省略可)"
+                    PlaceholderText="省略すると、文の 1 行目"
+                    Text="{x:Bind ViewModel.SelectedItem.Label, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
+                <TextBox
+                    Height="180"
+                    AcceptsReturn="True"
+                    Header="文"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    Text="{x:Bind ViewModel.SelectedItem.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock
+            Grid.Row="1"
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Text="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+    </Grid>
+</ContentDialog>

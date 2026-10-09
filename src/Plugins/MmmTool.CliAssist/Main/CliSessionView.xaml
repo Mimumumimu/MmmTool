@@ -165,84 +165,141 @@
                             <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
                         </TextBox.Resources>
                     </TextBox>
+                    <!-- よく使う文 (入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く) -->
+                    <ScrollViewer
+                        Margin="0,0,8,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        HorizontalScrollBarVisibility="Hidden"
+                        HorizontalScrollMode="Auto"
+                        VerticalScrollMode="Disabled"
+                        Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.QuickMessages, Mode=OneWay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="local:QuickMessageItem">
+                                    <Button
+                                        Height="22"
+                                        MaxWidth="240"
+                                        Padding="10,0"
+                                        AutomationProperties.Name="{x:Bind Text}"
+                                        Click="OnQuickMessageClick"
+                                        CornerRadius="12"
+                                        FontSize="12"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="{x:Bind Text}">
+                                        <!-- 控えめな見た目 (枠だけ。押せることは枠で示し、マウスを乗せたときだけ薄く塗る) -->
+                                        <Button.Resources>
+                                            <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
+                                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                            <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SubtleFillColorSecondaryBrush" />
+                                            <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrush" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="ControlStrokeColorDefaultBrush" />
+                                            <StaticResource x:Key="ButtonForeground" ResourceKey="TextFillColorSecondaryBrush" />
+                                            <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+                                            <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextFillColorSecondaryBrush" />
+                                        </Button.Resources>
+                                        <TextBlock Text="{x:Bind Label}" TextTrimming="CharacterEllipsis" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                     <StackPanel
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         Spacing="4">
-                        <Button
-                            Width="40"
-                            Height="30"
-                            Padding="0"
-                            AutomationProperties.Name="送信履歴"
-                            ToolTipService.ToolTip="送信履歴">
-                            <FontIcon FontSize="16" Glyph="&#xE81C;" />
-                            <Button.Flyout>
-                                <Flyout
-                                    x:Name="HistoryFlyout"
-                                    Opening="OnHistoryFlyoutOpening"
-                                    Placement="TopEdgeAlignedRight">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}" TargetType="FlyoutPresenter">
-                                            <Setter Property="MaxWidth" Value="600" />
-                                            <Setter Property="Padding" Value="12" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <Grid Width="520" RowSpacing="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="送信履歴" />
-                                        <AutoSuggestBox
-                                            Grid.Row="1"
-                                            PlaceholderText="履歴を絞り込む"
-                                            QueryIcon="Find"
-                                            Text="{x:Bind ViewModel.HistoryFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Grid Grid.Row="2">
-                                            <ListView
-                                                MaxHeight="360"
-                                                Margin="-12,0"
-                                                IsItemClickEnabled="True"
-                                                ItemClick="OnHistoryItemClick"
-                                                ItemsSource="{x:Bind ViewModel.HistoryItems}"
-                                                SelectionMode="None">
-                                                <ListView.ItemTemplate>
-                                                    <DataTemplate x:DataType="local:SendHistoryItem">
-                                                        <Grid
-                                                            Padding="0,8"
-                                                            ColumnSpacing="16"
-                                                            ToolTipService.ToolTip="{x:Bind Text}">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock
-                                                                MaxLines="1"
-                                                                Text="{x:Bind Preview}"
-                                                                TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock
-                                                                Grid.Column="1"
-                                                                VerticalAlignment="Center"
-                                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                                Style="{StaticResource CaptionTextBlockStyle}"
-                                                                Text="{x:Bind SentAtText}" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ListView.ItemTemplate>
-                                            </ListView>
-                                            <TextBlock
-                                                Margin="0,8"
-                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                Text="該当する履歴はありません"
-                                                Visibility="{x:Bind ViewModel.HasNoHistory, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Button
+                                Width="40"
+                                Height="30"
+                                Padding="0"
+                                AutomationProperties.Name="送信履歴"
+                                ToolTipService.ToolTip="送信履歴">
+                                <FontIcon FontSize="16" Glyph="&#xE81C;" />
+                                <Button.Flyout>
+                                    <Flyout
+                                        x:Name="HistoryFlyout"
+                                        Opening="OnHistoryFlyoutOpening"
+                                        Placement="TopEdgeAlignedRight">
+                                        <Flyout.FlyoutPresenterStyle>
+                                            <Style BasedOn="{StaticResource DefaultFlyoutPresenterStyle}" TargetType="FlyoutPresenter">
+                                                <Setter Property="MaxWidth" Value="600" />
+                                                <Setter Property="Padding" Value="12" />
+                                            </Style>
+                                        </Flyout.FlyoutPresenterStyle>
+                                        <Grid Width="520" RowSpacing="8">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="送信履歴" />
+                                            <AutoSuggestBox
+                                                Grid.Row="1"
+                                                PlaceholderText="履歴を絞り込む"
+                                                QueryIcon="Find"
+                                                Text="{x:Bind ViewModel.HistoryFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                            <Grid Grid.Row="2">
+                                                <ListView
+                                                    MaxHeight="360"
+                                                    Margin="-12,0"
+                                                    IsItemClickEnabled="True"
+                                                    ItemClick="OnHistoryItemClick"
+                                                    ItemsSource="{x:Bind ViewModel.HistoryItems}"
+                                                    SelectionMode="None">
+                                                    <ListView.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:SendHistoryItem">
+                                                            <Grid
+                                                                Padding="0,8"
+                                                                ColumnSpacing="16"
+                                                                ToolTipService.ToolTip="{x:Bind Text}">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock
+                                                                    MaxLines="1"
+                                                                    Text="{x:Bind Preview}"
+                                                                    TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock
+                                                                    Grid.Column="1"
+                                                                    VerticalAlignment="Center"
+                                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                                                    Text="{x:Bind SentAtText}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ListView.ItemTemplate>
+                                                </ListView>
+                                                <TextBlock
+                                                    Margin="0,8"
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                    Text="該当する履歴はありません"
+                                                    Visibility="{x:Bind ViewModel.HasNoHistory, Mode=OneWay}" />
+                                            </Grid>
                                         </Grid>
-                                    </Grid>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button
+                                Width="40"
+                                Height="30"
+                                Padding="0"
+                                AutomationProperties.Name="よく使う文を編集"
+                                Command="{x:Bind ViewModel.EditQuickMessagesCommand}"
+                                ToolTipService.ToolTip="よく使う文を編集">
+                                <FontIcon FontSize="16" Glyph="&#xE70F;" />
+                            </Button>
+                        </StackPanel>
                         <Button
-                            Width="40"
+                            Width="84"
                             Height="30"
                             Padding="0"
                             AutomationProperties.Name="送信"
