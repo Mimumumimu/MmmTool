@@ -45,16 +45,21 @@ function Get-FirstUserMessage([string]$Path) {
     return '(発言なし)'
 }
 
-# /resume に出るタイトル (ai-title 行の最後のもの)。無ければ最初のユーザー発言
+# /resume に出るタイトル (custom-title 行の最後のもの。無ければ ai-title 行の最後のもの)。どちらも無ければ最初のユーザー発言
 function Get-SessionTitle([string]$Path) {
     $title = $null
     # 1 行ずつ文字列で探す (Select-String はパイプラインを通るので、大きいファイルでは遅い)
-    $hitLine = $null
+    $customLine = $null
+    $aiLine = $null
     foreach ($line in [System.IO.File]::ReadLines($Path, [System.Text.Encoding]::UTF8)) {
-        if ($line.Contains('"type":"ai-title"')) { $hitLine = $line }
+        if ($line.Contains('"type":"custom-title"')) { $customLine = $line }
+        elseif ($line.Contains('"type":"ai-title"')) { $aiLine = $line }
     }
-    if ($hitLine) {
-        try { $title = ($hitLine | ConvertFrom-Json).aiTitle } catch { }
+    if ($customLine) {
+        try { $title = ($customLine | ConvertFrom-Json).customTitle } catch { }
+    }
+    if (-not $title -and $aiLine) {
+        try { $title = ($aiLine | ConvertFrom-Json).aiTitle } catch { }
     }
     if (-not $title) { $title = Get-FirstUserMessage $Path }
     $title = ($title -replace '\s+', ' ').Trim()

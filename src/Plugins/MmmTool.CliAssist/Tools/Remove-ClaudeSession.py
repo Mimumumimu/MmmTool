@@ -61,18 +61,25 @@ def first_user_message(path):
 
 
 def session_title(path):
-    """/resume に出るタイトル (ai-title 行の最後のもの)。無ければ最初のユーザー発言"""
+    """/resume に出るタイトル (custom-title 行の最後のもの。無ければ ai-title 行の最後のもの)。どちらも無ければ最初のユーザー発言"""
     title = None
-    hit_line = None
+    custom_line = None
+    ai_line = None
     with open(path, encoding="utf-8", errors="replace") as file:
         for line in file:
-            if '"type":"ai-title"' in line:
-                hit_line = line
-    if hit_line:
+            if '"type":"custom-title"' in line:
+                custom_line = line
+            elif '"type":"ai-title"' in line:
+                ai_line = line
+    for hit_line, key in ((custom_line, "customTitle"), (ai_line, "aiTitle")):
+        if not hit_line:
+            continue
         try:
-            title = json.loads(hit_line).get("aiTitle")
+            title = json.loads(hit_line).get(key)
         except (ValueError, AttributeError):
             title = None
+        if title:
+            break
     if not title:
         title = first_user_message(path)
     title = re.sub(r"\s+", " ", title).strip()

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Paths;
+using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.Main;
@@ -20,18 +21,23 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     private readonly IReminderDialogService _dialogs;
     /// <summary>リンクを開く処理</summary>
     private readonly IPathOpener _opener;
+    /// <summary>確認ダイアログ</summary>
+    private readonly IDialogService _confirmDialogs;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="monitor">リマインダーの時刻監視</param>
     /// <param name="dialogs">入力・一覧画面を開く</param>
+    /// <param name="confirmDialogs">確認ダイアログを開く</param>
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderMainViewModel(ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IPathOpener opener, TimeProvider time)
+    public ReminderMainViewModel(
+        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, TimeProvider time)
         : base(reminders, time)
     {
         _monitor = monitor;
         _dialogs = dialogs;
+        _confirmDialogs = confirmDialogs;
         _opener = opener;
     }
 
@@ -105,8 +111,15 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <summary>削除 (論理削除)</summary>
     /// <param name="item">削除する行</param>
     /// <returns>削除の完了を表すタスク</returns>
+    /// <remarks>確認してから削除する。</remarks>
     [RelayCommand]
-    private Task DeleteAsync(ReminderTodayItem item) => RunAsync(() => Reminders.DeleteAsync(item.Source.No));
+    private async Task DeleteAsync(ReminderTodayItem item)
+    {
+        if (await _confirmDialogs.ConfirmAsync("削除の確認", $"「{item.Title}」を削除しますか？", "削除", "キャンセル"))
+        {
+            await RunAsync(() => Reminders.DeleteAsync(item.Source.No));
+        }
+    }
 
     /// <summary>ユーザーが状態を切り替えたら、今日の状態として保存する</summary>
     /// <param name="item">状態を切り替えた行</param>

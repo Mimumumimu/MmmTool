@@ -10,7 +10,7 @@ CLI補助の定型コマンド「会話履歴の削除」から呼ぶ補助ス�
   - オプションは `--all` / `--what-if` / `--root`(PowerShell 版の `-All` / `-WhatIf` / `-Root`)
   - 改行は LF にする (`.gitattributes` の `*.py text eol=lf`。Windows で取り出しても CRLF にしない)
 - PowerShell 版のファイルは日本語を含むので BOM 付き UTF-8 (PowerShell 5.1 の文字化け対策)。Python 版は BOM なしの UTF-8
-- タイトルの取得は、`.jsonl` を 1 行ずつ文字列で探して最後の `ai-title` 行を使う (`Select-String` のパイプラインを通さない)
+- タイトルの取得は、`.jsonl` を 1 行ずつ文字列で探して、最後の `custom-title` 行 (名前を付けたセッション名。`/resume` が優先して出す)を使い、無ければ最後の `ai-title` 行を使う (`Select-String` のパイプラインを通さない)。どちらも無ければ最初のユーザー発言、それも無ければ「(発言なし)」。`/clear` だけのセッションは「(発言なし)」になる
 - 実行中のセッションかどうかは調べない。実行中かを確実に判定する方法が無いため (Claude Code はファイルが開かれたままかで判定できず、Kiro は `<id>.lock` の有無が実行中を表すとは限らない)。Claude Code は、ごみ箱への移動なので間違えても戻せる。Kiro は戻せないので、確認の文言に「戻せません」と出し、削除のあとに一覧を取り直して消えたかを確かめる。説明文では、開いているセッションは先に閉じるよう求める
 - Kiro 版 (`Assets/Tools/Remove-KiroSession.ps1`(Windows)・`Assets/Tools/Remove-KiroSession.py`(WSL))：Kiro CLI の会話履歴を、作業フォルダ (cwd)ごとにまとめて選んで削除する。流れ・操作・オプション (`-All` / `-WhatIf`。Python は `--all` / `--what-if`)は Claude Code 版と同じ。呼び方も同じ (`Remove-KiroSession` の `.ps1` / `.py`)
   - 一覧は `kiro-cli chat --list-sessions --all-cwds --format json` で取る。出力は、作業フォルダごとの配列で、各要素が `cwd` と `sessions` (`sessionId` / `updatedAt` / `messageCount` / `title`)を持つ。WSL 版は Windows の Kiro ではなく、WSL の中の `kiro-cli` を使う
