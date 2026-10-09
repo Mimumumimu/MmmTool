@@ -12,6 +12,9 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     /// <summary>メインウィンドウの設定</summary>
     private readonly MainWindowSettingsService _settings;
 
+    /// <summary>音声機器を眠らせない無音の出力の設定</summary>
+    private readonly AudioKeepAliveSettingsService _audioSettings;
+
     /// <summary>保存済みの値を入れている最中か</summary>
     /// <remarks>true の間は、値の変更で保存しない (読み込んだだけの値で、設定ファイルを書き換えないため)。</remarks>
     private bool _isInitializing;
@@ -27,13 +30,21 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool OpenOnStartup { get; set; }
 
+    /// <summary>音声機器を眠らせないよう、無音を流し続けるか</summary>
+    /// <remarks>変わったら即保存し、すぐに始める・止める。</remarks>
+    [ObservableProperty]
+    public partial bool KeepAudioDeviceAwake { get; set; }
+
     /// <summary>保存済みの値を読み込んで表示する</summary>
     /// <param name="settings">メインウィンドウの設定</param>
-    public MainWindowSettingsViewModel(MainWindowSettingsService settings)
+    /// <param name="audioSettings">音声機器を眠らせない無音の出力の設定</param>
+    public MainWindowSettingsViewModel(MainWindowSettingsService settings, AudioKeepAliveSettingsService audioSettings)
     {
         _settings = settings;
+        _audioSettings = audioSettings;
         _isInitializing = true;
         OpenOnStartup = settings.OpenOnStartup;
+        KeepAudioDeviceAwake = audioSettings.IsEnabled;
         _isInitializing = false;
         IsEditable = !settings.IsReadOnly;
     }
@@ -49,6 +60,17 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
         SaveAsync(value).Forget();
     }
 
+    /// <summary>値が変わったら保存し、無音の出力を始める・止める</summary>
+    /// <param name="value">変更後の値</param>
+    partial void OnKeepAudioDeviceAwakeChanged(bool value)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+        SaveKeepAudioDeviceAwakeAsync(value).Forget();
+    }
+
     /// <summary>起動時にメイン画面を開くかを保存する</summary>
     /// <param name="value">保存する値</param>
     /// <returns>保存の完了を表すタスク</returns>
@@ -61,6 +83,29 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
         try
         {
             if (await _settings.SetOpenOnStartupAsync(value))
+            {
+                Error.Clear();
+            }
+            else
+            {
+                Error.Show("設定を読み込めなかったため、変更を保存できませんでした。");
+            }
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
+    }
+
+    /// <summary>無音を流し続けるかを保存し、すぐに始める・止める</summary>
+    /// <param name="value">保存する値</param>
+    /// <returns>保存と、始める・止める処理の完了を表すタスク</returns>
+    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ。</remarks>
+    private async Task SaveKeepAudioDeviceAwakeAsync(bool value)
+    {
+        try
+        {
+            if (await _audioSettings.SetEnabledAsync(value))
             {
                 Error.Clear();
             }
