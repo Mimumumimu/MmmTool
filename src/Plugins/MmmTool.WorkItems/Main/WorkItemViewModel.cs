@@ -13,11 +13,11 @@ using MmmTool.WorkItems.Move;
 namespace MmmTool.WorkItems.Main;
 
 /// <summary>
-/// 作業リストのページ。木構造の表・入力日・表示列・右のペイン (日ごとの履歴と変更の履歴)を扱う。
+/// 作業リストのページ。木構造の表・入力日・表示列を扱う。
 /// </summary>
 /// <remarks>
 /// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
-/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。グループの開閉・非表示の列・右のペインの開閉は、この PC の設定 (設定ストア)に持つ。
+/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
 /// </remarks>
 public sealed partial class WorkItemViewModel : ObservableObject
 {
@@ -26,9 +26,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
     /// <summary>閉じているグループを、設定ストアに持つキー (行の番号を、カンマでつないだ文字列)</summary>
     private const string CollapsedItemsKey = "WorkItems.CollapsedItems";
-
-    /// <summary>右のペインが開いているかを、設定ストアに持つキー</summary>
-    private const string PaneOpenKey = "WorkItems.IsPaneOpen";
 
     /// <summary>日付として受け付ける書式</summary>
     private static readonly string[] DateFormats = ["yyyy/M/d", "yyyy-M-d", "yyyy.M.d", "yyyyMMdd", "M/d", "M-d"];
@@ -60,17 +57,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>壊れたファイルを退避した知らせを、もう出したか (サービスが、アプリの実行中ずっと持つので、ページを開くたびには出さない)</summary>
     private bool _recoveryMessageShown;
 
-    /// <summary>履歴の読み込みの世代 (選択が変わったあとに、前の読み込みの結果を捨てるため)</summary>
-    private int _historyVersion;
-
     /// <summary>表の行 (見えている行を 1 つにならしたもの。木の順)</summary>
     public ObservableCollection<WorkItemRow> Rows { get; } = [];
-
-    /// <summary>選んだ作業の、日ごとの記録 (新しい日が先)</summary>
-    public ObservableCollection<WorkRecordItem> Records { get; } = [];
-
-    /// <summary>選んだ行の、変更の記録 (新しいものが先)</summary>
-    public ObservableCollection<WorkChangeItem> Changes { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
@@ -79,24 +67,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [ObservableProperty]
     public partial DateOnly InputDate { get; set; }
 
-    /// <summary>右のペインが開いているか</summary>
-    [ObservableProperty]
-    public partial bool IsPaneOpen { get; set; }
-
     /// <summary>行が 1 つも無いか (追加のしかたの案内を出す)</summary>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
     /// <summary>選んだ行</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelectedWork), nameof(HistoryTitle))]
     public partial WorkItemRow? SelectedRow { get; set; }
-
-    /// <summary>選んだ行が、作業か (日ごとの履歴を出せるか)</summary>
-    public bool HasSelectedWork => SelectedRow is { IsWork: true };
-
-    /// <summary>右のペインの見出し (選んだ行の名前)</summary>
-    public string HistoryTitle => SelectedRow?.Name ?? "";
 
     /// <summary>進捗度のラベルを、画面から編集できるか</summary>
     public bool CanEditProgressLabels => _service.CanEditProgressLabels;
@@ -127,7 +104,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
         service.Changed += (_, _) => OnServiceChanged();
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
-        IsPaneOpen = settings.Get(PaneOpenKey, false);
         InputDate = service.Today;
     }
 
@@ -186,29 +162,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>入力日が変わったら、実績 (日)・備考 (日)を作り直す</summary>
     /// <param name="value">新しい入力日</param>
     partial void OnInputDateChanged(DateOnly value) => Rebuild();
-
-    /// <summary>右のペインの開閉を、設定に残す</summary>
-    /// <param name="value">ペインが開いているか</param>
-    partial void OnIsPaneOpenChanged(bool value)
-    {
-        _settings.SetAsync(PaneOpenKey, value).Forget();
-        if (value)
-        {
-            LoadHistoryAsync().Forget();
-        }
-    }
-
-    /// <summary>選んだ行が変わったら、右のペインの履歴を読み直す</summary>
-    /// <param name="value">新しく選んだ行</param>
-    partial void OnSelectedRowChanged(WorkItemRow? value)
-    {
-        Records.Clear();
-        Changes.Clear();
-        if (IsPaneOpen)
-        {
-            LoadHistoryAsync().Forget();
-        }
-    }
 
     /// <summary>グループを開く・閉じる</summary>
     /// <param name="row">開閉するグループの行</param>
@@ -557,15 +510,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
         row.Revert();
     }
 
-    /// <summary>保存先の内容が変わったとき、表と履歴を作り直す</summary>
-    private void OnServiceChanged()
-    {
-        Rebuild();
-        if (IsPaneOpen && SelectedRow is not null)
-        {
-            LoadHistoryAsync().Forget();
-        }
-    }
+    /// <summary>保存先の内容が変わったとき、表を作り直す</summary>
+    private void OnServiceChanged() => Rebuild();
 
     /// <summary>木構造から、見えている行の一覧を作り直す</summary>
     /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する (入力欄の位置とフォーカスを保つため)。</remarks>
@@ -648,51 +594,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             SelectedRow = null;
         }
-        OnPropertyChanged(nameof(HistoryTitle));
         RowsRebuilt?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>選んだ行の、日ごとの記録と変更の記録を読み込む</summary>
-    /// <returns>読み込みの完了を表すタスク</returns>
-    private async Task LoadHistoryAsync()
-    {
-        var version = ++_historyVersion;
-        var row = SelectedRow;
-        if (row is null)
-        {
-            return;
-        }
-
-        if (row.IsWork)
-        {
-            Replace(Records, _service.GetRecords(row.Id).Select(r => new WorkRecordItem(r)));
-        }
-
-        try
-        {
-            var changes = await _service.GetChangesAsync(row.Id);
-            if (version == _historyVersion)
-            {
-                Replace(Changes, changes.Select(c => new WorkChangeItem(c)));
-            }
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
-        }
-    }
-
-    /// <summary>一覧の中身を、新しい内容に入れ替える</summary>
-    /// <typeparam name="T">要素の型</typeparam>
-    /// <param name="target">入れ替える一覧</param>
-    /// <param name="items">新しい内容</param>
-    private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> items)
-    {
-        target.Clear();
-        foreach (var item in items)
-        {
-            target.Add(item);
-        }
     }
 
     /// <summary>移動先の選択肢に、グループを木の順に足す</summary>

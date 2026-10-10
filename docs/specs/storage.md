@@ -17,7 +17,6 @@
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
 | `Data/WorkItems.json` | 作業リストのグループ・作業 | `{ "items": [...] }`。削除は論理削除で残る。無ければ最初の追加で作る ([work-items.md](work-items.md)) |
 | `Data/WorkRecords.json` | 作業リストの日ごとの記録 | 作業 × 日付で 1 件。実績と備考が空なら消す |
-| `Data/WorkItemChanges.json` | 作業リストの変更の記録 | 追記だけ (古いものが先) |
 | `Data/WorkProgressLevels.json` | 作業リストの進捗度のラベル | 値は 0〜100 の 10 刻みで固定 (11 件)。無ければ初期値で生成 |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある (ID あり) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |

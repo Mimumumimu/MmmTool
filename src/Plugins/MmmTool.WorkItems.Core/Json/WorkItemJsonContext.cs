@@ -7,7 +7,6 @@ namespace MmmTool.WorkItems.Core.Json;
 /// <remarks>発行時のトリミングでも動くよう、JSON の読み書きはソース生成で行う。設定は SDK の <see cref="ReadableJsonOptions"/> で揃える。</remarks>
 [JsonSerializable(typeof(WorkItemFile))]
 [JsonSerializable(typeof(WorkRecordFile))]
-[JsonSerializable(typeof(WorkItemChangeFile))]
 [JsonSerializable(typeof(WorkProgressFile))]
 internal sealed partial class WorkItemJsonContext : JsonSerializerContext
 {

@@ -360,39 +360,6 @@
                     </Button>
                 </Grid>
             </DataTemplate>
-
-            <!-- 右のペインの項目 -->
-            <DataTemplate x:Key="RecordTemplate" x:DataType="local:WorkRecordItem">
-                <StackPanel Padding="0,4" Spacing="2">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="{x:Bind DateText}" />
-                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind HoursText}" />
-                    </StackPanel>
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind Note}"
-                        TextWrapping="Wrap" />
-                </StackPanel>
-            </DataTemplate>
-
-            <DataTemplate x:Key="ChangeTemplate" x:DataType="local:WorkChangeItem">
-                <StackPanel Padding="0,4" Spacing="2">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="{x:Bind Field}" />
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind TimeText}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="{x:Bind Text}"
-                        TextWrapping="Wrap" />
-                </StackPanel>
-            </DataTemplate>
         </ResourceDictionary>
     </Page.Resources>
 
@@ -450,7 +417,6 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="8">
-                <ToggleButton Content="履歴" IsChecked="{x:Bind ViewModel.IsPaneOpen, Mode=TwoWay}" />
                 <Button x:Name="ColumnsButton" Content="表示列" />
                 <Button
                     Command="{x:Bind ViewModel.EditProgressLabelsCommand}"
@@ -459,74 +425,20 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="3" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <!-- 表。行が無いときは、追加のしかたを案内する (追加のボタンが無いため) -->
-            <Border Padding="1" Style="{StaticResource CardStyle}">
-                <Grid>
-                    <sdk:TreeGridView x:Name="TreeGrid" FrozenBackground="{ThemeResource InputRowBackgroundBrush}"
-                        SummaryBackground="{ThemeResource GroupRowBackgroundBrush}" />
-                    <TextBlock
-                        Margin="0,64,0,0"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        IsHitTestVisible="False"
-                        Text="右クリックして、案件を追加します"
-                        Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
-                </Grid>
-            </Border>
-
-            <!-- 右のペイン: 選んだ行の履歴 -->
-            <Border
-                Grid.Column="1"
-                Width="320"
-                Padding="16"
-                Style="{StaticResource CardStyle}"
-                Visibility="{x:Bind ViewModel.IsPaneOpen, Mode=OneWay}">
-                <Grid RowSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <TextBlock
-                        Style="{StaticResource BodyStrongTextBlockStyle}"
-                        Text="{x:Bind ViewModel.HistoryTitle, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
-
-                    <TextBlock
-                        Grid.Row="1"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="日ごとの記録"
-                        Visibility="{x:Bind ViewModel.HasSelectedWork, Mode=OneWay}" />
-                    <ListView
-                        Grid.Row="2"
-                        ItemTemplate="{StaticResource RecordTemplate}"
-                        ItemsSource="{x:Bind ViewModel.Records}"
-                        SelectionMode="None"
-                        Visibility="{x:Bind ViewModel.HasSelectedWork, Mode=OneWay}" />
-
-                    <TextBlock
-                        Grid.Row="3"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="変更の記録" />
-                    <ListView
-                        Grid.Row="4"
-                        ItemTemplate="{StaticResource ChangeTemplate}"
-                        ItemsSource="{x:Bind ViewModel.Changes}"
-                        SelectionMode="None" />
-                </Grid>
-            </Border>
-        </Grid>
+        <!-- 表。行が無いときは、追加のしかたを案内する (追加のボタンが無いため) -->
+        <Border Grid.Row="3" Padding="1" Style="{StaticResource CardStyle}">
+            <Grid>
+                <sdk:TreeGridView x:Name="TreeGrid" FrozenBackground="{ThemeResource InputRowBackgroundBrush}"
+                    SummaryBackground="{ThemeResource GroupRowBackgroundBrush}" />
+                <TextBlock
+                    Margin="0,64,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    IsHitTestVisible="False"
+                    Text="右クリックして、案件を追加します"
+                    Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+            </Grid>
+        </Border>
     </Grid>
 </Page>

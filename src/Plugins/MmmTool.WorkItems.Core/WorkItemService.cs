@@ -8,7 +8,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="repository">保存先</param>
 /// <param name="time">現在の時刻を知るための時計</param>
 /// <remarks>
-/// 入力の確認 (名前・日付・時間の範囲)、変更の記録の作成、並べ替え・移動の位置の計算を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
+/// 入力の確認 (名前・日付・時間の範囲)、並べ替え・移動の位置の計算を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
 /// 予測できる入力の誤りは、例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。保存の失敗は <see cref="DataFileException"/>。
 /// 操作は 1 つずつ順に行う (同時に呼ばれても、順番に待つ)。
 /// </remarks>
@@ -86,12 +86,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, TimeProvider
     /// <returns>最上位の行の並び</returns>
     public IReadOnlyList<WorkItemNode> BuildTree(DateOnly date) => WorkItemTree.Build(_items, _records, date);
 
-    /// <summary>作業の日ごとの記録を返す</summary>
-    /// <param name="workItemId">作業の番号</param>
-    /// <returns>記録 (新しい日が先)</returns>
-    public IReadOnlyList<WorkRecord> GetRecords(int workItemId)
-        => [.. _records.Where(r => r.WorkItemId == workItemId).OrderByDescending(r => r.Date)];
-
     /// <summary>ある日の、作業の記録を返す</summary>
     /// <param name="workItemId">作業の番号</param>
     /// <param name="date">日付</param>
@@ -151,7 +145,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, TimeProvider
     /// <param name="updated">更新後の行 (番号で、今の行を探す)</param>
     /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
     /// <remarks>
-    /// 親・種類・並びは、ここでは変えない。グループは、名前と備考だけを変える。変えた項目は、変更の記録に残す。
+    /// 親・種類・並びは、ここでは変えない。グループは、名前と備考だけを変える。
     /// 日付の逆転・時間の範囲外などは、保存せずにメッセージで返す。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
@@ -191,7 +185,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, TimeProvider
                 return null;
             }
 
-            await repository.UpdateAsync(candidate, CreateChanges(current, candidate));
+            await repository.UpdateAsync(candidate);
             _items[index] = candidate;
             OnChanged();
             return null;
@@ -374,14 +368,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, TimeProvider
         }
     }
 
-    /// <summary>作業の変更の記録を読む</summary>
-    /// <param name="workItemId">作業の番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>変更の記録 (新しいものが先)</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    public Task<IReadOnlyList<WorkItemChange>> GetChangesAsync(int workItemId, CancellationToken cancellationToken = default)
-        => repository.GetChangesAsync(workItemId, cancellationToken);
-
     /// <summary>進捗度のラベルを保存する</summary>
     /// <param name="labels">値ごとのラベル (空は、ラベルなし)</param>
     /// <returns>入力の誤りのメッセージ。保存したら null</returns>
@@ -466,43 +452,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, TimeProvider
         }
         return null;
     }
-
-    /// <summary>変わった項目ごとに、変更の記録を作る</summary>
-    /// <param name="before">変更前の行</param>
-    /// <param name="after">変更後の行</param>
-    /// <returns>変更の記録 (変わった項目の数だけ)</returns>
-    private List<WorkItemChange> CreateChanges(WorkItem before, WorkItem after)
-    {
-        var now = time.GetLocalNow();
-        var changes = new List<WorkItemChange>();
-        void Add(string field, string oldValue, string newValue)
-        {
-            if (oldValue != newValue)
-            {
-                changes.Add(new WorkItemChange { WorkItemId = after.Id, ChangedAt = now, Field = field, OldValue = oldValue, NewValue = newValue });
-            }
-        }
-
-        Add("名前", before.Name, after.Name);
-        Add("備考", before.Note, after.Note);
-        Add("優先度", WorkItemNames.Of(before.Priority), WorkItemNames.Of(after.Priority));
-        Add("開始日", FormatDate(before.StartDate), FormatDate(after.StartDate));
-        Add("期限日", FormatDate(before.DueDate), FormatDate(after.DueDate));
-        Add("状態", WorkItemNames.Of(before.Status), WorkItemNames.Of(after.Status));
-        Add("進捗度", WorkProgress.Format(before.Progress, _labels), WorkProgress.Format(after.Progress, _labels));
-        Add("予定時間", FormatHours(before.PlannedHours), FormatHours(after.PlannedHours));
-        return changes;
-    }
-
-    /// <summary>日付を、変更の記録に残す形にする</summary>
-    /// <param name="date">日付 (無ければ null)</param>
-    /// <returns><c>yyyy/MM/dd</c>。無ければ空</returns>
-    private static string FormatDate(DateOnly? date) => date?.ToString("yyyy/MM/dd") ?? "";
-
-    /// <summary>時間を、変更の記録に残す形にする</summary>
-    /// <param name="hours">時間 (無ければ null)</param>
-    /// <returns>時間の数字。無ければ空</returns>
-    private static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
 
     /// <summary>同じ親の兄弟を、並び順に返す</summary>
     /// <param name="parentId">親の番号</param>

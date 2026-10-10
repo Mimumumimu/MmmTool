@@ -28,13 +28,12 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkItem> AddAsync(WorkItem item, IReadOnlyList<WorkItemPosition> siblingPositions, CancellationToken cancellationToken = default);
 
-    /// <summary>行を更新し、変更の記録を残す</summary>
+    /// <summary>行を更新する</summary>
     /// <param name="item">更新後の行</param>
-    /// <param name="changes">残す変更の記録 (変わった項目の数だけ。無ければ空)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
-    Task UpdateAsync(WorkItem item, IReadOnlyList<WorkItemChange> changes, CancellationToken cancellationToken = default);
+    Task UpdateAsync(WorkItem item, CancellationToken cancellationToken = default);
 
     /// <summary>行の位置 (親・並び)を、まとめて更新する</summary>
     /// <param name="positions">更新する位置</param>
@@ -57,13 +56,6 @@ public interface IWorkItemRepository
     /// <remarks>同じ作業・日付があれば上書きする。実績も備考も空 (<see cref="WorkRecord.IsEmpty"/>)なら、記録を消す。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default);
-
-    /// <summary>作業の変更の記録を読む</summary>
-    /// <param name="workItemId">作業の番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>変更の記録 (新しいものが先)</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<IReadOnlyList<WorkItemChange>> GetChangesAsync(int workItemId, CancellationToken cancellationToken = default);
 
     /// <summary>進捗度のラベルを保存する</summary>
     /// <param name="labels">ラベル (値ごと。ラベルが空の値は、ラベルなし)</param>

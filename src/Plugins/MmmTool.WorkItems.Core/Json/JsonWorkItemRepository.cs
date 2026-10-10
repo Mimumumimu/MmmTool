@@ -5,7 +5,7 @@ namespace MmmTool.WorkItems.Core.Json;
 /// <summary>作業リストを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
 /// <remarks>
-/// 行は <c>WorkItems.json</c>、日ごとの記録は <c>WorkRecords.json</c>、変更の記録は <c>WorkItemChanges.json</c>、進捗度のラベルは <c>WorkProgressLevels.json</c> に分けて保存する。
+/// 行は <c>WorkItems.json</c>、日ごとの記録は <c>WorkRecords.json</c>、進捗度のラベルは <c>WorkProgressLevels.json</c> に分けて保存する。
 /// 操作のたびに、必要なファイルを読み、直して、書き戻す (一時ファイル経由で置き換える)。読めなかったときは、書かずに例外にする (読めなかっただけの既存のデータを、空で上書きしない)。
 /// 番号は、削除済みも含めた最大 + 1。削除は論理削除だけで、ファイルには残す。
 /// </remarks>
@@ -16,9 +16,6 @@ public sealed class JsonWorkItemRepository(IJsonFileStore store) : IWorkItemRepo
 
     /// <summary>日ごとの記録の保存先のファイル名</summary>
     private const string RecordsFileName = "WorkRecords.json";
-
-    /// <summary>変更の記録の保存先のファイル名</summary>
-    private const string ChangesFileName = "WorkItemChanges.json";
 
     /// <summary>進捗度のラベルの保存先のファイル名</summary>
     private const string ProgressFileName = "WorkProgressLevels.json";
@@ -75,7 +72,7 @@ public sealed class JsonWorkItemRepository(IJsonFileStore store) : IWorkItemRepo
     }
 
     /// <inheritdoc />
-    public async Task UpdateAsync(WorkItem item, IReadOnlyList<WorkItemChange> changes, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(WorkItem item, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
         try
@@ -99,13 +96,6 @@ public sealed class JsonWorkItemRepository(IJsonFileStore store) : IWorkItemRepo
                 Progress = item.Progress,
                 PlannedHours = item.PlannedHours,
             };
-            // 変更の記録を先に書く (途中で失敗しても、記録だけが増える側に倒す。行は書き換わらない)
-            if (changes.Count > 0)
-            {
-                var all = await ReadChangesAsync(cancellationToken);
-                all.AddRange(changes);
-                await store.WriteAsync(ChangesFileName, new WorkItemChangeFile { Items = all }, WorkItemJsonContext.Readable.WorkItemChangeFile, cancellationToken);
-            }
             await store.WriteAsync(ItemsFileName, new WorkItemFile { Items = items }, WorkItemJsonContext.Readable.WorkItemFile, cancellationToken);
         }
         finally
@@ -174,21 +164,6 @@ public sealed class JsonWorkItemRepository(IJsonFileStore store) : IWorkItemRepo
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<WorkItemChange>> GetChangesAsync(int workItemId, CancellationToken cancellationToken = default)
-    {
-        await _lock.WaitAsync(cancellationToken);
-        try
-        {
-            var all = await ReadChangesAsync(cancellationToken);
-            return [.. all.Where(c => c.WorkItemId == workItemId).Reverse()];
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
-    /// <inheritdoc />
     public async Task SaveProgressLabelsAsync(IReadOnlyList<WorkProgressLabel> labels, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -236,15 +211,6 @@ public sealed class JsonWorkItemRepository(IJsonFileStore store) : IWorkItemRepo
     {
         var result = await store.ReadAsync(RecordsFileName, WorkItemJsonContext.Readable.WorkRecordFile, cancellationToken);
         AddMessage(messages, result.RecoveryMessage);
-        return result.Value?.Items ?? [];
-    }
-
-    /// <summary>変更の記録のファイルを読む</summary>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>変更の記録の一覧 (古いものが先。ファイルが無ければ空)</returns>
-    private async Task<List<WorkItemChange>> ReadChangesAsync(CancellationToken cancellationToken)
-    {
-        var result = await store.ReadAsync(ChangesFileName, WorkItemJsonContext.Readable.WorkItemChangeFile, cancellationToken);
         return result.Value?.Items ?? [];
     }
 
