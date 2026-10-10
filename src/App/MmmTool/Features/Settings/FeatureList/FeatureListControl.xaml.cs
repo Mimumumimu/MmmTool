@@ -17,6 +17,12 @@ public sealed partial class FeatureListControl : UserControl
         InitializeComponent();
     }
 
+    /// <summary>「既定の順に戻す」を押したときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private async void OnResetOrderClick(object sender, RoutedEventArgs e)
+        => await ViewModel.ResetOrderAsync();
+
     /// <summary>機能のスイッチが切り替わったときの処理</summary>
     /// <param name="sender">イベントの送信元 (スイッチ。データの行を持つ)</param>
     /// <param name="e">イベントの情報</param>

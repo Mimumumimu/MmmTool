@@ -163,7 +163,7 @@ DB に替えるときは、`WorkItemsPlugin` の保存先の行を、`MmmTool.Da
 
 ## 構成
 - `MmmTool.WorkItems.Core`: `WorkItem`・`WorkRecord`・`WorkItemChange`・`WorkProgress`・`IWorkItemRepository`・`WorkItemService`・`WorkItemTree` ほか。`Json/` に JSON の保存先 (`JsonWorkItemRepository`)
-- `MmmTool.WorkItems`: `WorkItemsPlugin`(入口。機能のキー `WorkItems`・既定でオン (仮。ほかの新しい機能は、既定でオフ)・サイドバーの並び順 6 (仮))・`WorkItemStartup`(起動時の読み込み)・`Main/`(ページ・ViewModel・表の行)・`Move/`(移動先を選ぶダイアログ)・`ProgressLabels/`(ラベルの編集ダイアログ)
+- `MmmTool.WorkItems`: `WorkItemsPlugin`(入口。機能のキー `WorkItems`・既定でオフ・サイドバーの並び順 2 (CLI補助の次))・`WorkItemStartup`(起動時の読み込み)・`Main/`(ページ・ViewModel・表の行)・`Move/`(移動先を選ぶダイアログ)・`ProgressLabels/`(ラベルの編集ダイアログ)
 
 ## 決定の理由
 ### WBS とガントチャートを別の画面にする

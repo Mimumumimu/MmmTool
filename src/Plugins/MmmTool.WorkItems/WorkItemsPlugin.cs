@@ -18,7 +18,7 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
     /// </remarks>
     public void Register(IServiceCollection services)
     {
-        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName);
+        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName, defaultEnabled: false);
 
         // 保存先 (DB に替えるときは、この行だけを差し替える)
         services.AddSingleton<IWorkItemRepository, JsonWorkItemRepository>();

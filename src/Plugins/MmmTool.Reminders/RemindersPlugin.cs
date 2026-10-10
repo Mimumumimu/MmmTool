@@ -20,6 +20,9 @@ public sealed class RemindersPlugin : IFeaturePlugin
     /// <remarks>保存先は JSON。設定が DB のときだけ、ホストが、登録のあとで SQL Server の保存先に置き換える (<c>MmmTool.Data.SqlServer</c>)。</remarks>
     public void Register(IServiceCollection services)
     {
+        // オフにできない機能 (設定の「機能」の一覧で、並び順だけ使う)
+        services.AddAlwaysOnFeature(RemindersFeature.Key, RemindersFeature.DisplayName);
+
         // 保存先 (JSON。DB に置き換えるために、実体の型でも取り出せるようにする)
         services.AddSingleton<JsonReminderRepository>();
         services.AddSingleton<IReminderRepository>(provider => provider.GetRequiredService<JsonReminderRepository>());
@@ -54,10 +57,10 @@ public sealed class RemindersPlugin : IFeaturePlugin
 
         // 設定ページに並べる設定 (スヌーズ間隔)
         services.AddTransient<ReminderSettingsViewModel>();
-        services.AddSettingsSection<ReminderSettingsControl>();
+        services.AddSettingsSection<ReminderSettingsControl>(RemindersFeature.Key);
 
-        // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは付けない
-        services.AddNavigationPage<ReminderListPage>("リマインダー", "", NavigationArea.Top);
+        // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
+        services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);
 
         services.AddStartupTask<ReminderStartup>();
     }

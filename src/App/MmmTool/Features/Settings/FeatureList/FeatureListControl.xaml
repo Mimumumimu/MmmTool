@@ -7,33 +7,64 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <StackPanel Spacing="4">
-        <!-- 機能のオン・オフ (オフにできる機能だけ。切り替えはすぐ反映する) -->
+        <!-- 機能のオン・オフと、サイドバーの並び順 (切り替え・並べ替えはすぐ反映する) -->
         <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="機能" />
+        <TextBlock
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="使う機能とサイドバーの並び順" />
 
-        <!-- 切り替えを保存できなかったとき (閉じている間は、Spacing の分の場所も取らない) -->
+        <!-- 切り替え・並べ替えを保存できなかったとき (閉じている間は、Spacing の分の場所も取らない) -->
         <InfoBar
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error"
             Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
 
-        <ItemsControl IsEnabled="{x:Bind ViewModel.IsEditable}" ItemsSource="{x:Bind ViewModel.Features}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Spacing="4" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
+        <!-- 行をドラッグして並べ替える (リマインダー・リンクは、スイッチなしで並び順だけ) -->
+        <ListView
+            AllowDrop="True"
+            CanReorderItems="True"
+            IsEnabled="{x:Bind ViewModel.IsEditable}"
+            ItemsSource="{x:Bind ViewModel.Features}"
+            SelectionMode="None">
+            <ListView.ItemContainerStyle>
+                <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,4" />
+                    <Setter Property="MinHeight" Value="0" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:FeatureItem">
-                    <controls:SettingsCard Header="{x:Bind DisplayName}">
+                    <controls:SettingsCard>
+                        <!-- 取っ手 + 機能名 (取っ手は「よく使う文の編集」と同じ小さな薄い色) -->
+                        <controls:SettingsCard.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <FontIcon
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                    Glyph="&#xE76F;"
+                                    ToolTipService.ToolTip="ドラッグで並べ替え" />
+                                <TextBlock VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                            </StackPanel>
+                        </controls:SettingsCard.Header>
                         <ToggleSwitch
                             IsOn="{x:Bind IsOn, Mode=TwoWay}"
                             OffContent="オフ"
                             OnContent="オン"
-                            Toggled="OnFeatureToggled" />
+                            Toggled="OnFeatureToggled"
+                            Visibility="{x:Bind CanDisable}" />
                     </controls:SettingsCard>
                 </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <Button
+            Margin="0,4,0,0"
+            Click="OnResetOrderClick"
+            Content="既定の順に戻す"
+            IsEnabled="{x:Bind ViewModel.IsEditable}" />
     </StackPanel>
 </UserControl>

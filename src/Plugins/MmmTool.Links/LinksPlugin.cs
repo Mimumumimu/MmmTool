@@ -15,6 +15,9 @@ public sealed class LinksPlugin : IFeaturePlugin
     /// <inheritdoc />
     public void Register(IServiceCollection services)
     {
+        // オフにできない機能 (設定の「機能」の一覧で、並び順だけ使う)
+        services.AddAlwaysOnFeature(LinksFeature.Key, LinksFeature.DisplayName);
+
         // 保存先
         services.AddSingleton<ILinkRepository, JsonLinkRepository>();
 
@@ -23,7 +26,7 @@ public sealed class LinksPlugin : IFeaturePlugin
         services.AddTrayMenuSource<LinkTrayMenuSource>();
 
         services.AddTransient<LinkEditorViewModel>();
-        services.AddNavigationPage<LinkEditorPage>("リンク", "", NavigationArea.Top);
+        services.AddNavigationPage<LinkEditorPage>(LinksFeature.DisplayName, "", NavigationArea.Top, LinksFeature.Key);
 
         services.AddStartupTask<LinkStartup>();
     }

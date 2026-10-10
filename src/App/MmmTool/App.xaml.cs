@@ -86,14 +86,14 @@ public partial class App : Application
         // ログイン (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
         services.AddUserSignIn();
 
-        // 機能。起動時の準備は、登録した順に実行する。サイドバー・トレイメニュー・設定の機能の一覧・設定の部品は、order の順に並ぶ (登録の順は問わない)
-        // order の並び: よく使う順 (CLI補助が主な機能)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
+        // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び (利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちら。トレイメニューは常に order の順)。登録の順は問わない
+        // order の並び: よく使う順 (CLI補助が主な機能。作業リストが 2 番目)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
         services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
-        services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 4);
-        services.AddFeaturePlugin<RemindersPlugin>(order: 2);
-        services.AddFeaturePlugin<BacklogPlugin>(order: 5);
-        services.AddFeaturePlugin<LinksPlugin>(order: 3);
-        services.AddFeaturePlugin<WorkItemsPlugin>(order: 6);
+        services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 5);
+        services.AddFeaturePlugin<RemindersPlugin>(order: 3);
+        services.AddFeaturePlugin<BacklogPlugin>(order: 6);
+        services.AddFeaturePlugin<LinksPlugin>(order: 4);
+        services.AddFeaturePlugin<WorkItemsPlugin>(order: 2);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
