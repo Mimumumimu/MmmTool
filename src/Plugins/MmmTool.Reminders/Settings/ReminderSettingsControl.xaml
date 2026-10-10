@@ -38,5 +38,25 @@
                 </StackPanel>
             </HyperlinkButton>
         </controls:SettingsCard>
+
+        <!-- 音量はアプリの再生音量 (Windows の音量とは別)。試し聞きは、主な操作ではないので強調しない -->
+        <controls:SettingsCard Header="読み上げの音量">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Slider
+                    Width="200"
+                    VerticalAlignment="Center"
+                    IsEnabled="{x:Bind ViewModel.IsVolumeEditable}"
+                    Maximum="{x:Bind ViewModel.SpeechVolumeMax}"
+                    Minimum="{x:Bind ViewModel.SpeechVolumeMin}"
+                    StepFrequency="1"
+                    Value="{x:Bind ViewModel.SpeechVolumePercent, Mode=TwoWay}" />
+                <TextBlock
+                    Width="40"
+                    VerticalAlignment="Center"
+                    HorizontalTextAlignment="End"
+                    Text="{x:Bind ViewModel.SpeechVolumeText, Mode=OneWay}" />
+                <Button Command="{x:Bind ViewModel.PreviewSpeechCommand}" Content="試し聞き" />
+            </StackPanel>
+        </controls:SettingsCard>
     </StackPanel>
 </UserControl>

@@ -21,7 +21,7 @@
 | `Data/WorkProgressLevels.json` | 作業リストの進捗度のラベル | 値は 0〜100 の 10 刻みで固定 (11 件)。無ければ初期値で生成 |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある (ID あり) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
-| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。スヌーズ間隔・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |
+| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。スヌーズ間隔・読み上げの音量 (`Speech.VolumePercent`。0〜100 の整数)・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |
 
 ## ファイルに書かないもの
 - Backlog の API キーは、Data フォルダーに書かず、Windows の資格情報マネージャー (汎用資格情報 `MmmTool.Backlog`)に保存する。手で開いて見られる設定ファイルに、秘密を置かないため ([backlog.md](backlog.md))

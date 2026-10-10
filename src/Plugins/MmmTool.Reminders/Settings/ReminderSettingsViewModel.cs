@@ -4,6 +4,7 @@ using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Speech;
 using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.Settings;
@@ -41,17 +42,100 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial double SnoozeIntervalMinutes { get; set; }
 
+    /// <summary>読み上げの音量の下限 (%)</summary>
+    public double SpeechVolumeMin => 0;
+
+    /// <summary>読み上げの音量の上限 (%)</summary>
+    public double SpeechVolumeMax => 100;
+
+    /// <summary>音量を変更できるか (設定ファイルを読めなかったときは、変更させない)</summary>
+    public bool IsVolumeEditable => !_speech.IsVolumeReadOnly;
+
+    /// <summary>読み上げの音量 (%)</summary>
+    /// <remarks>スライダーを動かし終えるのを待ってから保存する (動かす間は、保存しない)。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SpeechVolumeText))]
+    public partial double SpeechVolumePercent { get; set; }
+
+    /// <summary>読み上げの音量の表示 (例: 50%)</summary>
+    public string SpeechVolumeText => $"{SpeechVolumePercent:0}%";
+
+    /// <summary>読み上げ (試し聞き)</summary>
+    private readonly ISpeechService _speech;
+
+    /// <summary>音量の保存を、スライダーが止まるまで待つ</summary>
+    private readonly Debouncer _volumeSaveDebouncer = new(TimeSpan.FromMilliseconds(400));
+
+    /// <summary>試し聞きの文</summary>
+    private const string PreviewText = "読み上げの音量を確認します。";
+
     /// <summary>保存済みの値を読み込んで表示する</summary>
     /// <param name="reminderSettings">リマインダーの設定</param>
     /// <param name="pathOpener">Windows の設定を開く処理</param>
-    public ReminderSettingsViewModel(ReminderSettingsService reminderSettings, IPathOpener pathOpener)
+    /// <param name="speech">読み上げ</param>
+    public ReminderSettingsViewModel(ReminderSettingsService reminderSettings, IPathOpener pathOpener, ISpeechService speech)
     {
         _reminderSettings = reminderSettings;
         _pathOpener = pathOpener;
+        _speech = speech;
         _isInitializing = true;
         SnoozeIntervalMinutes = reminderSettings.SnoozeIntervalMinutes;
+        SpeechVolumePercent = speech.VolumePercent;
         _isInitializing = false;
         IsEditable = !reminderSettings.IsReadOnly;
+    }
+
+    /// <summary>今の音量で、短い文を読み上げる</summary>
+    /// <returns>読み上げの開始が済んだことを表すタスク</returns>
+    /// <remarks>予約中の保存を待たず、いまのスライダーの値をすぐ保存してから読む (読み上げは保存値を使うため)。</remarks>
+    [RelayCommand]
+    private async Task PreviewSpeechAsync()
+    {
+        _volumeSaveDebouncer.Cancel();
+        await SaveSpeechVolumeAsync((int)Math.Round(SpeechVolumePercent));
+        await _speech.SpeakAsync(PreviewText);
+    }
+
+    /// <summary>値が変わったら範囲に収めて、少し待ってから保存する</summary>
+    /// <param name="value">変更後の音量 (%)</param>
+    partial void OnSpeechVolumePercentChanged(double value)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        // Slider は範囲内の値だけを出す。念のため、範囲外・NaN は収める
+        var clamped = double.IsNaN(value) ? _speech.VolumePercent : (int)Math.Clamp(Math.Round(value), 0, 100);
+        if (clamped != value)
+        {
+            SpeechVolumePercent = clamped;
+            return;
+        }
+        _volumeSaveDebouncer.RunAsync(() => clamped, saved => SaveSpeechVolumeAsync(saved).Forget()).Forget();
+    }
+
+    /// <summary>音量を保存する</summary>
+    /// <param name="percent">保存する音量 (%)</param>
+    /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>保存の失敗は、スヌーズ間隔と同じく画面に出す。</remarks>
+    private async Task SaveSpeechVolumeAsync(int percent)
+    {
+        try
+        {
+            if (await _speech.SetVolumePercentAsync(percent))
+            {
+                Error.Clear();
+            }
+            else
+            {
+                Error.Show("設定を読み込めなかったため、変更を保存できませんでした。");
+            }
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
     }
 
     /// <summary>Windows の音声の設定を開く</summary>
