@@ -53,6 +53,14 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/WorkItems/">
+    <Project Path="src/Plugins/MmmTool.WorkItems.Core/MmmTool.WorkItems.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.WorkItems/MmmTool.WorkItems.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/Users/">
     <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
       <Platform Project="x64" />

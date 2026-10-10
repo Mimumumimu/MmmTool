@@ -15,6 +15,10 @@
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件) | ローカル専用 |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (`label` 省略可・`text`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
+| `Data/WorkItems.json` | 作業リストのグループ・作業 | `{ "items": [...] }`。削除は論理削除で残る。無ければ最初の追加で作る ([work-items.md](work-items.md)) |
+| `Data/WorkRecords.json` | 作業リストの日ごとの記録 | 作業 × 日付で 1 件。実績と備考が空なら消す |
+| `Data/WorkItemChanges.json` | 作業リストの変更の記録 | 追記だけ (古いものが先) |
+| `Data/WorkProgressLevels.json` | 作業リストの進捗度のラベル | 値は 0〜100 の 10 刻みで固定 (11 件)。無ければ初期値で生成 |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある (ID あり) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
 | `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。スヌーズ間隔・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |

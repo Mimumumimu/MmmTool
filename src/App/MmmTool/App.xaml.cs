@@ -23,6 +23,7 @@ using MmmTool.Links;
 using MmmTool.Reminders;
 using MmmTool.Shell;
 using MmmTool.Shell.Main;
+using MmmTool.WorkItems;
 
 namespace MmmTool;
 
@@ -92,6 +93,7 @@ public partial class App : Application
         services.AddFeaturePlugin<RemindersPlugin>(order: 2);
         services.AddFeaturePlugin<BacklogPlugin>(order: 5);
         services.AddFeaturePlugin<LinksPlugin>(order: 3);
+        services.AddFeaturePlugin<WorkItemsPlugin>(order: 6);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();

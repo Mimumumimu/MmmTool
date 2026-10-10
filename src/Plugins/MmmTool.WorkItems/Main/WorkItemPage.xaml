@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.WorkItems.Main.WorkItemPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.WorkItems.Main"
+    xmlns:sdk="using:MmmSdk.WinUI.Controls"
+    Loaded="OnLoaded">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (紫)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する) -->
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
+                    <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4D000000" />
+                    <SolidColorBrush x:Key="GroupTextBrush" Color="#0F6CBD" />
+                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#9C27B0" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="DailyLineBrush" Color="#4CC38A" />
+                    <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4DFFFFFF" />
+                    <SolidColorBrush x:Key="GroupTextBrush" Color="#7BBCFF" />
+                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#E0A8FF" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!-- 右クリックのメニュー (中身は開くときに、コードで作る)。入力欄にも同じものを付け、入力欄の既定のメニューを出さない -->
+            <MenuFlyout x:Key="RowMenu" />
+            <MenuFlyout x:Key="BlankMenu" />
+
+            <!-- カード (リンク・クリップボード転送のページと同じ) -->
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+
+            <!-- セルの入力欄 (枠と背景を出さず、触ったときだけ入力欄の見た目になる) -->
+            <Style x:Key="CellTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
+                <Setter Property="Padding" Value="8,6" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="IsSpellCheckEnabled" Value="False" />
+                <Setter Property="PlaceholderForeground" Value="{ThemeResource CellPlaceholderBrush}" />
+            </Style>
+
+            <Style x:Key="CellComboBoxStyle" TargetType="ComboBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="CellDatePickerStyle" TargetType="CalendarDatePicker">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="CornerRadius" Value="0" />
+            </Style>
+
+            <!-- 備考のセル (先頭の 1 行を出し、押すと入力欄が開く) -->
+            <Style x:Key="NoteButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="VerticalAlignment" Value="Stretch" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="Padding" Value="8,0" />
+                <Setter Property="CornerRadius" Value="0" />
+            </Style>
+
+            <!-- 計算値 (入力できない値)の表示 -->
+            <Style x:Key="CellTextStyle" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="8,0" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="Foreground" Value="{ThemeResource GroupTextBrush}" />
+            </Style>
+
+            <!-- 入力できる値の表示 (計算値の CellTextStyle より濃い文字色) -->
+            <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="8,0" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
+
+            <!-- 入力の手がかり (空のときだけ出す薄い文字) -->
+            <Style x:Key="HintTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ValueTextStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource CellPlaceholderBrush}" />
+            </Style>
+
+            <!--
+                セルは、普段は表示用 (…Cell)の文字だけを出し、入力するときだけ、入力用 (…Edit)に切り替わる。
+                表示用の外側の Border は、空のセルでも、クリックを受けるための透明な背景
+            -->
+
+            <!-- 名前 (木構造の列。字下げと開閉ボタンは表が付ける) -->
+            <DataTemplate x:Key="NameCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind Name, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        FontSize="{x:Bind local:WorkItemOptions.ProjectFontSize}"
+                        FontWeight="Bold"
+                        Foreground="{ThemeResource ProjectTextBrush}"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind Name, Mode=OneWay}"
+                        Visibility="{x:Bind IsProject, Mode=OneWay}" />
+                    <TextBlock
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource GroupTextBrush}"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind Name, Mode=OneWay}"
+                        Visibility="{x:Bind IsSubGroup, Mode=OneWay}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="NameEdit" x:DataType="local:WorkItemRow">
+                <TextBox
+                    x:Name="Col_Name"
+                    ContextFlyout="{StaticResource RowMenu}"
+                    FontWeight="{x:Bind local:WorkItemOptions.NameWeight(IsGroup, Level), Mode=OneWay}"
+                    GotFocus="OnCellGotFocus"
+                    InputScope="Hiragana"
+                    KeyDown="OnTextCellKeyDown"
+                    LostFocus="OnTextCellLostFocus"
+                    MaxLength="200"
+                    Style="{StaticResource CellTextBoxStyle}"
+                    Text="{x:Bind Name, Mode=OneWay}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="PriorityCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Style="{StaticResource ValueTextStyle}"
+                    Text="{x:Bind PriorityText, Mode=OneWay}"
+                    Visibility="{x:Bind IsWork}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="StartCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind StartText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind StartText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="StartEdit" x:DataType="local:WorkItemRow">
+                <CalendarDatePicker
+                    x:Name="Col_Start"
+                    Closed="OnDateClosed"
+                    ContextFlyout="{StaticResource RowMenu}"
+                    Date="{x:Bind StartValue, Mode=OneWay}"
+                    DateChanged="OnCellDateChanged"
+                    DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
+                    KeyDown="OnDateKeyDown"
+                    Loaded="OnDateLoaded"
+                    PlaceholderText=""
+                    Style="{StaticResource CellDatePickerStyle}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="DueCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind DueText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind DueText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="DueEdit" x:DataType="local:WorkItemRow">
+                <CalendarDatePicker
+                    x:Name="Col_Due"
+                    Closed="OnDateClosed"
+                    ContextFlyout="{StaticResource RowMenu}"
+                    Date="{x:Bind DueValue, Mode=OneWay}"
+                    DateChanged="OnCellDateChanged"
+                    DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
+                    KeyDown="OnDateKeyDown"
+                    Loaded="OnDateLoaded"
+                    PlaceholderText=""
+                    Style="{StaticResource CellDatePickerStyle}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="PlannedCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind PlannedText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource HintTextStyle}"
+                        Text="時間 (H)"
+                        Visibility="{x:Bind PlannedHintVisible, Mode=OneWay}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind PlannedText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="PlannedEdit" x:DataType="local:WorkItemRow">
+                <TextBox
+                    x:Name="Col_Planned"
+                    InputScope="Number"
+                    BeforeTextChanging="OnNumberBeforeTextChanging"
+                    ContextFlyout="{StaticResource RowMenu}"
+                    GotFocus="OnCellGotFocus"
+                    KeyDown="OnTextCellKeyDown"
+                    LostFocus="OnTextCellLostFocus"
+                    PlaceholderText="時間 (H)"
+                    Style="{StaticResource CellTextBoxStyle}"
+                    Text="{x:Bind PlannedText, Mode=OneWay}"
+                    TextAlignment="Right" />
+            </DataTemplate>
+
+            <!-- 実績 (累計)。作業・グループとも入力できない -->
+            <DataTemplate x:Key="ActualTotalCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource CellTextStyle}"
+                    Text="{x:Bind ActualTotalText, Mode=OneWay}" />
+            </DataTemplate>
+
+            <!-- 毎日入力する列 -->
+            <DataTemplate x:Key="StatusCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Style="{StaticResource ValueTextStyle}"
+                    Text="{x:Bind StatusText, Mode=OneWay}"
+                    Visibility="{x:Bind IsWork}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="ProgressCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind ProgressCellText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind ProgressCellText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ActualDayCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind ActualDayText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource HintTextStyle}"
+                        Text="時間 (H)"
+                        Visibility="{x:Bind ActualDayHintVisible, Mode=OneWay}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind ActualDayText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ActualDayEdit" x:DataType="local:WorkItemRow">
+                <TextBox
+                    x:Name="Col_ActualDay"
+                    InputScope="Number"
+                    BeforeTextChanging="OnNumberBeforeTextChanging"
+                    ContextFlyout="{StaticResource RowMenu}"
+                    GotFocus="OnCellGotFocus"
+                    KeyDown="OnTextCellKeyDown"
+                    LostFocus="OnTextCellLostFocus"
+                    PlaceholderText="時間 (H)"
+                    Style="{StaticResource CellTextBoxStyle}"
+                    Text="{x:Bind ActualDayText, Mode=OneWay}"
+                    TextAlignment="Right" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="DayNoteCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <Button
+                        x:Name="Col_DayNote"
+                        ContextFlyout="{StaticResource RowMenu}"
+                        Style="{StaticResource NoteButtonStyle}"
+                        Visibility="{x:Bind IsWork}">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Text="{x:Bind DayNoteFirstLine, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <Button.Flyout>
+                            <Flyout
+                                Closed="OnNoteFlyoutClosed"
+                                Opened="OnNoteFlyoutOpened"
+                                Opening="OnNoteFlyoutOpening"
+                                Placement="BottomEdgeAlignedLeft">
+                                <TextBox
+                                    Width="360"
+                                    Height="140"
+                                    AcceptsReturn="True"
+                                    InputScope="Hiragana"
+                                    MaxLength="1000"
+                                    TextWrapping="Wrap" />
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
+            </DataTemplate>
+
+            <DataTemplate x:Key="NoteCell" x:DataType="local:WorkItemRow">
+                <Grid>
+                    <Button
+                        x:Name="Col_Note"
+                        ContextFlyout="{StaticResource RowMenu}"
+                        Style="{StaticResource NoteButtonStyle}">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Text="{x:Bind NoteFirstLine, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <Button.Flyout>
+                            <Flyout
+                                Closed="OnNoteFlyoutClosed"
+                                Opened="OnNoteFlyoutOpened"
+                                Opening="OnNoteFlyoutOpening"
+                                Placement="BottomEdgeAlignedLeft">
+                                <TextBox
+                                    Width="360"
+                                    Height="140"
+                                    AcceptsReturn="True"
+                                    InputScope="Hiragana"
+                                    MaxLength="1000"
+                                    TextWrapping="Wrap" />
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
+            </DataTemplate>
+
+            <!-- 右のペインの項目 -->
+            <DataTemplate x:Key="RecordTemplate" x:DataType="local:WorkRecordItem">
+                <StackPanel Padding="0,4" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{x:Bind DateText}" />
+                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="{x:Bind HoursText}" />
+                    </StackPanel>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Note}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ChangeTemplate" x:DataType="local:WorkChangeItem">
+                <StackPanel Padding="0,4" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{x:Bind Field}" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind TimeText}"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Text}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </DataTemplate>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="0" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="作業リスト" />
+
+        <!-- エラー (操作のたびに、前の分は消える) -->
+        <InfoBar
+            Grid.Row="1"
+            Grid.RowSpan="3"
+            VerticalAlignment="Top"
+            Canvas.ZIndex="10"
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            Severity="Error" />
+
+        <!-- 入力日と、表示の操作。主な操作は表への入力なので、強調色のボタンは置かない -->
+        <Grid Grid.Row="2" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="入力日" />
+                <Button
+                    AutomationProperties.Name="前の日"
+                    Command="{x:Bind ViewModel.PreviousDayCommand}"
+                    ToolTipService.ToolTip="前の日">
+                    <FontIcon FontSize="12" Glyph="&#xE76B;" />
+                </Button>
+                <CalendarDatePicker x:Name="InputDatePicker" DateChanged="OnInputDateChanged" />
+                <Button
+                    AutomationProperties.Name="次の日"
+                    Command="{x:Bind ViewModel.NextDayCommand}"
+                    ToolTipService.ToolTip="次の日">
+                    <FontIcon FontSize="12" Glyph="&#xE76C;" />
+                </Button>
+                <Button Command="{x:Bind ViewModel.TodayCommand}" Content="今日" />
+            </StackPanel>
+
+            <StackPanel
+                Grid.Column="2"
+                Orientation="Horizontal"
+                Spacing="8">
+                <ToggleButton Content="履歴" IsChecked="{x:Bind ViewModel.IsPaneOpen, Mode=TwoWay}" />
+                <Button x:Name="ColumnsButton" Content="表示列" />
+                <Button
+                    Command="{x:Bind ViewModel.EditProgressLabelsCommand}"
+                    Content="設定"
+                    Visibility="{x:Bind ViewModel.CanEditProgressLabels}" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 表。行が無いときは、追加のしかたを案内する (追加のボタンが無いため) -->
+            <Border Padding="1" Style="{StaticResource CardStyle}">
+                <Grid>
+                    <sdk:TreeGridView x:Name="TreeGrid" />
+                    <TextBlock
+                        Margin="0,64,0,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        IsHitTestVisible="False"
+                        Text="右クリックして、案件を追加します"
+                        Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+                </Grid>
+            </Border>
+
+            <!-- 右のペイン: 選んだ行の履歴 -->
+            <Border
+                Grid.Column="1"
+                Width="320"
+                Padding="16"
+                Style="{StaticResource CardStyle}"
+                Visibility="{x:Bind ViewModel.IsPaneOpen, Mode=OneWay}">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        Text="{x:Bind ViewModel.HistoryTitle, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="日ごとの記録"
+                        Visibility="{x:Bind ViewModel.HasSelectedWork, Mode=OneWay}" />
+                    <ListView
+                        Grid.Row="2"
+                        ItemTemplate="{StaticResource RecordTemplate}"
+                        ItemsSource="{x:Bind ViewModel.Records}"
+                        SelectionMode="None"
+                        Visibility="{x:Bind ViewModel.HasSelectedWork, Mode=OneWay}" />
+
+                    <TextBlock
+                        Grid.Row="3"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="変更の記録" />
+                    <ListView
+                        Grid.Row="4"
+                        ItemTemplate="{StaticResource ChangeTemplate}"
+                        ItemsSource="{x:Bind ViewModel.Changes}"
+                        SelectionMode="None" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

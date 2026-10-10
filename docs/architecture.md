@@ -10,7 +10,7 @@
 | `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (送信の処理・送信の状況の画面)。**外部へ送る処理は、ここだけに置く** (MmmTool は参照しない)。`MmmTool.Reminders.Core` の型は使うが、`MmmTool.Reminders` の画面は参照しない |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)。MmmTool と MmmBatch で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
 | `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmBatch が使う DB の実装 (`ReminderSendStatus` と、送る対象を読む問い合わせ)。MmmTool には参照させない |
-| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders の 5 つ |
+| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders / WorkItems の 6 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders)と `MmmTool.Users.Core` |
@@ -28,7 +28,7 @@
 
 (`src/` からの相対)
 ```
-Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Reminders)
+Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Reminders / WorkItems)
 Plugins/MmmTool.<機能>.Core/Json/       JSON の実装 (Json<名前>Repository)と機能ごとのソース生成 Context
 Plugins/MmmTool.<機能>/                 機能全体のつなぎ (<機能>Plugin・<機能>Startup・<機能>TrayMenuSource など、ホストへ登録するもの)と、
                                         複数の画面で共有するもの (ViewModel の基底クラス・行の書式・I<機能>DialogService)だけ
@@ -60,13 +60,13 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 ## DI と起動
 - Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能 (`AddFeaturePlugin<<機能>Plugin>(order: n)`)」を呼ぶだけ
 - SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
-- 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる (CLI補助 1 → リマインダー 2 → リンク 3 → クリップボード転送 4 → Backlog 5)。サイドバーの項目 (上部・下部それぞれ。上部は CLI補助 → リマインダー → リンク → クリップボード転送 → Backlog)・トレイメニューの項目 (リマインダーがリンクより上)・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ (同じ値は登録順)。起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク)に実行する
+- 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる (CLI補助 1 → リマインダー 2 → リンク 3 → クリップボード転送 4 → Backlog 5 → 作業リスト 6)。サイドバーの項目 (上部・下部それぞれ。上部は CLI補助 → リマインダー → リンク → クリップボード転送 → Backlog → 作業リスト)・トレイメニューの項目 (リマインダーがリンクより上)・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ (同じ値は登録順)。起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → 作業リスト)に実行する
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
-- 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用。DB に替えるなら、リマインダーなど該当機能の行を差し替える
+- 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用 (作業リストは、DB の保存先を作るまでローカルの JSON)。DB に替えるなら、リマインダーなど該当機能の行を差し替える
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
 - 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog)は、`<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録し (保存が無い初回起動のオン・オフが `defaultEnabled`。既定はオン。この 3 機能はオフ)、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
-- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み)。決めた理由は下の「決定の理由」の「起動時の準備」
+- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業リストの読み込み)。決めた理由は下の「決定の理由」の「起動時の準備」
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)・`ShowModalAsync`(開いている間モーダルとして覚える)・`Attach`(`ContentDialog` に親の画面とテーマを渡す)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`
 - 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
 
@@ -120,7 +120,7 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - 最終形にどう近づくか: 新しい機能・画面を足すときの置き場所が、迷わず決まる
 
 ### 機能を、プラグインのライブラリに分ける
-- 機能 (リンク・Backlog・クリップボード転送・リマインダー・CLI補助)を、機能ごとのライブラリ (`src/Plugins/MmmTool.<機能>` と、UI に依存しない `.Core`)に分け、ホスト (`MmmTool`)は、使う機能のライブラリを参照して `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する。必要な機能だけを参照すれば、その機能だけを持つ配布物になる
+- 機能 (リンク・Backlog・クリップボード転送・リマインダー・CLI補助・作業リスト)を、機能ごとのライブラリ (`src/Plugins/MmmTool.<機能>` と、UI に依存しない `.Core`)に分け、ホスト (`MmmTool`)は、使う機能のライブラリを参照して `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する。必要な機能だけを参照すれば、その機能だけを持つ配布物になる
 - 機能がホストへ入るときの型 (`IFeaturePlugin`・サイドバーのページ・設定の部品・起動時の準備・機能のオン・オフ・トレイメニューの登録の口)は、SDK に置く。機能はホスト (exe)を参照できないため。ホスト側の値 (アプリの名前・データ・アイコンの置き場所・作ったページの参照)は、SDK の `AppEnvironment`・`IPageCache`・`IFeatureStatus` を DI から受け取る
 - 設定ページ・DEBUG ページは、全機能の設定を並べる側・開発用なので、ホストに残す (`src/App/MmmTool/Features/`)
 - サイドバー・トレイ・設定の並びは、ホストが `AddFeaturePlugin` に渡す並び順の値 (`order`)で決まる。起動時の準備は、登録順のまま

@@ -76,6 +76,12 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 接続用のパスワード (検証用に簡単なもの)を、本番用に替えるか (`ALTER LOGIN [MmmTool] WITH PASSWORD = N'新しいもの'`。アプリの設定画面で入れ直す)
 - 方向だけ決めている後回し: ユーザーごとの設定を DB に置くときは、縦持ち (`(UserId, SettingKey)` の主キー・キーは `Reminder.SnoozeIntervalMinutes` のような文字列・値は JSON)にし、`ISettingsStore` と同じ形で読み書きする
 
+### 作業リスト (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
+ローカルの保存 (JSON)で動く形まで実装済み (2026-10-10。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、Core の保存・集計・並べ替え・移動・削除は確かめた)。画面は、実機で一度も動かしていない。
+- **実機の確認**: `TreeGridView`(固定の列・見出しの固定・仮想化・右クリックのメニュー・入力欄の確定)と、ページの全体。確認の項目は、仕様の「画面」と SDK の `docs/controls.md` の「TreeGridView」。固定の列がうまく動かないときは、固定なしで出す形に直す
+- **DB モード**: 表 4 つ (`dbo.WorkItem`・`WorkRecord`・`WorkItemChange`・`WorkProgress`。設計は仕様の「DB モード (未実装)」)・`MmmTool.Data` の行の型・`SqlServerWorkItemRepository`(自分の分だけ読み書き)・作成スクリプト (`Sql/` に番号つきで足す)・DB モードで「設定」ボタンを隠す (`CanEditProgressLabels` を false)。DB の表の作成は、確認することが多いので、ユーザーと相談して進める
+- 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
+
 ### 調査中
 - **CLI補助の送信で、まれに Enter が効かない** (貼り付けが `[Pasted text …]` のまま入力欄に残る。2026-10-09 から)。調査用の記録を SDK に入れてある (`TEMP-LOG` の印の行。master に入っている。`%TEMP%\MmmTool\terminal-submit.log`)。これまでの失敗は、どれも添付つきの送信。失敗の記録が取れたら、Enter を出す条件を直し、記録を外す。経緯と方針は [docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「送信の Enter は、貼り付けの出力が落ち着いてから送る」
 

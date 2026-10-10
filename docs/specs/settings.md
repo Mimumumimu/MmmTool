@@ -14,7 +14,7 @@
 - `SettingsViewModel` はページ全体のことだけ：タイトルと、設定ファイルを読めなかったとき (`ISettingsStore.LoadError`)の InfoBar。機能のオン・オフの一覧は、部品 (`Features/Settings/FeatureList/FeatureListControl` ＋ `FeatureListViewModel` ＋ `FeatureItem`)が持つ。読めなかったときは、各部品が、自分のサービスの `IsReadOnly` で入力欄を無効にする (元のファイルを上書きで消さないため)
 
 ## 機能のオン・オフ
-- 「全般」の下に、機能の一覧を「機能」の見出しの下に出す (`SettingsCard`。左に名前・右に操作)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送・Backlog)を、機能の並び順の値の順 (CLI補助 → クリップボード転送 → Backlog)に `ToggleSwitch`(オン / オフ)で並べる。リンク・リマインダーはオフにできないので出さない。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`FeatureListViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
+- 「全般」の下に、機能の一覧を「機能」の見出しの下に出す (`SettingsCard`。左に名前・右に操作)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送・Backlog・作業リスト)を、機能の並び順の値の順 (CLI補助 → クリップボード転送 → Backlog → 作業リスト)に `ToggleSwitch`(オン / オフ)で並べる。リンク・リマインダーはオフにできないので出さない。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`FeatureListViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
 - 切り替えはすぐ反映する (再起動は要らない)。サイドバー・トレイメニュー・設定ページの部品が、`FeatureService.Changed` で変わる。オフにした機能のページは捨て (`PageProvider.EvictDisabledPages`)、表示中なら先頭のページへ移る。オンにしたときは、その機能の起動時の準備を実行する
 - 状態は設定ストアの `Feature.<キー>.Enabled`(bool)。保存が無い機能はオン
 - CLI補助を、ターミナルが動いている間にオフにするときは、確認ダイアログを出す (「実行中のターミナルと、その中の作業が終了します」。`CliAssistDisableConfirmation`)。ターミナルが動いていなければ確認しない。取りやめると、スイッチは元に戻る
