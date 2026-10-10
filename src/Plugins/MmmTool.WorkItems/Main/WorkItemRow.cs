@@ -35,8 +35,8 @@ public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableO
     /// <summary>案件か (最上位のグループ)</summary>
     public bool IsProject => IsGroup && Level == 0;
 
-    /// <summary>行に重ねる色 (案件だけ、紫の半透明。グループ・作業は、重ねない)</summary>
-    public Windows.UI.Color? RowTint => IsProject ? Windows.UI.Color.FromArgb(0x30, 0xB0, 0x50, 0xD0) : null;
+    /// <summary>行に重ねる色 (案件だけ、青の半透明。グループ・作業は、重ねない)</summary>
+    public Windows.UI.Color? RowTint => IsProject ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0) : null;
 
     /// <summary>案件の中のグループか</summary>
     public bool IsSubGroup => IsGroup && Level > 0;

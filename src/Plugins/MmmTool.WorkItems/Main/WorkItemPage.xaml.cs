@@ -75,6 +75,7 @@ public sealed partial class WorkItemPage : Page
         TreeGrid.RowContextFlyout = rowMenu;
         TreeGrid.BlankContextFlyout = blankMenu;
         TreeGrid.CellInvoked += OnCellInvoked;
+        TreeGrid.EditCanceled += (_, e) => (e.Row as WorkItemRow)?.Revert();
         TreeGrid.ItemsSource = ViewModel.Rows;
         TreeGrid.RowToggleRequested += (_, e) => ViewModel.ToggleAsync((WorkItemRow)e.Row).Forget();
         TreeGrid.SelectedRowChanged += (_, _) => ViewModel.SelectedRow = TreeGrid.SelectedRow as WorkItemRow;
@@ -174,19 +175,18 @@ public sealed partial class WorkItemPage : Page
     private bool FitColumns()
     {
         var rows = ViewModel.Rows;
-        var progress = rows.FirstOrDefault()?.ProgressOptions ?? [];
         var changed = false;
         foreach (var column in _columns)
         {
             var width = column.Key switch
             {
                 "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40).DefaultIfEmpty(0).Max()),
-                "Priority" => Math.Max(HeaderWidth(column), WidestWidth(WorkItemOptions.Priorities) + 48),
+                "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
                 "Planned" => Math.Max(HeaderWidth(column), TextWidth("時間 (H)", Microsoft.UI.Text.FontWeights.Normal) + 24),
                 "ActualTotal" => Math.Max(HeaderWidth(column), TextWidth("0000.00", Microsoft.UI.Text.FontWeights.Normal) + 24),
-                "Status" => Math.Max(HeaderWidth(column), WidestWidth(WorkItemOptions.Statuses) + 48),
-                "Progress" => Math.Max(HeaderWidth(column), WidestWidth(progress) + 48),
+                "Status" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.StatusText)) + 24),
+                "Progress" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.ProgressCellText)) + 24),
                 "ActualDay" => Math.Max(HeaderWidth(column), TextWidth("時間 (H)", Microsoft.UI.Text.FontWeights.Normal) + 24),
                 "DayNote" => Math.Min(NoteMaxWidth, Math.Max(HeaderWidth(column), rows.Select(r => TextWidth(r.DayNoteFirstLine, Microsoft.UI.Text.FontWeights.Normal) + 28).DefaultIfEmpty(0).Max())),
                 "Note" => Math.Min(NoteMaxWidth, Math.Max(HeaderWidth(column), rows.Select(r => TextWidth(r.NoteFirstLine, Microsoft.UI.Text.FontWeights.Normal) + 28).DefaultIfEmpty(0).Max())),
@@ -268,7 +268,7 @@ public sealed partial class WorkItemPage : Page
         }
         else
         {
-            // 日付を消されたときは、今の入力日に戻す (入力日は、いつも決まっている)
+            // 日付がクリアされたときは、今の入力日に戻す (入力日は、いつも決まっている)
             sender.Date = ToOffset(ViewModel.InputDate);
         }
     }
@@ -327,7 +327,7 @@ public sealed partial class WorkItemPage : Page
     /// <param name="args">日付の変更の情報</param>
     /// <remarks>
     /// 行の使い回しで値が差し替わったときも起きるので、行の値と同じなら何もしない。
-    /// 日付を消すときは、Delete キーか Backspace キーを押す (<see cref="OnDateKeyDown"/>)。
+    /// 日付をクリアするときは、行の右クリックのメニューの「日付をクリア」を使う。
     /// </remarks>
     private void OnCellDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
@@ -335,18 +335,6 @@ public sealed partial class WorkItemPage : Page
         {
             var text = args.NewDate is { } date ? date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) : "";
             ViewModel.CommitTextAsync(row, ColumnKey(sender), text).Forget();
-        }
-    }
-
-    /// <summary>日付の選択欄で Delete キーか Backspace キーが押されたら、日付を消す</summary>
-    /// <param name="sender">日付の選択欄</param>
-    /// <param name="e">キー入力の情報</param>
-    private void OnDateKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (sender is CalendarDatePicker picker && e.Key is VirtualKey.Delete or VirtualKey.Back)
-        {
-            e.Handled = true;
-            picker.Date = null;
         }
     }
 
@@ -424,6 +412,22 @@ public sealed partial class WorkItemPage : Page
     {
         if (sender is Flyout { Target: Button button, Content: TextBox box } && TreeGridView.GetRow(button) is WorkItemRow row)
         {
+            _noteTarget = button;
+            box.Text = WorkItemViewModel.GetNote(row, ColumnKey(button));
+        }
+    }
+
+    /// <summary>備考の入れ物を開いているボタン</summary>
+    private Button? _noteTarget;
+
+    /// <summary>備考の入力欄で Esc が押されたら、入力を取りやめる (元の備考に戻す。入れ物は、そのまま閉じる)</summary>
+    /// <param name="sender">備考の入力欄</param>
+    /// <param name="e">キー入力の情報</param>
+    /// <remarks>閉じるときの確定では、元の備考と同じなので、保存されない。表のセルの Esc と同じ動き。</remarks>
+    private void OnNoteKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape && sender is TextBox box && _noteTarget is { } button && TreeGridView.GetRow(button) is WorkItemRow row)
+        {
             box.Text = WorkItemViewModel.GetNote(row, ColumnKey(button));
         }
     }
@@ -476,6 +480,13 @@ public sealed partial class WorkItemPage : Page
             AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkItemKind.Group, row));
         }
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkItemKind.Work, row));
+
+        // 右クリックした所が、作業の日付のセルのときだけ
+        if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""));
+        }
 
         menu.Items.Add(new MenuFlyoutSeparator());
         AddItem(menu, "上へ", () => ViewModel.ShiftAsync(row, -1), ViewModel.CanShift(row, -1));

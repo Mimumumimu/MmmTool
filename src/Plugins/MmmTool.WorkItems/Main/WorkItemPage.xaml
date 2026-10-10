@@ -10,18 +10,22 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (紫)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する) -->
+                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、白のまま。灰色は、入力できないように見えるため) -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
                     <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4D000000" />
                     <SolidColorBrush x:Key="GroupTextBrush" Color="#0F6CBD" />
-                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#9C27B0" />
+                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#0B4F8F" />
+                    <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#DDEAFA" />
+                    <SolidColorBrush x:Key="InputRowBackgroundBrush" Color="#EAF2FC" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#4CC38A" />
                     <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4DFFFFFF" />
                     <SolidColorBrush x:Key="GroupTextBrush" Color="#7BBCFF" />
-                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#E0A8FF" />
+                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#B5D8FF" />
+                    <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#1E2B3C" />
+                    <SolidColorBrush x:Key="InputRowBackgroundBrush" Color="#20262F" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
@@ -164,7 +168,6 @@
                     Date="{x:Bind StartValue, Mode=OneWay}"
                     DateChanged="OnCellDateChanged"
                     DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
-                    KeyDown="OnDateKeyDown"
                     Loaded="OnDateLoaded"
                     PlaceholderText=""
                     Style="{StaticResource CellDatePickerStyle}" />
@@ -191,7 +194,6 @@
                     Date="{x:Bind DueValue, Mode=OneWay}"
                     DateChanged="OnCellDateChanged"
                     DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
-                    KeyDown="OnDateKeyDown"
                     Loaded="OnDateLoaded"
                     PlaceholderText=""
                     Style="{StaticResource CellDatePickerStyle}" />
@@ -300,6 +302,7 @@
                 <Grid>
                     <Button
                         x:Name="Col_DayNote"
+                        IsTabStop="False"
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}"
                         Visibility="{x:Bind IsWork}">
@@ -318,6 +321,7 @@
                                     Height="140"
                                     AcceptsReturn="True"
                                     InputScope="Hiragana"
+                                    KeyDown="OnNoteKeyDown"
                                     MaxLength="1000"
                                     TextWrapping="Wrap" />
                             </Flyout>
@@ -330,6 +334,7 @@
                 <Grid>
                     <Button
                         x:Name="Col_Note"
+                        IsTabStop="False"
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}">
                         <TextBlock
@@ -347,6 +352,7 @@
                                     Height="140"
                                     AcceptsReturn="True"
                                     InputScope="Hiragana"
+                                    KeyDown="OnNoteKeyDown"
                                     MaxLength="1000"
                                     TextWrapping="Wrap" />
                             </Flyout>
@@ -462,7 +468,8 @@
             <!-- 表。行が無いときは、追加のしかたを案内する (追加のボタンが無いため) -->
             <Border Padding="1" Style="{StaticResource CardStyle}">
                 <Grid>
-                    <sdk:TreeGridView x:Name="TreeGrid" />
+                    <sdk:TreeGridView x:Name="TreeGrid" FrozenBackground="{ThemeResource InputRowBackgroundBrush}"
+                        SummaryBackground="{ThemeResource GroupRowBackgroundBrush}" />
                     <TextBlock
                         Margin="0,64,0,0"
                         HorizontalAlignment="Center"
