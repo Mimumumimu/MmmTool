@@ -6,7 +6,7 @@
 
 **仮の決定 (ユーザー確認待ち)**: 設計の案から変えた点・案に無かった点を、実装のときに、実装者が仮に決めた。本文では「(仮)」を付けてある。画面の文言 (ダイアログのタイトル・削除の確認文・エラーの文・「新しい作業」など)も、すべて仮。決まったら、「(仮)」を外す。
 
-**今の状態**: 保存は、下の「データ」の設計どおり (ローカルは SQLite、DB モードは SQL Server。表は同じ。全員の分を共有して見る。選んだ案件だけを読む)に実装した (2026-10-11)。JSON の保存は廃止した。ビルドは通り、SQLite の保存は、確認用のコンソール (サービスと SQLite の組み合わせ。追加・更新・記録と累計・同時書き込み・移動・検索・選び・差分・削除・コードマスタ・旧版からの移行・壊れたファイル・作り直しのスクリプト)で確かめた。SQL Server の保存は、書いただけで、まったく試していない (表の作成スクリプトも流していない。ユーザーが別途試す。2026-10-11)。ローカルモード (SQLite)の画面は、ユーザーが実機で動かして確かめた (2026-10-11)。画面 (表・選ぶフライアウト・案件の管理のウィンドウ)は、実機で一度も動かしていない。状態・進捗度・優先度の選択肢を、コードマスタ (表 `CodeMaster`)に移した (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通った。SQLite は確認用のコンソールと、デバッグ版のデータの移行で確かめた。SQL Server は書いただけで、流していない。画面は未確認)。
+**今の状態**: 保存は、下の「データ」の設計どおり (ローカルは SQLite、DB モードは SQL Server。表は同じ。全員の分を共有して見る。選んだ案件だけを読む)に実装した (2026-10-11)。JSON の保存は廃止した。ビルドは通り、SQLite の保存は、確認用のコンソール (サービスと SQLite の組み合わせ。追加・更新・記録と累計・同時書き込み・移動・検索・選び・差分・削除・コードマスタ・旧版からの移行・壊れたファイル・作り直しのスクリプト)で確かめた。SQL Server の保存は、表を作成し (`mimumu202511` の `MmmTool`)、案件・グループ・作業・日ごとの記録の保存と日付のクリアを、実機で確かめた (2026-10-11)。複数人での同時の更新・別の PC の更新の取り込み・`RebuildActualTotal.sql` は未確認。ローカルモード (SQLite)の画面は、ユーザーが実機で動かして確かめた (2026-10-11)。画面 (表・選ぶフライアウト・案件の管理のウィンドウ)は、実機で一度も動かしていない。状態・進捗度・優先度の選択肢を、コードマスタ (表 `CodeMaster`)に移した (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通った。SQLite は確認用のコンソールと、デバッグ版のデータの移行で確かめた。SQL Server は、表を作成して保存を確かめた。画面は未確認)。
 
 ## 目的と使い方
 - 案件・区分・作業を、段数に制限のない木構造で持つ。表の 1 列目が木構造、右の列が入力欄で、1 画面に収める
@@ -236,7 +236,7 @@
 | --- | --- |
 | `WorkProject` | 案件マスター。`Name`(200)・`Note`(1000) |
 | `WorkGroup` | グループ。`ProjectId`・`ParentGroupId`(0 は案件の直下)・`SortOrder`・`Name`(200)・`Note`(1000) |
-| `WorkItem` | 作業。`ProjectId`・`GroupId`(0 は案件の直下)・`SortOrder`・`Name`(200)・`Note`(1000)・`PriorityCodeNo`・`StartDate`・`DueDate`(ない日は `9999-12-31`)・`StatusCodeNo`・`ProgressCodeNo`・`PlannedHours`(0 は予定なし)・`CompletedOn`(未完了は `9999-12-31`)・`ActualTotalHours`(実績の累計) |
+| `WorkItem` | 作業。`ProjectId`・`GroupId`(0 は案件の直下)・`SortOrder`・`Name`(200)・`Note`(1000)・`PriorityCodeNo`・`StartDate`(ない日は `0001-01-01`)・`DueDate`(ない日は `9999-12-31`)・`StatusCodeNo`・`ProgressCodeNo`・`PlannedHours`(0 は予定なし)・`CompletedOn`(未完了は `9999-12-31`)・`ActualTotalHours`(実績の累計) |
 | `WorkRecord` | 日ごとの記録。`ProjectId`・`WorkItemId`・`Date`・`Hours`・`Note`(1000)。`Id` は `bigint` |
 | `WorkProjectSelection` | 利用者が表示する案件に選んだ記録。`UserId`・`ProjectId` |
 | `CodeMaster` | コードマスタ (状態・進捗度・優先度の選択肢など)。`FeatureNo`・`CategoryNo`・`CodeNo`・`SortOrder`・`NumericValue`・`Name`(100)。「コードマスタ」の節 |

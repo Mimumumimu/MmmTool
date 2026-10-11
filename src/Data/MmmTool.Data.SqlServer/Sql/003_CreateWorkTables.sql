@@ -46,7 +46,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_WorkGroup_ProjectId_U
 CREATE INDEX IX_WorkGroup_ProjectId_UpdatedAt ON dbo.WorkGroup (ProjectId, UpdatedAt);
 GO
 
--- 作業。GroupId の 0 は案件の直下。日付のない日は 9999-12-31、PlannedHours の 0 は予定なし、CompletedOn の 9999-12-31 は未完了
+-- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、PlannedHours の 0 は予定なし、CompletedOn の 9999-12-31 は未完了
 -- ActualTotalHours は、その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く)
 -- PriorityCodeNo・StatusCodeNo・ProgressCodeNo は、コードマスタ (004_CreateCodeMaster.sql の CodeMaster)のコード番号 (区分 3・1・2)。外部キーは使わない
 IF OBJECT_ID(N'dbo.WorkItem', N'U') IS NULL
@@ -64,7 +64,7 @@ CREATE TABLE dbo.WorkItem
     Name             nvarchar(200)   NOT NULL CONSTRAINT CK_WorkItem_Name CHECK (LEN(Name) >= 1),
     Note             nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkItem_Note DEFAULT (N''),
     PriorityCodeNo   int             NOT NULL CONSTRAINT DF_WorkItem_PriorityCodeNo DEFAULT (2) CONSTRAINT CK_WorkItem_PriorityCodeNo CHECK (PriorityCodeNo >= 1),
-    StartDate        date            NOT NULL CONSTRAINT DF_WorkItem_StartDate DEFAULT ('9999-12-31'),
+    StartDate        date            NOT NULL CONSTRAINT DF_WorkItem_StartDate DEFAULT ('0001-01-01'),
     DueDate          date            NOT NULL CONSTRAINT DF_WorkItem_DueDate DEFAULT ('9999-12-31'),
     StatusCodeNo     int             NOT NULL CONSTRAINT DF_WorkItem_StatusCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_StatusCodeNo CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   int             NOT NULL CONSTRAINT DF_WorkItem_ProgressCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_ProgressCodeNo CHECK (ProgressCodeNo >= 1),

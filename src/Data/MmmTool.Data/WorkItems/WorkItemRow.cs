@@ -6,7 +6,7 @@ namespace MmmTool.Data.WorkItems;
 /// DB の <c>WorkItem</c> (作業)の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkItem"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 日付の「ない」は <c>9999-12-31</c>、予定時間の「ない」は 0 (NULL は使わない。理由は docs/specs/database.md)。
+/// 日付の「ない」は <c>9999-12-31</c> (開始日だけ <c>0001-01-01</c>)、予定時間の「ない」は 0 (NULL は使わない。理由は docs/specs/database.md)。
 /// 変換は <see cref="FromWorkItem"/> と <see cref="ToWorkItem"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。
 /// </remarks>
 public sealed record WorkItemRow
@@ -47,8 +47,8 @@ public sealed record WorkItemRow
     /// <summary>優先度のコード番号 (コードマスタの区分「優先度」。高 = 1・中 = 2・低 = 3)</summary>
     public int PriorityCodeNo { get; init; } = (int)WorkItemPriority.Normal;
 
-    /// <summary>開始日 (ない日は <c>9999-12-31</c>)</summary>
-    public DateOnly StartDate { get; init; } = WorkRowValues.NoDate;
+    /// <summary>開始日 (ない日は <c>0001-01-01</c>)</summary>
+    public DateOnly StartDate { get; init; } = WorkRowValues.NoStartDate;
 
     /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
     public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
@@ -71,7 +71,7 @@ public sealed record WorkItemRow
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="item">作業</param>
     /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
-    /// <exception cref="ArgumentException">DB に入れられない値 (長さ・範囲の外、9999-12-31 の日付など)。</exception>
+    /// <exception cref="ArgumentException">DB に入れられない値 (長さ・範囲の外、「ない」を表す日付など)。</exception>
     public static WorkItemRow FromWorkItem(WorkItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -93,7 +93,7 @@ public sealed record WorkItemRow
             Name = WorkRowValues.CheckText(item.Name, "作業の名前", WorkRowValues.NameMax, required: true),
             Note = WorkRowValues.CheckText(item.Note, "作業の備考", WorkRowValues.NoteMax),
             PriorityCodeNo = (int)item.Priority,
-            StartDate = WorkRowValues.FromDate(item.StartDate, "開始日"),
+            StartDate = WorkRowValues.FromDate(item.StartDate, "開始日", WorkRowValues.NoStartDate),
             DueDate = WorkRowValues.FromDate(item.DueDate, "期限日"),
             StatusCodeNo = (int)item.Status,
             ProgressCodeNo = item.ProgressCodeNo,
@@ -114,7 +114,7 @@ public sealed record WorkItemRow
         Name = Name,
         Note = Note,
         Priority = (WorkItemPriority)PriorityCodeNo,
-        StartDate = WorkRowValues.ToDate(StartDate),
+        StartDate = WorkRowValues.ToDate(StartDate, WorkRowValues.NoStartDate),
         DueDate = WorkRowValues.ToDate(DueDate),
         Status = (WorkItemStatus)StatusCodeNo,
         ProgressCodeNo = ProgressCodeNo,

@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS WorkItem
     Name             TEXT    NOT NULL CHECK (length(Name) BETWEEN 1 AND 200),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000),
     Priority         INTEGER NOT NULL DEFAULT 2 CHECK (Priority BETWEEN 1 AND 3),
-    StartDate        TEXT    NOT NULL DEFAULT '9999-12-31',
+    StartDate        TEXT    NOT NULL DEFAULT '0001-01-01',
     DueDate          TEXT    NOT NULL DEFAULT '9999-12-31',
     Status           INTEGER NOT NULL DEFAULT 1 CHECK (Status BETWEEN 1 AND 3),
     Progress         INTEGER NOT NULL DEFAULT 0 CHECK (Progress BETWEEN 0 AND 100),

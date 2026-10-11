@@ -1,7 +1,7 @@
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>作業 (入力する行。子を持たない。保存するデータ。保存先に依存しない)</summary>
-/// <remarks>日付・予定時間・完了日の「無い」は null (保存先では <c>9999-12-31</c>・0 に置き換える)。</remarks>
+/// <remarks>日付・予定時間・完了日の「無い」は null (保存先では、開始日は <c>0001-01-01</c>、期限日・完了日は <c>9999-12-31</c>、予定時間は 0 に置き換える)。</remarks>
 public sealed record WorkItem
 {
     /// <summary>番号 (保存先が決める。0 は、まだ保存していない)</summary>

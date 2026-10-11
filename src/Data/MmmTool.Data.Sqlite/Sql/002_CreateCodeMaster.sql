@@ -65,7 +65,7 @@ CREATE TABLE WorkItem_New
     Name             TEXT    NOT NULL CHECK (length(Name) BETWEEN 1 AND 200),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000),
     PriorityCodeNo   INTEGER NOT NULL DEFAULT 2 CHECK (PriorityCodeNo >= 1),
-    StartDate        TEXT    NOT NULL DEFAULT '9999-12-31',
+    StartDate        TEXT    NOT NULL DEFAULT '0001-01-01',
     DueDate          TEXT    NOT NULL DEFAULT '9999-12-31',
     StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
