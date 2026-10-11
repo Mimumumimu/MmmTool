@@ -53,6 +53,7 @@ public sealed partial class WorkItemPage : Page
         _columns =
         [
             Column("Name", "名前", 260, "NameCell", frozen: true, tree: true),
+            Column("Assignee", "担当", 96, "AssigneeCell", frozen: true),
             Column("Priority", "優先度", 72, "PriorityCell", frozen: true),
             Column("Start", "開始日", 132, "StartCell", frozen: true),
             Column("Due", "期限日", 132, "DueCell", frozen: true),
@@ -181,7 +182,7 @@ public sealed partial class WorkItemPage : Page
             IsTree = tree,
             CellTemplate = (DataTemplate)Resources[templateKey],
             EditTemplate = Resources.TryGetValue(EditKey(templateKey), out var edit) ? (DataTemplate)edit : null,
-            IsInvokable = key is "Priority" or "Status" or "Progress",
+            IsInvokable = key is "Priority" or "Status" or "Progress" or "Assignee",
         };
 
     /// <summary>表示用のセルの見た目のキーから、入力用のキーを返す</summary>
@@ -195,7 +196,7 @@ public sealed partial class WorkItemPage : Page
         var lineBrush = (Brush)Resources["DailyLineBrush"];
         foreach (var column in _columns)
         {
-            column.IsVisible = column.Key == "Name" || ViewModel.IsColumnVisible(column.Key);
+            column.IsVisible = column.Key == "Name" || (ViewModel.IsColumnVisible(column.Key) && (column.Key != "Assignee" || ViewModel.HasAssignees));
             column.HeaderUnderline = DailyKeys.Contains(column.Key) ? lineBrush : null;
         }
 
@@ -218,6 +219,7 @@ public sealed partial class WorkItemPage : Page
             var width = column.Key switch
             {
                 "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40).DefaultIfEmpty(0).Max()),
+                "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
                 "Planned" => Math.Max(HeaderWidth(column), TextWidth("時間 (H)", Microsoft.UI.Text.FontWeights.Normal) + 24),
@@ -275,7 +277,7 @@ public sealed partial class WorkItemPage : Page
     private void BuildColumnsFlyout()
     {
         var panel = new StackPanel { Spacing = 0 };
-        foreach (var column in _columns.Where(c => c.Key != "Name"))
+        foreach (var column in _columns.Where(c => c.Key != "Name" && (c.Key != "Assignee" || ViewModel.HasAssignees)))
         {
             var key = column.Key;
             var check = new CheckBox
@@ -454,6 +456,12 @@ public sealed partial class WorkItemPage : Page
             return;
         }
 
+        if (e.ColumnKey == "Assignee")
+        {
+            ShowAssigneeMenu(row, e.Cell);
+            return;
+        }
+
         var (options, current) = e.ColumnKey switch
         {
             "Priority" => (row.Choices.Priorities, row.PriorityIndex),
@@ -471,6 +479,22 @@ public sealed partial class WorkItemPage : Page
             menu.Items.Add(item);
         }
         menu.ShowAt(e.Cell, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
+    }
+
+    /// <summary>担当者のメニューを、セルの下に出す</summary>
+    /// <param name="row">行</param>
+    /// <param name="cell">セル</param>
+    private void ShowAssigneeMenu(WorkItemRow row, FrameworkElement cell)
+    {
+        var menu = new MenuFlyout();
+        foreach (var assignee in ViewModel.AssigneeChoices)
+        {
+            var userId = assignee.UserId;
+            var item = new RadioMenuFlyoutItem { Text = assignee.Name, GroupName = "Assignee", IsChecked = userId == row.AssigneeUserId };
+            item.Click += (_, _) => ViewModel.CommitAssigneeAsync(row, userId).Forget();
+            menu.Items.Add(item);
+        }
+        menu.ShowAt(cell, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
     }
 
     /// <summary>備考の入力欄を開くとき、今の備考を入れる</summary>

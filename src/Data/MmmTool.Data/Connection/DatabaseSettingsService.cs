@@ -13,7 +13,8 @@ namespace MmmTool.Data.Connection;
 /// <param name="settings">汎用設定ストア</param>
 /// <param name="secrets">秘密の保管庫</param>
 /// <param name="defaults">アプリごとの、データベース名・ユーザー名の初期値と、パスワードの保存名</param>
-public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStore secrets, DatabaseSettingsDefaults defaults)
+/// <param name="modeChangeHandlers">モード (ローカル・サーバー)が変わったときに、モードに依存するユーザー設定を初期化するもの</param>
+public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStore secrets, DatabaseSettingsDefaults defaults, IEnumerable<IDatabaseModeChangeHandler> modeChangeHandlers)
 {
     private const string ModeKey = "Database.Mode";
     private const string ServerKey = "Database.Server";
@@ -45,6 +46,7 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     /// <param name="value">保存する接続の設定</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>すべて保存したら true。設定を保存できない状態 (<see cref="IsReadOnly"/>)で保存しなかったら false</returns>
+    /// <remarks>モード (<see cref="DatabaseMode"/>)が変わったときは、<see cref="IDatabaseModeChangeHandler"/> を呼ぶ。</remarks>
     public async Task<bool> SaveAsync(DatabaseSettings value, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -54,12 +56,22 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
             return false;
         }
 
+        var previousMode = Load().Mode;
         var saved = await settings.SetAsync(ModeKey, value.Mode.ToString(), cancellationToken).ConfigureAwait(false)
             && await settings.SetAsync(ServerKey, value.Server, cancellationToken).ConfigureAwait(false)
             && await settings.SetAsync(NameKey, value.Name, cancellationToken).ConfigureAwait(false)
             && await settings.SetAsync(AuthenticationKey, value.Authentication.ToString(), cancellationToken).ConfigureAwait(false)
             && await settings.SetAsync(UserNameKey, value.UserName, cancellationToken).ConfigureAwait(false)
             && await settings.SetAsync(TrustServerCertificateKey, value.TrustServerCertificate, cancellationToken).ConfigureAwait(false);
+
+        // モードが変わったら、モードに依存するユーザー設定 (案件の番号など)を初期化する
+        if (saved && previousMode != value.Mode)
+        {
+            foreach (var handler in modeChangeHandlers)
+            {
+                await handler.OnModeChangedAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
         return saved;
     }
 

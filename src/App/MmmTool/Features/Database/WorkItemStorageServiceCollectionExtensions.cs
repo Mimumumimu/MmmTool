@@ -25,6 +25,9 @@ public static class WorkItemStorageServiceCollectionExtensions
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
                 ? provider.GetRequiredService<SqlServerWorkItemRepository>()
                 : provider.GetRequiredService<SqliteWorkItemRepository>());
+
+        // モードが変わったら、表示しない案件の番号を初期化する (番号がモードごとに別の連番のため)
+        services.AddSingleton<IDatabaseModeChangeHandler, WorkItemSelectionReset>();
         return services;
     }
 }

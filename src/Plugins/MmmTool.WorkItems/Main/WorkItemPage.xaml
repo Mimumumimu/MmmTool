@@ -140,6 +140,13 @@
                     Text="{x:Bind Name, Mode=OneWay}" />
             </DataTemplate>
 
+            <DataTemplate x:Key="AssigneeCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Style="{StaticResource ValueTextStyle}"
+                    Text="{x:Bind AssigneeText, Mode=OneWay}"
+                    Visibility="{x:Bind IsWork}" />
+            </DataTemplate>
+
             <DataTemplate x:Key="PriorityCell" x:DataType="local:WorkItemRow">
                 <TextBlock
                     Style="{StaticResource ValueTextStyle}"
@@ -453,6 +460,13 @@
                     IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
                     OffContent="完了を表示"
                     OnContent="完了を表示" />
+                <ToggleSwitch
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    IsOn="{x:Bind ViewModel.MineOnly, Mode=TwoWay}"
+                    Visibility="{x:Bind ViewModel.HasAssignees}"
+                    OffContent="自分の担当だけ"
+                    OnContent="自分の担当だけ" />
                 <AppBarSeparator VerticalAlignment="Center" />
                 <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
                 <DropDownButton x:Name="ProjectsButton" Content="表示する案件">

@@ -85,6 +85,19 @@ public static class WorkItemTree
         return roots;
     }
 
+    /// <summary>条件に合わない作業の行を、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
+    /// <param name="keep">残す作業の条件</param>
+    /// <remarks>集計 (日付・予定・実績・進捗度・状態)は <see cref="Build"/> で、全部の作業から計算済みなので、外しても変わらない。グループ・案件の行は、中の作業が無くなっても残す。</remarks>
+    public static void RemoveWorks(IEnumerable<WorkNode> roots, Func<WorkItem, bool> keep)
+    {
+        foreach (var node in roots)
+        {
+            node.Children.RemoveAll(child => child.Item is { } item && !keep(item));
+            RemoveWorks(node.Children, keep);
+        }
+    }
+
     /// <summary>行の集計値を、下から順に計算する</summary>
     /// <param name="node">計算する行</param>
     /// <param name="days">作業ごとの入力日の実績 (自分の分)</param>

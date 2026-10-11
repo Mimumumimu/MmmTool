@@ -38,12 +38,11 @@
 | `WorkGroup` | 作業管理のグループ |
 | `WorkItem` | 作業管理の作業 |
 | `WorkRecord` | 作業管理の日ごとの記録。人ごと |
-| `WorkProjectSelection` | 作業管理で、利用者が表示する案件に選んだ記録。ユーザーごと |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
 `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus` の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
-作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkProjectSelection`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
+作業管理の 4 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
 
 ## 列
 「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
@@ -195,7 +194,7 @@
 | `Name` | 文字列 (200) | `nvarchar(200)` | | グループ名。1 文字以上 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- インデックス: `IX_WorkGroup_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(選んだ案件の中身の読み込み・差分。論理削除された行も含む)
+- インデックス: `IX_WorkGroup_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(表示する案件の中身の読み込み・差分。論理削除された行も含む)
 
 #### `WorkItem`(作業)
 | 列 | 型 | SQL Server | 既定値 | 内容 |
@@ -210,15 +209,16 @@
 | `GroupId` | 整数 | `int` | 0 | 親のグループ (`WorkGroup.Id`)。0 は案件の直下。0 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並び。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | 作業名。1 文字以上 |
-| `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
+| `AssigneeUserId` | 整数 | `int` | 0 | 担当者 (`AppUser.Id`)。0 は未割り当て。新しい作業は、作った人が担当。画面から変えられる。0 以上の検査 |
 | `PriorityCodeNo` | 整数 | `int` | 2 | 優先度のコード番号 (コードマスタの機能番号 2・区分 3)。High = 1 / Normal = 2 / Low = 3。1 以上の検査 |
 | `StartDate` | 日付 | `date` | `0001-01-01` | 開始日。ない日は `0001-01-01` (「いつからでも」を最小値で表す。`StartDate <= 今日` の比較で、開始日なしが開始済みに入る) |
 | `DueDate` | 日付 | `date` | `9999-12-31` | 期限。ない日は `9999-12-31` |
+| `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
+| `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / InProgress = 2 / Closed = 3 (コードの列挙と同じ値)。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号 (コードマスタの機能番号 2・区分 2)。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
-| `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
+| `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 | `CompletedOn` | 日付 | `date` | `9999-12-31` | 完了日。未完了は `9999-12-31` |
-| `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
 
 - インデックス: `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(同上)・`IX_WorkItem_ProjectId_CompletedOn (ProjectId, CompletedOn)`(案件の完了の計算。削除されていない行だけ)
 
@@ -231,7 +231,7 @@
 | `CreatedByUserId` | 整数 | `int` | | 記録した人 (`AppUser.Id`。ローカルは 1)。人ごとに 1 件の「人」はこの列。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `ProjectId` | 整数 | `int` | | 作業の案件 (選んだ案件に絞って読むため) |
+| `ProjectId` | 整数 | `int` | | 作業の案件 (表示しない案件を除いて読むため) |
 | `WorkItemId` | 整数 | `int` | | 作業 (`WorkItem.Id`) |
 | `Date` | 日付 | `date` | | 記録の日 |
 | `Hours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | その日の実績。0 から 24 の検査 |
@@ -239,22 +239,6 @@
 
 - 記録した人は `CreatedByUserId`。`(WorkItemId, Date, CreatedByUserId)` を一意にする (`UX_WorkRecord_WorkItemId_Date_CreatedByUserId`。論理削除された行も含む。同じ日に入れ直したときは、この行を使い回す)
 - インデックス: `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`(その日の記録。削除されていない行だけ)・`IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(差分。論理削除された行も含む)
-
-#### `WorkProjectSelection`(利用者が表示する案件に選んだ記録)
-| 列 | 型 | SQL Server | 既定値 | 内容 |
-| --- | --- | --- | --- | --- |
-| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
-| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者。`UserId` と同じ人。0 以上の検査 |
-| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者。`UserId` と同じ人。0 以上の検査 |
-| `UserId` | 整数 | `int` | | 選んだ人 (`AppUser.Id`。ローカルは 1)。作成者・更新者は、これと同じ人。0 以上の検査 |
-| `ProjectId` | 整数 | `int` | | 選んだ案件 |
-
-- 外したら `IsDeleted` を 1 にし、選び直したら同じ行を使い回す
-- `(UserId, ProjectId)` を、削除されていない行の間だけ一意にする (`UX_WorkProjectSelection_UserId_ProjectId`)
-- インデックス: `IX_WorkProjectSelection_UserId_UpdatedAt (UserId, UpdatedAt)`(別の PC での選びの変更を、差分で知る。論理削除された行も含む)
 
 ### コードマスタの表
 機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_CreateCodeMaster.sql`(表と作業管理の初期値。`WorkItem` の作り直しも含む)、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/004_CreateCodeMaster.sql`(表)と `005_SeedWorkItemCodes.sql`(作業管理の初期値。機能ごとに別のスクリプトで足す)。
@@ -469,6 +453,16 @@ MAC 方式の `AppUser` の表は、消して作り直す (ユーザーの決定
 - 3 段のキー (機能番号・区分番号・コード番号): 機能ごとに区分を引け、機能の名前や並びが変わっても番号は変わらない。機能番号と区分番号を 1 つの数に合成しない (数の中に意味を詰めない)。選択肢の中に階層が要る場合は、4 段目を足さず、同じ表に親のコード番号の列を 1 つ足す
 - 列の名前: 「項目」は列を指す言葉と紛れ、「リスト」「選択肢」は選択専用に聞こえるので、区分 (`CategoryNo`)・コード (`CodeNo`)にした。数値は `NumericValue`、名前は `Name`
 - 作業管理の旧 `WorkProgress` は、ここに移して廃止した。ラベルを画面から編集する口も廃止した (全員に影響し、アプリにユーザー・権限の区別が無いため。管理は別ツールの責務)
+
+### 置き場所の基準: 共有するものは DB、その人の見え方の選択は、その PC の設定 (2026-10-12)
+データを DB の表に置くか、その PC の設定 (`Data/AppSettings.json`)に置くかは、次の 3 つで決める。
+1. **他の人と共有するか**: 他の人が読む・書く・集計するものは、DB に置く (案件・作業・記録・担当者など)。
+2. **別の PC から追いかけてほしいか**: これは、要件として、ユーザーが決める。標準の振る舞いとして、勝手に足さない。
+3. **一時的な見え方の選択か**: 表示する列・完了を表示・自分の担当だけ・表示する案件の選びのように、その人が見え方を決めるだけのものは、PC の設定に置く。
+
+きっかけ: 作業管理の「表示する案件」の選びを、最初に DB の表 (`WorkProjectSelection`)に置いたが、他の人と共有せず、PC ごとに違ってよいと、ユーザーが決めた。DB に置くと、読み込みの問い合わせが選びの表に依存し、置き場所を変えるときに、問い合わせから直す大きな作業になった。DB の問い合わせは、「案件の番号の一覧」を受け取る形にして、選びの置き場所と切り離しておく ([work-items.md](work-items.md) の「決定の理由」)。
+
+「ユーザーごとの設定を DB に置くときは、縦持ちにする」(`CLAUDE.md`)は、置くと決めたときの形の方針で、置くことの決定ではない。置くかどうかは、上の 3 つで決める。
 
 ### 意図した仕様 (レビューで指摘・提案しない)
 次は、設計の検討で出た提案を、ユーザーが選ばなかったもの。どれも意図した仕様で、レビューや作業のまとめで、指摘・提案しない。理由は、上の各項目と、ここに 1 行で書く。

@@ -19,6 +19,9 @@ public sealed record WorkItem
     /// <summary>名前 (必須)</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>担当者 (ユーザーの番号。0 は未割り当て。作った人が既定の担当になる)</summary>
+    public int AssigneeUserId { get; init; }
+
     /// <summary>備考 (作業ごとの共通の備考。永続)</summary>
     public string Note { get; init; } = "";
 

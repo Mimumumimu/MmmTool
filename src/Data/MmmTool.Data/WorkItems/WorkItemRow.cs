@@ -41,6 +41,9 @@ public sealed record WorkItemRow
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>担当者 (<c>AppUser.Id</c>。0 は未割り当て)</summary>
+    public int AssigneeUserId { get; init; }
+
     /// <summary>備考 (無いときは空文字)</summary>
     public string Note { get; init; } = "";
 
@@ -75,7 +78,7 @@ public sealed record WorkItemRow
     public static WorkItemRow FromWorkItem(WorkItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        if (item.ProjectId <= 0 || item.GroupId < 0 || item.SortOrder < 0)
+        if (item.ProjectId <= 0 || item.GroupId < 0 || item.SortOrder < 0 || item.AssigneeUserId < 0)
         {
             throw new ArgumentException("作業の案件・親・並びの番号が正しくありません。", nameof(item));
         }
@@ -91,6 +94,7 @@ public sealed record WorkItemRow
             GroupId = item.GroupId,
             SortOrder = item.SortOrder,
             Name = WorkRowValues.CheckText(item.Name, "作業の名前", WorkRowValues.NameMax, required: true),
+            AssigneeUserId = item.AssigneeUserId,
             Note = WorkRowValues.CheckText(item.Note, "作業の備考", WorkRowValues.NoteMax),
             PriorityCodeNo = (int)item.Priority,
             StartDate = WorkRowValues.FromDate(item.StartDate, "開始日", WorkRowValues.NoStartDate),
@@ -112,6 +116,7 @@ public sealed record WorkItemRow
         GroupId = GroupId,
         SortOrder = SortOrder,
         Name = Name,
+        AssigneeUserId = AssigneeUserId,
         Note = Note,
         Priority = (WorkItemPriority)PriorityCodeNo,
         StartDate = WorkRowValues.ToDate(StartDate, WorkRowValues.NoStartDate),

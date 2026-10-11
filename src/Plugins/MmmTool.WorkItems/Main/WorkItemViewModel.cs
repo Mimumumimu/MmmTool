@@ -29,6 +29,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>完了した行を表示するかを、設定ストアに持つキー (真偽)</summary>
     private const string ShowFinishedKey = "WorkItems.ShowFinished";
 
+    /// <summary>自分の担当だけを表示するかの設定のキー (この PC の設定)</summary>
+    private const string MineOnlyKey = "WorkItems.MineOnly";
+
     /// <summary>日付として受け付ける書式</summary>
     private static readonly string[] DateFormats = ["yyyy/M/d", "yyyy-M-d", "yyyy.M.d", "yyyyMMdd", "M/d", "M-d"];
 
@@ -82,6 +85,17 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowFinished { get; set; }
 
+    /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
+    public bool HasAssignees => _service.HasAssignees;
+
+    /// <summary>自分が担当の作業だけを表示するか</summary>
+    [ObservableProperty]
+    public partial bool MineOnly { get; set; }
+
+    /// <summary>担当者に選べる人 (先頭は未割り当て)</summary>
+    public IReadOnlyList<WorkAssignee> AssigneeChoices
+        => [new WorkAssignee(0, "未割り当て", true), .. _service.Assignees.Where(a => a.IsSelectable)];
+
     /// <summary>行が 1 つも無いか (案内を出す)</summary>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
@@ -123,6 +137,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
         ShowFinished = settings.Get(ShowFinishedKey, false);
+        MineOnly = settings.Get(MineOnlyKey, false);
         InputDate = service.Today;
         _initializing = false;
     }
@@ -191,6 +206,31 @@ public sealed partial class WorkItemViewModel : ObservableObject
         if (!_initializing)
         {
             ChangeDayAsync(value).Forget();
+        }
+    }
+
+    /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <param name="value">自分の担当だけにするか</param>
+    partial void OnMineOnlyChanged(bool value)
+    {
+        if (_initializing)
+        {
+            return;
+        }
+
+        _settings.SetAsync(MineOnlyKey, value).Forget();
+        Rebuild();
+    }
+
+    /// <summary>担当者を、確定する</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="userId">新しい担当者の番号 (0 は未割り当て)</param>
+    /// <returns>確定の完了を表すタスク</returns>
+    public async Task CommitAssigneeAsync(WorkItemRow row, int userId)
+    {
+        if (userId != row.AssigneeUserId)
+        {
+            await UpdateItemAsync(row, item => item with { AssigneeUserId = userId });
         }
     }
 
@@ -640,7 +680,14 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
 
             var expanded = !_collapsed.Contains(node.Key);
-            row.Update(node, level, visibleChildren.Count > 0, expanded, node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null, _choices);
+            row.Update(
+                node,
+                level,
+                visibleChildren.Count > 0,
+                expanded,
+                node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
+                _choices,
+                node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "");
             alive.Add(node.Key);
             target.Add(row);
             if (expanded)
@@ -660,7 +707,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
         }
 
-        foreach (var root in _service.BuildTree(InputDate))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly))
         {
             Visit(root, 0);
         }
@@ -690,7 +737,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             _rowByKey.Remove(key);
         }
         IsEmpty = Rows.Count == 0;
-        EmptyMessage = !IsEmpty || _service.HasSelection ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
+        EmptyMessage = !IsEmpty || _service.HasVisibleProjects ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
         if (SelectedRow is not null && !Rows.Contains(SelectedRow))
         {
             SelectedRow = null;
