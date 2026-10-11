@@ -385,7 +385,22 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="作業リスト" />
+        <!-- 見出しと、ページ全体の管理の入口。案件の追加・名前の変更・削除 (案件は全員で共有するので、行のない所の右クリックでは作らない) -->
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Text="作業リスト" />
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Command="{x:Bind ViewModel.OpenProjectManagerCommand}"
+                Content="案件の管理" />
+        </Grid>
 
         <!-- エラー (操作のたびに、前の分は消える) -->
         <InfoBar
@@ -431,9 +446,17 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="8">
+                <!-- 完了して日がたった行を出すか。いつも切り替える操作なので、メニューに隠さず、バーに出す。▼付きのボタン 2 つに挟まれないよう、左端に置く -->
+                <ToggleSwitch
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
+                    OffContent="完了を表示"
+                    OnContent="完了を表示" />
+                <AppBarSeparator VerticalAlignment="Center" />
                 <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
-                <Button x:Name="ProjectsButton" Content="表示する案件">
-                    <Button.Flyout>
+                <DropDownButton x:Name="ProjectsButton" Content="表示する案件">
+                    <DropDownButton.Flyout>
                         <Flyout Opening="OnProjectsFlyoutOpening" Placement="BottomEdgeAlignedRight">
                             <Grid Width="360" RowSpacing="8">
                                 <Grid.RowDefinitions>
@@ -499,18 +522,9 @@
                                 </Grid>
                             </Grid>
                         </Flyout>
-                    </Button.Flyout>
-                </Button>
-                <!-- 案件の追加・名前の変更・削除の入口 (案件は全員で共有するので、行のない所の右クリックでは作らない) -->
-                <Button Command="{x:Bind ViewModel.OpenProjectManagerCommand}" Content="案件の管理" />
-                <!-- 完了して日がたった行を出すか。いつも切り替える操作なので、メニューに隠さず、バーに出す -->
-                <ToggleSwitch
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
-                    OffContent="完了を表示"
-                    OnContent="完了を表示" />
-                <Button x:Name="ColumnsButton" Content="表示列" />
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+                <DropDownButton x:Name="ColumnsButton" Content="表示列" />
             </StackPanel>
         </Grid>
 
