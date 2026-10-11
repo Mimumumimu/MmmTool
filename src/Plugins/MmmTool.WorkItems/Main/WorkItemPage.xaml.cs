@@ -8,7 +8,9 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Controls;
+using MmmSdk.WinUI.Utilities;
 using MmmTool.WorkItems.Core;
+using MmmTool.WorkItems.ProjectPicker;
 using Windows.System;
 
 namespace MmmTool.WorkItems.Main;
@@ -31,6 +33,9 @@ public sealed partial class WorkItemPage : Page
     private readonly TreeGridColumn _dayNoteColumn;
 
     /// <summary>毎日入力する列のキー (見出しの色を付ける)</summary>
+    /// <summary>確定を渡し済みの入力欄 (入力欄ごとに 1 回だけ保存するため)</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TextBox, object?> _committedBoxes = [];
+
     private static readonly HashSet<string> DailyKeys = ["Status", "Progress", "ActualDay", "DayNote", "Note"];
 
     /// <summary>ページの ViewModel</summary>
@@ -59,6 +64,8 @@ public sealed partial class WorkItemPage : Page
             _dayNoteColumn,
             Column("Note", "備考", 260, "NoteCell"),
         ];
+        // 案件・グループの行の備考は入力できるので、行の青い背景を付けず、作業の行の備考と同じ見た目にする
+        _columns.First(c => c.Key == "Note").KeepsBaseBackground = true;
         _columns.First(c => c.Key == "Planned").HeaderToolTip = "作業全体の予定の工数 (時間)";
         foreach (var column in _columns)
         {
@@ -69,15 +76,14 @@ public sealed partial class WorkItemPage : Page
         InputDatePicker.Date = ToOffset(ViewModel.InputDate);
 
         var rowMenu = (MenuFlyout)Resources["RowMenu"];
-        var blankMenu = (MenuFlyout)Resources["BlankMenu"];
         rowMenu.Opening += OnRowMenuOpening;
-        blankMenu.Opening += OnBlankMenuOpening;
         TreeGrid.RowContextFlyout = rowMenu;
-        TreeGrid.BlankContextFlyout = blankMenu;
         TreeGrid.CellInvoked += OnCellInvoked;
         TreeGrid.EditCanceled += (_, e) => (e.Row as WorkItemRow)?.Revert();
+        TreeGrid.EditEnding += OnEditEnding;
         TreeGrid.ItemsSource = ViewModel.Rows;
-        TreeGrid.RowToggleRequested += (_, e) => ViewModel.ToggleAsync((WorkItemRow)e.Row).Forget();
+        TreeGrid.RowToggleRequested += (_, e) => ViewModel.Toggle((WorkItemRow)e.Row);
+        Unloaded += (_, _) => ViewModel.Suspend();
         TreeGrid.SelectedRowChanged += (_, _) => ViewModel.SelectedRow = TreeGrid.SelectedRow as WorkItemRow;
 
         BuildColumnsFlyout();
@@ -123,6 +129,37 @@ public sealed partial class WorkItemPage : Page
             TreeGridView.EndEdit(picker);
         }
     }
+
+    #region 表示する案件
+
+    /// <summary>表示する案件を選ぶ画面を開くとき、一覧を読み直す</summary>
+    /// <param name="sender">開く入れ物</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnProjectsFlyoutOpening(object? sender, object e) => ViewModel.ProjectPicker.RefreshAsync().Forget();
+
+    /// <summary>案件のチェックが押されたら、その場で保存する</summary>
+    /// <param name="sender">チェックボックス</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnProjectChoiceClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox { Tag: ProjectChoice choice } box)
+        {
+            ViewModel.ProjectPicker.SetSelectedAsync(choice, box.IsChecked == true).Forget();
+        }
+    }
+
+    /// <summary>一覧の最後の行が作られたら、続きを読む</summary>
+    /// <param name="sender">一覧</param>
+    /// <param name="args">行が作られたときの情報</param>
+    private void OnProjectChoiceContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemIndex == ViewModel.ProjectPicker.Items.Count - 1)
+        {
+            ViewModel.ProjectPicker.LoadMoreAsync().Forget();
+        }
+    }
+
+    #endregion
 
     #region 列
 
@@ -368,7 +405,38 @@ public sealed partial class WorkItemPage : Page
     {
         if (sender is TextBox box && TreeGridView.GetRow(box) is WorkItemRow row)
         {
+            CommitText(box, row);
+        }
+    }
+
+    /// <summary>文字の入力欄の入力を、保存に渡す (同じ入力欄からは、1 回だけ)</summary>
+    /// <param name="box">入力欄</param>
+    /// <param name="row">入力欄の行</param>
+    /// <remarks>
+    /// Enter・フォーカスが外れた通知・入力欄を外す直前の通知 (<see cref="TreeGridView.EditEnding"/>)の、どれからも呼ばれるので、
+    /// 同じ入力欄からの 2 回目は何もしない (1 回目の保存が終わる前は、行の値が古いので、値の比較では防げない)。
+    /// 入力のたびに、入力欄は作り直されるので、入力欄ごとに 1 回で足りる。
+    /// </remarks>
+    private void CommitText(TextBox box, WorkItemRow row)
+    {
+        if (_committedBoxes.TryAdd(box, null))
+        {
             ViewModel.CommitTextAsync(row, ColumnKey(box), box.Text).Forget();
+        }
+    }
+
+    /// <summary>入力中のセルが、表示用に戻される直前に、入力した値を確定する</summary>
+    /// <param name="sender">表</param>
+    /// <param name="e">セルの情報</param>
+    /// <remarks>
+    /// ほかのセルや表の外のクリックでは、入力欄が外されたあとに、フォーカスが外れた通知が届くので、そのときは入力欄から行をたどれない。
+    /// 入力欄がまだ表の中にあるこの時点で、行を渡されて確定する。
+    /// </remarks>
+    private void OnEditEnding(object? sender, TreeGridCellEventArgs e)
+    {
+        if (e.Row is WorkItemRow row && VisualTreeSearch.FindDescendant<TextBox>(e.Cell) is { } box)
+        {
+            CommitText(box, row);
         }
     }
 
@@ -477,9 +545,9 @@ public sealed partial class WorkItemPage : Page
 
         if (row.IsGroup)
         {
-            AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkItemKind.Group, row));
+            AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkRowKind.Group, row));
         }
-        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkItemKind.Work, row));
+        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
         // 右クリックした所が、作業の日付のセルのときだけ
         if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
@@ -488,26 +556,18 @@ public sealed partial class WorkItemPage : Page
             AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""));
         }
 
+        // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
+        if (row.IsProject)
+        {
+            return;
+        }
+
         menu.Items.Add(new MenuFlyoutSeparator());
         AddItem(menu, "上へ", () => ViewModel.ShiftAsync(row, -1), ViewModel.CanShift(row, -1));
         AddItem(menu, "下へ", () => ViewModel.ShiftAsync(row, 1), ViewModel.CanShift(row, 1));
         AddItem(menu, "移動…", () => ViewModel.MoveAsync(row));
         menu.Items.Add(new MenuFlyoutSeparator());
         AddItem(menu, "削除…", () => ViewModel.DeleteAsync(row));
-    }
-
-    /// <summary>行のない所の右クリックのメニューを作る</summary>
-    /// <param name="sender">メニュー</param>
-    /// <param name="e">イベントの情報</param>
-    private void OnBlankMenuOpening(object? sender, object e)
-    {
-        if (sender is not MenuFlyout menu)
-        {
-            return;
-        }
-
-        menu.Items.Clear();
-        AddItem(menu, "案件を追加", () => ViewModel.AddAsync(WorkItemKind.Group, null));
     }
 
     /// <summary>メニューに項目を足す</summary>

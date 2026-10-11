@@ -1,0 +1,127 @@
+using MmmTool.WorkItems.Core;
+
+namespace MmmTool.Data.WorkItems;
+
+/// <summary>
+/// DB の <c>WorkItem</c> (作業)の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkItem"/> とは別の、DB の形のまま持つ。
+/// </summary>
+/// <remarks>
+/// 日付の「ない」は <c>9999-12-31</c>、予定時間の「ない」は 0 (NULL は使わない。理由は docs/specs/database.md)。
+/// 変換は <see cref="FromWorkItem"/> と <see cref="ToWorkItem"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。
+/// </remarks>
+public sealed record WorkItemRow
+{
+    /// <summary>主キー。0 は新規 (DB が採番する)</summary>
+    public int Id { get; init; }
+
+    /// <summary>論理削除されているか</summary>
+    public bool IsDeleted { get; init; }
+
+    /// <summary>作成日時</summary>
+    public DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>作成者 (ユーザーの番号)</summary>
+    public int CreatedByUserId { get; init; }
+
+    /// <summary>更新日時</summary>
+    public DateTimeOffset UpdatedAt { get; init; }
+
+    /// <summary>更新者 (ユーザーの番号)</summary>
+    public int UpdatedByUserId { get; init; }
+
+    /// <summary>属する案件 (<c>WorkProject.Id</c>)</summary>
+    public int ProjectId { get; init; }
+
+    /// <summary>親のグループ (<c>WorkGroup.Id</c>。0 は案件の直下)</summary>
+    public int GroupId { get; init; }
+
+    /// <summary>兄弟の中の並び (グループと作業にまたがる 1 つの数)</summary>
+    public int SortOrder { get; init; }
+
+    /// <summary>名前</summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>備考 (無いときは空文字)</summary>
+    public string Note { get; init; } = "";
+
+    /// <summary>優先度 (高 = 1・中 = 2・低 = 3)</summary>
+    public byte Priority { get; init; } = (byte)WorkItemPriority.Normal;
+
+    /// <summary>開始日 (ない日は <c>9999-12-31</c>)</summary>
+    public DateOnly StartDate { get; init; } = WorkRowValues.NoDate;
+
+    /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
+    public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
+
+    /// <summary>状態 (未対応 = 1・作業中 = 2・完了 = 3)</summary>
+    public byte Status { get; init; } = (byte)WorkItemStatus.Open;
+
+    /// <summary>進捗度 (0 から 100)</summary>
+    public byte Progress { get; init; }
+
+    /// <summary>予定時間 (0 は予定なし)</summary>
+    public decimal PlannedHours { get; init; }
+
+    /// <summary>完了日 (未完了は <c>9999-12-31</c>)</summary>
+    public DateOnly CompletedOn { get; init; } = WorkRowValues.NoDate;
+
+    /// <summary>実績の累計 (記録を保存するたびに、保存先が計算し直して書く)</summary>
+    public decimal ActualTotalHours { get; init; }
+
+    /// <summary>アプリの型から、DB の行にする</summary>
+    /// <param name="item">作業</param>
+    /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
+    /// <exception cref="ArgumentException">DB に入れられない値 (長さ・範囲の外、9999-12-31 の日付など)。</exception>
+    public static WorkItemRow FromWorkItem(WorkItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.ProjectId <= 0 || item.GroupId < 0 || item.SortOrder < 0)
+        {
+            throw new ArgumentException("作業の案件・親・並びの番号が正しくありません。", nameof(item));
+        }
+        if (!WorkProgress.IsValid(item.Progress))
+        {
+            throw new ArgumentException($"進捗度 {item.Progress} は、0 から 100 の 10 刻みではありません。", nameof(item));
+        }
+        return new WorkItemRow
+        {
+            Id = item.Id,
+            IsDeleted = item.IsDeleted,
+            ProjectId = item.ProjectId,
+            GroupId = item.GroupId,
+            SortOrder = item.SortOrder,
+            Name = WorkRowValues.CheckText(item.Name, "作業の名前", WorkRowValues.NameMax, required: true),
+            Note = WorkRowValues.CheckText(item.Note, "作業の備考", WorkRowValues.NoteMax),
+            Priority = WorkRowValues.CheckByte((int)item.Priority, 1, 3, "優先度"),
+            StartDate = WorkRowValues.FromDate(item.StartDate, "開始日"),
+            DueDate = WorkRowValues.FromDate(item.DueDate, "期限日"),
+            Status = WorkRowValues.CheckByte((int)item.Status, 1, 3, "状態"),
+            Progress = (byte)item.Progress,
+            PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
+            CompletedOn = WorkRowValues.FromDate(item.CompletedOn, "完了日"),
+            ActualTotalHours = WorkRowValues.FromHours(item.ActualTotalHours, "実績の累計", 9_999_999_999),
+        };
+    }
+
+    /// <summary>DB の行から、アプリの型にする</summary>
+    /// <returns>作業</returns>
+    public WorkItem ToWorkItem() => new()
+    {
+        Id = Id,
+        ProjectId = ProjectId,
+        GroupId = GroupId,
+        SortOrder = SortOrder,
+        Name = Name,
+        Note = Note,
+        Priority = (WorkItemPriority)Priority,
+        StartDate = WorkRowValues.ToDate(StartDate),
+        DueDate = WorkRowValues.ToDate(DueDate),
+        Status = (WorkItemStatus)Status,
+        Progress = Progress,
+        PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,
+        CompletedOn = WorkRowValues.ToDate(CompletedOn),
+        ActualTotalHours = WorkRowValues.ToHours(ActualTotalHours),
+        IsDeleted = IsDeleted,
+        UpdatedAt = UpdatedAt,
+    };
+}

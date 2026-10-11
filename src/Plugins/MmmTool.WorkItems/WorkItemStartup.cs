@@ -13,7 +13,7 @@ public sealed class WorkItemStartup(WorkItemService workItems) : IStartupTask
     {
         try
         {
-            await workItems.LoadAsync();
+            await workItems.LoadAsync(workItems.Today);
         }
         catch (DataFileException)
         {

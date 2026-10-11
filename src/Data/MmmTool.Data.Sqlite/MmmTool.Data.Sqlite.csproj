@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 版を上げるスクリプト (番号つき)だけを埋め込む。集計の作り直しのスクリプト (Sql/Maintenance)は含めない -->
+    <EmbeddedResource Include="Sql\0*.sql" LogicalName="MmmTool.Data.Sqlite.Sql.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmmTool.Data\MmmTool.Data.csproj" />
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Db.Sqlite\MmmSdk.Db.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

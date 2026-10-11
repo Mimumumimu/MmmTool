@@ -192,7 +192,8 @@ internal sealed partial class ReminderJsonContext : JsonSerializerContext
   - `<inheritdoc />` を使う場合は上記の対象外 (インターフェース側に書く)
 
 ## プロジェクト設定
-- アンパッケージ。DLL の数をできるだけ少なくするため、既定はフレームワーク依存 (実行する PC に .NET Desktop Runtime と Windows App Runtime が必要。ランタイムを入れてもらえない配布先のときだけセルフコンテインにする)
+- アンパッケージ。ランタイムを同梱して出力の容量を大きくしないため、既定はフレームワーク依存 (実行する PC に .NET Desktop Runtime と Windows App Runtime が必要。ランタイムを入れてもらえない配布先のときだけセルフコンテインにする)
+  - DLL の数は、パッケージ (NuGet)を足す・足さないの理由にしない。パッケージの DLL は `Lib` フォルダにまとめて隠し、EXE の横を増やさない形にできる (MmmTool の `docs/build-and-distribution.md` の「EXE の横のフォルダと DLL」)
   - `.csproj`: `<WindowsPackageType>None</WindowsPackageType>` / `<SelfContained>false</SelfContained>` / `<WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>`
   - 単一ファイル化 (`PublishSingleFile`)はしない (巨大な 1 つの EXE にしないため)。ReadyToRun は、DLL の数を増やさず起動を速くするので使ってよい。「配布を小さく」は、サイズを最小にする意味ではない (ランタイムを同梱しない結果として小さくなる)
   - フレームワーク依存ではトリミング (`PublishTrimmed`)は使えない。それでもトリミングに戻せるよう、JSON はソース生成のまま書く

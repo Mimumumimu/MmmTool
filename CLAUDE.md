@@ -79,10 +79,11 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 方向だけ決めている後回し: ユーザーごとの設定を DB に置くときは、縦持ち (`(UserId, SettingKey)` の主キー・キーは `Reminder.SnoozeIntervalMinutes` のような文字列・値は JSON)にし、`ISettingsStore` と同じ形で読み書きする
 
 ### 作業リスト (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
-ローカルの保存 (JSON)で動く形まで実装済み (2026-10-10。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、Core の保存・集計・並べ替え・移動・削除は確かめた)。画面は、実機で一度も動かしていない。
-- **実機の確認**: `TreeGridView`(固定の列・見出しの固定・仮想化・右クリックのメニュー・入力欄の確定)と、ページの全体。確認の項目は、仕様の「画面」と SDK の `docs/controls.md` の「TreeGridView」。固定の列がうまく動かないときは、固定なしで出す形に直す
-- **DB モード**: 表 3 つ (`dbo.WorkItem`・`WorkRecord`・`WorkProgress`。設計は仕様の「DB モード (未実装)」)・`MmmTool.Data` の行の型・`SqlServerWorkItemRepository`(自分の分だけ読み書き)・作成スクリプト (`Sql/` に番号つきで足す)・DB モードで「設定」ボタンを隠す (`CanEditProgressLabels` を false)。DB の表の作成は、確認することが多いので、ユーザーと相談して進める
-- **保留: 終わった案件の扱い** (いつまで一覧に出すか。表示を絞る・畳む・しまう場所を作るなど。ユーザーと相談して決める。2026-10-10)
+保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 6 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた。SQL Server の保存は、書いただけで、実行していない)。JSON の保存は廃止した。画面は、実機で一度も動かしていない。
+- **実機の確認**: `TreeGridView`(固定の列・見出しの固定・仮想化・右クリックのメニュー・入力欄の確定)と、ページの全体。確認の項目は、仕様の「画面」と SDK の `docs/controls.md` の「TreeGridView」。固定の列がうまく動かないときは、固定なしで出す形に直す。あわせて、新しい画面: 「表示する案件」のフライアウト (検索・進行中のみ・チェックの保存・続きの読み込み)・「案件の管理」のウィンドウ・「完了を表示」・別の PC の更新の取り込み (60 秒ごと)。文言はすべて仮 (決まったら、まとめて直す)
+- **SQL Server の表の作成と実機の確認** (ユーザーが別途試す。2026-10-11。作業リストの SQL Server 版は、まったく試していない): 作成スクリプト `src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` と `Sql/Maintenance/RebuildActualTotal.sql` は書いたが、流していない (実行は、ユーザーと相談して進める。確認することが多い)。`SqlServerWorkItemRepository` も実機で未確認
+- **発行の確認**: 発行 (出力先を別の場所にして試した。2026-10-11)では、`e_sqlite3.dll` が `Lib` に入り、`deps.json` の `localPath` も付き、`THIRD-PARTY-NOTICES.txt` に SQLite 関係も入ることを確かめた。残りは、実際の発行物を起動して、作業リストを開き、`Data/MmmTool.db` が作られること
+- **後で決める**: 担当者の列と「自分に絞る」・リーダー的な人の更新の権限 (SQL Server の実装のとき)・作業の行の「実績 (日)」に他の人の分を出すか (今は、実績 (日)は、行も案件・グループも、自分の記録だけ。累計は全員の分)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
 ### 調査中

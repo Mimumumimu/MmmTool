@@ -13,8 +13,8 @@
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders / WorkItems の 6 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
-| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders)と `MmmTool.Users.Core` |
-| `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`)。SDK の `MmmSdk.Db.<種類>` を参照する。ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える |
+| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・WorkItems)と `MmmTool.Users.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
+| `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite`)。SDK の `MmmSdk.Db.<種類>` を参照する。リマインダーは、ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える。作業リストは、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`。SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため) |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 (`MmmSdk.Db.SqlServer`)。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める) |
@@ -133,10 +133,10 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 - 例外: DEBUG ページ (ホストの `Features/Debugging`)はリマインダーのデータを表示するので、リマインダーのライブラリを参照する。リマインダーを外すときは、DEBUG ページも直す
 
 ### DB のコードは、機能とは別の `MmmTool.Data` にまとめる
-- 決定 (ユーザーの決定。意図した仕様で、レビューで指摘・提案しない): リレーショナル DB への保存のコードを、機能のライブラリ (`MmmTool.<機能>.Core`)には置かず、`MmmTool.Data`(DB の種類に依存しない部分)と `MmmTool.Data.<種類>`(DB 別の実装。最初は `MmmTool.Data.SqlServer`)にまとめる。全機能の表・SQL を、この 2 種類のプロジェクトに集める
+- 決定 (ユーザーの決定。意図した仕様で、レビューで指摘・提案しない): リレーショナル DB への保存のコードを、機能のライブラリ (`MmmTool.<機能>.Core`)には置かず、`MmmTool.Data`(DB の種類に依存しない部分)と `MmmTool.Data.<種類>`(DB 別の実装。最初は `MmmTool.Data.SqlServer`。作業リストのローカル用に `MmmTool.Data.Sqlite` を足す。[specs/database.md](specs/database.md))にまとめる。全機能の表・SQL を、この 2 種類のプロジェクトに集める。DB の種類ごとの依存 (SQLite のネイティブ DLL など)は、その種類のプロジェクトに閉じ、MmmBatch も参照する `MmmTool.Data` には入れない
   - `MmmTool.Data`: DB の行のクラス (表の列と 1 対 1。`ReminderRow` など。DB の形のまま)と、アプリの型 (`Reminder` など)との変換
   - `MmmTool.Data.<種類>`: その DB の Repository の実装 (`SqlServerReminderRepository` など)。DB 別のドライバーは SDK の `MmmSdk.Db.<種類>` を参照する
-  - 参照の向き: `MmmTool.Data.<種類> → MmmTool.Data → MmmTool.<機能>.Core → MmmSdk.Core`。機能のライブラリは `MmmTool.Data` を参照しない。保存先は、ホスト (`MmmTool`)が設定 (`Database.Mode`)で選び、DB のときだけ、機能が登録した JSON の Repository を、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()`)で置き換える
+  - 参照の向き: `MmmTool.Data.<種類> → MmmTool.Data → MmmTool.<機能>.Core → MmmSdk.Core`。機能のライブラリは `MmmTool.Data` を参照しない。保存先は、ホスト (`MmmTool`)が設定 (`Database.Mode`)で選ぶ。リマインダーは、DB のときだけ、機能が登録した JSON の Repository を、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()`)で置き換える。作業リストは、機能が保存先を登録せず、ホストが SQLite と SQL Server から選んで登録する
 - 理由
   - プロジェクトの数を、DB の種類の数に抑える (DB を使う機能の数に比例させない)。機能ごとに `MmmTool.<機能>.Data.<種類>` を持たせると、「DB を使う機能 × DB の種類」だけ増える
   - DB のことを 1 か所で一括管理する (表の行のクラスと SQL は `MmmTool.Data*`、作成用スクリプトは `src/Data/MmmTool.Data.<種類>/Sql/`、設計は `docs/specs/database.md`)

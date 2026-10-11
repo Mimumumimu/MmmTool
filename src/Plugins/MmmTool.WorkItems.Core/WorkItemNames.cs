@@ -7,7 +7,7 @@ public static class WorkItemNames
     public static IReadOnlyList<WorkItemPriority> Priorities { get; } = [WorkItemPriority.High, WorkItemPriority.Normal, WorkItemPriority.Low];
 
     /// <summary>状態の選択肢 (進む順)</summary>
-    public static IReadOnlyList<WorkItemStatus> Statuses { get; } = [WorkItemStatus.Open, WorkItemStatus.InProgress, WorkItemStatus.Resolved, WorkItemStatus.Closed];
+    public static IReadOnlyList<WorkItemStatus> Statuses { get; } = [WorkItemStatus.Open, WorkItemStatus.InProgress, WorkItemStatus.Closed];
 
     /// <summary>優先度の名前を返す</summary>
     /// <param name="priority">優先度</param>
@@ -25,7 +25,6 @@ public static class WorkItemNames
     public static string Of(WorkItemStatus status) => status switch
     {
         WorkItemStatus.InProgress => "作業中",
-        WorkItemStatus.Resolved => "処理済み",
         WorkItemStatus.Closed => "完了",
         _ => "未対応",
     };
@@ -33,5 +32,10 @@ public static class WorkItemNames
     /// <summary>種類の名前を返す</summary>
     /// <param name="kind">種類</param>
     /// <returns>画面に出す名前</returns>
-    public static string Of(WorkItemKind kind) => kind == WorkItemKind.Group ? "グループ" : "作業";
+    public static string Of(WorkRowKind kind) => kind switch
+    {
+        WorkRowKind.Project => "案件",
+        WorkRowKind.Group => "グループ",
+        _ => "作業",
+    };
 }

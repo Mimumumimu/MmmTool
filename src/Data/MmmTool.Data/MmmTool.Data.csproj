@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Core\MmmSdk.Core.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders.Core\MmmTool.Reminders.Core.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmTool.WorkItems.Core\MmmTool.WorkItems.Core.csproj" />
     <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
   </ItemGroup>
 

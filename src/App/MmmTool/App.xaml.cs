@@ -13,6 +13,7 @@ using MmmSdk.WinUI.Utilities;
 using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
+using MmmTool.Data.Sqlite;
 using MmmTool.Data.SqlServer;
 using MmmTool.Features.Database;
 using MmmTool.Features.Database.Choice;
@@ -97,6 +98,10 @@ public partial class App : Application
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
+
+        // 作業リストの保存先。ローカルは SQLite (Data/MmmTool.db)、DB モードは SQL Server。ホストが設定で選ぶ
+        services.AddSqliteData();
+        services.AddWorkItemStorage();
 
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();

@@ -4,42 +4,41 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Main;
 
-/// <summary>表の 1 行 (グループまたは作業を、表の列に出す形にしたもの)</summary>
-/// <param name="id">行の番号</param>
-/// <param name="kind">種類 (作ったときに決まり、変わらない)</param>
+/// <summary>表の 1 行 (案件・グループ・作業のどれかを、表の列に出す形にしたもの)</summary>
+/// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
 /// <remarks>
 /// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える (入力欄の位置・フォーカスを保つため)。
-/// グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示 (入力はできない)。
+/// 案件・グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示 (入力はできない)。
 /// </remarks>
-public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableObject, ITreeGridRow
+public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGridRow
 {
-    /// <summary>行の番号</summary>
-    public int Id { get; } = id;
+    /// <summary>行の識別 (種類 + 番号)</summary>
+    public WorkKey Key { get; } = key;
+
+    /// <summary>行の番号 (種類ごとに別の連番)</summary>
+    public int Id => Key.Id;
 
     /// <summary>種類</summary>
-    public WorkItemKind Kind { get; } = kind;
+    public WorkRowKind Kind => Key.Kind;
 
-    /// <summary>グループの行か</summary>
-    public bool IsGroup { get; } = kind == WorkItemKind.Group;
+    /// <summary>集計の行か (案件・グループ。下の作業から計算した値を出す)</summary>
+    public bool IsGroup { get; } = key.Kind != WorkRowKind.Work;
 
     /// <summary>作業の行か</summary>
-    public bool IsWork { get; } = kind == WorkItemKind.Work;
+    public bool IsWork { get; } = key.Kind == WorkRowKind.Work;
 
     /// <summary>字下げの段</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsProject))]
-    [NotifyPropertyChangedFor(nameof(IsSubGroup))]
-    [NotifyPropertyChangedFor(nameof(RowTint))]
     public partial int Level { get; private set; }
 
-    /// <summary>案件か (最上位のグループ)</summary>
-    public bool IsProject => IsGroup && Level == 0;
+    /// <summary>案件か</summary>
+    public bool IsProject { get; } = key.Kind == WorkRowKind.Project;
 
     /// <summary>行に重ねる色 (案件だけ、青の半透明。グループ・作業は、重ねない)</summary>
     public Windows.UI.Color? RowTint => IsProject ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0) : null;
 
     /// <summary>案件の中のグループか</summary>
-    public bool IsSubGroup => IsGroup && Level > 0;
+    public bool IsSubGroup { get; } = key.Kind == WorkRowKind.Group;
 
     /// <summary>子を持つか</summary>
     [ObservableProperty]
@@ -140,13 +139,15 @@ public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableO
     /// <summary>行の内容を書き換える</summary>
     /// <param name="node">木構造の行 (行と集計値)</param>
     /// <param name="level">字下げの段</param>
+    /// <param name="hasChildren">表に出す子を持つか (開閉ボタンを出すか)</param>
     /// <param name="isExpanded">開いているか</param>
     /// <param name="dayRecord">入力日の記録 (作業のみ。無ければ null)</param>
     /// <param name="progressOptions">進捗度の選択肢</param>
     /// <param name="labels">進捗度のラベル (グループの進捗度の表示に使う)</param>
     public void Update(
-        WorkItemNode node,
+        WorkNode node,
         int level,
+        bool hasChildren,
         bool isExpanded,
         WorkRecord? dayRecord,
         IReadOnlyList<string> progressOptions,
@@ -156,10 +157,10 @@ public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableO
         var summary = node.Summary;
 
         Level = level;
-        HasChildren = node.Children.Count > 0;
+        HasChildren = hasChildren;
         IsExpanded = isExpanded;
-        Name = item.Name;
-        Note = item.Note;
+        Name = node.Name;
+        Note = node.Note;
         ProgressOptions = progressOptions;
         StartText = FormatDate(summary.StartDate);
         DueText = FormatDate(summary.DueDate);
@@ -168,7 +169,7 @@ public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableO
         PlannedText = FormatHours(summary.PlannedHours);
         ActualTotalText = FormatHours(summary.ActualTotal > 0 ? summary.ActualTotal : null);
 
-        if (IsWork)
+        if (item is not null)
         {
             PriorityIndex = Math.Max(0, WorkItemNames.Priorities.ToList().IndexOf(item.Priority));
             StatusIndex = Math.Max(0, WorkItemNames.Statuses.ToList().IndexOf(item.Status));
@@ -181,13 +182,14 @@ public sealed partial class WorkItemRow(int id, WorkItemKind kind) : ObservableO
         }
         else
         {
+            StatusText = summary.Status is { } status ? WorkItemNames.Of(status) : "";
             ProgressText = summary.Progress is { } progress ? WorkProgress.Format(progress, labels) : "";
             ProgressCellText = ProgressText;
             ActualDayText = FormatHours(summary.ActualDay > 0 ? summary.ActualDay : null);
         }
     }
 
-    /// <summary>集計の行か (グループ・案件は、下の作業から計算した値だけを出す)</summary>
+    /// <summary>集計の行か (案件・グループは、下の作業から計算した値だけを出す)</summary>
     public bool IsSummary => IsGroup;
 
     /// <summary>このセルを、入力できるか</summary>

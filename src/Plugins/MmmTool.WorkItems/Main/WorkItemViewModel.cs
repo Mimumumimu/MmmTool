@@ -9,23 +9,25 @@ using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Move;
+using MmmTool.WorkItems.ProjectPicker;
 
 namespace MmmTool.WorkItems.Main;
 
 /// <summary>
-/// 作業リストのページ。木構造の表・入力日・表示列を扱う。
+/// 作業リストのページ。木構造の表・入力日・表示列・表示する案件・完了した行を隠すかを扱う。
 /// </summary>
 /// <remarks>
 /// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
-/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
+/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列・完了を表示するかは、この PC の設定 (設定ストア)に持つ。
+/// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
 public sealed partial class WorkItemViewModel : ObservableObject
 {
     /// <summary>非表示の列を、設定ストアに持つキー (列のキーを、カンマでつないだ文字列)</summary>
     private const string HiddenColumnsKey = "WorkItems.HiddenColumns";
 
-    /// <summary>閉じているグループを、設定ストアに持つキー (行の番号を、カンマでつないだ文字列)</summary>
-    private const string CollapsedItemsKey = "WorkItems.CollapsedItems";
+    /// <summary>完了した行を表示するかを、設定ストアに持つキー (真偽)</summary>
+    private const string ShowFinishedKey = "WorkItems.ShowFinished";
 
     /// <summary>日付として受け付ける書式</summary>
     private static readonly string[] DateFormats = ["yyyy/M/d", "yyyy-M-d", "yyyy.M.d", "yyyyMMdd", "M/d", "M-d"];
@@ -42,11 +44,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _confirm;
 
-    /// <summary>番号から、表の行を引く (使い回す)</summary>
-    private readonly Dictionary<int, WorkItemRow> _rowById = [];
+    /// <summary>行の識別から、表の行を引く (使い回す)</summary>
+    private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
 
-    /// <summary>閉じているグループの番号</summary>
-    private readonly HashSet<int> _collapsed;
+    /// <summary>閉じている案件・グループ</summary>
+    private readonly HashSet<WorkKey> _collapsed = [];
 
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
@@ -57,19 +59,36 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>壊れたファイルを退避した知らせを、もう出したか (サービスが、アプリの実行中ずっと持つので、ページを開くたびには出さない)</summary>
     private bool _recoveryMessageShown;
 
+    /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
+    private bool _masterEmpty;
+
+    /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
+    private bool _initializing = true;
+
     /// <summary>表の行 (見えている行を 1 つにならしたもの。木の順)</summary>
     public ObservableCollection<WorkItemRow> Rows { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
+    /// <summary>表示する案件を選ぶ画面の ViewModel</summary>
+    public ProjectPickerViewModel ProjectPicker { get; }
+
     /// <summary>入力日 (実績 (日)・備考 (日)の日。既定は今日)</summary>
     [ObservableProperty]
     public partial DateOnly InputDate { get; set; }
 
-    /// <summary>行が 1 つも無いか (追加のしかたの案内を出す)</summary>
+    /// <summary>完了して日がたった行も表示するか</summary>
+    [ObservableProperty]
+    public partial bool ShowFinished { get; set; }
+
+    /// <summary>行が 1 つも無いか (案内を出す)</summary>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
+
+    /// <summary>行が無いときの案内 (表示する案件を選ぶか、案件を追加するか)</summary>
+    [ObservableProperty]
+    public partial string EmptyMessage { get; private set; } = "";
 
     /// <summary>選んだ行</summary>
     [ObservableProperty]
@@ -92,41 +111,50 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="settings">設定ストア</param>
     /// <param name="dialogs">作業リストのダイアログ</param>
     /// <param name="confirm">確認ダイアログ</param>
-    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm)
+    /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
+    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker)
     {
         _service = service;
         _settings = settings;
         _dialogs = dialogs;
         _confirm = confirm;
+        ProjectPicker = projectPicker;
 
         _hiddenColumns = [.. settings.Get(HiddenColumnsKey, "").Split(',', StringSplitOptions.RemoveEmptyEntries)];
-        _collapsed = [.. settings.Get(CollapsedItemsKey, "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => int.TryParse(s, out var id) ? id : 0).Where(id => id != 0)];
-        service.Changed += (_, _) => OnServiceChanged();
+        service.Changed += (_, _) => Rebuild();
+        service.RefreshFailed += (_, message) => Error.Show(message);
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
+        ShowFinished = settings.Get(ShowFinishedKey, false);
         InputDate = service.Today;
+        _initializing = false;
     }
 
-    /// <summary>ページを開いたときに、保存先から読み直して表を作る</summary>
+    /// <summary>ページを開いたときに、保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     public async Task InitializeAsync()
     {
         Error.Clear();
         try
         {
-            await _service.LoadAsync();
+            await _service.LoadAsync(InputDate);
             if (!_recoveryMessageShown && _service.RecoveryMessage is { } recovery)
             {
                 _recoveryMessageShown = true;
                 Error.Show(recovery);
             }
+            await RefreshMasterAsync();
         }
         catch (DataFileException ex)
         {
             Error.Show(ex.Message);
         }
         Rebuild();
+        _service.StartPolling();
     }
+
+    /// <summary>ページを離れたときに、他の人の更新の取得を止める</summary>
+    public void Suspend() => _service.StopPolling();
 
     /// <summary>列が、表示されているか</summary>
     /// <param name="key">列のキー</param>
@@ -159,50 +187,84 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [RelayCommand]
     private void Today() => InputDate = _service.Today;
 
-    /// <summary>入力日が変わったら、実績 (日)・備考 (日)を作り直す</summary>
+    /// <summary>入力日が変わったら、その日の記録だけを読み直す</summary>
     /// <param name="value">新しい入力日</param>
-    partial void OnInputDateChanged(DateOnly value) => Rebuild();
-
-    /// <summary>グループを開く・閉じる</summary>
-    /// <param name="row">開閉するグループの行</param>
-    /// <returns>切り替えの完了を表すタスク</returns>
-    public async Task ToggleAsync(WorkItemRow row)
+    partial void OnInputDateChanged(DateOnly value)
     {
-        if (!_collapsed.Remove(row.Id))
+        if (!_initializing)
         {
-            _collapsed.Add(row.Id);
+            ChangeDayAsync(value).Forget();
         }
-        await SaveCollapsedAsync();
+    }
+
+    /// <summary>完了を表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <param name="value">表示するか</param>
+    partial void OnShowFinishedChanged(bool value)
+    {
+        if (_initializing)
+        {
+            return;
+        }
+
+        _settings.SetAsync(ShowFinishedKey, value).Forget();
+        Rebuild();
+    }
+
+    /// <summary>案件・グループを開く・閉じる (開閉の状態は、保存しない)</summary>
+    /// <param name="row">開閉する行</param>
+    public void Toggle(WorkItemRow row)
+    {
+        if (!_collapsed.Remove(row.Key))
+        {
+            _collapsed.Add(row.Key);
+        }
         Rebuild();
     }
 
     /// <summary>行を追加する</summary>
     /// <param name="kind">追加する行の種類</param>
-    /// <param name="target">右クリックした行 (グループなら中に、作業なら同じ階層に追加する。null なら最上位の末尾)</param>
+    /// <param name="target">右クリックした行 (案件・グループなら中に、作業なら同じ階層の次に追加する。案件を追加するときは null)</param>
     /// <returns>追加の完了を表すタスク</returns>
-    public async Task AddAsync(WorkItemKind kind, WorkItemRow? target)
+    public async Task AddAsync(WorkRowKind kind, WorkItemRow? target)
     {
-        var parentId = 0;
-        var afterId = 0;
-        if (target is { IsGroup: true })
-        {
-            parentId = target.Id;
-            if (_collapsed.Remove(parentId))
-            {
-                await SaveCollapsedAsync();
-            }
-        }
-        else if (target is not null && FindItem(target.Id) is { } item)
-        {
-            parentId = item.ParentId;
-            afterId = item.Id;
-        }
-
         try
         {
-            var added = await _service.AddAsync(kind, parentId, afterId);
+            WorkAddResult result;
+            if (kind == WorkRowKind.Project || target is null)
+            {
+                result = await _service.AddProjectAsync("新しい案件");
+                _masterEmpty = false;
+            }
+            else
+            {
+                var (projectId, parentGroupId, after) = target.Kind switch
+                {
+                    WorkRowKind.Project => (target.Id, 0, (WorkKey?)null),
+                    WorkRowKind.Group when _service.GetGroup(target.Id) is { } group => (group.ProjectId, group.Id, null),
+                    WorkRowKind.Work when _service.GetItem(target.Id) is { } item => (item.ProjectId, item.GroupId, target.Key),
+                    _ => (0, 0, null),
+                };
+                if (projectId == 0)
+                {
+                    Error.Show("追加先は、すでに削除されています。");
+                    return;
+                }
+                if (target.IsGroup)
+                {
+                    _collapsed.Remove(target.Key);
+                }
+
+                result = await _service.AddAsync(kind, projectId, parentGroupId, after);
+            }
+
+            if (result.Error is { } error)
+            {
+                Error.Show(error);
+                return;
+            }
+
             Error.Clear();
-            if (_rowById.TryGetValue(added.Id, out var row))
+            if (result.Key is { } key && _rowByKey.TryGetValue(key, out var row))
             {
                 SelectedRow = row;
                 FocusNameRequested?.Invoke(this, row);
@@ -217,18 +279,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>行を、兄弟の中で上または下へ動かせるか</summary>
     /// <param name="row">行</param>
     /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
-    /// <returns>動かせれば true</returns>
-    public bool CanShift(WorkItemRow row, int delta)
-    {
-        if (FindItem(row.Id) is not { } item)
-        {
-            return false;
-        }
-
-        var siblings = _service.Items.Where(i => i.ParentId == item.ParentId).OrderBy(i => i.SortOrder).ThenBy(i => i.Id).ToList();
-        var to = siblings.FindIndex(i => i.Id == item.Id) + delta;
-        return to >= 0 && to < siblings.Count;
-    }
+    /// <returns>動かせれば true (案件は、並びを動かせない)</returns>
+    public bool CanShift(WorkItemRow row, int delta) => !row.IsProject && _service.CanShift(row.Key, delta);
 
     /// <summary>行を、兄弟の中で上または下へ動かす</summary>
     /// <param name="row">行</param>
@@ -238,7 +290,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         try
         {
-            await _service.ShiftAsync(row.Id, delta);
+            await _service.ShiftAsync(row.Key, delta);
             Error.Clear();
         }
         catch (DataFileException ex)
@@ -252,16 +304,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>移動の完了を表すタスク</returns>
     public async Task MoveAsync(WorkItemRow row)
     {
-        var destinations = new List<MoveDestination> { new(0, "最上位", 0) };
-        AddDestinations(_service.BuildTree(InputDate), row.Id, 1, destinations);
-        if (await _dialogs.PickDestinationAsync(destinations) is not { } destinationId)
+        var destinations = new List<MoveDestination>();
+        foreach (var project in _service.BuildTree(InputDate))
+        {
+            destinations.Add(new MoveDestination(project.Key.Id, 0, project.Name, 0));
+            AddDestinations(project.Children, project.Key.Id, row.Key, 1, destinations);
+        }
+        if (await _dialogs.PickDestinationAsync(destinations) is not { } destination)
         {
             return;
         }
 
         try
         {
-            var error = await _service.MoveAsync(row.Id, destinationId);
+            var error = await _service.MoveAsync(row.Key, destination.ProjectId, destination.GroupId);
             if (error is not null)
             {
                 Error.Show(error);
@@ -269,9 +325,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
 
             Error.Clear();
-            if (destinationId != 0 && _collapsed.Remove(destinationId))
+            var destinationKey = destination.GroupId != 0
+                ? new WorkKey(WorkRowKind.Group, destination.GroupId)
+                : new WorkKey(WorkRowKind.Project, destination.ProjectId);
+            if (_collapsed.Remove(destinationKey))
             {
-                await SaveCollapsedAsync();
                 Rebuild();
             }
         }
@@ -282,28 +340,53 @@ public sealed partial class WorkItemViewModel : ObservableObject
     }
 
     /// <summary>確認してから、行を削除する (論理削除。グループは中身も一緒に)</summary>
-    /// <param name="row">削除する行</param>
+    /// <param name="row">削除する行 (グループまたは作業。案件は、案件の管理の画面で削除する)</param>
     /// <returns>削除の完了を表すタスク</returns>
     public async Task DeleteAsync(WorkItemRow row)
     {
-        var impact = _service.GetDeleteImpact(row.Id);
-        var message = row.IsGroup
-            ? $"{(row.Level == 0 ? "案件" : "グループ")}「{row.Name}」を、中身ごと削除します。\nグループ {impact.Groups} 件・作業 {impact.Works} 件・日ごとの記録 {impact.Records} 件が、削除されます。"
-            : $"作業「{row.Name}」を削除します。\n日ごとの記録 {impact.Records} 件も、削除されます。";
-        if (!await _confirm.ConfirmAsync("削除の確認", message, "削除", "キャンセル"))
-        {
-            return;
-        }
-
         try
         {
-            await _service.DeleteAsync(row.Id);
-            Error.Clear();
+            var impact = await _service.GetDeleteImpactAsync(row.Key);
+            var message = row.IsGroup
+                ? $"グループ「{row.Name}」を、中身ごと削除します。\nグループ {impact.Groups} 件・作業 {impact.Works} 件・日ごとの記録 {impact.Records} 件が、削除されます。"
+                : $"作業「{row.Name}」を削除します。\n日ごとの記録 {impact.Records} 件も、削除されます。";
+            if (!await _confirm.ConfirmAsync("削除の確認", message, "削除", "キャンセル"))
+            {
+                return;
+            }
+
+            var error = await _service.DeleteAsync(row.Key);
+            if (error is null)
+            {
+                Error.Clear();
+            }
+            else
+            {
+                Error.Show(error);
+            }
         }
         catch (DataFileException ex)
         {
             Error.Show(ex.Message);
         }
+    }
+
+    /// <summary>案件の管理の画面を開く (バーの「案件の管理」から)</summary>
+    /// <returns>画面が閉じるまでの待機を表すタスク</returns>
+    [RelayCommand]
+    private async Task OpenProjectManagerAsync()
+    {
+        await _dialogs.ShowProjectManagerAsync();
+        try
+        {
+            await RefreshMasterAsync();
+            await ProjectPicker.RefreshAsync();
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
+        Rebuild();
     }
 
     /// <summary>進捗度のラベルを編集する (ローカルの保存先だけ)</summary>
@@ -365,7 +448,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         switch (column)
         {
             case "Name":
-                await UpdateItemAsync(row, item => item with { Name = text });
+                await UpdateTextAsync(row, name: text, note: null);
                 break;
             case "Start":
             case "Due":
@@ -404,14 +487,14 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         if (column == "DayNote")
         {
-            if (text != row.DayNote)
+            if (row.IsWork && text != row.DayNote)
             {
                 await SetRecordAsync(row, _service.GetRecord(row.Id, InputDate)?.Hours ?? 0, text);
             }
         }
         else if (text != row.Note)
         {
-            await UpdateItemAsync(row, item => item with { Note = text });
+            await UpdateTextAsync(row, name: null, note: text);
         }
     }
 
@@ -447,28 +530,52 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
-    /// <summary>行の項目を更新する</summary>
+    /// <summary>名前または備考を、行の種類に合わせて更新する</summary>
     /// <param name="row">行</param>
-    /// <param name="change">今の行から、更新後の行を作る処理</param>
+    /// <param name="name">新しい名前 (変えないなら null)</param>
+    /// <param name="note">新しい備考 (変えないなら null)</param>
+    /// <returns>更新の完了を表すタスク</returns>
+    private async Task UpdateTextAsync(WorkItemRow row, string? name, string? note)
+    {
+        try
+        {
+            string? error;
+            switch (row.Kind)
+            {
+                case WorkRowKind.Project:
+                    error = await _service.UpdateProjectAsync(row.Id, name, note);
+                    break;
+                case WorkRowKind.Group when _service.GetGroup(row.Id) is { } group:
+                    error = await _service.UpdateGroupAsync(group with { Name = name ?? group.Name, Note = note ?? group.Note });
+                    break;
+                case WorkRowKind.Work when _service.GetItem(row.Id) is { } item:
+                    error = await _service.UpdateItemAsync(item with { Name = name ?? item.Name, Note = note ?? item.Note }, InputDate);
+                    break;
+                default:
+                    return;
+            }
+            AcceptOrReject(row, error);
+        }
+        catch (DataFileException ex)
+        {
+            Reject(row, ex.Message);
+        }
+    }
+
+    /// <summary>作業の項目を更新する</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="change">今の作業から、更新後の作業を作る処理</param>
     /// <returns>更新の完了を表すタスク</returns>
     private async Task UpdateItemAsync(WorkItemRow row, Func<WorkItem, WorkItem> change)
     {
-        if (FindItem(row.Id) is not { } item)
+        if (_service.GetItem(row.Id) is not { } item)
         {
             return;
         }
 
         try
         {
-            var error = await _service.UpdateAsync(change(item));
-            if (error is null)
-            {
-                Error.Clear();
-            }
-            else
-            {
-                Reject(row, error);
-            }
+            AcceptOrReject(row, await _service.UpdateItemAsync(change(item), InputDate));
         }
         catch (DataFileException ex)
         {
@@ -485,19 +592,26 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         try
         {
-            var error = await _service.SetRecordAsync(row.Id, InputDate, hours, note);
-            if (error is null)
-            {
-                Error.Clear();
-            }
-            else
-            {
-                Reject(row, error);
-            }
+            AcceptOrReject(row, await _service.SetRecordAsync(row.Id, InputDate, hours, note));
         }
         catch (DataFileException ex)
         {
             Reject(row, ex.Message);
+        }
+    }
+
+    /// <summary>保存の結果に合わせて、エラーを消すか、入力を受け入れずに戻す</summary>
+    /// <param name="row">行</param>
+    /// <param name="error">入力の誤りのメッセージ。保存できたときは null</param>
+    private void AcceptOrReject(WorkItemRow row, string? error)
+    {
+        if (error is null)
+        {
+            Error.Clear();
+        }
+        else
+        {
+            Reject(row, error);
         }
     }
 
@@ -510,8 +624,26 @@ public sealed partial class WorkItemViewModel : ObservableObject
         row.Revert();
     }
 
-    /// <summary>保存先の内容が変わったとき、表を作り直す</summary>
-    private void OnServiceChanged() => Rebuild();
+    /// <summary>入力日を変えたあと、その日の記録を読み直す</summary>
+    /// <param name="day">新しい入力日</param>
+    /// <returns>読み込みの完了を表すタスク</returns>
+    private async Task ChangeDayAsync(DateOnly day)
+    {
+        try
+        {
+            await _service.SetDayAsync(day);
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
+        Rebuild();
+    }
+
+    /// <summary>案件マスターが空かを確かめる</summary>
+    /// <returns>確認の完了を表すタスク</returns>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    private async Task RefreshMasterAsync() => _masterEmpty = (await _service.SearchProjectsAsync("", false, false, 0, 1)).Count == 0;
 
     /// <summary>木構造から、見えている行の一覧を作り直す</summary>
     /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する (入力欄の位置とフォーカスを保つため)。</remarks>
@@ -525,38 +657,39 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
 
         var target = new List<WorkItemRow>();
-        var alive = new HashSet<int>();
-        void Visit(WorkItemNode node, int level)
+        var alive = new HashSet<WorkKey>();
+
+        // 完了して日がたった行 (完了日が入力日より前)は、既定で隠す。案件は隠さない。集計は隠した行も含んだまま
+        bool IsHidden(WorkNode node)
+            => !ShowFinished && node.Key.Kind != WorkRowKind.Project && node.Summary.IsFinished && node.Summary.CompletedOn is { } done && done < InputDate;
+
+        void Visit(WorkNode node, int level)
         {
-            var item = node.Item;
-            if (!_rowById.TryGetValue(item.Id, out var row))
+            var visibleChildren = node.Children.Where(c => !IsHidden(c)).ToList();
+            if (!_rowByKey.TryGetValue(node.Key, out var row))
             {
-                row = new WorkItemRow(item.Id, item.Kind);
-                _rowById[item.Id] = row;
+                row = new WorkItemRow(node.Key);
+                _rowByKey[node.Key] = row;
             }
 
-            var expanded = !_collapsed.Contains(item.Id);
-            row.Update(node, level, expanded, item.Kind == WorkItemKind.Work ? _service.GetRecord(item.Id, InputDate) : null, _progressOptions, labels);
-            alive.Add(item.Id);
+            var expanded = !_collapsed.Contains(node.Key);
+            row.Update(node, level, visibleChildren.Count > 0, expanded, node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null, _progressOptions, labels);
+            alive.Add(node.Key);
             target.Add(row);
             if (expanded)
             {
-                foreach (var child in node.Children)
+                foreach (var child in visibleChildren)
                 {
                     Visit(child, level + 1);
                 }
             }
             else
             {
-                MarkAlive(node);
-            }
-        }
-
-        void MarkAlive(WorkItemNode node)
-        {
-            foreach (var child in node.Children.SelectMany(c => c.SelfAndDescendants()))
-            {
-                alive.Add(child.Item.Id);
+                // 閉じている間も、行は使い回せるよう残す
+                foreach (var child in visibleChildren.SelectMany(c => c.SelfAndDescendants()))
+                {
+                    alive.Add(child.Key);
+                }
             }
         }
 
@@ -585,11 +718,12 @@ public sealed partial class WorkItemViewModel : ObservableObject
             Rows.RemoveAt(Rows.Count - 1);
         }
 
-        foreach (var id in _rowById.Keys.Where(id => !alive.Contains(id)).ToList())
+        foreach (var key in _rowByKey.Keys.Where(key => !alive.Contains(key)).ToList())
         {
-            _rowById.Remove(id);
+            _rowByKey.Remove(key);
         }
         IsEmpty = Rows.Count == 0;
+        EmptyMessage = !IsEmpty || _service.HasSelection ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
         if (SelectedRow is not null && !Rows.Contains(SelectedRow))
         {
             SelectedRow = null;
@@ -599,26 +733,18 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
     /// <summary>移動先の選択肢に、グループを木の順に足す</summary>
     /// <param name="nodes">並べる行</param>
-    /// <param name="excludedId">選択肢に出さない行の番号 (移す行。その中も出さない)</param>
+    /// <param name="projectId">案件の番号</param>
+    /// <param name="excluded">選択肢に出さない行 (移す行。その中も出さない)</param>
     /// <param name="level">字下げの段</param>
     /// <param name="destinations">足し先</param>
-    private static void AddDestinations(IReadOnlyList<WorkItemNode> nodes, int excludedId, int level, List<MoveDestination> destinations)
+    private static void AddDestinations(IReadOnlyList<WorkNode> nodes, int projectId, WorkKey excluded, int level, List<MoveDestination> destinations)
     {
-        foreach (var node in nodes.Where(n => n.Item.Kind == WorkItemKind.Group && n.Item.Id != excludedId))
+        foreach (var node in nodes.Where(n => n.Key.Kind == WorkRowKind.Group && n.Key != excluded))
         {
-            destinations.Add(new MoveDestination(node.Item.Id, node.Item.Name, level));
-            AddDestinations(node.Children, excludedId, level + 1, destinations);
+            destinations.Add(new MoveDestination(projectId, node.Key.Id, node.Name, level));
+            AddDestinations(node.Children, projectId, excluded, level + 1, destinations);
         }
     }
-
-    /// <summary>閉じているグループを、設定に残す</summary>
-    /// <returns>保存の完了を表すタスク</returns>
-    private Task SaveCollapsedAsync() => _settings.SetAsync(CollapsedItemsKey, string.Join(',', _collapsed));
-
-    /// <summary>番号から、行 (保存するデータ)を探す</summary>
-    /// <param name="id">行の番号</param>
-    /// <returns>行。無ければ null</returns>
-    private WorkItem? FindItem(int id) => _service.Items.FirstOrDefault(i => i.Id == id);
 
     /// <summary>入力された文字を、日付にする</summary>
     /// <param name="text">入力された文字 (空は、日付なし)</param>

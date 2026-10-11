@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MmmTool.WorkItems.Main"
+    xmlns:picker="using:MmmTool.WorkItems.ProjectPicker"
     xmlns:sdk="using:MmmSdk.WinUI.Controls"
     Loaded="OnLoaded">
 
@@ -31,7 +32,6 @@
 
             <!-- 右クリックのメニュー (中身は開くときに、コードで作る)。入力欄にも同じものを付け、入力欄の既定のメニューを出さない -->
             <MenuFlyout x:Key="RowMenu" />
-            <MenuFlyout x:Key="BlankMenu" />
 
             <!-- カード (リンク・クリップボード転送のページと同じ) -->
             <Style x:Key="CardStyle" TargetType="Border">
@@ -244,10 +244,16 @@
 
             <!-- 毎日入力する列 -->
             <DataTemplate x:Key="StatusCell" x:DataType="local:WorkItemRow">
-                <TextBlock
-                    Style="{StaticResource ValueTextStyle}"
-                    Text="{x:Bind StatusText, Mode=OneWay}"
-                    Visibility="{x:Bind IsWork}" />
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
             </DataTemplate>
 
             <DataTemplate x:Key="ProgressCell" x:DataType="local:WorkItemRow">
@@ -300,6 +306,14 @@
 
             <DataTemplate x:Key="DayNoteCell" x:DataType="local:WorkItemRow">
                 <Grid>
+                    <!-- 案件・グループの行は、日ごとの備考が無い (入力できない) ので、ハイフンを出す -->
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        IsHitTestVisible="False"
+                        Text="-"
+                        Visibility="{x:Bind IsGroup}" />
                     <Button
                         x:Name="Col_DayNote"
                         IsTabStop="False"
@@ -417,6 +431,85 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="8">
+                <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
+                <Button x:Name="ProjectsButton" Content="表示する案件">
+                    <Button.Flyout>
+                        <Flyout Opening="OnProjectsFlyoutOpening" Placement="BottomEdgeAlignedRight">
+                            <Grid Width="360" RowSpacing="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBox
+                                    InputScope="Hiragana"
+                                    PlaceholderText="案件を検索"
+                                    Text="{x:Bind ViewModel.ProjectPicker.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <CheckBox
+                                    Grid.Row="1"
+                                    MinWidth="0"
+                                    Content="進行中のみ"
+                                    IsChecked="{x:Bind ViewModel.ProjectPicker.ActiveOnly, Mode=TwoWay}" />
+                                <InfoBar
+                                    Grid.Row="2"
+                                    IsOpen="{x:Bind ViewModel.ProjectPicker.Error.IsOpen, Mode=TwoWay}"
+                                    Message="{x:Bind ViewModel.ProjectPicker.Error.Message, Mode=OneWay}"
+                                    Severity="Error" />
+                                <Grid Grid.Row="3">
+                                    <ListView
+                                        MaxHeight="320"
+                                        ContainerContentChanging="OnProjectChoiceContainerChanging"
+                                        ItemsSource="{x:Bind ViewModel.ProjectPicker.Items}"
+                                        SelectionMode="None">
+                                        <ListView.ItemContainerStyle>
+                                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                                <Setter Property="MinHeight" Value="36" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="picker:ProjectChoice">
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox
+                                                        MinWidth="0"
+                                                        Click="OnProjectChoiceClick"
+                                                        Content="{x:Bind Name}"
+                                                        IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                                        Tag="{x:Bind}" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="{x:Bind FinishedText}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                    <TextBlock
+                                        Margin="0,16"
+                                        HorizontalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                        Text="該当する案件がありません"
+                                        Visibility="{x:Bind ViewModel.ProjectPicker.IsEmpty, Mode=OneWay}" />
+                                </Grid>
+                            </Grid>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <!-- 案件の追加・名前の変更・削除の入口 (案件は全員で共有するので、行のない所の右クリックでは作らない) -->
+                <Button Command="{x:Bind ViewModel.OpenProjectManagerCommand}" Content="案件の管理" />
+                <!-- 完了して日がたった行を出すか。いつも切り替える操作なので、メニューに隠さず、バーに出す -->
+                <ToggleSwitch
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
+                    OffContent="完了を表示"
+                    OnContent="完了を表示" />
                 <Button x:Name="ColumnsButton" Content="表示列" />
                 <Button
                     Command="{x:Bind ViewModel.EditProgressLabelsCommand}"
@@ -436,7 +529,7 @@
                     VerticalAlignment="Top"
                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                     IsHitTestVisible="False"
-                    Text="右クリックして、案件を追加します"
+                    Text="{x:Bind ViewModel.EmptyMessage, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
             </Grid>
         </Border>

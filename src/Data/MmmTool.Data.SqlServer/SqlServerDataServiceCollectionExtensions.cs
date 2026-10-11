@@ -3,6 +3,7 @@ using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.Data.SqlServer.Users;
+using MmmTool.Data.SqlServer.WorkItems;
 using MmmTool.Data.Users;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
@@ -38,6 +39,9 @@ public static class SqlServerDataServiceCollectionExtensions
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
                 ? provider.GetRequiredService<SqlServerReminderRepository>()
                 : provider.GetRequiredService<JsonReminderRepository>());
+
+        // 作業リスト。保存先の選択 (ローカルの SQLite / SQL Server)は、SQLite を参照できるホストが、設定で行う (MmmBatch に SQLite を持ち込まないため)
+        services.AddSingleton<SqlServerWorkItemRepository>();
 
         // 送信先とリマインダーの送信設定は、DB モードだけで使う (ローカルモードは、機能が登録した「使えない」保存先のまま)
         services.AddSingleton<SqlServerNotificationChannelRepository>();
