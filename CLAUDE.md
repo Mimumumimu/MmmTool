@@ -70,7 +70,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 案 (おすすめ): MmmTool の `csproj` にある発行の仕組み (DLL を `Lib` へ移す・`THIRD-PARTY-NOTICES.txt` の自動生成・`PackageDistribution` で版のフォルダ + 説明書 + アプリ本体の形にする)を、共有のファイル (例: `build/AppDistribution.targets`)に取り出し、MmmTool と MmmBatch の両方が読み込む。アプリごとに違う値 (アプリ名・説明書の場所)だけを各 `csproj` に書く。複製しない (同じものを写さないルール)。MmmTool の発行が、これまでと同じ配布物になることを、中身を比べて確かめる
   - 足すもの: MmmBatch の発行プロファイル・説明書 `Distribution/README.txt` (変更履歴つき・必要環境: .NET Desktop Runtime と Windows App Runtime をサーバーに入れる)・ライセンスの同梱・MmmBatch の README・版の決め方 (おすすめ: MmmTool とは別の版)・別のアプリのアイコン (今は MmmTool と同じ。画像は、ユーザーが用意する)
   - 暫定の発行は、ライセンス全文 (`THIRD-PARTY-NOTICES.txt`)が付かない。公開・配布する前に、上の作業を済ませる
-- 実機の確認で、ntfy の `click` (通知のタップでリンクを開く)が動くか (MSchedule では、スマホ側で動かなかった)
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
 実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)と画面 (設定ページの保存先・初回の保存先の選択・宛先・削除の出し分け)は実装済み。
@@ -80,13 +79,10 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - 方向だけ決めている後回し: ユーザーごとの設定を DB に置くときは、縦持ち (`(UserId, SettingKey)` の主キー・キーは `Reminder.SnoozeIntervalMinutes` のような文字列・値は JSON)にし、`ISettingsStore` と同じ形で読み書きする
 
 ### 作業管理 (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
-保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 5 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた。SQL Server の保存は、書いただけで、実行していない)。JSON の保存は廃止した。画面は、実機で一度も動かしていない。
-- **実機の確認**: `TreeGridView`(固定の列・見出しの固定・仮想化・右クリックのメニュー・入力欄の確定)と、ページの全体。確認の項目は、仕様の「画面」と SDK の `docs/controls.md` の「TreeGridView」。固定の列がうまく動かないときは、固定なしで出す形に直す。あわせて、新しい画面: 「表示する案件」のフライアウト (検索・進行中のみ・チェックの保存・続きの読み込み)・「案件の管理」のウィンドウ・「完了を表示」・別の PC の更新の取り込み (60 秒ごと)。文言はすべて仮 (決まったら、まとめて直す)
-- **SQL Server 版の実機の確認** (2026-10-11): 表は、`mimumu202511` の `MmmTool` に作成済み (`003`・`004`・`005`。`Sql/Maintenance/RebuildActualTotal.sql` は流していない)。案件・グループ・作業・日ごとの記録の保存と、日付のクリア (開始日 `0001-01-01`・期限日 `9999-12-31`)は、実機で確かめた。残りは、複数人での同時の更新・別の PC の更新の取り込み・`RebuildActualTotal.sql`・記録の時間を入れたときの累計
-- **発行の確認**: 発行 (出力先を別の場所にして試した。2026-10-11)では、`e_sqlite3.dll` が `Lib` に入り、`deps.json` の `localPath` も付き、`THIRD-PARTY-NOTICES.txt` に SQLite 関係も入ることを確かめた。残りは、実際の発行物を起動して、作業管理を開き、`Data/MmmTool.db` が作られること
-- **コードマスタ** (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md) の「コードマスタ」): 残りは、画面の実機の確認 (優先度・状態・進捗度のメニューがコードマスタの名前で出ること・「設定」ボタンが無いこと)と、**コードマスタの管理ツール**(別ツールにする。ユーザーの方針 2026-10-11。選択肢の追加・外す・並べ替え。ローカルモードの扱いは未定)
-- **担当者の列の残り** (2026-10-12 実装。ビルドは両方の slnx で通り、SQLite は確認用のコンソールで確かめた): (1) SQL Server の `dbo.WorkItem` の列の追加・既存 2 行の担当者 1・列の並べ替え (画面の並び) は、2026-10-12 に済み。DB モードで作業の追加 (`INSERT`) を、実機で確かめる (2) 画面の実機の確認 (担当の列・メニュー・「自分の担当だけ」。ローカルモードでは出ないこと) (3) 文言の確認 (「担当」「自分の担当だけ」「未割り当て」)
-- **表示しない案件の設定化の実機の確認** (2026-10-12 実装。SQL Server の `dbo.WorkProjectSelection` は削除済み): 最初は全部の案件が表示されること・「表示する案件」でチェックを外すと消えて、再起動後も外れたままなこと・別の人が作った案件が 60 秒以内に出ること・案件の削除で表から消えること・DB モードの読み込み (`OPENJSON`。読み取りの問い合わせは `mimumu202511` で確かめた。`INSERT` は未実行)
+保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 5 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた)。JSON の保存は廃止した。
+- **コードマスタ** (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md) の「コードマスタ」): 残りは、**コードマスタの管理ツール**(別ツールにする。ユーザーの方針 2026-10-11。選択肢の追加・外す・並べ替え。ローカルモードの扱いは未定)
+- **SQL Server の `dbo.WorkItem` の列 (ユーザーが SSMS で並べ替える。2026-10-12)**: 列を画面の並び (`Name`・`AssigneeUserId`・`PriorityCodeNo`・`StartDate`・`DueDate`・`CompletedDate`・`PlannedHours`・`ActualTotalHours`・`StatusCodeNo`・`ProgressCodeNo`・`Note`)に並べ、`CompletedOn` を `CompletedDate` に名前変更する (`Sql/008_RenameWorkItemCompletedDate.sql`。列・既定値・インデックスの名前を直す。名前を直すまで、DB モードは作業管理を読めない)
+- **担当者の列の文言の確認** (すべて仮): 「担当」(表の列の見出し)・「自分の担当だけ」(上のバーのトグルスイッチ)・「未割り当て」(担当のセルを押したときのメニューの先頭の項目)
 - **後で決める**: リーダー的な人の更新の権限 (SQL Server の実装のとき)・作業の行の「実績 (日)」に他の人の分を出すか (今は、実績 (日)は、行も案件・グループも、自分の記録だけ。累計は全員の分)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
@@ -96,10 +92,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ### ユーザーが用意するもの待ち
 - README.md の画像 (制約: 画像はユーザーが用意する。リンクの中身などがまだ決まっておらず、撮れない)。届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える (CLI補助の `cli-assist.jpg` と同じ形): リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`・通知ダイアログ `notification.png`・リマインダーのメイン画面 `reminders.png`
   - 冒頭 (ツカミの下)には、特定の機能に偏らない画像だけを置く (ユーザーの意向: CLI補助はメイン機能ではなく、便利機能の詰め合わせの 1 つ。CLI補助の画像を冒頭に置くと、CLI補助のアプリに見えたため外した)。候補はトレイのリンクメニューと通知ダイアログ (常駐していて邪魔にならないことが伝わる)。どれを冒頭に置くかは、画像が届いたときにユーザーと決める
-
-### 実機の確認待ち
-- 設定の「機能」の一覧の並べ替え (2026-10-11 実装。ビルドは通ったが、画面は未確認)。確認の項目: 設定が開くこと・カードの本体からドラッグできること (`SettingsCard` がドラッグを奪わないか)・ホバーの背景が二重にならないこと・マウスホイールでページがスクロールすること・サイドバーと設定の部品がすぐ並び替わること・「既定の順に戻す」・再起動後も並びが残ること。うまくいかないときの代案は、`SettingsCard` をやめて、`Grid` で同じ見た目のカードを作る。文言 (説明文・ボタン・エラーの文)は案のまま。キーボードでの並べ替えは、動くか未確認 ([docs/specs/settings.md](docs/specs/settings.md))
-- 「音声機器を起こしておく」(無音の出力)が、光デジタルの機器で効くか。出力ノードだけの `AudioGraph` は、ゼロの音を流す。ゼロだけで止まる機器なら、`AudioFrameInputNode` で ±1 を流す形に変える ([external/MmmSdk/docs/audio.md](external/MmmSdk/docs/audio.md))
 
 ## 作業の注意 (要点。詳細は docs)
 - 機能の追加は、機能のライブラリ (`src/Plugins/MmmTool.<機能>` と `.Core`)と、`App.ConfigureServices` の 1 行 (`AddFeaturePlugin<<機能>Plugin>(order: n)`。`order` はサイドバー・トレイ・設定の並び順の値)で済む形を保つ。機能は `MmmTool`(exe)を参照しない (ホストの値は SDK の `AppEnvironment` などを DI から受け取る)。共通部分 (`Shell/`)は特定の機能を参照しない。機能のプラグインどうしも参照しない

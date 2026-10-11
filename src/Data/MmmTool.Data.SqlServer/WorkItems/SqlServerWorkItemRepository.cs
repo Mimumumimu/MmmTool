@@ -116,10 +116,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     SELECT p.Id, p.Name,
                            CASE WHEN {ProjectFilter("p", "Id", exclude: true)} THEN 1 ELSE 0 END,
                            f.IsFinished,
-                           CASE WHEN f.IsFinished = 1 THEN (SELECT MAX(w.CompletedOn) FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
+                           CASE WHEN f.IsFinished = 1 THEN (SELECT MAX(w.CompletedDate) FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
                     FROM dbo.WorkProject p
                     CROSS APPLY (SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0)
-                                              AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.StatusCodeNo <> 3))
+                                              AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedDate = @none OR w.StatusCodeNo <> 3))
                                          THEN 1 ELSE 0 END AS IsFinished) f
                     WHERE p.IsDeleted = 0
                       AND (@query = N'' OR p.Name LIKE N'%' + @query + N'%' ESCAPE N'\')
@@ -141,34 +141,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     cancellationToken);
             },
             cancellationToken);
-
-    /// <inheritdoc />
-    public Task<int> CountRecordsAsync(IReadOnlyList<int> workItemIds, CancellationToken cancellationToken = default)
-        => RunAsync(async connection =>
-        {
-            var total = 0;
-            foreach (var chunk in workItemIds.Chunk(ChunkSize))
-            {
-                total += Convert.ToInt32(await ScalarAsync(
-                    connection,
-                    null,
-                    $"SELECT COUNT(*) FROM dbo.WorkRecord WHERE IsDeleted = 0 AND WorkItemId IN ({InList(chunk.Length)})",
-                    InParameters(chunk),
-                    cancellationToken).ConfigureAwait(false));
-            }
-            return total;
-        }, cancellationToken);
-
-    /// <inheritdoc />
-    public Task<WorkItemDeleteImpact> GetProjectDeleteImpactAsync(int projectId, CancellationToken cancellationToken = default)
-        => RunAsync(async connection =>
-        {
-            (string, object)[] parameters = [("@project", projectId)];
-            var groups = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM dbo.WorkGroup WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken).ConfigureAwait(false);
-            var works = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM dbo.WorkItem WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken).ConfigureAwait(false);
-            var records = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM dbo.WorkRecord WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken).ConfigureAwait(false);
-            return new WorkItemDeleteImpact(Convert.ToInt32(groups), Convert.ToInt32(works), Convert.ToInt32(records));
-        }, cancellationToken);
 
     /// <inheritdoc />
     public async Task<WorkProject> AddProjectAsync(string name, CancellationToken cancellationToken = default)
@@ -247,14 +219,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 transaction,
                 """
                 INSERT INTO dbo.WorkItem (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                          PriorityCodeNo, StartDate, DueDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note, CompletedOn)
+                                          PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note)
                 OUTPUT INSERTED.Id, INSERTED.CreatedAt, INSERTED.UpdatedAt
-                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @planned, 0, @status, @progress, @note, @completed)
+                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @status, @progress, @note)
                 """,
                 [
                     ("@user", user), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
                     ("@name", row.Name), ("@note", row.Note), ("@assignee", row.AssigneeUserId), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
-                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
+                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
                 ]);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -283,11 +255,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         changes.Add("PriorityCodeNo", b.PriorityCodeNo, a.PriorityCodeNo);
         changes.Add("StartDate", b.StartDate, a.StartDate);
         changes.Add("DueDate", b.DueDate, a.DueDate);
+        changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
-        changes.Add("CompletedOn", b.CompletedOn, a.CompletedOn);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
     }
 
@@ -576,7 +548,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (14 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note, {alias}.CompletedOn";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -630,12 +602,12 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         PriorityCodeNo = r.GetInt32(11),
         StartDate = DateOnly.FromDateTime(r.GetDateTime(12)),
         DueDate = DateOnly.FromDateTime(r.GetDateTime(13)),
-        PlannedHours = r.GetDecimal(14),
-        ActualTotalHours = r.GetDecimal(15),
-        StatusCodeNo = r.GetInt32(16),
-        ProgressCodeNo = r.GetInt32(17),
-        Note = r.GetString(18),
-        CompletedOn = DateOnly.FromDateTime(r.GetDateTime(19)),
+        CompletedDate = DateOnly.FromDateTime(r.GetDateTime(14)),
+        PlannedHours = r.GetDecimal(15),
+        ActualTotalHours = r.GetDecimal(16),
+        StatusCodeNo = r.GetInt32(17),
+        ProgressCodeNo = r.GetInt32(18),
+        Note = r.GetString(19),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

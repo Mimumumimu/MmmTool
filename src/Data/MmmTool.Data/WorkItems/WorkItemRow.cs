@@ -66,7 +66,7 @@ public sealed record WorkItemRow
     public decimal PlannedHours { get; init; }
 
     /// <summary>完了日 (未完了は <c>9999-12-31</c>)</summary>
-    public DateOnly CompletedOn { get; init; } = WorkRowValues.NoDate;
+    public DateOnly CompletedDate { get; init; } = WorkRowValues.NoDate;
 
     /// <summary>実績の累計 (記録を保存するたびに、保存先が計算し直して書く)</summary>
     public decimal ActualTotalHours { get; init; }
@@ -102,7 +102,7 @@ public sealed record WorkItemRow
             StatusCodeNo = (int)item.Status,
             ProgressCodeNo = item.ProgressCodeNo,
             PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
-            CompletedOn = WorkRowValues.FromDate(item.CompletedOn, "完了日"),
+            CompletedDate = WorkRowValues.FromDate(item.CompletedDate, "完了日"),
             ActualTotalHours = WorkRowValues.FromHours(item.ActualTotalHours, "実績の累計", 9_999_999_999),
         };
     }
@@ -124,7 +124,7 @@ public sealed record WorkItemRow
         Status = (WorkItemStatus)StatusCodeNo,
         ProgressCodeNo = ProgressCodeNo,
         PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,
-        CompletedOn = WorkRowValues.ToDate(CompletedOn),
+        CompletedDate = WorkRowValues.ToDate(CompletedDate),
         ActualTotalHours = WorkRowValues.ToHours(ActualTotalHours),
         IsDeleted = IsDeleted,
         UpdatedAt = UpdatedAt,

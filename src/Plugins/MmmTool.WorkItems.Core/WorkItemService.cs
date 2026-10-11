@@ -244,7 +244,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (グループ・案件の集計は、全員の作業から計算したまま)</param>
     /// <returns>案件の行の並び</returns>
     /// <remarks>
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。集計を変えないのは、案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため (「完了を表示」で隠す行も、同じ扱い)。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。集計を変えないのは、案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため (「過去の完了を表示」で隠す行も、同じ扱い)。
     /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
     /// </remarks>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false)
@@ -373,22 +373,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             _lock.Release();
             FlushChanged();
         }
-    }
-
-    /// <summary>案件を削除すると消える件数を数える</summary>
-    /// <param name="key">削除する行の識別 (案件・グループ・作業)</param>
-    /// <returns>消えるグループ・作業・日ごとの記録の数</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    public async Task<WorkItemDeleteImpact> GetDeleteImpactAsync(WorkKey key)
-    {
-        if (key.Kind == WorkRowKind.Project)
-        {
-            return await repository.GetProjectDeleteImpactAsync(key.Id);
-        }
-
-        var (groupIds, itemIds) = key.Kind == WorkRowKind.Group ? Descendants(key.Id) : ([], [key.Id]);
-        var records = itemIds.Count == 0 ? 0 : await repository.CountRecordsAsync([.. itemIds]);
-        return new WorkItemDeleteImpact(groupIds.Count, itemIds.Count, records);
     }
 
     /// <summary>案件を削除する (論理削除。案件の行だけ。中のグループ・作業の行は残すので、案件の行を戻せば、中身も戻る)</summary>
@@ -599,8 +583,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             };
             candidate = candidate with
             {
-                CompletedOn = candidate.Status == WorkItemStatus.Closed
-                    ? (current.Status == WorkItemStatus.Closed && current.CompletedOn is not null ? current.CompletedOn : inputDate)
+                CompletedDate = candidate.Status == WorkItemStatus.Closed
+                    ? (current.Status == WorkItemStatus.Closed && current.CompletedDate is not null ? current.CompletedDate : inputDate)
                     : null,
             };
 

@@ -11,7 +11,7 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、白のまま。灰色は、入力できないように見えるため) -->
+                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま。灰色は、入力できないように見えるため) -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
                     <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4D000000" />
@@ -241,6 +241,13 @@
                     TextAlignment="Right" />
             </DataTemplate>
 
+            <!-- 完了日。作業・グループとも入力できない (作業は、状態が完了に変わった入力日。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ) -->
+            <DataTemplate x:Key="CompletedCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Style="{StaticResource CellTextStyle}"
+                    Text="{x:Bind CompletedText, Mode=OneWay}" />
+            </DataTemplate>
+
             <!-- 実績 (累計)。作業・グループとも入力できない -->
             <DataTemplate x:Key="ActualTotalCell" x:DataType="local:WorkItemRow">
                 <TextBlock
@@ -458,8 +465,8 @@
                     MinWidth="0"
                     VerticalAlignment="Center"
                     IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
-                    OffContent="完了を表示"
-                    OnContent="完了を表示" />
+                    OffContent="過去の完了を表示"
+                    OnContent="過去の完了を表示" />
                 <ToggleSwitch
                     MinWidth="0"
                     VerticalAlignment="Center"

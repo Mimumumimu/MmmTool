@@ -9,7 +9,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="Progress">進捗度 (案件・グループは、予定時間の重み付き平均か件数の平均。作業が無ければ null)</param>
 /// <param name="WorkCount">下にある作業の数 (作業自身は 1)</param>
 /// <param name="IsFinished">完了しているか (作業は状態と完了日。案件・グループは、作業が 1 件以上あり、未完了の作業が 1 件も無い)</param>
-/// <param name="CompletedOn">完了日 (完了しているとき。案件・グループは、下の作業の完了日の最大。完了していなければ null)</param>
+/// <param name="CompletedDate">完了日 (完了しているとき。案件・グループは、下の作業の完了日の最大。完了していなければ null)</param>
 /// <param name="Status">状態 (案件・グループは、下の作業から計算する。すべて未対応なら未対応、すべて完了なら完了、それ以外は作業中。作業が無ければ null)</param>
 public sealed record WorkSummary(
     DateOnly? StartDate,
@@ -20,5 +20,5 @@ public sealed record WorkSummary(
     int? Progress,
     int WorkCount,
     bool IsFinished,
-    DateOnly? CompletedOn,
+    DateOnly? CompletedDate,
     WorkItemStatus? Status);
