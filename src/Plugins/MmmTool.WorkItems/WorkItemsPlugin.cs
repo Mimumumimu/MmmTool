@@ -4,7 +4,6 @@ using MmmSdk.WinUI.Components.Pages;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Main;
 using MmmTool.WorkItems.Move;
-using MmmTool.WorkItems.ProgressLabels;
 using MmmTool.WorkItems.ProjectManager;
 using MmmTool.WorkItems.ProjectPicker;
 
@@ -31,7 +30,6 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddSingleton<IWorkItemDialogService, WorkItemDialogService>();
         // 閉じたダイアログは再表示できないので、開くたびに作る
         services.AddTransient<MoveDialog>();
-        services.AddTransient<ProgressLabelsDialog>();
         services.AddTransient<ProjectManagerWindow>();
         services.AddTransient<ProjectManagerViewModel>();
 

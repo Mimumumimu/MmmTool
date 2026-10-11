@@ -511,10 +511,6 @@
                     OffContent="完了を表示"
                     OnContent="完了を表示" />
                 <Button x:Name="ColumnsButton" Content="表示列" />
-                <Button
-                    Command="{x:Bind ViewModel.EditProgressLabelsCommand}"
-                    Content="設定"
-                    Visibility="{x:Bind ViewModel.CanEditProgressLabels}" />
             </StackPanel>
         </Grid>
 

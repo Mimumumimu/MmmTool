@@ -53,8 +53,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
 
-    /// <summary>進捗度の選択肢 (ラベルが変わらない間は、同じ一覧を使い回す)</summary>
-    private IReadOnlyList<string> _progressOptions = [];
+    /// <summary>選択欄の選択肢 (コードマスタが変わらない間は、同じ一覧を使い回す)</summary>
+    private WorkChoices _choices = new(MmmTool.CodeMaster.Core.CodeBook.Empty);
 
     /// <summary>壊れたファイルを退避した知らせを、もう出したか (サービスが、アプリの実行中ずっと持つので、ページを開くたびには出さない)</summary>
     private bool _recoveryMessageShown;
@@ -93,9 +93,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>選んだ行</summary>
     [ObservableProperty]
     public partial WorkItemRow? SelectedRow { get; set; }
-
-    /// <summary>進捗度のラベルを、画面から編集できるか</summary>
-    public bool CanEditProgressLabels => _service.CanEditProgressLabels;
 
     /// <summary>追加した行の名前を、入力できる状態にしてほしい</summary>
     public event EventHandler<WorkItemRow>? FocusNameRequested;
@@ -389,34 +386,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
         Rebuild();
     }
 
-    /// <summary>進捗度のラベルを編集する (ローカルの保存先だけ)</summary>
-    /// <returns>編集の完了を表すタスク</returns>
-    [RelayCommand]
-    private async Task EditProgressLabelsAsync()
-    {
-        if (await _dialogs.EditProgressLabelsAsync(_service.ProgressLabels) is not { } labels)
-        {
-            return;
-        }
-
-        try
-        {
-            var error = await _service.SaveProgressLabelsAsync(labels);
-            if (error is null)
-            {
-                Error.Clear();
-            }
-            else
-            {
-                Error.Show(error);
-            }
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
-        }
-    }
-
     /// <summary>文字の入力欄 (名前・日付・時間)の入力を、確定する</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー (Name / Start / Due / Planned / ActualDay)</param>
@@ -518,14 +487,14 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         switch (column)
         {
-            case "Priority" when index < WorkItemNames.Priorities.Count && index != row.PriorityIndex:
-                await UpdateItemAsync(row, item => item with { Priority = WorkItemNames.Priorities[index] });
+            case "Priority" when index < row.Choices.Priorities.Count && index != row.PriorityIndex:
+                await UpdateItemAsync(row, item => item with { Priority = (WorkItemPriority)row.Choices.Priorities[index].CodeNo });
                 break;
-            case "Status" when index < WorkItemNames.Statuses.Count && index != row.StatusIndex:
-                await UpdateItemAsync(row, item => item with { Status = WorkItemNames.Statuses[index] });
+            case "Status" when index < row.Choices.Statuses.Count && index != row.StatusIndex:
+                await UpdateItemAsync(row, item => item with { Status = (WorkItemStatus)row.Choices.Statuses[index].CodeNo });
                 break;
-            case "Progress" when index < WorkProgress.Values.Count && index != row.ProgressIndex:
-                await UpdateItemAsync(row, item => item with { Progress = WorkProgress.Values[index] });
+            case "Progress" when index < row.Choices.Progresses.Count && index != row.ProgressIndex:
+                await UpdateItemAsync(row, item => item with { ProgressCodeNo = row.Choices.Progresses[index].CodeNo });
                 break;
         }
     }
@@ -649,11 +618,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する (入力欄の位置とフォーカスを保つため)。</remarks>
     private void Rebuild()
     {
-        var labels = _service.ProgressLabels;
-        var options = WorkProgress.Values.Select(v => WorkProgress.Format(v, labels)).ToList();
-        if (!options.SequenceEqual(_progressOptions))
+        if (!ReferenceEquals(_choices.Book, _service.Codes))
         {
-            _progressOptions = options;
+            _choices = new WorkChoices(_service.Codes);
         }
 
         var target = new List<WorkItemRow>();
@@ -673,7 +640,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
 
             var expanded = !_collapsed.Contains(node.Key);
-            row.Update(node, level, visibleChildren.Count > 0, expanded, node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null, _progressOptions, labels);
+            row.Update(node, level, visibleChildren.Count > 0, expanded, node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null, _choices);
             alive.Add(node.Key);
             target.Add(row);
             if (expanded)

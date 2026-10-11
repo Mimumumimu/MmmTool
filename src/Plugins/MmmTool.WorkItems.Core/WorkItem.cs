@@ -22,7 +22,7 @@ public sealed record WorkItem
     /// <summary>備考 (作業ごとの共通の備考。永続)</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>優先度</summary>
+    /// <summary>優先度 (コードマスタの区分「優先度」のコード番号と同じ値)</summary>
     public WorkItemPriority Priority { get; init; } = WorkItemPriority.Normal;
 
     /// <summary>開始日 (無ければ null)</summary>
@@ -31,11 +31,11 @@ public sealed record WorkItem
     /// <summary>期限日 (無ければ null)</summary>
     public DateOnly? DueDate { get; init; }
 
-    /// <summary>状態</summary>
+    /// <summary>状態 (コードマスタの区分「状態」のコード番号と同じ値)</summary>
     public WorkItemStatus Status { get; init; } = WorkItemStatus.Open;
 
-    /// <summary>進捗度 (0 から 100 の 10 刻みの整数。ラベルではなく数値を持つ)</summary>
-    public int Progress { get; init; }
+    /// <summary>進捗度のコード番号 (コードマスタの区分「進捗度」のコード。%の値は、コードマスタの数値)</summary>
+    public int ProgressCodeNo { get; init; } = WorkCodes.DefaultProgressCodeNo;
 
     /// <summary>予定時間 (作業ごとの共通の値。無ければ null)</summary>
     public double? PlannedHours { get; init; }

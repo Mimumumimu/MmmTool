@@ -39,11 +39,11 @@
 | `WorkItem` | 作業リストの作業 |
 | `WorkRecord` | 作業リストの日ごとの記録。人ごと |
 | `WorkProjectSelection` | 作業リストで、利用者が表示する案件に選んだ記録。ユーザーごと |
-| `WorkProgress` | 作業リストの進捗度のマスター |
+| `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業リストの状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
 `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus` の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
-作業リストの 6 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkProjectSelection`・`WorkProgress`)は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業リストの表 (6 つ)」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業リストの表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
+作業リストの 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkProjectSelection`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業リストの表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業リストの表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
 
 ## 列
 「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
@@ -161,7 +161,7 @@
 - `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)。送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
 - ログではなく状態で、「送ったか」の判断に使う。画面の「今日」(今日の送信予定)は、この表から読む。送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログ ([mmmbatch.md](mmmbatch.md)の「送信のログ」)に残し、画面の「履歴」はそちらから出す (この表は再送で同じ行を更新するので、経過が残らないため。ユーザーの決定)
 
-### 作業リストの表 (6 つ)
+### 作業リストの表 (5 つ)
 ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql`。SQLite の型は、下の「型の対応 (作業リストの表)」。
 
 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く。
@@ -211,11 +211,11 @@
 | `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並び。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | 作業名。1 文字以上 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
-| `Priority` | 整数 (小) | `tinyint` | 2 | 優先度。High = 1 / Normal = 2 / Low = 3 (1 から 3 の検査) |
+| `PriorityCodeNo` | 整数 | `int` | 2 | 優先度のコード番号 (コードマスタの機能番号 2・区分 3)。High = 1 / Normal = 2 / Low = 3。1 以上の検査 |
 | `StartDate` | 日付 | `date` | `9999-12-31` | 開始日。ない日は `9999-12-31` |
 | `DueDate` | 日付 | `date` | `9999-12-31` | 期限。ない日は `9999-12-31` |
-| `Status` | 整数 (小) | `tinyint` | 1 | 状態。Open = 1 / InProgress = 2 / Closed = 3 (1 から 3 の検査) |
-| `Progress` | 整数 (小) | `tinyint` | 0 | 進捗度。0 から 100 の検査 |
+| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / InProgress = 2 / Closed = 3 (コードの列挙と同じ値)。1 以上の検査 |
+| `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号 (コードマスタの機能番号 2・区分 2)。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `CompletedOn` | 日付 | `date` | `9999-12-31` | 完了日。未完了は `9999-12-31` |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
@@ -256,20 +256,29 @@
 - `(UserId, ProjectId)` を、削除されていない行の間だけ一意にする (`UX_WorkProjectSelection_UserId_ProjectId`)
 - インデックス: `IX_WorkProjectSelection_UserId_UpdatedAt (UserId, UpdatedAt)`(別の PC での選びの変更を、差分で知る。論理削除された行も含む)
 
-#### `WorkProgress`(進捗度のマスター)
+### コードマスタの表
+機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_CreateCodeMaster.sql`(表と作業リストの初期値。`WorkItem` の作り直しも含む)、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/004_CreateCodeMaster.sql`(表)と `005_SeedWorkItemCodes.sql`(作業リストの初期値。機能ごとに別のスクリプトで足す)。
+
+#### `CodeMaster`(コードマスタ)
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。選択肢から外した印 (外しても、その番号を持つ過去の行は、名前を引ける) |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者。初期値は 0 (特定のユーザーではない)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者。初期値の行は、SQL Server が 0 (特定のユーザーではない)、SQLite が 1 (ローカルのユーザー)。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者。初期値は 0。0 以上の検査 |
-| `Value` | 整数 (小) | `tinyint` | | 進捗度の値。0 から 100 の 10 刻み (11 行で固定) |
-| `Label` | 文字列 (50) | `nvarchar(50)` | 空文字 | ラベル |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。初期値の行は作成者と同じ。0 以上の検査 |
+| `FeatureNo` | 整数 | `int` | | 機能番号。機能の名前や並びが変わっても変えない数字 (台帳は `MmmTool.CodeMaster.Core` の `CodeFeatures`。作業リストは 2)。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号。機能の中の、コードの種類 (作業リストは 1 = 状態・2 = 進捗度・3 = 優先度)。1 以上の検査 |
+| `CodeNo` | 整数 | `int` | | コード番号。区分の中の識別子。利用する行は、この番号を保存する。一度使った番号は、同じ意味のまま変えない。1 以上の検査 |
+| `SortOrder` | 整数 | `int` | 0 | 表示順。小さいほど先。0 以上の検査 |
+| `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数 (進捗度の % など)。要らないコードは 0 |
+| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけ (「作成完了」。% は数値から組み立てる) |
 
-- `Value` を一意にする (`UX_WorkProgress_Value`)
-- 初期値: 70 = 作成完了・80 = 内部レビュー完了・90 = 外部レビュー完了。ほかはラベルなし。作成用のスクリプトが入れる (作成者・更新者は 0)。全員に影響するので、画面からは編集しない (DB モードは SQL で直す。ローカルモードは設定の画面から直せる)
+- `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`。論理削除された行も含めて。外した選択肢を、同じコード番号で戻せる)
+- インデックス: `IX_CodeMaster_FeatureNo_UpdatedAt (FeatureNo, UpdatedAt)`(機能ごとの読み込み・差分。論理削除された行も含む)
+- 初期値 (作業リスト = 機能番号 2): 状態 3 件・進捗度 11 件・優先度 3 件。作成用のスクリプトが入れる。中身と使い方は [work-items.md](work-items.md) の「コードマスタ」
+- 画面からは編集しない。直すときは SQL で直す (外すときは `IsDeleted` を 1 にする。`DELETE` はしない)。列の番号を指す側 (`WorkItem` の `PriorityCodeNo` など)に、外部キーは付けない (ほかの表と同じ。存在する番号かどうかは、アプリが検査する)
 
 ## 画面 (保存先と宛先)
 - **設定ページの「保存先」** (`src/App/MmmTool/Features/Database/Settings`。`AddSettingsSection` で登録するホスト側の部品。詳細は [settings.md](settings.md)): 保存先を一行で見せるカード (「ローカル」「サーバー (サーバー名)」)。押すと開く編集のウィンドウ (`Edit/`)で、保存先 (ローカル / サーバー)と、DB のときの接続の入力欄・「接続を確認」を扱い、そこの「保存」で保存する。保存先の種類が変わった、または DB のまま接続 (パスワード含む)が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認し、「今すぐ終了」ならアプリを終了する (トレイの「終了」と同じ処理。`AppExitService`。起動し直すのは利用者)。「あとで」なら、保存だけして、今の保存先のまま動き続ける
@@ -329,7 +338,7 @@
   - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
 - 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)。送信のための表は、`002_CreateSendTables.sql`(`NotificationChannel`・`ReminderSendSetting`)と、MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql`(`ReminderSendStatus`)が作る (どちらも、何度流しても、無いものだけを作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、`-I` を付ける。SSMS は既定でオン)
-- 作業リストの 6 つの表は、`src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` が作る (何度流しても、無いものだけを作る。進捗度のマスターの初期値 11 件も入れる。`DELETE` 文は含まない)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)。実機の SQL Server では、まだ流していない
+- 作業リストの 5 つの表は、`src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` が作る。コードマスタの表 `CodeMaster` は `004_CreateCodeMaster.sql`、作業リストの初期値 17 件 (状態 3・進捗度 11・優先度 3)は `005_SeedWorkItemCodes.sql` が作る・入れる (どれも、何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)。実機の SQL Server では、まだ流していない
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql
@@ -386,7 +395,7 @@
 - 更新日時は、SQLite にサーバーの時計が無いので、アプリが書く (`TimeProvider`。ミリ秒・日本時間の時差つき)。作成日時の既定値も、アプリが入れる
 - ユーザー: `AppUser` の表は作らない。作成者・更新者の列は 1 (`Id = 1` の固定のローカルユーザー)。表の形は SQL Server と同じに保つ
 
-- **実装** (2026-10-11): ファイルの場所・開く・版の更新・壊れたファイルの扱いは `MmmSdk.Db.Sqlite`(SDK。[db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))、表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)、作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`(埋め込みリソース。番号つきのものだけを版の更新に使う)。集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`(埋め込まない。管理者が、アプリを止めてから流す)。SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う。進捗度のマスターの初期値は、作成用のスクリプトが入れる
+- **実装** (2026-10-11): ファイルの場所・開く・版の更新・壊れたファイルの扱いは `MmmSdk.Db.Sqlite`(SDK。[db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))、表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)、作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`(埋め込みリソース。番号つきのものだけを版の更新に使う)。集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`(埋め込まない。管理者が、アプリを止めてから流す)。SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う。コードマスタの初期値は、作成用のスクリプトが入れる。版 2 の `002_CreateCodeMaster.sql` が、`CodeMaster` を作り、`WorkItem` を作り直して (列名を `*CodeNo` に変え、進捗度を % の値からコード番号 (% ÷ 10 + 1)に変える。検査を「1 以上」に緩める)、`WorkProgress` を捨てる (旧版で編集したラベルは、コードマスタの名前に引き継ぐ)
 - ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する(`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)。MmmBatch は SQLite を参照しない(`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
 
 ## 他の DB を足すとき
@@ -452,6 +461,14 @@
 
 ### 既存のユーザーの移行をしない
 MAC 方式の `AppUser` の表は、消して作り直す (ユーザーの決定。検証用の行だけだったため)。表の変更用のスクリプト (`002_*`)は作らず、`001_CreateTables.sql` を新しい形にする。
+
+### コードマスタは、機能をまたぐ 1 つの汎用の表にする
+- 状態・進捗度・優先度のように、番号を保存して名前・数値を引く選択肢を、表ごとに作らず、`CodeMaster` 1 つに集める。選択肢が増えるたびに、表・行の型・読み書き・差分の取得を足さずに済む (ユーザーの決定 2026-10-11)。選択肢以外の「番号 + 名前 + 数値」(初期入力値など)も入る
+- 汎用の参照表は、「ドメインごとの外部キーを張れない」「値の型が混ざる」点が弱点と言われる。ここは外部キーを使わない方針で、値は整数と短い文字列だけなので、その弱点は当てはまらない。残る弱点は、コードが特定の番号の意味を知る必要がある点 (状態の「完了」)。そのため、状態・優先度のコード番号は、コードの列挙 (`WorkItemStatus`・`WorkItemPriority`)と同じ値に固定し、表は名前と表示順だけを持つ
+- 入れるのは、全員共通で、番号・数値・名前で表せる値だけ。ユーザーごとの設定 (縦持ちの設定の表を別に作る方向)と、自由に入力する文字列は入れない
+- 3 段のキー (機能番号・区分番号・コード番号): 機能ごとに区分を引け、機能の名前や並びが変わっても番号は変わらない。機能番号と区分番号を 1 つの数に合成しない (数の中に意味を詰めない)。選択肢の中に階層が要る場合は、4 段目を足さず、同じ表に親のコード番号の列を 1 つ足す
+- 列の名前: 「項目」は列を指す言葉と紛れ、「リスト」「選択肢」は選択専用に聞こえるので、区分 (`CategoryNo`)・コード (`CodeNo`)にした。数値は `NumericValue`、名前は `Name`
+- 作業リストの旧 `WorkProgress` は、ここに移して廃止した。ラベルを画面から編集する口も廃止した (全員に影響し、アプリにユーザー・権限の区別が無いため。管理は別ツールの責務)
 
 ### 意図した仕様 (レビューで指摘・提案しない)
 次は、設計の検討で出た提案を、ユーザーが選ばなかったもの。どれも意図した仕様で、レビューや作業のまとめで、指摘・提案しない。理由は、上の各項目と、ここに 1 行で書く。

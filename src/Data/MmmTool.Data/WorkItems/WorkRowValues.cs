@@ -64,18 +64,6 @@ public static class WorkRowValues
         return required && value.Length == 0 ? throw new ArgumentException($"{name}が空です。", nameof(value)) : value;
     }
 
-    /// <summary>列挙値の範囲を検査する</summary>
-    /// <param name="value">値</param>
-    /// <param name="min">最小</param>
-    /// <param name="max">最大</param>
-    /// <param name="name">項目の名前 (エラーのメッセージに使う)</param>
-    /// <returns>同じ値を小さい整数にしたもの</returns>
-    /// <exception cref="ArgumentException">範囲の外。</exception>
-    public static byte CheckByte(int value, int min, int max, string name)
-        => value < min || value > max
-            ? throw new ArgumentException($"{name}の値 {value} は、{min} から {max} の範囲の外です。", nameof(value))
-            : (byte)value;
-
     /// <summary>行の時間を、アプリの時間にする</summary>
     /// <param name="hours">行の時間</param>
     /// <returns>時間</returns>

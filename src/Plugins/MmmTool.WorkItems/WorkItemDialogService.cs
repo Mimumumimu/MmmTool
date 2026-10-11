@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.WorkItems.Move;
-using MmmTool.WorkItems.ProgressLabels;
 using MmmTool.WorkItems.ProjectManager;
 
 namespace MmmTool.WorkItems;
@@ -22,14 +21,6 @@ public sealed class WorkItemDialogService(IServiceProvider services, IServiceSco
         var dialog = services.GetRequiredService<MoveDialog>();
         dialogs.Attach(dialog);
         return dialog.PickAsync(destinations);
-    }
-
-    /// <inheritdoc />
-    public Task<IReadOnlyDictionary<int, string>?> EditProgressLabelsAsync(IReadOnlyDictionary<int, string> labels)
-    {
-        var dialog = services.GetRequiredService<ProgressLabelsDialog>();
-        dialogs.Attach(dialog);
-        return dialog.EditAsync(labels);
     }
 
     /// <inheritdoc />

@@ -68,7 +68,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial string StatusText { get; private set; } = "";
 
-    /// <summary>進捗度の表示 (作業はラベルつきの選択肢、グループは計算値)</summary>
+    /// <summary>進捗度の表示 (作業はコードマスタの名前つきの表記、グループは計算値)</summary>
     [ObservableProperty]
     public partial string ProgressCellText { get; private set; } = "";
 
@@ -78,21 +78,20 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <summary>入力日の実績が空のとき、入力の手がかりの文字を出すか (作業のみ)</summary>
     public bool ActualDayHintVisible => IsWork && ActualDayText.Length == 0;
 
-    /// <summary>優先度の選択位置</summary>
+    /// <summary>優先度の選択位置 (選択肢から外れたコードは -1)</summary>
     [ObservableProperty]
     public partial int PriorityIndex { get; private set; }
 
-    /// <summary>状態の選択位置</summary>
+    /// <summary>状態の選択位置 (選択肢から外れたコードは -1)</summary>
     [ObservableProperty]
     public partial int StatusIndex { get; private set; }
 
-    /// <summary>進捗度の選択位置 (0 から 10。10 刻み)</summary>
+    /// <summary>進捗度の選択位置 (選択肢から外れたコードは -1)</summary>
     [ObservableProperty]
     public partial int ProgressIndex { get; private set; }
 
-    /// <summary>進捗度の選択肢 (ラベルつき)</summary>
-    [ObservableProperty]
-    public partial IReadOnlyList<string> ProgressOptions { get; private set; } = [];
+    /// <summary>選択欄の選択肢 (コードマスタから作った一覧。行どうしで共有する)</summary>
+    public WorkChoices Choices { get; private set; } = new(MmmTool.CodeMaster.Core.CodeBook.Empty);
 
     /// <summary>グループの進捗度の表示 (計算値。無ければ空)</summary>
     [ObservableProperty]
@@ -142,16 +141,14 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <param name="hasChildren">表に出す子を持つか (開閉ボタンを出すか)</param>
     /// <param name="isExpanded">開いているか</param>
     /// <param name="dayRecord">入力日の記録 (作業のみ。無ければ null)</param>
-    /// <param name="progressOptions">進捗度の選択肢</param>
-    /// <param name="labels">進捗度のラベル (グループの進捗度の表示に使う)</param>
+    /// <param name="choices">選択欄の選択肢 (優先度・状態・進捗度。グループの状態・進捗度の表示にも使う)</param>
     public void Update(
         WorkNode node,
         int level,
         bool hasChildren,
         bool isExpanded,
         WorkRecord? dayRecord,
-        IReadOnlyList<string> progressOptions,
-        IReadOnlyDictionary<int, string> labels)
+        WorkChoices choices)
     {
         var item = node.Item;
         var summary = node.Summary;
@@ -161,7 +158,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
         IsExpanded = isExpanded;
         Name = node.Name;
         Note = node.Note;
-        ProgressOptions = progressOptions;
+        Choices = choices;
         StartText = FormatDate(summary.StartDate);
         DueText = FormatDate(summary.DueDate);
         StartValue = ToValue(summary.StartDate);
@@ -171,19 +168,19 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
 
         if (item is not null)
         {
-            PriorityIndex = Math.Max(0, WorkItemNames.Priorities.ToList().IndexOf(item.Priority));
-            StatusIndex = Math.Max(0, WorkItemNames.Statuses.ToList().IndexOf(item.Status));
-            ProgressIndex = Math.Clamp(item.Progress / 10, 0, 10);
-            PriorityText = WorkItemOptions.Priorities[PriorityIndex];
-            StatusText = WorkItemOptions.Statuses[StatusIndex];
-            ProgressCellText = progressOptions.Count > ProgressIndex ? progressOptions[ProgressIndex] : "";
+            PriorityIndex = WorkChoices.IndexOf(choices.Priorities, (int)item.Priority);
+            StatusIndex = WorkChoices.IndexOf(choices.Statuses, (int)item.Status);
+            ProgressIndex = WorkChoices.IndexOf(choices.Progresses, item.ProgressCodeNo);
+            PriorityText = WorkCodes.Display(choices.Book, WorkCodes.PriorityCategory, (int)item.Priority);
+            StatusText = WorkCodes.Display(choices.Book, WorkCodes.StatusCategory, (int)item.Status);
+            ProgressCellText = WorkCodes.Display(choices.Book, WorkCodes.ProgressCategory, item.ProgressCodeNo);
             ActualDayText = FormatHours(dayRecord is { Hours: > 0 } ? dayRecord.Hours : null);
             DayNote = dayRecord?.Note ?? "";
         }
         else
         {
-            StatusText = summary.Status is { } status ? WorkItemNames.Of(status) : "";
-            ProgressText = summary.Progress is { } progress ? WorkProgress.Format(progress, labels) : "";
+            StatusText = summary.Status is { } status ? WorkCodes.Display(choices.Book, WorkCodes.StatusCategory, (int)status) : "";
+            ProgressText = summary.Progress is { } progress ? WorkCodes.DisplayProgressPercent(choices.Book, progress) : "";
             ProgressCellText = ProgressText;
             ActualDayText = FormatHours(summary.ActualDay > 0 ? summary.ActualDay : null);
         }

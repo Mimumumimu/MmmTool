@@ -1,6 +1,8 @@
 using Microsoft.Data.Sqlite;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Db.Sqlite.Components.Connections;
+using MmmTool.CodeMaster.Core;
+using MmmTool.Data.CodeMaster;
 using MmmTool.Data.WorkItems;
 using MmmTool.WorkItems.Core;
 
@@ -27,10 +29,6 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
 
     /// <summary>一度に <c>IN</c> に並べる番号の最大の数</summary>
     private const int ChunkSize = 500;
-
-    /// <inheritdoc />
-    /// <remarks>ローカルの保存先は 1 台の PC のものなので、画面から編集できる。</remarks>
-    public bool CanEditProgressLabels => true;
 
     /// <inheritdoc />
     public int UserId => LocalUserId;
@@ -69,13 +67,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         {
             // 更新日時のインデックスは、削除された行も含むので、論理削除も差分で届く。選んだ案件で絞る。6 つの問い合わせを 1 回の往復で受け取る
             const string selectionJoin = "INNER JOIN WorkProjectSelection s ON s.ProjectId = {0}.{1} AND s.UserId = @user AND s.IsDeleted = 0";
-            (string, object)[] parameters = [("@user", LocalUserId), ("@since", since), ("@date", date)];
+            (string, object)[] parameters = [("@user", LocalUserId), ("@since", since), ("@date", date), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
             var records = new List<WorkRecord>();
             var selections = new List<WorkProjectSelection>();
-            var labels = new List<WorkProgressLabel>();
+            var codes = new List<CodeMasterEntry>();
             await QueryBatchAsync(
                 connection,
                 null,
@@ -85,11 +83,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i {string.Format(selectionJoin, "i", "ProjectId")} WHERE i.UpdatedAt >= @since", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r {string.Format(selectionJoin, "r", "ProjectId")} WHERE r.UpdatedAt >= @since AND r.Date = @date", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("s")}, s.UserId, s.ProjectId FROM WorkProjectSelection s WHERE s.UserId = @user AND s.UpdatedAt >= @since", r => selections.Add(ReadSelection(r).ToWorkProjectSelection())),
-                    ($"SELECT {Header("g")}, g.Value, g.Label FROM WorkProgress g WHERE g.UpdatedAt >= @since", r => labels.Add(ReadProgress(r).ToWorkProgressLabel())),
+                    ($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
                 ],
                 parameters,
                 cancellationToken);
-            return new WorkChanges(projects, groups, items, records, selections, labels);
+            return new WorkChanges(projects, groups, items, records, selections, codes);
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -98,7 +96,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             connection =>
             {
                 // 完了済み: 作業が 1 件以上あり、未完了の作業 (状態が完了でない、または完了日が無い)が 1 件も無い
-                const string finished = "(EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) AND NOT EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.Status <> 3)))";
+                const string finished = "(EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) AND NOT EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.StatusCodeNo <> 3)))";
                 var sql = $"""
                     SELECT p.Id, p.Name,
                            EXISTS (SELECT 1 FROM WorkProjectSelection s WHERE s.ProjectId = p.Id AND s.UserId = @user AND s.IsDeleted = 0),
@@ -255,13 +253,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 transaction,
                 """
                 INSERT INTO WorkItem (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, Note,
-                                      Priority, StartDate, DueDate, Status, Progress, PlannedHours, CompletedOn, ActualTotalHours)
+                                      PriorityCodeNo, StartDate, DueDate, StatusCodeNo, ProgressCodeNo, PlannedHours, CompletedOn, ActualTotalHours)
                 VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @note, @priority, @start, @due, @status, @progress, @planned, @completed, 0)
                 """,
                 [
                     ("@now", now), ("@user", LocalUserId), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
-                    ("@name", row.Name), ("@note", row.Note), ("@priority", row.Priority), ("@start", row.StartDate), ("@due", row.DueDate),
-                    ("@status", row.Status), ("@progress", row.Progress), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
+                    ("@name", row.Name), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
+                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
                 ],
                 cancellationToken);
             var id = Convert.ToInt32(await ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken));
@@ -287,11 +285,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         var changes = new ColumnChanges();
         changes.Add("Name", b.Name, a.Name);
         changes.Add("Note", b.Note, a.Note);
-        changes.Add("Priority", b.Priority, a.Priority);
+        changes.Add("PriorityCodeNo", b.PriorityCodeNo, a.PriorityCodeNo);
         changes.Add("StartDate", b.StartDate, a.StartDate);
         changes.Add("DueDate", b.DueDate, a.DueDate);
-        changes.Add("Status", b.Status, a.Status);
-        changes.Add("Progress", b.Progress, a.Progress);
+        changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
+        changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("CompletedOn", b.CompletedOn, a.CompletedOn);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
@@ -416,28 +414,6 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return result!;
     }
 
-    /// <inheritdoc />
-    public Task SaveProgressLabelsAsync(IReadOnlyList<WorkProgressLabel> labels, CancellationToken cancellationToken = default)
-        => RunInTransactionAsync(async (connection, transaction) =>
-        {
-            var now = Now;
-            foreach (var label in labels)
-            {
-                var row = WorkProgressRow.FromWorkProgressLabel(label);
-                await ExecuteAsync(
-                    connection,
-                    transaction,
-                    """
-                    INSERT INTO WorkProgress (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, Value, Label)
-                    VALUES (0, @now, @user, @now, @user, @value, @label)
-                    ON CONFLICT (Value) DO UPDATE SET Label = excluded.Label, UpdatedAt = excluded.UpdatedAt, UpdatedByUserId = excluded.UpdatedByUserId
-                    WHERE WorkProgress.Label <> excluded.Label
-                    """,
-                    [("@now", now), ("@user", LocalUserId), ("@value", row.Value), ("@label", row.Label)],
-                    cancellationToken);
-            }
-        }, cancellationToken);
-
     /// <summary>1 つの表の、変えた列だけを更新する</summary>
     /// <param name="table">表の名前</param>
     /// <param name="id">行の番号</param>
@@ -527,12 +503,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         }
     }
 
-    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要なら選んでいる案件の番号・進捗度のラベルを、1 回の往復で読む</summary>
+    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要なら選んでいる案件の番号・コードマスタを、1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="projectIds">案件の番号。null なら、自分が選んだ案件</param>
-    /// <param name="withMaster">選んでいる案件の番号と、進捗度のラベルも読むか</param>
+    /// <param name="withMaster">選んでいる案件の番号と、コードマスタも読むか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、選んでいる案件の番号と進捗度のラベルは空)</returns>
+    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、選んでいる案件の番号とコードマスタは空)</returns>
     private static async Task<WorkLoadResult> ReadContentAsync(SqliteConnection connection, IReadOnlyList<int>? projectIds, bool withMaster, CancellationToken cancellationToken)
     {
         // 選んだ案件で絞るときは、選びの表を案件の番号で結び付けるだけ。番号を指定するときは IN。どちらも返すのは自分の表の列だけ
@@ -542,13 +518,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         string Where(string alias, string column) => projectIds is null
             ? $"{alias}.IsDeleted = 0"
             : $"{alias}.IsDeleted = 0 AND {alias}.{column} IN ({InList(projectIds.Count)})";
-        (string, object)[] parameters = projectIds is null ? [("@user", LocalUserId)] : InParameters(projectIds);
+        (string, object)[] parameters = projectIds is null ? [("@user", LocalUserId), ("@feature", WorkCodes.FeatureNo)] : [.. InParameters(projectIds), ("@feature", WorkCodes.FeatureNo)];
 
         var projects = new List<WorkProject>();
         var groups = new List<WorkGroup>();
         var items = new List<WorkItem>();
         var selected = new List<int>();
-        var labels = new List<WorkProgressLabel>();
+        var codes = new List<CodeMasterEntry>();
         var queries = new List<(string Sql, Action<SqliteDataReader> Map)>
         {
             ($"SELECT {Header("p")}, p.Name, p.Note FROM WorkProject p {Join("p", "Id")} WHERE {Where("p", "Id")}", r => projects.Add(ReadProject(r).ToWorkProject())),
@@ -558,11 +534,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         if (withMaster)
         {
             queries.Add(("SELECT s.ProjectId FROM WorkProjectSelection s INNER JOIN WorkProject p ON p.Id = s.ProjectId AND p.IsDeleted = 0 WHERE s.UserId = @user AND s.IsDeleted = 0", r => selected.Add(r.GetInt32(0))));
-            queries.Add(($"SELECT {Header("g")}, g.Value, g.Label FROM WorkProgress g WHERE g.IsDeleted = 0 ORDER BY g.Value", r => labels.Add(ReadProgress(r).ToWorkProgressLabel())));
+            queries.Add(($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())));
         }
 
         await QueryBatchAsync(connection, null, [.. queries], parameters, cancellationToken);
-        return new WorkLoadResult(projects, groups, items, selected, labels);
+        return new WorkLoadResult(projects, groups, items, selected, codes);
     }
 
     /// <summary>接続を開いて、読む処理を別のスレッドで実行する</summary>
@@ -590,7 +566,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (13 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.Note, {alias}.Priority, {alias}.StartDate, {alias}.DueDate, {alias}.Status, {alias}.Progress, {alias}.PlannedHours, {alias}.CompletedOn, {alias}.ActualTotalHours";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.Note, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.PlannedHours, {alias}.CompletedOn, {alias}.ActualTotalHours";
+
+    /// <summary>コードマスタの中身の列の並び</summary>
+    /// <param name="alias">表の別名</param>
+    /// <returns>列の並び (6 列)</returns>
+    private static string CodeColumns(string alias)
+        => $"{alias}.FeatureNo, {alias}.CategoryNo, {alias}.CodeNo, {alias}.SortOrder, {alias}.NumericValue, {alias}.Name";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -641,11 +623,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         SortOrder = r.GetInt32(8),
         Name = r.GetString(9),
         Note = r.GetString(10),
-        Priority = (byte)r.GetInt32(11),
+        PriorityCodeNo = r.GetInt32(11),
         StartDate = SqliteValues.ParseDate(r.GetString(12)),
         DueDate = SqliteValues.ParseDate(r.GetString(13)),
-        Status = (byte)r.GetInt32(14),
-        Progress = (byte)r.GetInt32(15),
+        StatusCodeNo = r.GetInt32(14),
+        ProgressCodeNo = r.GetInt32(15),
         PlannedHours = SqliteValues.ToHours(r.GetDouble(16)),
         CompletedOn = SqliteValues.ParseDate(r.GetString(17)),
         ActualTotalHours = SqliteValues.ToHours(r.GetDouble(18)),
@@ -684,10 +666,10 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         ProjectId = r.GetInt32(7),
     };
 
-    /// <summary>進捗度のマスターの行を読む</summary>
+    /// <summary>コードマスタの行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
-    private static WorkProgressRow ReadProgress(SqliteDataReader r) => new()
+    private static CodeMasterRow ReadCode(SqliteDataReader r) => new()
     {
         Id = r.GetInt32(0),
         IsDeleted = r.GetInt64(1) != 0,
@@ -695,8 +677,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         CreatedByUserId = r.GetInt32(3),
         UpdatedAt = SqliteValues.ParseDateTime(r.GetString(4)),
         UpdatedByUserId = r.GetInt32(5),
-        Value = (byte)r.GetInt32(6),
-        Label = r.GetString(7),
+        FeatureNo = r.GetInt32(6),
+        CategoryNo = r.GetInt32(7),
+        CodeNo = r.GetInt32(8),
+        SortOrder = r.GetInt32(9),
+        NumericValue = r.GetInt32(10),
+        Name = r.GetString(11),
     };
 
     /// <summary>検索語の中の、<c>LIKE</c> の特別な文字を、そのままの文字として扱うようにする</summary>

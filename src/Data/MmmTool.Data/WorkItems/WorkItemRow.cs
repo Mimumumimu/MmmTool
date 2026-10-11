@@ -44,8 +44,8 @@ public sealed record WorkItemRow
     /// <summary>備考 (無いときは空文字)</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>優先度 (高 = 1・中 = 2・低 = 3)</summary>
-    public byte Priority { get; init; } = (byte)WorkItemPriority.Normal;
+    /// <summary>優先度のコード番号 (コードマスタの区分「優先度」。高 = 1・中 = 2・低 = 3)</summary>
+    public int PriorityCodeNo { get; init; } = (int)WorkItemPriority.Normal;
 
     /// <summary>開始日 (ない日は <c>9999-12-31</c>)</summary>
     public DateOnly StartDate { get; init; } = WorkRowValues.NoDate;
@@ -53,11 +53,11 @@ public sealed record WorkItemRow
     /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
     public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
 
-    /// <summary>状態 (未対応 = 1・作業中 = 2・完了 = 3)</summary>
-    public byte Status { get; init; } = (byte)WorkItemStatus.Open;
+    /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業中 = 2・完了 = 3)</summary>
+    public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
 
-    /// <summary>進捗度 (0 から 100)</summary>
-    public byte Progress { get; init; }
+    /// <summary>進捗度のコード番号 (コードマスタの区分「進捗度」。%の値は、コードマスタの数値)</summary>
+    public int ProgressCodeNo { get; init; } = WorkCodes.DefaultProgressCodeNo;
 
     /// <summary>予定時間 (0 は予定なし)</summary>
     public decimal PlannedHours { get; init; }
@@ -79,9 +79,9 @@ public sealed record WorkItemRow
         {
             throw new ArgumentException("作業の案件・親・並びの番号が正しくありません。", nameof(item));
         }
-        if (!WorkProgress.IsValid(item.Progress))
+        if ((int)item.Priority < 1 || (int)item.Status < 1 || item.ProgressCodeNo < 1)
         {
-            throw new ArgumentException($"進捗度 {item.Progress} は、0 から 100 の 10 刻みではありません。", nameof(item));
+            throw new ArgumentException("作業の優先度・状態・進捗度のコード番号が正しくありません (1 以上)。", nameof(item));
         }
         return new WorkItemRow
         {
@@ -92,11 +92,11 @@ public sealed record WorkItemRow
             SortOrder = item.SortOrder,
             Name = WorkRowValues.CheckText(item.Name, "作業の名前", WorkRowValues.NameMax, required: true),
             Note = WorkRowValues.CheckText(item.Note, "作業の備考", WorkRowValues.NoteMax),
-            Priority = WorkRowValues.CheckByte((int)item.Priority, 1, 3, "優先度"),
+            PriorityCodeNo = (int)item.Priority,
             StartDate = WorkRowValues.FromDate(item.StartDate, "開始日"),
             DueDate = WorkRowValues.FromDate(item.DueDate, "期限日"),
-            Status = WorkRowValues.CheckByte((int)item.Status, 1, 3, "状態"),
-            Progress = (byte)item.Progress,
+            StatusCodeNo = (int)item.Status,
+            ProgressCodeNo = item.ProgressCodeNo,
             PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
             CompletedOn = WorkRowValues.FromDate(item.CompletedOn, "完了日"),
             ActualTotalHours = WorkRowValues.FromHours(item.ActualTotalHours, "実績の累計", 9_999_999_999),
@@ -113,11 +113,11 @@ public sealed record WorkItemRow
         SortOrder = SortOrder,
         Name = Name,
         Note = Note,
-        Priority = (WorkItemPriority)Priority,
+        Priority = (WorkItemPriority)PriorityCodeNo,
         StartDate = WorkRowValues.ToDate(StartDate),
         DueDate = WorkRowValues.ToDate(DueDate),
-        Status = (WorkItemStatus)Status,
-        Progress = Progress,
+        Status = (WorkItemStatus)StatusCodeNo,
+        ProgressCodeNo = ProgressCodeNo,
         PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,
         CompletedOn = WorkRowValues.ToDate(CompletedOn),
         ActualTotalHours = WorkRowValues.ToHours(ActualTotalHours),

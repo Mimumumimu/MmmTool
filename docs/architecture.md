@@ -13,7 +13,8 @@
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders / WorkItems の 6 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
-| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・WorkItems)と `MmmTool.Users.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
+| `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ (番号と名前と数値の組。選択肢など)。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)。依存は無い。保存先の実装は `MmmTool.Data.<種類>` (表 `CodeMaster`。[specs/database.md](specs/database.md)) |
+| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・WorkItems)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite`)。SDK の `MmmSdk.Db.<種類>` を参照する。リマインダーは、ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える。作業リストは、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`。SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため) |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 (`MmmSdk.Db.SqlServer`)。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
@@ -37,6 +38,7 @@ Plugins/MmmTool.<機能>/Main/            その機能の入口の画面 (サイ
 Plugins/MmmTool.<機能>/<画面>/          そのほかの画面 (Reminders/{Input, List, Settings}、CliAssist/WorkingDirectory)。
                                         1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 Users/MmmTool.Users.Core/               機能をまたいで共有するユーザー (AppUser・CurrentUser・UserSignInService・PasswordHasher)
+CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコードマスタ (CodeMasterEntry・CodeBook・CodeFeatures)
 Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService。機能をまたぐので、機能のフォルダではない)
 Data/MmmTool.Data/<機能>/               DB の行のクラス (<名前>Row)と、アプリの型との変換 (全機能の分。機能ごとのフォルダ)
 Data/MmmTool.Data.<種類>/Connection/    その DB への接続を作る処理 (SqlServerConnectionFactoryBuilder。設定とパスワードから SDK の接続の部品を作る)

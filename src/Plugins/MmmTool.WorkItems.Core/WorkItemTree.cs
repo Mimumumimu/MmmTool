@@ -1,3 +1,5 @@
+using MmmTool.CodeMaster.Core;
+
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>案件・グループ・作業の一覧から、木構造と集計値を作る</summary>
@@ -15,6 +17,7 @@ public static class WorkItemTree
     /// <param name="dayRecords">入力日の記録 (全員分)</param>
     /// <param name="userId">今のユーザーの番号 (実績 (日)は、この人の分)</param>
     /// <param name="date">入力日 (実績 (日)の計算に使う)</param>
+    /// <param name="codes">コードブック (進捗度のコード番号を %の値にするために使う)</param>
     /// <returns>案件の行の並び</returns>
     public static IReadOnlyList<WorkNode> Build(
         IEnumerable<WorkProject> projects,
@@ -22,7 +25,8 @@ public static class WorkItemTree
         IEnumerable<WorkItem> items,
         IEnumerable<WorkRecord> dayRecords,
         int userId,
-        DateOnly date)
+        DateOnly date,
+        CodeBook codes)
     {
         var roots = projects
             .OrderBy(p => p.Name, StringComparer.CurrentCulture)
@@ -76,7 +80,7 @@ public static class WorkItemTree
             .ToDictionary(g => g.Key, g => WorkActualTotal.Calculate(g.Select(r => r.Hours)));
         foreach (var root in roots)
         {
-            Summarize(root, days);
+            Summarize(root, days, codes);
         }
         return roots;
     }
@@ -84,7 +88,8 @@ public static class WorkItemTree
     /// <summary>行の集計値を、下から順に計算する</summary>
     /// <param name="node">計算する行</param>
     /// <param name="days">作業ごとの入力日の実績 (自分の分)</param>
-    private static void Summarize(WorkNode node, Dictionary<int, double> days)
+    /// <param name="codes">コードブック</param>
+    private static void Summarize(WorkNode node, Dictionary<int, double> days, CodeBook codes)
     {
         if (node.Item is { } item)
         {
@@ -94,7 +99,7 @@ public static class WorkItemTree
                 item.PlannedHours,
                 item.ActualTotalHours,
                 days.GetValueOrDefault(item.Id),
-                item.Progress,
+                WorkCodes.ProgressPercent(codes, item.ProgressCodeNo),
                 1,
                 item.IsFinished,
                 item.IsFinished ? item.CompletedOn : null,
@@ -104,15 +109,16 @@ public static class WorkItemTree
 
         foreach (var child in node.Children)
         {
-            Summarize(child, days);
+            Summarize(child, days, codes);
         }
-        node.Summary = SummarizeContainer(node);
+        node.Summary = SummarizeContainer(node, codes);
     }
 
     /// <summary>案件・グループの集計値を、下の作業から計算する</summary>
     /// <param name="container">案件またはグループ (子の集計は済んでいること)</param>
+    /// <param name="codes">コードブック</param>
     /// <returns>集計値</returns>
-    private static WorkSummary SummarizeContainer(WorkNode container)
+    private static WorkSummary SummarizeContainer(WorkNode container, CodeBook codes)
     {
         var works = container.Children.SelectMany(c => c.SelfAndDescendants()).Where(n => n.Item is not null).Select(n => n.Item!).ToList();
         var starts = works.Where(w => w.StartDate is not null).Select(w => w.StartDate!.Value).ToList();
@@ -125,8 +131,8 @@ public static class WorkItemTree
             // すべての作業に予定時間 (0 より大きい)があるときだけ、予定時間で重みを付ける
             var allPlanned = works.All(w => w.PlannedHours is > 0);
             progress = allPlanned
-                ? (int)Math.Round(works.Sum(w => w.Progress * w.PlannedHours!.Value) / works.Sum(w => w.PlannedHours!.Value), MidpointRounding.AwayFromZero)
-                : (int)Math.Round(works.Average(w => (double)w.Progress), MidpointRounding.AwayFromZero);
+                ? (int)Math.Round(works.Sum(w => WorkCodes.ProgressPercent(codes, w.ProgressCodeNo) * w.PlannedHours!.Value) / works.Sum(w => w.PlannedHours!.Value), MidpointRounding.AwayFromZero)
+                : (int)Math.Round(works.Average(w => (double)WorkCodes.ProgressPercent(codes, w.ProgressCodeNo)), MidpointRounding.AwayFromZero);
         }
 
         var finished = works.Count > 0 && works.All(w => w.IsFinished);

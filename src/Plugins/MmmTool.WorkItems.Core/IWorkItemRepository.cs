@@ -10,17 +10,13 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public interface IWorkItemRepository
 {
-    /// <summary>進捗度のラベルを、画面から編集できるか</summary>
-    /// <remarks>ローカルの保存先 (SQLite)は true。全員に影響する保存先 (SQL Server)は false にし、表を SQL で直す。</remarks>
-    bool CanEditProgressLabels { get; }
-
     /// <summary>今のユーザーの番号 (日ごとの記録の持ち主・選んだ案件の持ち主)</summary>
     int UserId { get; }
 
     /// <summary>壊れたファイルを退避して作り直したときのメッセージ。通常は null</summary>
     string? RecoveryMessage { get; }
 
-    /// <summary>自分が選んだ案件の中身と、進捗度のラベルを読む</summary>
+    /// <summary>自分が選んだ案件の中身と、作業リストのコードマスタを読む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだ内容</returns>
     /// <remarks>表ごとに別の <c>SELECT</c>。どれも選びの表を案件の番号で結び付けて絞るだけで、返すのは自分の表の列だけ。木はメモリで組み立てる。</remarks>
@@ -30,7 +26,7 @@ public interface IWorkItemRepository
     /// <summary>案件を番号で指定して、中身を読む</summary>
     /// <param name="projectIds">案件の番号 (少数。選びの変更や移動で、読み直す案件)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容 (選んでいる案件の番号と、進捗度のラベルは空)</returns>
+    /// <returns>読み込んだ内容 (選んでいる案件の番号と、コードマスタは空)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkLoadResult> LoadProjectsAsync(IReadOnlyList<int> projectIds, CancellationToken cancellationToken = default);
 
@@ -170,12 +166,4 @@ public interface IWorkItemRepository
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkRecordResult> SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default);
-
-    /// <summary>進捗度のラベルを保存する</summary>
-    /// <param name="labels">ラベル (値ごと。ラベルが空の値は、ラベルなし)</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="InvalidOperationException"><see cref="CanEditProgressLabels"/> が false の保存先。</exception>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
-    Task SaveProgressLabelsAsync(IReadOnlyList<WorkProgressLabel> labels, CancellationToken cancellationToken = default);
 }

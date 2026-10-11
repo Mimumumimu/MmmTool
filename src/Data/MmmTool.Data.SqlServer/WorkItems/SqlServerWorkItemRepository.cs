@@ -1,6 +1,8 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
+using MmmTool.CodeMaster.Core;
+using MmmTool.Data.CodeMaster;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.WorkItems;
 using MmmTool.Users.Core;
@@ -16,7 +18,7 @@ namespace MmmTool.Data.SqlServer.WorkItems;
 /// <remarks>
 /// ローカルの SQLite の保存先 (<c>SqliteWorkItemRepository</c>)と同じ設計の表と、同じ読み書きの形 (docs/specs/work-items.md)。
 /// 読みは、利用者が選んだ案件で絞って、表ごとの別の <c>SELECT</c> で行う。書きは 1 件単位で、更新は変えた列だけ書く。更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
-/// 進捗度のラベルは全員に影響するので、画面から編集しない (表を SQL で直す)。SQL はパラメーター化だけで書く。完全削除 (行を消す)はしない。
+/// コードマスタ (状態・進捗度・優先度の選択肢)は全員に影響するので、画面から編集しない (表を SQL で直す)。SQL はパラメーター化だけで書く。完全削除 (行を消す)はしない。
 /// </remarks>
 public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, CurrentUser currentUser) : IWorkItemRepository
 {
@@ -28,10 +30,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
     private const int InvalidObjectName = 208;
-
-    /// <inheritdoc />
-    /// <remarks>全員に影響するので、画面からは編集しない。</remarks>
-    public bool CanEditProgressLabels => false;
 
     /// <inheritdoc />
     /// <remarks>ユーザーを特定していないときは 0 (読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>)。</remarks>
@@ -68,13 +66,13 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         {
             // 更新日時のインデックスは、削除された行も含むので、論理削除も差分で届く。選んだ案件で絞る。6 つの問い合わせを 1 回の往復で受け取る
             const string selectionJoin = "INNER JOIN dbo.WorkProjectSelection s ON s.ProjectId = {0}.{1} AND s.UserId = @user AND s.IsDeleted = 0";
-            (string, object)[] parameters = [("@user", RequireUser()), ("@since", since), ("@date", date)];
+            (string, object)[] parameters = [("@user", RequireUser()), ("@since", since), ("@date", date), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
             var records = new List<WorkRecord>();
             var selections = new List<WorkProjectSelection>();
-            var labels = new List<WorkProgressLabel>();
+            var codes = new List<CodeMasterEntry>();
             await QueryBatchAsync(
                 connection,
                 null,
@@ -84,11 +82,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i {string.Format(selectionJoin, "i", "ProjectId")} WHERE i.UpdatedAt >= @since", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r {string.Format(selectionJoin, "r", "ProjectId")} WHERE r.UpdatedAt >= @since AND r.Date = @date", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("s")}, s.UserId, s.ProjectId FROM dbo.WorkProjectSelection s WHERE s.UserId = @user AND s.UpdatedAt >= @since", r => selections.Add(ReadSelection(r).ToWorkProjectSelection())),
-                    ($"SELECT {Header("g")}, g.Value, g.Label FROM dbo.WorkProgress g WHERE g.UpdatedAt >= @since", r => labels.Add(ReadProgress(r).ToWorkProgressLabel())),
+                    ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
                 ],
                 parameters,
                 cancellationToken).ConfigureAwait(false);
-            return new WorkChanges(projects, groups, items, records, selections, labels);
+            return new WorkChanges(projects, groups, items, records, selections, codes);
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -104,7 +102,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                            CASE WHEN f.IsFinished = 1 THEN (SELECT MAX(w.CompletedOn) FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
                     FROM dbo.WorkProject p
                     CROSS APPLY (SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0)
-                                              AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.Status <> 3))
+                                              AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.StatusCodeNo <> 3))
                                          THEN 1 ELSE 0 END AS IsFinished) f
                     WHERE p.IsDeleted = 0
                       AND (@query = N'' OR p.Name LIKE N'%' + @query + N'%' ESCAPE N'\')
@@ -237,14 +235,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 transaction,
                 """
                 INSERT INTO dbo.WorkItem (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, Note,
-                                          Priority, StartDate, DueDate, Status, Progress, PlannedHours, CompletedOn, ActualTotalHours)
+                                          PriorityCodeNo, StartDate, DueDate, StatusCodeNo, ProgressCodeNo, PlannedHours, CompletedOn, ActualTotalHours)
                 OUTPUT INSERTED.Id, INSERTED.CreatedAt, INSERTED.UpdatedAt
                 VALUES (0, @user, @user, @project, @group, @order, @name, @note, @priority, @start, @due, @status, @progress, @planned, @completed, 0)
                 """,
                 [
                     ("@user", user), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
-                    ("@name", row.Name), ("@note", row.Note), ("@priority", row.Priority), ("@start", row.StartDate), ("@due", row.DueDate),
-                    ("@status", row.Status), ("@progress", row.Progress), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
+                    ("@name", row.Name), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
+                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
                 ]);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -270,11 +268,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         var changes = new ColumnChanges();
         changes.Add("Name", b.Name, a.Name);
         changes.Add("Note", b.Note, a.Note);
-        changes.Add("Priority", b.Priority, a.Priority);
+        changes.Add("PriorityCodeNo", b.PriorityCodeNo, a.PriorityCodeNo);
         changes.Add("StartDate", b.StartDate, a.StartDate);
         changes.Add("DueDate", b.DueDate, a.DueDate);
-        changes.Add("Status", b.Status, a.Status);
-        changes.Add("Progress", b.Progress, a.Progress);
+        changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
+        changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("CompletedOn", b.CompletedOn, a.CompletedOn);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
@@ -402,11 +400,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return result!;
     }
 
-    /// <inheritdoc />
-    /// <exception cref="InvalidOperationException">常に。全員に影響するので、画面からは編集しない (呼ぶ側のバグ)。</exception>
-    public Task SaveProgressLabelsAsync(IReadOnlyList<WorkProgressLabel> labels, CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("DB モードでは、進捗度のラベルを画面から編集できません (表を SQL で直します)。");
-
     /// <summary>ユーザーを特定していることを確かめる</summary>
     /// <returns>今のユーザーの番号</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
@@ -428,7 +421,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("作業リストの表がデータベースにありません。管理者に、003_CreateWorkTables.sql を実行してもらってください。", ex);
+                throw new DataFileException("作業リストの表がデータベースにありません。管理者に、003_CreateWorkTables.sql・004_CreateCodeMaster.sql・005_SeedWorkItemCodes.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 
@@ -547,13 +540,13 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         }
     }
 
-    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要なら選んでいる案件の番号・進捗度のラベルを、1 回の往復で読む</summary>
+    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要なら選んでいる案件の番号・コードマスタを、1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="projectIds">案件の番号。null なら、自分が選んだ案件</param>
     /// <param name="user">今のユーザーの番号</param>
-    /// <param name="withMaster">選んでいる案件の番号と、進捗度のラベルも読むか</param>
+    /// <param name="withMaster">選んでいる案件の番号と、コードマスタも読むか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、選んでいる案件の番号と進捗度のラベルは空)</returns>
+    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、選んでいる案件の番号とコードマスタは空)</returns>
     private static async Task<WorkLoadResult> ReadContentAsync(SqlConnection connection, IReadOnlyList<int>? projectIds, int user, bool withMaster, CancellationToken cancellationToken)
     {
         // 選んだ案件で絞るときは、選びの表を案件の番号で結び付けるだけ。番号を指定するときは IN。どちらも返すのは自分の表の列だけ
@@ -563,13 +556,13 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         string Where(string alias, string column) => projectIds is null
             ? $"{alias}.IsDeleted = 0"
             : $"{alias}.IsDeleted = 0 AND {alias}.{column} IN ({InList(projectIds.Count)})";
-        (string, object)[] parameters = projectIds is null ? [("@user", user)] : InParameters(projectIds);
+        (string, object)[] parameters = projectIds is null ? [("@user", user), ("@feature", WorkCodes.FeatureNo)] : [.. InParameters(projectIds), ("@feature", WorkCodes.FeatureNo)];
 
         var projects = new List<WorkProject>();
         var groups = new List<WorkGroup>();
         var items = new List<WorkItem>();
         var selected = new List<int>();
-        var labels = new List<WorkProgressLabel>();
+        var codes = new List<CodeMasterEntry>();
         var queries = new List<(string Sql, Action<SqlDataReader> Map)>
         {
             ($"SELECT {Header("p")}, p.Name, p.Note FROM dbo.WorkProject p {Join("p", "Id")} WHERE {Where("p", "Id")}", r => projects.Add(ReadProject(r).ToWorkProject())),
@@ -579,11 +572,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         if (withMaster)
         {
             queries.Add(("SELECT s.ProjectId FROM dbo.WorkProjectSelection s INNER JOIN dbo.WorkProject p ON p.Id = s.ProjectId AND p.IsDeleted = 0 WHERE s.UserId = @user AND s.IsDeleted = 0", r => selected.Add(r.GetInt32(0))));
-            queries.Add(($"SELECT {Header("g")}, g.Value, g.Label FROM dbo.WorkProgress g WHERE g.IsDeleted = 0 ORDER BY g.Value", r => labels.Add(ReadProgress(r).ToWorkProgressLabel())));
+            queries.Add(($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())));
         }
 
         await QueryBatchAsync(connection, null, [.. queries], parameters, cancellationToken).ConfigureAwait(false);
-        return new WorkLoadResult(projects, groups, items, selected, labels);
+        return new WorkLoadResult(projects, groups, items, selected, codes);
     }
 
     /// <summary>共通ヘッダー (番号・論理削除・作成と更新の日時と人)の列の並び</summary>
@@ -592,11 +585,17 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     private static string Header(string alias)
         => $"{alias}.Id, {alias}.IsDeleted, {alias}.CreatedAt, {alias}.CreatedByUserId, {alias}.UpdatedAt, {alias}.UpdatedByUserId";
 
+    /// <summary>コードマスタの中身の列の並び</summary>
+    /// <param name="alias">表の別名</param>
+    /// <returns>列の並び (6 列)</returns>
+    private static string CodeColumns(string alias)
+        => $"{alias}.FeatureNo, {alias}.CategoryNo, {alias}.CodeNo, {alias}.SortOrder, {alias}.NumericValue, {alias}.Name";
+
     /// <summary>作業の中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (13 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.Note, {alias}.Priority, {alias}.StartDate, {alias}.DueDate, {alias}.Status, {alias}.Progress, {alias}.PlannedHours, {alias}.CompletedOn, {alias}.ActualTotalHours";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.Note, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.PlannedHours, {alias}.CompletedOn, {alias}.ActualTotalHours";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -647,11 +646,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         SortOrder = r.GetInt32(8),
         Name = r.GetString(9),
         Note = r.GetString(10),
-        Priority = r.GetByte(11),
+        PriorityCodeNo = r.GetInt32(11),
         StartDate = DateOnly.FromDateTime(r.GetDateTime(12)),
         DueDate = DateOnly.FromDateTime(r.GetDateTime(13)),
-        Status = r.GetByte(14),
-        Progress = r.GetByte(15),
+        StatusCodeNo = r.GetInt32(14),
+        ProgressCodeNo = r.GetInt32(15),
         PlannedHours = r.GetDecimal(16),
         CompletedOn = DateOnly.FromDateTime(r.GetDateTime(17)),
         ActualTotalHours = r.GetDecimal(18),
@@ -690,10 +689,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         ProjectId = r.GetInt32(7),
     };
 
-    /// <summary>進捗度のマスターの行を読む</summary>
+    /// <summary>コードマスタの行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
-    private static WorkProgressRow ReadProgress(SqlDataReader r) => new()
+    private static CodeMasterRow ReadCode(SqlDataReader r) => new()
     {
         Id = r.GetInt32(0),
         IsDeleted = r.GetBoolean(1),
@@ -701,8 +700,12 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         CreatedByUserId = r.GetInt32(3),
         UpdatedAt = r.GetDateTimeOffset(4),
         UpdatedByUserId = r.GetInt32(5),
-        Value = r.GetByte(6),
-        Label = r.GetString(7),
+        FeatureNo = r.GetInt32(6),
+        CategoryNo = r.GetInt32(7),
+        CodeNo = r.GetInt32(8),
+        SortOrder = r.GetInt32(9),
+        NumericValue = r.GetInt32(10),
+        Name = r.GetString(11),
     };
 
     /// <summary>検索語の中の、<c>LIKE</c> の特別な文字を、そのままの文字として扱うようにする</summary>

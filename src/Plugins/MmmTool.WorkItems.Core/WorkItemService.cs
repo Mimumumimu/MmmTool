@@ -1,4 +1,5 @@
 using MmmSdk.Core.Components.Storage;
+using MmmTool.CodeMaster.Core;
 using MmmSdk.Core.Utilities;
 
 namespace MmmTool.WorkItems.Core;
@@ -41,8 +42,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>自分が選んでいる案件の番号</summary>
     private readonly HashSet<int> _selected = [];
 
-    /// <summary>進捗度のラベル (値 → ラベル。ラベルが付いた値だけ)</summary>
-    private Dictionary<int, string> _labels = [];
+    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    private CodeBook _codes = CodeBook.Empty;
 
     /// <summary>記録を読んでいる日</summary>
     private DateOnly _day;
@@ -56,7 +57,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>定期的な差分の取得を止めるためのトークン源 (動いていなければ null)</summary>
     private CancellationTokenSource? _pollCts;
 
-    /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・ラベルの保存・他の人の更新の反映)</summary>
+    /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
     public event EventHandler? Changed;
 
     /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
@@ -70,9 +71,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>一度でも読み込みに成功したか</summary>
     public bool IsLoaded { get; private set; }
-
-    /// <summary>進捗度のラベルを、画面から編集できるか</summary>
-    public bool CanEditProgressLabels => repository.CanEditProgressLabels;
 
     /// <summary>今のユーザーの番号</summary>
     public int UserId => repository.UserId;
@@ -92,8 +90,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     public IReadOnlyCollection<WorkItem> Items => _items.Values;
 
-    /// <summary>進捗度のラベル (値 → ラベル。ラベルが付いた値だけ)</summary>
-    public IReadOnlyDictionary<int, string> ProgressLabels => _labels;
+    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    public CodeBook Codes => _codes;
 
     /// <summary>選んだ案件の中身と、ある日の記録を、保存先から読み込む</summary>
     /// <param name="day">記録を読む日</param>
@@ -114,7 +112,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             Merge(data);
             _selected.Clear();
             _selected.UnionWith(data.SelectedProjectIds);
-            _labels = data.ProgressLabels.Where(l => l.Label.Length > 0).ToDictionary(l => l.Value, l => l.Label);
+            _codes = new CodeBook(data.Codes);
             _day = day;
             _dayRecords = [.. records];
             _baseline = new DateTimeOffset?[]
@@ -122,7 +120,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 data.Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 data.Groups.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 data.Items.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
-                data.ProgressLabels.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
+                data.Codes.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 records.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
             }.Max();
             IsLoaded = true;
@@ -223,7 +221,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="date">入力日</param>
     /// <returns>案件の行の並び</returns>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date)
-        => WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, UserId, date);
+        => WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, UserId, date, _codes);
 
     /// <summary>番号から、案件を探す</summary>
     /// <param name="id">案件の番号</param>
@@ -545,7 +543,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 StartDate = updated.StartDate,
                 DueDate = updated.DueDate,
                 Status = updated.Status,
-                Progress = updated.Progress,
+                ProgressCodeNo = updated.ProgressCodeNo,
                 PlannedHours = updated.PlannedHours is { } hours && Math.Round(hours, 2) is var rounded && rounded != 0 ? rounded : null,
             };
             candidate = candidate with
@@ -555,7 +553,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                     : null,
             };
 
-            var error = ValidateItem(candidate);
+            var error = ValidateItem(candidate, _codes);
             if (error is not null)
             {
                 return error;
@@ -794,36 +792,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>進捗度のラベルを保存する</summary>
-    /// <param name="labels">値ごとのラベル (空は、ラベルなし)</param>
-    /// <returns>入力の誤りのメッセージ。保存したら null</returns>
-    /// <exception cref="InvalidOperationException">保存先が、画面からの編集を認めていない (<see cref="CanEditProgressLabels"/>)。</exception>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
-    public async Task<string?> SaveProgressLabelsAsync(IReadOnlyDictionary<int, string> labels)
-    {
-        var rows = WorkProgress.Values
-            .Select(v => new WorkProgressLabel { Value = v, Label = labels.GetValueOrDefault(v, "").Trim() })
-            .ToList();
-        if (rows.Any(r => r.Label.Length > WorkProgress.LabelMaxLength))
-        {
-            return $"ラベルは {WorkProgress.LabelMaxLength} 文字までです。";
-        }
-
-        await _lock.WaitAsync();
-        try
-        {
-            await repository.SaveProgressLabelsAsync(rows);
-            _labels = rows.Where(r => r.Label.Length > 0).ToDictionary(r => r.Value, r => r.Label);
-            OnChangedLater();
-            return null;
-        }
-        finally
-        {
-            _lock.Release();
-            FlushChanged();
-        }
-    }
-
     /// <summary>行を、兄弟の中で上または下へ動かせるか</summary>
     /// <param name="key">行の識別 (グループまたは作業)</param>
     /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
@@ -984,21 +952,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             }
         }
 
-        foreach (var label in changes.ProgressLabels)
+        var codes = _codes.With(changes.Codes.Where(c => _codes.Find(c.FeatureNo, c.CategoryNo, c.CodeNo) != c));
+        if (!ReferenceEquals(codes, _codes))
         {
-            var before = _labels.GetValueOrDefault(label.Value, "");
-            if (before != label.Label)
-            {
-                if (label.Label.Length == 0)
-                {
-                    _labels.Remove(label.Value);
-                }
-                else
-                {
-                    _labels[label.Value] = label.Label;
-                }
-                changed = true;
-            }
+            _codes = codes;
+            changed = true;
         }
         return changed;
     }
@@ -1190,8 +1148,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>作業の入力の誤りを調べる</summary>
     /// <param name="item">調べる作業</param>
+    /// <param name="codes">コードブック</param>
     /// <returns>画面に出せるメッセージ。正しければ null</returns>
-    private static string? ValidateItem(WorkItem item)
+    private static string? ValidateItem(WorkItem item, CodeBook codes)
     {
         if ((ValidateName(item.Name) ?? ValidateNote(item.Note)) is { } basic)
         {
@@ -1205,9 +1164,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             return $"予定時間は 0 以上 {WorkItemLimits.PlannedHoursMax:0} 以下で入力してください。";
         }
-        if (!WorkProgress.IsValid(item.Progress))
+        if (codes.Find(WorkCodes.FeatureNo, WorkCodes.ProgressCategory, item.ProgressCodeNo) is null)
         {
-            return "進捗度は、0 から 100 の 10 刻みで選んでください。";
+            return "進捗度は、一覧から選んでください。";
         }
         return null;
     }

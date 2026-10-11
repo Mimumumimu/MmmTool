@@ -1,17 +1,9 @@
-using MmmTool.WorkItems.Core;
-
 namespace MmmTool.WorkItems.Main;
 
-/// <summary>表の選択欄 (優先度・状態)の選択肢の表示名</summary>
-/// <remarks>選択肢の並びは Core の <see cref="WorkItemNames"/> と同じ。XAML から、静的なプロパティとして結び付ける。</remarks>
+/// <summary>表の見た目の値 (文字の大きさ・太さ)</summary>
+/// <remarks>XAML から、静的なプロパティ・関数として結び付ける。</remarks>
 public static class WorkItemOptions
 {
-    /// <summary>優先度の選択肢 (高い順)</summary>
-    public static IReadOnlyList<string> Priorities { get; } = [.. WorkItemNames.Priorities.Select(WorkItemNames.Of)];
-
-    /// <summary>状態の選択肢 (進む順)</summary>
-    public static IReadOnlyList<string> Statuses { get; } = [.. WorkItemNames.Statuses.Select(WorkItemNames.Of)];
-
     /// <summary>案件の名前の文字の大きさ (ほかは 14。一回り大きくして、グループと見分ける)</summary>
     public static double ProjectFontSize => 16;
 

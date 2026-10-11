@@ -456,17 +456,17 @@ public sealed partial class WorkItemPage : Page
 
         var (options, current) = e.ColumnKey switch
         {
-            "Priority" => (WorkItemOptions.Priorities, row.PriorityIndex),
-            "Status" => (WorkItemOptions.Statuses, row.StatusIndex),
-            "Progress" => (row.ProgressOptions, row.ProgressIndex),
-            _ => ((IReadOnlyList<string>)[], -1),
+            "Priority" => (row.Choices.Priorities, row.PriorityIndex),
+            "Status" => (row.Choices.Statuses, row.StatusIndex),
+            "Progress" => (row.Choices.Progresses, row.ProgressIndex),
+            _ => ((IReadOnlyList<WorkChoice>)[], -1),
         };
 
         var menu = new MenuFlyout();
         for (var i = 0; i < options.Count; i++)
         {
             var index = i;
-            var item = new RadioMenuFlyoutItem { Text = options[i], GroupName = e.ColumnKey, IsChecked = i == current };
+            var item = new RadioMenuFlyoutItem { Text = options[i].Text, GroupName = e.ColumnKey, IsChecked = i == current };
             item.Click += (_, _) => ViewModel.CommitChoiceAsync(row, e.ColumnKey, index).Forget();
             menu.Items.Add(item);
         }

@@ -81,8 +81,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ### 作業リスト (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
 保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 6 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた。SQL Server の保存は、書いただけで、実行していない)。JSON の保存は廃止した。画面は、実機で一度も動かしていない。
 - **実機の確認**: `TreeGridView`(固定の列・見出しの固定・仮想化・右クリックのメニュー・入力欄の確定)と、ページの全体。確認の項目は、仕様の「画面」と SDK の `docs/controls.md` の「TreeGridView」。固定の列がうまく動かないときは、固定なしで出す形に直す。あわせて、新しい画面: 「表示する案件」のフライアウト (検索・進行中のみ・チェックの保存・続きの読み込み)・「案件の管理」のウィンドウ・「完了を表示」・別の PC の更新の取り込み (60 秒ごと)。文言はすべて仮 (決まったら、まとめて直す)
-- **SQL Server の表の作成と実機の確認** (ユーザーが別途試す。2026-10-11。作業リストの SQL Server 版は、まったく試していない): 作成スクリプト `src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` と `Sql/Maintenance/RebuildActualTotal.sql` は書いたが、流していない (実行は、ユーザーと相談して進める。確認することが多い)。`SqlServerWorkItemRepository` も実機で未確認
+- **SQL Server の表の作成と実機の確認** (ユーザーが別途試す。2026-10-11。作業リストの SQL Server 版は、まったく試していない。コードマスタも同じ): 作成スクリプト `src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql`・`004_CreateCodeMaster.sql`・`005_SeedWorkItemCodes.sql` と `Sql/Maintenance/RebuildActualTotal.sql` は書いたが、流していない (実行は、ユーザーと相談して進める。確認することが多い)。`SqlServerWorkItemRepository` も実機で未確認
 - **発行の確認**: 発行 (出力先を別の場所にして試した。2026-10-11)では、`e_sqlite3.dll` が `Lib` に入り、`deps.json` の `localPath` も付き、`THIRD-PARTY-NOTICES.txt` に SQLite 関係も入ることを確かめた。残りは、実際の発行物を起動して、作業リストを開き、`Data/MmmTool.db` が作られること
+- **コードマスタ** (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md) の「コードマスタ」): 残りは、画面の実機の確認 (優先度・状態・進捗度のメニューがコードマスタの名前で出ること・「設定」ボタンが無いこと)と、**コードマスタの管理ツール**(別ツールにする。ユーザーの方針 2026-10-11。選択肢の追加・外す・並べ替え。ローカルモードの扱いは未定)
 - **後で決める**: 担当者の列と「自分に絞る」・リーダー的な人の更新の権限 (SQL Server の実装のとき)・作業の行の「実績 (日)」に他の人の分を出すか (今は、実績 (日)は、行も案件・グループも、自分の記録だけ。累計は全員の分)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
