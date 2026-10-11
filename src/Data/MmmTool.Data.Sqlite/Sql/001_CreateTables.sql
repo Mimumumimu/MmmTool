@@ -1,4 +1,4 @@
--- MmmTool のローカルの DB (SQLite。Data/MmmTool.db)。作業リストの 6 つの表を作る。
+-- MmmTool のローカルの DB (SQLite。Data/MmmTool.db)。作業管理の 6 つの表を作る。
 -- 設計は docs/specs/work-items.md と docs/specs/database.md。何度流しても壊れない (無いものだけを作る)。
 -- アプリが、データベースを開くとき、PRAGMA user_version より新しい番号のスクリプトを順に実行する。
 -- 型: 日時は TEXT (2026-10-11T14:30:00.123+09:00。同じ時差なら文字の大小が前後になる)、日付は TEXT (2026-10-11。ない日は 9999-12-31)、

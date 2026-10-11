@@ -88,7 +88,7 @@ public partial class App : Application
         services.AddUserSignIn();
 
         // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び (利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちら。トレイメニューは常に order の順)。登録の順は問わない
-        // order の並び: よく使う順 (CLI補助が主な機能。作業リストが 2 番目)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
+        // order の並び: よく使う順 (CLI補助が主な機能。作業管理が 2 番目)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
         services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
         services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 5);
         services.AddFeaturePlugin<RemindersPlugin>(order: 3);
@@ -99,7 +99,7 @@ public partial class App : Application
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
 
-        // 作業リストの保存先。ローカルは SQLite (Data/MmmTool.db)、DB モードは SQL Server。ホストが設定で選ぶ
+        // 作業管理の保存先。ローカルは SQLite (Data/MmmTool.db)、DB モードは SQL Server。ホストが設定で選ぶ
         services.AddSqliteData();
         services.AddWorkItemStorage();
 

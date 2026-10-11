@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="Groups">案件の中のグループ</param>
 /// <param name="Items">案件の中の作業</param>
 /// <param name="SelectedProjectIds">自分が選んでいる案件の番号 (案件を番号で指定して読んだときは、空)</param>
-/// <param name="Codes">作業リストのコードマスタ (論理削除された件も含む。案件を番号で指定して読んだときは、空)</param>
+/// <param name="Codes">作業管理のコードマスタ (論理削除された件も含む。案件を番号で指定して読んだときは、空)</param>
 public sealed record WorkLoadResult(
     IReadOnlyList<WorkProject> Projects,
     IReadOnlyList<WorkGroup> Groups,

@@ -7,6 +7,6 @@ namespace MmmTool.CodeMaster.Core;
 /// </remarks>
 public static class CodeFeatures
 {
-    /// <summary>作業リスト</summary>
+    /// <summary>作業管理</summary>
     public const int WorkItems = 2;
 }

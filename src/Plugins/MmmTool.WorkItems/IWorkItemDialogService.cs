@@ -1,6 +1,6 @@
 namespace MmmTool.WorkItems;
 
-/// <summary>作業リストのダイアログを開く (ViewModel から UI 型に触れずに使うための口)</summary>
+/// <summary>作業管理のダイアログを開く (ViewModel から UI 型に触れずに使うための口)</summary>
 public interface IWorkItemDialogService
 {
     /// <summary>移動先のグループか案件を選ぶダイアログを開く</summary>

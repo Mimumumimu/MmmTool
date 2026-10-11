@@ -394,7 +394,7 @@
             <TextBlock
                 VerticalAlignment="Center"
                 Style="{StaticResource TitleTextBlockStyle}"
-                Text="作業リスト" />
+                Text="作業管理" />
             <Button
                 Grid.Column="1"
                 VerticalAlignment="Center"

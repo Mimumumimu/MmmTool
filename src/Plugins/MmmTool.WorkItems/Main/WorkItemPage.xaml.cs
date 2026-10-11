@@ -15,7 +15,7 @@ using Windows.System;
 
 namespace MmmTool.WorkItems.Main;
 
-/// <summary>作業リストのページ</summary>
+/// <summary>作業管理のページ</summary>
 /// <remarks>
 /// 表 (<see cref="TreeGridView"/>)の列と右クリックのメニューを組み立て、セルの入力の確定を ViewModel に渡す。
 /// 入力欄は表の行を使い回すので、確定の操作 (フォーカスが外れたとき・Enter)だけを保存に結び付け、値の変更のイベント (選択・日付の変更)には結び付けない

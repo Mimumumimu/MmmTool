@@ -11,7 +11,7 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.SqlServer.WorkItems;
 
 /// <summary>
-/// 作業リストを、SQL Server (DB モード)に保存する。
+/// 作業管理を、SQL Server (DB モード)に保存する。
 /// </summary>
 /// <param name="database">SQL Server に接続して処理を実行する入口</param>
 /// <param name="currentUser">今のユーザー (記録の持ち主・選んだ案件の持ち主・作成者・更新者)</param>
@@ -404,9 +404,9 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <returns>今のユーザーの番号</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
     private int RequireUser()
-        => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業リストを使えません (ログインが必要です)。", new InvalidOperationException("今のユーザーが特定されていません。"));
+        => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません (ログインが必要です)。", new InvalidOperationException("今のユーザーが特定されていません。"));
 
-    /// <summary>接続を開いて、処理を実行する (作業リストの表が無いときは、作成の手順を伝えるメッセージにする)</summary>
+    /// <summary>接続を開いて、処理を実行する (作業管理の表が無いときは、作成の手順を伝えるメッセージにする)</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -421,11 +421,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("作業リストの表がデータベースにありません。管理者に、003_CreateWorkTables.sql・004_CreateCodeMaster.sql・005_SeedWorkItemCodes.sql を実行してもらってください。", ex);
+                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、003_CreateWorkTables.sql・004_CreateCodeMaster.sql・005_SeedWorkItemCodes.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 
-    /// <summary>接続を開いて、結果を返さない処理を実行する (作業リストの表が無いときは、作成の手順を伝えるメッセージにする)</summary>
+    /// <summary>接続を開いて、結果を返さない処理を実行する (作業管理の表が無いときは、作成の手順を伝えるメッセージにする)</summary>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の完了を表すタスク</returns>

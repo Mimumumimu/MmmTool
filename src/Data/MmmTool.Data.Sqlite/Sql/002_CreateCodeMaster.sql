@@ -29,7 +29,7 @@ CREATE UNIQUE INDEX UX_CodeMaster_FeatureNo_CategoryNo_CodeNo ON CodeMaster (Fea
 -- 機能ごとの読み込み・差分の取得 (論理削除された行も含む)
 CREATE INDEX IX_CodeMaster_FeatureNo_UpdatedAt ON CodeMaster (FeatureNo, UpdatedAt);
 
--- 初期値 (作業リスト = 機能番号 2)。作成者・更新者は 1 (ローカルのユーザー。001 の初期値と同じ)
+-- 初期値 (作業管理 = 機能番号 2)。作成者・更新者は 1 (ローカルのユーザー。001 の初期値と同じ)
 -- 区分 1: 状態 / 区分 2: 進捗度 (WorkProgress のラベルを引き継ぐ) / 区分 3: 優先度
 INSERT INTO CodeMaster (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, FeatureNo, CategoryNo, CodeNo, SortOrder, NumericValue, Name)
 SELECT 0,

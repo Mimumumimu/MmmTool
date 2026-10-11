@@ -14,7 +14,7 @@ using MmmTool.WorkItems.ProjectPicker;
 namespace MmmTool.WorkItems.Main;
 
 /// <summary>
-/// 作業リストのページ。木構造の表・入力日・表示列・表示する案件・完了した行を隠すかを扱う。
+/// 作業管理のページ。木構造の表・入力日・表示列・表示する案件・完了した行を隠すかを扱う。
 /// </summary>
 /// <remarks>
 /// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
@@ -32,13 +32,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>日付として受け付ける書式</summary>
     private static readonly string[] DateFormats = ["yyyy/M/d", "yyyy-M-d", "yyyy.M.d", "yyyyMMdd", "M/d", "M-d"];
 
-    /// <summary>作業リストの読み書き</summary>
+    /// <summary>作業管理の読み書き</summary>
     private readonly WorkItemService _service;
 
     /// <summary>設定ストア</summary>
     private readonly ISettingsStore _settings;
 
-    /// <summary>作業リストのダイアログ</summary>
+    /// <summary>作業管理のダイアログ</summary>
     private readonly IWorkItemDialogService _dialogs;
 
     /// <summary>確認ダイアログ</summary>
@@ -104,9 +104,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     public event EventHandler? RowsRebuilt;
 
     /// <summary>ViewModel を作る</summary>
-    /// <param name="service">作業リストの読み書き</param>
+    /// <param name="service">作業管理の読み書き</param>
     /// <param name="settings">設定ストア</param>
-    /// <param name="dialogs">作業リストのダイアログ</param>
+    /// <param name="dialogs">作業管理のダイアログ</param>
     /// <param name="confirm">確認ダイアログ</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker)

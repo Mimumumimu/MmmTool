@@ -2,7 +2,7 @@ using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>作業リストの保存先</summary>
+/// <summary>作業管理の保存先</summary>
 /// <remarks>
 /// 利用者が選んだ案件の分だけを、必要なときに読む。書きは 1 件単位の操作で、更新は変えた列だけを書く。番号 (<c>Id</c>)は保存先が決める。
 /// 削除は論理削除だけ (完全削除はしない)。失敗は <see cref="DataFileException"/>。
@@ -16,7 +16,7 @@ public interface IWorkItemRepository
     /// <summary>壊れたファイルを退避して作り直したときのメッセージ。通常は null</summary>
     string? RecoveryMessage { get; }
 
-    /// <summary>自分が選んだ案件の中身と、作業リストのコードマスタを読む</summary>
+    /// <summary>自分が選んだ案件の中身と、作業管理のコードマスタを読む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだ内容</returns>
     /// <remarks>表ごとに別の <c>SELECT</c>。どれも選びの表を案件の番号で結び付けて絞るだけで、返すのは自分の表の列だけ。木はメモリで組み立てる。</remarks>

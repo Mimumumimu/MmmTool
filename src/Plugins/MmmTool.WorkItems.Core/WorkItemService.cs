@@ -5,7 +5,7 @@ using MmmSdk.Core.Utilities;
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>
-/// 作業リストを読み書きし、選んだ案件の最新の内容をメモリに持つ。アプリ全体で 1 つ。
+/// 作業管理を読み書きし、選んだ案件の最新の内容をメモリに持つ。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="repository">保存先</param>
 /// <param name="policy">更新してよいかの判定</param>
@@ -42,7 +42,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>自分が選んでいる案件の番号</summary>
     private readonly HashSet<int> _selected = [];
 
-    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
     private CodeBook _codes = CodeBook.Empty;
 
     /// <summary>記録を読んでいる日</summary>
@@ -90,7 +90,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     public IReadOnlyCollection<WorkItem> Items => _items.Values;
 
-    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
     public CodeBook Codes => _codes;
 
     /// <summary>選んだ案件の中身と、ある日の記録を、保存先から読み込む</summary>

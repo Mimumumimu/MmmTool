@@ -1,4 +1,4 @@
--- MmmTool の DB (SQL Server)。作業リストの 5 つの表を、dbo スキーマに作る。
+-- MmmTool の DB (SQL Server)。作業管理の 5 つの表を、dbo スキーマに作る。
 -- 設計は docs/specs/work-items.md と docs/specs/database.md。何度流しても壊れない (無いものだけを作る)。DELETE 文は含まない。
 -- 使い方: 001 のあとに、同じ DB を選んで、表を作れる権限のあるユーザーで、全体を実行する。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、-I を付ける (SSMS は既定でオン)。
 -- 型: 日時は datetimeoffset(3)、日付は date (ない日は 9999-12-31)、時間は decimal(小数 2 桁)。外部キーは使わない。NULL は使わない。

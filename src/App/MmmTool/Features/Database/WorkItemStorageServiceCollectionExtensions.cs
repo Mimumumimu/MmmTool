@@ -7,11 +7,11 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Features.Database;
 
 /// <summary>
-/// 作業リストの保存先 (ローカルの SQLite / DB の SQL Server)を、設定で選んで DI に登録する。
+/// 作業管理の保存先 (ローカルの SQLite / DB の SQL Server)を、設定で選んで DI に登録する。
 /// </summary>
 public static class WorkItemStorageServiceCollectionExtensions
 {
-    /// <summary>作業リストの保存先を登録する</summary>
+    /// <summary>作業管理の保存先を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>

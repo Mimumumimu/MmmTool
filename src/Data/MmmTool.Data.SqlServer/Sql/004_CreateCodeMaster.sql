@@ -1,10 +1,10 @@
 -- MmmTool の DB (SQL Server)。コードマスタ (CodeMaster)を、dbo スキーマに作る。機能をまたいで使う、選択肢などの表。
 -- 設計は docs/specs/database.md の「コードマスタの表」と docs/specs/work-items.md の「コードマスタ」。何度流しても壊れない (無いものだけを作る)。DELETE 文は含まない。
--- 使い方: 001 のあとに、同じ DB を選んで、表を作れる権限のあるユーザーで、全体を実行する。初期値の行は、機能ごとの別のスクリプト (作業リストは 005_SeedWorkItemCodes.sql)が入れる。
+-- 使い方: 001 のあとに、同じ DB を選んで、表を作れる権限のあるユーザーで、全体を実行する。初期値の行は、機能ごとの別のスクリプト (作業管理は 005_SeedWorkItemCodes.sql)が入れる。
 -- 型: 日時は datetimeoffset(3)。外部キーは使わない。NULL は使わない。
 
--- コードマスタ。(FeatureNo, CategoryNo, CodeNo) で 1 件。FeatureNo は機能番号 (台帳は MmmTool.CodeMaster.Core の CodeFeatures。作業リストは 2)、
--- CategoryNo は機能の中の区分 (コードの種類。作業リストは 1 = 状態・2 = 進捗度・3 = 優先度)、CodeNo は区分の中の識別子 (一度使った番号は、同じ意味のまま変えない)
+-- コードマスタ。(FeatureNo, CategoryNo, CodeNo) で 1 件。FeatureNo は機能番号 (台帳は MmmTool.CodeMaster.Core の CodeFeatures。作業管理は 2)、
+-- CategoryNo は機能の中の区分 (コードの種類。作業管理は 1 = 状態・2 = 進捗度・3 = 優先度)、CodeNo は区分の中の識別子 (一度使った番号は、同じ意味のまま変えない)
 -- NumericValue は計算に使う数 (進捗度の % など。要らないコードは 0)、Name の「ない」は空文字
 -- 全員に影響するので、画面からは編集しない (この表を SQL で直す。選択肢を外すときは IsDeleted = 1。DELETE はしない)
 IF OBJECT_ID(N'dbo.CodeMaster', N'U') IS NULL

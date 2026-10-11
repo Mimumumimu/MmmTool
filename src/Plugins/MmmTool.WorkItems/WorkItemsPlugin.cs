@@ -9,7 +9,7 @@ using MmmTool.WorkItems.ProjectPicker;
 
 namespace MmmTool.WorkItems;
 
-/// <summary>作業リストの入口 (サービス・ページ・ダイアログを登録する。保存先は、ホストが設定で選んで登録する)</summary>
+/// <summary>作業管理の入口 (サービス・ページ・ダイアログを登録する。保存先は、ホストが設定で選んで登録する)</summary>
 public sealed class WorkItemsPlugin : IFeaturePlugin
 {
     /// <inheritdoc />

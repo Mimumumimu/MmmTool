@@ -9,7 +9,7 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.Sqlite.WorkItems;
 
 /// <summary>
-/// 作業リストを、ローカルの SQLite (<c>Data/MmmTool.db</c>)に保存する。
+/// 作業管理を、ローカルの SQLite (<c>Data/MmmTool.db</c>)に保存する。
 /// </summary>
 /// <param name="database">データベースファイルを開く入口</param>
 /// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
