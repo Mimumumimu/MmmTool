@@ -12,7 +12,7 @@
 | ファイル | 内容 | 備考 |
 | --- | --- | --- |
 | `Data/CliCommands.json` | CLI補助の定型コマンドと、動かす環境 (`environment`: `windows` / `wsl`) | ローカル専用。ID なしの入れ子 JSON。無ければ、初期設定ダイアログ (使うツール・環境)を出してから既定を生成 |
-| `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件) | ローカル専用 |
+| `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件)・開いているタブと選んでいるタブ (次回の起動で戻す) | ローカル専用 |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (`label` 省略可・`text`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
 | `Data/MmmTool.db` | 作業管理の案件・グループ・作業・日ごとの記録・表示する案件・コードマスタ (状態・進捗度・優先度の選択肢) | SQLite。ローカルモードの保存先。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkProjectSelection`・`CodeMaster` の 6 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す ([work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」)。DB モードでは使わない (SQL Server に保存する) |

@@ -111,6 +111,12 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <param name="e">変更の情報</param>
     private void OnSessionsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        // 並べ替えは、タブが先に動いているので、何もしない (タブを作り直すとターミナルが外れる)
+        if (e.Action == NotifyCollectionChangedAction.Move)
+        {
+            return;
+        }
+
         foreach (var session in e.NewItems?.Cast<CliSessionViewModel>() ?? [])
         {
             AddTab(session);
@@ -196,9 +202,47 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <param name="e">選択の変更の情報</param>
     private void OnSessionTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // 並べ替えの途中 (タブがいったん外れている間)は、選びが動くので反映しない
+        if (SessionTabs.TabItems.Count != ViewModel.Sessions.Count)
+        {
+            return;
+        }
+
         if (SessionTabs.SelectedItem is TabViewItem { Tag: CliSessionViewModel session } && ViewModel.Sessions.Contains(session))
         {
             ViewModel.SelectedSession = session;
+        }
+    }
+
+    /// <summary>タブの一覧が変わったら、タブの並びを一覧へ反映する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="args">変更の情報</param>
+    /// <remarks>
+    /// ドラッグの並べ替えでは、タブがいったん外れてから入れ直される。数がそろったときだけ反映し、並べ替えの前に選んでいたタブを選び直す。
+    /// 追加・削除のときは、一覧のほうが先に変わっているので、並びは同じで何も起きない。
+    /// </remarks>
+    private void OnTabItemsChanged(TabView sender, Windows.Foundation.Collections.IVectorChangedEventArgs args)
+    {
+        if (SessionTabs.TabItems.Count != ViewModel.Sessions.Count)
+        {
+            return;
+        }
+
+        var ordered = SessionTabs.TabItems
+            .OfType<TabViewItem>()
+            .Select(item => item.Tag as CliSessionViewModel)
+            .OfType<CliSessionViewModel>()
+            .ToList();
+        if (ordered.Count != ViewModel.Sessions.Count)
+        {
+            return;
+        }
+
+        // 同じ位置に落としたときも、外れている間に選びが動くことがあるので、並びが同じでも選びを合わせる
+        ViewModel.ReorderSessions(ordered);
+        if (_tabs.TryGetValue(ViewModel.SelectedSession, out var selected))
+        {
+            SessionTabs.SelectedItem = selected.Item;
         }
     }
 

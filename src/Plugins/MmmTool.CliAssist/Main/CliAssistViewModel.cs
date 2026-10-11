@@ -37,6 +37,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private CliCommandSet _commandSet = new();
     /// <summary>初期化済みか</summary>
     private bool _initialized;
+    /// <summary>前回のタブを戻し終えたか (戻している間は、タブの記録を書き換えない)</summary>
+    private bool _tabsRestored;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="commandRepository">定型コマンドの保存先</param>
@@ -64,12 +66,25 @@ public sealed partial class CliAssistViewModel : ObservableObject
         _dialogs = dialogs;
 
         CommandItems = [];
-        Sessions.CollectionChanged += (_, _) => RefreshSessionTitles();
+        Sessions.CollectionChanged += (_, _) =>
+        {
+            RefreshSessionTitles();
+            PersistTabs();
+        };
 
-        // 最初のセッションは、前回の作業ディレクトリで始める
-        var first = _sessionFactory.Create(_settings.StartDirectory);
-        AddSession(first);
-        SelectedSession = first;
+        // 前回のタブを戻す。戻せるタブが無いときは、前回の作業ディレクトリで 1 つ開く
+        // (戻している間は、タブの記録を書き換えない)
+        var restored = _settings.StartTabs.Count > 0
+            ? _settings.StartTabs.Select(_sessionFactory.Create).ToList()
+            : [_sessionFactory.Create(_settings.StartDirectory)];
+        foreach (var session in restored)
+        {
+            AddSession(session);
+        }
+        SelectedSession = _settings.StartSelectedTab is { } selected
+            ? restored.FirstOrDefault(session => SessionDirectory.IsSame(session.WorkingDirectory, selected)) ?? restored[0]
+            : restored[0];
+        _tabsRestored = true;
     }
 
     #region セッション (タブ)
@@ -94,6 +109,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             {
                 case nameof(CliSessionViewModel.WorkingDirectory):
                     RefreshSessionTitles();
+                    PersistTabs();
                     break;
                 case nameof(CliSessionViewModel.Category) when session == SelectedSession:
                     OnSelectedCategoryChanged();
@@ -101,6 +117,52 @@ public sealed partial class CliAssistViewModel : ObservableObject
             }
         };
         Sessions.Add(session);
+    }
+
+    /// <summary>タブを並べ替える (ドラッグの結果を一覧へ反映する)</summary>
+    /// <param name="orderedSessions">新しい並び順のセッション (今の一覧と同じ要素)</param>
+    public void ReorderSessions(IReadOnlyList<CliSessionViewModel> orderedSessions)
+    {
+        for (var i = 0; i < orderedSessions.Count; i++)
+        {
+            var from = Sessions.IndexOf(orderedSessions[i]);
+            if (from >= 0 && from != i)
+            {
+                Sessions.Move(from, i);
+            }
+        }
+    }
+
+    /// <summary>選んだタブが変わったら、タブの記録を書き換える</summary>
+    /// <param name="value">選ばれたセッション</param>
+    partial void OnSelectedSessionChanged(CliSessionViewModel value)
+    {
+        OnSelectedCategoryChanged();
+        PersistTabs();
+    }
+
+    /// <summary>開いているタブ (並び順・選んでいるタブ)を保存する</summary>
+    /// <remarks>
+    /// 失敗したときは、選んでいるタブに InfoBar で知らせる (タブは動かし続けられるため)。
+    /// 保存は呼ばれた順に行われ、そのときの最新の内容が書かれる。
+    /// </remarks>
+    private async void PersistTabs()
+    {
+        if (!_tabsRestored)
+        {
+            return;
+        }
+
+        try
+        {
+            await _settings.SaveTabsAsync(
+                [.. Sessions.Select(session => session.WorkingDirectory)],
+                SelectedSession.WorkingDirectory);
+        }
+        catch (DataFileException ex)
+        {
+            SelectedSession.Error.Show(ex.Message);
+        }
     }
 
     /// <summary>全タブのタブ名を付け直す</summary>
@@ -193,9 +255,6 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>選ばれたセッションが変わったら、左ペインをそのセッションの値に合わせる</summary>
-    /// <param name="value">選ばれたセッション</param>
-    partial void OnSelectedSessionChanged(CliSessionViewModel value) => OnSelectedCategoryChanged();
-
     /// <summary>左ペインで表示する群が変わったことを知らせ、ツリーを作り直す</summary>
     private void OnSelectedCategoryChanged()
     {
