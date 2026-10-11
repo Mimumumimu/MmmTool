@@ -2,7 +2,7 @@ using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>作業リストの保存先</summary>
+/// <summary>作業管理の保存先</summary>
 /// <remarks>
 /// 利用者が選んだ案件の分だけを、必要なときに読む。書きは 1 件単位の操作で、更新は変えた列だけを書く。番号 (<c>Id</c>)は保存先が決める。
 /// 削除は論理削除だけ (完全削除はしない)。失敗は <see cref="DataFileException"/>。
@@ -10,18 +10,29 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public interface IWorkItemRepository
 {
-    /// <summary>今のユーザーの番号 (日ごとの記録の持ち主・選んだ案件の持ち主)</summary>
+    /// <summary>今のユーザーの番号 (日ごとの記録の持ち主)</summary>
     int UserId { get; }
 
     /// <summary>壊れたファイルを退避して作り直したときのメッセージ。通常は null</summary>
     string? RecoveryMessage { get; }
 
-    /// <summary>自分が選んだ案件の中身と、作業リストのコードマスタを読む</summary>
+    /// <summary>担当者を扱う保存先か (ローカルモードは false。担当の列・絞り込みを出さない)</summary>
+    bool HasAssignees { get; }
+
+    /// <summary>担当者にできる人の一覧を読む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容</returns>
-    /// <remarks>表ごとに別の <c>SELECT</c>。どれも選びの表を案件の番号で結び付けて絞るだけで、返すのは自分の表の列だけ。木はメモリで組み立てる。</remarks>
+    /// <returns>全ユーザー (削除済みも含む。名前を引くため)。表示名の順</returns>
+    /// <remarks>ローカルモードは、固定のローカルユーザー 1 人だけ。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<WorkLoadResult> LoadSelectedAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkAssignee>> GetAssigneesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>表示する案件 (表示しない案件を除いた、全部の案件)の中身と、作業管理のコードマスタを読む</summary>
+    /// <param name="hiddenProjectIds">表示しない案件の番号 (空なら、全部の案件を読む)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読み込んだ内容 (削除された案件は、含まれない)</returns>
+    /// <remarks>表ごとに別の <c>SELECT</c>。表示しない案件の番号は 1 つの JSON で渡して、案件の番号で除くだけ。返すのは自分の表の列だけ。木はメモリで組み立てる。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<WorkLoadResult> LoadVisibleAsync(IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
     /// <summary>案件を番号で指定して、中身を読む</summary>
     /// <param name="projectIds">案件の番号 (少数。選びの変更や移動で、読み直す案件)</param>
@@ -32,29 +43,32 @@ public interface IWorkItemRepository
 
     /// <summary>ある日の記録を読む</summary>
     /// <param name="date">日付</param>
+    /// <param name="hiddenProjectIds">表示しない案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>選んでいる案件の、その日の記録 (全員分。論理削除済みを除く)</returns>
+    /// <returns>表示する案件の、その日の記録 (全員分。論理削除済みを除く)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
     /// <summary>基準の時刻より後に更新された行を読む</summary>
     /// <param name="since">基準の時刻 (この時刻以後に更新された行を返す)</param>
     /// <param name="date">記録を読む日</param>
+    /// <param name="hiddenProjectIds">表示しない案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新された行 (論理削除された行も含む)</returns>
+    /// <returns>更新された行 (論理削除された行も含む。表示しない案件の行は含まない)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, CancellationToken cancellationToken = default);
+    Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
     /// <summary>案件マスターを、名前で検索して読む</summary>
     /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
-    /// <param name="selectedFirst">自分が選んでいる案件を、先頭にまとめるか</param>
+    /// <param name="hiddenProjectIds">表示しない案件の番号 (一覧の「表示しているか」の印と、先頭にまとめる並びに使う)</param>
+    /// <param name="selectedFirst">表示している案件を、先頭にまとめるか</param>
     /// <param name="offset">読み始める位置</param>
     /// <param name="count">読む件数の上限</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>案件の一覧 (名前の順。選んでいる案件を先頭にまとめるときは、その中も名前の順。論理削除済みを除く)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
 
     /// <summary>作業の記録の件数を数える (削除の確認に出す)</summary>
     /// <param name="workItemIds">作業の番号</param>
@@ -70,7 +84,7 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkItemDeleteImpact> GetProjectDeleteImpactAsync(int projectId, CancellationToken cancellationToken = default);
 
-    /// <summary>案件を追加し、同じトランザクションで、作った人の選びに加える</summary>
+    /// <summary>案件を追加する</summary>
     /// <param name="name">名前</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>番号が決まった案件</returns>
@@ -93,15 +107,6 @@ public interface IWorkItemRepository
     /// <returns>削除の完了を表すタスク</returns>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task DeleteProjectAsync(int projectId, CancellationToken cancellationToken = default);
-
-    /// <summary>案件を、表示する案件に選ぶ・外す</summary>
-    /// <param name="projectId">案件の番号</param>
-    /// <param name="selected">選ぶか (false なら外す)</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>外したら論理削除し、選び直したら同じ行を使い回す。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
-    Task SetProjectSelectedAsync(int projectId, bool selected, CancellationToken cancellationToken = default);
 
     /// <summary>グループを追加する</summary>
     /// <param name="group">追加するグループ (<see cref="WorkGroup.Id"/> は無視する)</param>

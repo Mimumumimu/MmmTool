@@ -40,7 +40,7 @@ public static class SqlServerDataServiceCollectionExtensions
                 ? provider.GetRequiredService<SqlServerReminderRepository>()
                 : provider.GetRequiredService<JsonReminderRepository>());
 
-        // 作業リスト。保存先の選択 (ローカルの SQLite / SQL Server)は、SQLite を参照できるホストが、設定で行う (MmmBatch に SQLite を持ち込まないため)
+        // 作業管理。保存先の選択 (ローカルの SQLite / SQL Server)は、SQLite を参照できるホストが、設定で行う (MmmBatch に SQLite を持ち込まないため)
         services.AddSingleton<SqlServerWorkItemRepository>();
 
         // 送信先とリマインダーの送信設定は、DB モードだけで使う (ローカルモードは、機能が登録した「使えない」保存先のまま)

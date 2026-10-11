@@ -14,14 +14,14 @@
 - `SettingsViewModel` はページ全体のことだけ：タイトルと、設定ファイルを読めなかったとき (`ISettingsStore.LoadError`)の InfoBar。機能のオン・オフの一覧は、部品 (`Features/Settings/FeatureList/FeatureListControl` ＋ `FeatureListViewModel` ＋ `FeatureItem`)が持つ。読めなかったときは、各部品が、自分のサービスの `IsReadOnly` で入力欄を無効にする (元のファイルを上書きで消さないため)
 
 ## 機能のオン・オフと並び順
-- 「全般」の下に、機能の一覧を「機能」の見出し (と説明文 1 行)の下に出す。各行は `SettingsCard`(左に取っ手 ⠿ と機能名、右に操作)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送・Backlog・作業リスト)には `ToggleSwitch`(オン / オフ)を付け、リンク・リマインダー (`AddAlwaysOnFeature`。`FeatureInfo.CanDisable = false`。`IsEnabled` は常に true)は、スイッチなしで並べる。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`FeatureListViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
+- 「全般」の下に、機能の一覧を「機能」の見出し (と説明文 1 行)の下に出す。各行は `SettingsCard`(左に取っ手 ⠿ と機能名、右に操作)。オフにできる機能 (`AddFeature` で登録したもの。今は CLI補助・クリップボード転送・Backlog・作業管理)には `ToggleSwitch`(オン / オフ)を付け、リンク・リマインダー (`AddAlwaysOnFeature`。`FeatureInfo.CanDisable = false`。`IsEnabled` は常に true)は、スイッチなしで並べる。一覧は `FeatureService.Features` から作るだけで、特定の機能を知らない (`FeatureListViewModel` ＋ `FeatureItem`)。設定の部品は、その機能がオン・オフされたときだけ並べ直す
 - 行はドラッグして並べ替える (`ListView` の `CanReorderItems`。保存ボタンは無く、一覧の変更 (`CollectionChanged`)を見て、操作が止まってから 300ms 後に 1 回だけ保存し (`Debouncer`。`DragItemsCompleted` は届かなかったため使わない)、すぐ反映する。失敗したときは InfoBar を出して、実際の並びへ戻す)。取っ手は「よく使う文の編集」と同じ。一覧の下の「既定の順に戻す」で、保存した並びを消して登録の順に戻す
-- 並びは、利用者が決めた順 (保存が無ければ、登録の並び順の値の順: CLI補助 → 作業リスト → リマインダー → リンク → クリップボード転送 → Backlog)。反映先は、サイドバーと、設定ページの各機能の部品。「全般」「保存先」「アカウント」「機能」の一覧は、先頭に固定 (動かせない)。トレイは連動せず、登録の order の順 (リマインダー → リンク → 終了)のまま
+- 並びは、利用者が決めた順 (保存が無ければ、登録の並び順の値の順: CLI補助 → 作業管理 → リマインダー → リンク → クリップボード転送 → Backlog)。反映先は、サイドバーと、設定ページの各機能の部品。「全般」「保存先」「アカウント」「機能」の一覧は、先頭に固定 (動かせない)。トレイは連動せず、登録の order の順 (リマインダー → リンク → 終了)のまま
 - 保存は、設定ストアの `Feature.Order`(機能のキーの配列。SDK の `FeatureService`)。載っていない機能 (あとから足したもの)は、後ろに登録の順で付く。並びの値は `FeatureService.OrderOf(キー, 登録の値)` が返し、サイドバー (`MainViewModel`)と設定ページ (`SettingsPage`)が使う (並べる処理を 1 か所に置く)。並びが変わると `OrderChanged` が出る (`Changed` はオン・オフ用)
 - 設定ページは、すでに並んでいる部品を作り直さず、順序の違うものだけを動かす (ドラッグの直後に「機能」の一覧を作り直さない)。サイドバーも、項目を `Move` する
 - 文言 (説明文「使う機能とサイドバーの並び順」・ボタン「既定の順に戻す」・エラーの文)は案。決めてから直す。キーボードでの並べ替えは、実機で確かめてから書く (WinUI の標準で動くかを未確認)
 - 切り替えはすぐ反映する (再起動は要らない)。サイドバー・トレイメニュー・設定ページの部品が、`FeatureService.Changed` で変わる。オフにした機能のページは捨て (`PageProvider.EvictDisabledPages`)、表示中なら先頭のページへ移る。オンにしたときは、その機能の起動時の準備を実行する
-- 状態は設定ストアの `Feature.<キー>.Enabled`(bool)。保存が無い機能は、登録の既定値 (`AddFeature` の `defaultEnabled`。省略するとオン)。今は、CLI補助・クリップボード転送・Backlog・作業リストが既定でオフ
+- 状態は設定ストアの `Feature.<キー>.Enabled`(bool)。保存が無い機能は、登録の既定値 (`AddFeature` の `defaultEnabled`。省略するとオン)。今は、CLI補助・クリップボード転送・Backlog・作業管理が既定でオフ
 - CLI補助を、ターミナルが動いている間にオフにするときは、確認ダイアログを出す (「実行中のターミナルと、その中の作業が終了します」。`CliAssistDisableConfirmation`)。ターミナルが動いていなければ確認しない。取りやめると、スイッチは元に戻る
 - 設定ファイルを読めなかったとき (`IsReadOnly`)は、スイッチを無効にする。保存できなかったとき (読み込めない・`DataFileException`)は、一覧の見出しの下の InfoBar で知らせ、スイッチを元に戻す
 - 仕組みと決めた理由は、下の「決定の理由」

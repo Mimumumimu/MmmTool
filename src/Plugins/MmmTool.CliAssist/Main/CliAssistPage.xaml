@@ -84,7 +84,7 @@
             右: セッション (1 タブ = ターミナルと送信欄)。タブはコードビハインドで作る (ViewModel のセッションの一覧に合わせる)。
             TabView は、タブの帯だけに使う。中身は、選んだタブの画面を下の枠に入れる
             (TabView の中身の枠は、内容の大きさのまま左上に寄せて表示するため、ターミナルが大きさを持てない)。
-            タブの操作はマウスだけ。並べ替え・ドラッグはしない
+            タブの操作はマウスだけ。並べ替えは帯の中のドラッグだけ (ウィンドウの外へ出す切り離しはしない)
         -->
         <Grid Grid.Column="1" RowSpacing="8">
             <Grid.RowDefinitions>
@@ -95,9 +95,10 @@
                 x:Name="SessionTabs"
                 AddTabButtonClick="OnAddTabButtonClick"
                 CanDragTabs="False"
-                CanReorderTabs="False"
+                CanReorderTabs="True"
                 SelectionChanged="OnSessionTabSelectionChanged"
-                TabCloseRequested="OnTabCloseRequested">
+                TabCloseRequested="OnTabCloseRequested"
+                TabItemsChanged="OnTabItemsChanged">
                 <!--
                     選択中のタブの枠線は、既定では薄いグラデーションで、背景と見分けにくい。
                     枠線だけを、少し濃い色 (システムの「第 2 の枠線」。「強い枠線」は濃すぎた)にする。背景の色は既定のまま。

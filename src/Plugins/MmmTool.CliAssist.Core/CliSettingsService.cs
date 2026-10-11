@@ -45,6 +45,17 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// </remarks>
     public string? StartDirectory { get; private set; }
 
+    /// <summary>起動時に戻すタブの作業ディレクトリ (タブの並び順)</summary>
+    /// <remarks>
+    /// 前回開いていたタブのうち、読み込み時に存在していたフォルダだけ (重複は除く)。無ければ空で、そのときは <see cref="StartDirectory"/> で 1 タブ開く。
+    /// 存在の確認は、<see cref="StartDirectory"/> と同じくバックグラウンドで行う。
+    /// </remarks>
+    public IReadOnlyList<string> StartTabs { get; private set; } = [];
+
+    /// <summary>起動時に選ぶタブの作業ディレクトリ</summary>
+    /// <remarks><see cref="StartTabs"/> の中のどれか。前回選んでいたタブが戻せないときは null (先頭を選ぶ)。</remarks>
+    public string? StartSelectedTab { get; private set; }
+
     /// <summary>作業ディレクトリの履歴 (新しい順)</summary>
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
@@ -62,6 +73,22 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
             {
                 StartDirectory = last;
             }
+
+            // 前回のタブの存在確認は、まとめて並行に行う (起動の遅れを、いちばん遅い 1 つ分に抑える)
+            var candidates = _settings.Tabs.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            var exists = await Task.WhenAll(candidates.Select(path => Task.Run(() => Directory.Exists(path), cancellationToken))).ConfigureAwait(false);
+            List<string> tabs = [];
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                if (exists[i] && !tabs.Any(tab => SessionDirectory.IsSame(tab, candidates[i])))
+                {
+                    tabs.Add(candidates[i]);
+                }
+            }
+            StartTabs = tabs;
+            StartSelectedTab = _settings.SelectedTab is { } selected
+                ? tabs.FirstOrDefault(tab => SessionDirectory.IsSame(tab, selected))
+                : null;
         }
         catch (DataFileException ex)
         {
@@ -77,7 +104,30 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     {
         var history = new List<string>(_settings.DirectoryHistory);
         history.AddRecent(directory, path => string.Equals(path, directory, StringComparison.OrdinalIgnoreCase), MaxDirectoryHistory);
-        _settings = new CliSettings { LastDirectory = directory, DirectoryHistory = history };
+        _settings = new CliSettings
+        {
+            LastDirectory = directory,
+            DirectoryHistory = history,
+            Tabs = _settings.Tabs,
+            SelectedTab = _settings.SelectedTab,
+        };
+        return SaveAsync(cancellationToken);
+    }
+
+    /// <summary>開いているタブを記録する (並び順・選んでいるタブ)。</summary>
+    /// <param name="directories">タブの作業ディレクトリ (タブの並び順)</param>
+    /// <param name="selected">選んでいるタブの作業ディレクトリ</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>保存の完了を表すタスク</returns>
+    public Task SaveTabsAsync(IReadOnlyList<string> directories, string? selected, CancellationToken cancellationToken = default)
+    {
+        _settings = new CliSettings
+        {
+            LastDirectory = _settings.LastDirectory,
+            DirectoryHistory = _settings.DirectoryHistory,
+            Tabs = [.. directories],
+            SelectedTab = selected,
+        };
         return SaveAsync(cancellationToken);
     }
 
@@ -91,6 +141,8 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         {
             LastDirectory = _settings.LastDirectory,
             DirectoryHistory = [.. _settings.DirectoryHistory.Where(path => !string.Equals(path, directory, StringComparison.OrdinalIgnoreCase))],
+            Tabs = _settings.Tabs,
+            SelectedTab = _settings.SelectedTab,
         };
         return SaveAsync(cancellationToken);
     }

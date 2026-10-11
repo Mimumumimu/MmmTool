@@ -64,6 +64,14 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial string PriorityText { get; private set; } = "";
 
+    /// <summary>担当者 (ユーザーの番号。作業のみ。0 は未割り当て)</summary>
+    [ObservableProperty]
+    public partial int AssigneeUserId { get; private set; }
+
+    /// <summary>担当者の表示名 (作業のみ。未割り当ては空)</summary>
+    [ObservableProperty]
+    public partial string AssigneeText { get; private set; } = "";
+
     /// <summary>状態の表示 (作業のみ)</summary>
     [ObservableProperty]
     public partial string StatusText { get; private set; } = "";
@@ -142,13 +150,15 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <param name="isExpanded">開いているか</param>
     /// <param name="dayRecord">入力日の記録 (作業のみ。無ければ null)</param>
     /// <param name="choices">選択欄の選択肢 (優先度・状態・進捗度。グループの状態・進捗度の表示にも使う)</param>
+    /// <param name="assigneeText">担当者の表示名 (作業のみ。未割り当ては空)</param>
     public void Update(
         WorkNode node,
         int level,
         bool hasChildren,
         bool isExpanded,
         WorkRecord? dayRecord,
-        WorkChoices choices)
+        WorkChoices choices,
+        string assigneeText)
     {
         var item = node.Item;
         var summary = node.Summary;
@@ -168,6 +178,8 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
 
         if (item is not null)
         {
+            AssigneeUserId = item.AssigneeUserId;
+            AssigneeText = assigneeText;
             PriorityIndex = WorkChoices.IndexOf(choices.Priorities, (int)item.Priority);
             StatusIndex = WorkChoices.IndexOf(choices.Statuses, (int)item.Status);
             ProgressIndex = WorkChoices.IndexOf(choices.Progresses, item.ProgressCodeNo);

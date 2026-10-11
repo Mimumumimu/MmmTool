@@ -12,7 +12,7 @@ namespace MmmTool.WorkItems.ProjectManager;
 /// <summary>
 /// 案件の管理の画面。案件マスター (全員で共有する案件の一覧)を一覧で見て、登録・名前の変更・削除をする。
 /// </summary>
-/// <param name="service">作業リストの読み書き</param>
+/// <param name="service">作業管理の読み書き</param>
 /// <param name="confirm">確認ダイアログ</param>
 /// <remarks>
 /// 案件は、「新しい案件」で出る入力中の行に名前を入れて確定すると追加する (空のまま・Esc は保存しない)。追加すると、作った人の表示する案件に加わる。削除は論理削除で、中のグループ・作業も消える (確認に件数を出す)。
@@ -176,7 +176,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
             }
 
             // 案件は全員で共有するので、もう一度確かめる
-            if (!await confirm.ConfirmAsync("削除の最終確認", $"本当に、案件「{item.SavedName}」を削除しますか？\n全員の作業リストから、この案件が消えます。", "削除", "キャンセル"))
+            if (!await confirm.ConfirmAsync("削除の最終確認", $"本当に、案件「{item.SavedName}」を削除しますか？\n全員の作業管理から、この案件が消えます。", "削除", "キャンセル"))
             {
                 return;
             }

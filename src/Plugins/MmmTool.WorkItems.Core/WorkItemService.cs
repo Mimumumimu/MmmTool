@@ -1,3 +1,4 @@
+using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
 using MmmSdk.Core.Utilities;
@@ -5,18 +6,19 @@ using MmmSdk.Core.Utilities;
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>
-/// 作業リストを読み書きし、選んだ案件の最新の内容をメモリに持つ。アプリ全体で 1 つ。
+/// 作業管理を読み書きし、選んだ案件の最新の内容をメモリに持つ。アプリ全体で 1 つ。
 /// </summary>
 /// <param name="repository">保存先</param>
 /// <param name="policy">更新してよいかの判定</param>
 /// <param name="time">現在の時刻を知るための時計</param>
+/// <param name="settings">この PC の設定 (選んだ案件の番号を残す)</param>
 /// <remarks>
 /// 入力の確認 (名前・日付・時間の範囲)、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
 /// 予測できる入力の誤りは、例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。保存の失敗は <see cref="DataFileException"/>。
 /// 操作は 1 つずつ順に行う (同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う)。
 /// <see cref="StartPolling"/> は UI スレッドから呼ぶ。待ちの続きが UI スレッドに戻るので、<see cref="Changed"/> も UI スレッドから発火する。
 /// </remarks>
-public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time)
+public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings)
 {
     /// <summary>他の人の更新を取りに行く間隔</summary>
     public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
@@ -39,11 +41,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     private readonly Dictionary<int, WorkItem> _items = [];
 
-    /// <summary>自分が選んでいる案件の番号</summary>
-    private readonly HashSet<int> _selected = [];
+    /// <summary>表示しない案件の番号 (この PC の設定に残す。ここに無い案件は、全部表示する)</summary>
+    private readonly HashSet<int> _hidden = [];
 
-    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>表示しない案件の番号を残す設定のキー</summary>
+    private const string HiddenKey = WorkItemSettingKeys.HiddenProjects;
+
+    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
     private CodeBook _codes = CodeBook.Empty;
+
+    /// <summary>担当者にできる人 (削除済みも含む。名前を引くため)</summary>
+    private IReadOnlyList<WorkAssignee> _assignees = [];
 
     /// <summary>記録を読んでいる日</summary>
     private DateOnly _day;
@@ -78,8 +86,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>今日の日付</summary>
     public DateOnly Today => DateOnly.FromDateTime(time.GetLocalNow().DateTime);
 
-    /// <summary>自分が選んでいる案件が、1 つ以上あるか</summary>
-    public bool HasSelection => _selected.Count > 0;
+    /// <summary>表示している案件が、1 つ以上あるか</summary>
+    public bool HasVisibleProjects => _projects.Count > 0;
 
     /// <summary>読み込んでいる案件</summary>
     public IReadOnlyCollection<WorkProject> Projects => _projects.Values;
@@ -90,8 +98,20 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     public IReadOnlyCollection<WorkItem> Items => _items.Values;
 
-    /// <summary>作業リストのコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
     public CodeBook Codes => _codes;
+
+    /// <summary>担当者を扱う保存先か (ローカルモードは false)</summary>
+    public bool HasAssignees => repository.HasAssignees;
+
+    /// <summary>担当者にできる人 (削除済みも含む。名前を引くため。表示名の順)</summary>
+    public IReadOnlyList<WorkAssignee> Assignees => _assignees;
+
+    /// <summary>担当者の表示名を引く</summary>
+    /// <param name="userId">ユーザーの番号 (0 は未割り当て)</param>
+    /// <returns>表示名。未割り当ては空文字、一覧に無い番号は「ユーザー {番号}」</returns>
+    public string AssigneeName(int userId)
+        => userId == 0 ? "" : _assignees.FirstOrDefault(a => a.UserId == userId)?.Name ?? $"ユーザー {userId}";
 
     /// <summary>選んだ案件の中身と、ある日の記録を、保存先から読み込む</summary>
     /// <param name="day">記録を読む日</param>
@@ -103,15 +123,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            var data = await repository.LoadSelectedAsync(cancellationToken);
-            var records = await repository.LoadDayAsync(day, cancellationToken);
+            var hidden = ReadHidden();
+            var data = await repository.LoadVisibleAsync(hidden, cancellationToken);
+            var records = await repository.LoadDayAsync(day, hidden, cancellationToken);
+            _assignees = await repository.GetAssigneesAsync(cancellationToken);
 
             _projects.Clear();
             _groups.Clear();
             _items.Clear();
             Merge(data);
-            _selected.Clear();
-            _selected.UnionWith(data.SelectedProjectIds);
+            _hidden.Clear();
+            _hidden.UnionWith(hidden);
             _codes = new CodeBook(data.Codes);
             _day = day;
             _dayRecords = [.. records];
@@ -151,7 +173,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             {
                 return;
             }
-            _dayRecords = [.. await repository.LoadDayAsync(day)];
+            _dayRecords = [.. await repository.LoadDayAsync(day, _hidden)];
             _day = day;
         }
         finally
@@ -199,7 +221,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             }
 
             var since = _baseline is { } baseline ? baseline - PollOverlap : DateTimeOffset.MinValue;
-            var changes = await repository.GetChangesAsync(since, _day, cancellationToken);
+            var changes = await repository.GetChangesAsync(since, _day, _hidden, cancellationToken);
             changed = await ApplyChangesAsync(changes, cancellationToken);
             if (changes.MaxUpdatedAt is { } max && (_baseline is null || max > _baseline))
             {
@@ -219,9 +241,21 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>木構造と集計値を作る</summary>
     /// <param name="date">入力日</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (グループ・案件の集計は、全員の作業から計算したまま)</param>
     /// <returns>案件の行の並び</returns>
-    public IReadOnlyList<WorkNode> BuildTree(DateOnly date)
-        => WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, UserId, date, _codes);
+    /// <remarks>
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。集計を変えないのは、案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため (「完了を表示」で隠す行も、同じ扱い)。
+    /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
+    /// </remarks>
+    public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false)
+    {
+        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, UserId, date, _codes);
+        if (mineOnly && HasAssignees)
+        {
+            WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
+        }
+        return roots;
+    }
 
     /// <summary>番号から、案件を探す</summary>
     /// <param name="id">案件の番号</param>
@@ -248,16 +282,29 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>案件マスターを、名前で検索して読む</summary>
     /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
-    /// <param name="selectedFirst">自分が選んでいる案件を、先頭にまとめるか</param>
+    /// <param name="selectedFirst">表示している案件を、先頭にまとめるか</param>
     /// <param name="offset">読み始める位置</param>
     /// <param name="count">読む件数の上限</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>案件の一覧</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    public Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
-        => repository.SearchProjectsAsync(query.Trim(), activeOnly, selectedFirst, offset, count, cancellationToken);
+    public async Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        // 表示しない案件の番号は、ロックの中で写しを取る (別の操作が書き換えている間に、数えない)
+        int[] hidden;
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            hidden = [.. _hidden];
+        }
+        finally
+        {
+            _lock.Release();
+        }
+        return await repository.SearchProjectsAsync(query.Trim(), activeOnly, hidden, selectedFirst, offset, count, cancellationToken);
+    }
 
-    /// <summary>案件を追加し、自分の選びに加える</summary>
+    /// <summary>案件を追加する (表示しない案件ではないので、そのまま表示される)</summary>
     /// <param name="name">名前</param>
     /// <returns>追加した案件の識別か、入力の誤りのメッセージ</returns>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
@@ -274,7 +321,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             var project = await repository.AddProjectAsync(name);
             _projects[project.Id] = project;
-            _selected.Add(project.Id);
             OnChangedLater();
             return new WorkAddResult(new WorkKey(WorkRowKind.Project, project.Id), null);
         }
@@ -361,7 +407,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             await repository.DeleteProjectAsync(projectId);
             RemoveProjectContent(projectId);
-            _selected.Remove(projectId);
+            if (_hidden.Remove(projectId))
+            {
+                await SaveHiddenAsync();
+            }
             OnChangedLater();
             return null;
         }
@@ -372,9 +421,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>案件を、表示する案件に選ぶ・外す</summary>
+    /// <summary>案件を、表示する・表示しない (表示しない案件は、この PC の設定に残す)</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <param name="selected">選ぶか (false なら外す。外しても、案件とその中身は消えない)</param>
+    /// <param name="selected">選ぶか (false なら表示しない。表示しなくても、案件とその中身は消えない)</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     public async Task SetProjectSelectedAsync(int projectId, bool selected)
@@ -382,23 +431,24 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         await _lock.WaitAsync();
         try
         {
-            if (selected == _selected.Contains(projectId))
+            if (selected == !_hidden.Contains(projectId))
             {
                 return;
             }
 
-            await repository.SetProjectSelectedAsync(projectId, selected);
             if (selected)
             {
-                _selected.Add(projectId);
+                // 読み込みに失敗したときに、非表示の印だけが外れないよう、読んでから外す
                 Merge(await repository.LoadProjectsAsync([projectId]));
-                _dayRecords = [.. await repository.LoadDayAsync(_day)];
+                _hidden.Remove(projectId);
+                _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
             }
             else
             {
-                _selected.Remove(projectId);
+                _hidden.Add(projectId);
                 RemoveProjectContent(projectId);
             }
+            await SaveHiddenAsync();
             OnChangedLater();
         }
         finally
@@ -454,7 +504,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             else
             {
                 var saved = await repository.AddItemAsync(
-                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Today },
+                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Today, AssigneeUserId = UserId },
                     positions);
                 _items[saved.Id] = saved;
                 key = new WorkKey(WorkRowKind.Work, saved.Id);
@@ -544,6 +594,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 DueDate = updated.DueDate,
                 Status = updated.Status,
                 ProgressCodeNo = updated.ProgressCodeNo,
+                AssigneeUserId = updated.AssigneeUserId,
                 PlannedHours = updated.PlannedHours is { } hours && Math.Round(hours, 2) is var rounded && rounded != 0 ? rounded : null,
             };
             candidate = candidate with
@@ -863,6 +914,38 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
+    /// <summary>この PC の設定から、表示しない案件の番号を読む</summary>
+    /// <returns>案件の番号 (重なりなし。ユーザーを特定していないときは空)</returns>
+    /// <remarks>
+    /// キーは <c>WorkItems.HiddenProjects</c>、値は案件の番号をカンマでつないだ文字列 (例: <c>1,5,7</c>)。無ければ、全部の案件を表示する。
+    /// モード (ローカル・サーバー)の切り替えは想定せず、キーを分けない。切り替えたときは、この設定を消す (<c>IDatabaseModeChangeHandler</c>)。
+    /// 削除された案件の番号が残っても、読み込みに影響しない (除く対象が、無いだけ)。
+    /// </remarks>
+    private List<int> ReadHidden()
+    {
+        if (UserId == 0)
+        {
+            return [];
+        }
+
+        return [.. settings.Get(HiddenKey, "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(text => int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .Distinct()];
+    }
+
+    /// <summary>表示しない案件の番号を、この PC の設定に残す</summary>
+    /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>設定を保存できなくても、この起動の間は、メモリの内容で動く (設定の保存の失敗は、設定ストアが扱う)。</remarks>
+    private async Task SaveHiddenAsync()
+    {
+        if (UserId != 0)
+        {
+            await settings.SetAsync(HiddenKey, string.Join(',', _hidden.Order()));
+        }
+    }
+
     /// <summary>差分の内容を、メモリに反映する</summary>
     /// <param name="changes">差分</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -871,33 +954,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     {
         var changed = false;
 
-        // 自分の選び (別の PC で変えたとき)
-        var added = new List<int>();
-        foreach (var selection in changes.Selections)
-        {
-            if (selection.IsDeleted)
-            {
-                if (_selected.Remove(selection.ProjectId))
-                {
-                    RemoveProjectContent(selection.ProjectId);
-                    changed = true;
-                }
-            }
-            else if (_selected.Add(selection.ProjectId))
-            {
-                added.Add(selection.ProjectId);
-                changed = true;
-            }
-        }
-
         // 案件の行が変わったとき (名前の変更・行が減った移動元・削除)は、その案件の中身を読み直す
-        var reload = new HashSet<int>(added);
-        foreach (var project in changes.Projects.Where(p => _selected.Contains(p.Id)))
+        var reload = new HashSet<int>();
+        foreach (var project in changes.Projects.Where(p => !_hidden.Contains(p.Id)))
         {
             if (project.IsDeleted)
             {
                 RemoveProjectContent(project.Id);
-                _selected.Remove(project.Id);
                 changed = true;
             }
             else if (!_projects.TryGetValue(project.Id, out var current) || current.UpdatedAt != project.UpdatedAt)
@@ -914,22 +977,18 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             }
             Merge(await repository.LoadProjectsAsync([.. reload], cancellationToken));
         }
-        if (added.Count > 0)
-        {
-            _dayRecords = [.. await repository.LoadDayAsync(_day, cancellationToken)];
-        }
 
         // 読み直した案件より後の変更は、読み直した内容に含まれるので、残りの案件の行だけ突き合わせる
-        foreach (var group in changes.Groups.Where(g => _selected.Contains(g.ProjectId) && !reload.Contains(g.ProjectId)))
+        foreach (var group in changes.Groups.Where(g => !_hidden.Contains(g.ProjectId) && !reload.Contains(g.ProjectId)))
         {
             changed |= group.IsDeleted ? _groups.Remove(group.Id) : Upsert(_groups, group.Id, group);
         }
-        foreach (var item in changes.Items.Where(i => _selected.Contains(i.ProjectId) && !reload.Contains(i.ProjectId)))
+        foreach (var item in changes.Items.Where(i => !_hidden.Contains(i.ProjectId) && !reload.Contains(i.ProjectId)))
         {
             changed |= item.IsDeleted ? _items.Remove(item.Id) : Upsert(_items, item.Id, item);
         }
         changed |= PruneOrphans();
-        foreach (var record in changes.Records.Where(r => _selected.Contains(r.ProjectId) && r.Date == _day && added.Count == 0))
+        foreach (var record in changes.Records.Where(r => !_hidden.Contains(r.ProjectId) && r.Date == _day))
         {
             var index = _dayRecords.FindIndex(r => r.Id == record.Id);
             if (record.IsDeleted)

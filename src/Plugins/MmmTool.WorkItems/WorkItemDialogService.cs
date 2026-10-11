@@ -5,7 +5,7 @@ using MmmTool.WorkItems.ProjectManager;
 
 namespace MmmTool.WorkItems;
 
-/// <summary>作業リストのダイアログを開く</summary>
+/// <summary>作業管理のダイアログを開く</summary>
 /// <param name="services">ダイアログを作る DI のサービスプロバイダー</param>
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>

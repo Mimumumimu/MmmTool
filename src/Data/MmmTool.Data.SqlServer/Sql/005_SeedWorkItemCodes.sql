@@ -1,7 +1,7 @@
--- MmmTool の DB (SQL Server)。作業リストのコードマスタの初期値 (機能番号 2)を入れる。004_CreateCodeMaster.sql のあとに流す。
+-- MmmTool の DB (SQL Server)。作業管理のコードマスタの初期値 (機能番号 2)を入れる。004_CreateCodeMaster.sql のあとに流す。
 -- 何度流しても壊れない (無いコードだけを入れる)。DELETE 文は含まない。台帳は MmmTool.CodeMaster.Core の CodeFeatures と MmmTool.WorkItems.Core の WorkCodes。
 
--- 初期値 (作業リスト = 機能番号 2)。無いコードだけを入れる。作成者・更新者は 0 (特定のユーザーではない)
+-- 初期値 (作業管理 = 機能番号 2)。無いコードだけを入れる。作成者・更新者は 0 (特定のユーザーではない)
 -- 区分 1: 状態 / 区分 2: 進捗度 (コード番号 1〜11 が 0%〜100%。70・80・90 だけ名前がある) / 区分 3: 優先度
 INSERT INTO dbo.CodeMaster (IsDeleted, CreatedByUserId, UpdatedByUserId, FeatureNo, CategoryNo, CodeNo, SortOrder, NumericValue, Name)
 SELECT 0, 0, 0, 2, v.CategoryNo, v.CodeNo, v.CodeNo, v.NumericValue, v.Name
