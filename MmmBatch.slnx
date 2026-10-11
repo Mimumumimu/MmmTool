@@ -26,6 +26,11 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/CodeMaster/">
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/Users/">
     <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
       <Platform Project="x64" />

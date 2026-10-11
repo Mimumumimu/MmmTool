@@ -15,7 +15,7 @@
 - 左サイドバー (`NavigationView`)+ 右コンテンツ。下部に「設定」
 - トレイの `WndProc` で予想外の例外が出たときは、ログ・ダイアログ・終了にする (`FatalErrorHandler`。`docs/architecture.md` の「エラーの扱い」)
 - ウィンドウの位置と大きさは、変更から 1 秒後に保存し (`WindowBoundsKeeper.Attach`。SDK)、次回の起動で復元する。保存が無い・画面外 (面積の 50% 未満しか見えない)ときは、既定の 1280×720 DIP (DPI に合わせる)で作業領域の中央に出す。最小化・最大化・非表示の間は保存しない
-- ページは、ページごとのスコープから DI で生成してキャッシュする (`PageProvider`)。オフにできる機能のページは、オフにしたときにキャッシュから外してスコープを破棄し (`IReleasablePage`)、オンに戻したときに作り直す。サイドバーの項目も、`MainViewModel.Refresh` で出し入れする ([settings.md](settings.md))。サイドバーの項目は、各機能が `AddNavigationPage` で登録する ([../architecture.md](../architecture.md))
+- ページは、ページごとのスコープから DI で生成してキャッシュする (`PageProvider`)。オフにできる機能のページは、オフにしたときにキャッシュから外してスコープを破棄し (`IReleasablePage`)、オンに戻したときに作り直す。サイドバーの項目も、`MainViewModel.Refresh` で出し入れ・並べ替えする (並びは、設定の「機能」の一覧で利用者が決める。[settings.md](settings.md))。トレイメニューは並び替えに連動しない。サイドバーの項目は、各機能が `AddNavigationPage` で登録する ([../architecture.md](../architecture.md))
 - DEBUG ビルドだけ、下部に DEBUG カテゴリを置く。通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの。リリースビルドには、登録 (`#if DEBUG`)だけでなく、コードと XAML も含めない (`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す)
 
 ## トレイアイコン・トレイメニュー

@@ -19,7 +19,7 @@
     <!-- 非パッケージ (WindowsPackageType=None)でも、WinUI のリソース (resources.pri)の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提。出力の DLL の数を減らすため (単一ファイルにはしない。理由は docs/build-and-distribution.md の「決定の理由」) -->
+    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提。ランタイムを同梱して出力の容量を大きくしないため (単一ファイルにはしない。理由は docs/build-and-distribution.md の「決定の理由」) -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <SelfContained>false</SelfContained>
     <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする -->
@@ -88,10 +88,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Plugins\MmmTool.Links\MmmTool.Links.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmTool.WorkItems\MmmTool.WorkItems.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Backlog\MmmTool.Backlog.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.ClipboardTransfer\MmmTool.ClipboardTransfer.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.Sqlite\MmmTool.Data.Sqlite.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />

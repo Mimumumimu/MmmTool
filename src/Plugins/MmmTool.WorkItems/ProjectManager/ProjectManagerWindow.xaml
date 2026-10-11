@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MmmTool.WorkItems.ProjectManager.ProjectManagerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.WorkItems.ProjectManager"
+    Title="案件の管理">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <Grid
+            x:Name="TitleBarArea"
+            Grid.Row="0"
+            Height="56"
+            Padding="24,0,48,0">
+            <TextBlock
+                VerticalAlignment="Bottom"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Text="案件の管理" />
+        </Grid>
+
+        <Grid Grid.Row="1" Padding="24,16,24,24" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- 操作。追加は左上の強調色のボタン (送信先の一覧と同じ形) -->
+            <Grid Grid.Row="0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    MinWidth="96"
+                    Command="{x:Bind ViewModel.BeginAddCommand}"
+                    Style="{StaticResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="14" Glyph="&#xE710;" />
+                        <TextBlock Text="新しい案件" />
+                    </StackPanel>
+                </Button>
+                <CheckBox
+                    Grid.Column="1"
+                    MinWidth="0"
+                    Content="進行中のみ"
+                    IsChecked="{x:Bind ViewModel.ActiveOnly, Mode=TwoWay}" />
+            </Grid>
+
+            <!-- 一覧 -->
+            <Grid
+                Grid.Row="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <ListView
+                    x:Name="ProjectListView"
+                    Padding="0,4"
+                    ContainerContentChanging="OnContainerContentChanging"
+                    ItemsSource="{x:Bind ViewModel.Items}"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="12,0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:ProjectManagerItem">
+                            <!-- 行全体で右クリックを受けるため、背景を透明で塗る -->
+                            <Grid Background="Transparent" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="72" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem
+                                            Click="OnDeleteClick"
+                                            Icon="Delete"
+                                            Tag="{x:Bind}"
+                                            Text="削除" />
+                                    </MenuFlyout>
+                                </Grid.ContextFlyout>
+                                <!-- 普段は文字だけ。クリックすると入力欄になる (作業リストの表と同じ)。右クリックは、文字の上でも行のメニューが出る -->
+                                <Border
+                                    Height="32"
+                                    Padding="11,0,6,0"
+                                    Background="Transparent"
+                                    Tapped="OnNameLabelTapped"
+                                    Visibility="{x:Bind IsLabel, Mode=OneWay}">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        Text="{x:Bind Name, Mode=OneWay}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </Border>
+                                <TextBox
+                                    VerticalAlignment="Center"
+                                    InputScope="Hiragana"
+                                    KeyDown="OnNameKeyDown"
+                                    Loaded="OnNameLoaded"
+                                    LostFocus="OnNameLostFocus"
+                                    MaxLength="200"
+                                    PlaceholderText="案件名"
+                                    Text="{x:Bind Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    Visibility="{x:Bind IsEditing, Mode=OneWay}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind StatusText}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <TextBlock
+                    Margin="0,48,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    IsHitTestVisible="False"
+                    Text="案件がありません"
+                    Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+            </Grid>
+
+            <!-- エラー。レイアウトに場所を取らず、一覧の上部に重ねる -->
+            <InfoBar
+                Grid.Row="1"
+                Margin="8,8,8,0"
+                VerticalAlignment="Top"
+                IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+                Severity="Error" />
+        </Grid>
+    </Grid>
+</Window>

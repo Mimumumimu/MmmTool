@@ -53,6 +53,19 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/WorkItems/">
+    <Project Path="src/Plugins/MmmTool.WorkItems.Core/MmmTool.WorkItems.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.WorkItems/MmmTool.WorkItems.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/CodeMaster/">
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/Users/">
     <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
       <Platform Project="x64" />
@@ -60,6 +73,9 @@
   </Folder>
   <Folder Name="/Data/">
     <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.Sqlite/MmmTool.Data.Sqlite.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
@@ -71,6 +87,9 @@
   </Folder>
   <Folder Name="/MmmSdk/">
     <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.Db.Sqlite/MmmSdk.Db.Sqlite.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="external/MmmSdk/MmmSdk.Db.SqlServer/MmmSdk.Db.SqlServer.csproj">

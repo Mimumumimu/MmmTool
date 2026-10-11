@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         features.Changed += OnFeatureChanged;
+        features.OrderChanged += (_, _) => ViewModel.Refresh();
         NavigateTo(ViewModel.SelectedItem);
     }
 
