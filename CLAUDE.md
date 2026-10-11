@@ -81,8 +81,6 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ### 作業管理 (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
 保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 5 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた)。JSON の保存は廃止した。
 - **コードマスタ** (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md) の「コードマスタ」): 残りは、**コードマスタの管理ツール**(別ツールにする。ユーザーの方針 2026-10-11。選択肢の追加・外す・並べ替え。ローカルモードの扱いは未定)
-- **SQL Server の `dbo.WorkItem` の列 (ユーザーが SSMS で並べ替える。2026-10-12)**: 列を画面の並び (`Name`・`AssigneeUserId`・`PriorityCodeNo`・`StartDate`・`DueDate`・`CompletedDate`・`PlannedHours`・`ActualTotalHours`・`StatusCodeNo`・`ProgressCodeNo`・`Note`)に並べ、`CompletedOn` を `CompletedDate` に名前変更する (`Sql/008_RenameWorkItemCompletedDate.sql`。列・既定値・インデックスの名前を直す。名前を直すまで、DB モードは作業管理を読めない)
-- **担当者の列の文言の確認** (すべて仮): 「担当」(表の列の見出し)・「自分の担当だけ」(上のバーのトグルスイッチ)・「未割り当て」(担当のセルを押したときのメニューの先頭の項目)
 - **後で決める**: リーダー的な人の更新の権限 (SQL Server の実装のとき)・作業の行の「実績 (日)」に他の人の分を出すか (今は、実績 (日)は、行も案件・グループも、自分の記録だけ。累計は全員の分)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
