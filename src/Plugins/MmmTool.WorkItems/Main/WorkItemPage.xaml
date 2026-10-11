@@ -11,7 +11,7 @@
     <Page.Resources>
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、白のまま。灰色は、入力できないように見えるため) -->
+                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま。灰色は、入力できないように見えるため) -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
                     <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4D000000" />
