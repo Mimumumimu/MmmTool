@@ -121,6 +121,10 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial string DueText { get; private set; } = "";
 
+    /// <summary>完了日 (<c>yyyy/MM/dd</c>。完了していなければ空。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ)</summary>
+    [ObservableProperty]
+    public partial string CompletedText { get; private set; } = "";
+
     /// <summary>予定時間 (無ければ空。グループは計算値)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlannedHintVisible))]
@@ -171,6 +175,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
         Choices = choices;
         StartText = FormatDate(summary.StartDate);
         DueText = FormatDate(summary.DueDate);
+        CompletedText = FormatDate(summary.CompletedDate);
         StartValue = ToValue(summary.StartDate);
         DueValue = ToValue(summary.DueDate);
         PlannedText = FormatHours(summary.PlannedHours);

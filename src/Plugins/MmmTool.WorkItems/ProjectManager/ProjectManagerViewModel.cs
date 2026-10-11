@@ -168,8 +168,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
 
         try
         {
-            var impact = await service.GetDeleteImpactAsync(new WorkKey(WorkRowKind.Project, item.Id));
-            var message = $"案件「{item.SavedName}」を、中身ごと削除します。\nグループ {impact.Groups} 件・作業 {impact.Works} 件・日ごとの記録 {impact.Records} 件が、削除されます。";
+            var message = $"案件「{item.SavedName}」を削除します。";
             if (!await confirm.ConfirmAsync("削除の確認", message, "削除", "キャンセル"))
             {
                 return;

@@ -115,7 +115,7 @@ public static class WorkItemTree
                 WorkCodes.ProgressPercent(codes, item.ProgressCodeNo),
                 1,
                 item.IsFinished,
-                item.IsFinished ? item.CompletedOn : null,
+                item.IsFinished ? item.CompletedDate : null,
                 item.Status);
             return;
         }
@@ -159,7 +159,7 @@ public static class WorkItemTree
             progress,
             works.Count,
             finished,
-            finished ? works.Max(w => w.CompletedOn) : null,
+            finished ? works.Max(w => w.CompletedDate) : null,
             works.Count == 0 ? null
                 : works.All(w => w.Status == WorkItemStatus.Open) ? WorkItemStatus.Open
                 : works.All(w => w.Status == WorkItemStatus.Closed) ? WorkItemStatus.Closed

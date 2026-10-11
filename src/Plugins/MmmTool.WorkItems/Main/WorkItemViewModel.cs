@@ -18,7 +18,7 @@ namespace MmmTool.WorkItems.Main;
 /// </summary>
 /// <remarks>
 /// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
-/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列・完了を表示するかは、この PC の設定 (設定ストア)に持つ。
+/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列・過去の完了を表示するかは、この PC の設定 (設定ストア)に持つ。
 /// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
 public sealed partial class WorkItemViewModel : ObservableObject
@@ -234,7 +234,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
-    /// <summary>完了を表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <summary>過去の完了を表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
     /// <param name="value">表示するか</param>
     partial void OnShowFinishedChanged(bool value)
     {
@@ -383,10 +383,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         try
         {
-            var impact = await _service.GetDeleteImpactAsync(row.Key);
-            var message = row.IsGroup
-                ? $"グループ「{row.Name}」を、中身ごと削除します。\nグループ {impact.Groups} 件・作業 {impact.Works} 件・日ごとの記録 {impact.Records} 件が、削除されます。"
-                : $"作業「{row.Name}」を削除します。\n日ごとの記録 {impact.Records} 件も、削除されます。";
+            var message = row.IsGroup ? $"グループ「{row.Name}」を削除します。" : $"作業「{row.Name}」を削除します。";
             if (!await _confirm.ConfirmAsync("削除の確認", message, "削除", "キャンセル"))
             {
                 return;
@@ -668,7 +665,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         // 完了して日がたった行 (完了日が入力日より前)は、既定で隠す。案件は隠さない。集計は隠した行も含んだまま
         bool IsHidden(WorkNode node)
-            => !ShowFinished && node.Key.Kind != WorkRowKind.Project && node.Summary.IsFinished && node.Summary.CompletedOn is { } done && done < InputDate;
+            => !ShowFinished && node.Key.Kind != WorkRowKind.Project && node.Summary.IsFinished && node.Summary.CompletedDate is { } done && done < InputDate;
 
         void Visit(WorkNode node, int level)
         {

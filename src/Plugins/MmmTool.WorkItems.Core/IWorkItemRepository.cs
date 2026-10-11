@@ -70,20 +70,6 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
 
-    /// <summary>作業の記録の件数を数える (削除の確認に出す)</summary>
-    /// <param name="workItemIds">作業の番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>論理削除されていない記録の件数 (読み込んでいない日も含む)</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<int> CountRecordsAsync(IReadOnlyList<int> workItemIds, CancellationToken cancellationToken = default);
-
-    /// <summary>案件を削除すると消える件数を数える (案件の管理の画面の確認に出す)</summary>
-    /// <param name="projectId">案件の番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>消えるグループ・作業・記録の数</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<WorkItemDeleteImpact> GetProjectDeleteImpactAsync(int projectId, CancellationToken cancellationToken = default);
-
     /// <summary>案件を追加する</summary>
     /// <param name="name">名前</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

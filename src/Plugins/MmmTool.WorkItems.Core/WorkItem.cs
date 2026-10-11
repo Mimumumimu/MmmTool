@@ -44,7 +44,7 @@ public sealed record WorkItem
     public double? PlannedHours { get; init; }
 
     /// <summary>完了日 (状態が完了に変わった入力日。内部の値。完了でなければ null)</summary>
-    public DateOnly? CompletedOn { get; init; }
+    public DateOnly? CompletedDate { get; init; }
 
     /// <summary>実績の累計 (その作業の、全員の、すべての日の実績の合計。記録を保存するたびに、保存先が計算し直して書く)</summary>
     public double ActualTotalHours { get; init; }
@@ -57,5 +57,5 @@ public sealed record WorkItem
 
     /// <summary>完了した作業か</summary>
     /// <remarks>状態が完了で、完了日がある作業。状態が正で、完了日があっても状態が完了でなければ未完了。完了日が無い行 (手で直したデータなど)も未完了として扱い、隠さない。</remarks>
-    public bool IsFinished => Status == WorkItemStatus.Closed && CompletedOn is not null;
+    public bool IsFinished => Status == WorkItemStatus.Closed && CompletedDate is not null;
 }

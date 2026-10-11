@@ -1,5 +1,5 @@
 -- 作業 (WorkItem)に、担当者の列 (AssigneeUserId)を足す。設計は docs/specs/work-items.md の「担当者」。
--- 列の並びを、画面の並び (名前 → 担当 → 優先度 → 日付 → 予定・実績 → 状態・進捗度 → 備考)に合わせるため、002 と同じく WorkItem を作り直す (ALTER TABLE ADD COLUMN は末尾にしか足せない)。
+-- 列の並びを、画面の並び (名前 → 担当 → 優先度 → 日付 (開始日・期限日・完了日) → 予定・実績 → 状態・進捗度 → 備考)に合わせるため、002 と同じく WorkItem を作り直す (ALTER TABLE ADD COLUMN は末尾にしか足せない)。
 -- 0 は未割り当て。ローカルモードのユーザーは Id = 1 の固定値なので、これまでの作業は、すべて 1 の担当にする。
 -- データベースの版が 2 のときだけ、アプリが 1 つのトランザクションで実行する。
 CREATE TABLE WorkItem_New
@@ -18,18 +18,18 @@ CREATE TABLE WorkItem_New
     PriorityCodeNo   INTEGER NOT NULL DEFAULT 2 CHECK (PriorityCodeNo >= 1),
     StartDate        TEXT    NOT NULL DEFAULT '0001-01-01',
     DueDate          TEXT    NOT NULL DEFAULT '9999-12-31',
+    CompletedOn      TEXT    NOT NULL DEFAULT '9999-12-31',
     PlannedHours     REAL    NOT NULL DEFAULT 0 CHECK (PlannedHours >= 0 AND PlannedHours <= 9999),
     ActualTotalHours REAL    NOT NULL DEFAULT 0 CHECK (ActualTotalHours >= 0),
     StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
-    Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000),
-    CompletedOn      TEXT    NOT NULL DEFAULT '9999-12-31'
+    Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)
 );
 
 INSERT INTO WorkItem_New (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                          PriorityCodeNo, StartDate, DueDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note, CompletedOn)
+                          PriorityCodeNo, StartDate, DueDate, CompletedOn, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note)
 SELECT Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, 1,
-       PriorityCodeNo, StartDate, DueDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note, CompletedOn
+       PriorityCodeNo, StartDate, DueDate, CompletedOn, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note
 FROM WorkItem;
 
 DROP TABLE WorkItem;

@@ -241,6 +241,13 @@
                     TextAlignment="Right" />
             </DataTemplate>
 
+            <!-- 完了日。作業・グループとも入力できない (作業は、状態が完了に変わった入力日。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ) -->
+            <DataTemplate x:Key="CompletedCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Style="{StaticResource CellTextStyle}"
+                    Text="{x:Bind CompletedText, Mode=OneWay}" />
+            </DataTemplate>
+
             <!-- 実績 (累計)。作業・グループとも入力できない -->
             <DataTemplate x:Key="ActualTotalCell" x:DataType="local:WorkItemRow">
                 <TextBlock
@@ -458,8 +465,8 @@
                     MinWidth="0"
                     VerticalAlignment="Center"
                     IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
-                    OffContent="完了を表示"
-                    OnContent="完了を表示" />
+                    OffContent="過去の完了を表示"
+                    OnContent="過去の完了を表示" />
                 <ToggleSwitch
                     MinWidth="0"
                     VerticalAlignment="Center"

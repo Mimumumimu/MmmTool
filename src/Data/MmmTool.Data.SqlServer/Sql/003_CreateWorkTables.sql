@@ -46,7 +46,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_WorkGroup_ProjectId_U
 CREATE INDEX IX_WorkGroup_ProjectId_UpdatedAt ON dbo.WorkGroup (ProjectId, UpdatedAt);
 GO
 
--- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、PlannedHours の 0 は予定なし、CompletedOn の 9999-12-31 は未完了
+-- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、PlannedHours の 0 は予定なし、CompletedDate の 9999-12-31 は未完了
 -- ActualTotalHours は、その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く)
 -- AssigneeUserId は担当者 (AppUser.Id。0 は未割り当て)
 -- PriorityCodeNo・StatusCodeNo・ProgressCodeNo は、コードマスタ (004_CreateCodeMaster.sql の CodeMaster)のコード番号 (区分 3・1・2)。外部キーは使わない
@@ -67,12 +67,12 @@ CREATE TABLE dbo.WorkItem
     PriorityCodeNo   int             NOT NULL CONSTRAINT DF_WorkItem_PriorityCodeNo DEFAULT (2) CONSTRAINT CK_WorkItem_PriorityCodeNo CHECK (PriorityCodeNo >= 1),
     StartDate        date            NOT NULL CONSTRAINT DF_WorkItem_StartDate DEFAULT ('0001-01-01'),
     DueDate          date            NOT NULL CONSTRAINT DF_WorkItem_DueDate DEFAULT ('9999-12-31'),
+    CompletedDate      date            NOT NULL CONSTRAINT DF_WorkItem_CompletedDate DEFAULT ('9999-12-31'),
     PlannedHours     decimal(6, 2)   NOT NULL CONSTRAINT DF_WorkItem_PlannedHours DEFAULT (0) CONSTRAINT CK_WorkItem_PlannedHours CHECK (PlannedHours >= 0),
     ActualTotalHours decimal(12, 2)  NOT NULL CONSTRAINT DF_WorkItem_ActualTotalHours DEFAULT (0) CONSTRAINT CK_WorkItem_ActualTotalHours CHECK (ActualTotalHours >= 0),
     StatusCodeNo     int             NOT NULL CONSTRAINT DF_WorkItem_StatusCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_StatusCodeNo CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   int             NOT NULL CONSTRAINT DF_WorkItem_ProgressCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_ProgressCodeNo CHECK (ProgressCodeNo >= 1),
-    Note             nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkItem_Note DEFAULT (N''),
-    CompletedOn      date            NOT NULL CONSTRAINT DF_WorkItem_CompletedOn DEFAULT ('9999-12-31')
+    Note             nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkItem_Note DEFAULT (N'')
 );
 GO
 
@@ -82,8 +82,8 @@ CREATE INDEX IX_WorkItem_ProjectId_UpdatedAt ON dbo.WorkItem (ProjectId, Updated
 GO
 
 -- 案件の完了の計算 (削除されていない行だけ)
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_WorkItem_ProjectId_CompletedOn' AND object_id = OBJECT_ID(N'dbo.WorkItem'))
-CREATE INDEX IX_WorkItem_ProjectId_CompletedOn ON dbo.WorkItem (ProjectId, CompletedOn) WHERE IsDeleted = 0;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_WorkItem_ProjectId_CompletedDate' AND object_id = OBJECT_ID(N'dbo.WorkItem'))
+CREATE INDEX IX_WorkItem_ProjectId_CompletedDate ON dbo.WorkItem (ProjectId, CompletedDate) WHERE IsDeleted = 0;
 GO
 
 -- 日ごとの記録。CreatedByUserId が記録した人 (人ごとに 1 件)。ProjectId は作業の案件 (選んだ案件に絞って読むため)。Id は bigint

@@ -5,5 +5,5 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="Name">名前</param>
 /// <param name="IsSelected">自分が、表示する案件に選んでいるか</param>
 /// <param name="IsFinished">完了済みか (作業が 1 件以上あり、未完了の作業が 1 件も無い。読むときに計算する)</param>
-/// <param name="CompletedOn">完了日 (完了済みのとき、下の作業の完了日の最大。完了済みでなければ null)</param>
-public sealed record WorkProjectEntry(int Id, string Name, bool IsSelected, bool IsFinished, DateOnly? CompletedOn);
+/// <param name="CompletedDate">完了日 (完了済みのとき、下の作業の完了日の最大。完了済みでなければ null)</param>
+public sealed record WorkProjectEntry(int Id, string Name, bool IsSelected, bool IsFinished, DateOnly? CompletedDate);

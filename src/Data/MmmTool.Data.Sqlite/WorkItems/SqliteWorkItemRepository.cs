@@ -100,12 +100,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             connection =>
             {
                 // 完了済み: 作業が 1 件以上あり、未完了の作業 (状態が完了でない、または完了日が無い)が 1 件も無い
-                const string finished = "(EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) AND NOT EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedOn = @none OR w.StatusCodeNo <> 3)))";
+                const string finished = "(EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) AND NOT EXISTS (SELECT 1 FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedDate = @none OR w.StatusCodeNo <> 3)))";
                 var sql = $"""
                     SELECT p.Id, p.Name,
                            {ProjectFilter("p", "Id", exclude: true)},
                            {finished},
-                           CASE WHEN {finished} THEN (SELECT MAX(w.CompletedOn) FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
+                           CASE WHEN {finished} THEN (SELECT MAX(w.CompletedDate) FROM WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
                     FROM WorkProject p
                     WHERE p.IsDeleted = 0
                       AND (@query = '' OR p.Name LIKE '%' || @query || '%' ESCAPE '\')
@@ -127,34 +127,6 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     cancellationToken);
             },
             cancellationToken);
-
-    /// <inheritdoc />
-    public Task<int> CountRecordsAsync(IReadOnlyList<int> workItemIds, CancellationToken cancellationToken = default)
-        => RunAsync(async connection =>
-        {
-            var total = 0;
-            foreach (var chunk in workItemIds.Chunk(ChunkSize))
-            {
-                total += Convert.ToInt32(await ScalarAsync(
-                    connection,
-                    null,
-                    $"SELECT COUNT(*) FROM WorkRecord WHERE IsDeleted = 0 AND WorkItemId IN ({InList(chunk.Length)})",
-                    InParameters(chunk),
-                    cancellationToken));
-            }
-            return total;
-        }, cancellationToken);
-
-    /// <inheritdoc />
-    public Task<WorkItemDeleteImpact> GetProjectDeleteImpactAsync(int projectId, CancellationToken cancellationToken = default)
-        => RunAsync(async connection =>
-        {
-            (string, object)[] parameters = [("@project", projectId)];
-            var groups = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM WorkGroup WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken);
-            var works = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM WorkItem WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken);
-            var records = await ScalarAsync(connection, null, "SELECT COUNT(*) FROM WorkRecord WHERE ProjectId = @project AND IsDeleted = 0", parameters, cancellationToken);
-            return new WorkItemDeleteImpact(Convert.ToInt32(groups), Convert.ToInt32(works), Convert.ToInt32(records));
-        }, cancellationToken);
 
     /// <inheritdoc />
     public async Task<WorkProject> AddProjectAsync(string name, CancellationToken cancellationToken = default)
@@ -250,13 +222,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 transaction,
                 """
                 INSERT INTO WorkItem (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                      PriorityCodeNo, StartDate, DueDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note, CompletedOn)
-                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @planned, 0, @status, @progress, @note, @completed)
+                                      PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note)
+                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @status, @progress, @note)
                 """,
                 [
                     ("@now", now), ("@user", LocalUserId), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
                     ("@name", row.Name), ("@assignee", row.AssigneeUserId), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
-                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedOn),
+                    ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
                 ],
                 cancellationToken);
             var id = Convert.ToInt32(await ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken));
@@ -285,11 +257,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         changes.Add("PriorityCodeNo", b.PriorityCodeNo, a.PriorityCodeNo);
         changes.Add("StartDate", b.StartDate, a.StartDate);
         changes.Add("DueDate", b.DueDate, a.DueDate);
+        changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
-        changes.Add("CompletedOn", b.CompletedOn, a.CompletedOn);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
     }
 
@@ -533,7 +505,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (14 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note, {alias}.CompletedOn";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>コードマスタの中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
@@ -593,12 +565,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         PriorityCodeNo = r.GetInt32(11),
         StartDate = SqliteValues.ParseDate(r.GetString(12)),
         DueDate = SqliteValues.ParseDate(r.GetString(13)),
-        PlannedHours = SqliteValues.ToHours(r.GetDouble(14)),
-        ActualTotalHours = SqliteValues.ToHours(r.GetDouble(15)),
-        StatusCodeNo = r.GetInt32(16),
-        ProgressCodeNo = r.GetInt32(17),
-        Note = r.GetString(18),
-        CompletedOn = SqliteValues.ParseDate(r.GetString(19)),
+        CompletedDate = SqliteValues.ParseDate(r.GetString(14)),
+        PlannedHours = SqliteValues.ToHours(r.GetDouble(15)),
+        ActualTotalHours = SqliteValues.ToHours(r.GetDouble(16)),
+        StatusCodeNo = r.GetInt32(17),
+        ProgressCodeNo = r.GetInt32(18),
+        Note = r.GetString(19),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>
