@@ -50,8 +50,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
 
-    /// <summary>閉じている案件・グループ</summary>
+    /// <summary>利用者が閉じた案件・グループ</summary>
     private readonly HashSet<WorkKey> _collapsed = [];
+
+    /// <summary>利用者が開いた案件・グループ (既定で畳む、完了したグループを、開いたまま保つため)</summary>
+    private readonly HashSet<WorkKey> _expanded = [];
 
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
@@ -251,11 +254,29 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="row">開閉する行</param>
     public void Toggle(WorkItemRow row)
     {
-        if (!_collapsed.Remove(row.Key))
+        if (row.IsExpanded)
         {
+            _expanded.Remove(row.Key);
             _collapsed.Add(row.Key);
         }
+        else
+        {
+            _collapsed.Remove(row.Key);
+            _expanded.Add(row.Key);
+        }
         Rebuild();
+    }
+
+    /// <summary>案件・グループを、開いた状態にする</summary>
+    /// <param name="key">開く行の識別</param>
+    /// <returns>表示が変わる (閉じていた)なら true</returns>
+    /// <remarks>既定で畳むグループも、利用者が開いたものとして覚える。作業を足して未完了に戻っても、開いたままにするため。</remarks>
+    private bool Open(WorkKey key)
+    {
+        var wasOpen = _rowByKey.TryGetValue(key, out var row) && row.IsExpanded;
+        _collapsed.Remove(key);
+        _expanded.Add(key);
+        return !wasOpen;
     }
 
     /// <summary>行を追加する</summary>
@@ -288,7 +309,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
                 }
                 if (target.IsGroup)
                 {
-                    _collapsed.Remove(target.Key);
+                    Open(target.Key);
                 }
 
                 result = await _service.AddAsync(kind, projectId, parentGroupId, after);
@@ -365,7 +386,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             var destinationKey = destination.GroupId != 0
                 ? new WorkKey(WorkRowKind.Group, destination.GroupId)
                 : new WorkKey(WorkRowKind.Project, destination.ProjectId);
-            if (_collapsed.Remove(destinationKey))
+            if (Open(destinationKey))
             {
                 Rebuild();
             }
@@ -663,24 +684,39 @@ public sealed partial class WorkItemViewModel : ObservableObject
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();
 
-        // 完了して日がたった行 (完了日が入力日より前)は、既定で隠す。案件は隠さない。集計は隠した行も含んだまま
+        // 完了して日がたった (完了日が入力日より前の)もの
+        bool IsPastFinished(WorkNode node)
+            => node.Summary.IsFinished && node.Summary.CompletedDate is { } done && done < InputDate;
+
+        // 隠すのは、完了して日がたった作業だけ。案件・グループは隠さない (追加先を探せるように)。集計は隠した行も含んだまま
         bool IsHidden(WorkNode node)
-            => !ShowFinished && node.Key.Kind != WorkRowKind.Project && node.Summary.IsFinished && node.Summary.CompletedDate is { } done && done < InputDate;
+            => !ShowFinished && node.Key.Kind == WorkRowKind.Work && IsPastFinished(node);
+
+        // 中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)
+        bool IsCollapsedByDefault(WorkNode node)
+            => node.Key.Kind == WorkRowKind.Group && !ShowFinished && IsPastFinished(node)
+            && !node.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0);
+
+        bool IsExpanded(WorkNode node)
+            => _expanded.Contains(node.Key) || (!_collapsed.Contains(node.Key) && !IsCollapsedByDefault(node));
 
         void Visit(WorkNode node, int level)
         {
-            var visibleChildren = node.Children.Where(c => !IsHidden(c)).ToList();
+            // 完了して日がたったグループは、隠した作業があっても三角を出し、利用者が開いたときは、隠した作業も出す
+            var hasHidden = node.Key.Kind == WorkRowKind.Group && !ShowFinished && IsPastFinished(node);
+            var reveal = hasHidden && _expanded.Contains(node.Key);
+            var visibleChildren = reveal ? node.Children.ToList() : node.Children.Where(c => !IsHidden(c)).ToList();
             if (!_rowByKey.TryGetValue(node.Key, out var row))
             {
                 row = new WorkItemRow(node.Key);
                 _rowByKey[node.Key] = row;
             }
 
-            var expanded = !_collapsed.Contains(node.Key);
+            var expanded = IsExpanded(node);
             row.Update(
                 node,
                 level,
-                visibleChildren.Count > 0,
+                visibleChildren.Count > 0 || (hasHidden && node.Children.Count > 0),
                 expanded,
                 node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
                 _choices,
