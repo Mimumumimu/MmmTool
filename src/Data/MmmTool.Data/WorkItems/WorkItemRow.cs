@@ -56,6 +56,9 @@ public sealed record WorkItemRow
     /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
     public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
 
+    /// <summary>リンク (無いときは空文字)</summary>
+    public string Link { get; init; } = "";
+
     /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4)</summary>
     public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
 
@@ -99,6 +102,7 @@ public sealed record WorkItemRow
             PriorityCodeNo = (int)item.Priority,
             StartDate = WorkRowValues.FromDate(item.StartDate, "開始日", WorkRowValues.NoStartDate),
             DueDate = WorkRowValues.FromDate(item.DueDate, "期限日"),
+            Link = WorkRowValues.CheckText(item.Link, "作業のリンク", WorkRowValues.LinkMax),
             StatusCodeNo = (int)item.Status,
             ProgressCodeNo = item.ProgressCodeNo,
             PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
@@ -121,6 +125,7 @@ public sealed record WorkItemRow
         Priority = (WorkItemPriority)PriorityCodeNo,
         StartDate = WorkRowValues.ToDate(StartDate, WorkRowValues.NoStartDate),
         DueDate = WorkRowValues.ToDate(DueDate),
+        Link = Link,
         Status = (WorkItemStatus)StatusCodeNo,
         ProgressCodeNo = ProgressCodeNo,
         PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,

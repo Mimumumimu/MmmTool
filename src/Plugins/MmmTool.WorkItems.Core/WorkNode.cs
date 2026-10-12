@@ -19,6 +19,9 @@ public sealed class WorkNode(WorkKey key)
     /// <summary>名前</summary>
     public string Name => Project?.Name ?? Group?.Name ?? Item?.Name ?? "";
 
+    /// <summary>リンク (無いときは空文字)</summary>
+    public string Link => Project?.Link ?? Group?.Link ?? Item?.Link ?? "";
+
     /// <summary>備考</summary>
     public string Note => Project?.Note ?? Group?.Note ?? Item?.Note ?? "";
 

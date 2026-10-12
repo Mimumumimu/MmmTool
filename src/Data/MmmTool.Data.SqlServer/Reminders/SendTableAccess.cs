@@ -9,7 +9,7 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// 送信の表 (<c>dbo.NotificationChannel</c>・<c>dbo.ReminderSendSetting</c>)を読み書きするときの、共通の決まり。
 /// </summary>
 /// <remarks>
-/// 表は、管理者が <c>002_CreateSendTables.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
+/// 表は、管理者が <c>001_CreateTables.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
 /// <see cref="DataFileException"/> にする (画面は、これを InfoBar に出して、送信先の入口を使えないままにする)。
 /// </remarks>
 internal static class SendTableAccess
@@ -36,7 +36,7 @@ internal static class SendTableAccess
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("送信先の表がデータベースにありません。管理者に、002_CreateSendTables.sql を実行してもらってください。", ex);
+                throw new DataFileException("送信先の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 

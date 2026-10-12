@@ -36,7 +36,7 @@ internal static class SendTableAccess
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
                 throw new DataFileException(
-                    "送信の表がデータベースにありません。管理者に、MmmTool の 002_CreateSendTables.sql と、MmmBatch の 001_CreateTables.sql を実行してもらってください。", ex);
+                    "送信の表がデータベースにありません。管理者に、MmmTool の 001_CreateTables.sql と、MmmBatch の 001_CreateTables.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 }

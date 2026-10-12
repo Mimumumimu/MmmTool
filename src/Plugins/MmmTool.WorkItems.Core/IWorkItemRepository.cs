@@ -96,15 +96,16 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkProject> AddProjectAsync(string name, CancellationToken cancellationToken = default);
 
-    /// <summary>案件の名前・備考を更新する</summary>
+    /// <summary>案件の名前・リンク・備考を更新する</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
+    /// <param name="link">新しいリンク (変えないなら null。空文字はリンクを消す)</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>変えた列だけ書く。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
-    Task UpdateProjectAsync(int projectId, string? name, string? note, CancellationToken cancellationToken = default);
+    Task UpdateProjectAsync(int projectId, string? name, string? link, string? note, CancellationToken cancellationToken = default);
 
     /// <summary>案件を論理削除する (案件の行だけ。中のグループ・作業の行は、そのまま残す)</summary>
     /// <param name="projectId">案件の番号</param>

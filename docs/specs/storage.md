@@ -15,10 +15,10 @@
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件)・開いているタブと選んでいるタブ (次回の起動で戻す) | ローカル専用 |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (`label` 省略可・`text`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
-| `Data/MmmTool.db` | 作業管理の案件・グループ・作業・日ごとの記録・コードマスタ (状態・進捗度・優先度の選択肢) | SQLite。ローカルモードの保存先。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`CodeMaster` の 5 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す ([work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」)。DB モードでは使わない (SQL Server に保存する) |
+| `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・コードマスタ (状態・進捗度・優先度の選択肢) | SQLite。ローカルモードの保存先。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`CodeMaster` の 5 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す ([work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」)。DB モードでは使わない (SQL Server に保存する) |
 | `Data/Reminders.json` | リマインダー | DB に替える可能性がある (ID あり) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
-| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。作業管理の表示列・完了の表示 (`WorkItems.HiddenColumns`・`WorkItems.ShowFinished`・`WorkItems.MineOnly`・`WorkItems.Report.ShowHours` (作業報告の「実績に時間を出す」。真偽。既定は false)・`WorkItems.HiddenProjects` (表示しない案件の番号。カンマでつないだ文字列。例: `WorkItems.HiddenProjects` = `1,5,7`。無ければ全部表示))・スヌーズ間隔・読み上げの音量 (`Speech.VolumePercent`。0〜100 の整数)・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |
+| `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。作業管理の表示列 (`WorkItems.HiddenColumns`・`WorkItems.MineOnly`・`WorkItems.Report.ShowHours` (作業報告の「実績に時間を出す」。真偽。既定は false)・`WorkItems.HiddenProjects` (表示しない案件の番号。カンマでつないだ文字列。例: `WorkItems.HiddenProjects` = `1,5,7`。無ければ全部表示))・スヌーズ間隔・読み上げの音量 (`Speech.VolumePercent`。0〜100 の整数)・ウィンドウ位置・Backlog の連携用パス (`Backlog.Url`)など |
 
 ## ファイルに書かないもの
 - Backlog の API キーは、Data フォルダーに書かず、Windows の資格情報マネージャー (汎用資格情報 `MmmTool.Backlog`)に保存する。手で開いて見られる設定ファイルに、秘密を置かないため ([backlog.md](backlog.md))

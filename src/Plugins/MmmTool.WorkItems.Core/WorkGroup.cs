@@ -18,6 +18,9 @@ public sealed record WorkGroup
     /// <summary>名前 (必須)</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>リンク (URL・フォルダ・ファイルのパス。無いときは空文字)</summary>
+    public string Link { get; init; } = "";
+
     /// <summary>備考</summary>
     public string Note { get; init; } = "";
 

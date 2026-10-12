@@ -29,6 +29,9 @@ public sealed record WorkProjectRow
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>リンク (無いときは空文字)</summary>
+    public string Link { get; init; } = "";
+
     /// <summary>備考 (無いときは空文字)</summary>
     public string Note { get; init; } = "";
 
@@ -44,6 +47,7 @@ public sealed record WorkProjectRow
             Id = project.Id,
             IsDeleted = project.IsDeleted,
             Name = WorkRowValues.CheckText(project.Name, "案件の名前", WorkRowValues.NameMax, required: true),
+            Link = WorkRowValues.CheckText(project.Link, "案件のリンク", WorkRowValues.LinkMax),
             Note = WorkRowValues.CheckText(project.Note, "案件の備考", WorkRowValues.NoteMax),
         };
     }
@@ -54,6 +58,7 @@ public sealed record WorkProjectRow
     {
         Id = Id,
         Name = Name,
+        Link = Link,
         Note = Note,
         IsDeleted = IsDeleted,
         UpdatedAt = UpdatedAt,

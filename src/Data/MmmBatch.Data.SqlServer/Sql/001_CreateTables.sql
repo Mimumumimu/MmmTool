@@ -1,6 +1,6 @@
 -- MmmBatch の DB (SQL Server)。dbo スキーマに、送信の状況の表 ReminderSendStatus を作る。
 -- 設計は docs/specs/database.md。何度流しても壊れない (無いものだけを作る)。
--- 使い方: MmmTool の 001_CreateTables.sql と 002_CreateSendTables.sql を流した DB を選んでから、表を作れる権限のあるユーザーで、全体を実行する。
+-- 使い方: MmmTool の 001_CreateTables.sql を流した DB を選んでから、表を作れる権限のあるユーザーで、全体を実行する。
 
 -- リマインダーの送信の状況。リマインダー × 送信先 × 日ごとに 1 行。ログではなく状態で、「送ったか」の判断に使う。
 -- Status は Pending = 1 (送信中)・Sent = 2・Failed = 3。SentAt の 9999-12-31 は、まだ送っていない。MmmBatch はユーザーではないので、作成者・更新者は 0

@@ -256,6 +256,17 @@
                     Text="{x:Bind ActualTotalText, Mode=OneWay}" />
             </DataTemplate>
 
+            <!-- リンク。案件・グループ・作業とも、1 つ付けられる。リンクがある行だけ「リンク」と出し (パスは出さない。ポイントすると出る)、押すと開く。入れる・直すのは、右クリックのメニューの「リンクを編集…」 -->
+            <DataTemplate x:Key="LinkCell" x:DataType="local:WorkItemRow">
+                <TextBlock
+                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                    Style="{StaticResource ValueTextStyle}"
+                    Text="リンク"
+                    TextDecorations="Underline"
+                    ToolTipService.ToolTip="{x:Bind Link, Mode=OneWay}"
+                    Visibility="{x:Bind HasLink, Mode=OneWay}" />
+            </DataTemplate>
+
             <!-- 毎日入力する列 -->
             <DataTemplate x:Key="StatusCell" x:DataType="local:WorkItemRow">
                 <Grid>
@@ -464,13 +475,6 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="8">
-                <!-- 完了して日がたった行を出すか。いつも切り替える操作なので、メニューに隠さず、バーに出す。▼付きのボタン 2 つに挟まれないよう、左端に置く -->
-                <ToggleSwitch
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
-                    OffContent="過去の完了を表示"
-                    OnContent="過去の完了を表示" />
                 <ToggleSwitch
                     MinWidth="0"
                     VerticalAlignment="Center"

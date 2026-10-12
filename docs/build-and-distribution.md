@@ -6,7 +6,7 @@
 - リポジトリ直下に `Directory.Build.props`(バージョン・Nullable・ImplicitUsings・`GenerateDocumentationFile`・`EnforceCodeStyleInBuild`・全プロジェクトを x64 専用にする (`Platforms` と既定の `Platform`。Core も含めて AnyCPU を使わない。`-p:Platform` を付けずにビルド・発行しても x64 になる。SDK も同じ設定)・XML ファイルをビルドの出力・発行物に含めない・Release では .pdb を作らない)、`Directory.Packages.props`(中央パッケージ管理。csproj の `PackageReference` にはバージョンを書かない)、`.editorconfig`(`root = true`)を置く。3 つとも slnx の「Solution Items」に入れている
 - `.editorconfig`: 未使用 using・ファイル単位の名前空間・using の位置・複数行の本体の波かっこを warning にしてビルドで検査する。1 行の早期 return (`if (x) return;`)は波かっこを省略してよい。`charset` は書かない (BOM 付きの ps1 があるため)
 - SDK はリポジトリ直下に自分の同じ 1 組を持つ。MSBuild・.editorconfig は近いほうを使うので、アプリと SDK の設定は混ざらない。共通のパッケージ (CommunityToolkit.Mvvm・Windows App SDK (SDK は部品のパッケージ、アプリは全部入り)・SDK.BuildTools)は SDK を先に上げて、アプリを同じバージョンにする
-- バージョンは `Version`(現在 0.1.0。ファイル・アセンブリのバージョンは自動で 0.1.0.0)。製品バージョンの後ろにはコミット番号が付く (.NET の標準の動作)
+- バージョンは `Version`(ファイル・アセンブリのバージョンは自動で末尾に 0 を足した 4 桁)。製品バージョンの後ろにはコミット番号が付く (.NET の標準の動作)
   - 変更履歴は、配布用の説明書 `src/App/MmmTool/Distribution/README.txt` の「変更履歴」に書く (Keep a Changelog の形)。利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、先頭の「未リリース」の見出しの下に 1 行ずつ書き足す (見出しが無ければ作る)
   - 次の版の番号は、公開するとき (ユーザーが決めたとき)に、「未リリース」に溜まった中身から決める (セマンティックバージョニング。機能の追加は真ん中、不具合の修正だけなら最後を上げる。1.0.0 未満のあいだは、大きな変更でも真ん中を上げる)。公開するときに、「未リリース」を「<版>(<日付>)」に書き換え、`Version` も同じ値にする。SDK の版は別に持つ
   - ライセンスは MIT (`LICENSE.txt`。著作者 mimumu。SDK も同じ)。ライセンスの文書 (`LICENSE.txt`・自動で作る同梱ライブラリのライセンス全文 `THIRD-PARTY-NOTICES.txt`。手で直さない)は、アプリ本体の `Assets\Licenses\` に入る (「配布」)
@@ -23,7 +23,7 @@
   - RID の段を作らない理由: VS の「発行」は、発行プロファイルの RID を参照先 (SDK)にも渡し、参照先はビルドし直さない。段を作ると、発行のときだけ `...\win-x64\MmmSdk.WinUI.dll` を探しに行き、先にビルドした DLL (段なし)を見つけられずに失敗する
 - 発行は Release でだけ行う (csproj の `EnsureReleaseForPublish`)。構成は、全プロジェクトに渡る形 (VS の「発行」・`dotnet publish`・`-p:Configuration=Release`)で決める。発行プロファイルの `Configuration` だけに頼る呼び方 (MSBuild を直接呼ぶなど)では、構成がこのプロジェクトにしか効かず、参照先が Debug でビルドされて配布物に入る。`Directory.Build.props` の Release の設定 (`.pdb` を作らない)も効かない (プロファイルは `Directory.Build.props` より後に読まれる)。そのため、そのときはエラーで止める
 - 発行プロファイルは `src/App/MmmTool/Properties/PublishProfiles/win-x64.pubxml` の 1 つだけで、リポジトリに入れる (`.gitignore` の `*.pubxml` から、このファイルだけを外している。フォルダーへの発行なので秘密の情報を含まない)。プロファイルに書くのは構成 (Release)・プラットフォーム・RID・出力先 (版を含まない `obj\Release\publish\`)のプロパティだけで (VS は `Import` などを書いたプロファイルを読めない)、コマンドの発行と同じ結果になるようにする。発行の設定の本体 (ReadyToRun・トリミングなし・フレームワーク依存)は csproj の `Publish Properties` などに書き、プロファイルに重ねて書かない。MSIX 用のマニフェスト・ロゴは持たない (非パッケージで配布する)。`EnableMsixTooling` は、非パッケージでも WinUI のリソース生成に使うため true のまま残している
-- 配布物の版のフォルダ (アプリ本体の 1 つ外側)には、配布用の説明書 `README.txt`(元は `src/App/MmmTool/Distribution/README.txt`。必要なもの・起動と終了・置き場所・データの保存場所・入れ替え・アンインストール・変更履歴・ライセンス)だけを置く。ライセンスの文書 (`LICENSE.txt`(リポジトリ直下のもの。MIT)・`THIRD-PARTY-NOTICES.txt`)は、アプリ本体の `Assets\Licenses\` に入れる (アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため。EXE の横は増やさない。ユーザーの決定)。`THIRD-PARTY-NOTICES.txt` は、csproj の `GenerateThirdPartyNotices`(インラインタスク `GenerateThirdPartyNoticesFile`)が、発行のたびに、発行するファイルの一覧 (`ResolvedFileToPublish`)から作る (手で書くと、パッケージの追加・版の更新でずれるため)。中身は、NuGet パッケージのライセンスファイル (無ければ、MIT なら nuspec の著作権表示で本文を作る)と第三者の通知 (`NOTICE`・`ThirdPartyNotices`)、配布物の中の `名前.LICENSE.txt`(xterm.js など)。同じ本文のものは 1 つにまとめる。自分のプロジェクト (`MmmTool.Core`・MmmSdk)は含めない (`LICENSE.txt`)。説明書は csproj の `DistributionDocument` に並べ、`PackageDistribution` が発行のあとに版のフォルダへコピーする (ビルドの出力には入れない)。説明書をアプリ本体の外に置くのは、受け取った人が最初に開くフォルダに説明書とアプリ本体だけを並べるため (ユーザーの決定)。`README.txt` はメモ帳で開く前提で、UTF-8 (BOM 付き)・CRLF にする (古いメモ帳でも文字化けしないように)
+- 配布物の版のフォルダ (アプリ本体の 1 つ外側)には、配布用の説明書 `README.txt`(元は `src/App/MmmTool/Distribution/README.txt`。機能一覧・必要なもの・置き場所・起動と終了・データの保存場所・入れ替え・アンインストール・変更履歴・ライセンス)と、機能ごとの使い方の `操作説明.html`(元は `src/App/MmmTool/Distribution/操作説明.html`。1 ファイルで完結させ、外部の CDN・フォントを使わない。ライト・ダークの両方で読める色にする)だけを置く。ライセンスの文書 (`LICENSE.txt`(リポジトリ直下のもの。MIT)・`THIRD-PARTY-NOTICES.txt`)は、アプリ本体の `Assets\Licenses\` に入れる (アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため。EXE の横は増やさない。ユーザーの決定)。`THIRD-PARTY-NOTICES.txt` は、csproj の `GenerateThirdPartyNotices`(インラインタスク `GenerateThirdPartyNoticesFile`)が、発行のたびに、発行するファイルの一覧 (`ResolvedFileToPublish`)から作る (手で書くと、パッケージの追加・版の更新でずれるため)。中身は、NuGet パッケージのライセンスファイル (無ければ、MIT なら nuspec の著作権表示で本文を作る)と第三者の通知 (`NOTICE`・`ThirdPartyNotices`)、配布物の中の `名前.LICENSE.txt`(xterm.js など)。同じ本文のものは 1 つにまとめる。自分のプロジェクト (`MmmTool.Core`・MmmSdk)は含めない (`LICENSE.txt`)。説明書は csproj の `DistributionDocument` に並べ、`PackageDistribution` が発行のあとに版のフォルダへコピーする (ビルドの出力には入れない)。説明書をアプリ本体の外に置くのは、受け取った人が最初に開くフォルダに説明書とアプリ本体だけを並べるため (ユーザーの決定)。`README.txt` はメモ帳で開く前提で、UTF-8 (BOM 付き)・CRLF にする (古いメモ帳でも文字化けしないように)
 - リリースビルドには DEBUG ページ (コード・XAML)を含めない (csproj の条件付き `Remove`)
 - WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Lib`(パッケージの DLL)の 3 つだけにする (理由は下の「決定の理由」の「EXE の横のフォルダと DLL」)
@@ -34,6 +34,37 @@
   - 画面の XAML (`.xbf`・SDK の `.xaml`)は `MmmTool.pri` の中に入る。WinUI のビルドがばらのファイルも出力へコピーするので、csproj の `RemoveLooseXamlAfterBuild` がビルドのあとに消す (中身が `.xbf`・`.xaml` だけのフォルダと、EXE の横の `.xbf`)。発行の出力には、もともと出ない
   - WebView2 のキャッシュは `Data\WebView2`、エラーのログは `Data\Logs`(`Shell/AppInfo`)
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/`(ライセンスファイルも同じ場所)。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
+
+## 版を上げるとき
+版を上げるのは、ユーザーが決めたときだけ。次の順で行う (毎回同じ手順にして、やり取りを増やさない)。
+
+1. **版の番号を決める**: 「未リリース」に溜まった中身から決める (ビルドの共通設定の規則)。決めたら、ユーザーに 1 回だけ確認する
+2. **`Directory.Build.props` の `Version` を直す**: 版の数字を書く場所は、ここと配布用 `README.txt` の「変更履歴」だけ。`README.md`・docs・`操作説明.html` には、版の数字を書かない (書くと、版を上げるたびに直す場所が増える)
+3. **配布用 `README.txt` の「変更履歴」を整える**: 「未リリース」を「<版> (<日付>)」に書き換え、中身を次の形に整理する (昔の版の項目は、そのまま残す)
+   - 「新機能 (サイドバーに追加)」(機能名: 概要の 1 行)と、「既存機能の更新」(「追加」「変更」「修正」)に分ける
+   - 文体は、体言止めで短く (「〜を追加」「〜に変更」「〜する不具合を修正」)。括弧で説明を重ねず、概要だけ書く。細かい仕様 (文字数の上限・内部の動き)は書かない
+   - その版で初めて入れた機能の、リリース前の不具合の修正は、書かない (利用者は、直る前の状態を知らない)
+   - サーバー保存や外部送信は、具体的な手順・構成を書かず、「サーバー保存に対応」のように、ぼかして書く。外部送信 (ntfy・Discord)は、書かない
+4. **DB のスクリプトを確かめる**: 未リリースの版の DDL は、開発中に 1 本 (SQL Server と SQLite それぞれ `001_CreateTables.sql`。MmmBatch の `Sql/` も同じ)に保っているので、まとめ直す作業は要らない。リリースしたあとの変更は、次の番号の更新用スクリプト 1 本 (`002_…`)に集め、リリースまで同じファイルを直す (CLAUDE.md の「DB の変更 (SQL)は、開発中は、細かく番号つきのスクリプトに分けない」)。リリース前に、空の DB に流して確かめる (下の「空の DB での確かめ方」)
+5. **配布用の文書を最新にする**: `README.txt` (機能一覧・必要なもの・保存場所など)と `操作説明.html` が、今の画面と合っているか。機能を足したときは、同じ作業で直してあるはず (CLAUDE.md の決まり)なので、版を上げるときは確認だけ
+6. **ビルドと発行で確かめる**: `MmmTool.slnx` と `MmmBatch.slnx` のビルド、発行して `MmmTool_<版>\` に `README.txt`・`操作説明.html`・`MmmTool\` が揃うこと
+7. **コミット・PR・マージ**: CLAUDE.md の決まりに従う (ユーザーが指示したときだけ)
+
+### 空の DB での確かめ方 (SQL Server)
+- 構造を変える操作なので、ユーザーに「作る DB 名・流すスクリプト・消す DB 名」を一覧にして、1 回だけ許可をもらう (共通の決まり)。サーバーは `mimumu202511`、Windows 認証
+- テスト用の DB `MmmTool_ddltest` を新しく作り (既存の `MmmTool` は触らない)、次を `sqlcmd -S mimumu202511 -E -C -b -d MmmTool_ddltest -I -f 65001 -i <スクリプト>` で流す。**同じスクリプトを 2 回流して**、2 回目にエラーも追加も出ないこと (何度流しても壊れない)を確かめる: ① MmmTool の `001_CreateTables.sql` ② MmmBatch の `001_CreateTables.sql` (送信の状況の表 `ReminderSendStatus`)
+- `SELECT` で、表の一覧と、コードマスタの件数 (作業管理は 18 件)・状態の 4 つを確かめる
+- 確かめたら、テスト用の DB を `DROP DATABASE` で消す (`ALTER DATABASE … SET SINGLE_USER WITH ROLLBACK IMMEDIATE` を先に付ける)。残った DB が `MmmTool` だけであることを確かめる
+- SQLite は、`py` の `sqlite3` で空のメモリ DB に 2 回流して、表の数・コードマスタの件数・列の並びを確かめる
+
+### つまずきやすい点 (版を上げる作業で起きたこと。2026-10-12)
+- **アプリの版と、DB のスクリプトの番号は、別のもの**。スクリプトの番号は DB の版 (SQLite の `PRAGMA user_version`)で、アプリの版 (`Version`)とは関係ない。「初版にまとめる」は、DB のスクリプトを 1 本にする話で、アプリの版を戻す話ではない
+- **版の数字は 2 か所だけ** (`Directory.Build.props` と `README.txt` の変更履歴)。ほかの文書に書くと、上げるたびに直し漏れが出る
+- **`README.txt` の文字コードは UTF-8 (BOM 付き)・CRLF**。スクリプトで書き換えるときも、そのまま保つ。書き直すと LF・BOM なしになるので、直したあとに必ず確かめる
+- **配布物から、GitHub のアドレスを外す**。`README.txt`・`操作説明.html` に、リポジトリを示す案内を書かない。`mimumu` は MIT の著作権表示なので、消さない。同梱ライブラリのライセンス文の URL は、他人の文書なので直さない
+- **サーバー保存は、ぼかして書く** (手順・構成・SQL Server の名前は書かない)。外部送信 (ntfy・Discord)は、書かない。ただし、保存先を選ぶ画面は画面に出るので、「通常はローカルを選ぶ」と 1 行だけ書く
+- **「修正」に入れるのは、本当におかしな動きをしていたものだけ** (動かない・落ちる・入力できない・違う場所に出る、など)。見た目の統一や、表示・文面のよりよい形への直しは、「変更」に入れる
+- **変更履歴の文言は、ユーザーが好みを言うたびに増えるので、ここへ書き足す**。今までの好み: 体言止め、括弧を重ねない、「知っておくと便利」のような言い方を避ける (見出しは「操作手順」「補足」)、「〜できるよう修正」のように動詞で終える
 
 ## 決定の理由
 

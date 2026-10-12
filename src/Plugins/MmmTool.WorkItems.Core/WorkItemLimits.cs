@@ -9,6 +9,9 @@ public static class WorkItemLimits
     /// <summary>備考 (作業の共通の備考・日の備考)の最大の長さ</summary>
     public const int NoteMaxLength = 1000;
 
+    /// <summary>リンク (URL・フォルダ・ファイルのパス)の最大の長さ</summary>
+    public const int LinkMaxLength = 2000;
+
     /// <summary>予定時間の最大</summary>
     public const double PlannedHoursMax = 9999;
 
