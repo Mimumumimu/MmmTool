@@ -25,9 +25,8 @@ echo [3/4] dotnet publish MmmTool
 dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 if errorlevel 1 goto :failed
 
-rem MmmBatch has no publish profile or distribution layout yet: a plain framework-dependent publish.
 echo [4/4] dotnet publish MmmBatch
-dotnet publish .\src\App\MmmBatch\MmmBatch.csproj -c Release -r win-x64 --self-contained false -o .\src\App\MmmBatch\bin\Release\publish\MmmBatch
+dotnet publish .\src\App\MmmBatch\MmmBatch.csproj -p:PublishProfile=win-x64
 if errorlevel 1 goto :failed
 
 echo.
