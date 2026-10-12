@@ -35,9 +35,10 @@
 
   <ItemGroup>
     <!--
-      配布用の説明書 (変更履歴を含む)。発行のときだけ、アプリ本体の外側の版のフォルダに置く (下の PackageDistribution。ビルドの出力には入れない)
+      配布用の説明書 (README.txt は変更履歴を含む。操作説明.html は機能ごとの使い方)。発行のときだけ、アプリ本体の外側の版のフォルダに置く (下の PackageDistribution。ビルドの出力には入れない)
     -->
     <DistributionDocument Include="Distribution\README.txt" />
+    <DistributionDocument Include="Distribution\操作説明.html" />
     <!--
       ライセンス (MIT License の本文。ライセンスの条件として、配布物に入れる)。アプリ本体の Assets\Licenses に置く。
       アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため (EXE の横は増やさない)。
@@ -256,6 +257,7 @@
     発行のあとに、配布物を作る (ユーザーの決定)。
       bin\<構成>\publish\MmmTool_<版>\     版のフォルダ (版は Directory.Build.props の Version)。説明書とアプリ本体だけを並べる
         README.txt
+        操作説明.html
         MmmTool\                           アプリ本体 (発行の出力をそのまま写す)。コピー先のフォルダ名が版ごとに変わらない
     発行の出力先 (PublishDir)は、発行プロファイルで版を含まない途中のフォルダ (obj\<構成>\publish\)にしている。
     VS の「発行」はプロファイルを単体で読むので、プロファイルではプロジェクトの Version を使えないため、版を付けるのはここで行う。

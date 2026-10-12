@@ -31,9 +31,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
     private const int InvalidObjectName = 208;
 
-    /// <summary>列名が正しくない (列が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidColumnName = 207;
-
     /// <inheritdoc />
     /// <remarks>ユーザーを特定していないときは 0 (読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>)。</remarks>
     public int UserId => currentUser.User?.Id ?? 0;
@@ -462,11 +459,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、003_CreateWorkTables.sql・004_CreateCodeMaster.sql・005_SeedWorkItemCodes.sql を実行してもらってください。", ex);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidColumnName && ex.Message.Contains("'Link'", StringComparison.Ordinal))
-            {
-                throw new DataFileException("作業管理の表に、リンクの列がありません。管理者に、011_AddWorkLink.sql を実行してもらってください。", ex);
+                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 

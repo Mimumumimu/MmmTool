@@ -72,7 +72,7 @@
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `AuthorUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。作った人。見える範囲・編集・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない)。作ったときに、作成者の列と同じ人を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`TargetUserId` の前** (人を表す 2 つの列を続ける)。作成スクリプト (`001`)はこの並びで作る。すでにある DB は、更新用スクリプト (`010`)が `ALTER` で足すので末尾になる。並びを揃えるときは、SSMS で直す |
+| `AuthorUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。作った人。見える範囲・編集・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない)。作ったときに、作成者の列と同じ人を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`TargetUserId` の前** (人を表す 2 つの列を続ける)。作成スクリプト (`001`)はこの並びで作る |
 | `TargetUserId` | 整数 | `int` | | 宛先 (`AppUser.Id`)。0 は全員宛て。0 以上の検査 |
 | `Date` | 日付 | `date` | `9999-12-31` | 日付指定の日付。曜日指定は `9999-12-31` |
 | `Time` | 時刻 | `time(0)` | | 時刻 |
@@ -122,7 +122,7 @@
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。この送信先を登録した人。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `UserId` | 整数 | `int` | | 使用者 (`AppUser.Id`)。この送信先を使う人。一覧・選択・更新・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り)。作ったときに、登録した人 (作成者の列と同じ人)を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`Kind` の前** (誰の送信先かを、区分・名前・値より前に置く)。作成スクリプト (`002`)はこの並びで作る。すでにある DB は、更新用スクリプト (`010`)が `ALTER` で足すので末尾になる。並びを揃えるときは、SSMS で直す |
+| `UserId` | 整数 | `int` | | 使用者 (`AppUser.Id`)。この送信先を使う人。一覧・選択・更新・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り)。作ったときに、登録した人 (作成者の列と同じ人)を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`Kind` の前** (誰の送信先かを、区分・名前・値より前に置く)。作成スクリプト (`002`)はこの並びで作る |
 | `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 (1 か 2 の検査) |
 | `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名 (画面に出す名前) |
 | `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL。秘密なので、画面の一覧には出さない |
@@ -330,9 +330,7 @@
   - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`。`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)。設定は `DatabaseSettings`(パスワードを除く)。種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
   - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
-- 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)。送信のための表は、`002_CreateSendTables.sql`(`NotificationChannel`・`ReminderSendSetting`)と、MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql`(`ReminderSendStatus`)が作る (どちらも、何度流しても、無いものだけを作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、`-I` を付ける。SSMS は既定でオン)
-- 作業管理の 5 つの表は、`src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` が作る。コードマスタの表 `CodeMaster` は `004_CreateCodeMaster.sql`、作業管理の初期値 17 件 (状態 3・進捗度 11・優先度 3)は `005_SeedWorkItemCodes.sql` が作る・入れる (どれも、何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)。実機の SQL Server では、まだ流していない
-- 作業管理の表を変える更新用のスクリプト (`006_AddWorkItemAssignee.sql`・`007_DropWorkProjectSelection.sql`・`008_RenameWorkItemCompletedDate.sql`・`009_AddPlannedStatus.sql`・`011_AddWorkLink.sql`)は、**アプリは流さない** (SQL Server では、アプリは表の有無を調べて知らせるだけ)。管理者が、番号の順に、データベースを選んで実行する。何度流しても壊れない。`009` は、絞り込み付きの索引のある表を更新するので、`sqlcmd` では `-I` (`QUOTED_IDENTIFIER` を ON)を付ける (スクリプトの先頭でも ON にしてある)。日本語を含むので、ファイルは UTF-8 で、`sqlcmd` には `-f 65001` を付ける。`009` を流す前に、新しい版のアプリで作業管理を使うと、状態の番号を取り違える (3 が完了ではなく作業中になる)
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` の 1 本 (この版の全部の DDL)。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する。リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)、送信のための表 (`NotificationChannel`・`ReminderSendSetting`)、作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)、コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)を、この 1 本が作る・入れる (何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql
@@ -426,11 +424,11 @@
 - 時間を実数で持ち、足すたびに小数 2 桁に丸める (ユーザーの決定): 100 倍した整数で持つ案は、画面や SQL で読みにくいため採らない。累計への足し算は `SET Total = ROUND(Total + @差分, 2)` で行うので、誤差が積み上がらず、集計し直した値と一致する
 - 全部の表に同じ共通ヘッダー (5 列)を持たせる: 意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0 など)が混ざっても、全部の表の形をそろえる共通化を優先する。表ごとに持つ列を変えると、どの表に何があるかを覚える必要が出て、扱う処理も表ごとに分かれる (ユーザーの決定)
 
-### 共通ヘッダーの列を条件に使っている処理の直し (リマインダー・通知の送信先。2026-10-12。実装済み。開発用 DB は `010` を実行済み。列の並びの SSMS での直しは、ユーザーが行う)
+### 共通ヘッダーの列を条件に使っている処理の直し (リマインダー・通知の送信先。2026-10-12。実装済み)
 リマインダーと通知の送信先は、作成者の列 (`CreatedByUserId`)を、見える範囲・更新・削除・一覧の条件に使っている。プロジェクトのルール (共通ヘッダーの列を条件に使わない)に合わせて、業務の列に移す。
 - 足す列: `Reminder.AuthorUserId` (作成者)・`NotificationChannel.UserId` (使用者)。上の各表の定義。索引も上の定義
 - 条件の置き換え: 見える範囲は `TargetUserId IN (0, 自分) OR AuthorUserId = 自分`。更新も同じ。削除は、見える人なら誰でも (作成者だけの条件を外す)。送信先は `UserId = 自分`
-- 今ある行の移行: 新しい列に、作成者の列と同じ値を入れる (`UPDATE ... SET AuthorUserId = CreatedByUserId`・`SET UserId = CreatedByUserId`)。更新日時も更新する。`SQL Server` は更新用のスクリプト `010_AddAuthorAndChannelUser.sql` で、管理者が実行する (アプリは流さない。値の移行は、更新日時・更新者を変えない)。ローカルモードは、リマインダーが JSON で、送信先を持たないので、影響しない
+- 今ある行の移行: 新しい列に、作成者の列と同じ値を入れる (`UPDATE ... SET AuthorUserId = CreatedByUserId`・`SET UserId = CreatedByUserId`)。更新日時も更新する。ローカルモードは、リマインダーが JSON で、送信先を持たないので、影響しない
 - コード: `SqlServerReminderRepository`・`SqlServerNotificationChannelRepository`・`ReminderService.CanDelete`・行のクラスと変換 (`ReminderRow`・`NotificationChannelRow`)・MmmBatch が同じ表を読む処理 (`SqlServerSendTargetSource`。作成者の列を、条件に使っているかを、実装のときに確かめる)
 - 例外は無い。これで、共通ヘッダーの列を条件に使う処理が、すべて無くなる
 

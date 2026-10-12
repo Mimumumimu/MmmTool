@@ -398,11 +398,12 @@ dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 
 取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行します (どこにクローンしても動きます。途中で失敗すると、その時点で止まります)。
 
-発行すると、版ごとのフォルダ `src/App/MmmTool/bin/Release/publish/MmmTool_<版>/`(版は `Directory.Build.props` の `Version`。例: `MmmTool_0.1.0`)ができます。この版のフォルダをそのままコピーして配布します (インストーラーはありません)。
+発行すると、版ごとのフォルダ `src/App/MmmTool/bin/Release/publish/MmmTool_<版>/`(版は `Directory.Build.props` の `Version`。例: `MmmTool_<版>`)ができます。この版のフォルダをそのままコピーして配布します (インストーラーはありません)。
 
 ```
-MmmTool_0.1.0\
-  README.txt                ← 利用者向けの説明書 (必要なもの・使い方・データの場所・入れ替え方・変更履歴)
+MmmTool_<版>\
+  README.txt                ← 利用者向けの説明書 (機能一覧・必要なもの・データの場所・入れ替え方・変更履歴)
+  操作説明.html             ← 機能ごとの使い方 (ブラウザで開く)
   MmmTool\                  ← アプリ本体 (これを D:\Tools\MmmTool などへコピーして使う)
     Assets\Licenses\LICENSE.txt               ← MmmTool のライセンス (MIT)
     Assets\Licenses\THIRD-PARTY-NOTICES.txt   ← 同梱しているライブラリのライセンスと通知の全文
@@ -457,4 +458,4 @@ git submodule update --remote external/MmmSdk
 
 ## バージョン
 
-現在のバージョンは 0.1.0 です (`Directory.Build.props` の `Version`。ファイル・アセンブリのバージョンは 0.1.0.0 になります)。変更履歴は、配布物の説明書 (元は `src/App/MmmTool/Distribution/README.txt`)の「変更履歴」に書いています。
+バージョンは `Directory.Build.props` の `Version` で決めます (ファイル・アセンブリのバージョンは、末尾に 0 を足した 4 桁になります)。変更履歴は、配布物の説明書 (元は `src/App/MmmTool/Distribution/README.txt`)の「変更履歴」に書いています。
