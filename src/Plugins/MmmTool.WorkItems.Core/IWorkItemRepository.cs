@@ -10,7 +10,7 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public interface IWorkItemRepository
 {
-    /// <summary>今のユーザーの番号 (日ごとの記録の持ち主)</summary>
+    /// <summary>今のユーザーの番号 (「自分の担当」の判定と、作成者・更新者に使う。日ごとの記録の持ち主ではない)</summary>
     int UserId { get; }
 
     /// <summary>壊れたファイルを退避して作り直したときのメッセージ。通常は null</summary>
@@ -48,6 +48,25 @@ public interface IWorkItemRepository
     /// <returns>表示する案件の、その日の記録 (全員分。論理削除済みを除く)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
+
+    /// <summary>作業報告のために、担当が自分の作業と、その記録を読む</summary>
+    /// <param name="from">記録を読み始める日 (実績の開始日)</param>
+    /// <param name="to">記録を読み終える日 (報告日。その日も含む)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業と、その作業が属する案件・グループ、期間内の記録</returns>
+    /// <remarks>
+    /// 表示しない案件も含む (表示しないのは、この PC の見え方の設定のため)。人で絞るのは作業の担当者 (<see cref="WorkItem.AssigneeUserId"/>)だけで、記録を付けた人は問わない。
+    /// 表ごとに別の <c>SELECT</c> で、1 回の往復で受け取る。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
+
+    /// <summary>担当が自分の作業の記録のうち、工数が入った直近の日を探す</summary>
+    /// <param name="before">この日より前から探す (報告日)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>工数が 0 より大きい記録の、最新の日。無ければ null</returns>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<DateOnly?> GetLatestRecordedDateAsync(DateOnly before, CancellationToken cancellationToken = default);
 
     /// <summary>基準の時刻より後に更新された行を読む</summary>
     /// <param name="since">基準の時刻 (この時刻以後に更新された行を返す)</param>
@@ -148,11 +167,11 @@ public interface IWorkItemRepository
     Task DeleteAsync(IReadOnlyList<int> groupIds, IReadOnlyList<int> itemIds, CancellationToken cancellationToken = default);
 
     /// <summary>日ごとの記録を保存し、その作業の実績の累計を計算し直す</summary>
-    /// <param name="record">保存する記録 (自分の分)</param>
+    /// <param name="record">保存する記録</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した記録と、計算し直した累計</returns>
     /// <remarks>
-    /// 同じ作業・日付・人の行があれば使い回す。実績も備考も空 (<see cref="WorkRecord.IsEmpty"/>)なら、論理削除する。
+    /// 同じ作業・日付の行があれば使い回す (人は区別しない。ほかの人の記録も、同じ 1 件を直す)。実績も備考も空 (<see cref="WorkRecord.IsEmpty"/>)なら、論理削除する。
     /// 同じトランザクションで、作業の行をロックして、記録をすべて足し直す (<see cref="WorkActualTotal"/>)。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>

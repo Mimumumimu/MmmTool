@@ -14,8 +14,7 @@ public static class WorkItemTree
     /// <param name="projects">案件 (論理削除済みは含めない)</param>
     /// <param name="groups">グループ (論理削除済みは含めない)</param>
     /// <param name="items">作業 (論理削除済みは含めない)</param>
-    /// <param name="dayRecords">入力日の記録 (全員分)</param>
-    /// <param name="userId">今のユーザーの番号 (実績 (日)は、この人の分)</param>
+    /// <param name="dayRecords">入力日の記録 (作業ごとに 1 件。人は区別しない)</param>
     /// <param name="date">入力日 (実績 (日)の計算に使う)</param>
     /// <param name="codes">コードブック (進捗度のコード番号を %の値にするために使う)</param>
     /// <returns>案件の行の並び</returns>
@@ -24,7 +23,6 @@ public static class WorkItemTree
         IEnumerable<WorkGroup> groups,
         IEnumerable<WorkItem> items,
         IEnumerable<WorkRecord> dayRecords,
-        int userId,
         DateOnly date,
         CodeBook codes)
     {
@@ -75,7 +73,7 @@ public static class WorkItemTree
         }
 
         var days = dayRecords
-            .Where(r => r.UserId == userId && r.Date == date && !r.IsDeleted)
+            .Where(r => r.Date == date && !r.IsDeleted)
             .GroupBy(r => r.WorkItemId)
             .ToDictionary(g => g.Key, g => WorkActualTotal.Calculate(g.Select(r => r.Hours)));
         foreach (var root in roots)

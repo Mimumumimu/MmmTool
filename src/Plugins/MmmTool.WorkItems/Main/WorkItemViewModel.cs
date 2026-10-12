@@ -437,6 +437,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
+    /// <summary>作業報告の画面を開く (バーの「作業報告」から)</summary>
+    /// <returns>画面が閉じるまでの待機を表すタスク</returns>
+    [RelayCommand]
+    private Task OpenReportAsync() => _dialogs.ShowReportAsync();
+
     /// <summary>案件の管理の画面を開く (バーの「案件の管理」から)</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]

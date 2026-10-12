@@ -11,4 +11,8 @@ public interface IWorkItemDialogService
     /// <summary>案件の管理のウィンドウを開き、閉じるまで待つ</summary>
     /// <returns>ウィンドウが閉じるまでの待機を表すタスク</returns>
     Task ShowProjectManagerAsync();
+
+    /// <summary>作業報告のウィンドウを開き、閉じるまで待つ</summary>
+    /// <returns>ウィンドウが閉じるまでの待機を表すタスク</returns>
+    Task ShowReportAsync();
 }

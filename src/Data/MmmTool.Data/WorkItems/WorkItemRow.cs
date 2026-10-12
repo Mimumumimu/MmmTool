@@ -56,7 +56,7 @@ public sealed record WorkItemRow
     /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
     public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
 
-    /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業中 = 2・完了 = 3)</summary>
+    /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4)</summary>
     public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
 
     /// <summary>進捗度のコード番号 (コードマスタの区分「進捗度」。%の値は、コードマスタの数値)</summary>

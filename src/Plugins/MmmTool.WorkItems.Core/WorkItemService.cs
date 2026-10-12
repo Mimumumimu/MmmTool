@@ -249,7 +249,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// </remarks>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false)
     {
-        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, UserId, date, _codes);
+        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, _codes);
         if (mineOnly && HasAssignees)
         {
             WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
@@ -272,12 +272,30 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>作業。読み込んでいなければ null</returns>
     public WorkItem? GetItem(int id) => _items.GetValueOrDefault(id);
 
-    /// <summary>ある日の、自分の記録を返す</summary>
+    /// <summary>ある日の記録を返す (作業ごと・日ごとに 1 件)</summary>
     /// <param name="workItemId">作業の番号</param>
     /// <param name="date">日付</param>
     /// <returns>記録。無ければ null (読んでいる日以外は、常に null)</returns>
     public WorkRecord? GetRecord(int workItemId, DateOnly date)
-        => date == _day ? _dayRecords.FirstOrDefault(r => r.WorkItemId == workItemId && r.UserId == UserId && !r.IsDeleted) : null;
+        => date == _day ? _dayRecords.FirstOrDefault(r => r.WorkItemId == workItemId && !r.IsDeleted) : null;
+
+    /// <summary>作業報告のために、担当が自分の作業と、その記録を読む</summary>
+    /// <param name="from">実績の開始日 (記録を読み始める日)</param>
+    /// <param name="reportDate">報告日 (予定の日。その日の記録も読む)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読んだ内容。テキストにするのは <see cref="WorkReportBuilder"/> (画面が、手入力の追記や「時間を出す」の切り替えのたびに、読み直さずに作り直せる)</returns>
+    /// <remarks>表示している案件・隠している行の設定には従わない。読んだ内容を、メモリの木とは別に扱うので、画面の状態を変えない。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly reportDate, CancellationToken cancellationToken = default)
+        => repository.LoadReportAsync(from, reportDate, cancellationToken);
+
+    /// <summary>作業報告の実績の開始日の既定を返す</summary>
+    /// <param name="reportDate">報告日</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>報告日より前で、担当が自分の作業に工数が入った直近の日。無ければ、報告日の前日</returns>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    public async Task<DateOnly> GetDefaultReportFromAsync(DateOnly reportDate, CancellationToken cancellationToken = default)
+        => await repository.GetLatestRecordedDateAsync(reportDate, cancellationToken) ?? reportDate.AddDays(-1);
 
     /// <summary>案件マスターを、名前で検索して読む</summary>
     /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
@@ -800,7 +818,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 return "この作業は、すでに削除されています。";
             }
 
-            var record = new WorkRecord { ProjectId = item.ProjectId, WorkItemId = workItemId, Date = date, UserId = UserId, Hours = Math.Round(hours, 2), Note = note };
+            var record = new WorkRecord { ProjectId = item.ProjectId, WorkItemId = workItemId, Date = date, Hours = Math.Round(hours, 2), Note = note };
             var existing = GetRecord(workItemId, date);
             if (existing is not null ? existing.Hours == record.Hours && existing.Note == record.Note : record.IsEmpty)
             {
@@ -810,7 +828,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             var result = await repository.SetRecordAsync(record);
             if (date == _day)
             {
-                _dayRecords.RemoveAll(r => r.WorkItemId == workItemId && r.UserId == UserId && r.Date == date);
+                _dayRecords.RemoveAll(r => r.WorkItemId == workItemId && r.Date == date);
                 if (result.Record is { IsDeleted: false } saved)
                 {
                     _dayRecords.Add(saved);
