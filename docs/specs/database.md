@@ -37,7 +37,7 @@
 | `WorkProject` | 作業管理の案件マスター ([work-items.md](work-items.md)) |
 | `WorkGroup` | 作業管理のグループ |
 | `WorkItem` | 作業管理の作業 |
-| `WorkRecord` | 作業管理の日ごとの記録。人ごと |
+| `WorkRecord` | 作業管理の日ごとの記録。作業ごと・日ごとに 1 件 |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
 `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus` の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
@@ -216,19 +216,19 @@
 | `CompletedDate` | 日付 | `date` | `9999-12-31` | 完了日。未完了は `9999-12-31` |
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
-| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / InProgress = 2 / Closed = 3 (コードの列挙と同じ値)。1 以上の検査 |
+| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 (コードの列挙と同じ値。表示順と同じ並び)。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号 (コードマスタの機能番号 2・区分 2)。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- インデックス: `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(同上)・`IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`(案件の完了の計算。削除されていない行だけ)
+- インデックス: `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(同上)・`IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`(案件の完了の計算。削除されていない行だけ)・`IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`(作業報告。担当が自分の作業を探す。削除されていない行だけ)
 
-#### `WorkRecord`(日ごとの記録。人ごと)
+#### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `bigint IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 記録した人 (`AppUser.Id`。ローカルは 1)。人ごとに 1 件の「人」はこの列。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 最初に記録した人 (`AppUser.Id`。ローカルは 1)。記録用で、検索・一意・結合には使わない。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
 | `ProjectId` | 整数 | `int` | | 作業の案件 (表示しない案件を除いて読むため) |
@@ -237,7 +237,7 @@
 | `Hours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | その日の実績。0 から 24 の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- 記録した人は `CreatedByUserId`。`(WorkItemId, Date, CreatedByUserId)` を一意にする (`UX_WorkRecord_WorkItemId_Date_CreatedByUserId`。論理削除された行も含む。同じ日に入れ直したときは、この行を使い回す)
+- 記録は、作業ごと・日ごとに 1 件 (ユーザー決定 2026-10-12)。人は区別しない。担当者が 1 人なので、ほかの人が入れても代行入力で、同じ 1 件を直す。`(WorkItemId, Date)` を一意にする (`UX_WorkRecord_WorkItemId_Date`。論理削除された行も含む。同じ日に入れ直したときは、この行を使い回す)。人ごとに分けると、同じ作業の同じ日に記録が複数でき、データが食い違うため
 - インデックス: `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`(その日の記録。削除されていない行だけ)・`IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(差分。論理削除された行も含む)
 
 ### コードマスタの表
@@ -323,6 +323,7 @@
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
 - 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)。送信のための表は、`002_CreateSendTables.sql`(`NotificationChannel`・`ReminderSendSetting`)と、MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql`(`ReminderSendStatus`)が作る (どちらも、何度流しても、無いものだけを作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、`-I` を付ける。SSMS は既定でオン)
 - 作業管理の 5 つの表は、`src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` が作る。コードマスタの表 `CodeMaster` は `004_CreateCodeMaster.sql`、作業管理の初期値 17 件 (状態 3・進捗度 11・優先度 3)は `005_SeedWorkItemCodes.sql` が作る・入れる (どれも、何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)。実機の SQL Server では、まだ流していない
+- 作業管理の表を変える更新用のスクリプト (`006_AddWorkItemAssignee.sql`・`007_DropWorkProjectSelection.sql`・`008_RenameWorkItemCompletedDate.sql`・`009_AddPlannedStatus.sql`)は、**アプリは流さない** (SQL Server では、アプリは表の有無を調べて知らせるだけ)。管理者が、番号の順に、データベースを選んで実行する。何度流しても壊れない。`009` は、絞り込み付きの索引のある表を更新するので、`sqlcmd` では `-I` (`QUOTED_IDENTIFIER` を ON)を付ける (スクリプトの先頭でも ON にしてある)。日本語を含むので、ファイルは UTF-8 で、`sqlcmd` には `-f 65001` を付ける。`009` を流す前に、新しい版のアプリで作業管理を使うと、状態の番号を取り違える (3 が完了ではなく作業中になる)
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql

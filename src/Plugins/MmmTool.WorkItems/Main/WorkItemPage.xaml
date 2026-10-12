@@ -399,7 +399,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- 見出しと、ページ全体の管理の入口。案件の追加・名前の変更・削除 (案件は全員で共有するので、行のない所の右クリックでは作らない) -->
+        <!-- 見出しと、ページ全体の操作の入口。作業報告 (毎日使う)と、案件の管理 (案件の追加・名前の変更・削除。案件は全員で共有するので、行のない所の右クリックでは作らない) -->
         <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -409,11 +409,15 @@
                 VerticalAlignment="Center"
                 Style="{StaticResource TitleTextBlockStyle}"
                 Text="作業管理" />
-            <Button
+            <!-- ページ全体の操作。毎日使う「作業報告」を内側に、日々の操作ではない「案件の管理」を端に置く。下のバーは、表示を切り替えるものだけにする -->
+            <StackPanel
                 Grid.Column="1"
                 VerticalAlignment="Center"
-                Command="{x:Bind ViewModel.OpenProjectManagerCommand}"
-                Content="案件の管理" />
+                Orientation="Horizontal"
+                Spacing="8">
+                <Button Command="{x:Bind ViewModel.OpenReportCommand}" Content="作業報告" />
+                <Button Command="{x:Bind ViewModel.OpenProjectManagerCommand}" Content="案件の管理" />
+            </StackPanel>
         </Grid>
 
         <!-- エラー (操作のたびに、前の分は消える) -->

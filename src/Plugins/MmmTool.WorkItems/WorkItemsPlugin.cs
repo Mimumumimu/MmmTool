@@ -6,6 +6,7 @@ using MmmTool.WorkItems.Main;
 using MmmTool.WorkItems.Move;
 using MmmTool.WorkItems.ProjectManager;
 using MmmTool.WorkItems.ProjectPicker;
+using MmmTool.WorkItems.Report;
 
 namespace MmmTool.WorkItems;
 
@@ -32,6 +33,8 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddTransient<MoveDialog>();
         services.AddTransient<ProjectManagerWindow>();
         services.AddTransient<ProjectManagerViewModel>();
+        services.AddTransient<WorkReportWindow>();
+        services.AddTransient<WorkReportViewModel>();
 
         services.AddTransient<ProjectPickerViewModel>();
         services.AddTransient<WorkItemViewModel>();

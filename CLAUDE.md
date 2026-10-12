@@ -16,7 +16,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ## ドキュメント
 - `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・エラーの扱い・C# の書き方・開発時の注意)と、その決定の理由
 - `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
-- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `database.md` / `links.md` / `mmmbatch.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md` / `work-items.md`)。機能を変更するときは、先に該当の仕様を読む
+- `docs/specs/`: 機能ごとの仕様と実装メモ (`backlog.md` / `cli-assist.md` / `cli-history-cleanup.md` / `clipboard-transfer.md` / `database.md` / `links.md` / `mmmbatch.md` / `reminders.md` / `tray-and-main.md` / `settings.md` / `storage.md` / `work-items.md` / `work-report.md`)。機能を変更するときは、先に該当の仕様を読む
 - 決定の理由 (なぜそう決めたか)は、その決定を説明する文書の末尾の「決定の理由」見出しに書く (機能の決定は `docs/specs/<機能>.md`、全体構成は `docs/architecture.md`、配布・ビルドは `docs/build-and-distribution.md`、SDK の決定は SDK の `docs/`)。決定記録だけを集めたフォルダは作らない (機能の説明と理由を、別の場所に分けないため)。大きな決定をしたら、該当する文書の見出しに足す
 - `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様 (`architecture.md` / `storage.md` / `notification-dialog.md` / `dialogs.md` / `tray.md` / `conpty.md` / `terminal.md` / `controls.md` / `speech.md` / `db-sqlserver.md`)
 
@@ -44,6 +44,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - DB の表の設計 (外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・忘れたときの再設定の画面が無いなど)。一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「決定の理由」の「意図した仕様」
   - DB のコードを、機能ごとではなく 1 か所 (`MmmTool.Data` と `MmmTool.Data.<種類>`)に集める。`MmmTool.Data` が複数の機能の Core を参照する。DB の行のクラスと、アプリの型 (`Reminder` など)が別 ([docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」)
   - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
+- **全部の表に共通の列 (共通ヘッダー。`IsDeleted`・`CreatedAt`・`CreatedByUserId`・`UpdatedAt`・`UpdatedByUserId` の 5 列。[database.md](docs/specs/database.md))のうち、`CreatedAt`・`CreatedByUserId`・`UpdatedByUserId` を、検索の条件・結合・索引の列に使わない**。人や持ち主で絞るときは、その表の業務の列 (作業の担当者 `AssigneeUserId` など)で絞る。共通の列で使ってよいのは、`IsDeleted` (論理削除の除外)と `UpdatedAt` (差分の取得。他の人の更新の反映)だけ。共通の列は記録のための列で、意味の薄い表もある
+  - **Why:** 作業報告の実績を、記録を付けた人 (`CreatedByUserId`)で絞る案に、その列を含む索引を足そうとして、「共通ヘッダーは条件に使わない。担当で抽出する」と指摘された (ユーザーの決定。2026-10-12)
+  - 日ごとの記録 (`WorkRecord`)も、同じ考え方で、作業ごと・日ごとに 1 件にする (一意の索引は `(WorkItemId, Date)`。人は区別しない。[docs/specs/work-report.md](docs/specs/work-report.md))。リマインダーの `ReminderState` は、作成者ではなく、業務の列 `UserId` で人ごとに持つ
 - **DB の `DELETE` 文は、基本、使わない (禁止)**。ユーザーに「消して」と言われたときだけ、対象 (サーバー・データベース・表・条件・消す行数)を伝えて、**確認を取ってから**実行する (確認の返事が、実行の許可。許可は、その 1 回の分だけ)。消すときは、条件を絞り (主キーなど。条件なしの `DELETE` は、しない)、実行の前に、対象の行を読んで見せる。実行のあとは、IDENTITY の次の番号に抜けが出る (嫌われている)ので、戻すか (`DBCC CHECKIDENT ... RESEED`)も、あわせて確認する。アプリのコードは、元から、物理削除をしない (論理削除だけ。[database.md](docs/specs/database.md))
   - **Why:** 動作確認のやり直しのために、確認なしで `DELETE` を流し、IDENTITY の番号が抜けた。ユーザーは、`DELETE` 文も、番号の抜けも、嫌い (2026-10-09)
 - コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えは、ユーザーが「OK」と許可したときだけ行う (許可が無いときはしない。許可は、その作業の分だけ。次回は、また許可を取る)。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (アプリ側と同じ種類のブランチ。下の判定に従う)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
@@ -58,7 +61,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - **SDK の参照先 (`external/MmmSdk`)の更新は、毎回必ず行う (絶対のルール)**。SDK のコミットが進んだら (SDK を直したとき・SDK の PR をマージして `master` を取り込んだときを含む)、報告の前に、アプリ側で `git status` を見て、`external/MmmSdk` に変更が出ていたら、参照先を更新するコミットを作って push する (「SDK の参照を更新」。ユーザーの指示を待たない)。順序は、SDK のコミットを先に push してから、アプリ側の参照先を更新する (サーバーに無いコミットを指すと、ほかの PC で取得できないため)。アプリ側に `external/MmmSdk` の変更が残ったまま、作業を終えない
   - **Why:** SDK の PR をマージして `master` を取り込んだあと、アプリ側に `external/MmmSdk` の変更 (参照先のずれ)が残ったまま報告した。ユーザーに聞かれるまで、説明も更新もしなかった (2026-10-12。ユーザーの決定)
 - SDK と同時に変える作業の順序: SDK の PR を先に「Create a merge commit」でマージ (スカッシュ・リベースは、アプリが指すコミットが消えるので不可)→ アプリの PR をマージ。動作確認は、マージの前に、ブランチを取得して行う
-- **MmmTool と MmmBatch の両方が参照するものを変えたら、報告の前に、`MmmTool.slnx` と `MmmBatch.slnx` の両方をビルドして確認する** (対象: `src/Data/`・`src/Users/`・`MmmTool.Reminders.Core`・`external/MmmSdk` など。片方だけ通って、もう片方が壊れるのを防ぐ)。VS で実行中のアプリがあって、DLL が使用中でビルドできないときは、止めない (ユーザーの実行を止めない)。止めてもらうよう頼むか、「そのアプリは確認できていない」と、報告に書く
+- **コードを変えたら、報告の前に、`MmmTool.slnx` と `MmmBatch.slnx` の両方を、最後まで、毎回ビルドして確認する** (どちらかしか参照しない部分だけの変更でも、両方。`src/Data/`・`src/Users/`・`MmmTool.Reminders.Core`・`external/MmmSdk` など、両方が参照するものは、片方だけ通って、もう片方が壊れるのを防ぐため。そうでない変更も、毎回両方を流して、判断を省く)。ビルドの実行・報告の形は、共通の `build-check` スキルに従う。VS で実行中のアプリがあって、DLL が使用中でビルドできないときは、止めない (ユーザーの実行を止めない)。止めてもらうよう頼むか、「そのアプリは確認できていない」と、報告に書く
   - **Why:** MmmBatch の接続の入力欄を共有に移したとき、MmmTool 側のビルドの確認を、ユーザーに言われるまで入れていなかった (2026-10-08)
 - **同じ処理・同じ画面の部品を、複数のアプリ・複数の画面に写さない**。画面の部品 (入力欄・ウィンドウ・ViewModel・高さを合わせるなどの処理)も、最終形で共通になるものは、最初から共有の場所 (SDK・`src/Data/MmmTool.Data.SqlServer.WinUI` など)に置く。「今は使うアプリが 1 つだけ」を理由に、アプリの中に作らない。作る前に、似た処理が、すでにどこかにないか、探す
   - **Why:** MmmBatch の接続の設定画面を、入力欄だけ共有に移し、保存・キャンセルの ViewModel とウィンドウは MmmBatch の中に作って、MmmTool の画面と同じ作り (確認できるまで保存できない・高さの測り直し)を、3 か所に別々に持った。1 か所の不具合 (ウィンドウを閉じたあとの測り直しで例外)が、3 か所に別々にあった (2026-10-08)
@@ -83,7 +86,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 ### 作業管理 (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md))
 保存の置き換え (ローカルは SQLite の `Data/MmmTool.db`、DB モードは SQL Server。表 5 つ)まで実装済み (2026-10-11。ビルドは MmmTool.slnx・MmmBatch.slnx とも通り、SQLite の保存は確認用のコンソールで確かめた)。JSON の保存は廃止した。
 - **コードマスタ** (設計と実装済みの範囲は [docs/specs/work-items.md](docs/specs/work-items.md) の「コードマスタ」): 残りは、**コードマスタの管理ツール**(別ツールにする。ユーザーの方針 2026-10-11。選択肢の追加・外す・並べ替え。ローカルモードの扱いは未定)
-- **後で決める**: リーダー的な人の更新の権限 (SQL Server の実装のとき)・作業の行の「実績 (日)」に他の人の分を出すか (今は、実績 (日)は、行も案件・グループも、自分の記録だけ。累計は全員の分)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
+- **後で決める**: リーダー的な人の更新の権限 (SQL Server の実装のとき)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
 ### 調査中

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MmmTool.WorkItems.Report.WorkReportWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="作業報告">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <Grid
+            x:Name="TitleBarArea"
+            Grid.Row="0"
+            Height="56"
+            Padding="24,0,48,0">
+            <TextBlock
+                VerticalAlignment="Bottom"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Text="作業報告" />
+        </Grid>
+
+        <Grid Grid.Row="1" Padding="24,16,24,24" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 条件。実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる (範囲の日付は、左が始まり・右が終わり)。そのあとに、時間を出すか -->
+            <StackPanel
+                Grid.Row="0"
+                Orientation="Horizontal"
+                Spacing="12">
+                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
+                <CalendarDatePicker x:Name="FromDatePicker" DateChanged="OnFromDateChanged" />
+                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="～" />
+                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="報告日" />
+                <CalendarDatePicker x:Name="ReportDatePicker" DateChanged="OnReportDateChanged" />
+                <CheckBox
+                    Margin="12,0,0,0"
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    Content="実績に時間を出す"
+                    IsChecked="{x:Bind ViewModel.ShowHours, Mode=TwoWay}" />
+            </StackPanel>
+
+            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる) -->
+            <Grid
+                Grid.Row="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <TextBox
+                    AcceptsReturn="True"
+                    AutomationProperties.Name="報告のプレビュー"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+                    IsReadOnly="True"
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    Text="{x:Bind ViewModel.PreviewText, Mode=OneWay}"
+                    TextWrapping="NoWrap" />
+                <!-- エラー。レイアウトに場所を取らず、プレビューの上部に重ねる -->
+                <InfoBar
+                    Margin="8,8,8,0"
+                    VerticalAlignment="Top"
+                    IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                    Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+                    Severity="Error" />
+            </Grid>
+
+            <!-- 手入力の追記。プレビューとは別の入力欄なので、条件を変えても消えない。ウィンドウを閉じたら消える (保存しない)。各区画の末尾に、書いたとおり足す -->
+            <Grid
+                Grid.Row="2"
+                ColumnSpacing="12"
+                RowSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    VerticalAlignment="Top"
+                    Margin="0,6,0,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="実績に追記" />
+                <TextBox
+                    Grid.Column="1"
+                    MaxHeight="96"
+                    MinHeight="32"
+                    AcceptsReturn="True"
+                    AutomationProperties.Name="実績に追記"
+                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+                    InputScope="Hiragana"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    Text="{x:Bind ViewModel.ExtraDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    Grid.Row="1"
+                    VerticalAlignment="Top"
+                    Margin="0,6,0,0"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="予定に追記" />
+                <TextBox
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    MaxHeight="96"
+                    MinHeight="32"
+                    AcceptsReturn="True"
+                    AutomationProperties.Name="予定に追記"
+                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+                    InputScope="Hiragana"
+                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    Text="{x:Bind ViewModel.ExtraPlanned, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap" />
+            </Grid>
+
+            <!-- 操作。コピーが主な操作なので、強調色にする -->
+            <Grid Grid.Row="3" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                    Text="コピーしました"
+                    Visibility="{x:Bind ViewModel.IsCopied, Mode=OneWay}" />
+                <Button
+                    Grid.Column="1"
+                    MinWidth="96"
+                    Command="{x:Bind ViewModel.CopyCommand}"
+                    Content="コピー"
+                    Style="{StaticResource AccentButtonStyle}" />
+                <Button
+                    Grid.Column="2"
+                    MinWidth="96"
+                    Click="OnCloseClick"
+                    Content="閉じる" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
