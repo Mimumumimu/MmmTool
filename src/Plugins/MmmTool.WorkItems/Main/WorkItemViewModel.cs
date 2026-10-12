@@ -15,20 +15,17 @@ using MmmTool.WorkItems.ProjectPicker;
 namespace MmmTool.WorkItems.Main;
 
 /// <summary>
-/// 作業管理のページ。木構造の表・入力日・表示列・表示する案件・完了した行を隠すかを扱う。
+/// 作業管理のページ。木構造の表・入力日・表示列・表示する案件を扱う。
 /// </summary>
 /// <remarks>
 /// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
-/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列・過去の完了を表示するかは、この PC の設定 (設定ストア)に持つ。
+/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
 /// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
 public sealed partial class WorkItemViewModel : ObservableObject
 {
     /// <summary>非表示の列を、設定ストアに持つキー (列のキーを、カンマでつないだ文字列)</summary>
     private const string HiddenColumnsKey = "WorkItems.HiddenColumns";
-
-    /// <summary>完了した行を表示するかを、設定ストアに持つキー (真偽)</summary>
-    private const string ShowFinishedKey = "WorkItems.ShowFinished";
 
     /// <summary>自分の担当だけを表示するかの設定のキー (この PC の設定)</summary>
     private const string MineOnlyKey = "WorkItems.MineOnly";
@@ -87,10 +84,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>入力日 (実績 (日)・備考 (日)の日。既定は今日)</summary>
     [ObservableProperty]
     public partial DateOnly InputDate { get; set; }
-
-    /// <summary>完了して日がたった行も表示するか</summary>
-    [ObservableProperty]
-    public partial bool ShowFinished { get; set; }
 
     /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
     public bool HasAssignees => _service.HasAssignees;
@@ -156,7 +149,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
         service.RefreshFailed += (_, message) => Error.Show(message);
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
-        ShowFinished = settings.Get(ShowFinishedKey, false);
         MineOnly = settings.Get(MineOnlyKey, false);
         InputDate = service.Today;
         _initializing = false;
@@ -252,19 +244,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             await UpdateItemAsync(row, item => item with { AssigneeUserId = userId });
         }
-    }
-
-    /// <summary>過去の完了を表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
-    /// <param name="value">表示するか</param>
-    partial void OnShowFinishedChanged(bool value)
-    {
-        if (_initializing)
-        {
-            return;
-        }
-
-        _settings.SetAsync(ShowFinishedKey, value).Forget();
-        Rebuild();
     }
 
     /// <summary>案件・グループを開く・閉じる (開閉の状態は、保存しない)</summary>
@@ -714,6 +693,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>読み込みの完了を表すタスク</returns>
     private async Task ChangeDayAsync(DateOnly day)
     {
+        // 開閉の記録は、入力日ごとに既定 (完了して日がたったグループは畳む)から始める
+        _expanded.Clear();
+        _collapsed.Clear();
         try
         {
             await _service.SetDayAsync(day);
@@ -746,13 +728,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
         bool IsPastFinished(WorkNode node)
             => node.Summary.IsFinished && node.Summary.CompletedDate is { } done && done < InputDate;
 
-        // 隠すのは、完了して日がたった作業だけ。案件・グループは隠さない (追加先を探せるように)。集計は隠した行も含んだまま
-        bool IsHidden(WorkNode node)
-            => !ShowFinished && node.Key.Kind == WorkRowKind.Work && IsPastFinished(node);
-
         // 中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)
         bool IsCollapsedByDefault(WorkNode node)
-            => node.Key.Kind == WorkRowKind.Group && !ShowFinished && IsPastFinished(node)
+            => node.Key.Kind == WorkRowKind.Group && IsPastFinished(node)
             && !node.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0);
 
         bool IsExpanded(WorkNode node)
@@ -760,10 +738,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         void Visit(WorkNode node, int level)
         {
-            // 完了して日がたったグループは、隠した作業があっても三角を出し、利用者が開いたときは、隠した作業も出す
-            var hasHidden = node.Key.Kind == WorkRowKind.Group && !ShowFinished && IsPastFinished(node);
-            var reveal = hasHidden && _expanded.Contains(node.Key);
-            var visibleChildren = reveal ? node.Children.ToList() : node.Children.Where(c => !IsHidden(c)).ToList();
+            var visibleChildren = node.Children;
             if (!_rowByKey.TryGetValue(node.Key, out var row))
             {
                 row = new WorkItemRow(node.Key);
@@ -774,7 +749,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             row.Update(
                 node,
                 level,
-                visibleChildren.Count > 0 || (hasHidden && node.Children.Count > 0),
+                visibleChildren.Count > 0,
                 expanded,
                 node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
                 _choices,

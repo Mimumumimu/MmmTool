@@ -475,13 +475,6 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="8">
-                <!-- 完了して日がたった行を出すか。いつも切り替える操作なので、メニューに隠さず、バーに出す。▼付きのボタン 2 つに挟まれないよう、左端に置く -->
-                <ToggleSwitch
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    IsOn="{x:Bind ViewModel.ShowFinished, Mode=TwoWay}"
-                    OffContent="過去の完了を表示"
-                    OnContent="過去の完了を表示" />
                 <ToggleSwitch
                     MinWidth="0"
                     VerticalAlignment="Center"
