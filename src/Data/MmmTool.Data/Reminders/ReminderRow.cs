@@ -23,8 +23,12 @@ public sealed record ReminderRow
     public DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>作成者 (<c>AppUser.Id</c>)</summary>
-    /// <remarks>アプリの型の <see cref="Reminder.CreatedByUserId"/> は、DB から読むだけ (<see cref="ToReminder"/>)。作成するときは、Repository が今のユーザーを入れ、更新では変えないので、<see cref="FromReminder"/> では決めない。</remarks>
+    /// <remarks>記録用の列 (行を最初に入れた人)。条件・結合・索引には使わない。アプリの型の <see cref="Reminder.AuthorUserId"/> は、業務の列 <see cref="AuthorUserId"/> から読む。</remarks>
     public int CreatedByUserId { get; init; }
+
+    /// <summary>作成者 (<c>AppUser.Id</c>。業務の列 <c>AuthorUserId</c>)。作った人</summary>
+    /// <remarks>見える範囲の条件に使う。作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を、作るときに入れる (列は別。条件・索引は、この列で行う)。<see cref="FromReminder"/> では決めない。</remarks>
+    public int AuthorUserId { get; init; }
 
     /// <summary>更新日時</summary>
     /// <remarks>更新の SQL の中で、DB サーバーの時計を使って書く。<see cref="FromReminder"/> では決めない。</remarks>
@@ -123,7 +127,7 @@ public sealed record ReminderRow
         No = Id,
         IsDeleted = IsDeleted,
         TargetUserId = TargetUserId,
-        CreatedByUserId = CreatedByUserId,
+        AuthorUserId = AuthorUserId,
         Date = Date == DateOnly.MaxValue ? ReminderDates.NoDate : ReminderDates.ToDateValue(Date),
         Time = ReminderDates.ToTimeValue(Time),
         Weekdays = (WeekdayFlags)Weekdays,

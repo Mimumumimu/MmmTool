@@ -15,7 +15,7 @@ public interface IReminderSendSettingRepository
 
     /// <summary>送信設定を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>リマインダーの番号 → 送信先の番号の一覧。送信先を選んでいない (または削除済み)リマインダーは含まない</returns>
+    /// <returns>リマインダーの番号 → 送信先の番号の一覧。自分が使用者の送信先の分だけ。送信先を選んでいない (または削除済み)リマインダーは含まない</returns>
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
     Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> GetChannelIdsAsync(CancellationToken cancellationToken = default);
 
@@ -24,7 +24,7 @@ public interface IReminderSendSettingRepository
     /// <param name="channelIds">選んだ送信先の番号。空なら、送信先なし (今の設定を、すべて論理削除する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>設定を終えたことを表すタスク</returns>
-    /// <remarks>選んだものは、すでにある設定も含めて、更新日時を今にする (保存した時点で過ぎている今日の分を、送らないため)。選んでいないものは、論理削除する。</remarks>
+    /// <remarks>選んだものは、すでにある設定も含めて、更新日時を今にする (保存した時点で過ぎている今日の分を、送らないため)。選んでいないものは、論理削除する。対象は、自分が使用者の送信先だけ (ほかの人の送信先の設定は、足さず、外さない)。</remarks>
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default);
 }

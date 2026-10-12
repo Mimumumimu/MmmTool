@@ -22,12 +22,12 @@ public sealed class SqlServerSendTargetSource(SqlServerDatabase database) : ISen
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
-                SELECT r.Id, r.IsDeleted, r.CreatedByUserId, r.TargetUserId, r.Date, r.Time, r.Weekdays, r.Title, r.Note, r.Link, r.IsSpeak,
-                       c.Id, c.IsDeleted, c.CreatedByUserId, c.Kind, c.Name, c.Value, s.UpdatedAt, ISNULL(u.DisplayName, N'')
+                SELECT r.Id, r.IsDeleted, r.AuthorUserId, r.TargetUserId, r.Date, r.Time, r.Weekdays, r.Title, r.Note, r.Link, r.IsSpeak,
+                       c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value, s.UpdatedAt, ISNULL(u.DisplayName, N'')
                 FROM dbo.ReminderSendSetting AS s
                 INNER JOIN dbo.Reminder AS r ON r.Id = s.ReminderId AND r.IsDeleted = 0
                 INNER JOIN dbo.NotificationChannel AS c ON c.Id = s.ChannelId AND c.IsDeleted = 0
-                LEFT JOIN dbo.AppUser AS u ON u.Id = c.CreatedByUserId
+                LEFT JOIN dbo.AppUser AS u ON u.Id = c.UserId
                 WHERE s.IsDeleted = 0
                 ORDER BY r.Id
                 """;
@@ -40,7 +40,7 @@ public sealed class SqlServerSendTargetSource(SqlServerDatabase database) : ISen
                 {
                     Id = reader.GetInt32(0),
                     IsDeleted = reader.GetBoolean(1),
-                    CreatedByUserId = reader.GetInt32(2),
+                    AuthorUserId = reader.GetInt32(2),
                     TargetUserId = reader.GetInt32(3),
                     Date = DateOnly.FromDateTime(reader.GetDateTime(4)),
                     Time = TimeOnly.FromTimeSpan(reader.GetTimeSpan(5)),
@@ -54,7 +54,7 @@ public sealed class SqlServerSendTargetSource(SqlServerDatabase database) : ISen
                 {
                     Id = reader.GetInt32(11),
                     IsDeleted = reader.GetBoolean(12),
-                    CreatedByUserId = reader.GetInt32(13),
+                    UserId = reader.GetInt32(13),
                     Kind = reader.GetByte(14),
                     Name = reader.GetString(15),
                     Value = reader.GetString(16),

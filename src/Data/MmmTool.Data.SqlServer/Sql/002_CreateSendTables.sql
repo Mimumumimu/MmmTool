@@ -3,7 +3,7 @@
 -- 使い方: 先に DB を選んでから、表を作れる権限のあるユーザーで、全体を実行する (sqlcmd で流すときは、フィルターつきのインデックスのため、-I を付ける)。
 -- 送信の状況の表 (ReminderSendStatus)は、MmmBatch 側の src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql が作る。
 
--- 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先。Kind は ntfy = 1・Discord = 2。Value は ntfy のトピック名か、Discord の Webhook の URL (秘密)
+-- 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先。使用者 UserId (この送信先を使う人。一覧・選択・更新・削除の条件に使う。共通ヘッダーの CreatedByUserId は条件に使わない)を、区分・名前・値より前に置く (010 の更新用スクリプトは、すでにある表に末尾へ足すだけなので、並びは、この作成スクリプトの形が正)。Kind は ntfy = 1・Discord = 2。Value は ntfy のトピック名か、Discord の Webhook の URL (秘密)
 IF OBJECT_ID(N'dbo.NotificationChannel', N'U') IS NULL
 CREATE TABLE dbo.NotificationChannel
 (
@@ -13,6 +13,7 @@ CREATE TABLE dbo.NotificationChannel
     CreatedByUserId int             NOT NULL CONSTRAINT CK_NotificationChannel_CreatedByUserId CHECK (CreatedByUserId >= 0),
     UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_NotificationChannel_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_NotificationChannel_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
+    UserId          int             NOT NULL CONSTRAINT DF_NotificationChannel_UserId DEFAULT (0) CONSTRAINT CK_NotificationChannel_UserId CHECK (UserId >= 0),
     Kind            tinyint         NOT NULL CONSTRAINT CK_NotificationChannel_Kind CHECK (Kind IN (1, 2)),
     Name            nvarchar(50)    NOT NULL,
     Value           nvarchar(500)   NOT NULL

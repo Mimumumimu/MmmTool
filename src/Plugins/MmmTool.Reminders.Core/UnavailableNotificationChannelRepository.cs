@@ -19,11 +19,6 @@ public sealed class UnavailableNotificationChannelRepository : INotificationChan
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
-    public Task<NotificationChannel?> FindAsync(int id, CancellationToken cancellationToken = default)
-        => throw NotAvailable();
-
-    /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

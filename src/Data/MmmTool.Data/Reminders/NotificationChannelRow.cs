@@ -19,8 +19,12 @@ public sealed record NotificationChannelRow
     public DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>作成者 (<c>AppUser.Id</c>)。この送信先を登録した人</summary>
-    /// <remarks>保存先が、今のユーザーを入れる。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <remarks>記録用の列 (行を最初に入れた人)。条件・結合・索引には使わない。保存先が、今のユーザーを入れる。<see cref="FromChannel"/> では決めない。</remarks>
     public int CreatedByUserId { get; init; }
+
+    /// <summary>使用者 (<c>AppUser.Id</c>。業務の列 <c>UserId</c>)。この送信先を使う人</summary>
+    /// <remarks>一覧・選択・更新・削除の条件に使う。作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を、作るときに入れる (列は別)。<see cref="FromChannel"/> では決めない。</remarks>
+    public int UserId { get; init; }
 
     /// <summary>更新日時</summary>
     /// <remarks>更新の SQL の中で、DB サーバーの時計を使って書く。<see cref="FromChannel"/> では決めない。</remarks>
@@ -85,7 +89,7 @@ public sealed record NotificationChannelRow
         {
             Id = Id,
             IsDeleted = IsDeleted,
-            CreatedByUserId = CreatedByUserId,
+            UserId = UserId,
             Kind = kind,
             Name = Name,
             Value = Value,

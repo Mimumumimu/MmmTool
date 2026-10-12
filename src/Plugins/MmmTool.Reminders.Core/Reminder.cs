@@ -48,11 +48,12 @@ public sealed record Reminder
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int TargetUserId { get; init; }
 
-    /// <summary>作成者のユーザー (<c>AppUser.Id</c>)。0 は作成者を持たない (ローカルモード)</summary>
+    /// <summary>作成者のユーザー (<c>AppUser.Id</c>)。作った人。0 は作成者を持たない (ローカルモード)</summary>
     /// <remarks>
     /// DB モードだけで使い、DB が持つ値を読むだけ (作成するときに、保存先が今のユーザーを入れる。更新では変えない)。ローカルモードでは常に 0 で、JSON には書かない。
-    /// 削除できるのは、作成者だけ (一覧で、削除の操作を出すかどうかの判断に使う)。
+    /// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)の判断に使う業務の列 (DB の <c>AuthorUserId</c>)。共通ヘッダーの <c>CreatedByUserId</c> は、条件に使わない。
+    /// 編集も削除も、見える人ならできる (削除の確認ダイアログは、いつも出す)。
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public int CreatedByUserId { get; init; }
+    public int AuthorUserId { get; init; }
 }

@@ -170,7 +170,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
             var index = IndexOf(rows, reminder.No, i);
             if (index < 0)
             {
-                rows.Insert(i, new ReminderTodayItem(reminder, status, Reminders.CanDelete(reminder), SaveStatusAsync));
+                rows.Insert(i, new ReminderTodayItem(reminder, status, SaveStatusAsync));
                 continue;
             }
             if (index != i)
