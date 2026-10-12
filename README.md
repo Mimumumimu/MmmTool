@@ -32,16 +32,24 @@
 
 ### 導入
 
-1. zip を展開します。中に説明書 `README.txt` と、アプリ本体の `MmmTool` フォルダーがあります
-2. `MmmTool` フォルダーの中の `MmmTool.exe` を開きます。ウィンドウは出ず、タスクトレイにアイコンが出ます
+1. zip を展開します。できたフォルダーに、アプリ本体の `MmmTool.exe` と、説明書 `README.txt`・`操作説明.html` が並んでいます
+2. `MmmTool.exe` を開きます。ウィンドウは出ず、タスクトレイにアイコンが出ます
 
-- `MmmTool` フォルダーは、好きな場所 (例: `D:\Tools\MmmTool`)へ移して使えます。ただし、**他の人が書き込めるフォルダーには置かないでください**(理由は「[データ保存場所](#データ保存場所)」)
+- 展開したフォルダーは、好きな場所 (例: `D:\Tools\MmmTool`)へ移して使えます。フォルダー名も、好きな名前に変えられます。ただし、**他の人が書き込めるフォルダーには置かないでください**(理由は「[データ保存場所](#データ保存場所)」)
+- **`Data` フォルダーのこと:** データは、すべて `MmmTool.exe` と同じ場所の `Data` フォルダーに入っています。`Data` を上書きしたり削除したりすると、データは戻せません
+  - 起動すると、`MmmTool.exe` の横に `Data` ができます。ダウンロードして展開したフォルダーのまま使うと、そこに `Data` ができます
+  - フォルダーを別の場所へコピー・移動するときは、`Data` も一緒に移してください。移動先にすでに `Data` があるときは、上書きせず、先に別の場所へ退避してください
+  - 新しい版に入れ替えるときは、新しい版のフォルダーの `Data` を、コピーしないでください
+  - 不安なときは、`Data` フォルダーのバックアップを取っておいてください
 - `Lib` フォルダーの中身を動かしたり、EXE の横へ移したりしないでください (起動できなくなります)
 
 ### 新しい版への入れ替え・アンインストール
 
-- **入れ替え:** トレイの「終了」で MmmTool を終了し、新しい版の `MmmTool` フォルダーの中身を、今使っている `MmmTool` フォルダーに上書きコピーします。`Data` フォルダー (設定やリンクなど)は配布物に含まれていないので、そのまま残ります。フォルダー名は版が変わっても `MmmTool` のままなので、ショートカットなどもそのまま使えます
-- **アンインストール:** MmmTool を終了してから、`MmmTool` フォルダーを丸ごと削除します。`%TEMP%\MmmTool\` が残っていたら、それも削除してください。Backlog の API キーを登録していたときは、Windows の資格情報マネージャー (「Windows 資格情報」の汎用資格情報 `MmmTool.Backlog`)から、その項目も削除してください
+- **入れ替え:** 方法は自由です。トレイの「終了」で MmmTool を終了してから、どちらかで行います。`Data` フォルダー (設定やリンクなど)は配布物に含まれていません
+  - 今のフォルダーに上書きする: 新しい版のフォルダーの中身を、今使っているフォルダーに上書きコピーします。`Data` は、そのまま残ります
+  - 新しいフォルダーで使い始める: 新しい版を別のフォルダーに置き、今の `Data` フォルダーを、新しい版のフォルダーへコピーします。古い版は、そのまま残せます
+  - どちらでも、新しい版のフォルダーに `Data` があるときは、それで今の `Data` を上書きしないでください
+- **アンインストール:** MmmTool を終了してから、`MmmTool.exe` があるフォルダーを丸ごと削除します (`Data` も消えます)。`%TEMP%\MmmTool\` が残っていたら、それも削除してください。Backlog の API キーを登録していたときは、Windows の資格情報マネージャー (「Windows 資格情報」の汎用資格情報 `MmmTool.Backlog`)から、その項目も削除してください
 
 ## 主な機能
 
@@ -323,7 +331,7 @@ OK で保存して閉じ、キャンセル (または ×)で保存せずに閉�
 
 このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。
 
-同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `MmmTool\Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています (発行のたびに、配布物に入るパッケージから自動で作ります)。リポジトリに直接入れているものは、次のファイルです。
+同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています (発行のたびに、配布物に入るパッケージから自動で作ります)。リポジトリに直接入れているものは、次のファイルです。
 
 - xterm.js (MIT License)… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
 - @xterm/addon-fit (MIT License)… [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)
@@ -402,14 +410,15 @@ dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 
 ```
 MmmTool_<版>\
-  README.txt                ← 利用者向けの説明書 (機能一覧・必要なもの・データの場所・入れ替え方・変更履歴)
+  MmmTool.exe               ← アプリ本体 (このフォルダごと、好きな場所へコピーして使う)
+  README.txt                ← 利用者向けの説明書 (最初に読むこと・機能一覧・必要なもの・データの場所・入れ替え方・変更履歴)
   操作説明.html             ← 機能ごとの使い方 (ブラウザで開く)
-  MmmTool\                  ← アプリ本体 (これを D:\Tools\MmmTool などへコピーして使う)
-    Assets\Licenses\LICENSE.txt               ← MmmTool のライセンス (MIT)
-    Assets\Licenses\THIRD-PARTY-NOTICES.txt   ← 同梱しているライブラリのライセンスと通知の全文
+  Assets\Licenses\LICENSE.txt               ← MmmTool のライセンス (MIT)
+  Assets\Licenses\THIRD-PARTY-NOTICES.txt   ← 同梱しているライブラリのライセンスと通知の全文
+  Lib\ など
 ```
 
-アプリ本体のフォルダ名は版が変わっても `MmmTool` のままなので、コピー先のショートカットなどはそのまま使えます。ライセンスの文書はアプリ本体の中にあるので、`MmmTool` フォルダだけをコピー・再配布しても一緒に付いていきます。`README.txt` の元は `src/App/MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のもの、`THIRD-PARTY-NOTICES.txt` は発行のたびに、配布物に入るパッケージから自動で作ります。`Version` を上げずに発行し直すと、同じ版のフォルダに、前回のファイルを消さずに上書きします。前の版にだけあったファイルを残したくないときは、発行の前に版のフォルダを消してください。EXE の横のフォルダは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけで、実行すると `Data`(アプリが書くもの)ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください (起動できなくなります)。
+フォルダー名に版が入るので、版が変わるとフォルダーも別になります。入れ替えの方法は、利用者の自由です (上書き・新しいフォルダー・フォルダー名の付け替え)。ライセンスの文書は `Assets` の中にあるので、フォルダーごとコピー・再配布すれば一緒に付いていきます。`README.txt` の元は `src/App/MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のもの、`THIRD-PARTY-NOTICES.txt` は発行のたびに、配布物に入るパッケージから自動で作ります。`Version` を上げずに発行し直すと、同じ版のフォルダに、前回のファイルを消さずに上書きします。前の版にだけあったファイルを残したくないときは、発行の前に版のフォルダを消してください。EXE の横のフォルダは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけで、実行すると `Data`(アプリが書くもの)ができます。画面の定義は `MmmTool.pri` に入っています。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を EXE の横へ移したりしないでください (起動できなくなります)。
 
 ## MmmSdk を更新するとき
 
