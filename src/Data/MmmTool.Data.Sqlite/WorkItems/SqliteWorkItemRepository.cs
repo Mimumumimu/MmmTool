@@ -83,8 +83,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 connection,
                 null,
                 [
-                    ($"SELECT {Header("p")}, p.Name, p.Note FROM WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
-                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+                    ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
+                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
@@ -130,8 +130,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 connection,
                 null,
                 [
-                    ($"SELECT {Header("p")}, p.Name, p.Note FROM WorkProject p WHERE p.UpdatedAt >= @since AND {ProjectFilter("p", "Id", exclude: true)}", r => projects.Add(ReadProject(r).ToWorkProject())),
-                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+                    ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM WorkProject p WHERE p.UpdatedAt >= @since AND {ProjectFilter("p", "Id", exclude: true)}", r => projects.Add(ReadProject(r).ToWorkProject())),
+                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE i.UpdatedAt >= @since AND {ProjectFilter("i", "ProjectId", exclude: true)}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.UpdatedAt >= @since AND r.Date = @date AND {ProjectFilter("r", "ProjectId", exclude: true)}", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
@@ -196,7 +196,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     }
 
     /// <inheritdoc />
-    public Task UpdateProjectAsync(int projectId, string? name, string? note, CancellationToken cancellationToken = default)
+    public Task UpdateProjectAsync(int projectId, string? name, string? link, string? note, CancellationToken cancellationToken = default)
     {
         var sets = new List<string>();
         var parameters = new List<(string, object)>();
@@ -204,6 +204,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         {
             sets.Add("Name = @name");
             parameters.Add(("@name", WorkRowValues.CheckText(name, "案件の名前", WorkRowValues.NameMax, required: true)));
+        }
+        if (link is not null)
+        {
+            sets.Add("Link = @link");
+            parameters.Add(("@link", WorkRowValues.CheckText(link, "案件のリンク", WorkRowValues.LinkMax)));
         }
         if (note is not null)
         {
@@ -290,6 +295,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         var (b, a) = (WorkGroupRow.FromWorkGroup(before), WorkGroupRow.FromWorkGroup(after));
         var changes = new ColumnChanges();
         changes.Add("Name", b.Name, a.Name);
+        changes.Add("Link", b.Link, a.Link);
         changes.Add("Note", b.Note, a.Note);
         return UpdateColumnsAsync("WorkGroup", a.Id, changes, cancellationToken);
     }
@@ -306,6 +312,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         changes.Add("DueDate", b.DueDate, a.DueDate);
         changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
+        changes.Add("Link", b.Link, a.Link);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
@@ -500,8 +507,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         var codes = new List<CodeMasterEntry>();
         var queries = new List<(string Sql, Action<SqliteDataReader> Map)>
         {
-            ($"SELECT {Header("p")}, p.Name, p.Note FROM WorkProject p WHERE p.IsDeleted = 0 AND {ProjectFilter("p", "Id", exclude)}", r => projects.Add(ReadProject(r).ToWorkProject())),
-            ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM WorkGroup g WHERE g.IsDeleted = 0 AND {ProjectFilter("g", "ProjectId", exclude)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+            ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM WorkProject p WHERE p.IsDeleted = 0 AND {ProjectFilter("p", "Id", exclude)}", r => projects.Add(ReadProject(r).ToWorkProject())),
+            ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM WorkGroup g WHERE g.IsDeleted = 0 AND {ProjectFilter("g", "ProjectId", exclude)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
             ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE i.IsDeleted = 0 AND {ProjectFilter("i", "ProjectId", exclude)}", r => items.Add(ReadItem(r).ToWorkItem())),
         };
         if (withMaster)
@@ -552,7 +559,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (14 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>コードマスタの中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
@@ -572,7 +579,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         UpdatedAt = SqliteValues.ParseDateTime(r.GetString(4)),
         UpdatedByUserId = r.GetInt32(5),
         Name = r.GetString(6),
-        Note = r.GetString(7),
+        Link = r.GetString(7),
+        Note = r.GetString(8),
     };
 
     /// <summary>グループの行を読む</summary>
@@ -590,7 +598,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         ParentGroupId = r.GetInt32(7),
         SortOrder = r.GetInt32(8),
         Name = r.GetString(9),
-        Note = r.GetString(10),
+        Link = r.GetString(10),
+        Note = r.GetString(11),
     };
 
     /// <summary>作業の行を読む</summary>
@@ -615,9 +624,10 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         CompletedDate = SqliteValues.ParseDate(r.GetString(14)),
         PlannedHours = SqliteValues.ToHours(r.GetDouble(15)),
         ActualTotalHours = SqliteValues.ToHours(r.GetDouble(16)),
-        StatusCodeNo = r.GetInt32(17),
-        ProgressCodeNo = r.GetInt32(18),
-        Note = r.GetString(19),
+        Link = r.GetString(17),
+        StatusCodeNo = r.GetInt32(18),
+        ProgressCodeNo = r.GetInt32(19),
+        Note = r.GetString(20),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

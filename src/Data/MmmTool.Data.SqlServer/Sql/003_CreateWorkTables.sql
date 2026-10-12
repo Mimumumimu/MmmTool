@@ -14,6 +14,7 @@ CREATE TABLE dbo.WorkProject
     UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_WorkProject_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_WorkProject_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
     Name            nvarchar(200)   NOT NULL CONSTRAINT CK_WorkProject_Name CHECK (LEN(Name) >= 1),
+    Link            nvarchar(2000)  NOT NULL CONSTRAINT DF_WorkProject_Link DEFAULT (N''),
     Note            nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkProject_Note DEFAULT (N'')
 );
 GO
@@ -37,6 +38,7 @@ CREATE TABLE dbo.WorkGroup
     ParentGroupId   int             NOT NULL CONSTRAINT DF_WorkGroup_ParentGroupId DEFAULT (0) CONSTRAINT CK_WorkGroup_ParentGroupId CHECK (ParentGroupId >= 0),
     SortOrder       int             NOT NULL CONSTRAINT DF_WorkGroup_SortOrder DEFAULT (0) CONSTRAINT CK_WorkGroup_SortOrder CHECK (SortOrder >= 0),
     Name            nvarchar(200)   NOT NULL CONSTRAINT CK_WorkGroup_Name CHECK (LEN(Name) >= 1),
+    Link            nvarchar(2000)  NOT NULL CONSTRAINT DF_WorkGroup_Link DEFAULT (N''),
     Note            nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkGroup_Note DEFAULT (N'')
 );
 GO
@@ -49,6 +51,7 @@ GO
 -- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、PlannedHours の 0 は予定なし、CompletedDate の 9999-12-31 は未完了
 -- ActualTotalHours は、その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く)
 -- AssigneeUserId は担当者 (AppUser.Id。0 は未割り当て)
+-- Link は、案件・グループ・作業に付ける 1 つのリンク (URL・フォルダ・ファイルのパス。無いときは空文字)
 -- PriorityCodeNo・StatusCodeNo・ProgressCodeNo は、コードマスタ (004_CreateCodeMaster.sql の CodeMaster)のコード番号 (区分 3・1・2)。外部キーは使わない
 IF OBJECT_ID(N'dbo.WorkItem', N'U') IS NULL
 CREATE TABLE dbo.WorkItem
@@ -70,6 +73,7 @@ CREATE TABLE dbo.WorkItem
     CompletedDate      date            NOT NULL CONSTRAINT DF_WorkItem_CompletedDate DEFAULT ('9999-12-31'),
     PlannedHours     decimal(6, 2)   NOT NULL CONSTRAINT DF_WorkItem_PlannedHours DEFAULT (0) CONSTRAINT CK_WorkItem_PlannedHours CHECK (PlannedHours >= 0),
     ActualTotalHours decimal(12, 2)  NOT NULL CONSTRAINT DF_WorkItem_ActualTotalHours DEFAULT (0) CONSTRAINT CK_WorkItem_ActualTotalHours CHECK (ActualTotalHours >= 0),
+    Link             nvarchar(2000)  NOT NULL CONSTRAINT DF_WorkItem_Link DEFAULT (N''),
     StatusCodeNo     int             NOT NULL CONSTRAINT DF_WorkItem_StatusCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_StatusCodeNo CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   int             NOT NULL CONSTRAINT DF_WorkItem_ProgressCodeNo DEFAULT (1) CONSTRAINT CK_WorkItem_ProgressCodeNo CHECK (ProgressCodeNo >= 1),
     Note             nvarchar(1000)  NOT NULL CONSTRAINT DF_WorkItem_Note DEFAULT (N'')

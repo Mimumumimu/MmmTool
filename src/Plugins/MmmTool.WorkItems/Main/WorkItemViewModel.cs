@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
@@ -46,6 +47,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _confirm;
+
+    /// <summary>リンクを開く処理</summary>
+    private readonly IPathOpener _opener;
 
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
@@ -137,12 +141,14 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="dialogs">作業管理のダイアログ</param>
     /// <param name="confirm">確認ダイアログ</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
-    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker)
+    /// <param name="opener">リンクを開く処理</param>
+    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener)
     {
         _service = service;
         _settings = settings;
         _dialogs = dialogs;
         _confirm = confirm;
+        _opener = opener;
         ProjectPicker = projectPicker;
 
         _hiddenColumns = [.. settings.Get(HiddenColumnsKey, "").Split(',', StringSplitOptions.RemoveEmptyEntries)];
@@ -541,6 +547,41 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
+    /// <summary>リンクの入力を、確定する</summary>
+    /// <param name="row">行 (案件・グループ・作業のどれでもよい)</param>
+    /// <param name="text">入力されたリンク (空にすると、リンクを消す)</param>
+    /// <returns>確定の完了を表すタスク</returns>
+    public async Task CommitLinkAsync(WorkItemRow row, string text)
+    {
+        text = text.Trim();
+        if (text != row.Link)
+        {
+            await UpdateTextAsync(row, name: null, note: null, link: text);
+        }
+    }
+
+    /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>
+    /// <param name="row">行</param>
+    /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>リンクは、登録されたものを種類を問わずそのまま開く (リンクの機能と同じ。開けなかったときは、理由を画面に出す)。</remarks>
+    public async Task OpenLinkAsync(WorkItemRow row)
+    {
+        if (!row.HasLink)
+        {
+            return;
+        }
+
+        try
+        {
+            await _opener.OpenAsync(row.Link);
+            Error.Clear();
+        }
+        catch (PathOpenException ex)
+        {
+            Error.Show(ex.Message);
+        }
+    }
+
     /// <summary>備考の入力欄に出す全文を返す</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー (Note / DayNote)</param>
@@ -573,12 +614,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
-    /// <summary>名前または備考を、行の種類に合わせて更新する</summary>
+    /// <summary>名前・備考・リンクを、行の種類に合わせて更新する</summary>
     /// <param name="row">行</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
+    /// <param name="link">新しいリンク (変えないなら null。空文字はリンクを消す)</param>
     /// <returns>更新の完了を表すタスク</returns>
-    private async Task UpdateTextAsync(WorkItemRow row, string? name, string? note)
+    private async Task UpdateTextAsync(WorkItemRow row, string? name, string? note, string? link = null)
     {
         try
         {
@@ -586,13 +628,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
             switch (row.Kind)
             {
                 case WorkRowKind.Project:
-                    error = await _service.UpdateProjectAsync(row.Id, name, note);
+                    error = await _service.UpdateProjectAsync(row.Id, name, link, note);
                     break;
                 case WorkRowKind.Group when _service.GetGroup(row.Id) is { } group:
-                    error = await _service.UpdateGroupAsync(group with { Name = name ?? group.Name, Note = note ?? group.Note });
+                    error = await _service.UpdateGroupAsync(group with { Name = name ?? group.Name, Link = link ?? group.Link, Note = note ?? group.Note });
                     break;
                 case WorkRowKind.Work when _service.GetItem(row.Id) is { } item:
-                    error = await _service.UpdateItemAsync(item with { Name = name ?? item.Name, Note = note ?? item.Note }, InputDate);
+                    error = await _service.UpdateItemAsync(item with { Name = name ?? item.Name, Link = link ?? item.Link, Note = note ?? item.Note }, InputDate);
                     break;
                 default:
                     return;

@@ -181,6 +181,7 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | 案件名。1 文字以上 |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
 - インデックス: `IX_WorkProject_UpdatedAt (UpdatedAt)`(差分の取得。論理削除された行も含む)
@@ -198,6 +199,7 @@
 | `ParentGroupId` | 整数 | `int` | 0 | 親のグループ (`WorkGroup.Id`)。0 は案件の直下。0 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並び (グループと作業にまたがる 1 つの数)。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | グループ名。1 文字以上 |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
 - インデックス: `IX_WorkGroup_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(表示する案件の中身の読み込み・差分。論理削除された行も含む)
@@ -222,6 +224,7 @@
 | `CompletedDate` | 日付 | `date` | `9999-12-31` | 完了日。未完了は `9999-12-31` |
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 (コードの列挙と同じ値。表示順と同じ並び)。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号 (コードマスタの機能番号 2・区分 2)。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
@@ -329,7 +332,7 @@
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
 - 作成用のスクリプトは `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する (`dbo` スキーマに 3 つの表を作る。何度流しても、無いものだけを作る)。送信のための表は、`002_CreateSendTables.sql`(`NotificationChannel`・`ReminderSendSetting`)と、MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql`(`ReminderSendStatus`)が作る (どちらも、何度流しても、無いものだけを作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので、`-I` を付ける。SSMS は既定でオン)
 - 作業管理の 5 つの表は、`src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql` が作る。コードマスタの表 `CodeMaster` は `004_CreateCodeMaster.sql`、作業管理の初期値 17 件 (状態 3・進捗度 11・優先度 3)は `005_SeedWorkItemCodes.sql` が作る・入れる (どれも、何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)。実機の SQL Server では、まだ流していない
-- 作業管理の表を変える更新用のスクリプト (`006_AddWorkItemAssignee.sql`・`007_DropWorkProjectSelection.sql`・`008_RenameWorkItemCompletedDate.sql`・`009_AddPlannedStatus.sql`)は、**アプリは流さない** (SQL Server では、アプリは表の有無を調べて知らせるだけ)。管理者が、番号の順に、データベースを選んで実行する。何度流しても壊れない。`009` は、絞り込み付きの索引のある表を更新するので、`sqlcmd` では `-I` (`QUOTED_IDENTIFIER` を ON)を付ける (スクリプトの先頭でも ON にしてある)。日本語を含むので、ファイルは UTF-8 で、`sqlcmd` には `-f 65001` を付ける。`009` を流す前に、新しい版のアプリで作業管理を使うと、状態の番号を取り違える (3 が完了ではなく作業中になる)
+- 作業管理の表を変える更新用のスクリプト (`006_AddWorkItemAssignee.sql`・`007_DropWorkProjectSelection.sql`・`008_RenameWorkItemCompletedDate.sql`・`009_AddPlannedStatus.sql`・`011_AddWorkLink.sql`)は、**アプリは流さない** (SQL Server では、アプリは表の有無を調べて知らせるだけ)。管理者が、番号の順に、データベースを選んで実行する。何度流しても壊れない。`009` は、絞り込み付きの索引のある表を更新するので、`sqlcmd` では `-I` (`QUOTED_IDENTIFIER` を ON)を付ける (スクリプトの先頭でも ON にしてある)。日本語を含むので、ファイルは UTF-8 で、`sqlcmd` には `-f 65001` を付ける。`009` を流す前に、新しい版のアプリで作業管理を使うと、状態の番号を取り違える (3 が完了ではなく作業中になる)
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql

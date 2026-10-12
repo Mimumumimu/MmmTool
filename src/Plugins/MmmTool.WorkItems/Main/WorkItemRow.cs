@@ -52,6 +52,14 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial string Name { get; private set; } = "";
 
+    /// <summary>リンク (URL・フォルダ・ファイルのパス。無いときは空)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLink))]
+    public partial string Link { get; private set; } = "";
+
+    /// <summary>リンクがあるか (表のセルに「リンク」の文字を出すか)</summary>
+    public bool HasLink => Link.Length > 0;
+
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NoteFirstLine))]
@@ -171,6 +179,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
         HasChildren = hasChildren;
         IsExpanded = isExpanded;
         Name = node.Name;
+        Link = node.Link;
         Note = node.Note;
         Choices = choices;
         StartText = FormatDate(summary.StartDate);
@@ -208,8 +217,8 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
 
     /// <summary>このセルを、入力できるか</summary>
     /// <param name="columnKey">列のキー</param>
-    /// <returns>名前は、グループも作業も入力できる。ほかの列は、作業だけ (グループは計算値)</returns>
-    public bool CanEdit(string columnKey) => columnKey == "Name" || IsWork;
+    /// <returns>名前とリンクは、案件・グループも作業も入力できる。ほかの列は、作業だけ (グループは計算値)</returns>
+    public bool CanEdit(string columnKey) => columnKey is "Name" or "Link" || IsWork;
 
     /// <summary>入力欄の表示を、今の値に戻す</summary>
     /// <remarks>入力が受け入れられなかったとき、入力欄に残った入力途中の文字を、保存されている値に戻すために使う。</remarks>

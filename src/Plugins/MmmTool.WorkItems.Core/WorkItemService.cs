@@ -349,16 +349,18 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>案件の名前・備考を更新する (読み込んでいない案件も、名前は直せる)</summary>
+    /// <summary>案件の名前・リンク・備考を更新する (読み込んでいない案件も、名前は直せる)</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
+    /// <param name="link">新しいリンク (変えないなら null。空文字はリンクを消す)</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
     /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
-    public async Task<string?> UpdateProjectAsync(int projectId, string? name, string? note)
+    public async Task<string?> UpdateProjectAsync(int projectId, string? name, string? link, string? note)
     {
         name = name?.Trim();
-        var error = (name is null ? null : ValidateName(name)) ?? (note is null ? null : ValidateNote(note)) ?? Deny(WorkRowKind.Project, projectId);
+        link = link?.Trim();
+        var error = (name is null ? null : ValidateName(name)) ?? (link is null ? null : ValidateLink(link)) ?? (note is null ? null : ValidateNote(note)) ?? Deny(WorkRowKind.Project, projectId);
         if (error is not null)
         {
             return error;
@@ -371,17 +373,18 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             if (current is not null)
             {
                 name = name == current.Name ? null : name;
+                link = link == current.Link ? null : link;
                 note = note == current.Note ? null : note;
             }
-            if (name is null && note is null)
+            if (name is null && link is null && note is null)
             {
                 return null;
             }
 
-            await repository.UpdateProjectAsync(projectId, name, note);
+            await repository.UpdateProjectAsync(projectId, name, link, note);
             if (current is not null)
             {
-                _projects[projectId] = current with { Name = name ?? current.Name, Note = note ?? current.Note };
+                _projects[projectId] = current with { Name = name ?? current.Name, Link = link ?? current.Link, Note = note ?? current.Note };
                 OnChangedLater();
             }
             return null;
@@ -541,8 +544,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 return RemovedMessage;
             }
 
-            var candidate = current with { Name = updated.Name.Trim(), Note = updated.Note };
-            if ((ValidateName(candidate.Name) ?? ValidateNote(candidate.Note)) is { } error)
+            var candidate = current with { Name = updated.Name.Trim(), Link = updated.Link.Trim(), Note = updated.Note };
+            if ((ValidateName(candidate.Name) ?? ValidateLink(candidate.Link) ?? ValidateNote(candidate.Note)) is { } error)
             {
                 return error;
             }
@@ -590,6 +593,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             var candidate = current with
             {
                 Name = updated.Name.Trim(),
+                Link = updated.Link.Trim(),
                 Note = updated.Note,
                 Priority = updated.Priority,
                 StartDate = updated.StartDate,
@@ -1207,13 +1211,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private static string? ValidateNote(string note)
         => note.Length > WorkItemLimits.NoteMaxLength ? $"備考は {WorkItemLimits.NoteMaxLength} 文字までです。" : null;
 
+    /// <summary>リンクの誤りを調べる (長さだけ。開く種類は絞らない)</summary>
+    /// <param name="link">リンク (前後の空白を除いたもの)</param>
+    /// <returns>画面に出せるメッセージ。正しければ null</returns>
+    private static string? ValidateLink(string link)
+        => link.Length > WorkItemLimits.LinkMaxLength ? $"リンクは {WorkItemLimits.LinkMaxLength} 文字までです。" : null;
+
     /// <summary>作業の入力の誤りを調べる</summary>
     /// <param name="item">調べる作業</param>
     /// <param name="codes">コードブック</param>
     /// <returns>画面に出せるメッセージ。正しければ null</returns>
     private static string? ValidateItem(WorkItem item, CodeBook codes)
     {
-        if ((ValidateName(item.Name) ?? ValidateNote(item.Note)) is { } basic)
+        if ((ValidateName(item.Name) ?? ValidateLink(item.Link) ?? ValidateNote(item.Note)) is { } basic)
         {
             return basic;
         }

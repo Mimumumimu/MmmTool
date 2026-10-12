@@ -60,6 +60,7 @@ public sealed partial class WorkItemPage : Page
             Column("Completed", "完了日", 96, "CompletedCell", frozen: true),
             Column("Planned", "予定 (累計)", 84, "PlannedCell", frozen: true),
             Column("ActualTotal", "実績 (累計)", 96, "ActualTotalCell", frozen: true),
+            Column("Link", "リンク", 72, "LinkCell", frozen: true),
             Column("Status", "状態", 104, "StatusCell"),
             Column("Progress", "進捗度", 190, "ProgressCell"),
             _actualDayColumn,
@@ -183,7 +184,7 @@ public sealed partial class WorkItemPage : Page
             IsTree = tree,
             CellTemplate = (DataTemplate)Resources[templateKey],
             EditTemplate = Resources.TryGetValue(EditKey(templateKey), out var edit) ? (DataTemplate)edit : null,
-            IsInvokable = key is "Priority" or "Status" or "Progress" or "Assignee",
+            IsInvokable = key is "Priority" or "Status" or "Progress" or "Assignee" or "Link",
         };
 
     /// <summary>表示用のセルの見た目のキーから、入力用のキーを返す</summary>
@@ -226,6 +227,7 @@ public sealed partial class WorkItemPage : Page
                 "Planned" => Math.Max(HeaderWidth(column), TextWidth("時間 (H)", Microsoft.UI.Text.FontWeights.Normal) + 24),
                 "Completed" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 24),
                 "ActualTotal" => Math.Max(HeaderWidth(column), TextWidth("0000.00", Microsoft.UI.Text.FontWeights.Normal) + 24),
+                "Link" => Math.Max(HeaderWidth(column), TextWidth("リンク", Microsoft.UI.Text.FontWeights.Normal) + 24),
                 "Status" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.StatusText)) + 24),
                 "Progress" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.ProgressCellText)) + 24),
                 "ActualDay" => Math.Max(HeaderWidth(column), TextWidth("時間 (H)", Microsoft.UI.Text.FontWeights.Normal) + 24),
@@ -464,6 +466,12 @@ public sealed partial class WorkItemPage : Page
             return;
         }
 
+        if (e.ColumnKey == "Link")
+        {
+            ViewModel.OpenLinkAsync(row).Forget();
+            return;
+        }
+
         var (options, current) = e.ColumnKey switch
         {
             "Priority" => (row.Choices.Priorities, row.PriorityIndex),
@@ -497,6 +505,48 @@ public sealed partial class WorkItemPage : Page
             menu.Items.Add(item);
         }
         menu.ShowAt(cell, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
+    }
+
+    /// <summary>リンクの入力欄を、指定の場所の下に出す</summary>
+    /// <param name="row">行</param>
+    /// <param name="target">入力欄を出す場所の要素</param>
+    /// <remarks>Enter か、入力欄を閉じたときに確定する。Esc は、元のリンクのまま閉じる (保存しない)。空にして確定すると、リンクを消す。</remarks>
+    private void ShowLinkEditor(WorkItemRow row, FrameworkElement target)
+    {
+        var box = new TextBox
+        {
+            Width = 360,
+            MaxLength = WorkItemLimits.LinkMaxLength,
+            Text = row.Link,
+            PlaceholderText = "URL・フォルダ・ファイルのパス",
+            IsSpellCheckEnabled = false,
+            InputScope = new InputScope { Names = { new InputScopeName { NameValue = InputScopeNameValue.Url } } },
+        };
+        var flyout = new Flyout { Content = box, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft };
+        var cancelled = false;
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key is VirtualKey.Enter or VirtualKey.Escape)
+            {
+                e.Handled = true;
+                cancelled = e.Key == VirtualKey.Escape;
+                flyout.Hide();
+            }
+        };
+        flyout.Opened += (_, _) =>
+        {
+            box.Focus(FocusState.Programmatic);
+            box.SelectAll();
+        };
+        flyout.Closed += (_, _) =>
+        {
+            if (!cancelled)
+            {
+                ViewModel.CommitLinkAsync(row, box.Text).Forget();
+            }
+        };
+        // メニューの項目を押した処理の途中で別の入れ物を開くと、そのクリックの続きとして扱われて閉じるので、処理が済んでから開く
+        DispatcherQueue.TryEnqueue(() => flyout.ShowAt(target));
     }
 
     /// <summary>備考の入力欄を開くとき、今の備考を入れる</summary>
@@ -574,6 +624,18 @@ public sealed partial class WorkItemPage : Page
             AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkRowKind.Group, row));
         }
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
+
+        // 右クリックした所が、リンクのセルのとき (案件・グループ・作業とも)
+        if (TreeGrid.ContextColumnKey == "Link" && menu.Target is FrameworkElement linkTarget)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            AddItem(menu, "リンクを編集…", () =>
+            {
+                ShowLinkEditor(row, linkTarget);
+                return Task.CompletedTask;
+            });
+            AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink);
+        }
 
         // 右クリックした所が、作業の日付のセルのときだけ
         if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)

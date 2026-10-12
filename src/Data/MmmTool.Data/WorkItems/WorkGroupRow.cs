@@ -38,6 +38,9 @@ public sealed record WorkGroupRow
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
+    /// <summary>リンク (無いときは空文字)</summary>
+    public string Link { get; init; } = "";
+
     /// <summary>備考 (無いときは空文字)</summary>
     public string Note { get; init; } = "";
 
@@ -60,6 +63,7 @@ public sealed record WorkGroupRow
             ParentGroupId = group.ParentGroupId,
             SortOrder = group.SortOrder,
             Name = WorkRowValues.CheckText(group.Name, "グループの名前", WorkRowValues.NameMax, required: true),
+            Link = WorkRowValues.CheckText(group.Link, "グループのリンク", WorkRowValues.LinkMax),
             Note = WorkRowValues.CheckText(group.Note, "グループの備考", WorkRowValues.NoteMax),
         };
     }
@@ -73,6 +77,7 @@ public sealed record WorkGroupRow
         ParentGroupId = ParentGroupId,
         SortOrder = SortOrder,
         Name = Name,
+        Link = Link,
         Note = Note,
         IsDeleted = IsDeleted,
         UpdatedAt = UpdatedAt,

@@ -78,6 +78,9 @@ public static class WorkRowValues
     /// <summary>名前の長さの上限 (<see cref="WorkItemLimits.NameMaxLength"/>)</summary>
     public const int NameMax = WorkItemLimits.NameMaxLength;
 
+    /// <summary>リンクの長さの上限 (<see cref="WorkItemLimits.LinkMaxLength"/>)</summary>
+    public const int LinkMax = WorkItemLimits.LinkMaxLength;
+
     /// <summary>備考の長さの上限 (<see cref="WorkItemLimits.NoteMaxLength"/>)</summary>
     public const int NoteMax = WorkItemLimits.NoteMaxLength;
 }

@@ -31,6 +31,9 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
     private const int InvalidObjectName = 208;
 
+    /// <summary>列名が正しくない (列が無い)ときの SQL Server のエラー番号</summary>
+    private const int InvalidColumnName = 207;
+
     /// <inheritdoc />
     /// <remarks>ユーザーを特定していないときは 0 (読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>)。</remarks>
     public int UserId => currentUser.User?.Id ?? 0;
@@ -95,8 +98,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 connection,
                 null,
                 [
-                    ($"SELECT {Header("p")}, p.Name, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
-                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+                    ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
+                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
@@ -142,8 +145,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 connection,
                 null,
                 [
-                    ($"SELECT {Header("p")}, p.Name, p.Note FROM dbo.WorkProject p WHERE p.UpdatedAt >= @since AND {ProjectFilter("p", "Id", exclude: true)}", r => projects.Add(ReadProject(r).ToWorkProject())),
-                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM dbo.WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+                    ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.UpdatedAt >= @since AND {ProjectFilter("p", "Id", exclude: true)}", r => projects.Add(ReadProject(r).ToWorkProject())),
+                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.UpdatedAt >= @since AND {ProjectFilter("i", "ProjectId", exclude: true)}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.UpdatedAt >= @since AND r.Date = @date AND {ProjectFilter("r", "ProjectId", exclude: true)}", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
@@ -211,12 +214,16 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     }
 
     /// <inheritdoc />
-    public Task UpdateProjectAsync(int projectId, string? name, string? note, CancellationToken cancellationToken = default)
+    public Task UpdateProjectAsync(int projectId, string? name, string? link, string? note, CancellationToken cancellationToken = default)
     {
         var changes = new ColumnChanges();
         if (name is not null)
         {
             changes.Set("Name", WorkRowValues.CheckText(name, "案件の名前", WorkRowValues.NameMax, required: true));
+        }
+        if (link is not null)
+        {
+            changes.Set("Link", WorkRowValues.CheckText(link, "案件のリンク", WorkRowValues.LinkMax));
         }
         if (note is not null)
         {
@@ -288,6 +295,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         var (b, a) = (WorkGroupRow.FromWorkGroup(before), WorkGroupRow.FromWorkGroup(after));
         var changes = new ColumnChanges();
         changes.Add("Name", b.Name, a.Name);
+        changes.Add("Link", b.Link, a.Link);
         changes.Add("Note", b.Note, a.Note);
         return UpdateColumnsAsync("WorkGroup", a.Id, changes, cancellationToken);
     }
@@ -304,6 +312,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         changes.Add("DueDate", b.DueDate, a.DueDate);
         changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
+        changes.Add("Link", b.Link, a.Link);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
@@ -455,6 +464,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             {
                 throw new DataFileException("作業管理の表がデータベースにありません。管理者に、003_CreateWorkTables.sql・004_CreateCodeMaster.sql・005_SeedWorkItemCodes.sql を実行してもらってください。", ex);
             }
+            catch (SqlException ex) when (ex.Number == InvalidColumnName && ex.Message.Contains("'Link'", StringComparison.Ordinal))
+            {
+                throw new DataFileException("作業管理の表に、リンクの列がありません。管理者に、011_AddWorkLink.sql を実行してもらってください。", ex);
+            }
         }, cancellationToken);
 
     /// <summary>接続を開いて、結果を返さない処理を実行する (作業管理の表が無いときは、作成の手順を伝えるメッセージにする)</summary>
@@ -552,8 +565,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         var codes = new List<CodeMasterEntry>();
         var queries = new List<(string Sql, Action<SqlDataReader> Map)>
         {
-            ($"SELECT {Header("p")}, p.Name, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND {ProjectFilter("p", "Id", exclude)}", r => projects.Add(ReadProject(r).ToWorkProject())),
-            ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND {ProjectFilter("g", "ProjectId", exclude)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+            ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND {ProjectFilter("p", "Id", exclude)}", r => projects.Add(ReadProject(r).ToWorkProject())),
+            ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND {ProjectFilter("g", "ProjectId", exclude)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
             ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND {ProjectFilter("i", "ProjectId", exclude)}", r => items.Add(ReadItem(r).ToWorkItem())),
         };
         if (withMaster)
@@ -595,7 +608,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (14 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -609,7 +622,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         UpdatedAt = r.GetDateTimeOffset(4),
         UpdatedByUserId = r.GetInt32(5),
         Name = r.GetString(6),
-        Note = r.GetString(7),
+        Link = r.GetString(7),
+        Note = r.GetString(8),
     };
 
     /// <summary>グループの行を読む</summary>
@@ -627,7 +641,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         ParentGroupId = r.GetInt32(7),
         SortOrder = r.GetInt32(8),
         Name = r.GetString(9),
-        Note = r.GetString(10),
+        Link = r.GetString(10),
+        Note = r.GetString(11),
     };
 
     /// <summary>作業の行を読む</summary>
@@ -652,9 +667,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         CompletedDate = DateOnly.FromDateTime(r.GetDateTime(14)),
         PlannedHours = r.GetDecimal(15),
         ActualTotalHours = r.GetDecimal(16),
-        StatusCodeNo = r.GetInt32(17),
-        ProgressCodeNo = r.GetInt32(18),
-        Note = r.GetString(19),
+        Link = r.GetString(17),
+        StatusCodeNo = r.GetInt32(18),
+        ProgressCodeNo = r.GetInt32(19),
+        Note = r.GetString(20),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

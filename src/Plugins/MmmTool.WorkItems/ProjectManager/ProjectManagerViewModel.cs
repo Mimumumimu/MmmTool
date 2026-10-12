@@ -135,7 +135,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
 
         try
         {
-            var error = await service.UpdateProjectAsync(item.Id, name, null);
+            var error = await service.UpdateProjectAsync(item.Id, name, null, null);
             if (error is null)
             {
                 item.SavedName = name;
