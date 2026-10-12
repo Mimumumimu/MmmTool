@@ -83,7 +83,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ### MmmBatch (リマインダーの送信。設計は [docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
 土台 (ソリューション・exe・トレイ常駐・送信の処理・DB の保存先・送信の状況の画面・接続の設定画面)と、MmmTool 側の送信先の登録と選択は実装済み。DB の表は作成済み (2026-10-08)。実機で動かした確認は、まだ。
-- **MmmBatch の配布の形**: 出力の形 (Lib・ライセンス全文・発行プロファイル)は MmmTool と同じにした (2026-10-12。[docs/build-and-distribution.md](docs/build-and-distribution.md))。版・説明書 `Distribution/README.txt`・MmmBatch の README は、ユーザーが「いったん不要」と決めた (サーバー用の特別なアプリで、使う人が限られるため)。残りは、別のアプリのアイコン (今は MmmTool と同じ。画像は、ユーザーが用意する)
+- **MmmBatch の配布の形**: 出力の形 (Lib・ライセンス全文・発行プロファイル)は MmmTool と同じにした (2026-10-12。[docs/build-and-distribution.md](docs/build-and-distribution.md))。版・説明書 `Distribution/README.txt`・MmmBatch の README は、ユーザーが「いったん不要」と決めた (サーバー用の特別なアプリで、使う人が限られるため)。アイコンは MmmTool と別にした (2026-10-12。緑の角丸の四角・白い歯車・紫の再生マーク)
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
 実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)と画面 (設定ページの保存先・初回の保存先の選択・宛先・削除の出し分け)は実装済み。
