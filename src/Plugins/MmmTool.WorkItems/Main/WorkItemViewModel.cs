@@ -95,9 +95,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>担当者に選べる人 (先頭は未割り当て)</summary>
+    /// <summary>担当者に選べる人 (先頭は未割り当て、次が自分、そのあとは表示名の順)</summary>
     public IReadOnlyList<WorkAssignee> AssigneeChoices
-        => [new WorkAssignee(0, "未割り当て", true), .. _service.Assignees.Where(a => a.IsSelectable)];
+    {
+        get
+        {
+            var selectable = _service.Assignees.Where(a => a.IsSelectable).ToList();
+            return
+            [
+                new WorkAssignee(0, "未割り当て", true),
+                .. selectable.Where(a => a.UserId == _service.UserId),
+                .. selectable.Where(a => a.UserId != _service.UserId),
+            ];
+        }
+    }
 
     /// <summary>行が 1 つも無いか (案内を出す)</summary>
     [ObservableProperty]
