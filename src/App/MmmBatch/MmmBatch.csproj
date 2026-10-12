@@ -25,6 +25,16 @@
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- 配布物のフォルダ名 (説明書と版は持たない。bin\<構成>\publish\MmmBatch\) -->
+    <DistributionFolderName>MmmBatch</DistributionFolderName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ライセンス (MIT License の本文)。アプリ本体の Assets\Licenses に置く (MmmTool と同じ。同梱ライブラリのライセンス全文は共有の発行の仕組みが作る) -->
+    <None Include="..\..\..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
@@ -55,11 +65,6 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
-  <!-- Publish Properties -->
-  <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <!-- トリミングは自己完結のときだけ使える。フレームワーク依存なので無効 -->
-    <PublishTrimmed>False</PublishTrimmed>
-  </PropertyGroup>
+  <!-- ビルドの出力と配布物の作り方 (Lib への移動・ライセンス全文・発行の設定)は MmmTool と共通 -->
+  <Import Project="..\..\..\build\AppDistribution.targets" />
 </Project>

@@ -83,10 +83,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ### MmmBatch (リマインダーの送信。設計は [docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
 土台 (ソリューション・exe・トレイ常駐・送信の処理・DB の保存先・送信の状況の画面・接続の設定画面)と、MmmTool 側の送信先の登録と選択は実装済み。DB の表は作成済み (2026-10-08)。実機で動かした確認は、まだ。
-- **MmmBatch の配布の形** (課題。2026-10-08)。今は暫定で、`scripts/update_and_publish.bat` が、MmmBatch を、普通のフレームワーク依存の発行 (`dotnet publish MmmBatch.csproj -c Release -r win-x64 --self-contained false -o src\App\MmmBatch\bin\Release\publish\MmmBatch`。DLL は EXE の横に並ぶ約 100 ファイル)で出す。MmmTool と同じ形にする作業が残っている
-  - 案 (おすすめ): MmmTool の `csproj` にある発行の仕組み (DLL を `Lib` へ移す・`THIRD-PARTY-NOTICES.txt` の自動生成・`PackageDistribution` で版のフォルダ + 説明書 + アプリ本体の形にする)を、共有のファイル (例: `build/AppDistribution.targets`)に取り出し、MmmTool と MmmBatch の両方が読み込む。アプリごとに違う値 (アプリ名・説明書の場所)だけを各 `csproj` に書く。複製しない (同じものを写さないルール)。MmmTool の発行が、これまでと同じ配布物になることを、中身を比べて確かめる
-  - 足すもの: MmmBatch の発行プロファイル・説明書 `Distribution/README.txt` (変更履歴つき・必要環境: .NET Desktop Runtime と Windows App Runtime をサーバーに入れる)・ライセンスの同梱・MmmBatch の README・版の決め方 (おすすめ: MmmTool とは別の版)・別のアプリのアイコン (今は MmmTool と同じ。画像は、ユーザーが用意する)
-  - 暫定の発行は、ライセンス全文 (`THIRD-PARTY-NOTICES.txt`)が付かない。公開・配布する前に、上の作業を済ませる
+- **MmmBatch の配布の形**: 出力の形 (Lib・ライセンス全文・発行プロファイル)は MmmTool と同じにした (2026-10-12。[docs/build-and-distribution.md](docs/build-and-distribution.md))。版・説明書 `Distribution/README.txt`・MmmBatch の README は、ユーザーが「いったん不要」と決めた (サーバー用の特別なアプリで、使う人が限られるため)。残りは、別のアプリのアイコン (今は MmmTool と同じ。画像は、ユーザーが用意する)
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
 実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)と画面 (設定ページの保存先・初回の保存先の選択・宛先・削除の出し分け)は実装済み。
@@ -103,6 +100,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ### 調査中
 - **CLI補助の送信で、まれに Enter が効かない** (貼り付けが `[Pasted text …]` のまま入力欄に残る。2026-10-09 から)。調査用の記録を SDK に入れてある (`TEMP-LOG` の印の行。master に入っている。`%TEMP%\MmmTool\terminal-submit.log`)。これまでの失敗は、どれも添付つきの送信。失敗の記録が取れたら、Enter を出す条件を直し、記録を外す。経緯と方針は [docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「送信の Enter は、貼り付けの出力が落ち着いてから送る」
+
+### そのうち (方向だけ)
+- サーバー側のビルド (GitHub Actions)で、タグを付けたら発行からリリースまで自動で行う。ユーザーが試したがっている (2026-10-12)。リポジトリは公開で、Actions は無料。調べること: 手元と同じ配布物になるか、`dotnet publish` の時間、SDK の取得。最初は、zip を実行結果の添付に置くだけの手動実行で試す。今回の 0.2.0 は手動で出した
 
 ### ユーザーが用意するもの待ち
 - README.md の画像 (制約: 画像はユーザーが用意する。リンクの中身などがまだ決まっておらず、撮れない)。届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える (CLI補助の `cli-assist.jpg` と同じ形): リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`・通知ダイアログ `notification.png`・リマインダーのメイン画面 `reminders.png`

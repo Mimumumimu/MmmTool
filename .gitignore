@@ -187,6 +187,7 @@ publish/
 *.pubxml
 # フォルダーへの発行プロファイル (秘密の情報を含まない)は入れる。VS の「発行」を clone 直後から使えるようにするため
 !src/App/MmmTool/Properties/PublishProfiles/win-x64.pubxml
+!src/App/MmmBatch/Properties/PublishProfiles/win-x64.pubxml
 *.publishproj
 
 # Microsoft Azure Web App publish settings. Comment the next line if you want to
