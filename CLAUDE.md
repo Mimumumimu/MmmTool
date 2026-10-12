@@ -46,7 +46,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - CLI補助のタブで、ターミナルの中で直接 `cd` したとき、タブ名が実際のフォルダとずれ、同じフォルダのタブも防げない (同じフォルダを断るのは、アプリが開く入口の「＋」・作業ディレクトリ変更だけ)。シェル統合 (シェルから今のフォルダを知らせてもらう仕組み)は入れない ([docs/specs/cli-assist.md](docs/specs/cli-assist.md) の「決定の理由」の「複数のセッションをタブで持つ」)
 - **全部の表に共通の列 (共通ヘッダー。`IsDeleted`・`CreatedAt`・`CreatedByUserId`・`UpdatedAt`・`UpdatedByUserId` の 5 列。[database.md](docs/specs/database.md))のうち、`CreatedAt`・`CreatedByUserId`・`UpdatedByUserId` を、検索の条件・結合・索引の列に使わない**。人や持ち主で絞るときは、その表の業務の列 (作業の担当者 `AssigneeUserId` など)で絞る。共通の列で使ってよいのは、`IsDeleted` (論理削除の除外)と `UpdatedAt` (差分の取得。他の人の更新の反映)だけ。共通の列は記録のための列で、意味の薄い表もある
   - **Why:** 作業報告の実績を、記録を付けた人 (`CreatedByUserId`)で絞る案に、その列を含む索引を足そうとして、「共通ヘッダーは条件に使わない。担当で抽出する」と指摘された (ユーザーの決定。2026-10-12)
-  - 日ごとの記録 (`WorkRecord`)も、同じ考え方で、作業ごと・日ごとに 1 件にする (一意の索引は `(WorkItemId, Date)`。人は区別しない。[docs/specs/work-report.md](docs/specs/work-report.md))。リマインダーの `ReminderState` は、作成者ではなく、業務の列 `UserId` で人ごとに持つ
+  - 日ごとの記録 (`WorkRecord`)は、作業ごと・日ごとに 1 件にする (一意の索引は `(WorkItemId, Date)`。人は区別しない。[docs/specs/work-report.md](docs/specs/work-report.md))。リマインダーの `ReminderState` は、業務の列 `UserId` で人ごとに持つ。**例外は無い**: リマインダーは作った人を `AuthorUserId`、通知の送信先は使う人を `UserId` の業務の列で持つ ([docs/specs/database.md](docs/specs/database.md) の「共通ヘッダーの列を条件に使っている処理の直し」)
+- **DB の列を足すときは、列の並びを設計する** (`ALTER` で末尾に足すだけにしない)。意味のまとまりで位置を決めて、[database.md](docs/specs/database.md) の表の定義に書き、作成スクリプトは設計した並びで作る。すでにある DB の並びは、更新用のスクリプトで足したあと、ユーザーが SSMS で直す (表を作り直す処理は、勝手に書かない)
+  - **Why:** リマインダーに `AuthorUserId`、送信先に `UserId` を足したとき、何も考えずに末尾へ足す形にして、「列の順番の設計もしっかり。何も考えずに後ろに足すのはやめて」と言われた (2026-10-12)
 - **DB の `DELETE` 文は、基本、使わない (禁止)**。ユーザーに「消して」と言われたときだけ、対象 (サーバー・データベース・表・条件・消す行数)を伝えて、**確認を取ってから**実行する (確認の返事が、実行の許可。許可は、その 1 回の分だけ)。消すときは、条件を絞り (主キーなど。条件なしの `DELETE` は、しない)、実行の前に、対象の行を読んで見せる。実行のあとは、IDENTITY の次の番号に抜けが出る (嫌われている)ので、戻すか (`DBCC CHECKIDENT ... RESEED`)も、あわせて確認する。アプリのコードは、元から、物理削除をしない (論理削除だけ。[database.md](docs/specs/database.md))
   - **Why:** 動作確認のやり直しのために、確認なしで `DELETE` を流し、IDENTITY の番号が抜けた。ユーザーは、`DELETE` 文も、番号の抜けも、嫌い (2026-10-09)
 - コミット・push は、どこで作業しているかで決まりが違う。どちらでも、強制 push・履歴の書き換えは、ユーザーが「OK」と許可したときだけ行う (許可が無いときはしない。許可は、その作業の分だけ。次回は、また許可を取る)。共有部品の SDK (`external/MmmSdk`。[docs/architecture.md](docs/architecture.md) の「決定の理由」)を直したときは、SDK の中 (アプリ側と同じ種類のブランチ。下の判定に従う)で先にコミット・push してから、アプリ側で `external/MmmSdk` の参照先を更新してコミットする
@@ -78,6 +80,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ### DB 保存 (SQL Server が最初。設計は [docs/specs/database.md](docs/specs/database.md))
 実装したら消し、説明は docs に移す。作業は小さな単位に分ける。DB のコードの置き場所は [docs/architecture.md](docs/architecture.md) の「決定の理由」の「DB のコードは、機能とは別の `MmmTool.Data` にまとめる」。土台 (表・行のクラス・ユーザー・保存先・接続の設定・DI・起動時のユーザー特定)と画面 (設定ページの保存先・初回の保存先の選択・宛先・削除の出し分け)は実装済み。
+- **開発用 DB の列の並び** (2026-10-12): `Reminder.AuthorUserId` と `NotificationChannel.UserId` は、更新用スクリプト `010` が末尾に足した。設計した並び (`AuthorUserId` は `TargetUserId` の前、`UserId` は `Kind` の前。[docs/specs/database.md](docs/specs/database.md))に、ユーザーが SSMS で直す。新しく作る DB は、作成スクリプト (`001`・`002`)が設計どおりの並びで作る
 - DB のバックアップの計画 (今は一度も取っていない。復旧モデルは単純なので、全体のバックアップを定期的に取る形を、ユーザーと相談する)
 - 接続用のパスワード (検証用に簡単なもの)を、本番用に替えるか (`ALTER LOGIN [MmmTool] WITH PASSWORD = N'新しいもの'`。アプリの設定画面で入れ直す)
 - 置き場所の基準 (DB の表か、この PC の設定か): 他の人と共有するなら DB、その人の見え方の選択 (表示列・表示する案件など)は、この PC の設定。別の PC から追いかけてほしいかは、ユーザーが決める要件 ([docs/specs/database.md](docs/specs/database.md) の「決定の理由」)

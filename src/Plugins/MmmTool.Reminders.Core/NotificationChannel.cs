@@ -13,9 +13,12 @@ public sealed record NotificationChannel
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted { get; init; }
 
-    /// <summary>登録したユーザー (<c>AppUser.Id</c>)</summary>
-    /// <remarks>DB が持つ値を読むだけ (保存先が、作成するときに今のユーザーを入れる。更新では変えない)。</remarks>
-    public int CreatedByUserId { get; init; }
+    /// <summary>使用者のユーザー (<c>AppUser.Id</c>)。この送信先を使う人</summary>
+    /// <remarks>
+    /// DB が持つ値を読むだけ (保存先が、作成するときに、登録した今のユーザーを入れる。更新では変えない)。一覧・選択・更新・削除の条件に使う業務の列 (DB の <c>UserId</c>)。
+    /// 共通ヘッダーの <c>CreatedByUserId</c> は、条件に使わない。
+    /// </remarks>
+    public int UserId { get; init; }
 
     /// <summary>区分</summary>
     public NotificationChannelKind Kind { get; init; }

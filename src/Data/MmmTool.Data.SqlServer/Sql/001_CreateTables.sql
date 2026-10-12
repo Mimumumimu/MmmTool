@@ -25,7 +25,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUser_LoginName' AN
 CREATE UNIQUE INDEX UX_AppUser_LoginName ON dbo.AppUser (LoginName) WHERE IsDeleted = 0;
 GO
 
--- リマインダー。宛先 TargetUserId の 0 は全員宛て。Weekdays は月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数 (0 は曜日指定では毎日)
+-- リマインダー。作成者 AuthorUserId (作った人。見える範囲の条件に使う。共通ヘッダーの CreatedByUserId は条件に使わない)と、宛先 TargetUserId の 0 は全員宛て。人を表す 2 つの列を続けて並べる (010 の更新用スクリプトは、すでにある表に末尾へ足すだけなので、並びは、この作成スクリプトの形が正)。Weekdays は月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数 (0 は曜日指定では毎日)
 IF OBJECT_ID(N'dbo.Reminder', N'U') IS NULL
 CREATE TABLE dbo.Reminder
 (
@@ -35,6 +35,7 @@ CREATE TABLE dbo.Reminder
     CreatedByUserId int             NOT NULL CONSTRAINT CK_Reminder_CreatedByUserId CHECK (CreatedByUserId >= 0),
     UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_Reminder_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_Reminder_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
+    AuthorUserId    int             NOT NULL CONSTRAINT DF_Reminder_AuthorUserId DEFAULT (0) CONSTRAINT CK_Reminder_AuthorUserId CHECK (AuthorUserId >= 0),
     TargetUserId    int             NOT NULL CONSTRAINT CK_Reminder_TargetUserId CHECK (TargetUserId >= 0),
     Date            date            NOT NULL CONSTRAINT DF_Reminder_Date DEFAULT ('9999-12-31'),
     Time            time(0)         NOT NULL,

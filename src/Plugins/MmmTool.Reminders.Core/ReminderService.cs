@@ -39,17 +39,12 @@ public sealed class ReminderService
     public string? RecoveryMessage => _repository.RecoveryMessage;
 
     /// <summary>今のユーザーの番号。ローカルモードは 0</summary>
-    /// <remarks>一覧で、削除の操作を出すか (作成者だけができる: <see cref="Reminder.CreatedByUserId"/>)を判断するために使う。</remarks>
+    /// <remarks>宛先の選択や、送信先の表示を出すかの判断に使う (削除は、見える人ならできるので、判断に使わない)。</remarks>
     public int CurrentUserId => _repository.CurrentUserId;
 
     /// <summary>完全削除ができるか (DB モードではできない)</summary>
     /// <remarks>false のとき、画面は、完全削除の操作を出さない。</remarks>
     public bool CanPurge => _repository.CanPurge;
-
-    /// <summary>今のユーザーが、このリマインダーを削除 (論理削除)できるか</summary>
-    /// <param name="reminder">対象のリマインダー</param>
-    /// <returns>作成者を持たない (ローカルモード)か、今のユーザーが作成者なら true</returns>
-    public bool CanDelete(Reminder reminder) => reminder.CreatedByUserId == 0 || reminder.CreatedByUserId == CurrentUserId;
 
     /// <summary>時刻が正しくないリマインダーがあるときの警告 (番号つき)。無ければ null。</summary>
     /// <remarks>

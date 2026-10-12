@@ -13,14 +13,14 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// </summary>
 /// <remarks>
 /// 読むたびに DB から読む (件数が少なく、メモリに持たない)。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
-/// 一覧に出るのは、自分が登録したものだけ。
+/// 一覧に出るのは、自分が使用者のもの (<c>UserId</c> が自分)だけ。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase database, CurrentUser currentUser) : INotificationChannelRepository
 {
     /// <summary>読む列 (<see cref="ReadRow"/> の並び)</summary>
-    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, Kind, Name, Value";
+    private const string Columns = "Id, IsDeleted, CreatedAt, UserId, UpdatedAt, UpdatedByUserId, Kind, Name, Value";
 
     /// <inheritdoc />
     public bool IsAvailable => true;
@@ -36,7 +36,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
         return SendTableAccess.RunAsync<IReadOnlyList<NotificationChannel>>(database, async connection =>
         {
             await using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Columns} FROM dbo.NotificationChannel WHERE CreatedByUserId = @UserId"
+            command.CommandText = $"SELECT {Columns} FROM dbo.NotificationChannel WHERE UserId = @UserId"
                 + (includeDeleted ? "" : " AND IsDeleted = 0")
                 + " ORDER BY Id";
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
@@ -52,19 +52,6 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
-    public Task<NotificationChannel?> FindAsync(int id, CancellationToken cancellationToken = default)
-        => SendTableAccess.RunAsync<NotificationChannel?>(database, async connection =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Columns} FROM dbo.NotificationChannel WHERE Id = @Id";
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadRow(reader).ToChannel() : null;
-        }, cancellationToken);
-
-    /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
@@ -76,9 +63,9 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
-                INSERT INTO dbo.NotificationChannel (CreatedByUserId, UpdatedByUserId, Kind, Name, Value)
+                INSERT INTO dbo.NotificationChannel (CreatedByUserId, UpdatedByUserId, UserId, Kind, Name, Value)
                 OUTPUT INSERTED.Id
-                VALUES (@UserId, @UserId, @Kind, @Name, @Value)
+                VALUES (@UserId, @UserId, @UserId, @Kind, @Name, @Value)
                 """;
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
             command.Parameters.Add(new SqlParameter("@Kind", SqlDbType.TinyInt) { Value = row.Kind });
@@ -86,7 +73,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
             command.Parameters.Add(new SqlParameter("@Value", SqlDbType.NVarChar, NotificationChannelRules.ValueMaxLength) { Value = row.Value });
 
             var id = (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-            return (row with { Id = id, CreatedByUserId = userId, UpdatedByUserId = userId }).ToChannel();
+            return (row with { Id = id, CreatedByUserId = userId, UserId = userId, UpdatedByUserId = userId }).ToChannel();
         }, cancellationToken);
     }
 
@@ -99,13 +86,13 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
         var userId = SendTableAccess.RequireUserId(currentUser);
         return SendTableAccess.RunAsync(database, async connection =>
         {
-            // 自分が登録したものだけ、区分は変えずに、名前と値を更新する
+            // 自分が使用者のものだけ、区分は変えずに、名前と値を更新する
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
                 UPDATE dbo.NotificationChannel
                 SET Name = @Name, Value = @Value, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND CreatedByUserId = @UserId AND Kind = @Kind
+                WHERE Id = @Id AND UserId = @UserId AND Kind = @Kind
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = row.Id });
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
@@ -128,7 +115,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
                 """
                 UPDATE dbo.NotificationChannel
                 SET IsDeleted = @IsDeleted, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND CreatedByUserId = @UserId
+                WHERE Id = @Id AND UserId = @UserId
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
@@ -145,7 +132,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
         Id = reader.GetInt32(0),
         IsDeleted = reader.GetBoolean(1),
         CreatedAt = reader.GetDateTimeOffset(2),
-        CreatedByUserId = reader.GetInt32(3),
+        UserId = reader.GetInt32(3),
         UpdatedAt = reader.GetDateTimeOffset(4),
         UpdatedByUserId = reader.GetInt32(5),
         Kind = reader.GetByte(6),

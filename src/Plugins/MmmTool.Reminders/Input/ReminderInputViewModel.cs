@@ -141,7 +141,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
     /// <see cref="Load"/> のあとに呼ぶ。送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
-    /// 編集で、保存されている送信先がほかの人の登録のときも、保存で外れないよう、選択肢に足す。
+    /// 出すのは、自分が登録した送信先だけ (ほかの人の送信先は、出さず、保存でも触らない)。
     /// 読み込めなかったとき (接続できない・表が無い)は、エラーを出して、送信先の欄を出さない。
     /// </remarks>
     public async Task LoadChannelsAsync()
@@ -169,12 +169,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
                 ChannelOptions.Add(new ReminderChannelOption(channel.Id, channel.Kind, channel.Name, _initialChannelIds.Contains(channel.Id)));
             }
 
-            // 保存されている送信先がほかの人の登録のときも、保存で外れないよう、選択肢に足す (チェックを入れたまま)
-            foreach (var channelId in _initialChannelIds.Where(id => ChannelOptions.All(option => option.Id != id)))
-            {
-                var other = await _channels.FindAsync(channelId);
-                ChannelOptions.Add(new ReminderChannelOption(channelId, other?.Kind, other?.Name ?? $"送信先 {channelId}", isChecked: true));
-            }
             HasNoChannels = ChannelOptions.Count == 0;
         }
         catch (DataFileException ex)

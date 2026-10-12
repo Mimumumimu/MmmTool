@@ -24,7 +24,7 @@ public interface IReminderRepository
     /// <summary>今のユーザーの番号 (<c>AppUser.Id</c>)。ローカルモードは 0</summary>
     /// <remarks>
     /// 通知・今日のリマインダーの対象 (宛先が自分と全員宛て)を決めるために使う。一覧に出るのは、これに加えて、自分が作成したもの
-    /// (<see cref="Reminder.CreatedByUserId"/>)。まだ特定していないときも 0。
+    /// (<see cref="Reminder.AuthorUserId"/>)。まだ特定していないときも 0。
     /// </remarks>
     int CurrentUserId { get; }
 

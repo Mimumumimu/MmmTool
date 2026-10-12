@@ -131,16 +131,16 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             command.CommandText =
                 """
                 INSERT INTO dbo.Reminder
-                    (IsDeleted, CreatedByUserId, UpdatedByUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak)
+                    (IsDeleted, CreatedByUserId, UpdatedByUserId, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak)
                 OUTPUT INSERTED.Id
                 VALUES
-                    (@IsDeleted, @UserId, @UserId, @TargetUserId, @Date, @Time, @Weekdays, @Title, @Note, @Link, @IsSpeak)
+                    (@IsDeleted, @UserId, @UserId, @UserId, @TargetUserId, @Date, @Time, @Weekdays, @Title, @Note, @Link, @IsSpeak)
                 """;
             AddUserParameter(command, userId);
             AddReminderParameters(command, row);
             return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
         }, cancellationToken).ConfigureAwait(false);
-        return (row with { Id = id, CreatedByUserId = _currentUser.Id }).ToReminder();
+        return (row with { Id = id, CreatedByUserId = _currentUser.Id, AuthorUserId = _currentUser.Id }).ToReminder();
     }
 
     /// <inheritdoc />
@@ -160,7 +160,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
                     TargetUserId = @TargetUserId, Date = @Date, Time = @Time, Weekdays = @Weekdays,
                     Title = @Title, Note = @Note, Link = @Link, IsSpeak = @IsSpeak,
                     UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND (TargetUserId IN (0, @UserId) OR CreatedByUserId = @UserId)
+                WHERE Id = @Id AND (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId)
                 """;
             AddUserParameter(command, userId);
             AddReminderParameters(command, row);
@@ -170,7 +170,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <remarks>作成者だけが変えられる。作成者でないときは、対象が無いのと同じ (false)。</remarks>
+    /// <remarks>見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる (編集と同じ)。見えないときは、対象が無いのと同じ (false)。</remarks>
     public Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default)
         => WriteAsync(async (connection, transaction, userId) =>
         {
@@ -180,7 +180,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
                 """
                 UPDATE dbo.Reminder
                 SET IsDeleted = @IsDeleted, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND CreatedByUserId = @UserId
+                WHERE Id = @Id AND (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId)
                 """;
             AddUserParameter(command, userId);
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = no });
@@ -416,9 +416,9 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         {
             command.CommandText =
                 """
-                SELECT Id, IsDeleted, CreatedByUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak
+                SELECT Id, IsDeleted, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak
                 FROM dbo.Reminder
-                WHERE TargetUserId IN (0, @UserId) OR CreatedByUserId = @UserId
+                WHERE TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId
                 ORDER BY Id
                 """;
             AddUserParameter(command, userId);
@@ -429,7 +429,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
                 {
                     Id = reader.GetInt32(0),
                     IsDeleted = reader.GetBoolean(1),
-                    CreatedByUserId = reader.GetInt32(2),
+                    AuthorUserId = reader.GetInt32(2),
                     TargetUserId = reader.GetInt32(3),
                     Date = DateOnly.FromDateTime(reader.GetDateTime(4)),
                     Time = TimeOnly.FromTimeSpan(reader.GetTimeSpan(5)),
