@@ -40,11 +40,18 @@ $kiroHome = if ($env:KIRO_HOME) { $env:KIRO_HOME } else { Join-Path $env:USERPRO
 $sessionDir = Join-Path $kiroHome 'sessions\cli'
 
 # kiro-cli を動かして標準出力の行を返す。エラー出力は捨てる (結果は一覧の取り直しで確かめる)
-function Invoke-Kiro([string[]]$KiroArgs) {
-    $ErrorActionPreference = 'Continue'   # 標準エラーの出力で止まらないように (この関数の中だけ)
+# 動いている間は、スピナーと $Message を出す (kiro-cli は応答に時間がかかり、何も出さないと止まって見えるため)
+function Invoke-Kiro([string[]]$KiroArgs, [string]$Message) {
     $old = [Console]::OutputEncoding
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-    try { return @(& kiro-cli @KiroArgs 2>$null) }
+    try {
+        $lines = Invoke-WithSpinner $Message {
+            param($KiroArgs)
+            $ErrorActionPreference = 'Continue'   # 標準エラーの出力で止まらないように
+            & kiro-cli @KiroArgs 2>$null
+        } @(, $KiroArgs)
+        return @($lines | ForEach-Object { [string]$_ })
+    }
     finally { [Console]::OutputEncoding = $old }
 }
 
@@ -63,8 +70,8 @@ function Format-Title($Title) {
 }
 
 # 全作業フォルダのセッションを、フォルダごとにまとめて新しい順に返す
-function Get-Groups {
-    $text = (Invoke-Kiro @('chat', '--list-sessions', '--all-cwds', '--format', 'json')) -join "`n"
+function Get-Groups([string]$Message = 'セッション一覧を読み込んでいます…') {
+    $text = (Invoke-Kiro @('chat', '--list-sessions', '--all-cwds', '--format', 'json') $Message) -join "`n"
     $start = $text.IndexOfAny([char[]]@('[', '{'))
     if ($start -lt 0) { return @() }
     try { $data = ConvertFrom-Json -InputObject $text.Substring($start) }
@@ -100,11 +107,11 @@ function Get-Sessions([object[]]$Groups) {
     @($Groups | ForEach-Object { $_.Sessions } | Sort-Object Updated -Descending)
 }
 
-function Remove-KiroSession([string]$Id) {
+function Remove-KiroSession([string]$Id, [string]$Message) {
     # ID はファイル名に使うので、英数字・ハイフン・アンダースコアだけを受け付ける
     if ($Id -notmatch '^[0-9A-Za-z_-]+$') { return }
     # v3 のセッションは、削除できていても「見つからない」というエラーが出るので、結果は呼び出し側が一覧の取り直しで確かめる
-    [void](Invoke-Kiro @('chat', '--delete-session', $Id))
+    [void](Invoke-Kiro @('chat', '--delete-session', $Id) $Message)
     foreach ($ext in 'history', 'lock') {
         $path = Join-Path $sessionDir "$Id.$ext"
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force }
@@ -159,10 +166,15 @@ while ($true) {
         }
         $answer = Read-Host '実行しますか？ (y/N)'
         if ($answer -match '^[yY]') {
-            foreach ($t in $targets) { Remove-KiroSession $t.Id }
+            $count = @($targets).Count
+            $n = 0
+            foreach ($t in $targets) {
+                $n++
+                Remove-KiroSession $t.Id ('削除しています ({0}/{1}) {2:yyyy-MM-dd HH:mm} | {3}' -f $n, $count, $t.Updated, $t.Title)
+            }
 
             # 一覧を取り直して、消えたかを確かめる。同じフォルダのセッション選択へ戻る (残りが 1 件も無ければフォルダ選択へ)
-            $groups = Get-Groups
+            $groups = Get-Groups '削除できたかを確かめています…'
             $remainIds = @($groups | ForEach-Object { $_.Sessions } | ForEach-Object { $_.Id })
             $failed = @($targets | Where-Object { $remainIds -contains $_.Id })
             if ($failed.Count -gt 0) {

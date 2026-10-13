@@ -151,3 +151,39 @@ function Read-Selection([object[]]$Items, [scriptblock]$Format, [string]$Prompt,
     if ([Console]::IsInputRedirected) { return Read-SelectionText $Items $Format $Prompt $BackLabel }
     return Read-SelectionMenu $Items $Format $Prompt $BackLabel
 }
+
+# 時間のかかる処理 ($Action)を別のスレッドで動かし、終わるまで、スピナーと $Message を 1 行に出し続ける。
+# $Action は独立して動くので、このスクリプトの関数や変数は見えない。値は $ArgumentList で渡し、$args で受け取る。
+# 戻り値は $Action の出力。出力がリダイレクトされているときは、文言を 1 行だけ出して、そのまま動かす。
+function Invoke-WithSpinner([string]$Message, [scriptblock]$Action, [object[]]$ArgumentList = @()) {
+    if ([Console]::IsOutputRedirected) {
+        Write-Host $Message
+        return (& $Action @ArgumentList)
+    }
+
+    $esc = [char]27
+    $frames = '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'
+    $ps = [powershell]::Create()
+    $oldVisible = [Console]::CursorVisible
+    try {
+        [void]$ps.AddScript($Action.ToString())
+        foreach ($a in $ArgumentList) { [void]$ps.AddArgument($a) }
+        $async = $ps.BeginInvoke()
+        [Console]::CursorVisible = $false
+        $i = 0
+        while (-not $async.IsCompleted) {
+            $text = Limit-CellWidth "$($frames[$i % $frames.Count]) $Message" ([Console]::WindowWidth - 1)
+            Write-Host -NoNewline "`r$text$esc[K" -ForegroundColor Cyan
+            $i++
+            Start-Sleep -Milliseconds 100
+        }
+        return $ps.EndInvoke($async)
+    }
+    finally {
+        # スピナーの行を消して、次の出力がその行から始まるようにする。Ctrl+C で抜けるときは、処理も止める
+        if (-not $async -or -not $async.IsCompleted) { $ps.Stop() }
+        Write-Host -NoNewline "`r$esc[K"
+        [Console]::CursorVisible = $oldVisible
+        $ps.Dispose()
+    }
+}
