@@ -163,7 +163,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         }, cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
         => RunAsync<IReadOnlyList<WorkProjectEntry>>(
             connection =>
             {
@@ -178,6 +178,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     WHERE p.IsDeleted = 0
                       AND (@query = '' OR p.Name LIKE '%' || @query || '%' ESCAPE '\')
                       AND (@activeOnly = 0 OR NOT {finished})
+                      AND (@selectedOnly = 0 OR {ProjectFilter("p", "Id", exclude: true)})
                     ORDER BY CASE WHEN @selectedFirst = 1 AND {ProjectFilter("p", "Id", exclude: true)} THEN 0 ELSE 1 END, p.Name, p.Id
                     LIMIT @count OFFSET @offset
                     """;
@@ -185,7 +186,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     connection,
                     null,
                     sql,
-                    [("@projects", ProjectsJson(hiddenProjectIds)), ("@none", NoDateText), ("@closed", (int)WorkItemStatus.Closed), ("@query", EscapeLike(query)), ("@activeOnly", activeOnly), ("@selectedFirst", selectedFirst), ("@count", count), ("@offset", offset)],
+                    [("@projects", ProjectsJson(hiddenProjectIds)), ("@none", NoDateText), ("@closed", (int)WorkItemStatus.Closed), ("@query", EscapeLike(query)), ("@activeOnly", activeOnly), ("@selectedOnly", selectedOnly), ("@selectedFirst", selectedFirst), ("@count", count), ("@offset", offset)],
                     reader => new WorkProjectEntry(
                         reader.GetInt32(0),
                         reader.GetString(1),

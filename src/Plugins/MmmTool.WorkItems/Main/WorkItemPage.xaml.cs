@@ -159,7 +159,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>表示する案件を選ぶ画面を開くとき、一覧を読み直す</summary>
     /// <param name="sender">開く入れ物</param>
     /// <param name="e">イベントの情報</param>
-    private void OnProjectsFlyoutOpening(object? sender, object e) => ViewModel.ProjectPicker.RefreshAsync().Forget();
+    private void OnProjectsFlyoutOpening(object? sender, object e) => ViewModel.ProjectPicker.OpenAsync().Forget();
 
     /// <summary>案件のチェックが押されたら、その場で保存する</summary>
     /// <param name="sender">チェックボックス</param>

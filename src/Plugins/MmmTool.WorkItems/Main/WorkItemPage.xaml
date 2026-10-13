@@ -499,8 +499,8 @@
                                 <CheckBox
                                     Grid.Row="1"
                                     MinWidth="0"
-                                    Content="進行中のみ"
-                                    IsChecked="{x:Bind ViewModel.ProjectPicker.ActiveOnly, Mode=TwoWay}" />
+                                    Content="非表示の案件も表示"
+                                    IsChecked="{x:Bind ViewModel.ProjectPicker.ShowHidden, Mode=TwoWay}" />
                                 <InfoBar
                                     Grid.Row="2"
                                     IsOpen="{x:Bind ViewModel.ProjectPicker.Error.IsOpen, Mode=TwoWay}"
@@ -544,7 +544,8 @@
                                         Margin="0,16"
                                         HorizontalAlignment="Center"
                                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Text="該当する案件がありません"
+                                        Text="{x:Bind ViewModel.ProjectPicker.EmptyText, Mode=OneWay}"
+                                        TextWrapping="Wrap"
                                         Visibility="{x:Bind ViewModel.ProjectPicker.IsEmpty, Mode=OneWay}" />
                                 </Grid>
                             </Grid>
