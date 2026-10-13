@@ -61,6 +61,14 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/Tools/">
+    <Project Path="src/Plugins/MmmTool.Tools.Core/MmmTool.Tools.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Tools/MmmTool.Tools.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/CodeMaster/">
     <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
       <Platform Project="x64" />

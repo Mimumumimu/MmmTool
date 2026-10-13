@@ -96,6 +96,7 @@
     <ProjectReference Include="..\..\Plugins\MmmTool.Links\MmmTool.Links.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.WorkItems\MmmTool.WorkItems.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Backlog\MmmTool.Backlog.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmTool.Tools\MmmTool.Tools.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.ClipboardTransfer\MmmTool.ClipboardTransfer.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
