@@ -60,13 +60,14 @@ public sealed partial class ReminderInputWindow : Window
     /// <summary>親ウィンドウの上にモーダルで表示し、閉じるまで待つ</summary>
     /// <param name="owner">親ウィンドウ</param>
     /// <param name="target">編集するリマインダー。新規なら null (コピーして新規追加のときは連番 0 の内容)</param>
+    /// <param name="copySourceNo">コピーして新規追加のときの、コピー元の連番。それ以外は 0</param>
     /// <returns>保存した内容。キャンセル・× なら null</returns>
-    public async Task<Reminder?> ShowModalAsync(Window owner, Reminder? target)
+    public async Task<Reminder?> ShowModalAsync(Window owner, Reminder? target, int copySourceNo = 0)
     {
         ViewModel.Load(target);
         // 宛先の欄が空のまま見えないよう、選択肢を作ってから出す
         await ViewModel.LoadTargetsAsync();
-        await ViewModel.LoadChannelsAsync();
+        await ViewModel.LoadChannelsAsync(copySourceNo);
 
         _modal.SetOwner(owner);
         this.UseFixedPresenter(isDialog: true, isResizable: false);

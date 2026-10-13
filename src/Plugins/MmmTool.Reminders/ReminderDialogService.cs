@@ -19,11 +19,11 @@ namespace MmmTool.Reminders;
 public sealed class ReminderDialogService(IServiceScopeFactory scopeFactory, IDialogHost dialogs) : IReminderDialogService
 {
     /// <inheritdoc />
-    public async Task<Reminder?> ShowInputAsync(Reminder? reminder)
+    public async Task<Reminder?> ShowInputAsync(Reminder? reminder, int copySourceNo = 0)
     {
         using var scope = scopeFactory.CreateScope();
         var window = scope.ServiceProvider.GetRequiredService<ReminderInputWindow>();
-        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, reminder));
+        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, reminder, copySourceNo));
     }
 
     /// <inheritdoc />

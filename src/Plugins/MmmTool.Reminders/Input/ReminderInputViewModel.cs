@@ -138,13 +138,15 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     public ErrorState SaveError { get; } = new();
 
     /// <summary>送信先の選択肢を作り、編集なら、保存されている送信先にチェックを入れる</summary>
+    /// <param name="copySourceNo">コピーして新規追加のときの、コピー元の連番。それ以外は 0</param>
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
     /// <see cref="Load"/> のあとに呼ぶ。送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
     /// 出すのは、自分が登録した送信先だけ (ほかの人の送信先は、出さず、保存でも触らない)。
+    /// コピーして新規追加のときは、コピー元で選ばれていた送信先のうち、自分の登録分にチェックを入れる (新規なので、保存では選んだ内容をすべて書く)。
     /// 読み込めなかったとき (接続できない・表が無い)は、エラーを出して、送信先の欄を出さない。
     /// </remarks>
-    public async Task LoadChannelsAsync()
+    public async Task LoadChannelsAsync(int copySourceNo = 0)
     {
         ChannelOptions.Clear();
         _initialChannelIds = [];
@@ -159,14 +161,23 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         {
             var mine = await _channels.GetChannelsAsync(includeDeleted: false);
             var settings = await _sendSettings.GetChannelIdsAsync();
-            if (_target is { No: > 0 } target && settings.TryGetValue(target.No, out var channelIds))
+            HashSet<int> checkedIds = [];
+            if (_target is { No: > 0 } target)
             {
-                _initialChannelIds = [.. channelIds];
+                if (settings.TryGetValue(target.No, out var channelIds))
+                {
+                    _initialChannelIds = [.. channelIds];
+                    checkedIds = _initialChannelIds;
+                }
+            }
+            else if (copySourceNo > 0 && settings.TryGetValue(copySourceNo, out var sourceIds))
+            {
+                checkedIds = [.. sourceIds];
             }
 
             foreach (var channel in mine)
             {
-                ChannelOptions.Add(new ReminderChannelOption(channel.Id, channel.Kind, channel.Name, _initialChannelIds.Contains(channel.Id)));
+                ChannelOptions.Add(new ReminderChannelOption(channel.Id, channel.Kind, channel.Name, checkedIds.Contains(channel.Id)));
             }
 
             HasNoChannels = ChannelOptions.Count == 0;
