@@ -44,7 +44,10 @@ public sealed partial class WorkReportWindow : Window
         ViewModel = viewModel;
         InitializeComponent();
 
-        const string dateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)}";
+        // 曜日は、PC の言語に依らず日本語で出す
+        const string dateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
+        ReportDatePicker.Language = "ja-JP";
+        FromDatePicker.Language = "ja-JP";
         ReportDatePicker.DateFormat = dateFormat;
         FromDatePicker.DateFormat = dateFormat;
 

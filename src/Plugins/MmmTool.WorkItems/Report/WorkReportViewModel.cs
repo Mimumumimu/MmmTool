@@ -14,18 +14,21 @@ namespace MmmTool.WorkItems.Report;
 /// 作業報告の画面。実績の開始日と報告日を決めて、実績と予定のテキストを作り、クリップボードへコピーする。
 /// </summary>
 /// <param name="service">作業管理の読み書き</param>
-/// <param name="settings">この PC の設定の保存先 (「実績に時間を出す」の選択を覚える)</param>
+/// <param name="settings">この PC の設定の保存先 (「実績に時間を出す」「進捗度を出す」の選択を覚える)</param>
 /// <param name="clipboard">クリップボード</param>
 /// <remarks>
 /// 報告日の既定は当日。実績の開始日の既定は、報告日より前で、担当が自分の作業に工数が入った直近の日 (無ければ前日)。
 /// 報告日を変えたとき、実績の開始日は常に、新しい報告日の既定に付け替える (連動。手で変えた実績の開始日も、報告日を変えると戻る)。実績の開始日だけを変えたときは、そのまま残す (報告日以降にならないよう、前日までに直す)。
-/// 保存先から読むのは、実績の開始日・報告日が変わったときだけ。「実績に時間を出す」と、手入力の追記が変わったときは、読んだ内容から作り直す (追記の入力欄は、プレビューとは別なので、条件を変えても消えない)。
+/// 保存先から読むのは、実績の開始日・報告日が変わったときだけ。「実績に時間を出す」「進捗度を出す」と、手入力の追記が変わったときは、読んだ内容から作り直す (追記の入力欄は、プレビューとは別なので、条件を変えても消えない)。
 /// 追記は、このウィンドウを開いている間だけ持つ (保存しない)。内容の規則は <see cref="WorkReportBuilder"/>。画面の表示の設定 (隠した行・表示する案件)には従わない。
 /// </remarks>
 public sealed partial class WorkReportViewModel(WorkItemService service, ISettingsStore settings, IClipboardService clipboard) : ObservableObject
 {
     /// <summary>「実績に時間を出す」の選択を残す設定のキー (この PC の設定。真偽)</summary>
     public const string ShowHoursKey = "WorkItems.Report.ShowHours";
+
+    /// <summary>「進捗度を出す」の選択を残す設定のキー (この PC の設定。真偽。既定はオン)</summary>
+    public const string ShowProgressKey = "WorkItems.Report.ShowProgress";
 
     /// <summary>今の読み込みの番号 (古い結果を捨てるため)</summary>
     private int _version;
@@ -57,6 +60,10 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
     [ObservableProperty]
     public partial bool ShowHours { get; set; }
 
+    /// <summary>実績と予定の各作業に、進捗度を添えるか</summary>
+    [ObservableProperty]
+    public partial bool ShowProgress { get; set; }
+
     /// <summary>実績の末尾に、書いたとおり足す文 (手入力。保存しない)</summary>
     [ObservableProperty]
     public partial string ExtraDone { get; set; } = "";
@@ -86,6 +93,7 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
         try
         {
             ShowHours = settings.Get(ShowHoursKey, false);
+            ShowProgress = settings.Get(ShowProgressKey, true);
             ReportDate = service.Today;
             try
             {
@@ -166,6 +174,18 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
         Rebuild();
     }
 
+    /// <summary>「進捗度を出す」が変わったら、選択を残して、読んだ内容から作り直す</summary>
+    /// <param name="value">新しい値</param>
+    partial void OnShowProgressChanged(bool value)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+        settings.SetAsync(ShowProgressKey, value).Forget();
+        Rebuild();
+    }
+
     /// <summary>実績の追記が変わったら、読んだ内容から作り直す</summary>
     /// <param name="value">新しい文</param>
     partial void OnExtraDoneChanged(string value) => Rebuild();
@@ -227,7 +247,7 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
             return;
         }
         IsCopied = false;
-        PreviewText = WorkReportBuilder.Build(_data, _dataDates.From, _dataDates.Report, ShowHours, ExtraDone, ExtraPlanned);
+        PreviewText = WorkReportBuilder.Build(_data, _dataDates.From, _dataDates.Report, ShowHours, ShowProgress, ExtraDone, ExtraPlanned);
         CanCopy = true;
     }
 

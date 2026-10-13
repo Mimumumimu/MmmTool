@@ -26,10 +26,11 @@ public static class WorkReportBuilder
     /// <param name="from">実績の開始日 (実績を拾い始める日)</param>
     /// <param name="reportDate">報告日 (予定の日。実績は、この日より前だけ)</param>
     /// <param name="showHours">実績の各作業に、期間内の工数の合計を添えるか</param>
+    /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
     /// <param name="extraDone">実績の末尾に、書いたとおり足す文 (手入力。無ければ空)</param>
     /// <param name="extraPlanned">予定の末尾に、書いたとおり足す文 (手入力。無ければ空)</param>
     /// <returns>テキスト (行の区切りは CRLF。末尾に改行は付けない)</returns>
-    public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, string extraDone = "", string extraPlanned = "")
+    public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress, string extraDone = "", string extraPlanned = "")
     {
         ArgumentNullException.ThrowIfNull(data);
         var codes = new CodeBook(data.Content.Codes);
@@ -60,24 +61,22 @@ public static class WorkReportBuilder
             var hours = WorkActualTotal.Calculate(inRange.Select(r => r.Hours));
             done.Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. inRange.SelectMany(r => Lines(r.Note))]), showHours ? hours : null));
         }
-        var doneIds = done.Select(e => e.Item.Id).ToHashSet();
 
-        // 予定: 状態が作業予定・作業中の作業。共通の備考は、実績に出した作業では実績の側にだけ出す
+        // 予定: 状態が作業予定・作業中の作業。共通の備考は、実績に出した作業でも、予定に出す
         var planned = new List<ReportEntry>();
         foreach (var item in items.Values.Where(i => i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
         {
             IEnumerable<string> todayNotes = records.TryGetValue(item.Id, out var itemRecords)
                 ? itemRecords.Where(r => r.Date == reportDate).SelectMany(r => Lines(r.Note))
                 : [];
-            IEnumerable<string> common = doneIds.Contains(item.Id) ? [] : Lines(item.Note);
-            planned.Add(new ReportEntry(item, Distinct([.. common, .. todayNotes]), null));
+            planned.Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. todayNotes]), null));
         }
 
         var builder = new StringBuilder();
         builder.Append("■実績").Append(NewLine);
-        AppendSection(builder, done, projects, groups, codes, ManualLines(extraDone));
+        AppendSection(builder, done, projects, groups, codes, showProgress, ManualLines(extraDone));
         builder.Append(NewLine).Append("■予定").Append(NewLine);
-        AppendSection(builder, planned, projects, groups, codes, ManualLines(extraPlanned));
+        AppendSection(builder, planned, projects, groups, codes, showProgress, ManualLines(extraPlanned));
         return builder.ToString().TrimEnd('\r', '\n');
     }
 
@@ -119,9 +118,10 @@ public static class WorkReportBuilder
     /// <param name="entries">区画に出す作業</param>
     /// <param name="projects">案件</param>
     /// <param name="groups">グループ</param>
-    /// <param name="codes">コードブック (状態の名前を引く)</param>
+    /// <param name="codes">コードブック (状態・進捗度の名前を引く)</param>
+    /// <param name="showProgress">各作業に、進捗度を添えるか</param>
     /// <param name="extra">区画の末尾に、書いたとおり足す手入力の行</param>
-    private static void AppendSection(StringBuilder builder, List<ReportEntry> entries, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, CodeBook codes, List<string> extra)
+    private static void AppendSection(StringBuilder builder, List<ReportEntry> entries, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, CodeBook codes, bool showProgress, List<string> extra)
     {
         if (entries.Count == 0)
         {
@@ -146,7 +146,7 @@ public static class WorkReportBuilder
         foreach (var root in roots.Values.OrderBy(n => n.Name, StringComparer.CurrentCulture).ThenBy(n => n.Id))
         {
             builder.Append('【').Append(root.Name).Append('】').Append(NewLine);
-            AppendChildren(builder, root, 1, codes);
+            AppendChildren(builder, root, 1, codes, showProgress);
         }
         AppendExtra(builder, extra);
     }
@@ -216,14 +216,15 @@ public static class WorkReportBuilder
     /// <param name="parent">親の行</param>
     /// <param name="depth">子の字下げの段数</param>
     /// <param name="codes">コードブック</param>
-    private static void AppendChildren(StringBuilder builder, Node parent, int depth, CodeBook codes)
+    /// <param name="showProgress">各作業に、進捗度を添えるか</param>
+    private static void AppendChildren(StringBuilder builder, Node parent, int depth, CodeBook codes, bool showProgress)
     {
         foreach (var child in parent.Children.OrderBy(c => c.SortOrder).ThenBy(c => c.Kind).ThenBy(c => c.Id))
         {
             var indent = string.Concat(Enumerable.Repeat(Indent, depth));
             if (child.Kind == NodeKind.Work)
             {
-                AppendWork(builder, child.Entry!, indent, depth, codes);
+                AppendWork(builder, child.Entry!, indent, depth, codes, showProgress);
                 continue;
             }
 
@@ -235,7 +236,7 @@ public static class WorkReportBuilder
                 names.Add(current.Name);
             }
             builder.Append(indent).Append('[').Append(string.Join(" > ", names)).Append(']').Append(NewLine);
-            AppendChildren(builder, current, depth + 1, codes);
+            AppendChildren(builder, current, depth + 1, codes, showProgress);
         }
     }
 
@@ -245,12 +246,17 @@ public static class WorkReportBuilder
     /// <param name="indent">作業の行の字下げ</param>
     /// <param name="depth">作業の行の字下げの段数</param>
     /// <param name="codes">コードブック</param>
-    private static void AppendWork(StringBuilder builder, ReportEntry entry, string indent, int depth, CodeBook codes)
+    /// <param name="showProgress">進捗度 (<c>70% (内部レビュー完了)</c> の形)を添えるか</param>
+    private static void AppendWork(StringBuilder builder, ReportEntry entry, string indent, int depth, CodeBook codes, bool showProgress)
     {
         builder.Append(indent).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
+        if (showProgress)
+        {
+            builder.Append(' ').Append(WorkCodes.Display(codes, WorkCodes.ProgressCategory, entry.Item.ProgressCodeNo));
+        }
         if (entry.Hours is { } hours)
         {
-            builder.Append(" (").Append(hours.ToString("0.##", CultureInfo.InvariantCulture)).Append("h)");
+            builder.Append(" [").Append(hours.ToString("0.##", CultureInfo.InvariantCulture)).Append("h]");
         }
         if (entry.Notes.Count == 1)
         {

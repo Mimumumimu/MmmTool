@@ -75,7 +75,9 @@ public sealed partial class WorkItemPage : Page
             TreeGrid.Columns.Add(column);
         }
 
-        InputDatePicker.DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)}";
+        // 曜日は、PC の言語に依らず日本語で出す
+        InputDatePicker.Language = "ja-JP";
+        InputDatePicker.DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
         InputDatePicker.Date = ToOffset(ViewModel.InputDate);
 
         var rowMenu = (MenuFlyout)Resources["RowMenu"];
@@ -626,7 +628,8 @@ public sealed partial class WorkItemPage : Page
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
         // 右クリックした所が、リンクのセルのとき (案件・グループ・作業とも)
-        if (TreeGrid.ContextColumnKey == "Link" && menu.Target is FrameworkElement linkTarget)
+        // 入力欄は、メニューの対象 (行全体)ではなく、右クリックしたセルの下に出す (行の左端の下に出ると、視線が離れる)
+        if (TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is { } linkTarget)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
             AddItem(menu, "リンクを編集…", () =>

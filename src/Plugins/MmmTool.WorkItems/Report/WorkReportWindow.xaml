@@ -35,42 +35,50 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 条件。実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる (範囲の日付は、左が始まり・右が終わり)。そのあとに、時間を出すか -->
-            <StackPanel
-                Grid.Row="0"
-                Orientation="Horizontal"
-                Spacing="12">
-                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
-                <CalendarDatePicker x:Name="FromDatePicker" DateChanged="OnFromDateChanged" />
-                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="～" />
-                <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="報告日" />
-                <CalendarDatePicker x:Name="ReportDatePicker" DateChanged="OnReportDateChanged" />
-                <CheckBox
-                    Margin="12,0,0,0"
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    Content="実績に時間を出す"
-                    IsChecked="{x:Bind ViewModel.ShowHours, Mode=TwoWay}" />
+            <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる (範囲の日付は、左が始まり・右が終わり)。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度)は 2 行目に置く -->
+            <StackPanel Grid.Row="0" Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
+                    <CalendarDatePicker x:Name="FromDatePicker" DateChanged="OnFromDateChanged" />
+                    <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="～" />
+                    <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="報告日" />
+                    <CalendarDatePicker x:Name="ReportDatePicker" DateChanged="OnReportDateChanged" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <!-- 並びは、出力の行の並び (状態 → 進捗度 → 時間)に合わせる -->
+                    <CheckBox
+                        MinWidth="0"
+                        Content="進捗度表示"
+                        IsChecked="{x:Bind ViewModel.ShowProgress, Mode=TwoWay}" />
+                    <CheckBox
+                        MinWidth="0"
+                        Content="実績に時間を出す"
+                        IsChecked="{x:Bind ViewModel.ShowHours, Mode=TwoWay}" />
+                </StackPanel>
             </StackPanel>
 
-            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる) -->
+            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる)。BIZ UDGothic は行の間が詰まっているので、TextBlock にして行の高さを指定する (TextBox には行の高さの指定が無い) -->
             <Grid
                 Grid.Row="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="{StaticResource OverlayCornerRadius}">
-                <TextBox
-                    AcceptsReturn="True"
-                    AutomationProperties.Name="報告のプレビュー"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
-                    IsReadOnly="True"
-                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    Text="{x:Bind ViewModel.PreviewText, Mode=OneWay}"
-                    TextWrapping="NoWrap" />
+                <ScrollViewer
+                    HorizontalScrollBarVisibility="Auto"
+                    HorizontalScrollMode="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    VerticalScrollMode="Auto">
+                    <TextBlock
+                        Padding="12,8,12,8"
+                        AutomationProperties.Name="報告のプレビュー"
+                        FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+                        IsTextSelectionEnabled="True"
+                        LineHeight="22"
+                        LineStackingStrategy="BlockLineHeight"
+                        Text="{x:Bind ViewModel.PreviewText, Mode=OneWay}"
+                        TextWrapping="NoWrap" />
+                </ScrollViewer>
                 <!-- エラー。レイアウトに場所を取らず、プレビューの上部に重ねる -->
                 <InfoBar
                     Margin="8,8,8,0"
