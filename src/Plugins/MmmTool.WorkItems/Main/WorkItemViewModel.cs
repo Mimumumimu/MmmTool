@@ -72,6 +72,15 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
     private bool _initializing = true;
 
+    /// <summary>サービスから最後に受け取った、日報メモ (日付の変更で変わったかを知るため)</summary>
+    private string _syncedDayNote = "";
+
+    /// <summary>日報メモの入力欄を、サービスの値に合わせている最中か (保存しないため)</summary>
+    private bool _syncingDayNote;
+
+    /// <summary>最後に始めた、日報メモの保存 (作業報告を開く前に、終わりを待つため)</summary>
+    private Task _dayNoteSave = Task.CompletedTask;
+
     /// <summary>表の行 (見えている行を 1 つにならしたもの。木の順)</summary>
     public ObservableCollection<WorkItemRow> Rows { get; } = [];
 
@@ -81,9 +90,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>表示する案件を選ぶ画面の ViewModel</summary>
     public ProjectPickerViewModel ProjectPicker { get; }
 
-    /// <summary>入力日 (実績 (日)・備考 (日)の日。既定は今日)</summary>
+    /// <summary>入力日 (実績 (日)・備考 (日)・日報メモの日。既定は今日)</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DayNotePlaceholder))]
     public partial DateOnly InputDate { get; set; }
+
+    /// <summary>入力日の日報メモ (入力欄の文字。フォーカスが外れたときに保存する)</summary>
+    [ObservableProperty]
+    public partial string DayNote { get; set; } = "";
+
+    /// <summary>日報メモの入力欄が空のときの薄い文字 (どの日のメモかが分かるよう、入力日つき。曜日は PC の言語に依らず日本語)</summary>
+    public string DayNotePlaceholder => $"{InputDate.ToString("yyyy/MM/dd (ddd)", CultureInfo.GetCultureInfo("ja-JP"))} の日報メモ";
+
+    /// <summary>日報メモの入力欄の最大の長さ</summary>
+    public int DayNoteMaxLength => WorkItemLimits.DayNoteMaxLength;
 
     /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
     public bool HasAssignees => _service.HasAssignees;
@@ -218,6 +238,63 @@ public sealed partial class WorkItemViewModel : ObservableObject
         if (!_initializing)
         {
             ChangeDayAsync(value).Forget();
+        }
+    }
+
+    /// <summary>日報メモの入力が確定した (フォーカスが外れた)ら、保存する</summary>
+    /// <param name="value">入力欄の文字</param>
+    partial void OnDayNoteChanged(string value)
+    {
+        if (!_initializing && !_syncingDayNote)
+        {
+            _dayNoteSave = CommitDayNoteAsync(InputDate, value);
+            _dayNoteSave.Forget();
+        }
+    }
+
+    /// <summary>日報メモを保存する</summary>
+    /// <param name="date">入力した時点の入力日</param>
+    /// <param name="text">入力欄の文字</param>
+    /// <returns>保存の完了を表すタスク</returns>
+    private async Task CommitDayNoteAsync(DateOnly date, string text)
+    {
+        try
+        {
+            if (await _service.SetDayNoteAsync(date, text) is { } error)
+            {
+                Error.Show(error);
+                SyncDayNote(force: true);
+                return;
+            }
+            Error.Clear();
+            SyncDayNote(force: false);
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+            SyncDayNote(force: true);
+        }
+    }
+
+    /// <summary>入力欄の日報メモを、サービスの値に合わせる (日付の変更・保存の失敗)</summary>
+    /// <param name="force">サービスの値が前回と同じでも、入力欄を書き換えるか (保存できなかった入力を戻すとき)</param>
+    private void SyncDayNote(bool force)
+    {
+        var current = _service.GetDayNote();
+        if (!force && current == _syncedDayNote)
+        {
+            return;
+        }
+
+        _syncedDayNote = current;
+        _syncingDayNote = true;
+        try
+        {
+            DayNote = current;
+        }
+        finally
+        {
+            _syncingDayNote = false;
         }
     }
 
@@ -422,10 +499,15 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
-    /// <summary>作業報告の画面を開く (バーの「作業報告」から)</summary>
+    /// <summary>作業報告の画面を開く (「作業報告」ボタンから。報告日の初期値は、作業管理で開いている日)</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
+    /// <remarks>日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く (保存は、入力欄のフォーカスが外れたときに始まる)。</remarks>
     [RelayCommand]
-    private Task OpenReportAsync() => _dialogs.ShowReportAsync();
+    private async Task OpenReportAsync()
+    {
+        await _dayNoteSave;
+        await _dialogs.ShowReportAsync(InputDate);
+    }
 
     /// <summary>案件の管理の画面を開く (バーの「案件の管理」から)</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
@@ -720,6 +802,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             _choices = new WorkChoices(_service.Codes);
         }
+
+        SyncDayNote(force: false);
 
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();

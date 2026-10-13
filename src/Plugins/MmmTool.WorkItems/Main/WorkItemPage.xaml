@@ -14,7 +14,6 @@
                 <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま。灰色は、入力できないように見えるため) -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
-                    <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4D000000" />
                     <SolidColorBrush x:Key="GroupTextBrush" Color="#0F6CBD" />
                     <SolidColorBrush x:Key="ProjectTextBrush" Color="#0B4F8F" />
                     <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#DDEAFA" />
@@ -22,7 +21,6 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#4CC38A" />
-                    <SolidColorBrush x:Key="CellPlaceholderBrush" Color="#4DFFFFFF" />
                     <SolidColorBrush x:Key="GroupTextBrush" Color="#7BBCFF" />
                     <SolidColorBrush x:Key="ProjectTextBrush" Color="#B5D8FF" />
                     <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#1E2B3C" />
@@ -42,14 +40,13 @@
             </Style>
 
             <!-- セルの入力欄 (枠と背景を出さず、触ったときだけ入力欄の見た目になる) -->
-            <Style x:Key="CellTextBoxStyle" TargetType="TextBox">
+            <Style x:Key="CellTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource AppTextBoxStyle}">
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="MinHeight" Value="0" />
                 <Setter Property="Padding" Value="8,6" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="IsSpellCheckEnabled" Value="False" />
-                <Setter Property="PlaceholderForeground" Value="{ThemeResource CellPlaceholderBrush}" />
             </Style>
 
             <Style x:Key="CellComboBoxStyle" TargetType="ComboBox">
@@ -95,7 +92,7 @@
 
             <!-- 入力の手がかり (空のときだけ出す薄い文字) -->
             <Style x:Key="HintTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ValueTextStyle}">
-                <Setter Property="Foreground" Value="{ThemeResource CellPlaceholderBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
             </Style>
 
             <!--
@@ -408,6 +405,7 @@
             <RowDefinition Height="0" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- 見出しと、ページ全体の操作の入口。作業報告 (毎日使う)と、案件の管理 (案件の追加・名前の変更・削除。案件は全員で共有するので、行のない所の右クリックでは作らない) -->
@@ -572,5 +570,19 @@
                     Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
             </Grid>
         </Border>
+
+        <!-- 日報メモ (作業に結びつかない、入力日の記入。打ち合わせなど)。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する (入力欄の既定の更新のタイミング)。高さは、行数 (DayNoteLines)から計算して決める (FitDayNoteHeight)。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
+        <TextBox
+            x:Name="DayNoteBox"
+            Grid.Row="4"
+            AcceptsReturn="True"
+            AutomationProperties.Name="日報メモ"
+            FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+            InputScope="Hiragana"
+            MaxLength="{x:Bind ViewModel.DayNoteMaxLength}"
+            PlaceholderText="{x:Bind ViewModel.DayNotePlaceholder, Mode=OneWay}"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            Text="{x:Bind ViewModel.DayNote, Mode=TwoWay}"
+            TextWrapping="Wrap" />
     </Grid>
 </Page>

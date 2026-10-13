@@ -32,7 +32,6 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる (範囲の日付は、左が始まり・右が終わり)。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度)は 2 行目に置く -->
@@ -88,57 +87,8 @@
                     Severity="Error" />
             </Grid>
 
-            <!-- 手入力の追記。プレビューとは別の入力欄なので、条件を変えても消えない。ウィンドウを閉じたら消える (保存しない)。各区画の末尾に、書いたとおり足す -->
-            <Grid
-                Grid.Row="2"
-                ColumnSpacing="12"
-                RowSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <TextBlock
-                    VerticalAlignment="Top"
-                    Margin="0,6,0,0"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="実績に追記" />
-                <TextBox
-                    Grid.Column="1"
-                    MaxHeight="96"
-                    MinHeight="32"
-                    AcceptsReturn="True"
-                    AutomationProperties.Name="実績に追記"
-                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
-                    InputScope="Hiragana"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    Text="{x:Bind ViewModel.ExtraDone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    TextWrapping="Wrap" />
-                <TextBlock
-                    Grid.Row="1"
-                    VerticalAlignment="Top"
-                    Margin="0,6,0,0"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="予定に追記" />
-                <TextBox
-                    Grid.Row="1"
-                    Grid.Column="1"
-                    MaxHeight="96"
-                    MinHeight="32"
-                    AcceptsReturn="True"
-                    AutomationProperties.Name="予定に追記"
-                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
-                    InputScope="Hiragana"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
-                    Text="{x:Bind ViewModel.ExtraPlanned, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    TextWrapping="Wrap" />
-            </Grid>
-
             <!-- 操作。コピーが主な操作なので、強調色にする -->
-            <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid Grid.Row="2" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

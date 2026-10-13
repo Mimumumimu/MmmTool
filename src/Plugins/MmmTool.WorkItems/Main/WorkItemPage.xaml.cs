@@ -38,6 +38,9 @@ public sealed partial class WorkItemPage : Page
 
     private static readonly HashSet<string> DailyKeys = ["Status", "Progress", "ActualDay", "DayNote", "Note"];
 
+    /// <summary>日報メモの入力欄に、一度に見せる行数 (入力欄の高さは、この行数から計算する)</summary>
+    private const int DayNoteLines = 5;
+
     /// <summary>ページの ViewModel</summary>
     public WorkItemViewModel ViewModel { get; }
 
@@ -47,6 +50,7 @@ public sealed partial class WorkItemPage : Page
     {
         ViewModel = viewModel;
         InitializeComponent();
+        DayNoteBox.Loaded += (_, _) => FitDayNoteHeight();
 
         _actualDayColumn = Column("ActualDay", "実績 (日)", 100, "ActualDayCell");
         _dayNoteColumn = Column("DayNote", "備考 (日)", 220, "DayNoteCell");
@@ -105,6 +109,21 @@ public sealed partial class WorkItemPage : Page
         };
         ViewModel.FocusNameRequested += (_, row) => TreeGrid.FocusCell(row, "Name");
         ActualThemeChanged += (_, _) => ApplyColumns();
+    }
+
+    /// <summary>日報メモの入力欄の高さを、<see cref="DayNoteLines"/> 行ちょうどが入る高さにする</summary>
+    /// <remarks>
+    /// 高さ = 行数 × 1 行の高さ + 上下の余白 + 枠。1 行の高さは、入力欄と同じフォントの <see cref="TextBlock"/> を 1 行ぶん測って求める
+    /// (<see cref="TextBox"/> には、行の高さの指定が無い。測るので、画面の拡大率やフォントが変わってもずれない)。
+    /// 入力欄を作ったあと (<see cref="FrameworkElement.Loaded"/>)に呼ぶ。スタイルが当たる前は、フォントの大きさが決まらないため。
+    /// </remarks>
+    private void FitDayNoteHeight()
+    {
+        var probe = new TextBlock { FontFamily = DayNoteBox.FontFamily, FontSize = DayNoteBox.FontSize, Text = "あ" };
+        probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        DayNoteBox.Height = (probe.DesiredSize.Height * DayNoteLines)
+            + DayNoteBox.Padding.Top + DayNoteBox.Padding.Bottom
+            + DayNoteBox.BorderThickness.Top + DayNoteBox.BorderThickness.Bottom;
     }
 
     /// <summary>ページを開いたときに、保存先から読み直す</summary>

@@ -63,11 +63,12 @@ public sealed partial class WorkReportWindow : Window
 
     /// <summary>親ウィンドウの上にモーダルで表示し、閉じるまで待つ</summary>
     /// <param name="owner">親ウィンドウ</param>
+    /// <param name="reportDate">報告日の初期値 (作業管理で開いている日)</param>
     /// <returns>閉じるまでの待機を表すタスク</returns>
-    public async Task ShowModalAsync(Window owner)
+    public async Task ShowModalAsync(Window owner, DateOnly reportDate)
     {
         // 空のプレビューが一瞬見えないよう、作ってから出す
-        await ViewModel.InitializeAsync();
+        await ViewModel.InitializeAsync(reportDate);
         ReportDatePicker.Date = ToOffset(ViewModel.ReportDate);
         FromDatePicker.Date = ToOffset(ViewModel.FromDate);
 

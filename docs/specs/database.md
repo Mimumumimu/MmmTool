@@ -39,11 +39,12 @@
 | `WorkGroup` | 作業管理のグループ |
 | `WorkItem` | 作業管理の作業 |
 | `WorkRecord` | 作業管理の日ごとの記録。作業ごと・日ごとに 1 件 |
+| `WorkDayNote` | 作業管理の日報メモ。作業に結びつかない、その人の 1 日分の記入。1 人 1 日 1 件 |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
 `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus` の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
-作業管理の 4 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
+作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
 
 ## 列
 「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
@@ -167,7 +168,7 @@
 - ログではなく状態で、「送ったか」の判断に使う。画面の「今日」(今日の送信予定)は、この表から読む。送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログ ([mmmbatch.md](mmmbatch.md)の「送信のログ」)に残し、画面の「履歴」はそちらから出す (この表は再送で同じ行を更新するので、経過が残らないため。ユーザーの決定)
 
 ### 作業管理の表 (5 つ)
-ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/003_CreateWorkTables.sql`。SQLite の型は、下の「型の対応 (作業管理の表)」。
+ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (0.2.0 の分。`WorkDayNote` だけは、0.2.0 のあとに足したので、両方とも `002_AddWorkDayNote.sql`)。SQLite の型は、下の「型の対応 (作業管理の表)」。
 
 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く。
 
@@ -249,8 +250,30 @@
 - 記録は、作業ごと・日ごとに 1 件 (ユーザー決定 2026-10-12)。人は区別しない。担当者が 1 人なので、ほかの人が入れても代行入力で、同じ 1 件を直す。`(WorkItemId, Date)` を一意にする (`UX_WorkRecord_WorkItemId_Date`。論理削除された行も含む。同じ日に入れ直したときは、この行を使い回す)。人ごとに分けると、同じ作業の同じ日に記録が複数でき、データが食い違うため
 - インデックス: `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`(その日の記録。削除されていない行だけ)・`IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(差分。論理削除された行も含む)
 
+#### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
+作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)。作業報告が、実績 (期間内の分)と予定 (報告日の分)に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql` (どちらも 0.2.0 のあとの変更なので、`001_CreateTables.sql` は変えず、次の版の更新用スクリプトに集める。リリースまで、同じファイルを直す)。
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 (共通ヘッダーの列。この表の操作では使わない。常に 0) |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。記録用で、検索・一意・結合には使わない。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UserId` | 整数 | `int` | | 持ち主 (`AppUser.Id`。ローカルは 1)。業務の列。1 以上の検査 |
+| `Date` | 日付 | `date` | | メモの日 |
+| `Note` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | メモ。空にしたときは、行を残して空文字にする |
+
+- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、持ち主 (`UserId`)・日付 (`Date`)・中身 (`Note`) の順 (「誰の・いつの・何」の順。`WorkRecord` の「何の作業の・いつの・中身」と同じ考え方)
+- 1 人 1 日 1 件 (ユーザー決定 2026-10-13)。`(UserId, Date)` を一意にする (`UX_WorkDayNote_UserId_Date`。同じ日に書き直したときは、この行を使い回す。日付の範囲の読み込みと、直近の日の検索にも使う)
+- インデックスは、一意の `(UserId, Date)` だけ。差分の取得 (更新日時の索引)は持たない (ユーザー決定 2026-10-13: 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない。問い合わせの数も増やさない)
+- 案件に属さないので、`ProjectId` は持たない。持ち主は業務の列 `UserId` で持ち、共通ヘッダーの `CreatedByUserId` は、検索・一意・結合に使わない (プロジェクトの `CLAUDE.md` のルール。`ReminderState.UserId` と同じ形)
+- 空にしたら論理削除せず、`Note` を空文字にして行を残す (ユーザー決定 2026-10-13)。作業報告は、空 (空白だけも含む)と、行が無いことを区別しない。1 人 1 日 1 行までしか増えないので、行を消さない
+- 長さ (2000)は、作業の備考 (1000)より長い。複数の打ち合わせを、1 日分まとめて書くため
+
 ### コードマスタの表
-機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_CreateCodeMaster.sql`(表と作業管理の初期値。`WorkItem` の作り直しも含む)、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/004_CreateCodeMaster.sql`(表)と `005_SeedWorkItemCodes.sql`(作業管理の初期値。機能ごとに別のスクリプトで足す)。
+機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite・SQL Server とも `001_CreateTables.sql` (表と作業管理の初期値。それぞれ `src/Data/MmmTool.Data.Sqlite/Sql/`・`src/Data/MmmTool.Data.SqlServer/Sql/`)。
 
 #### `CodeMaster`(コードマスタ)
 | 列 | 型 | SQL Server | 既定値 | 内容 |
@@ -330,7 +353,7 @@
   - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`。`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)。設定は `DatabaseSettings`(パスワードを除く)。種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
   - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` の 1 本 (この版の全部の DDL)。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する。リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)、送信のための表 (`NotificationChannel`・`ReminderSendSetting`)、作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)、コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)を、この 1 本が作る・入れる (何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (0.2.0 の全部の DDL)と、0.2.0 のあとの変更を集めた `002_AddWorkDayNote.sql` (日報メモの表 `WorkDayNote`。リリースまで、この版の変更は、このファイルに足す)。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する。リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)、送信のための表 (`NotificationChannel`・`ReminderSendSetting`)、作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)、コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)を、この 1 本が作る・入れる (何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)
 - アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql

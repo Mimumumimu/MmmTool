@@ -81,16 +81,29 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<WorkDayNote?> LoadDayNoteAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => RunAsync<WorkDayNote?>(
+            async connection => (await QueryAsync(
+                connection,
+                null,
+                $"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Date = @date",
+                [("@me", UserId), ("@date", date)],
+                reader => ReadDayNote(reader).ToWorkDayNote(),
+                cancellationToken).ConfigureAwait(false)).FirstOrDefault(),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
-            // 担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。5 つの問い合わせを 1 回の往復で受け取る
+            // 担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が自分の行だけ。6 つの問い合わせを 1 回の往復で受け取る
             (string, object)[] parameters = [("@me", UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
             var records = new List<WorkRecord>();
             var codes = new List<CodeMasterEntry>();
+            var dayNotes = new List<WorkDayNote>();
             await QueryBatchAsync(
                 connection,
                 null,
@@ -100,10 +113,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
+                    ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Date >= @from AND n.Date <= @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
                 ],
                 parameters,
                 cancellationToken);
-            return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records);
+            return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records, dayNotes);
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -111,10 +125,17 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         => RunAsync<DateOnly?>(
             async connection =>
             {
+                // 工数が入った日と、空でない日報メモがある日の、新しいほう (どちらも索引で 1 件だけ引く)
                 var value = await ScalarAsync(
                     connection,
                     null,
-                    "SELECT MAX(r.Date) FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)",
+                    """
+                    SELECT MAX(d) FROM (
+                        SELECT MAX(r.Date) AS d FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)
+                        UNION ALL
+                        SELECT MAX(n.Date) FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Note <> N'' AND n.Date < @before
+                    ) AS x
+                    """,
                     [("@before", before), ("@me", UserId)],
                     cancellationToken).ConfigureAwait(false);
                 return value is null ? null : DateOnly.FromDateTime(Convert.ToDateTime(value, System.Globalization.CultureInfo.InvariantCulture));
@@ -438,6 +459,42 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return result!;
     }
 
+    /// <inheritdoc />
+    public async Task<WorkDayNote> SetDayNoteAsync(DateOnly date, string note, CancellationToken cancellationToken = default)
+    {
+        var user = RequireUser();
+        var text = WorkDayNoteRow.CheckNote(note);
+        WorkDayNote? result = null;
+        await WriteAsync(async (connection, transaction, _) =>
+        {
+            // 同じ (持ち主, 日付)の行があれば書き直し、無ければ作る。空にしても、行は消さない。同時に同じ日を書く (別の PC)ときに、一意の索引に当たらないよう、行をロックして確かめる
+            var updated = await ExecuteAsync(
+                connection,
+                transaction,
+                "UPDATE dbo.WorkDayNote WITH (UPDLOCK, HOLDLOCK) SET Note = @note, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE UserId = @user AND Date = @date",
+                [("@note", text), ("@user", user), ("@date", date)],
+                cancellationToken).ConfigureAwait(false);
+            if (updated == 0)
+            {
+                await ExecuteAsync(
+                    connection,
+                    transaction,
+                    "INSERT INTO dbo.WorkDayNote (IsDeleted, CreatedByUserId, UpdatedByUserId, UserId, Date, Note) VALUES (0, @user, @user, @user, @date, @note)",
+                    [("@user", user), ("@date", date), ("@note", text)],
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            result = (await QueryAsync(
+                connection,
+                transaction,
+                $"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @user AND n.Date = @date",
+                [("@user", user), ("@date", date)],
+                reader => ReadDayNote(reader).ToWorkDayNote(),
+                cancellationToken).ConfigureAwait(false)).First();
+        }, cancellationToken).ConfigureAwait(false);
+        return result!;
+    }
+
     /// <summary>ユーザーを特定していることを確かめる</summary>
     /// <returns>今のユーザーの番号</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
@@ -459,7 +516,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
+                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、001_CreateTables.sql と 002_AddWorkDayNote.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 
@@ -684,6 +741,22 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         Note = r.GetString(10),
     };
 
+    /// <summary>日報メモの行を読む</summary>
+    /// <param name="r">読み取り中の結果</param>
+    /// <returns>行</returns>
+    private static WorkDayNoteRow ReadDayNote(SqlDataReader r) => new()
+    {
+        Id = r.GetInt32(0),
+        IsDeleted = r.GetBoolean(1),
+        CreatedAt = r.GetDateTimeOffset(2),
+        CreatedByUserId = r.GetInt32(3),
+        UpdatedAt = r.GetDateTimeOffset(4),
+        UpdatedByUserId = r.GetInt32(5),
+        UserId = r.GetInt32(6),
+        Date = DateOnly.FromDateTime(r.GetDateTime(7)),
+        Note = r.GetString(8),
+    };
+
     /// <summary>コードマスタの行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
@@ -825,11 +898,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="sql">SQL</param>
     /// <param name="parameters">パラメーター</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>実行の完了を表すタスク</returns>
-    private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
+    /// <returns>変わった行の数</returns>
+    private static async Task<int> ExecuteAsync(SqlConnection connection, SqlTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
     {
         await using var command = Command(connection, transaction, sql, parameters);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>更新で変えた列を集める</summary>
