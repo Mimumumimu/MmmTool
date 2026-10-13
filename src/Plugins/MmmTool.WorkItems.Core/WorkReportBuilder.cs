@@ -139,10 +139,10 @@ public static class WorkReportBuilder
 
     /// <summary>備考を、空でない行に分ける</summary>
     /// <param name="note">備考</param>
-    /// <returns>行 (前後の空白を除く。空の行は含まない)</returns>
+    /// <returns>行 (行末の空白を除く。行頭の空白は、書いた人の字下げなので残す。空白だけの行は含まない)</returns>
     /// <remarks>改行は、CRLF・CR・LF のどれでも区切る (WinUI の複数行の入力欄は、改行を CR 1 文字で持つことがある)。</remarks>
     private static IEnumerable<string> Lines(string note)
-        => note.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.Trim()).Where(l => l.Length > 0);
+        => note.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.TrimEnd()).Where(l => l.Length > 0);
 
     /// <summary>同じ行を 1 つにする (最初に出たものを残す)</summary>
     /// <param name="lines">行</param>
@@ -302,7 +302,8 @@ public static class WorkReportBuilder
         }
         if (entry.Notes.Count == 1)
         {
-            builder.Append(" - ").Append(entry.Notes[0]).Append(NewLine);
+            // 1 行だけのときは、行頭の字下げを除く (「 - 」のすぐ後ろに続けるため)
+            builder.Append(" - ").Append(entry.Notes[0].TrimStart()).Append(NewLine);
             return;
         }
         builder.Append(NewLine);
