@@ -342,13 +342,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>案件マスターを、名前で検索して読む</summary>
     /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
+    /// <param name="selectedOnly">表示している案件だけを読むか (表示しない案件を除く)</param>
     /// <param name="selectedFirst">表示している案件を、先頭にまとめるか</param>
     /// <param name="offset">読み始める位置</param>
     /// <param name="count">読む件数の上限</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>案件の一覧</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    public async Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
     {
         // 表示しない案件の番号は、ロックの中で写しを取る (別の操作が書き換えている間に、数えない)
         int[] hidden;
@@ -361,7 +362,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             _lock.Release();
         }
-        return await repository.SearchProjectsAsync(query.Trim(), activeOnly, hidden, selectedFirst, offset, count, cancellationToken);
+        return await repository.SearchProjectsAsync(query.Trim(), activeOnly, selectedOnly, hidden, selectedFirst, offset, count, cancellationToken);
     }
 
     /// <summary>案件を追加する (表示しない案件ではないので、そのまま表示される)</summary>

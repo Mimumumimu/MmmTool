@@ -96,6 +96,7 @@ public interface IWorkItemRepository
     /// <summary>案件マスターを、名前で検索して読む</summary>
     /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
+    /// <param name="selectedOnly">表示している案件だけを読むか (表示しない案件を除く)</param>
     /// <param name="hiddenProjectIds">表示しない案件の番号 (一覧の「表示しているか」の印と、先頭にまとめる並びに使う)</param>
     /// <param name="selectedFirst">表示している案件を、先頭にまとめるか</param>
     /// <param name="offset">読み始める位置</param>
@@ -103,7 +104,7 @@ public interface IWorkItemRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>案件の一覧 (名前の順。選んでいる案件を先頭にまとめるときは、その中も名前の順。論理削除済みを除く)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
 
     /// <summary>案件を追加する</summary>
     /// <param name="name">名前</param>

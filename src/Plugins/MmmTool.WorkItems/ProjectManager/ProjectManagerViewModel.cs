@@ -63,7 +63,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         var version = ++_version;
         try
         {
-            var page = await service.SearchProjectsAsync("", ActiveOnly, selectedFirst: false, 0, PageSize);
+            var page = await service.SearchProjectsAsync("", ActiveOnly, selectedOnly: false, selectedFirst: false, 0, PageSize);
             if (version != _version)
             {
                 return;
@@ -97,7 +97,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         var version = _version;
         try
         {
-            var page = await service.SearchProjectsAsync("", ActiveOnly, selectedFirst: false, Items.Count, PageSize);
+            var page = await service.SearchProjectsAsync("", ActiveOnly, selectedOnly: false, selectedFirst: false, Items.Count, PageSize);
             if (version != _version)
             {
                 return;

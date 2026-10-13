@@ -792,7 +792,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>案件マスターが空かを確かめる</summary>
     /// <returns>確認の完了を表すタスク</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    private async Task RefreshMasterAsync() => _masterEmpty = (await _service.SearchProjectsAsync("", false, false, 0, 1)).Count == 0;
+    private async Task RefreshMasterAsync() => _masterEmpty = (await _service.SearchProjectsAsync("", false, false, false, 0, 1)).Count == 0;
 
     /// <summary>木構造から、見えている行の一覧を作り直す</summary>
     /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する (入力欄の位置とフォーカスを保つため)。</remarks>
