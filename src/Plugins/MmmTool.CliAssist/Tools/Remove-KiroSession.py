@@ -31,17 +31,21 @@ import sys
 
 # 画面部品は同じフォルダの session_menu.py (出力フォルダに __pycache__ を作らない)
 sys.dont_write_bytecode = True
-from session_menu import GREEN, RESET, YELLOW, read_selection  # noqa: E402
+from session_menu import GREEN, RESET, YELLOW, read_selection, spinner  # noqa: E402
 
 KIRO_TIMEOUT_SECONDS = 60
 
 
-def run_kiro(kiro_args):
-    """kiro-cli を動かして標準出力を返す。エラー出力は捨てる (結果は一覧の取り直しで確かめる)"""
-    result = subprocess.run(
-        ["kiro-cli", *kiro_args],
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-        encoding="utf-8", errors="replace", timeout=KIRO_TIMEOUT_SECONDS)
+def run_kiro(kiro_args, message):
+    """kiro-cli を動かして標準出力を返す。エラー出力は捨てる (結果は一覧の取り直しで確かめる)
+
+    動いている間は、スピナーと message を出す (kiro-cli は応答に時間がかかり、何も出さないと止まって見えるため)。
+    """
+    with spinner(message):
+        result = subprocess.run(
+            ["kiro-cli", *kiro_args],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            encoding="utf-8", errors="replace", timeout=KIRO_TIMEOUT_SECONDS)
     return result.stdout
 
 
@@ -64,9 +68,9 @@ def format_title(title):
     return text[:60] + "…" if len(text) > 60 else text
 
 
-def get_groups():
+def get_groups(message="セッション一覧を読み込んでいます…"):
     """全作業フォルダのセッションを、フォルダごとにまとめて新しい順に返す"""
-    text = run_kiro(["chat", "--list-sessions", "--all-cwds", "--format", "json"])
+    text = run_kiro(["chat", "--list-sessions", "--all-cwds", "--format", "json"], message)
     match = re.search(r"[\[{]", text)
     if not match:
         return []
@@ -110,12 +114,12 @@ def session_directory():
     return os.path.join(kiro_home, "sessions", "cli")
 
 
-def remove_session(session_id):
+def remove_session(session_id, message):
     # ID はファイル名に使うので、英数字・ハイフン・アンダースコアだけを受け付ける
     if not re.fullmatch(r"[0-9A-Za-z_-]+", session_id):
         return
     # v3 のセッションは、削除できていても「見つからない」というエラーが出るので、結果は呼び出し側が一覧の取り直しで確かめる
-    run_kiro(["chat", "--delete-session", session_id])
+    run_kiro(["chat", "--delete-session", session_id], message)
     for ext in ("history", "lock"):
         path = os.path.join(session_directory(), f"{session_id}.{ext}")
         if os.path.isfile(path):
@@ -191,11 +195,13 @@ def main():
             except EOFError:
                 answer = ""
             if re.match(r"[yY]", answer):
-                for target in targets:
-                    remove_session(target["id"])
+                for n, target in enumerate(targets, 1):
+                    remove_session(
+                        target["id"],
+                        f"削除しています ({n}/{len(targets)}) {format_time(target['updated'])} | {target['title']}")
 
                 # 一覧を取り直して、消えたかを確かめる。同じフォルダのセッション選択へ戻る (残りが 1 件も無ければフォルダ選択へ)
-                groups = get_groups()
+                groups = get_groups("削除できたかを確かめています…")
                 remain_ids = {s["id"] for g in groups for s in g["sessions"]}
                 failed = [t for t in targets if t["id"] in remain_ids]
                 if failed:

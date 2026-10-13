@@ -4,12 +4,14 @@ SessionMenu.ps1 (Windows 版)と同じ操作にしている。直すときは両
 Remove-ClaudeSession.py と Remove-KiroSession.py が使う。
 """
 
+import contextlib
 import os
 import re
 import select
 import shutil
 import sys
 import termios
+import threading
 import tty
 import unicodedata
 
@@ -217,6 +219,42 @@ def read_selection_text(items, label, prompt, back_label):
         if ok and indexes:
             return "ok", [items[i - 1] for i in sorted(indexes)]
         print(f"{YELLOW}入力が正しくありません。{RESET}")
+
+
+SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+
+@contextlib.contextmanager
+def spinner(message):
+    """with の中が終わるまで、スピナーと message を 1 行に出し続ける。出力がリダイレクトされているときは、文言を 1 行だけ出す"""
+    if not sys.stdout.isatty():
+        print(message)
+        yield
+        return
+
+    stop = threading.Event()
+
+    def draw():
+        i = 0
+        while not stop.is_set():
+            width = shutil.get_terminal_size().columns - 1
+            text = limit_cell_width(f"{SPINNER_FRAMES[i % len(SPINNER_FRAMES)]} {message}", width)
+            sys.stdout.write(f"\r{CYAN}{text}{RESET}{CLEAR_LINE}")
+            sys.stdout.flush()
+            i += 1
+            stop.wait(0.1)
+
+    thread = threading.Thread(target=draw, daemon=True)
+    sys.stdout.write(f"{ESC}[?25l")
+    thread.start()
+    try:
+        yield
+    finally:
+        # スピナーの行を消して、次の出力がその行から始まるようにする (Ctrl+C で抜けるときも)
+        stop.set()
+        thread.join()
+        sys.stdout.write(f"\r{CLEAR_LINE}{ESC}[?25h")
+        sys.stdout.flush()
 
 
 def read_selection(items, label, prompt, back_label):
