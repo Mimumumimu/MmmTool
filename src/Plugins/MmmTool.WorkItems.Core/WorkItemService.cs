@@ -59,6 +59,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>その日の記録 (全員分)</summary>
     private List<WorkRecord> _dayRecords = [];
 
+    /// <summary>その日の、自分の日報メモ (無ければ null)</summary>
+    private WorkDayNote? _dayNote;
+
     /// <summary>差分の取得の基準の時刻 (保存先が返した、いちばん新しい更新日時。まだ無ければ null)</summary>
     private DateTimeOffset? _baseline;
 
@@ -126,6 +129,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             var hidden = ReadHidden();
             var data = await repository.LoadVisibleAsync(hidden, cancellationToken);
             var records = await repository.LoadDayAsync(day, hidden, cancellationToken);
+            var dayNote = await repository.LoadDayNoteAsync(day, cancellationToken);
             _assignees = await repository.GetAssigneesAsync(cancellationToken);
 
             _projects.Clear();
@@ -137,6 +141,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             _codes = new CodeBook(data.Codes);
             _day = day;
             _dayRecords = [.. records];
+            _dayNote = dayNote;
             _baseline = new DateTimeOffset?[]
             {
                 data.Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
@@ -174,6 +179,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 return;
             }
             _dayRecords = [.. await repository.LoadDayAsync(day, _hidden)];
+            _dayNote = await repository.LoadDayNoteAsync(day);
             _day = day;
         }
         finally
@@ -279,11 +285,47 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     public WorkRecord? GetRecord(int workItemId, DateOnly date)
         => date == _day ? _dayRecords.FirstOrDefault(r => r.WorkItemId == workItemId && !r.IsDeleted) : null;
 
-    /// <summary>作業報告のために、担当が自分の作業と、その記録を読む</summary>
+    /// <summary>読んでいる日の、自分の日報メモを返す</summary>
+    /// <returns>メモ (無ければ空文字)</returns>
+    public string GetDayNote() => _dayNote?.Note ?? "";
+
+    /// <summary>読んでいる日の、自分の日報メモを保存する</summary>
+    /// <param name="date">日付 (読んでいる日)</param>
+    /// <param name="note">メモ (空白だけのときは、空にする)</param>
+    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
+    /// <remarks>
+    /// 空にしても、行は消さず、メモを空にする。作業報告では、空と、行が無いことを区別しない。持ち主は今のユーザーだけなので、更新の判定 (<see cref="IWorkItemEditPolicy"/>)は通さない。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    public async Task<string?> SetDayNoteAsync(DateOnly date, string note)
+    {
+        if (note.Length > WorkItemLimits.DayNoteMaxLength)
+        {
+            return $"日報メモは {WorkItemLimits.DayNoteMaxLength} 文字までです。";
+        }
+
+        var text = string.IsNullOrWhiteSpace(note) ? "" : note;
+        await _lock.WaitAsync();
+        try
+        {
+            if (date != _day || (_dayNote?.Note ?? "") == text)
+            {
+                return null;
+            }
+            _dayNote = await repository.SetDayNoteAsync(date, text);
+            return null;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>作業報告のために、担当が自分の作業と、その記録と、日報メモを読む</summary>
     /// <param name="from">実績の開始日 (記録を読み始める日)</param>
     /// <param name="reportDate">報告日 (予定の日。その日の記録も読む)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読んだ内容。テキストにするのは <see cref="WorkReportBuilder"/> (画面が、手入力の追記や「時間を出す」の切り替えのたびに、読み直さずに作り直せる)</returns>
+    /// <returns>読んだ内容。テキストにするのは <see cref="WorkReportBuilder"/> (画面が、「時間を出す」の切り替えのたびに、読み直さずに作り直せる)</returns>
     /// <remarks>表示している案件・隠している行の設定には従わない。読んだ内容を、メモリの木とは別に扱うので、画面の状態を変えない。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly reportDate, CancellationToken cancellationToken = default)
@@ -292,7 +334,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>作業報告の実績の開始日の既定を返す</summary>
     /// <param name="reportDate">報告日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>報告日より前で、担当が自分の作業に工数が入った直近の日。無ければ、報告日の前日</returns>
+    /// <returns>報告日より前で、担当が自分の作業に工数が入った日か、自分の日報メモがある日の、直近の日。無ければ、報告日の前日</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     public async Task<DateOnly> GetDefaultReportFromAsync(DateOnly reportDate, CancellationToken cancellationToken = default)
         => await repository.GetLatestRecordedDateAsync(reportDate, cancellationToken) ?? reportDate.AddDays(-1);

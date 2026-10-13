@@ -93,7 +93,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <remarks>日付・時刻・曜日・件名・備考・リンク・読み上げの有無だけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない。</remarks>
     [RelayCommand]
     private Task CopyAsNewAsync(ReminderListItem item)
-        => _reminderDialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false });
+        => _reminderDialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false }, item.Source.No);
 
     /// <summary>削除 (論理削除)</summary>
     /// <param name="item">削除する行</param>

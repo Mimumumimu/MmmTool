@@ -37,13 +37,13 @@ public sealed class WorkItemDialogService(IServiceProvider services, IServiceSco
     }
 
     /// <inheritdoc />
-    public async Task ShowReportAsync()
+    public async Task ShowReportAsync(DateOnly reportDate)
     {
         using var scope = scopeFactory.CreateScope();
         var window = scope.ServiceProvider.GetRequiredService<WorkReportWindow>();
         await dialogs.ShowModalAsync(window, async owner =>
         {
-            await window.ShowModalAsync(owner);
+            await window.ShowModalAsync(owner, reportDate);
             return true;
         });
     }

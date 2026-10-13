@@ -13,6 +13,7 @@ public interface IWorkItemDialogService
     Task ShowProjectManagerAsync();
 
     /// <summary>作業報告のウィンドウを開き、閉じるまで待つ</summary>
+    /// <param name="reportDate">報告日の初期値 (作業管理で開いている日)</param>
     /// <returns>ウィンドウが閉じるまでの待機を表すタスク</returns>
-    Task ShowReportAsync();
+    Task ShowReportAsync(DateOnly reportDate);
 }

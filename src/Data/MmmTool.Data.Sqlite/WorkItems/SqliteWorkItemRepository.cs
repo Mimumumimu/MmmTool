@@ -69,16 +69,29 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<WorkDayNote?> LoadDayNoteAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => RunAsync<WorkDayNote?>(
+            async connection => (await QueryAsync(
+                connection,
+                null,
+                $"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM WorkDayNote n WHERE n.UserId = @me AND n.Date = @date",
+                [("@me", UserId), ("@date", date)],
+                reader => ReadDayNote(reader).ToWorkDayNote(),
+                cancellationToken)).FirstOrDefault(),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
-            // 担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。5 つの問い合わせを 1 回の往復で受け取る
+            // 担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が自分の行だけ。6 つの問い合わせを 1 回の往復で受け取る
             (string, object)[] parameters = [("@me", UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
             var records = new List<WorkRecord>();
             var codes = new List<CodeMasterEntry>();
+            var dayNotes = new List<WorkDayNote>();
             await QueryBatchAsync(
                 connection,
                 null,
@@ -88,10 +101,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
+                    ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM WorkDayNote n WHERE n.UserId = @me AND n.Date >= @from AND n.Date <= @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
                 ],
                 parameters,
                 cancellationToken);
-            return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records);
+            return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records, dayNotes);
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -99,10 +113,17 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         => RunAsync<DateOnly?>(
             async connection =>
             {
+                // 工数が入った日と、空でない日報メモがある日の、新しいほう (どちらも索引で 1 件だけ引く)
                 var value = await ScalarAsync(
                     connection,
                     null,
-                    "SELECT MAX(r.Date) FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)",
+                    """
+                    SELECT MAX(d) FROM (
+                        SELECT MAX(r.Date) AS d FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)
+                        UNION ALL
+                        SELECT MAX(n.Date) FROM WorkDayNote n WHERE n.UserId = @me AND n.Note <> '' AND n.Date < @before
+                    )
+                    """,
                     [("@before", before), ("@me", UserId)],
                     cancellationToken).ConfigureAwait(false);
                 return value is null ? null : SqliteValues.ParseDate(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!);
@@ -438,6 +459,42 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return result!;
     }
 
+    /// <inheritdoc />
+    public async Task<WorkDayNote> SetDayNoteAsync(DateOnly date, string note, CancellationToken cancellationToken = default)
+    {
+        var text = WorkDayNoteRow.CheckNote(note);
+        var now = Now;
+        WorkDayNote? result = null;
+        await RunInTransactionAsync(async (connection, transaction) =>
+        {
+            // 同じ (持ち主, 日付)の行があれば書き直し、無ければ作る。空にしても、行は消さない
+            var updated = await ExecuteAsync(
+                connection,
+                transaction,
+                "UPDATE WorkDayNote SET Note = @note, UpdatedAt = @now, UpdatedByUserId = @user WHERE UserId = @user AND Date = @date",
+                [("@note", text), ("@now", now), ("@user", LocalUserId), ("@date", date)],
+                cancellationToken);
+            if (updated == 0)
+            {
+                await ExecuteAsync(
+                    connection,
+                    transaction,
+                    "INSERT INTO WorkDayNote (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Date, Note) VALUES (0, @now, @user, @now, @user, @user, @date, @note)",
+                    [("@now", now), ("@user", LocalUserId), ("@date", date), ("@note", text)],
+                    cancellationToken);
+            }
+
+            result = (await QueryAsync(
+                connection,
+                transaction,
+                $"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM WorkDayNote n WHERE n.UserId = @user AND n.Date = @date",
+                [("@user", LocalUserId), ("@date", date)],
+                reader => ReadDayNote(reader).ToWorkDayNote(),
+                cancellationToken)).First();
+        }, cancellationToken);
+        return result!;
+    }
+
     /// <summary>1 つの表の、変えた列だけを更新する</summary>
     /// <param name="table">表の名前</param>
     /// <param name="id">行の番号</param>
@@ -648,6 +705,22 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         Note = r.GetString(10),
     };
 
+    /// <summary>日報メモの行を読む</summary>
+    /// <param name="r">読み取り中の結果</param>
+    /// <returns>行</returns>
+    private static WorkDayNoteRow ReadDayNote(SqliteDataReader r) => new()
+    {
+        Id = r.GetInt32(0),
+        IsDeleted = r.GetInt64(1) != 0,
+        CreatedAt = SqliteValues.ParseDateTime(r.GetString(2)),
+        CreatedByUserId = r.GetInt32(3),
+        UpdatedAt = SqliteValues.ParseDateTime(r.GetString(4)),
+        UpdatedByUserId = r.GetInt32(5),
+        UserId = r.GetInt32(6),
+        Date = SqliteValues.ParseDate(r.GetString(7)),
+        Note = r.GetString(8),
+    };
+
     /// <summary>コードマスタの行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
@@ -759,11 +832,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="sql">SQL</param>
     /// <param name="parameters">パラメーター</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>実行の完了を表すタスク</returns>
-    private static async Task ExecuteAsync(SqliteConnection connection, SqliteTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
+    /// <returns>変わった行の数</returns>
+    private static async Task<int> ExecuteAsync(SqliteConnection connection, SqliteTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
     {
         await using var command = SqliteValues.Command(connection, transaction, sql, parameters);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>更新で変えた列を集める</summary>

@@ -149,7 +149,6 @@
                         AcceptsReturn="True"
                         GotFocus="OnInputGotFocus"
                         Paste="OnInputPaste"
-                        PlaceholderForeground="{ThemeResource TextFillColorDisabledBrush}"
                         PlaceholderText="ターミナルへ送るテキスト (Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付)"
                         PreviewKeyDown="OnInputPreviewKeyDown"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"

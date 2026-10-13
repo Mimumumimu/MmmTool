@@ -9,6 +9,9 @@ public static class WorkItemLimits
     /// <summary>備考 (作業の共通の備考・日の備考)の最大の長さ</summary>
     public const int NoteMaxLength = 1000;
 
+    /// <summary>日報メモの最大の長さ</summary>
+    public const int DayNoteMaxLength = 2000;
+
     /// <summary>リンク (URL・フォルダ・ファイルのパス)の最大の長さ</summary>
     public const int LinkMaxLength = 2000;
 

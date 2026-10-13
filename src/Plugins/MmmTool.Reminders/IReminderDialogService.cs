@@ -7,8 +7,9 @@ public interface IReminderDialogService
 {
     /// <summary>リマインダー入力画面を、いちばん手前の画面の上にモーダルで開く</summary>
     /// <param name="reminder">編集するリマインダー。新規なら null (連番 0 の内容を渡すと、それを初期値にした新規)</param>
+    /// <param name="copySourceNo">コピーして新規追加のときの、コピー元の連番 (送信先の引き継ぎに使う)。それ以外は 0</param>
     /// <returns>保存した内容。キャンセルなら null</returns>
-    Task<Reminder?> ShowInputAsync(Reminder? reminder);
+    Task<Reminder?> ShowInputAsync(Reminder? reminder, int copySourceNo = 0);
 
     /// <summary>リマインダー一覧画面を、いちばん手前の画面の上にモーダルで開き、閉じるまで待つ</summary>
     /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>

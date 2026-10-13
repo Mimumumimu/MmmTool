@@ -83,4 +83,7 @@ public static class WorkRowValues
 
     /// <summary>備考の長さの上限 (<see cref="WorkItemLimits.NoteMaxLength"/>)</summary>
     public const int NoteMax = WorkItemLimits.NoteMaxLength;
+
+    /// <summary>日報メモの長さの上限 (<see cref="WorkItemLimits.DayNoteMaxLength"/>)</summary>
+    public const int DayNoteMax = WorkItemLimits.DayNoteMaxLength;
 }
