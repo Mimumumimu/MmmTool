@@ -26,6 +26,7 @@
     --c-link: #7a3fb0;
     --c-clip: #0e7490;
     --c-back: #a1264f;
+    --c-tool: #8a5a00;
     --c-set: #4a5468;
     --c-srv: #566a1f;
   }
@@ -50,6 +51,7 @@
       --c-link: #c79cf0;
       --c-clip: #5ccbe0;
       --c-back: #f08aa8;
+      --c-tool: #e8b860;
       --c-set: #aab3c5;
       --c-srv: #b8d070;
     }
@@ -209,6 +211,7 @@
     <li><a href="#link" style="--c: var(--c-link)">リンク</a></li>
     <li><a href="#clip" style="--c: var(--c-clip)">クリップボード転送</a></li>
     <li><a href="#backlog" style="--c: var(--c-back)">Backlog</a></li>
+    <li><a href="#tools" style="--c: var(--c-tool)">ツール</a></li>
     <li><a href="#setting" style="--c: var(--c-set)">設定</a></li>
     <li><a href="#server" style="--c: var(--c-srv)">サーバー保存</a></li>
   </ul>
@@ -333,6 +336,17 @@
     <li>行の <span class="ui">ダウンロード</span> で、保存先を選んで保存する</li>
   </ol>
   <div class="note"><strong>注意</strong>ファイルの追加・削除は、Backlog の仕様で、ここからはできません。<span class="ui">ブラウザで開く</span> で Backlog の画面を開いて行います。</div>
+</section>
+
+<section id="tools" style="--c: var(--c-tool)">
+  <h2>ツール</h2>
+  <p class="lead">小さな便利ツールを並べたページです。</p>
+  <h3>URL を日本語に戻す</h3>
+  <ol class="steps">
+    <li>「貼り付け」の欄に、文字コード (<code>%E6%97%A5…</code> のような並び)になった URL を貼る</li>
+    <li>「結果」の欄に、日本語に戻った文字列が出る。選択してコピーできる</li>
+  </ol>
+  <div class="note"><strong>注意</strong>結果は読むための文字列です。<code>/</code> や <code>&amp;</code> も戻すので、そのままブラウザで開くリンクとしては使えません。</div>
 </section>
 
 <section id="setting" style="--c: var(--c-set)">

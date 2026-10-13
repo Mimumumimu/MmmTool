@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.Tools.Main.ToolsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="ツール" />
+
+        <!-- URL を日本語に戻す -->
+        <Border
+            Grid.Row="1"
+            Padding="20"
+            VerticalAlignment="Top"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+            <StackPanel Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <FontIcon FontSize="16" Glyph="&#xE8C1;" />
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="URL を日本語に戻す" />
+                </StackPanel>
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="文字コードになった URL を貼ると、日本語に戻します。"
+                    TextWrapping="Wrap" />
+                <TextBox
+                    AcceptsReturn="True"
+                    Header="貼り付け"
+                    MaxHeight="200"
+                    MinHeight="96"
+                    PlaceholderText="ここに URL を貼り付け"
+                    Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap" />
+                <TextBox
+                    AcceptsReturn="True"
+                    Header="結果"
+                    IsReadOnly="True"
+                    MaxHeight="200"
+                    MinHeight="96"
+                    Text="{x:Bind ViewModel.DecodedText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>
