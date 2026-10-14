@@ -26,6 +26,9 @@ public sealed partial class WorkItemPage : Page
     /// <summary>列の定義 (キー・見出し・幅・固定か・毎日入力する列か)</summary>
     private readonly List<TreeGridColumn> _columns;
 
+    /// <summary>状態と進捗度・実績の食い違いを知らせる吹き出し</summary>
+    private readonly WarningBubble _warningBubble = new();
+
     /// <summary>入力日の実績の列</summary>
     private readonly TreeGridColumn _actualDayColumn;
 
@@ -108,8 +111,27 @@ public sealed partial class WorkItemPage : Page
             }
         };
         ViewModel.FocusNameRequested += (_, row) => TreeGrid.FocusCell(row, "Name");
+        ViewModel.WarningRaised += OnWarningRaised;
         ActualThemeChanged += (_, _) => ApplyColumns();
+
+        // 次の操作を始めたら、警告の吹き出しは、すぐ消す (ほかの処理が先に受け取った操作も含む)
+        AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => _warningBubble.Hide()), handledEventsToo: true);
+        AddHandler(KeyDownEvent, new KeyEventHandler((_, _) => _warningBubble.Hide()), handledEventsToo: true);
+        Unloaded += (_, _) => _warningBubble.Hide();
     }
+
+    /// <summary>状態と進捗度・実績の食い違いを、入力したセルの下に短く出す</summary>
+    /// <param name="sender">ViewModel</param>
+    /// <param name="warning">警告 (行・列・文)</param>
+    /// <remarks>保存の直後は、行の表示を作り直している途中なので、表示が整ってから、セルの位置を引く。</remarks>
+    private void OnWarningRaised(object? sender, WorkWarning warning)
+        => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (TreeGrid.FindCell(warning.Row, warning.ColumnKey) is { } cell)
+            {
+                _warningBubble.Show(cell, warning.Message);
+            }
+        });
 
     /// <summary>日報メモの入力欄の高さを、<see cref="DayNoteLines"/> 行ちょうどが入る高さにする</summary>
     /// <remarks>

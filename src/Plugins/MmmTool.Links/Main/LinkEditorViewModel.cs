@@ -225,12 +225,27 @@ public sealed partial class LinkEditorViewModel : ObservableObject
         {
             _pathDebouncer.Cancel();
             PathKind = PathTargetKind.Empty;
+            DecodedPath = null;
             return;
         }
 
         var path = link.Path;
-        await _pathDebouncer.RunAsync(() => PathTarget.Classify(path), kind => PathKind = kind);
+        await _pathDebouncer.RunAsync(
+            () => (Kind: PathTarget.Classify(path), Decoded: PathTarget.DecodeForDisplay(path)),
+            result =>
+            {
+                PathKind = result.Kind;
+                DecodedPath = result.Decoded;
+            });
     }
+
+    /// <summary>URL の表示用の文字列 (日本語のエンコードを戻したもの)。URL でないときは null。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDecodedPath))]
+    public partial string? DecodedPath { get; set; }
+
+    /// <summary>デコードした表示用の文字列があるか</summary>
+    public bool HasDecodedPath => DecodedPath is not null;
 
     /// <summary>選択中のリンクを開く</summary>
     /// <returns>リンクを開く処理の完了を表すタスク</returns>

@@ -148,6 +148,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>行の一覧を作り直した (列の幅を内容に合わせ直すため)</summary>
     public event EventHandler? RowsRebuilt;
 
+    /// <summary>状態と進捗度・実績の食い違いを、入力したセルの下に短く知らせてほしい</summary>
+    public event EventHandler<WorkWarning>? WarningRaised;
+
     /// <summary>ViewModel を作る</summary>
     /// <param name="service">作業管理の読み書き</param>
     /// <param name="settings">設定ストア</param>
@@ -667,10 +670,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
                 await UpdateItemAsync(row, item => item with { Priority = (WorkItemPriority)row.Choices.Priorities[index].CodeNo });
                 break;
             case "Status" when index < row.Choices.Statuses.Count && index != row.StatusIndex:
-                await UpdateItemAsync(row, item => item with { Status = (WorkItemStatus)row.Choices.Statuses[index].CodeNo });
+                await UpdateItemAsync(row, item => item with { Status = (WorkItemStatus)row.Choices.Statuses[index].CodeNo }, warn: WorkWarningTrigger.Status);
                 break;
             case "Progress" when index < row.Choices.Progresses.Count && index != row.ProgressIndex:
-                await UpdateItemAsync(row, item => item with { ProgressCodeNo = row.Choices.Progresses[index].CodeNo });
+                await UpdateItemAsync(row, item => item with { ProgressCodeNo = row.Choices.Progresses[index].CodeNo }, warn: WorkWarningTrigger.Progress);
                 break;
         }
     }
@@ -711,8 +714,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>作業の項目を更新する</summary>
     /// <param name="row">行 (作業)</param>
     /// <param name="change">今の作業から、更新後の作業を作る処理</param>
+    /// <param name="warn">保存できたあと、食い違いを確かめるきっかけ (知らせない更新は null)</param>
     /// <returns>更新の完了を表すタスク</returns>
-    private async Task UpdateItemAsync(WorkItemRow row, Func<WorkItem, WorkItem> change)
+    private async Task UpdateItemAsync(WorkItemRow row, Func<WorkItem, WorkItem> change, WorkWarningTrigger? warn = null)
     {
         if (_service.GetItem(row.Id) is not { } item)
         {
@@ -721,7 +725,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         try
         {
-            AcceptOrReject(row, await _service.UpdateItemAsync(change(item), InputDate));
+            if (AcceptOrReject(row, await _service.UpdateItemAsync(change(item), InputDate)) && warn is { } trigger)
+            {
+                Warn(row, trigger);
+            }
         }
         catch (DataFileException ex)
         {
@@ -738,7 +745,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         try
         {
-            AcceptOrReject(row, await _service.SetRecordAsync(row.Id, InputDate, hours, note));
+            if (AcceptOrReject(row, await _service.SetRecordAsync(row.Id, InputDate, hours, note)) && hours > 0)
+            {
+                Warn(row, WorkWarningTrigger.Actual);
+            }
         }
         catch (DataFileException ex)
         {
@@ -749,15 +759,33 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>保存の結果に合わせて、エラーを消すか、入力を受け入れずに戻す</summary>
     /// <param name="row">行</param>
     /// <param name="error">入力の誤りのメッセージ。保存できたときは null</param>
-    private void AcceptOrReject(WorkItemRow row, string? error)
+    /// <returns>保存できたとき true</returns>
+    private bool AcceptOrReject(WorkItemRow row, string? error)
     {
         if (error is null)
         {
             Error.Clear();
+            return true;
         }
-        else
+
+        Reject(row, error);
+        return false;
+    }
+
+    /// <summary>保存した作業に、入力したきっかけの食い違いがあれば、入力したセルの下に知らせてほしいと伝える</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="trigger">確定した入力 (吹き出しは、その入力のセルの下に出す)</param>
+    private void Warn(WorkItemRow row, WorkWarningTrigger trigger)
+    {
+        if (_service.GetItem(row.Id) is { } item && WorkItemWarnings.Check(item, _service.Codes, trigger) is { } message)
         {
-            Reject(row, error);
+            var columnKey = trigger switch
+            {
+                WorkWarningTrigger.Status => "Status",
+                WorkWarningTrigger.Progress => "Progress",
+                _ => "ActualDay",
+            };
+            WarningRaised?.Invoke(this, new WorkWarning(row, columnKey, message));
         }
     }
 
