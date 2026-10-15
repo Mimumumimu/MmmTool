@@ -193,7 +193,7 @@ def read_selection_text(items, label, prompt, back_label):
             text = input(f"番号 (例: 1,3,5-7 / a=すべて / b={back_label} / q=終了): ")
         except EOFError:
             return "quit", []
-        text = text.strip()
+        text = unicodedata.normalize("NFKC", text).strip()
         if re.fullmatch(r"[qQ]", text):
             return "quit", []
         if text == "" or re.fullmatch(r"[bB]", text):

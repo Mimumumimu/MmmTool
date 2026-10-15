@@ -165,7 +165,7 @@ while ($true) {
             continue
         }
         $answer = Read-Host '実行しますか？ (y/N)'
-        if ($answer -match '^[yY]') {
+        if ($answer.Normalize([System.Text.NormalizationForm]::FormKC) -match '^[yY]') {
             $count = @($targets).Count
             $n = 0
             foreach ($t in $targets) {
