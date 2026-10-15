@@ -61,7 +61,7 @@ MmmTool の画面が書いた送信の依頼 (`MessageSendRequest`。[database.m
 - 結果は、成功なら `Sent`・`SentAt`、失敗なら `Failed`・`Attempts` を 1 増やす。失敗の理由は DB に書かず、「送信のログ」に残す
 - 気づいてほしい失敗は、リマインダーと同じく、最初の失敗と回数の上限での最後の失敗の 2 回だけ、トレイの通知で知らせる
 - 画面: 「メッセージの送信」のページ (下の「MmmBatch の画面」)に出す。リマインダーの画面とは混ぜない
-- 失敗した依頼は、MmmTool の画面には戻らない。送信済み・失敗を MmmTool で見られるようにするのは [../todo.md](../todo.md)
+- 失敗した依頼は、MmmTool の画面には戻らない。送信済み・失敗を MmmTool の画面に出さない (結果は MmmBatch の画面とログで見る)
 
 ## 送信先 (チャンネル)
 - 区分は ntfy と Discord。値は、ntfy ならトピック名、Discord なら Webhook の URL
