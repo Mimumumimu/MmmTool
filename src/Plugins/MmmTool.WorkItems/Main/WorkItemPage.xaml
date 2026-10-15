@@ -182,7 +182,23 @@
                     <TextBlock
                         Style="{StaticResource ValueTextStyle}"
                         Text="{x:Bind DueText, Mode=OneWay}"
-                        Visibility="{x:Bind IsWork}" />
+                        Visibility="{x:Bind IsDueNormal, Mode=OneWay}" />
+                    <!-- 期限切れ (未完了で、期限日が入力日より前)。色だけに頼らないよう、警告のアイコンも付ける。列の幅は、カレンダーのボタンの分の余白に収まる -->
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Visibility="{x:Bind IsOverdue, Mode=OneWay}"
+                        ToolTipService.ToolTip="{x:Bind OverdueTip, Mode=OneWay}">
+                        <TextBlock
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Style="{StaticResource ValueTextStyle}"
+                            Text="{x:Bind DueText, Mode=OneWay}" />
+                        <FontIcon
+                            Margin="-4,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            Glyph="&#xE7BA;" />
+                    </StackPanel>
                     <TextBlock
                         Style="{StaticResource CellTextStyle}"
                         Text="{x:Bind DueText, Mode=OneWay}"
@@ -343,6 +359,11 @@
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}"
                         Visibility="{x:Bind IsWork}">
+                        <!-- 触れない行 (無効)でも、行の灰色の背景をそのまま見せる (無効の既定の背景が、行の色を隠すため) -->
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
                         <TextBlock
                             VerticalAlignment="Center"
                             Text="{x:Bind DayNoteFirstLine, Mode=OneWay}"
@@ -375,6 +396,11 @@
                         IsTabStop="False"
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}">
+                        <!-- 触れない行 (無効)でも、行の灰色の背景をそのまま見せる (無効の既定の背景が、行の色を隠すため) -->
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                        </Button.Resources>
                         <TextBlock
                             VerticalAlignment="Center"
                             Text="{x:Bind NoteFirstLine, Mode=OneWay}"

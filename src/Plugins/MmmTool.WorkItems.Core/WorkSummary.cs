@@ -28,4 +28,10 @@ public sealed record WorkSummary(
     /// <returns>完了していて、完了日が基準の日より前なら true</returns>
     /// <remarks>完了したグループの既定の畳みと、作業の行を触れなくする判定が、この 1 つの条件を使う。</remarks>
     public bool IsFinishedBefore(DateOnly date) => IsFinished && CompletedDate is { } done && done < date;
+
+    /// <summary>期限を過ぎた日数</summary>
+    /// <param name="date">基準の日 (画面では入力日)</param>
+    /// <returns>未完了で、期限日が基準の日より前なら、過ぎた日数 (1 以上)。それ以外は 0</returns>
+    /// <remarks>期限日の当日は、過ぎていない。完了した作業は、期限を過ぎてから完了したものも含めて 0 (未完了の定義は <see cref="IsFinished"/>)。</remarks>
+    public int OverdueDays(DateOnly date) => !IsFinished && DueDate is { } due && due < date ? date.DayNumber - due.DayNumber : 0;
 }

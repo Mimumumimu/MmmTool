@@ -145,6 +145,22 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial DateTimeOffset? DueValue { get; private set; }
 
+    /// <summary>期限を過ぎた日数 (作業のみ。未完了で期限日が入力日より前のとき。過ぎていなければ 0)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOverdue))]
+    [NotifyPropertyChangedFor(nameof(IsDueNormal))]
+    [NotifyPropertyChangedFor(nameof(OverdueTip))]
+    public partial int OverdueDays { get; private set; }
+
+    /// <summary>期限を過ぎているか (期限日を赤い文字と警告のアイコンで出す)</summary>
+    public bool IsOverdue => IsWork && OverdueDays > 0;
+
+    /// <summary>期限日を、通常の文字で出す作業か (期限を過ぎていない作業)</summary>
+    public bool IsDueNormal => IsWork && OverdueDays == 0;
+
+    /// <summary>期限切れのアイコンのツールチップ (「3 日超過」)</summary>
+    public string OverdueTip => $"{OverdueDays} 日超過";
+
     /// <summary>期限日 (<c>yyyy/MM/dd</c>。無ければ空。グループは計算値)</summary>
     [ObservableProperty]
     public partial string DueText { get; private set; } = "";
@@ -185,6 +201,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <param name="choices">選択欄の選択肢 (優先度・状態・進捗度。グループの状態・進捗度の表示にも使う)</param>
     /// <param name="assigneeText">担当者の表示名 (作業のみ。未割り当ては空)</param>
     /// <param name="isLocked">完了して日がたった作業で、触れないか (作業のみ)</param>
+    /// <param name="overdueDays">期限を過ぎた日数 (作業のみ。過ぎていなければ 0)</param>
     public void Update(
         WorkNode node,
         int level,
@@ -193,12 +210,14 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
         WorkRecord? dayRecord,
         WorkChoices choices,
         string assigneeText,
-        bool isLocked)
+        bool isLocked,
+        int overdueDays)
     {
         var item = node.Item;
         var summary = node.Summary;
 
         IsLocked = isLocked;
+        OverdueDays = overdueDays;
         Level = level;
         HasChildren = hasChildren;
         IsExpanded = isExpanded;

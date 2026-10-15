@@ -896,7 +896,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
                 node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
                 _choices,
                 node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
-                node.Item is not null && IsPastFinished(node));
+                node.Item is not null && IsPastFinished(node),
+                node.Item is not null ? node.Summary.OverdueDays(InputDate) : 0);
             alive.Add(node.Key);
             target.Add(row);
             if (expanded)
