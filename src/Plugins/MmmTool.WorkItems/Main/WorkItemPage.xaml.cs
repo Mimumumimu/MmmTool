@@ -595,11 +595,13 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の入力欄を開くとき、今の備考を入れる</summary>
     /// <param name="sender">開く入れ物</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>触れない作業 (完了して日がたった作業)の備考は、全文を読めるよう開くが、入力はできない。</remarks>
     private void OnNoteFlyoutOpening(object? sender, object e)
     {
         if (sender is Flyout { Target: Button button, Content: TextBox box } && TreeGridView.GetRow(button) is WorkItemRow row)
         {
             _noteTarget = button;
+            box.IsReadOnly = row.IsLocked;
             box.Text = WorkItemViewModel.GetNote(row, ColumnKey(button));
         }
     }
@@ -677,15 +679,15 @@ public sealed partial class WorkItemPage : Page
             {
                 ShowLinkEditor(row, linkTarget);
                 return Task.CompletedTask;
-            });
-            AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink);
+            }, !row.IsLocked);
+            AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
         }
 
         // 右クリックした所が、作業の日付のセルのときだけ
         if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
-            AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""));
+            AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""), !row.IsLocked);
         }
 
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
@@ -697,9 +699,9 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(new MenuFlyoutSeparator());
         AddItem(menu, "上へ", () => ViewModel.ShiftAsync(row, -1), ViewModel.CanShift(row, -1));
         AddItem(menu, "下へ", () => ViewModel.ShiftAsync(row, 1), ViewModel.CanShift(row, 1));
-        AddItem(menu, "移動…", () => ViewModel.MoveAsync(row));
+        AddItem(menu, "移動…", () => ViewModel.MoveAsync(row), !row.IsLocked);
         menu.Items.Add(new MenuFlyoutSeparator());
-        AddItem(menu, "削除…", () => ViewModel.DeleteAsync(row));
+        AddItem(menu, "削除…", () => ViewModel.DeleteAsync(row), !row.IsLocked);
     }
 
     /// <summary>メニューに項目を足す</summary>

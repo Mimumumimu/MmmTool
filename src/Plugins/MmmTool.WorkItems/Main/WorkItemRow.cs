@@ -34,11 +34,30 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <summary>案件か</summary>
     public bool IsProject { get; } = key.Kind == WorkRowKind.Project;
 
-    /// <summary>行に重ねる色 (案件だけ、青の半透明。グループ・作業は、重ねない)</summary>
-    public Windows.UI.Color? RowTint => IsProject ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0) : null;
+    /// <summary>行に重ねる色 (案件は青の半透明。触れない作業は灰色の半透明。ほかは重ねない)</summary>
+    /// <remarks>灰色は、中間の灰色 (#808080)の約 22%。ライトでは白い背景が少し暗く、ダークでは暗い背景が少し明るくなり、どちらも背景に対して約 1.3 倍の差で、終わった行と分かる。</remarks>
+    public Windows.UI.Color? RowTint => IsProject
+        ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0)
+        : IsLocked ? Windows.UI.Color.FromArgb(0x38, 0x80, 0x80, 0x80) : null;
 
     /// <summary>案件の中のグループか</summary>
     public bool IsSubGroup { get; } = key.Kind == WorkRowKind.Group;
+
+    /// <summary>完了して日がたった作業で、触れないか (作業のみ。完了日が入力日より前)</summary>
+    /// <remarks>入力日を完了日に戻すと、触れる。行の背景は灰色にする (<see cref="RowTint"/>)。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RowTint))]
+    [NotifyPropertyChangedFor(nameof(PlannedHintVisible))]
+    [NotifyPropertyChangedFor(nameof(ActualDayHintVisible))]
+    [NotifyPropertyChangedFor(nameof(CanOpenNote))]
+    [NotifyPropertyChangedFor(nameof(CanOpenDayNote))]
+    public partial bool IsLocked { get; private set; }
+
+    /// <summary>備考のウィンドウを開けるか (触れない作業は、読むものがある (備考が空でない)ときだけ)</summary>
+    public bool CanOpenNote => !IsLocked || Note.Length > 0;
+
+    /// <summary>入力日の備考のウィンドウを開けるか (触れない作業は、読むものがある (備考が空でない)ときだけ)</summary>
+    public bool CanOpenDayNote => !IsLocked || DayNote.Length > 0;
 
     /// <summary>子を持つか</summary>
     [ObservableProperty]
@@ -63,6 +82,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NoteFirstLine))]
+    [NotifyPropertyChangedFor(nameof(CanOpenNote))]
     public partial string Note { get; private set; } = "";
 
     /// <summary>備考の先頭の 1 行 (表のセルに出す)</summary>
@@ -88,11 +108,11 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     [ObservableProperty]
     public partial string ProgressCellText { get; private set; } = "";
 
-    /// <summary>予定が空のとき、入力の手がかりの文字を出すか (作業のみ)</summary>
-    public bool PlannedHintVisible => IsWork && PlannedText.Length == 0;
+    /// <summary>予定が空のとき、入力の手がかりの文字を出すか (作業のみ。触れない作業には、入力できないので出さない)</summary>
+    public bool PlannedHintVisible => IsWork && !IsLocked && PlannedText.Length == 0;
 
-    /// <summary>入力日の実績が空のとき、入力の手がかりの文字を出すか (作業のみ)</summary>
-    public bool ActualDayHintVisible => IsWork && ActualDayText.Length == 0;
+    /// <summary>入力日の実績が空のとき、入力の手がかりの文字を出すか (作業のみ。触れない作業には、入力できないので出さない)</summary>
+    public bool ActualDayHintVisible => IsWork && !IsLocked && ActualDayText.Length == 0;
 
     /// <summary>優先度の選択位置 (選択肢から外れたコードは -1)</summary>
     [ObservableProperty]
@@ -150,6 +170,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <summary>入力日の備考 (全文)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DayNoteFirstLine))]
+    [NotifyPropertyChangedFor(nameof(CanOpenDayNote))]
     public partial string DayNote { get; private set; } = "";
 
     /// <summary>入力日の備考の先頭の 1 行 (表のセルに出す)</summary>
@@ -163,6 +184,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
     /// <param name="dayRecord">入力日の記録 (作業のみ。無ければ null)</param>
     /// <param name="choices">選択欄の選択肢 (優先度・状態・進捗度。グループの状態・進捗度の表示にも使う)</param>
     /// <param name="assigneeText">担当者の表示名 (作業のみ。未割り当ては空)</param>
+    /// <param name="isLocked">完了して日がたった作業で、触れないか (作業のみ)</param>
     public void Update(
         WorkNode node,
         int level,
@@ -170,11 +192,13 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
         bool isExpanded,
         WorkRecord? dayRecord,
         WorkChoices choices,
-        string assigneeText)
+        string assigneeText,
+        bool isLocked)
     {
         var item = node.Item;
         var summary = node.Summary;
 
+        IsLocked = isLocked;
         Level = level;
         HasChildren = hasChildren;
         IsExpanded = isExpanded;
@@ -217,8 +241,9 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGr
 
     /// <summary>このセルを、入力できるか</summary>
     /// <param name="columnKey">列のキー</param>
-    /// <returns>名前とリンクは、案件・グループも作業も入力できる。ほかの列は、作業だけ (グループは計算値)</returns>
-    public bool CanEdit(string columnKey) => columnKey is "Name" or "Link" || IsWork;
+    /// <returns>名前とリンクは、案件・グループも作業も入力できる。ほかの列は、作業だけ (グループは計算値)。触れない作業 (<see cref="IsLocked"/>)は、リンクを除いて入力できない</returns>
+    /// <remarks>リンクの列は、押すとリンクを開く列なので、触れない作業でも true にする (リンクの編集は、右クリックのメニューで止める)。</remarks>
+    public bool CanEdit(string columnKey) => columnKey == "Link" || (!IsLocked && (columnKey == "Name" || IsWork));
 
     /// <summary>入力欄の表示を、今の値に戻す</summary>
     /// <remarks>入力が受け入れられなかったとき、入力欄に残った入力途中の文字を、保存されている値に戻すために使う。</remarks>

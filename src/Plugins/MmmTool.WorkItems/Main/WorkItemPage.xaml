@@ -338,6 +338,7 @@
                         Visibility="{x:Bind IsGroup}" />
                     <Button
                         x:Name="Col_DayNote"
+                        IsEnabled="{x:Bind CanOpenDayNote, Mode=OneWay}"
                         IsTabStop="False"
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}"
@@ -370,6 +371,7 @@
                 <Grid>
                     <Button
                         x:Name="Col_Note"
+                        IsEnabled="{x:Bind CanOpenNote, Mode=OneWay}"
                         IsTabStop="False"
                         ContextFlyout="{StaticResource RowMenu}"
                         Style="{StaticResource NoteButtonStyle}">
