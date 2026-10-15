@@ -35,12 +35,6 @@
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 - 未決定: 表の案件の右クリックに「非表示にする」を足すか ([specs/work-items.md](specs/work-items.md) の「表示する案件」)
 
-## ビルドの警告
-
-- NuGet の脆弱性の警告 `NU1902` (中)・`NU1903` (高): `System.Security.Cryptography.Pkcs` 9.0.18 に既知の脆弱性がある。SQL Server に接続する部品 (`Microsoft.Data.SqlClient`)が内部で使っているとみられ、`MmmTool.Data.SqlServer` を含むプロジェクトで出る
-  - 直し方の案: `Directory.Packages.props` で、このパッケージの新しい版を指定する (パッケージの追加にあたるので、内容を説明して確認を取ってから行う)
-  - 先に、変更前のコードでも出ていたか、新しい版が `Microsoft.Data.SqlClient` と合うかを調べる
-
 ## 調査中
 
 - CLI補助の送信で、まれに Enter が効かない (貼り付けが `[Pasted text …]` のまま入力欄に残る)
