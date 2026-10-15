@@ -38,7 +38,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## 文書の更新
 
-- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`src/App/MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
+- 利用者から見える変更 (機能の追加・動作の修正・不具合の修正)をしたら、同じ作業の中で、`src/App/MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
 - 版を上げる (リリースする)ときの手順は、[docs/build-and-distribution.md](docs/build-and-distribution.md) の「版を上げるとき」に従う。版の数字を書く場所は、`Directory.Build.props` の `Version` と、配布用 `README.txt` の「変更履歴」だけにする (ほかの文書に、版の数字を書かない)
 - 操作や画面を変えたら、同じ作業の中で、次の 2 つの両方を直す
   - `README.md` の「使い方」
