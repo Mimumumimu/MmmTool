@@ -127,8 +127,9 @@ function Read-SelectionText([object[]]$Items, [scriptblock]$Format, [string]$Pro
     }
     while ($true) {
         $in = Read-Host "番号 (例: 1,3,5-7 / a=すべて / b=$BackLabel / q=終了)"
-        if ($null -eq $in -or $in.Trim() -match '^[qQ]$') { return New-SelectionResult 'quit' }
-        $in = $in.Trim()
+        if ($null -eq $in) { return New-SelectionResult 'quit' }
+        $in = $in.Normalize([System.Text.NormalizationForm]::FormKC).Trim()
+        if ($in -match '^[qQ]$') { return New-SelectionResult 'quit' }
         if ($in -eq '' -or $in -match '^[bB]$') { return New-SelectionResult 'back' }
         if ($in -match '^[aA]$') { return New-SelectionResult 'ok' $Items }
         $idx = New-Object System.Collections.Generic.SortedSet[int]

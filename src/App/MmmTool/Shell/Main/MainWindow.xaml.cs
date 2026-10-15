@@ -1,7 +1,5 @@
-using System.ComponentModel;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.WindowPositions;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Windowing;
@@ -10,6 +8,7 @@ using MmmSdk.WinUI.Utilities;
 namespace MmmTool.Shell.Main;
 
 /// <summary>メインウィンドウ (左にナビゲーション、右にページを表示する)</summary>
+/// <remarks>サイドバーとページの表示は SDK の <see cref="NavigationHost"/> が行う。このウィンドウは、タイトルバー・位置の保存・トレイへの退避を持つ。</remarks>
 public sealed partial class MainWindow : Window
 {
     /// <summary>既定の幅 (DIP)</summary>
@@ -18,43 +17,18 @@ public sealed partial class MainWindow : Window
     /// <summary>既定の高さ (DIP)</summary>
     private const double DefaultHeight = 720;
 
-    /// <summary>項目に対応するページ</summary>
-    private readonly PageProvider _pages;
-
-    /// <summary>ウィンドウの ViewModel</summary>
-    public MainViewModel ViewModel { get; }
-
     /// <summary>ウィンドウを作る</summary>
-    /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="pages">項目に対応するページ</param>
+    /// <param name="navigation">サイドバーと、選んだ項目のページ</param>
     /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
-    /// <param name="features">機能のオン・オフ</param>
-    public MainWindow(MainViewModel viewModel, PageProvider pages, IWindowPositionService positions, FeatureService features)
+    public MainWindow(NavigationHost navigation, IWindowPositionService positions)
     {
-        ViewModel = viewModel;
-        _pages = pages;
-
         InitializeComponent();
+        ContentHost.Child = navigation;
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
         // 前回の位置と大きさを復元する (無い・画面外のときは、既定の 1280×720 DIP。DPI に合わせる)。変わったら保存する。ウィンドウが閉じたら自分で後始末する
         WindowBoundsKeeper.Attach(this, positions, "MainWindow", DefaultWidth, DefaultHeight);
         AppWindow.Closing += OnClosing;
-
-        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-        features.Changed += OnFeatureChanged;
-        features.OrderChanged += (_, _) => ViewModel.Refresh();
-        NavigateTo(ViewModel.SelectedItem);
-    }
-
-    /// <summary>機能のオン・オフが切り替わったら、サイドバーの項目を作り直し、オフにした機能のページを捨てる</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="featureKey">切り替わった機能のキー</param>
-    /// <remarks>表示中のページが消えるときは、項目の更新の中で別のページへ移る。ページを捨てるのは、そのあと (表示中のページを捨てないため)。</remarks>
-    private void OnFeatureChanged(object? sender, string featureKey)
-    {
-        ViewModel.Refresh();
-        _pages.EvictDisabledPages();
     }
 
     #region トレイへの退避・再表示
@@ -79,27 +53,4 @@ public sealed partial class MainWindow : Window
     public void PrepareExit() => _isExiting = true;
 
     #endregion
-
-    /// <summary>選択が変わったら、そのページへ移動する</summary>
-    /// <param name="sender">イベントの送信元</param>
-    /// <param name="e">変更されたプロパティの情報</param>
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MainViewModel.SelectedItem))
-        {
-            NavigateTo(ViewModel.SelectedItem);
-        }
-    }
-
-    /// <summary>項目に対応するページを表示する</summary>
-    /// <param name="item">表示するナビゲーション項目</param>
-    private void NavigateTo(NavigationItem? item)
-    {
-        if (item is null || _pages.GetPage(item) is not { } page)
-        {
-            return;
-        }
-
-        ContentFrame.Content = page;
-    }
 }

@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using MmmBatch.ReminderSending.Core;
 using MmmBatch.Sending.Core;
 using MmmTool.Data.SqlServer.Connection;
 
@@ -14,11 +15,8 @@ namespace MmmBatch.Data.SqlServer.Sending;
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase database) : IReminderSendStatusRepository
 {
-    /// <summary>失敗の理由の最大の長さ (列の長さ)</summary>
-    private const int LastErrorMaxLength = 500;
-
     /// <summary>読む列 (<see cref="ReadStatus"/> の並び)</summary>
-    private const string Columns = "Id, ReminderId, ChannelId, Date, Status, Attempts, LastError, SentAt, UpdatedAt";
+    private const string Columns = "Id, ReminderId, ChannelId, Date, Status, Attempts, SentAt, UpdatedAt";
 
     /// <summary>まだ送っていないことを表す日時 (<c>9999-12-31</c>)</summary>
     private static readonly DateTimeOffset NotSent = new(DateTime.MaxValue.Date, TimeSpan.Zero);
@@ -60,7 +58,7 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             {
                 await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                return new ReminderSendStatus(reader.GetInt32(0), reminderId, channelId, date, SendStatus.Pending, 1, "", null, reader.GetDateTimeOffset(1));
+                return new ReminderSendStatus(reader.GetInt32(0), reminderId, channelId, date, SendStatus.Pending, 1, null, reader.GetDateTimeOffset(1));
             }
             catch (SqlException ex) when (SendTableAccess.DuplicateKeyErrors.Contains(ex.Number))
             {
@@ -81,7 +79,7 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             command.CommandText =
                 """
                 UPDATE dbo.ReminderSendStatus
-                SET Status = @Pending, Attempts = Attempts + 1, LastError = N'', UpdatedAt = SYSDATETIMEOFFSET()
+                SET Status = @Pending, Attempts = Attempts + 1, UpdatedAt = SYSDATETIMEOFFSET()
                 WHERE Id = @Id AND Status = @Status AND UpdatedAt = @UpdatedAt
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = current.Id });
@@ -100,7 +98,7 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             command.CommandText =
                 """
                 UPDATE dbo.ReminderSendStatus
-                SET Status = @Status, LastError = N'', SentAt = SYSDATETIMEOFFSET(), UpdatedAt = SYSDATETIMEOFFSET()
+                SET Status = @Status, SentAt = SYSDATETIMEOFFSET(), UpdatedAt = SYSDATETIMEOFFSET()
                 WHERE Id = @Id
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
@@ -110,27 +108,21 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
         }, cancellationToken);
 
     /// <inheritdoc />
-    public Task MarkFailedAsync(int id, string error, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(error);
-
-        var message = error.Length > LastErrorMaxLength ? error[..LastErrorMaxLength] : error;
-        return SendTableAccess.RunAsync(database, async connection =>
+    public Task MarkFailedAsync(int id, CancellationToken cancellationToken = default)
+        => SendTableAccess.RunAsync(database, async connection =>
         {
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
                 UPDATE dbo.ReminderSendStatus
-                SET Status = @Status, LastError = @LastError, UpdatedAt = SYSDATETIMEOFFSET()
+                SET Status = @Status, UpdatedAt = SYSDATETIMEOFFSET()
                 WHERE Id = @Id
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
             command.Parameters.Add(new SqlParameter("@Status", SqlDbType.TinyInt) { Value = (byte)SendStatus.Failed });
-            command.Parameters.Add(new SqlParameter("@LastError", SqlDbType.NVarChar, LastErrorMaxLength) { Value = message });
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }, cancellationToken);
-    }
 
     /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="ReminderSendStatus"/> にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
@@ -144,7 +136,7 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             throw new InvalidOperationException($"送信の状況 {reader.GetInt32(0)} の状態が正しくありません ({(int)status})。");
         }
 
-        var sentAt = reader.GetDateTimeOffset(7);
+        var sentAt = reader.GetDateTimeOffset(6);
         return new ReminderSendStatus(
             reader.GetInt32(0),
             reader.GetInt32(1),
@@ -152,8 +144,7 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             DateOnly.FromDateTime(reader.GetDateTime(3)),
             status,
             reader.GetByte(5),
-            reader.GetString(6),
             sentAt >= NotSent ? null : sentAt,
-            reader.GetDateTimeOffset(8));
+            reader.GetDateTimeOffset(7));
     }
 }

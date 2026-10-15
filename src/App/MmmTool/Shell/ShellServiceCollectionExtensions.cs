@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Hosting;
+using MmmSdk.Core.Components.Settings;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
@@ -17,12 +18,10 @@ public static class ShellServiceCollectionExtensions
     public static IServiceCollection AddShell(this IServiceCollection services)
     {
         services.AddSingleton<MainWindow>();
-        services.AddSingleton<MainViewModel>();
-        services.AddSingleton<PageProvider>();
+        // サイドバーと、選んだ項目のページ (SDK)。機能 (プラグイン)が作ったページを調べる口 (IPageCache)も含む
+        services.AddNavigationHost();
         // 画面から、アプリの終了 (トレイの「終了」と同じ処理)を頼む口
         services.AddSingleton<AppExitService>();
-        // 機能 (プラグイン)が、作ったページを調べる口
-        services.AddSingleton<IPageCache>(provider => provider.GetRequiredService<PageProvider>());
         // 機能 (プラグイン)が、アプリの名前・データ・アイコンの置き場所を知る口
         services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppIcon.FilePath));
         // メインウィンドウの設定 (起動時に開くか)

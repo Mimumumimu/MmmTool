@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.Core;
 using MmmTool.Users.Core;
 

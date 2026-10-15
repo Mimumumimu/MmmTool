@@ -97,6 +97,7 @@ public partial class App : Application
         services.AddFeaturePlugin<LinksPlugin>(order: 4);
         services.AddFeaturePlugin<WorkItemsPlugin>(order: 2);
         services.AddFeaturePlugin<ToolsPlugin>(order: 7);
+        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 8);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();

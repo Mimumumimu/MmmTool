@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Reminders.ChannelEdit;
 

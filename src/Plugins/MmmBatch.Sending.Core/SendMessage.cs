@@ -1,30 +1,15 @@
-using MmmTool.Reminders.Core;
-
 namespace MmmBatch.Sending.Core;
 
 /// <summary>
 /// 送る内容。
 /// </summary>
-/// <param name="Title">タイトル</param>
-/// <param name="Body">本文 (件名。備考があれば「件名 (備考)」)</param>
+/// <param name="Title">タイトル。無ければ null (付けない)</param>
+/// <param name="Body">本文</param>
 /// <param name="Link">リンク。無ければ null</param>
-public sealed record SendMessage(string Title, string Body, string? Link)
+/// <param name="TitleInContent">タイトルを、本文の中に入れて送るか (タイトルを持たない送信先 (Discord)で、タイトルを太字の 1 行目にするため)</param>
+/// <remarks>何を送るかの組み立ては、各機能が行う (リマインダーは件名・備考・リンクから、メッセージはタイトルと本文から)。</remarks>
+public sealed record SendMessage(string? Title, string Body, string? Link, bool TitleInContent = false)
 {
-    /// <summary>通知のタイトル</summary>
-    public const string ReminderTitle = "リマインダー";
-
-    /// <summary>リマインダーから、送る内容を作る</summary>
-    /// <param name="reminder">送るリマインダー</param>
-    /// <returns>送る内容</returns>
-    public static SendMessage FromReminder(Reminder reminder)
-    {
-        ArgumentNullException.ThrowIfNull(reminder);
-
-        var body = string.IsNullOrWhiteSpace(reminder.Note) ? reminder.Title : $"{reminder.Title} ({reminder.Note})";
-        var link = string.IsNullOrWhiteSpace(reminder.Link) ? null : reminder.Link.Trim();
-        return new SendMessage(ReminderTitle, body, link);
-    }
-
     /// <summary>リンクが、通知から開ける URL (http か https)か</summary>
     /// <returns>開ける URL なら true。ファイル・フォルダーのパスなどは false</returns>
     public bool IsLinkUrl => Link is not null

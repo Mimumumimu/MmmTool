@@ -69,7 +69,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - 外部送信は、サーバー用の別アプリ `MmmBatch`(同じリポジトリの別ソリューション `MmmBatch.slnx`)の機能 (`src/Plugins/MmmBatch.*`)として作る
   - `MmmTool.slnx` の側のプロジェクトから、`MmmBatch.*` を参照しない
   - 共通の部品 (SDK など)に外部送信の処理を足すときも、MmmTool が参照するプロジェクトには入れない
-  - MmmTool に入れてよいのは、送信先の登録と、リマインダーごとの送信先の選択 (保存と画面。DB モードだけ)まで。ntfy・Discord などへ接続するコードは入れない ([docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
+  - 禁じているのは、外部のアドレス (ntfy・Discord など)へ接続するコード。DB への読み書きは、SQL Server とのやり取りと同じ種類なので、禁じていない
+  - MmmTool に入れてよいのは、送信先の登録・リマインダーごとの送信先の選択・メッセージの送信依頼 (どれも DB への保存と画面。DB モードだけ)。依頼を実際に送るのは MmmBatch で、MmmTool は DB に行を書くだけにする ([docs/specs/mmmbatch.md](docs/specs/mmmbatch.md))
+  - ローカルモードには、送信につながるコードを、動かさない・出さない (機能は DB モードのときだけ有効にする)
 
 ## 意図した仕様 (直さない・指摘しない)
 

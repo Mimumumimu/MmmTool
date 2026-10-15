@@ -5,7 +5,7 @@ using MmmTool.Data.SqlServer.Connection;
 namespace MmmBatch.Data.SqlServer.Sending;
 
 /// <summary>
-/// 送信の表 (<c>dbo.ReminderSendStatus</c>と、MmmTool が作る送信先・送信設定の表)を読み書きするときの、共通の決まり。
+/// 送信の表 (<c>dbo.ReminderSendStatus</c>と、MmmTool が作る送信先・送信設定・メッセージの送信依頼の表)を読み書きするときの、共通の決まり。
 /// </summary>
 /// <remarks>
 /// 表は、管理者が作成用の SQL を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの

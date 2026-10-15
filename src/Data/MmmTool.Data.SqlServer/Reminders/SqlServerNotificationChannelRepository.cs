@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Reminders;

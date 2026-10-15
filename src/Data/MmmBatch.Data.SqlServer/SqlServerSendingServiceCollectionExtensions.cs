@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmBatch.Data.SqlServer.Sending;
-using MmmBatch.Sending.Core;
+using MmmBatch.MessageSending.Core;
+using MmmBatch.ReminderSending.Core;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
 
@@ -26,8 +27,9 @@ public static class SqlServerSendingServiceCollectionExtensions
         services.AddDatabaseSettings(Defaults);
         services.AddSingleton<SqlServerConnectionFactoryBuilder>();
         services.AddSingleton<SqlServerDatabase>();
-        services.AddSingleton<ISendTargetSource, SqlServerSendTargetSource>();
+        services.AddSingleton<IReminderSendTargetSource, SqlServerReminderSendTargetSource>();
         services.AddSingleton<IReminderSendStatusRepository, SqlServerReminderSendStatusRepository>();
+        services.AddSingleton<IMessageSendStore, SqlServerMessageSendStore>();
         return services;
     }
 }

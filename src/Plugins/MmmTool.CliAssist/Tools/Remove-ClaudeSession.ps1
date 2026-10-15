@@ -153,7 +153,7 @@ while ($true) {
             continue
         }
         $answer = Read-Host '実行しますか？ (y/N)'
-        if ($answer -match '^[yY]') {
+        if ($answer.Normalize([System.Text.NormalizationForm]::FormKC) -match '^[yY]') {
             foreach ($t in $targets) { Remove-ToRecycleBin $t.File }
             Write-Host '完了しました。' -ForegroundColor Green
 

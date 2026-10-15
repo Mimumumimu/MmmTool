@@ -69,8 +69,21 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/Messages/">
+    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Messages/MmmTool.Messages.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/CodeMaster/">
     <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/NotificationChannels/">
+    <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>

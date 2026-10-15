@@ -12,8 +12,8 @@ namespace MmmBatch.Sending.Core;
 /// <param name="directory">ログを置くフォルダー (<c>Data/Logs</c>)</param>
 /// <remarks>
 /// ファイル名は <c>send_yyyy-MM-dd.jsonl</c> (送った日のローカルの日付。エラーのログ <c>yyyy-MM-dd.log</c> とは、名前が重ならない)。
-/// ログは永遠に残す。今日から 30 日以上前の日のファイルは、<see cref="MoveOldFiles"/> が <c>old</c> フォルダーへ移す (画面は、<c>old</c> の中は読まない)。
-/// このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログは見えない。
+/// ログは永遠に残す。今日から 30 日以上前の日のファイルは、<see cref="MoveOldFiles"/> が <c>old</c> フォルダーへ移す。
+/// アプリは、ログを書くだけで読まない (何かあったときに、人がファイルを読む)。このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログは、そのコンピューターのファイルにある。
 /// </remarks>
 public sealed class FileSendLog(string directory) : ISendLog
 {
@@ -53,49 +53,6 @@ public sealed class FileSendLog(string directory) : ISendLog
             throw new DataFileException($"送信のログを書けませんでした ({ex.Message})。", ex);
         }
         return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    /// <exception cref="DataFileException">ファイルを読めなかった (メッセージは画面に出せる)。</exception>
-    public Task<IReadOnlyList<SendLogEntry>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
-    {
-        var entries = new List<SendLogEntry>();
-        try
-        {
-            if (!Directory.Exists(directory))
-            {
-                return Task.FromResult<IReadOnlyList<SendLogEntry>>(entries);
-            }
-
-            // 日付の新しいファイルから、行を後ろから読み、必要な件数がそろったら止める (全部は読まない)
-            var files = Directory.GetFiles(directory, FilePrefix + "*" + FileExtension).OrderByDescending(path => path, StringComparer.Ordinal);
-            foreach (var file in files)
-            {
-                string[] lines;
-                lock (_gate)
-                {
-                    lines = File.ReadAllLines(file, Encoding.UTF8);
-                }
-
-                for (var i = lines.Length - 1; i >= 0; i--)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (TryParse(lines[i]) is { } entry)
-                    {
-                        entries.Add(entry);
-                        if (entries.Count >= count)
-                        {
-                            return Task.FromResult<IReadOnlyList<SendLogEntry>>(Sorted(entries));
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new DataFileException($"送信のログを読めませんでした ({ex.Message})。", ex);
-        }
-        return Task.FromResult<IReadOnlyList<SendLogEntry>>(Sorted(entries));
     }
 
     /// <inheritdoc />
@@ -153,36 +110,9 @@ public sealed class FileSendLog(string directory) : ISendLog
             ? date
             : null;
     }
-
-    /// <summary>1 行を、ログの行にする</summary>
-    /// <param name="line">JSON の 1 行</param>
-    /// <returns>ログの行。空・壊れている行は null (飛ばす)</returns>
-    private static SendLogEntry? TryParse(string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize(line, SendLogJsonContext.Default.SendLogEntry);
-        }
-        catch (JsonException)
-        {
-            // 手で直した・書きかけの行は、読み飛ばす
-            return null;
-        }
-    }
-
-    /// <summary>新しい順に並べる (同じ日時なら、あとに書いたほうが先)</summary>
-    /// <param name="entries">後ろから読んだ行</param>
-    /// <returns>日時の新しい順の行</returns>
-    private static List<SendLogEntry> Sorted(List<SendLogEntry> entries)
-        => [.. entries.Select((entry, index) => (entry, index)).OrderByDescending(item => item.entry.At).ThenBy(item => item.index).Select(item => item.entry)];
 }
 
 /// <summary>送信のログの JSON のソース生成 (リフレクションを使わない)</summary>
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, Converters = [typeof(JsonStringEnumConverter<SendStatus>), typeof(JsonStringEnumConverter<MmmTool.Reminders.Core.NotificationChannelKind>)])]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, Converters = [typeof(JsonStringEnumConverter<SendStatus>), typeof(JsonStringEnumConverter<MmmTool.NotificationChannels.Core.NotificationChannelKind>)])]
 [JsonSerializable(typeof(SendLogEntry))]
 internal sealed partial class SendLogJsonContext : JsonSerializerContext;

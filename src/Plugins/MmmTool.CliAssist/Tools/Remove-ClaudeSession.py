@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import sys
+import unicodedata
 import urllib.parse
 
 # 画面部品は同じフォルダの session_menu.py (出力フォルダに __pycache__ を作らない)
@@ -235,7 +236,7 @@ def main():
                 answer = input("実行しますか？ (y/N) ")
             except EOFError:
                 answer = ""
-            if re.match(r"[yY]", answer):
+            if re.match(r"[yY]", unicodedata.normalize("NFKC", answer)):
                 for target in targets:
                     remove_session(target["file"])
                 print(f"{GREEN}完了しました。{RESET}")

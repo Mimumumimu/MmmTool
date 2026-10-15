@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Reminders.Input;
 

@@ -28,6 +28,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 
 # 画面部品は同じフォルダの session_menu.py (出力フォルダに __pycache__ を作らない)
 sys.dont_write_bytecode = True
@@ -194,7 +195,7 @@ def main():
                 answer = input("実行しますか？ (y/N) ")
             except EOFError:
                 answer = ""
-            if re.match(r"[yY]", answer):
+            if re.match(r"[yY]", unicodedata.normalize("NFKC", answer)):
                 for n, target in enumerate(targets, 1):
                     remove_session(
                         target["id"],

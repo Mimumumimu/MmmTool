@@ -1,21 +1,24 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using MmmBatch.Sending;
 using MmmSdk.Core.Components.WindowPositions;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
 
 namespace MmmBatch.Shell.Main;
 
-/// <summary>メインウィンドウ (送信の状況を表示する)</summary>
-/// <remarks>× ボタン・Alt+F4 では終了せず、トレイへ退避する (非表示にするだけで、アプリは動き続ける)。終了はトレイの「終了」から。</remarks>
+/// <summary>メインウィンドウ (左にサイドバー、右に機能ごとのページを表示する)</summary>
+/// <remarks>
+/// サイドバーとページの表示は SDK の <see cref="NavigationHost"/> が行う。このウィンドウは、タイトルバー・位置の保存・トレイへの退避を持つ。
+/// × ボタン・Alt+F4 では終了せず、トレイへ退避する (非表示にするだけで、アプリは動き続ける)。終了はトレイの「終了」から。
+/// </remarks>
 public sealed partial class MainWindow : Window
 {
     /// <summary>既定の幅 (DIP)</summary>
-    private const double DefaultWidth = 900;
+    private const double DefaultWidth = 1100;
 
     /// <summary>既定の高さ (DIP)</summary>
-    private const double DefaultHeight = 480;
+    private const double DefaultHeight = 560;
 
     /// <summary>アプリを終了中か</summary>
     /// <remarks>閉じる要求が「本当の終了」か「トレイへの退避」かを見分ける。</remarks>
@@ -23,11 +26,11 @@ public sealed partial class MainWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
-    /// <param name="content">送信の状況の画面 (今日の送信予定と履歴)</param>
-    public MainWindow(IWindowPositionService positions, SendMainControl content)
+    /// <param name="navigation">サイドバーと、選んだ項目のページ</param>
+    public MainWindow(IWindowPositionService positions, NavigationHost navigation)
     {
         InitializeComponent();
-        ContentHost.Child = content;
+        ContentHost.Child = navigation;
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
         // 前回の位置と大きさを復元する (無い・画面外のときは、既定の大きさ。DPI に合わせる)。変わったら保存する。ウィンドウが閉じたら自分で後始末する

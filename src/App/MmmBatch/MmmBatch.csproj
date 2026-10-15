@@ -56,6 +56,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Plugins\MmmBatch.Sending\MmmBatch.Sending.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmBatch.ReminderSending\MmmBatch.ReminderSending.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmBatch.MessageSending\MmmBatch.MessageSending.csproj" />
     <ProjectReference Include="..\..\Data\MmmBatch.Data.SqlServer\MmmBatch.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />

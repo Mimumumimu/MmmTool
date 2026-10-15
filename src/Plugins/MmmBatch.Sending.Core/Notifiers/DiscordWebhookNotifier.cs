@@ -1,5 +1,5 @@
 using System.Text.Json;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Sending.Core.Notifiers;
 
@@ -8,7 +8,7 @@ namespace MmmBatch.Sending.Core.Notifiers;
 /// </summary>
 /// <param name="http">HTTP クライアント (アプリ全体で 1 つ)</param>
 /// <remarks>
-/// 本文は、「件名 (備考)」と、リンクがあれば、次の行にリンク。Discord の本文の上限 (2000 文字)を超える分は切る。
+/// 本文は、「件名 (備考)」と、リンクがあれば、次の行にリンク。メッセージは、タイトルがあれば、太字の 1 行目にする。Discord の本文の上限 (2000 文字)を超える分は切る。
 /// 本文の @everyone などは、メンションとして効かせない。
 /// </remarks>
 public sealed class DiscordWebhookNotifier(HttpClient http) : INotifier
@@ -33,6 +33,10 @@ public sealed class DiscordWebhookNotifier(HttpClient http) : INotifier
         }
 
         var content = message.Link is null ? message.Body : $"{message.Body}\n{message.Link}";
+        if (message.TitleInContent && !string.IsNullOrWhiteSpace(message.Title))
+        {
+            content = $"**{message.Title}**\n{content}";
+        }
         if (content.Length > ContentMaxLength)
         {
             content = content[..ContentMaxLength];

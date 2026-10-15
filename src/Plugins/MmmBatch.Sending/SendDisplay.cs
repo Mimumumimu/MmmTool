@@ -1,9 +1,9 @@
 using MmmBatch.Sending.Core;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Sending;
 
-/// <summary>送信の画面に出す文字列 (今日の送信予定と履歴で、同じ表現にそろえる)</summary>
+/// <summary>送信の画面に出す文字列のうち、機能に共通のもの (機能ごとの状態の文字列は、各機能の画面に置く)</summary>
 public static class SendDisplay
 {
     /// <summary>送信先を、種類と登録名にして、画面に出す文字列にする</summary>
@@ -27,10 +27,17 @@ public static class SendDisplay
         return kindText.Length == 0 ? name : $"{name} ({kindText})";
     }
 
-    /// <summary>今日の送信予定の状態を、画面に出す文字列にする</summary>
-    /// <param name="item">今日の送信予定</param>
-    /// <returns>今日は送らないもの (保存した時点で、送る時刻が過ぎていた)は「対象外 (過去)」。ほかは、送信の状況の文字列 (<see cref="StatusText"/>)</returns>
-    public static string PlanStatusText(SendPlanItem item) => item.IsSkipped ? "対象外 (過去)" : StatusText(item.Status);
+    /// <summary>宛先を、送信先を登録した人と、種類・登録名にして、画面に出す文字列にする</summary>
+    /// <param name="ownerName">送信先を登録した人の表示名。分からなければ空文字</param>
+    /// <param name="kind">送信先の区分</param>
+    /// <param name="name">送信先の登録名</param>
+    /// <returns>「ユーザー名 - 登録名 (ntfy)」の形 (MmmTool の宛先の選択肢と同じ)。ユーザー名が分からなければ「登録名 (ntfy)」</returns>
+    /// <remarks>送る先の値は秘密なので、出さない。</remarks>
+    public static string RecipientText(string ownerName, NotificationChannelKind kind, string name)
+    {
+        var channel = ChannelText(kind, name);
+        return ownerName.Length == 0 ? channel : $"{ownerName} - {channel}";
+    }
 
     /// <summary>送った 1 回の結果を、画面に出す文字列にする</summary>
     /// <param name="status">結果 (送信済み・失敗)</param>
@@ -42,18 +49,5 @@ public static class SendDisplay
         SendStatus.Failed when error.Length == 0 => "失敗",
         SendStatus.Failed => $"失敗 ({error})",
         _ => status.ToString(),
-    };
-
-    /// <summary>送信の状況を、画面に出す文字列にする</summary>
-    /// <param name="status">送信の状況。まだ送ろうとしていなければ null</param>
-    /// <returns>「未送信」「送信中」「送信済み」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>
-    public static string StatusText(ReminderSendStatus? status) => status switch
-    {
-        null => "未送信",
-        { Status: SendStatus.Sent } => "送信済み",
-        { Status: SendStatus.Pending } => "送信中",
-        { Status: SendStatus.Failed, LastError.Length: 0 } => "失敗",
-        { Status: SendStatus.Failed } => $"失敗 ({status.LastError})",
-        _ => status.Status.ToString(),
     };
 }

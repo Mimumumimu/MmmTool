@@ -165,6 +165,54 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
+    /// <summary>カレンダーが開いたとき、日付が空なら、入力日 (終了日は開始日があれば開始日)の月を表示する</summary>
+    /// <param name="sender">日付の選択欄</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>日付が空のままだと、カレンダーはシステムの今日の月を表示するため。選択はしない (表示する月だけ変える)。</remarks>
+    private void OnDateOpened(object? sender, object e)
+    {
+        if (sender is not CalendarDatePicker { Date: null } picker || TreeGridView.GetRow(picker) is not WorkItemRow row)
+        {
+            return;
+        }
+
+        var basis = ColumnKey(picker) == "Due" && row.StartValue is { } start ? start : ToOffset(ViewModel.InputDate);
+
+        // 開いた直後は、ポップアップの中身がまだ無いことがあるので、処理が済んでから探す
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot))
+            {
+                if (FindCalendarView(popup.Child) is { } calendar)
+                {
+                    calendar.SetDisplayDate(basis);
+                    return;
+                }
+            }
+        });
+    }
+
+    /// <summary>要素の中から、最初のカレンダーを探す</summary>
+    /// <param name="element">探し始める要素</param>
+    /// <returns>見つかったカレンダー。無ければ <see langword="null"/></returns>
+    private static CalendarView? FindCalendarView(DependencyObject? element)
+    {
+        if (element is CalendarView calendar)
+        {
+            return calendar;
+        }
+
+        for (var i = 0; element is not null && i < VisualTreeHelper.GetChildrenCount(element); i++)
+        {
+            if (FindCalendarView(VisualTreeHelper.GetChild(element, i)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>カレンダーが閉じたら、表示用に戻す</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
@@ -670,9 +718,11 @@ public sealed partial class WorkItemPage : Page
         }
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
-        // 右クリックした所が、リンクのセルのとき (案件・グループ・作業とも)
-        // 入力欄は、メニューの対象 (行全体)ではなく、右クリックしたセルの下に出す (行の左端の下に出ると、視線が離れる)
-        if (TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is { } linkTarget)
+        // 「リンクを編集…」は、行のどこを右クリックしても出す (案件・グループ・作業とも)
+        // 入力欄は、リンクのセルの下に出す (行の左端の下に出ると、視線が離れる)
+        var onLinkCell = TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is not null;
+        var linkTarget = onLinkCell ? TreeGrid.ContextCell : TreeGrid.FindCell(row, "Link");
+        if (linkTarget is not null)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
             AddItem(menu, "リンクを編集…", () =>
@@ -680,7 +730,12 @@ public sealed partial class WorkItemPage : Page
                 ShowLinkEditor(row, linkTarget);
                 return Task.CompletedTask;
             }, !row.IsLocked);
-            AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
+
+            // 「リンクをクリア」は、リンクのセルを右クリックしたときだけ出す
+            if (onLinkCell)
+            {
+                AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
+            }
         }
 
         // 右クリックした所が、作業の日付のセルのときだけ

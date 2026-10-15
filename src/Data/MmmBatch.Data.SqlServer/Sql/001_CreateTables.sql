@@ -18,7 +18,6 @@ CREATE TABLE dbo.ReminderSendStatus
     Date            date            NOT NULL,
     Status          tinyint         NOT NULL CONSTRAINT CK_ReminderSendStatus_Status CHECK (Status BETWEEN 1 AND 3),
     Attempts        tinyint         NOT NULL CONSTRAINT DF_ReminderSendStatus_Attempts DEFAULT (0),
-    LastError       nvarchar(500)   NOT NULL CONSTRAINT DF_ReminderSendStatus_LastError DEFAULT (N''),
     SentAt          datetimeoffset(3) NOT NULL CONSTRAINT DF_ReminderSendStatus_SentAt DEFAULT ('9999-12-31'),
     CONSTRAINT UQ_ReminderSendStatus_Key UNIQUE (ReminderId, ChannelId, Date)
 );

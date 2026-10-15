@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.List;
