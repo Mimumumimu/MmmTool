@@ -38,7 +38,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## 文書の更新
 
-- 利用者から見える変更 (機能の追加・変更・不具合の修正)をしたら、同じ作業の中で、`src/App/MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
+- 利用者から見える変更 (機能の追加・動作の修正・不具合の修正)をしたら、同じ作業の中で、`src/App/MmmTool/Distribution/README.txt` の「変更履歴」の先頭「未リリース」の下に 1 行ずつ書き足す (見出しが無ければ作る。版の決め方は [build-and-distribution.md](docs/build-and-distribution.md) の「ビルドの共通設定」)
 - 版を上げる (リリースする)ときの手順は、[docs/build-and-distribution.md](docs/build-and-distribution.md) の「版を上げるとき」に従う。版の数字を書く場所は、`Directory.Build.props` の `Version` と、配布用 `README.txt` の「変更履歴」だけにする (ほかの文書に、版の数字を書かない)
 - 操作や画面を変えたら、同じ作業の中で、次の 2 つの両方を直す
   - `README.md` の「使い方」
@@ -145,7 +145,8 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - PR の作成では、流し直さない (コミットのときに通しているため)
   - PR のマージの前は、`master` を作業ブランチに取り込んで、コードが変わったときだけ、両方を流す (早送りなど、変わらなければ流さない)
   - SDK も変えたときは、SDK のコミットの前に、アプリ側の両方が通ることを確かめる
-  - ビルドの実行・報告の形は、`build-check` スキルに従う。実行中のアプリで DLL が使用中のときの扱いも、同じスキルに従う
+  - `dotnet build` を流す前に、`build-check` スキルを Skill ツールで開いて読む。報告の末尾の「ビルド」と「確認リスト」の形も、実行中のアプリで DLL が使用中のときの扱いも、同じスキルに従う
+    - 悪い例: ビルドを流して報告し、スキルを開かないまま、確認リストを付け忘れる
 - ビルドは、VS を開いているだけなら、気にせず `dotnet build` してよい。避けるのは、ビルド先の出力フォルダーの exe が実行中のときだけ。普段使いの `MmmTool_local` (`bin\Release\publish\MmmTool_local`)は、Debug のビルドと衝突しない
 
 ## 作業の注意 (要点)

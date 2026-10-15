@@ -502,19 +502,12 @@
             <StackPanel
                 Grid.Column="2"
                 Orientation="Horizontal"
-                Spacing="8">
-                <ToggleSwitch
-                    MinWidth="0"
-                    VerticalAlignment="Center"
-                    IsOn="{x:Bind ViewModel.MineOnly, Mode=TwoWay}"
-                    Visibility="{x:Bind ViewModel.HasAssignees}"
-                    OffContent="自分の担当だけ"
-                    OnContent="自分の担当だけ" />
-                <AppBarSeparator VerticalAlignment="Center" />
+                Spacing="16">
+                <!-- 左から右へ、範囲の広い順 (表示する案件 → 自分の担当だけ → 完了)。表示列は行の出し入れではないので、最後 -->
                 <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
                 <DropDownButton x:Name="ProjectsButton" Content="表示する案件">
                     <DropDownButton.Flyout>
-                        <Flyout Opening="OnProjectsFlyoutOpening" Placement="BottomEdgeAlignedRight">
+                        <Flyout Opening="OnProjectsFlyoutOpening" Placement="BottomEdgeAlignedLeft">
                             <Grid Width="360" RowSpacing="8">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -582,6 +575,29 @@
                         </Flyout>
                     </DropDownButton.Flyout>
                 </DropDownButton>
+                <ToggleSwitch
+                    MinWidth="0"
+                    VerticalAlignment="Center"
+                    IsOn="{x:Bind ViewModel.MineOnly, Mode=TwoWay}"
+                    Visibility="{x:Bind ViewModel.HasAssignees}"
+                    OffContent="自分の担当だけ"
+                    OnContent="自分の担当だけ" />
+                <!-- 完了して日がたった作業の見え方。選択肢の並びは CompletedDisplay の値と同じ。保存しない。幅は、選択肢が収まる固定の値 (選ぶたび・開くたびに幅が変わると、右寄せの左隣のボタンの位置が動くため) -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="完了" />
+                    <ComboBox
+                        Width="152"
+                        AutomationProperties.Name="完了"
+                        SelectedIndex="{x:Bind ViewModel.CompletedIndex, Mode=TwoWay}"
+                        ToolTipService.ToolTip="入力日に完了した作業は、常に表示します">
+                        <ComboBoxItem Content="表示" />
+                        <ComboBoxItem Content="グループのみ表示" />
+                        <ComboBoxItem Content="非表示" />
+                    </ComboBox>
+                </StackPanel>
                 <DropDownButton x:Name="ColumnsButton" Content="表示列" />
             </StackPanel>
         </Grid>

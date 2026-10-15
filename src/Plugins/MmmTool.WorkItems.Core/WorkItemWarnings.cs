@@ -13,6 +13,9 @@ public enum WorkWarningTrigger
 
     /// <summary>実績を入れた (0 より大きい値)</summary>
     Actual,
+
+    /// <summary>備考 (日)を入れた</summary>
+    DayNote,
 }
 
 /// <summary>作業の状態と、進捗度・実績の食い違いの警告</summary>
@@ -31,17 +34,22 @@ public static class WorkItemWarnings
     /// <summary>未対応なのに、進捗度か実績が入っているときの警告の文</summary>
     public const string OpenButStarted = "状態が「未対応」です。";
 
+    /// <summary>入力日が開始日より前のときの警告の文</summary>
+    public const string BeforeStartDate = "入力日が開始日より前です。";
+
     /// <summary>入力したきっかけに合う、食い違いの警告の文を返す</summary>
     /// <param name="item">入力を保存したあとの作業 (実績の累計は、最新の値)</param>
     /// <param name="book">コードブック (進捗度のコード番号を、%の値にする)</param>
     /// <param name="trigger">確定した入力</param>
+    /// <param name="inputDate">入力日</param>
     /// <returns>警告の文。知らせることが無ければ null</returns>
     /// <remarks>
     /// 状態を選んだときは、完了なのに進捗度が 100% ではない場合だけ。
     /// 進捗度を選んだとき・実績を入れたときは、未対応なのに値が入った場合だけ。
+    /// 実績を入れたとき・備考 (日)を入れたときは、入力日が開始日より前の場合も知らせる (開始日が空なら知らせない)。
     /// 状態を未対応にしたときは知らせない (選んだ状態を言い直すだけになるため)。完了の行の進捗度を下げたときも、知らせない (合意した警告の対象外)。
     /// </remarks>
-    public static string? Check(WorkItem item, CodeBook book, WorkWarningTrigger trigger)
+    public static string? Check(WorkItem item, CodeBook book, WorkWarningTrigger trigger, DateOnly inputDate)
     {
         var percent = WorkCodes.ProgressPercent(book, item.ProgressCodeNo);
         return trigger switch
@@ -49,6 +57,7 @@ public static class WorkItemWarnings
             WorkWarningTrigger.Status when item.Status == WorkItemStatus.Closed && percent != CompletePercent => ClosedButNotComplete,
             WorkWarningTrigger.Progress when item.Status == WorkItemStatus.Open && percent > 0 => OpenButStarted,
             WorkWarningTrigger.Actual when item.Status == WorkItemStatus.Open && item.ActualTotalHours > 0 => OpenButStarted,
+            WorkWarningTrigger.Actual or WorkWarningTrigger.DayNote when item.StartDate is { } start && inputDate < start => BeforeStartDate,
             _ => null,
         };
     }

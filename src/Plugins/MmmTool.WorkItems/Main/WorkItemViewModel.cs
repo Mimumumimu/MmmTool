@@ -112,6 +112,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
+    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。既定は「グループのみ表示」)</summary>
+    [ObservableProperty]
+    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.GroupsOnly;
+
     /// <summary>担当者に選べる人 (先頭は未割り当て、次が自分、そのあとは表示名の順)</summary>
     public IReadOnlyList<WorkAssignee> AssigneeChoices
     {
@@ -311,6 +315,18 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
 
         _settings.SetAsync(MineOnlyKey, value).Forget();
+        Rebuild();
+    }
+
+    /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <param name="value">選択肢の番号</param>
+    partial void OnCompletedIndexChanged(int value)
+    {
+        if (_initializing)
+        {
+            return;
+        }
+
         Rebuild();
     }
 
@@ -606,7 +622,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
                     Reject(row, "実績は、数字で入力してください。");
                     return;
                 }
-                await SetRecordAsync(row, hours ?? 0, _service.GetRecord(row.Id, InputDate)?.Note ?? "");
+                await SetRecordAsync(row, hours ?? 0, _service.GetRecord(row.Id, InputDate)?.Note ?? "", WorkWarningTrigger.Actual);
                 break;
         }
     }
@@ -627,7 +643,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             if (row.IsWork && text != row.DayNote)
             {
-                await SetRecordAsync(row, _service.GetRecord(row.Id, InputDate)?.Hours ?? 0, text);
+                await SetRecordAsync(row, _service.GetRecord(row.Id, InputDate)?.Hours ?? 0, text, WorkWarningTrigger.DayNote);
             }
         }
         else if (text != row.Note)
@@ -770,14 +786,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="row">行</param>
     /// <param name="hours">入力日の実績</param>
     /// <param name="note">入力日の備考</param>
+    /// <param name="trigger">確定した入力 (Actual か DayNote)</param>
     /// <returns>保存の完了を表すタスク</returns>
-    private async Task SetRecordAsync(WorkItemRow row, double hours, string note)
+    private async Task SetRecordAsync(WorkItemRow row, double hours, string note, WorkWarningTrigger trigger)
     {
         try
         {
-            if (AcceptOrReject(row, await _service.SetRecordAsync(row.Id, InputDate, hours, note)) && hours > 0)
+            if (AcceptOrReject(row, await _service.SetRecordAsync(row.Id, InputDate, hours, note)))
             {
-                Warn(row, WorkWarningTrigger.Actual);
+                // 入れた値 (実績は 0 より大きい値・備考は空ではない文)のときだけ確かめる
+                var entered = trigger == WorkWarningTrigger.Actual ? hours > 0 : note.Length > 0;
+                if (entered)
+                {
+                    Warn(row, trigger);
+                }
             }
         }
         catch (DataFileException ex)
@@ -807,12 +829,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="trigger">確定した入力 (吹き出しは、その入力のセルの下に出す)</param>
     private void Warn(WorkItemRow row, WorkWarningTrigger trigger)
     {
-        if (_service.GetItem(row.Id) is { } item && WorkItemWarnings.Check(item, _service.Codes, trigger) is { } message)
+        if (_service.GetItem(row.Id) is { } item && WorkItemWarnings.Check(item, _service.Codes, trigger, InputDate) is { } message)
         {
             var columnKey = trigger switch
             {
                 WorkWarningTrigger.Status => "Status",
                 WorkWarningTrigger.Progress => "Progress",
+                WorkWarningTrigger.DayNote => "DayNote",
                 _ => "ActualDay",
             };
             WarningRaised?.Invoke(this, new WorkWarning(row, columnKey, message));
@@ -917,7 +940,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
         }
 
-        foreach (var root in _service.BuildTree(InputDate, MineOnly))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex))
         {
             Visit(root, 0);
         }
