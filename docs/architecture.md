@@ -20,12 +20,14 @@
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める) |
 
-参照の向きは `MmmTool → MmmTool.<機能> → MmmTool.<機能>.Core → MmmSdk.Core`、`MmmTool.<機能> → MmmSdk.WinUI → MmmSdk.Core`。機能のプラグインどうしは参照しない。DB に保存するときの参照の向きは `MmmTool.Data.<種類> → MmmTool.Data → MmmTool.<機能>.Core`(`MmmTool.Data.<種類>` は `MmmSdk.Db.<種類>` も参照する)で、機能のライブラリは `MmmTool.Data*` を参照しない。機能をまたぐユーザー (`AppUser`)は、機能のライブラリでも `MmmTool.Data` でもなく、`MmmTool.Users.Core` に置き、`MmmTool.Data` と、ユーザーを使う機能の `.Core` が参照する ([決定の理由](#db-のコードは機能とは別の-mmmtooldata-にまとめる))。機能はホスト (`MmmTool`)を参照しない (ホストに頼る値は、SDK の `AppEnvironment`・`IPageCache`・`IFeatureStatus` を DI から受け取る)。SDK はアプリを知らない。SDK は別リポジトリ (`https://github.com/Mimumumimu/MmmSdk`)で、Git サブモジュール `external/MmmSdk` として取り込む (clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`)。SDK を直したら、サブモジュールの中 (master)でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする (SDK が先)。
+参照の向きは `MmmTool → MmmTool.<機能> → MmmTool.<機能>.Core → MmmSdk.Core`、`MmmTool.<機能> → MmmSdk.WinUI → MmmSdk.Core`。機能のプラグインどうしは参照しない。DB に保存するときの参照の向きは `MmmTool.Data.<種類> → MmmTool.Data → MmmTool.<機能>.Core`(`MmmTool.Data.<種類>` は `MmmSdk.Db.<種類>` も参照する)で、機能のライブラリは `MmmTool.Data*` を参照しない。機能をまたぐユーザー (`AppUser`)は、機能のライブラリでも `MmmTool.Data` でもなく、`MmmTool.Users.Core` に置き、`MmmTool.Data` と、ユーザーを使う機能の `.Core` が参照する (下の「DB のコードの置き場所」)。機能はホスト (`MmmTool`)を参照しない (ホストに頼る値は、SDK の `AppEnvironment`・`IPageCache`・`IFeatureStatus` を DI から受け取る)。SDK はアプリを知らない。SDK は別リポジトリ (`https://github.com/Mimumumimu/MmmSdk`)で、Git サブモジュール `external/MmmSdk` として取り込む (clone は `--recurse-submodules`、取りこぼしたら `git submodule update --init --recursive`)。SDK を直したら、サブモジュールの中 (master)でコミット・push してから、アプリ側で「新しいコミットを指す」コミットをする (SDK が先)。別リポジトリにするのは、JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログが、このアプリ以外でも使える汎用の部品で、複数のアプリで使い回せるため。共通のパッケージ (Windows App SDK など)のバージョンは、各リポジトリに 1 か所ずつ書くので、上げるときは SDK を先にする。
 
 何をどこに置くか：機能固有の UI・Windows に依存しない処理は機能の `.Core`、機能固有の画面は機能のライブラリ、どのアプリでも使える汎用の部品 (機能がホストへ入る口を含む)は SDK、機能を載せる枠はアプリ本体 (`MmmTool`)。
 
+`src/` に集める理由: リポジトリ直下に `MmmTool` / `Plugins` / `Data` / `Shared` / `Sql` が並ぶと散らかるため。直下は `src` / `docs` / `scripts` / `external` だけにして、1 つの段には同じ種類のものだけを並べる。exe も `src/App/MmmTool` に入れる (直下に残すと、`src/` の内と外にコードが分かれる)。`Shared` は用途が曖昧なので作らず、中身の `MmmTool.Users.Core` を役割名の `Users/` に置く。DB の作成用スクリプトは、使うプロジェクトの中 (`src/Data/MmmTool.Data.SqlServer/Sql/`)に置く。
+
 ## フォルダ (機能別)
-プロジェクトの中は機能ごとのフォルダ (Vertical Slice)。層ごとのフォルダ (`Views/` `ViewModels/` 等)は作らない。名前空間はフォルダどおり。MVVM の役割はクラス名で分かるようにする (View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・サービス)。決めた理由は下の「決定の理由」の「機能別フォルダ」。
+プロジェクトの中は機能ごとのフォルダ (Vertical Slice)。層ごとのフォルダ (`Views/` `ViewModels/` 等)は作らない。名前空間はフォルダどおり。MVVM の役割はクラス名で分かるようにする (View = `*Page` / `*Window`、ViewModel = `*ViewModel`、Model = Core の Entity・サービス)。層ごとのフォルダにしない理由は、1 つの機能を触るたびに複数のフォルダを行き来し、機能が増えるほど関係するファイルが散らばるため。機能ごとに View・ViewModel・Entity・サービスを同じフォルダに置けば、触るのは、その機能のフォルダと `App` の 1 行で済む。保存先を替えるときも、機能の入口 (`<機能>Plugin.Register`)の 1 行を差し替えるだけ。フォルダ名が名前空間になるので、XAML で同じ名前空間の型は `local:` で参照し、よく使う型名を隠さないようフォルダ名に注意する (例: `Debug` ではなく `Debugging`)。
 
 (`src/` からの相対)
 ```
@@ -51,11 +53,15 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 ```
 
 - 機能 (プラグイン)がホストへ入るときに使う型 (`IFeaturePlugin`・`FeatureInfo`・`IStartupTask`・`IFeatureDisableConfirmation`・`IFeatureStatus`・`NavigationPage`・`SettingsSection`・`IReleasablePage`・`IPageCache`・`AppEnvironment`・`AddFeature` / `AddStartupTask` / `AddNavigationPage` / `AddSettingsSection` / `AddTrayMenuSource`)は、SDK の `MmmSdk.Core.Components.Features` / `.Hosting`、`MmmSdk.WinUI.Components.Pages` / `.Tray` にある。機能もホストも、それを参照する
+- 機能を機能ごとのライブラリに分け、ホストが `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録するのは、必要な機能だけを参照すれば、その機能だけを持つ配布物になるため。入口の型を SDK に置くのは、機能がホスト (exe)を参照できないため。設定ページ・DEBUG ページは、全機能の設定を並べる側・開発用なので、ホストに残す (`src/App/MmmTool/Features/`)。DEBUG ページはリマインダーのデータを表示するので、リマインダーのライブラリを参照する (リマインダーを外すときは、DEBUG ページも直す)
+- サイドバー・トレイ・設定の並びを値 (`order`)で決めるのは、登録の行の順で並べると、画面の並びを直したいときに、起動時の準備の順序まで変わるため。値は、機能の登録の間だけ `FeatureRegistrationScope` が持ち、サイドバー・設定の部品・機能の一覧・トレイの登録が記録する (機能ごとに値を渡さなくてよい)。トレイは、メニューが下から開くので、下 (値が大きい)ほどカーソルに近い。よく使うリンクを下に置くため、リマインダー (2)をリンク (3)より上にしている (サイドバーは上ほどよく使う並びで、向きが逆。今は 1 つの値で両方成り立つ。リンクをリマインダーより上にしたくなったら、場所ごとの順に広げる)
+- 機能の選択はビルド時 (参照の追加・削除)で行い、配布物の `Plugins` フォルダーに DLL を置くだけで入る形 (実行時の読み込み)は作らない (ユーザーの決定)。ユーザーが実行時の読み込みを求めたときの条件: 実行時に読み込んだ DLL の XAML のリソース (`.pri`)の解決方法を、公式の情報で確かめる (確かめるまでは、画面をコードで組む・配置時に `.pri` をマージする・`XamlReader` で読む、のどれにするかを決めない)。動作中の DLL の入れ替えはできないので、追加・削除は再起動で反映する。WinAppSDK・CommunityToolkit・MmmSdk は、ホストと同じ版を 1 つだけ読み込む
+- 一部の機能を抜いた版を発行する必要が出たときは、プロジェクトの参照を切り替える (機能ごとに別プロジェクトなので、作り直しにならない)
 - 名前空間はフォルダどおりで、機能の UI は `MmmTool.<機能>`(例: `MmmTool.Links.Main`)、`.Core` は `MmmTool.<機能>.Core`(例: `MmmTool.Links.Core.Json`)
 - 機能が持つ資材 (CLI補助の補助スクリプト `Tools/`)は、機能のライブラリに置き、csproj の `None` の `Link` で、アプリの出力の `Assets\Tools\` へ配る (WinUI のライブラリの `Content` と、`Assets` フォルダーの中身は、コピー先にプロジェクト名のフォルダーが付くため。SDK のターミナルの資材と同じ形)
 
 - 共有ライブラリ (`external/MmmSdk`)のフォルダは、アプリとは別に、プロジェクトの直下を `Components/<部品>/`・`Controls/`・`Utilities/` の 3 層に分けている ([SDK の architecture.md](../external/MmmSdk/docs/architecture.md))。アプリの `Features/<機能>/` には同じ層を作らない
-- フォルダの決まり (機能の直下 = つなぎ、`Main/` = 入口の画面、`<画面>/` = 1 画面 1 フォルダ)の理由は下の「決定の理由」の「機能のフォルダの形」。Core には同じ形を当てない (画面が無い)
+- フォルダの決まり (機能の直下 = つなぎ、`Main/` = 入口の画面、`<画面>/` = 1 画面 1 フォルダ)は、入口の画面の置き場所が機能ごとに違うと、「機能全体のつなぎ」と画面の View・ViewModel が同じ段に並んで見分けにくいため、どの機能 (と `Shell/`)も同じ形にそろえたもの。画面が 1 つだけの機能も `Main/` に入れる (フォルダが 1 段増えても、1 つを覚えれば全部が読めることを優先する)。Core には同じ形を当てない (画面が無く、中身は「その機能のデータと処理」の 1 種類だけ)。XAML では、移した画面から、親のフォルダ (機能の直下)に残った型を、`local:` ではなく親の名前空間の xmlns で参照する (例: `MainWindow.xaml` の `pages:NavigationItem`)
 - `Shell/` は特定の機能を参照しない (機能から共通部分への一方向)。機能固有の画面を開く口は、その機能に置く
 - DEBUG 用の機能のフォルダ名は `Debugging`(`Debug` にすると `System.Diagnostics.Debug` を隠すため)
 
@@ -64,14 +70,14 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 - SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
 - 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる (CLI補助 1 → リマインダー 2 → リンク 3 → クリップボード転送 4 → Backlog 5 → 作業管理 6)。サイドバーの項目 (上部・下部それぞれ。上部は CLI補助 → リマインダー → リンク → クリップボード転送 → Backlog → 作業管理)・トレイメニューの項目 (リマインダーがリンクより上)・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ (同じ値は登録順)。起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → 作業管理)に実行する
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
-- 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用 (作業管理は、DB の保存先を作るまでローカルの JSON)。DB に替えるなら、リマインダーなど該当機能の行を差し替える
+- 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用。リマインダーは、ホストが設定で DB を選んだときだけ、その行を DB の実装に置き換える。作業管理は、機能が保存先を登録せず、ホストが設定で SQLite か SQL Server を選んで登録する ([specs/database.md](specs/database.md))
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
-- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog・作業管理・ツール)は、`<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録し (保存が無い初回起動のオン・オフが `defaultEnabled`。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ。ツールはオン)、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (理由は [specs/settings.md](specs/settings.md) の「決定の理由」)
+- 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog・作業管理・ツール)は、`<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録し (保存が無い初回起動のオン・オフが `defaultEnabled`。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ。ツールはオン)、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (仕組みは [specs/settings.md](specs/settings.md) の「機能の登録とページの破棄」)
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
-- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業管理の読み込み)。決めた理由は下の「決定の理由」の「起動時の準備」
-- 入力欄の空のときの薄い文字の色: アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決め、`App.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの。`TextBox` の既定のスタイルとして効く)で、全部の入力欄に効かせる。独自のスタイルを付ける `TextBox` は、`AppTextBoxStyle` を `BasedOn` にする。入力欄ごとに `PlaceholderForeground` を指定しない。ページ専用の自作の色も作らない。色の名前 (`TextControlPlaceholderForeground`)の上書きは、効かなかったので使わない (2026-10-13 の決定。それまでは、CLI補助・作業管理・そのほかで、3 種類の色が混在していた)
+- 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業管理の読み込み)。`IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)。起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
+- 入力欄の空のときの薄い文字の色: アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決め、`App.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの。`TextBox` の既定のスタイルとして効く)で、全部の入力欄に効かせる。独自のスタイルを付ける `TextBox` は、`AppTextBoxStyle` を `BasedOn` にする。入力欄ごとに `PlaceholderForeground` を指定しない。ページ専用の自作の色も作らない。色の名前 (`TextControlPlaceholderForeground`)の上書きは、効かないので使わない
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)・`ShowModalAsync`(開いている間モーダルとして覚える)・`Attach`(`ContentDialog` に親の画面とテーマを渡す)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`
-- 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
+- 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`。DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている。ウィンドウを Host の破棄の前に閉じるのは、破棄してから `Exit()` の中で閉じると、メイン画面にリマインダーのページを開き、リマインダーのメイン画面から一覧 (モーダル)を開いた状態でトレイから終了したときに、`Exit()` の中 (WinUI のネイティブ側)で管理側の例外 (`0xE0434352`)が抜けられず、`ExecutionEngineException` になるため (ログには残らない)。ウィンドウの閉じる処理が破棄済みの Host のサービスを触る、または親子のウィンドウが順不同で閉じられる、のどちらかと見ている。メインウィンドウは閉じずに残す (最後のウィンドウを閉じるとアプリごと終了し、トレイアイコンを各機能の後始末のあとに消す順序が崩れるため。`Exit()` に任せる)
 
 ## エラーの扱い
 3 段階。予測できる失敗は、先に確かめる (`TryXxx`・検証・ガード節)。それでも起きる失敗 (ファイル・JSON・OS・COM)は、範囲を絞った `catch` で受けて画面に出す (InfoBar)。復旧が難しい失敗・予想外の失敗 (バグ)は、ログ (`AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`)→ ダイアログ → 終了 (SDK の `FatalErrorHandler`)。隠さず、握りつぶさない。
@@ -83,7 +89,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 - 詳細は `external/MmmSdk/README.md`「エラーのログと、復旧できないエラーの処理」
 
 ## 保存
-JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正するときはアプリを閉じてから行う。保存先は将来 SQL Server / DynamoDB などに替える可能性があり、Repository + DI で差し替えられる形にしている。詳細は [specs/storage.md](specs/storage.md)。
+JSON の保存先は `AppContext.BaseDirectory/Data/*.json`。手で修正するときはアプリを閉じてから行う。DB に保存する機能 (リマインダー・作業管理)は、設定で選んだ保存先 (JSON・SQLite・SQL Server)に保存する ([specs/database.md](specs/database.md))。どの保存先も、Repository + DI で差し替えられる形にしている。詳細は [specs/storage.md](specs/storage.md)。
 
 ## C# の書き方
 - ロックは `System.Threading.Lock`
@@ -98,81 +104,16 @@ JSON。場所は `AppContext.BaseDirectory/Data/*.json`。手で修正すると�
 
 ## 開発時の注意
 - VS の F5 で通知ダイアログを閉じると `Microsoft.UI.Xaml.dll` 内で `0xC000027B` / `E_UNEXPECTED` で落ちることがある。原因は VS の「XAML 診断」 (オプション → デバッグ → XAML 診断)で、オフにすると解消する (Ctrl+F5 や VS なしでは起きない)。開発時はオフにしておく
-- 一時ファイル (作業用ファイル等)はリポジトリ直下の `_local/` に置く (`.gitignore` 済み)
-- 既定の定型コマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない (無いときだけ生成する)。反映するにはアプリを閉じて JSON を削除する
+- 既定の定型コマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない ([specs/cli-assist.md](specs/cli-assist.md) の「定型コマンド」)
 
-## 決定の理由
-上の各項目を「なぜそう決めたか」。大きな決定をしたら、該当する文書のこの見出しに足す (機能の決定はその機能の `specs/*.md`、SDK の決定は SDK の `docs/`)。
+## DB のコードの置き場所
+リレーショナル DB への保存のコードは、機能のライブラリ (`MmmTool.<機能>.Core`)には置かず、`MmmTool.Data` (DB の種類に依存しない部分)と `MmmTool.Data.<種類>` (DB 別の実装。[specs/database.md](specs/database.md))に、全機能の分を集める。ユーザーの決定で、意図した仕様 (レビューで指摘・提案しない)。
+- `MmmTool.Data`: DB の行のクラス (表の列と 1 対 1。`ReminderRow` など)と、アプリの型 (`Reminder` など)との変換。`MmmTool.Data.<種類>`: その DB の Repository の実装 (DB 別のドライバーは SDK の `MmmSdk.Db.<種類>`)。DB の種類ごとの依存 (SQLite のネイティブ DLL など)は、その種類のプロジェクトに閉じ、MmmBatch も参照する `MmmTool.Data` には入れない
+- 保存先は、ホストが設定 (`Database.Mode`)で選ぶ。リマインダーは、DB のときだけ、機能が登録した JSON の Repository を、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()`)で置き換える。作業管理は、機能が保存先を登録せず、ホストが SQLite と SQL Server から選んで登録する
+- 集める理由: プロジェクトの数を、DB の種類の数に抑える (機能ごとに `MmmTool.<機能>.Data.<種類>` を持たせると、「DB を使う機能 × DB の種類」だけ増える)。DB のことを 1 か所で管理する (行のクラスと SQL は `MmmTool.Data*`、作成用スクリプトは `src/Data/MmmTool.Data.<種類>/Sql/`、設計は `specs/database.md`)。DB の行の形 (日付なしは `9999-12-31`・時刻は `time`・NULL なし)と、アプリの型 (日付なしは `NoDate`・時刻は `HHmm`)は別なので、行のクラスを分けて、変換を 1 か所に集める
+- 代償 (意図したもの。指摘しない): `MmmTool.Data` が、DB に保存する機能の Core を参照する。その機能を配布物から外すときは、`MmmTool.Data*` の対応する部分も外す。機能どうしの独立性は保たれる (機能の Core は `MmmTool.Data` を参照しない)。アプリの型と DB の行の型が別なので、同じような型が 2 つある
+- エンティティ (アプリの型)は、機能の Core に置き、`MmmTool.Data` に集めない (ユーザーの決定。意図した仕様)。参照の向きを、中心 (アプリの型)から外側 (DB)に向けないため。エンティティを `Data` に移すと、機能の Core が全機能のエンティティと行のクラスを持つプロジェクトを参照することになり、エンティティと、それを扱う処理 (`ReminderDates` など)が別のプロジェクトに分かれる。ユーザーの本来の希望は、DB まわりを完全に一括管理することで、使わない機能のエンティティが入ることも承知のうえで、この理由を考えて見送った。機能をまたいで共有するエンティティが `AppUser` のほかにも出て、機能の Core に置けなくなったときに、検討し直す
+- DB の種類を足すときは、`MmmTool.Data.<種類>` を 1 つ足すだけで、機能の Core は変わらない
 
-### コードを `src/` の下に、役割ごとにまとめる
-- 決定 (2026-10-08): リポジトリ直下に `MmmTool` / `Plugins` / `Data` / `Shared` / `Sql` が並んで散らかったため、コードを `src/<役割>/<プロジェクト>` に集めた。exe も `src/App/MmmTool` に入れる (直下に残すと、`src/` の内と外にコードが分かれる)。`Shared` は用途が曖昧なので作らず、中身の `MmmTool.Users.Core` を役割名の `Users/` に置く。DB の作成用スクリプトは、使うプロジェクトの中 (`src/Data/MmmTool.Data.SqlServer/Sql/`)に置く
-- 最終形にどう近づくか: 1 つの段には同じ種類のものだけを並べる (直下は `src` / `docs` / `scripts` / `external`、`src/` の下は役割)。プロジェクトを足すときは、役割のフォルダに入れるだけで、場所に迷わない
-
-### 機能別フォルダ
-- 層ごとのフォルダ (`Views/` `ViewModels/` `Entities/`)にすると、1 つの機能を触るたびに複数のフォルダを行き来し、機能が増えるほど関係するファイルが散らばる。機能ごとに View・ViewModel・Entity・サービスを同じフォルダに置けば、機能を足す・直すときに触るのは、その機能のフォルダと `App` の 1 行で済む
-- 保存先を替えるときも、その機能の入口 (`<機能>Plugin.Register`)の 1 行を差し替えるだけで済む
-- MVVM の役割は、フォルダではなくクラス名で分かるようにする
-- 機能をまたぐものは、アプリ固有なら `Shell/`、汎用なら SDK に置き、どちらも特定の機能を参照しない (機能 → 共通部分の一方向)。サイドバーのページ・トレイメニューの項目・起動時の準備も、機能側から登録する
-- 影響: フォルダ名が名前空間になる。XAML で同じ名前空間の型は `local:` で参照する。名前空間がよく使う型名を隠さないよう、フォルダ名に注意する (例: `Debug` ではなく `Debugging`)
-
-### 機能のフォルダの形
-- 入口の画面の置き場所が機能ごとに違い (直下の機能と `Main/` の機能が混ざっていた)、「機能全体のつなぎ」と画面の View・ViewModel が同じ段に並んで見分けにくかった。どの機能 (と `Shell/`)も同じ形 (つなぎ + `Main/` + 画面ごとのフォルダ)にそろえた
-- 画面が 1 つだけの機能も `Main/` に入れる理由: フォルダが 1 段増えても、どの機能も同じ形にそろえることを優先する (1 つを覚えれば全部が読める)
-- Core に同じ形を当てない理由: Core には画面が無く、中身は「その機能のデータと処理」の 1 種類だけ (保存先の実装は `Json/` に分かれている)
-- XAML では、移した画面から、親のフォルダ (機能の直下)に残った型を、`local:` ではなく親の名前空間の xmlns で参照する (例: `MainWindow.xaml` の `pages:NavigationItem`)
-- 最終形にどう近づくか: 新しい機能・画面を足すときの置き場所が、迷わず決まる
-
-### 機能を、プラグインのライブラリに分ける
-- 機能 (リンク・Backlog・クリップボード転送・リマインダー・CLI補助・作業管理・ツール)を、機能ごとのライブラリ (`src/Plugins/MmmTool.<機能>` と、UI に依存しない `.Core`)に分け、ホスト (`MmmTool`)は、使う機能のライブラリを参照して `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する。必要な機能だけを参照すれば、その機能だけを持つ配布物になる
-- 機能がホストへ入るときの型 (`IFeaturePlugin`・サイドバーのページ・設定の部品・起動時の準備・機能のオン・オフ・トレイメニューの登録の口)は、SDK に置く。機能はホスト (exe)を参照できないため。ホスト側の値 (アプリの名前・データ・アイコンの置き場所・作ったページの参照)は、SDK の `AppEnvironment`・`IPageCache`・`IFeatureStatus` を DI から受け取る
-- 設定ページ・DEBUG ページは、全機能の設定を並べる側・開発用なので、ホストに残す (`src/App/MmmTool/Features/`)
-- サイドバー・トレイ・設定の並びは、ホストが `AddFeaturePlugin` に渡す並び順の値 (`order`)で決まる。起動時の準備は、登録順のまま
-  - 理由: 登録の行の順で並べると、画面の並びを直したいときに、起動時の準備の順序まで変わってしまう。並びを、使い方 (よく使う順。CLI補助が主な機能なので先頭)で決められるように、値にした (旧: 登録順で、作った順に並んでいた)
-  - 値は、機能の登録 (`AddFeaturePlugin`)の間だけ `FeatureRegistrationScope` が持ち、サイドバー・設定の部品・機能の一覧・トレイの登録が記録する。機能ごとに値を渡さなくてよく、並びを `App` の 1 か所で決められる
-  - トレイは、メニューが下から開くので、下 (値が大きい)ほどカーソルに近い。よく使うリンクを下に置くため、リマインダー (2)をリンク (3)より上にしている (サイドバーは上ほどよく使う並びで、向きが逆。リマインダーとリンクは、サイドバーでもリマインダーが上なので、今は 1 つの値で両方成り立つ。リンクをリマインダーより上にしたくなったら、場所ごとの順に広げる)
-- 決定 (ユーザーの決定): 機能の選択はビルド時 (参照の追加・削除)で行う。配布物の `Plugins` フォルダーに DLL を置くだけで入る形 (実行時の読み込み)は作らない
-- 実行時の読み込みをユーザーが求めたときの設計上の条件: 実行時に読み込んだ DLL の XAML のリソース (`.pri`)の解決方法を、公式の情報で確かめる (確かめるまでは、画面をコードで組む・配置時に `.pri` をマージする・`XamlReader` で読む、のどれにするかを決めない)。動作中の DLL の入れ替えはできないので、追加・削除は再起動で反映する。WinAppSDK・CommunityToolkit・MmmSdk は、ホストと同じ版を 1 つだけ読み込む。サイドバーとトレイの並びは、登録順ではなく、明示の順序の値にする
-- 最終形にどう近づくか: 機能とホストの境界 (入口の型)を SDK に決めたので、機能の追加・削除はホストの参照と 1 行で済む。境界が決まっているので、ローダーを足すことになっても、機能側の作り直しは要らない
-- 例外: DEBUG ページ (ホストの `Features/Debugging`)はリマインダーのデータを表示するので、リマインダーのライブラリを参照する。リマインダーを外すときは、DEBUG ページも直す
-
-### DB のコードは、機能とは別の `MmmTool.Data` にまとめる
-- 決定 (ユーザーの決定。意図した仕様で、レビューで指摘・提案しない): リレーショナル DB への保存のコードを、機能のライブラリ (`MmmTool.<機能>.Core`)には置かず、`MmmTool.Data`(DB の種類に依存しない部分)と `MmmTool.Data.<種類>`(DB 別の実装。最初は `MmmTool.Data.SqlServer`。作業管理のローカル用に `MmmTool.Data.Sqlite` を足す。[specs/database.md](specs/database.md))にまとめる。全機能の表・SQL を、この 2 種類のプロジェクトに集める。DB の種類ごとの依存 (SQLite のネイティブ DLL など)は、その種類のプロジェクトに閉じ、MmmBatch も参照する `MmmTool.Data` には入れない
-  - `MmmTool.Data`: DB の行のクラス (表の列と 1 対 1。`ReminderRow` など。DB の形のまま)と、アプリの型 (`Reminder` など)との変換
-  - `MmmTool.Data.<種類>`: その DB の Repository の実装 (`SqlServerReminderRepository` など)。DB 別のドライバーは SDK の `MmmSdk.Db.<種類>` を参照する
-  - 参照の向き: `MmmTool.Data.<種類> → MmmTool.Data → MmmTool.<機能>.Core → MmmSdk.Core`。機能のライブラリは `MmmTool.Data` を参照しない。保存先は、ホスト (`MmmTool`)が設定 (`Database.Mode`)で選ぶ。リマインダーは、DB のときだけ、機能が登録した JSON の Repository を、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()`)で置き換える。作業管理は、機能が保存先を登録せず、ホストが SQLite と SQL Server から選んで登録する
-- 理由
-  - プロジェクトの数を、DB の種類の数に抑える (DB を使う機能の数に比例させない)。機能ごとに `MmmTool.<機能>.Data.<種類>` を持たせると、「DB を使う機能 × DB の種類」だけ増える
-  - DB のことを 1 か所で一括管理する (表の行のクラスと SQL は `MmmTool.Data*`、作成用スクリプトは `src/Data/MmmTool.Data.<種類>/Sql/`、設計は `docs/specs/database.md`)
-  - DB の行の形 (日付なしは `9999-12-31`・時刻は `time`・NULL なしなど)と、アプリの型 (`Reminder`。日付なしは `NoDate`・時刻は `HHmm`)は別。行のクラスを分けて、変換を 1 か所に集める
-- 代償 (意図したもの。指摘しない): `MmmTool.Data` が、DB に保存する機能の Core を参照する。その機能を配布物から外すときは、`MmmTool.Data*` の対応する部分も外す。機能どうしの独立性は、保たれる (機能の Core は `MmmTool.Data` を参照しない)。アプリの型と DB の行の型が別なので、同じような型が 2 つある
-- エンティティ (アプリの型。`Reminder` など)は、機能の Core に置き、`MmmTool.Data` には集めない (ユーザーの決定。意図した仕様)。参照の向きを、中心 (アプリの型)から外側 (DB)に向けない。エンティティを `Data` に移すと、機能の Core が全機能のエンティティと行のクラスを持つプロジェクトを参照することになり、エンティティと、それを扱う処理 (`ReminderDates` など)が別のプロジェクトに分かれる。機能をまたいで共有するエンティティ (`AppUser`)の置き場所は、`AppUser` を扱うときに決める
-  - ユーザーの本来の希望は、各機能のエンティティも `MmmTool.Data` に集めて、DB まわりを完全に一括管理すること。使わない機能のエンティティが入ることも承知のうえで、上の理由 (参照の向き・エンティティと処理が分かれる)を考えて、見送った (ユーザーの判断)
-  - 再び検討するのは、機能をまたいで共有するエンティティが `AppUser` のほかにも出て、機能の Core に置けなくなったとき
-- 最終形にどう近づくか: DB の種類を足すときは、`MmmTool.Data.<種類>` を 1 つ足すだけで、機能の Core は変わらない。DB の情報は、2 種類のプロジェクト (作成用スクリプトも `Sql/` に入っている)を見れば分かる
-
-### 終了の前に、開いているウィンドウを閉じる
-- 終了の順序を「`PrepareExit` → `CloseAll` → Host 停止・破棄 → `Exit()`」にした。以前は「Host を破棄してから `Exit()`」で、ウィンドウは Host の破棄のあと、`Exit()` の中で閉じられていた
-- 理由: メイン画面にリマインダーのページを開き、リマインダーのメイン画面から一覧 (モーダル)を開いた状態でトレイから終了すると、`Exit()` の中 (WinUI のネイティブ側)で管理側の例外 (`0xE0434352`)が抜けられず、`ExecutionEngineException` になった (ログには残らない)。別の回は、`Exit()` が戻ったのにメイン画面が閉じず、プロセスが残った。ウィンドウの閉じる処理 (一覧の後始末・スコープの破棄など)が、破棄済みの Host のサービスを触る、または親子のウィンドウが順不同で閉じられる、のどちらかが原因と見て、閉じる処理を Host が生きているうちに、親子の順 (モーダル → リマインダーのメイン画面、いずれも新しいものから)に済ませるようにした (原因の特定は、直ったかどうかで確かめる)
-- メインウィンドウは閉じずに残す: 最後のウィンドウを閉じるとアプリごと終了し、トレイアイコンを各機能の後始末のあとに消す順序 (上の「終了の順序」)が崩れるため。`Exit()` に任せる
-- 最終形: 終了の後始末は、DI が生きている間に、画面の側から先に済ませ、サービスの破棄は最後にする
-
-### 起動時の準備 (`IStartupTask`)
-- 起動時に、CLI補助の利用状態の読み込み・リマインダー監視の開始・リンクの先読みなどを行いたい。これらは UI スレッド (`DispatcherQueue`)で動く必要がある
-- `IHostedService` にしない理由: Generic Host の `IHostedService` は、Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証がない。そのため、`App.OnLaunched` で `TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで登録順に `await` する
-- 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
-
-### 外部へ送る処理を、別のアプリ MmmBatch に分ける
-- 外部へ送る処理は、MmmTool の発行物に入れない (ユーザーの決定)。送る処理を `MmmBatch.*` のプロジェクトだけに置き、MmmTool (`MmmTool.slnx`)は参照しない。DLL もコードも MmmTool に入らない
-- MmmTool に入るのは、送信先の登録と、リマインダーごとの送信先の選択 (保存と画面)だけ。これも DB モードだけで、ローカルの JSON には出ない ([specs/database.md](specs/database.md))
-- リポジトリは分けない: リマインダーの型・DB・SDK を共有し、ブランチと知識を 1 か所に置く。ソリューションを分けて、MmmTool 側に MmmBatch のプロジェクトが並ばないようにする
-- 一部の機能を抜いた版を発行する必要が出たときは、プロジェクトの参照を切り替える (機能ごとに別プロジェクトなので、作り直しにならない)
-- 詳細と、画面なしの exe にしない理由・枠 (`Shell/`)を SDK へ移さない理由は [specs/mmmbatch.md](specs/mmmbatch.md) の「決定の理由」
-
-### 共有部品を別リポジトリの SDK に分ける
-- JSON の保存・設定ストア・ウィンドウ位置の保存・パスを開く処理・通知ダイアログは、このアプリ以外でも使える汎用の部品。別リポジトリ `MmmSdk` に分け、Git サブモジュールとして取り込み、プロジェクト参照でつなぐ。アプリ固有の Entity・Repository は、アプリの Core に残す
-- 複数のアプリで同じ部品を使い回せる。SDK はアプリを知らない (参照の向きは一方向)
-- 影響: 共通のパッケージ (Windows App SDK など)のバージョンは、各リポジトリに 1 か所ずつ書くので、上げるときは SDK を先にする。SDK を直したら、SDK が先にコミット・push する
-
-### テストプロジェクトを作らない
-- テストプロジェクトは、ユーザーの決定で、ユーザーが「作る」と言うまで作らない (画面を目で見て確認する運用で進めているため)。レビューや作業のまとめで、テストが無いことを指摘・提案しない
-- 作ると決めたら、Core の処理 (リマインダーの判定・日付の変換・壊れた JSON の退避・クリップボード転送の変換など)から作る
+## テストプロジェクト
+テストプロジェクトは、ユーザーが「作る」と言うまで作らない (ユーザーの決定。画面を目で見て確認する運用で進めているため)。レビューや作業のまとめで、テストが無いことを指摘・提案しない。作ると決めたら、Core の処理 (リマインダーの判定・日付の変換・壊れた JSON の退避・クリップボード転送の変換など)から作る。
