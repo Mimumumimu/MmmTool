@@ -96,6 +96,30 @@ public static class WorkItemTree
         }
     }
 
+    /// <summary>完了して日がたった作業の行 (と、必要ならグループの行)を、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
+    /// <param name="date">入力日 (完了日がこの日より前のものが対象。入力日に完了した作業は残す)</param>
+    /// <param name="removeGroups">すべて完了して日がたったグループの行も外すか</param>
+    /// <remarks>
+    /// 案件の行は外さない。グループは、下に作業が 1 件も無いグループ (空)があるときは外さない (空のグループが、親と一緒に見えなくなるのを防ぐため。畳む条件と同じ)。
+    /// 外したグループの下は、たどらない。
+    /// </remarks>
+    public static void RemoveFinished(IEnumerable<WorkNode> roots, DateOnly date, bool removeGroups)
+    {
+        foreach (var node in roots)
+        {
+            node.Children.RemoveAll(child => child.Key.Kind switch
+            {
+                WorkRowKind.Work => child.Summary.IsFinishedBefore(date),
+                WorkRowKind.Group => removeGroups
+                    && child.Summary.IsFinishedBefore(date)
+                    && !child.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0),
+                _ => false,
+            });
+            RemoveFinished(node.Children, date, removeGroups);
+        }
+    }
+
     /// <summary>行の集計値を、下から順に計算する</summary>
     /// <param name="node">計算する行</param>
     /// <param name="days">作業ごとの入力日の実績 (自分の分)</param>

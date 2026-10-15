@@ -112,6 +112,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
+    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。既定は「グループのみ表示」)</summary>
+    [ObservableProperty]
+    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.GroupsOnly;
+
     /// <summary>担当者に選べる人 (先頭は未割り当て、次が自分、そのあとは表示名の順)</summary>
     public IReadOnlyList<WorkAssignee> AssigneeChoices
     {
@@ -311,6 +315,18 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
 
         _settings.SetAsync(MineOnlyKey, value).Forget();
+        Rebuild();
+    }
+
+    /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <param name="value">選択肢の番号</param>
+    partial void OnCompletedIndexChanged(int value)
+    {
+        if (_initializing)
+        {
+            return;
+        }
+
         Rebuild();
     }
 
@@ -924,7 +940,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
         }
 
-        foreach (var root in _service.BuildTree(InputDate, MineOnly))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex))
         {
             Visit(root, 0);
         }
