@@ -92,12 +92,12 @@ public partial class App : Application
         // order の並び: よく使う順 (CLI補助が主な機能。作業管理が 2 番目)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
         services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
         services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 5);
-        services.AddFeaturePlugin<RemindersPlugin>(order: 3);
+        services.AddFeaturePlugin<RemindersPlugin>(order: 3, trayOrder: 2);
         services.AddFeaturePlugin<BacklogPlugin>(order: 6);
-        services.AddFeaturePlugin<LinksPlugin>(order: 4);
+        services.AddFeaturePlugin<LinksPlugin>(order: 4, trayOrder: 3);
         services.AddFeaturePlugin<WorkItemsPlugin>(order: 2);
         services.AddFeaturePlugin<ToolsPlugin>(order: 7);
-        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 8);
+        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 8, trayOrder: 1);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();

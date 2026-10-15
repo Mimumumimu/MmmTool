@@ -484,7 +484,7 @@ git submodule update --remote external/MmmSdk
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
-機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます (`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先)。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、機能の入口 (`<機能>Plugin.Register`)の中で登録します。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます。DEBUG ページはリマインダーを使うので、リマインダーを外すときは DEBUG ページも直します)。
+機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます (`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先。トレイだけ別の順にするときは `trayOrder: n` も渡します。トレイは下から開くので、値が大きいほど下に出ます)。サイドバー・トレイメニューへの項目の追加と、起動時の準備は、機能の入口 (`<機能>Plugin.Register`)の中で登録します。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます。DEBUG ページはリマインダーを使うので、リマインダーを外すときは DEBUG ページも直します)。
 
 ## ドキュメント
 
