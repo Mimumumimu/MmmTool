@@ -718,9 +718,11 @@ public sealed partial class WorkItemPage : Page
         }
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
-        // 右クリックした所が、リンクのセルのとき (案件・グループ・作業とも)
-        // 入力欄は、メニューの対象 (行全体)ではなく、右クリックしたセルの下に出す (行の左端の下に出ると、視線が離れる)
-        if (TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is { } linkTarget)
+        // 「リンクを編集…」は、行のどこを右クリックしても出す (案件・グループ・作業とも)
+        // 入力欄は、リンクのセルの下に出す (行の左端の下に出ると、視線が離れる)
+        var onLinkCell = TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is not null;
+        var linkTarget = onLinkCell ? TreeGrid.ContextCell : TreeGrid.FindCell(row, "Link");
+        if (linkTarget is not null)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
             AddItem(menu, "リンクを編集…", () =>
@@ -728,7 +730,12 @@ public sealed partial class WorkItemPage : Page
                 ShowLinkEditor(row, linkTarget);
                 return Task.CompletedTask;
             }, !row.IsLocked);
-            AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
+
+            // 「リンクをクリア」は、リンクのセルを右クリックしたときだけ出す
+            if (onLinkCell)
+            {
+                AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
+            }
         }
 
         // 右クリックした所が、作業の日付のセルのときだけ
