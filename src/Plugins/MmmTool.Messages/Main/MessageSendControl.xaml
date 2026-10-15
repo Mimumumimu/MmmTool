@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Messages.Main.MessageSendControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:MmmTool.Messages.Core"
+    xmlns:local="using:MmmTool.Messages.Main">
+
+    <!-- 本文欄が、余った高さを使う。間隔は Margin で取る (RowSpacing だと、閉じている InfoBar の分の間隔も残るため) -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <InfoBar
+            Grid.Row="0"
+            Margin="0,0,0,12"
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.IsUnavailableVisible, Mode=OneWay}"
+            Message="メッセージの送信は、サーバーモードで使えます。"
+            Severity="Informational"
+            Visibility="{x:Bind ViewModel.IsUnavailableVisible, Mode=OneWay}" />
+
+        <InfoBar
+            Grid.Row="1"
+            Margin="0,0,0,12"
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.HasNoRecipients, Mode=OneWay}"
+            Message="送信先がありません。設定ページの「送信先」で登録してください。"
+            Severity="Warning"
+            Visibility="{x:Bind ViewModel.HasNoRecipients, Mode=OneWay}" />
+
+        <ComboBox
+            Grid.Row="2"
+            HorizontalAlignment="Stretch"
+            DisplayMemberPath="DisplayName"
+            Header="宛先"
+            IsEnabled="{x:Bind ViewModel.IsAvailable}"
+            ItemsSource="{x:Bind ViewModel.Recipients}"
+            PlaceholderText="送信先を選択"
+            SelectedItem="{x:Bind ViewModel.SelectedRecipient, Mode=TwoWay}" />
+
+        <TextBox
+            Grid.Row="3"
+            Margin="0,12,0,0"
+            GotFocus="OnJapaneseBoxGotFocus"
+            Header="タイトル"
+            IsEnabled="{x:Bind ViewModel.IsAvailable}"
+            MaxLength="{x:Bind core:MessageLimits.TitleMaxLength}"
+            PlaceholderText="省略できます"
+            Text="{x:Bind ViewModel.TitleText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+        <TextBox
+            x:Name="BodyBox"
+            Grid.Row="4"
+            Margin="0,12,0,0"
+            VerticalAlignment="Stretch"
+            AcceptsReturn="True"
+            GotFocus="OnJapaneseBoxGotFocus"
+            Header="本文"
+            IsEnabled="{x:Bind ViewModel.IsAvailable}"
+            MaxLength="{x:Bind core:MessageLimits.BodyMaxLength}"
+            MinHeight="120"
+            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            TextWrapping="Wrap" />
+
+        <Button
+            Grid.Row="5"
+            Margin="0,12,0,0"
+            HorizontalAlignment="Right"
+            Command="{x:Bind ViewModel.SendCommand}"
+            Content="送信"
+            Style="{StaticResource AccentButtonStyle}" />
+
+        <InfoBar
+            Grid.Row="6"
+            Margin="0,12,0,0"
+            IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
+            Severity="{x:Bind local:MessageSendControl.ResultSeverity(ViewModel.IsResultError), Mode=OneWay}"
+            Visibility="{x:Bind ViewModel.IsResultOpen, Mode=OneWay}" />
+    </Grid>
+</UserControl>

@@ -1,4 +1,4 @@
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Reminders.ChannelEdit;
 

@@ -104,6 +104,33 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_ReminderSendSetting_R
 CREATE UNIQUE INDEX UX_ReminderSendSetting_ReminderId_ChannelId ON dbo.ReminderSendSetting (ReminderId, ChannelId) WHERE IsDeleted = 0;
 GO
 
+-- メッセージの送信依頼。MmmTool が行を足し (送信待ち)、MmmBatch が送って状況を更新する。1 回の送信の操作が 1 行 (一意制約は付けない)。
+-- Status は Pending = 1 (送信待ち・送信中)・Sent = 2・Failed = 3。SentAt の 9999-12-31 は、まだ送っていない。失敗の理由は持たない (MmmBatch のログに残す)。
+-- 作成者・更新者は、依頼したときは送った人、MmmBatch が更新するときの更新者は 0
+IF OBJECT_ID(N'dbo.MessageSendRequest', N'U') IS NULL
+CREATE TABLE dbo.MessageSendRequest
+(
+    Id              int             IDENTITY(1,1) NOT NULL CONSTRAINT PK_MessageSendRequest PRIMARY KEY,
+    IsDeleted       bit             NOT NULL CONSTRAINT DF_MessageSendRequest_IsDeleted DEFAULT (0),
+    CreatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_MessageSendRequest_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+    CreatedByUserId int             NOT NULL CONSTRAINT CK_MessageSendRequest_CreatedByUserId CHECK (CreatedByUserId >= 0),
+    UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_MessageSendRequest_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+    UpdatedByUserId int             NOT NULL CONSTRAINT CK_MessageSendRequest_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
+    SenderUserId    int             NOT NULL CONSTRAINT CK_MessageSendRequest_SenderUserId CHECK (SenderUserId >= 0),
+    ChannelId       int             NOT NULL,
+    Title           nvarchar(100)   NOT NULL CONSTRAINT DF_MessageSendRequest_Title DEFAULT (N''),
+    Body            nvarchar(1000)  NOT NULL,
+    Status          tinyint         NOT NULL CONSTRAINT DF_MessageSendRequest_Status DEFAULT (1) CONSTRAINT CK_MessageSendRequest_Status CHECK (Status BETWEEN 1 AND 3),
+    Attempts        tinyint         NOT NULL CONSTRAINT DF_MessageSendRequest_Attempts DEFAULT (0),
+    SentAt          datetimeoffset(3) NOT NULL CONSTRAINT DF_MessageSendRequest_SentAt DEFAULT ('9999-12-31')
+);
+GO
+
+-- MmmBatch が毎分読む送信待ち・失敗の行を、状態で探す (送信済みの大量の行を、毎分走査しないため)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_MessageSendRequest_Status' AND object_id = OBJECT_ID(N'dbo.MessageSendRequest'))
+CREATE INDEX IX_MessageSendRequest_Status ON dbo.MessageSendRequest (Status);
+GO
+
 -- 案件マスター。全員で共有する案件の 1 件
 IF OBJECT_ID(N'dbo.WorkProject', N'U') IS NULL
 CREATE TABLE dbo.WorkProject

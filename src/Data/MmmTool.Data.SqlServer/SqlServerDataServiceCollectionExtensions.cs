@@ -1,10 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
+using MmmTool.Data.SqlServer.Messages;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.Data.SqlServer.Users;
 using MmmTool.Data.SqlServer.WorkItems;
 using MmmTool.Data.Users;
+using MmmTool.Messages.Core;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
 using MmmTool.Users.Core;
@@ -54,6 +57,13 @@ public static class SqlServerDataServiceCollectionExtensions
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
                 ? provider.GetRequiredService<SqlServerReminderSendSettingRepository>()
                 : provider.GetRequiredService<UnavailableReminderSendSettingRepository>());
+
+        // メッセージの宛先の読み出しと送信依頼の保存も、DB モードだけ (ローカルモードは、機能が登録した「使えない」保存先のまま)
+        services.AddSingleton<SqlServerMessageSendRequestRepository>();
+        services.AddSingleton<IMessageSendRequestRepository>(provider =>
+            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
+                ? provider.GetRequiredService<SqlServerMessageSendRequestRepository>()
+                : provider.GetRequiredService<UnavailableMessageSendRequestRepository>());
         return services;
     }
 }

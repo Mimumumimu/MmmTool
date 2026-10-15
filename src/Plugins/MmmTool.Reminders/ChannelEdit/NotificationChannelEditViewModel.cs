@@ -4,7 +4,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
-using MmmTool.Reminders.Core;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Reminders.ChannelEdit;
 
@@ -25,10 +25,6 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
 
     /// <summary>ntfy のトピック名が正しくないときのエラー</summary>
     private const string TopicInvalidMessage = "トピック名は、半角の英数字・ハイフン・アンダースコアで、64 文字までにしてください。";
-
-    /// <summary>ntfy を新しく登録するときの、登録名の初期値</summary>
-    /// <remarks>ユーザーが直せる。Discord に切り替えたときは、初期値のままなら空に戻す (Discord の送信先は、何のチャンネルかを、自分で付けるため)。</remarks>
-    private const string NtfyDefaultName = "リマインダー";
 
     /// <summary>送信先の保存先</summary>
     private readonly INotificationChannelRepository _channels;
@@ -115,14 +111,14 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集する送信先。新規なら null</param>
-    /// <remarks>新規は ntfy・登録名は空・トピック名は新しく作ったもの。編集は対象の値を読み込む (種類は変えられない)。</remarks>
+    /// <remarks>新規は ntfy・登録名は空 (入力欄に例を薄く出す)・トピック名は新しく作ったもの。編集は対象の値を読み込む (種類は変えられない)。</remarks>
     public void Load(NotificationChannel? target)
     {
         _target = target;
         WindowTitle = target is null ? "送信先の登録" : "送信先の編集";
         IsKindEditable = target is null;
         SelectedKind = target is null ? KindOptions[0] : KindOptions.First(option => option.Kind == target.Kind);
-        Name = target?.Name ?? NtfyDefaultName;
+        Name = target?.Name ?? "";
         NtfyTopic = target is { Kind: NotificationChannelKind.Ntfy } ? target.Value : NotificationChannelRules.CreateNtfyTopic();
         DiscordUrl = target is { Kind: NotificationChannelKind.Discord } ? target.Value : "";
 
@@ -131,16 +127,6 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
         UrlError = null;
         TopicError = null;
         SaveError.Clear();
-    }
-
-    /// <summary>新規のとき、種類を切り替えたら、登録名が初期値のまま (または空)なら、種類に合わせて入れ替える</summary>
-    /// <param name="value">変更後の種類</param>
-    partial void OnSelectedKindChanged(NotificationChannelKindOption value)
-    {
-        if (_target is null && (Name.Length == 0 || Name == NtfyDefaultName))
-        {
-            Name = value.Kind == NotificationChannelKind.Ntfy ? NtfyDefaultName : "";
-        }
     }
 
     /// <summary>登録名が変わったら、登録名のエラーを消す</summary>

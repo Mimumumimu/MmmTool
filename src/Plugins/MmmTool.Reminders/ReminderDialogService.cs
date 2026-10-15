@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Dialogs;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.ChannelEdit;
 using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;

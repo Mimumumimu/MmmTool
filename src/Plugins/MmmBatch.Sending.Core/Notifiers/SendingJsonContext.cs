@@ -4,10 +4,10 @@ namespace MmmBatch.Sending.Core.Notifiers;
 
 /// <summary>ntfy の発行の内容</summary>
 /// <param name="Topic">トピック名</param>
-/// <param name="Title">タイトル</param>
+/// <param name="Title">タイトル。無ければ省く</param>
 /// <param name="Message">本文</param>
 /// <param name="Click">通知をタップしたときに開く URL。無ければ省く</param>
-internal sealed record NtfyPayload(string Topic, string Title, string Message, string? Click);
+internal sealed record NtfyPayload(string Topic, string? Title, string Message, string? Click);
 
 /// <summary>Discord の Webhook に送る内容</summary>
 /// <param name="Content">本文</param>

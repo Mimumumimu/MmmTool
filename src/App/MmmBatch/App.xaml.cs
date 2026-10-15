@@ -3,18 +3,23 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using MmmBatch.Data.SqlServer;
+using MmmBatch.MessageSending;
+using MmmBatch.ReminderSending;
 using MmmBatch.Sending;
 using MmmBatch.Sending.Core;
 using MmmBatch.Shell;
 using MmmBatch.Shell.Main;
 using MmmBatch.Shell.Settings;
 using MmmSdk.Core;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.Core.Components.Logging;
+using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Data.SqlServer.WinUI.Connection;
@@ -85,8 +90,14 @@ public partial class App : Application
             ExitText: "終了",
             IconPath: AppIcon.FilePath));
 
-        // リマインダーの送信 (送る処理と、送信の状況の画面)と、その DB (SQL Server)
-        services.AddSending(AppInfo.LogDirectory);
+        // 機能のオン・オフの管理と、サイドバー (SDK)。MmmBatch の機能は、オフにできない (オン・オフの画面は持たない)
+        services.AddFeatureService();
+        // 共通の設定ファイルを、サイドバーの並びを読む前に先読みしておく (最初の読み込みで、UI スレッドが止まらないように)
+        services.AddStartupTask<SettingsStoreStartup>();
+        services.AddNavigationHost();
+
+        // 機能に共通の送信の処理 (送る口・送信のログ・毎分の監視・通知の窓口)と、その DB (SQL Server)
+        services.AddSendingCore(AppInfo.LogDirectory);
         services.AddMmmBatchSqlServer();
 
         // DB の接続の設定画面。閉じたウィンドウは再表示できないので、開くたびに作る
@@ -94,6 +105,10 @@ public partial class App : Application
         services.AddTransient<DatabaseConnectionViewModel>();
         services.AddTransient<ConnectionSettingsViewModel>();
         services.AddTransient<ConnectionSettingsWindow>();
+
+        // 機能 (バッチ処理)。足すときは、ここに 1 行足すだけ (サイドバーの項目・毎分の仕事・通知は、機能が自分で登録する)
+        services.AddFeaturePlugin<ReminderSendingPlugin>(order: 1);
+        services.AddFeaturePlugin<MessageSendingPlugin>(order: 2);
 
         services.AddSingleton<MainWindow>();
     }
@@ -112,10 +127,11 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Host を始めて、トレイと送信を用意する</summary>
+    /// <summary>Host を始めて、トレイと各機能を用意する</summary>
     /// <returns>起動の完了を表すタスク</returns>
     /// <remarks>
-    /// 基本は、トレイだけで動き続ける (ウィンドウは出さない)。送信の状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
+    /// 基本は、トレイだけで動き続ける (ウィンドウは出さない)。最初の実行で、どれかの仕事が状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
+    /// このアプリは、個々の機能の名前を持たない (機能は <c>AddFeaturePlugin</c> で登録し、毎分の仕事・通知・サイドバーの項目は、機能が自分で登録する)。
     /// </remarks>
     private async Task StartAsync()
     {
@@ -124,10 +140,8 @@ public partial class App : Application
         // トレイは画面より先に作る。Host は作った順の逆に破棄するので、終了時に画面・送信の後始末が済んでからトレイアイコンが消える
         var tray = _host.Services.GetRequiredService<TrayIcon>();
 
-        // 送信の状況を読んでから、画面を作る (空の一覧が一瞬見えないように)。つながらないときは、画面の InfoBar で知らせる (起動は止めない)
-        var plan = _host.Services.GetRequiredService<SendPlanViewModel>();
-        var history = _host.Services.GetRequiredService<SendHistoryViewModel>();
-        await Task.WhenAll(plan.RefreshAsync(), history.RefreshAsync());
+        // 起動時の準備 (設定ファイルの先読みなど)。画面を作る前に行う
+        await _host.Services.GetRequiredService<FeatureService>().StartAsync();
 
         _window = _host.Services.GetRequiredService<MainWindow>();
         // 接続の設定の画面などを、メインウィンドウの上に出すため
@@ -139,16 +153,17 @@ public partial class App : Application
 
         // 送信の失敗・DB の失敗は、ウィンドウを開かなくても気づけるよう、トレイの通知で知らせる (通知は UI スレッドで出す)
         var dispatcher = DispatcherQueue.GetForCurrentThread();
-        _host.Services.GetRequiredService<ReminderSendService>().AlertRaised +=
-            (_, message) => dispatcher.TryEnqueue(() => tray.ShowNotification(AppInfo.Name, message, isError: true));
+        _host.Services.GetRequiredService<BatchAlertService>().AlertRaised
+            += (_, message) => dispatcher.TryEnqueue(() => tray.ShowNotification(AppInfo.Name, message, isError: true));
 
-        if (plan.Error.IsOpen || history.Error.IsOpen)
+        // 毎分の仕事を始める (起動の直後にも 1 回動く)。Host の破棄で止まる。つながらないときは、画面の InfoBar で知らせる (起動は止めない)
+        var monitor = _host.Services.GetRequiredService<BatchMonitor>();
+        monitor.Start();
+        await monitor.FirstRunCompleted;
+        if (monitor.HasError)
         {
             _window.BringToFront();
         }
-
-        // 毎分の送信を始める。Host の破棄で止まる
-        _host.Services.GetRequiredService<SendMonitor>().Start();
     }
 
     /// <summary>アプリを完全に終了する (トレイメニューの「終了」から)</summary>

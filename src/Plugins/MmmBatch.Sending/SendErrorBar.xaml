@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmBatch.Sending.SendErrorBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 読み込み・送信の失敗。「接続の設定」から、DB の接続の設定の画面を開ける -->
+    <InfoBar
+        IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+        Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+        Severity="Error">
+        <InfoBar.ActionButton>
+            <Button Command="{x:Bind ViewModel.OpenConnectionSettingsCommand, Mode=OneWay}" Content="接続の設定" />
+        </InfoBar.ActionButton>
+    </InfoBar>
+</UserControl>

@@ -23,7 +23,7 @@
                 Text="MmmBatch" />
         </Grid>
 
-        <!-- 送信の状況 (MmmBatch.Sending の SendHistoryControl。コードで入れる) -->
+        <!-- サイドバーと、選んだ機能のページ (SDK の NavigationHost。コードで入れる) -->
         <Border x:Name="ContentHost" Grid.Row="1" />
     </Grid>
 </Window>

@@ -6,15 +6,17 @@
 | プロジェクト | 対象 | 役割 |
 | --- | --- | --- |
 | `src/App/MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト (メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページ・DEBUG ページ)。機能のプラグインを参照して登録する |
-| `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホスト (別のソリューション `MmmBatch.slnx`)。リマインダーの送信 (ntfy・Discord)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
-| `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (送信の処理・送信の状況の画面)。**外部へ送る処理は、ここだけに置く** (MmmTool は参照しない)。`MmmTool.Reminders.Core` の型は使うが、`MmmTool.Reminders` の画面は参照しない |
+| `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホスト (別のソリューション `MmmBatch.slnx`)。リマインダーとメッセージの送信 (ntfy・Discord)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
+| `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の、機能に共通の部分 (送る口・ntfy / Discord・送信のログ・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口と、機能に共通の画面の部品)。**外部へ送る処理は、MmmBatch のプロジェクトだけに置く** (MmmTool は参照しない) |
+| `src/Plugins/MmmBatch.ReminderSending(.Core)` / `src/Plugins/MmmBatch.MessageSending(.Core)` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (バッチ処理)ごとのプラグイン。毎分の仕事・ページ (サイドバーの項目)・DI 登録の入口を持つ。機能が増えたら、このプラグインを足す (ホストは機能の名前を持たない)。`MmmTool.Reminders.Core`・`MmmTool.Messages.Core`・`MmmTool.NotificationChannels.Core` の型は使うが、`MmmTool.Reminders` などの画面は参照しない。機能のプラグインどうしは参照しない |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)。MmmTool と MmmBatch で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
-| `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmBatch が使う DB の実装 (`ReminderSendStatus` と、送る対象を読む問い合わせ)。MmmTool には参照させない |
-| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Reminders / Tools / WorkItems の 7 つ |
+| `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmBatch が使う DB の実装 (`ReminderSendStatus` と、送る対象を読む問い合わせ、メッセージの送信依頼 `MessageSendRequest` の読み出しと状態の更新)。MmmTool には参照させない |
+| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Reminders / Tools / WorkItems の 8 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ (番号と名前と数値の組。選択肢など)。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)。依存は無い。保存先の実装は `MmmTool.Data.<種類>` (表 `CodeMaster`。[specs/database.md](specs/database.md)) |
-| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・WorkItems)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
+| `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先 (`NotificationChannel`・区分・規則・`INotificationChannelRepository`)。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たない (登録の画面はリマインダーの機能)。保存先の実装は `MmmTool.Data.<種類>` |
+| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite`)。SDK の `MmmSdk.Db.<種類>` を参照する。リマインダーは、ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える。作業管理は、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`。SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため) |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 (`MmmSdk.Db.SqlServer`)。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
@@ -31,7 +33,7 @@
 
 (`src/` からの相対)
 ```
-Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Reminders / Tools / WorkItems)
+Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Messages / Reminders / Tools / WorkItems)
 Plugins/MmmTool.<機能>.Core/Json/       JSON の実装 (Json<名前>Repository)と機能ごとのソース生成 Context
 Plugins/MmmTool.<機能>/                 機能全体のつなぎ (<機能>Plugin・<機能>Startup・<機能>TrayMenuSource など、ホストへ登録するもの)と、
                                         複数の画面で共有するもの (ViewModel の基底クラス・行の書式・I<機能>DialogService)だけ
@@ -41,15 +43,15 @@ Plugins/MmmTool.<機能>/<画面>/          そのほかの画面 (Reminders/{In
                                         1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 Users/MmmTool.Users.Core/               機能をまたいで共有するユーザー (AppUser・CurrentUser・UserSignInService・PasswordHasher)
 CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコードマスタ (CodeMasterEntry・CodeBook・CodeFeatures)
+NotificationChannels/MmmTool.NotificationChannels.Core/   機能をまたいで共有する通知の送信先 (NotificationChannel・INotificationChannelRepository)
 Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService。機能をまたぐので、機能のフォルダではない)
 Data/MmmTool.Data/<機能>/               DB の行のクラス (<名前>Row)と、アプリの型との変換 (全機能の分。機能ごとのフォルダ)
 Data/MmmTool.Data.<種類>/Connection/    その DB への接続を作る処理 (SqlServerConnectionFactoryBuilder。設定とパスワードから SDK の接続の部品を作る)
 Data/MmmTool.Data.<種類>/<機能>/        その DB の Repository の実装 (<種類><名前>Repository)
 App/MmmTool/Features/<機能>/            ホストが持つ機能 (Settings / Debugging / Users / Database。Users は DB モードのユーザーの特定と、ログインの画面。Database は保存先 (ローカル / DB)の設定ページの部品と、初回の選択の画面)。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
 App/MmmTool/Shell/                      画面の枠 (ホスト側)。直下に DI 登録と、アプリ全体で使う型
-                                        (SettingsStoreStartup・
-                                        AppIcon・AppInfo・ShellServiceCollectionExtensions)
-App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・MainViewModel・PageProvider)
+                                        (AppIcon・AppInfo・ShellServiceCollectionExtensions)
+App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow。サイドバーの本体は SDK の NavigationHost を載せる)
 ```
 
 - 機能 (プラグイン)がホストへ入るときに使う型 (`IFeaturePlugin`・`FeatureInfo`・`IStartupTask`・`IFeatureDisableConfirmation`・`IFeatureStatus`・`NavigationPage`・`SettingsSection`・`IReleasablePage`・`IPageCache`・`AppEnvironment`・`AddFeature` / `AddStartupTask` / `AddNavigationPage` / `AddSettingsSection` / `AddTrayMenuSource`)は、SDK の `MmmSdk.Core.Components.Features` / `.Hosting`、`MmmSdk.WinUI.Components.Pages` / `.Tray` にある。機能もホストも、それを参照する
@@ -69,11 +71,11 @@ App/MmmTool/Shell/Main/                 メインウィンドウ (MainWindow・M
 - Generic Host (`Host.CreateApplicationBuilder`。`DisableDefaults = true` で、使わない設定 (appsettings.json・環境変数)とロガーの既定は無効)で DI を組む。ログは SDK の `ErrorLog`(エラーのファイル)だけで、`ILogger` は使わない。`App.ConfigureServices` は「SDK → `AddShell()` → 各機能 (`AddFeaturePlugin<<機能>Plugin>(order: n)`)」を呼ぶだけ
 - SDK の DI 登録は、`AddMmmSdkCore(dataDirectory)`(JSON の保存・設定ストア・位置保存・パスを開く処理。先に登録する)→ `AddMmmSdkWinUI()`(通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ)の順 (`App.ConfigureServices`)。アプリ固有の Entity・Repository は `MmmTool.Core` に残す
 - 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる (CLI補助 1 → リマインダー 2 → リンク 3 → クリップボード転送 4 → Backlog 5 → 作業管理 6)。サイドバーの項目 (上部・下部それぞれ。上部は CLI補助 → リマインダー → リンク → クリップボード転送 → Backlog → 作業管理)・トレイメニューの項目 (リマインダーがリンクより上)・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ (同じ値は登録順)。起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → 作業管理)に実行する
-- 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (`PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
+- 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)。サイドバーのページも、ページごとのスコープから解決する (SDK の `PageProvider`。オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する。残りは Host の破棄で解放する)。常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行。CLI補助・リンクはローカル専用。リマインダーは、ホストが設定で DB を選んだときだけ、その行を DB の実装に置き換える。作業管理は、機能が保存先を登録せず、ホストが設定で SQLite か SQL Server を選んで登録する ([specs/database.md](specs/database.md))
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
 - 機能のオン・オフ: オフにできる機能 (今は CLI補助・クリップボード転送・Backlog・作業管理・ツール)は、`<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録し (保存が無い初回起動のオン・オフが `defaultEnabled`。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ。ツールはオン)、ページ・起動時の準備・トレイメニュー・設定の部品の登録に同じキーを渡す (`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数。省略はオフにできない機能)。`FeatureService`(Shell)が状態の保存・起動時の準備の実行・切り替えの通知 (`Changed`)を持つ。Shell は機能の名前を知らず、キーで絞り込むだけ (仕組みは [specs/settings.md](specs/settings.md) の「機能の登録とページの破棄」)
-- サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。`MainViewModel` が登録から項目を作り、`MainWindow` は `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
+- サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)。SDK の `NavigationHostViewModel` が登録から項目を作り、`NavigationHost` が `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る。ホストのウィンドウ (MmmTool の `MainWindow`・MmmBatch の `MainWindow`)は、`NavigationHost` を載せるだけ (同じ部品を、2 つのアプリに写さないため)。DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ (共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業管理の読み込み)。`IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)。起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
 - 入力欄の空のときの薄い文字の色: アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決め、`App.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの。`TextBox` の既定のスタイルとして効く)で、全部の入力欄に効かせる。独自のスタイルを付ける `TextBox` は、`AppTextBoxStyle` を `BasedOn` にする。入力欄ごとに `PlaceholderForeground` を指定しない。ページ専用の自作の色も作らない。色の名前 (`TextControlPlaceholderForeground`)の上書きは、効かないので使わない
 - ダイアログ: 共通の `IDialogService`(SDK)は確認ダイアログだけ。機能固有の画面は各機能の口から開く (`IReminderDialogService.ShowInputAsync` / `ShowListAsync`、`IWorkingDirectoryDialogService.ShowAsync`)。実装は SDK の `IDialogHost` の `Owner`(親の決定)・`ShowModalAsync`(開いている間モーダルとして覚える)・`Attach`(`ContentDialog` に親の画面とテーマを渡す)を使う (具象の `DialogService` には依存しない)。ピッカーの親も `IDialogHost.Owner`

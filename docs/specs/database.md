@@ -24,7 +24,7 @@
 - 行の版 (更新のたびに DB が自動で変える列。SQL Server の `rowversion`)は持たない。他の PC の変更は、全件の読み直しで知る (読み直しの方法は Repository の仕様)。同時編集の上書きは検出しない (少人数のため。ユーザーの決定)。防ぎたくなったときは、表を変えずに、更新の SQL の条件に「`Id` が同じで、更新日時も読んだときと同じ」を足せばよい (更新日時がミリ秒・DB の時計なので、同じミリ秒の更新が重なる確率は小さい)
 - 連動削除 (`ON DELETE CASCADE`)は使わない (ユーザーの決定)。DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない
 - 外部キーは使わない。ほかの表の番号を持つ列 (`ReminderId`・`UserId`・作成者・更新者・宛先)に存在しない番号が入らないようにするのは、アプリの責任 (小規模のため。ユーザーの決定)
-- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ (リマインダー関係の表。検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)。**作業管理の表は例外**で、読み方 (全員の分の読み込み・日付での絞り込み・差分の取得)ごとのインデックスを持つ。差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)。件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する (測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった)
+- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ (リマインダー関係の表。検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)。**作業管理の表と `MessageSendRequest` は例外**で、読み方 (作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得。`MessageSendRequest` は、状態での絞り込み)ごとのインデックスを持つ。差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)。件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する (測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった)
 
 ## 表の一覧
 | 表 | 内容 |
@@ -35,6 +35,7 @@
 | `NotificationChannel` | 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先 |
 | `ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
 | `ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
+| `MessageSendRequest` | メッセージの送信依頼。MmmTool が行を足し、MmmBatch が送って状況を更新する ([messages.md](messages.md)) |
 | `WorkProject` | 作業管理の案件マスター ([work-items.md](work-items.md)) |
 | `WorkGroup` | 作業管理のグループ |
 | `WorkItem` | 作業管理の作業 |
@@ -42,7 +43,7 @@
 | `WorkDayNote` | 作業管理の日報メモ。作業に結びつかない、その人の 1 日分の記入。1 人 1 日 1 件 |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
-`NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus` の 3 つは、リマインダーの送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
+`NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageSendRequest` の 4 つは、外部への送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
 作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
 
@@ -161,11 +162,33 @@
 | `Date` | 日付 | `date` | | どの日の分か |
 | `Status` | 整数 (小) | `tinyint` | | Pending = 1 / Sent = 2 / Failed = 3 (1 から 3 の検査) |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
-| `LastError` | 文字列 (500) | `nvarchar(500)` | 空文字 | 最後の失敗の理由 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
+- 失敗の理由の列は持たない (理由は MmmBatch のログに残す。経過の記録は、状態を持つ表の役割ではないため)
 - `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)。送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
 - ログではなく状態で、「送ったか」の判断に使う。画面の「今日」(今日の送信予定)は、この表から読む。送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログ ([mmmbatch.md](mmmbatch.md)の「送信のログ」)に残し、画面の「履歴」はそちらから出す (この表は再送で同じ行を更新するので、経過が残らないため。ユーザーの決定)
+
+### `MessageSendRequest`(メッセージの送信依頼)
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列) |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (依頼した日時。画面の「今日」に時刻として出すだけで、条件には使わない) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。送った人と同じ。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。MmmBatch が状況を変えるたびに、DB の時計で書く |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。依頼したときは送った人、MmmBatch が更新するときは 0 (MmmBatch はユーザーではない)。0 以上の検査 |
+| `SenderUserId` | 整数 | `int` | | 送った人 (`AppUser.Id`)。業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない)。0 以上の検査。**列の並び: 共通ヘッダーの次、`ChannelId` の前** (誰が・誰にの順) |
+| `ChannelId` | 整数 | `int` | | 送る先 (`NotificationChannel.Id`)。送信先の値は持たない |
+| `Title` | 文字列 (100) | `nvarchar(100)` | 空文字 | タイトル。空文字は「タイトルなし」。画面の上限 (`MessageLimits`)と同じ長さ |
+| `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 (1 から 3 の検査)。`ReminderSendStatus` と同じ意味 |
+| `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
+| `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
+
+- 行を足すのは MmmTool (送信待ちで足す)。送信の流れ・送り直し・行を取る条件は [mmmbatch.md](mmmbatch.md) の「メッセージの送信」。失敗の理由の列は持たない (`ReminderSendStatus` と同じ)
+- 一意制約は付けない (1 回の送信の操作が 1 行。同じ内容を続けて送っても別の行)
+- インデックス (業務の列だけ): `IX_MessageSendRequest_Status (Status)`。MmmBatch が 5 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため (件数が増え続ける表で、送信済みの大量の行を、読むたびに走査しないため)。MmmBatch の画面の「最近の依頼」は、主キー (`Id`)の降順で、先頭から決まった件数を読むので、索引は要らない
+- 送った人・送る先の存在は、アプリが検査する (外部キーは付けない)
 
 ### 作業管理の表 (5 つ)
 ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの分。`WorkDayNote` だけは、リリース後に足したので、両方とも `002_AddWorkDayNote.sql`)。SQLite の型は、下の「型の対応 (作業管理の表)」。

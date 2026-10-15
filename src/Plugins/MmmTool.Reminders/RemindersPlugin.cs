@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.ChannelEdit;
 using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;
@@ -58,6 +59,10 @@ public sealed class RemindersPlugin : IFeaturePlugin
         // 設定ページに並べる設定 (スヌーズ間隔)
         services.AddTransient<ReminderSettingsViewModel>();
         services.AddSettingsSection<ReminderSettingsControl>(RemindersFeature.Key);
+
+        // 設定ページの「送信先」 (サーバーモードだけ出る。送信先の一覧画面を開く)
+        services.AddTransient<NotificationChannelSettingsViewModel>();
+        services.AddSettingsSection<NotificationChannelSettingsControl>(RemindersFeature.Key);
 
         // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
         services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);

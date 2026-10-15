@@ -6,7 +6,7 @@ using MmmTool.Users.Core;
 namespace MmmTool.Data.SqlServer.Reminders;
 
 /// <summary>
-/// 送信の表 (<c>dbo.NotificationChannel</c>・<c>dbo.ReminderSendSetting</c>)を読み書きするときの、共通の決まり。
+/// 送信の表 (<c>dbo.NotificationChannel</c>・<c>dbo.ReminderSendSetting</c>・<c>dbo.MessageSendRequest</c>)を読み書きするときの、共通の決まり。
 /// </summary>
 /// <remarks>
 /// 表は、管理者が <c>001_CreateTables.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
@@ -36,7 +36,7 @@ internal static class SendTableAccess
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("送信先の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
+                throw new DataFileException("送信の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 
@@ -46,7 +46,7 @@ internal static class SendTableAccess
     /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
     public static int RequireUserId(CurrentUser currentUser)
     {
-        const string Message = "ユーザーが特定されていないため、送信先を使えません (ログインが必要です)。";
+        const string Message = "ユーザーが特定されていないため、送信の機能を使えません (ログインが必要です)。";
         return currentUser.User?.Id ?? throw new DataFileException(Message, new InvalidOperationException(Message));
     }
 }
