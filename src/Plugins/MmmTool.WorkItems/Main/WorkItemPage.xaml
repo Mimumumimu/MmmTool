@@ -173,6 +173,7 @@
                     DateChanged="OnCellDateChanged"
                     DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
                     Loaded="OnDateLoaded"
+                    Opened="OnDateOpened"
                     PlaceholderText=""
                     Style="{StaticResource CellDatePickerStyle}" />
             </DataTemplate>
@@ -215,6 +216,7 @@
                     DateChanged="OnCellDateChanged"
                     DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}"
                     Loaded="OnDateLoaded"
+                    Opened="OnDateOpened"
                     PlaceholderText=""
                     Style="{StaticResource CellDatePickerStyle}" />
             </DataTemplate>

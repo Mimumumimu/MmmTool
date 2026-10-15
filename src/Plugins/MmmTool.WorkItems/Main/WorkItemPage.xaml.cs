@@ -165,6 +165,54 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
+    /// <summary>カレンダーが開いたとき、日付が空なら、入力日 (終了日は開始日があれば開始日)の月を表示する</summary>
+    /// <param name="sender">日付の選択欄</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>日付が空のままだと、カレンダーはシステムの今日の月を表示するため。選択はしない (表示する月だけ変える)。</remarks>
+    private void OnDateOpened(object? sender, object e)
+    {
+        if (sender is not CalendarDatePicker { Date: null } picker || TreeGridView.GetRow(picker) is not WorkItemRow row)
+        {
+            return;
+        }
+
+        var basis = ColumnKey(picker) == "Due" && row.StartValue is { } start ? start : ToOffset(ViewModel.InputDate);
+
+        // 開いた直後は、ポップアップの中身がまだ無いことがあるので、処理が済んでから探す
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot))
+            {
+                if (FindCalendarView(popup.Child) is { } calendar)
+                {
+                    calendar.SetDisplayDate(basis);
+                    return;
+                }
+            }
+        });
+    }
+
+    /// <summary>要素の中から、最初のカレンダーを探す</summary>
+    /// <param name="element">探し始める要素</param>
+    /// <returns>見つかったカレンダー。無ければ <see langword="null"/></returns>
+    private static CalendarView? FindCalendarView(DependencyObject? element)
+    {
+        if (element is CalendarView calendar)
+        {
+            return calendar;
+        }
+
+        for (var i = 0; element is not null && i < VisualTreeHelper.GetChildrenCount(element); i++)
+        {
+            if (FindCalendarView(VisualTreeHelper.GetChild(element, i)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>カレンダーが閉じたら、表示用に戻す</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
