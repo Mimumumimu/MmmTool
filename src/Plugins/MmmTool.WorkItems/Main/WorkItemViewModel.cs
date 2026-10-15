@@ -320,7 +320,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitAssigneeAsync(WorkItemRow row, int userId)
     {
-        if (userId != row.AssigneeUserId)
+        if (!row.IsLocked && userId != row.AssigneeUserId)
         {
             await UpdateItemAsync(row, item => item with { AssigneeUserId = userId });
         }
@@ -414,7 +414,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="row">行</param>
     /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
     /// <returns>動かせれば true (案件は、並びを動かせない)</returns>
-    public bool CanShift(WorkItemRow row, int delta) => !row.IsProject && _service.CanShift(row.Key, delta);
+    public bool CanShift(WorkItemRow row, int delta) => !row.IsProject && !row.IsLocked && _service.CanShift(row.Key, delta);
 
     /// <summary>行を、兄弟の中で上または下へ動かす</summary>
     /// <param name="row">行</param>
@@ -422,6 +422,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>動かしの完了を表すタスク</returns>
     public async Task ShiftAsync(WorkItemRow row, int delta)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         try
         {
             await _service.ShiftAsync(row.Key, delta);
@@ -438,6 +443,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>移動の完了を表すタスク</returns>
     public async Task MoveAsync(WorkItemRow row)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         var destinations = new List<MoveDestination>();
         foreach (var project in _service.BuildTree(InputDate))
         {
@@ -478,6 +488,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>削除の完了を表すタスク</returns>
     public async Task DeleteAsync(WorkItemRow row)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         try
         {
             var message = row.IsGroup ? $"グループ「{row.Name}」を削除します。" : $"作業「{row.Name}」を削除します。";
@@ -537,6 +552,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitTextAsync(WorkItemRow row, string column, string text)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         text = text.Trim();
         if (column == "Name" && text.Length == 0)
         {
@@ -598,6 +618,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitNoteAsync(WorkItemRow row, string column, string text)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         if (column == "DayNote")
         {
             if (row.IsWork && text != row.DayNote)
@@ -617,6 +642,11 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitLinkAsync(WorkItemRow row, string text)
     {
+        if (row.IsLocked)
+        {
+            return;
+        }
+
         text = text.Trim();
         if (text != row.Link)
         {
@@ -659,7 +689,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitChoiceAsync(WorkItemRow row, string column, int index)
     {
-        if (index < 0)
+        if (index < 0 || row.IsLocked)
         {
             return;
         }
@@ -838,7 +868,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         // 完了して日がたった (完了日が入力日より前の)もの
         bool IsPastFinished(WorkNode node)
-            => node.Summary.IsFinished && node.Summary.CompletedDate is { } done && done < InputDate;
+            => node.Summary.IsFinishedBefore(InputDate);
 
         // 中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)
         bool IsCollapsedByDefault(WorkNode node)
@@ -865,7 +895,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
                 expanded,
                 node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
                 _choices,
-                node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "");
+                node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
+                node.Item is not null && IsPastFinished(node));
             alive.Add(node.Key);
             target.Add(row);
             if (expanded)

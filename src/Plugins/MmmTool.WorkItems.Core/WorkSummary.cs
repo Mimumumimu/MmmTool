@@ -21,4 +21,11 @@ public sealed record WorkSummary(
     int WorkCount,
     bool IsFinished,
     DateOnly? CompletedDate,
-    WorkItemStatus? Status);
+    WorkItemStatus? Status)
+{
+    /// <summary>完了して日がたったか (完了日が、指定の日より前)</summary>
+    /// <param name="date">基準の日 (画面では入力日)</param>
+    /// <returns>完了していて、完了日が基準の日より前なら true</returns>
+    /// <remarks>完了したグループの既定の畳みと、作業の行を触れなくする判定が、この 1 つの条件を使う。</remarks>
+    public bool IsFinishedBefore(DateOnly date) => IsFinished && CompletedDate is { } done && done < date;
+}
