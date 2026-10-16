@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using MmmSdk.Core.Utilities;
+using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.CliAssist.Core;
 using Windows.ApplicationModel.DataTransfer;
@@ -147,28 +148,54 @@ public sealed partial class CliSessionView : UserControl
     /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">貼り付けの情報</param>
-    /// <remarks>クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。このときは添付せず、画面に知らせる。</remarks>
-    private async void OnInputPaste(object sender, TextControlPasteEventArgs e)
+    /// <remarks>
+    /// このイベントの中では、<c>Clipboard.GetContent()</c> など、コピー元のアプリへ問い合わせるクリップボードの呼び出しをしない。
+    /// 返事を待つ間に画面の操作が割り込み、入力欄の貼り付けの途中で WinUI が内部で失敗して落ちるため。
+    /// 添付するか (ファイルか、画像だけか)は、問い合わせずに分かる <see cref="ClipboardFormats"/> で決め、
+    /// 添付するときだけ、イベントが終わったあとに中身を読む (<see cref="AttachFromClipboardAsync"/>)。
+    /// テキストの貼り付けは、入力欄の標準の動きに任せる。
+    /// </remarks>
+    private void OnInputPaste(object sender, TextControlPasteEventArgs e)
+    {
+        // エクスプローラーでコピーしたファイル・メールの添付ファイルは添付する。
+        // 画像だけのとき (スクリーンショット等)も添付する。テキストも含むとき (Excel のセル等)は通常の貼り付けにする
+        if (!ClipboardFormats.HasFiles() && !(ClipboardFormats.HasImage() && !ClipboardFormats.HasText()))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        DispatcherQueue.TryEnqueue(AttachFromClipboardAsync);
+    }
+
+    /// <summary>クリップボードのファイル・画像を添付する (貼り付けのイベントが終わったあとに呼ぶ)</summary>
+    /// <remarks>
+    /// クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。このときは添付せず、画面に知らせる。
+    /// 形式の判定は目安なので、実際にはファイルも画像も取り出せなかったときは、テキストがあれば、入力欄の選択範囲へ貼り付ける (貼り付けが消えないように)。
+    /// </remarks>
+    private async void AttachFromClipboardAsync()
     {
         try
         {
             var content = Clipboard.GetContent();
 
-            // エクスプローラーでコピーしたファイルは添付する
             if (content.Contains(StandardDataFormats.StorageItems))
             {
-                e.Handled = true;
                 await AddAttachmentFilesAsync(await content.GetStorageItemsAsync());
                 return;
             }
 
-            // 画像だけのとき (スクリーンショット等)は添付する。テキストも含むとき (Excel のセル等)は通常の貼り付けにする
             if (content.Contains(StandardDataFormats.Bitmap) && !content.Contains(StandardDataFormats.Text))
             {
-                e.Handled = true;
                 var bitmap = await content.GetBitmapAsync();
                 using var stream = await bitmap.OpenReadAsync();
                 await ViewModel.AddAttachmentImageAsync(stream.AsStreamForRead());
+                return;
+            }
+
+            if (content.Contains(StandardDataFormats.Text))
+            {
+                InputBox.SelectedText = await content.GetTextAsync();
             }
         }
         catch (COMException ex)
