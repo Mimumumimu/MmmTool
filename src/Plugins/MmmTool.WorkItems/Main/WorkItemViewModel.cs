@@ -8,6 +8,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Move;
@@ -46,6 +47,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>リンクを開く処理</summary>
     private readonly IPathOpener _opener;
 
+    /// <summary>マウスカーソルを処理待ちの形にする口</summary>
+    private readonly IBusyCursor _busyCursor;
+
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
 
@@ -66,6 +70,12 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
     /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
     private bool _masterEmpty;
+
+    /// <summary>ページを開いている間か (<see cref="InitializeAsync"/> から <see cref="Suspend"/> まで。離れている間は、サービスの変更で表を作らない)</summary>
+    private bool _active;
+
+    /// <summary>開いたときの読み込みが終わり、表を作り終えているか (終わるまでの変更は、全体を作り直す)</summary>
+    private bool _synced;
 
     /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
     private bool _initializing = true;
@@ -160,8 +170,10 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="confirm">確認ダイアログ</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     /// <param name="opener">リンクを開く処理</param>
-    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener)
+    /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
+    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener, IBusyCursor busyCursor)
     {
+        _busyCursor = busyCursor;
         _service = service;
         _settings = settings;
         _dialogs = dialogs;
@@ -170,7 +182,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         ProjectPicker = projectPicker;
 
         _hiddenColumns = [.. settings.Get(HiddenColumnsKey, "").Split(',', StringSplitOptions.RemoveEmptyEntries)];
-        service.Changed += (_, _) => Rebuild();
+        service.Changed += (_, e) => OnServiceChanged(e);
         service.RefreshFailed += (_, message) => Error.Show(message);
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
@@ -184,6 +196,8 @@ public sealed partial class WorkItemViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         Error.Clear();
+        _active = true;
+        _synced = false;
 
         // 「自分の担当だけ」は、スケジュールでも切り替えられる (同じ設定)。画面を開くたびに、設定の値に合わせる (表は、作り直す)
         var mineOnly = _settings.Get(WorkItemSettingKeys.MineOnly, false);
@@ -194,26 +208,36 @@ public sealed partial class WorkItemViewModel : ObservableObject
             _initializing = false;
         }
 
-        try
+        // サイドバーを押した直後は、マウスがサイドバーの上にあるので、ウィンドウ全体のカーソルを砂時計にする
+        await _busyCursor.RunAsync(async () =>
         {
-            await _service.LoadAsync(InputDate);
-            if (!_recoveryMessageShown && _service.RecoveryMessage is { } recovery)
+            try
             {
-                _recoveryMessageShown = true;
-                Error.Show(recovery);
+                await _service.LoadAsync(InputDate);
+                if (!_recoveryMessageShown && _service.RecoveryMessage is { } recovery)
+                {
+                    _recoveryMessageShown = true;
+                    Error.Show(recovery);
+                }
+                await RefreshMasterAsync();
             }
-            await RefreshMasterAsync();
-        }
-        catch (DataFileException ex)
-        {
-            Error.Show(ex.Message);
-        }
-        Rebuild();
+            catch (DataFileException ex)
+            {
+                Error.Show(ex.Message);
+            }
+            Rebuild();
+            _synced = _active;
+        });
         _service.StartPolling();
     }
 
     /// <summary>ページを離れたときに、他の人の更新の取得を止める</summary>
-    public void Suspend() => _service.StopPolling();
+    public void Suspend()
+    {
+        _active = false;
+        _synced = false;
+        _service.StopPolling();
+    }
 
     /// <summary>列が、表示されているか</summary>
     /// <param name="key">列のキー</param>
@@ -896,61 +920,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
 
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();
-
-        // 完了して日がたった (完了日が入力日より前の)もの
-        bool IsPastFinished(WorkNode node)
-            => node.Summary.IsFinishedBefore(InputDate);
-
-        // 中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)
-        bool IsCollapsedByDefault(WorkNode node)
-            => node.Key.Kind == WorkRowKind.Group && IsPastFinished(node)
-            && !node.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0);
-
-        bool IsExpanded(WorkNode node)
-            => _expanded.Contains(node.Key) || (!_collapsed.Contains(node.Key) && !IsCollapsedByDefault(node));
-
-        void Visit(WorkNode node, int level)
-        {
-            var visibleChildren = node.Children;
-            if (!_rowByKey.TryGetValue(node.Key, out var row))
-            {
-                row = new WorkItemRow(node.Key);
-                _rowByKey[node.Key] = row;
-            }
-
-            var expanded = IsExpanded(node);
-            row.Update(
-                node,
-                level,
-                visibleChildren.Count > 0,
-                expanded,
-                node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
-                _choices,
-                node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
-                node.Item is not null && IsPastFinished(node),
-                node.Item is not null ? node.Summary.OverdueDays(InputDate) : 0);
-            alive.Add(node.Key);
-            target.Add(row);
-            if (expanded)
-            {
-                foreach (var child in visibleChildren)
-                {
-                    Visit(child, level + 1);
-                }
-            }
-            else
-            {
-                // 閉じている間も、行は使い回せるよう残す
-                foreach (var child in visibleChildren.SelectMany(c => c.SelfAndDescendants()))
-                {
-                    alive.Add(child.Key);
-                }
-            }
-        }
-
         foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex))
         {
-            Visit(root, 0);
+            Visit(root, 0, target, alive);
         }
 
         TreeGridRowSync.Sync(Rows, target);
@@ -959,6 +931,12 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             _rowByKey.Remove(key);
         }
+        AfterRowsChanged();
+    }
+
+    /// <summary>行の一覧が変わったあとの後始末 (行が無いときの案内・選んだ行・列の幅)</summary>
+    private void AfterRowsChanged()
+    {
         IsEmpty = Rows.Count == 0;
         EmptyMessage = !IsEmpty || _service.HasVisibleProjects ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
         if (SelectedRow is not null && !Rows.Contains(SelectedRow))
@@ -966,6 +944,129 @@ public sealed partial class WorkItemViewModel : ObservableObject
             SelectedRow = null;
         }
         RowsRebuilt?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>完了して日がたった (完了日が入力日より前の)ものか</summary>
+    /// <param name="node">木の行</param>
+    /// <returns>そうなら true</returns>
+    private bool IsPastFinished(WorkNode node)
+        => node.Summary.IsFinishedBefore(InputDate);
+
+    /// <summary>行が開いているか</summary>
+    /// <param name="node">木の行</param>
+    /// <returns>開いていれば true</returns>
+    /// <remarks>中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)。</remarks>
+    private bool IsExpanded(WorkNode node)
+    {
+        var collapsedByDefault = node.Key.Kind == WorkRowKind.Group && IsPastFinished(node)
+            && !node.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0);
+        return _expanded.Contains(node.Key) || (!_collapsed.Contains(node.Key) && !collapsedByDefault);
+    }
+
+    /// <summary>木の行から、表の行を作り (使い回し)、見えている行を、木の順に並べる</summary>
+    /// <param name="node">木の行</param>
+    /// <param name="level">字下げの段</param>
+    /// <param name="target">見えている行の並び (ここに足す)</param>
+    /// <param name="alive">使っている行の識別 (ここに足す)</param>
+    private void Visit(WorkNode node, int level, List<WorkItemRow> target, HashSet<WorkKey> alive)
+    {
+        var visibleChildren = node.Children;
+        if (!_rowByKey.TryGetValue(node.Key, out var row))
+        {
+            row = new WorkItemRow(node.Key);
+            _rowByKey[node.Key] = row;
+        }
+
+        var expanded = IsExpanded(node);
+        row.Update(
+            node,
+            level,
+            visibleChildren.Count > 0,
+            expanded,
+            node.Item is { } item ? _service.GetRecord(item.Id, InputDate) : null,
+            _choices,
+            node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
+            node.Item is not null && IsPastFinished(node),
+            node.Item is not null ? node.Summary.OverdueDays(InputDate) : 0);
+        alive.Add(node.Key);
+        target.Add(row);
+        if (expanded)
+        {
+            foreach (var child in visibleChildren)
+            {
+                Visit(child, level + 1, target, alive);
+            }
+        }
+        else
+        {
+            // 閉じている間も、行は使い回せるよう残す
+            foreach (var child in visibleChildren.SelectMany(c => c.SelfAndDescendants()))
+            {
+                alive.Add(child.Key);
+            }
+        }
+    }
+
+    /// <summary>サービスの内容が変わったときに、表を更新する (表示する案件の変更は、その案件の行だけで応える)</summary>
+    /// <param name="args">変更の内容</param>
+    /// <remarks>
+    /// ページを開いていない間は、作らない (開くたびに、読み直して作るため。スケジュールでの付け外しのたびに、見えていない表を作り直さないため)。
+    /// 案件の中身は、ほかの案件に依存しないので、外した案件は行のかたまりを抜くだけ、加えた案件はその案件の分だけ作って、名前の順の位置へ差し込む。
+    /// 外した案件のうち、閉じていて表に出ていなかった行は、次に全体を作り直すときに、使い回しの置き場から外れる。
+    /// </remarks>
+    private void OnServiceChanged(WorkChangedEventArgs args)
+    {
+        if (!_active)
+        {
+            return;
+        }
+
+        var handled = _synced && args.Kind switch
+        {
+            WorkChangeKind.ProjectHidden => RemoveProjectRows(args.ProjectId),
+            WorkChangeKind.ProjectShown => InsertProjectRows(args.ProjectId),
+            _ => false,
+        };
+        if (!handled)
+        {
+            Rebuild();
+        }
+    }
+
+    /// <summary>外した案件の行のかたまりを、表から抜く</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <returns>反映できたら true (表に出ていない案件は、反映できなかったことにして、全体を作り直す)</returns>
+    private bool RemoveProjectRows(int projectId)
+    {
+        if (ProjectBlockRows.Remove(Rows, projectId) is not { } removed)
+        {
+            return false;
+        }
+
+        foreach (var row in removed)
+        {
+            _rowByKey.Remove(row.Key);
+        }
+        AfterRowsChanged();
+        return true;
+    }
+
+    /// <summary>加えた案件の行のかたまりを作り、案件の名前の順の位置へ差し込む</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <returns>反映できたら true (案件を読み込んでいないとき・すでに表に出ているときは false)</returns>
+    private bool InsertProjectRows(int projectId)
+    {
+        if (_rowByKey.ContainsKey(new WorkKey(WorkRowKind.Project, projectId))
+            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex) is not { } node)
+        {
+            return false;
+        }
+
+        var target = new List<WorkItemRow>();
+        Visit(node, 0, target, []);
+        ProjectBlockRows.Insert(Rows, target);
+        AfterRowsChanged();
+        return true;
     }
 
     /// <summary>移動先の選択肢に、グループを木の順に足す</summary>

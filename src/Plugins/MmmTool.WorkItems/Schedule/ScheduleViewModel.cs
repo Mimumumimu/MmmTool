@@ -328,29 +328,14 @@ public sealed partial class ScheduleViewModel : ObservableObject
     /// <returns>反映できたら true (表に出ていない案件は、反映できなかったことにして、全体を作り直す)</returns>
     private bool RemoveProjectRows(int projectId)
     {
-        if (!_rowByKey.TryGetValue(new WorkKey(WorkRowKind.Project, projectId), out var projectRow))
+        if (ProjectBlockRows.Remove(Rows, projectId) is not { } removed)
         {
             return false;
         }
 
-        var start = Rows.IndexOf(projectRow);
-        if (start < 0)
+        foreach (var row in removed)
         {
-            return false;
-        }
-
-        // 次の案件の行の手前までが、この案件のかたまり (案件の行の字下げの段は 0)
-        var end = start + 1;
-        while (end < Rows.Count && Rows[end].Level > 0)
-        {
-            end++;
-        }
-
-        // 末尾から抜く (抜くたびに、後ろの行の位置が動かない)
-        for (var i = end - 1; i >= start; i--)
-        {
-            _rowByKey.Remove(Rows[i].Key);
-            Rows.RemoveAt(i);
+            _rowByKey.Remove(row.Key);
         }
         UpdateEmptyState();
         RowsBlockChanged?.Invoke(this, EventArgs.Empty);
@@ -378,26 +363,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         var target = new List<ScheduleRow>();
         Visit(snapshot.Roots[0], 0, snapshot, target, []);
 
-        // 案件は、名前の順 (同じなら番号の順)。作る側 (WorkItemTree)と同じ並びで、入れる位置を決める
-        var name = snapshot.Roots[0].Name;
-        var index = Rows.Count;
-        for (var i = 0; i < Rows.Count; i++)
-        {
-            if (Rows[i].IsProject)
-            {
-                var compared = StringComparer.CurrentCulture.Compare(Rows[i].Name, name);
-                if (compared > 0 || (compared == 0 && Rows[i].Key.Id > projectId))
-                {
-                    index = i;
-                    break;
-                }
-            }
-        }
-
-        foreach (var row in target)
-        {
-            Rows.Insert(index++, row);
-        }
+        ProjectBlockRows.Insert(Rows, target);
         UpdateEmptyState();
         RowsBlockChanged?.Invoke(this, EventArgs.Empty);
         return true;

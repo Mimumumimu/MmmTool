@@ -99,7 +99,7 @@ public sealed partial class WorkItemPage : Page
         TreeGrid.SelectedRowChanged += (_, _) => ViewModel.SelectedRow = TreeGrid.SelectedRow as WorkItemRow;
 
         BuildColumnsFlyout();
-        ApplyColumns();
+        ApplyColumns(fitAll: true);
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.ColumnVisibilityChanged += (_, _) => ApplyColumns();
@@ -253,31 +253,45 @@ public sealed partial class WorkItemPage : Page
     private static string EditKey(string templateKey) => templateKey[..^"Cell".Length] + "Edit";
 
     /// <summary>設定と入力日に合わせて、列の表示・見出し・色を直し、表に反映する</summary>
-    private void ApplyColumns()
+    /// <param name="fitAll">表示しているすべての列の幅を測るか (作った直後。false なら、新しく表示する列だけ)</param>
+    private void ApplyColumns(bool fitAll = false)
     {
         var lineBrush = (Brush)Resources["DailyLineBrush"];
+        var shown = new List<TreeGridColumn>();
         foreach (var column in _columns)
         {
+            var wasVisible = column.IsVisible;
             column.IsVisible = column.Key == "Name" || (ViewModel.IsColumnVisible(column.Key) && (column.Key != "Assignee" || ViewModel.HasAssignees));
             column.HeaderUnderline = DailyKeys.Contains(column.Key) ? lineBrush : null;
+            if (column.IsVisible && !wasVisible)
+            {
+                shown.Add(column);
+            }
         }
 
-        FitColumns();
+        // 幅を測るのは、新しく表示する列だけ (ほかの列の中身は変わらない。表示していない間に変わった中身は、表示するときに測る)
+        FitColumns(fitAll ? null : shown);
         TreeGrid.RefreshColumns();
     }
 
-    /// <summary>列の幅を、中身に合わせる</summary>
+    /// <summary>表示している列の幅を、中身に合わせる</summary>
+    /// <param name="only">測る列 (null なら、表示しているすべての列)</param>
     /// <returns>幅が変わった列があるか</returns>
     /// <remarks>
     /// 見出し・選択肢・今の行の文字のうち、いちばん長いものに、余白を足した幅にする (備考だけは、上限を設ける)。
-    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。
+    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。表示していない列は測らない (行の数 × 列の数だけ、文字の幅を測るので、重いため)。
     /// </remarks>
-    private bool FitColumns()
+    private bool FitColumns(IReadOnlyCollection<TreeGridColumn>? only = null)
     {
         var rows = ViewModel.Rows;
         var changed = false;
         foreach (var column in _columns)
         {
+            if (!column.IsVisible || (only is not null && !only.Contains(column)))
+            {
+                continue;
+            }
+
             var width = column.Key switch
             {
                 "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40).DefaultIfEmpty(0).Max()),
@@ -393,7 +407,6 @@ public sealed partial class WorkItemPage : Page
                 {
                     InputDatePicker.Date = ToOffset(ViewModel.InputDate);
                 }
-                ApplyColumns();
                 break;
             case nameof(WorkItemViewModel.SelectedRow):
                 if (!ReferenceEquals(TreeGrid.SelectedRow, ViewModel.SelectedRow))

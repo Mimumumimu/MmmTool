@@ -57,16 +57,18 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             : RunAsync(connection => ReadContentAsync(connection, projectIds, exclude: false, withMaster: false, cancellationToken), cancellationToken);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
-        => RunAsync<IReadOnlyList<WorkRecord>>(
-            connection => QueryAsync(
-                connection,
-                null,
-                $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.Date = @date AND r.IsDeleted = 0 AND {ProjectFilter("r", "ProjectId", exclude: true)}",
-                [("@projects", ProjectsJson(hiddenProjectIds)), ("@date", date)],
-                reader => ReadRecord(reader).ToWorkRecord(),
-                cancellationToken),
-            cancellationToken);
+    public Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default)
+        => projectIds.Count == 0 && !exclude
+            ? Task.FromResult<IReadOnlyList<WorkRecord>>([])
+            : RunAsync<IReadOnlyList<WorkRecord>>(
+                connection => QueryAsync(
+                    connection,
+                    null,
+                    $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.Date = @date AND r.IsDeleted = 0 AND {ProjectFilter("r", "ProjectId", exclude)}",
+                    [("@projects", ProjectsJson(projectIds)), ("@date", date)],
+                    reader => ReadRecord(reader).ToWorkRecord(),
+                    cancellationToken),
+                cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<WorkRecord>> LoadRecordsAsync(IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default)

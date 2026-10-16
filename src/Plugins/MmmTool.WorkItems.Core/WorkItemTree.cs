@@ -10,6 +10,18 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public static class WorkItemTree
 {
+    /// <summary>2 つの案件の並びを比べる (名前の順。同じなら番号の順。<see cref="Build"/> の並びと同じ)</summary>
+    /// <param name="nameA">1 つ目の案件の名前</param>
+    /// <param name="idA">1 つ目の案件の番号</param>
+    /// <param name="nameB">2 つ目の案件の名前</param>
+    /// <param name="idB">2 つ目の案件の番号</param>
+    /// <returns>1 つ目が後ろなら正の値、前なら負の値、同じなら 0</returns>
+    public static int CompareProjects(string nameA, int idA, string nameB, int idB)
+    {
+        var compared = StringComparer.CurrentCulture.Compare(nameA, nameB);
+        return compared != 0 ? compared : idA.CompareTo(idB);
+    }
+
     /// <summary>木構造を作り、集計値を計算する</summary>
     /// <param name="projects">案件 (論理削除済みは含めない)</param>
     /// <param name="groups">グループ (論理削除済みは含めない)</param>

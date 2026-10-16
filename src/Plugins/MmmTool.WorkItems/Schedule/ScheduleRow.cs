@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Schedule;
@@ -11,7 +10,7 @@ namespace MmmTool.WorkItems.Schedule;
 /// 棒の描画に関わる値が変わったときだけ、<see cref="VisualVersion"/> を進めて、セルに描き直させる。
 /// 案件・グループの日付・進捗度・実績は、下の作業から計算した値 (<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/>)。見るだけで、入力はできない。
 /// </remarks>
-public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGridRow
+public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {
     /// <summary>行の識別 (種類 + 番号)</summary>
     public WorkKey Key { get; } = key;

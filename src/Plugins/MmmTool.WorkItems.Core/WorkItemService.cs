@@ -143,7 +143,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             var hidden = ReadHidden();
             var data = await repository.LoadVisibleAsync(hidden, cancellationToken);
-            var records = await repository.LoadDayAsync(day, hidden, cancellationToken);
+            var records = await repository.LoadDayAsync(day, hidden, exclude: true, cancellationToken);
             var dayNote = await repository.LoadDayNoteAsync(day, cancellationToken);
             _assignees = await repository.GetAssigneesAsync(cancellationToken);
 
@@ -197,7 +197,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             {
                 return;
             }
-            _dayRecords = [.. await repository.LoadDayAsync(day, _hidden)];
+            _dayRecords = [.. await repository.LoadDayAsync(day, _hidden, exclude: true)];
             _dayNote = await repository.LoadDayNoteAsync(day);
             _day = day;
         }
@@ -322,8 +322,37 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
     /// </remarks>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false, CompletedDisplay completed = CompletedDisplay.Show)
+        => BuildTree(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, mineOnly, completed);
+
+    /// <summary>作業管理の表に出す木を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <param name="date">入力日</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <returns>その案件の行。案件を読み込んでいなければ null</returns>
+    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    public WorkNode? BuildProjectTree(int projectId, DateOnly date, bool mineOnly, CompletedDisplay completed)
+        => BuildTree(
+            _projects.Values.Where(p => p.Id == projectId),
+            _groups.Values.Where(g => g.ProjectId == projectId),
+            _items.Values.Where(i => i.ProjectId == projectId),
+            _dayRecords.Where(r => r.ProjectId == projectId),
+            date,
+            mineOnly,
+            completed).FirstOrDefault();
+
+    /// <summary>渡された案件・グループ・作業・記録から、作業管理の表に出す木を作る</summary>
+    /// <param name="projects">案件</param>
+    /// <param name="groups">グループ</param>
+    /// <param name="items">作業</param>
+    /// <param name="dayRecords">入力日の記録</param>
+    /// <param name="date">入力日</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <returns>案件の行の並び</returns>
+    private IReadOnlyList<WorkNode> BuildTree(IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> dayRecords, DateOnly date, bool mineOnly, CompletedDisplay completed)
     {
-        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, _codes);
+        var roots = WorkItemTree.Build(projects, groups, items, dayRecords, date, _codes);
         if (mineOnly && HasAssignees)
         {
             WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
@@ -340,7 +369,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
     /// 完了した作業も、すべて出す (表の「完了」の選択には従わない)。実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree"/>と同じ理由)。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay)"/>と同じ理由)。
     /// </remarks>
     public ScheduleSnapshot BuildSchedule(bool mineOnly)
         => BuildSchedule(mineOnly, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
@@ -605,10 +634,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 Merge(await repository.LoadProjectsAsync([projectId]));
                 _hidden.Remove(projectId);
 
-                // 日の記録は、スケジュールが使わない (作業管理の表だけが使う。表は、開くたびに読み直す)。スケジュールを開いている間は、読まない
+                // 日の記録は、スケジュールが使わない (作業管理の表だけが使う。表は、開くたびに読み直す)。スケジュールを開いている間は、読まない。
+                // 読むのは、この案件の分だけ (ほかの案件の記録は、すでに持っている。外したときに、この案件の分は捨ててある)
                 if (!_holdsScheduleRecords)
                 {
-                    _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
+                    var records = await repository.LoadDayAsync(_day, [projectId], exclude: false);
+                    _dayRecords.RemoveAll(r => r.ProjectId == projectId);
+                    _dayRecords.AddRange(records);
                 }
                 if (_holdsScheduleRecords)
                 {
