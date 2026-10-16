@@ -70,9 +70,6 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGr
     /// <summary>予定の棒の最後の日 (期限日。無ければ null)</summary>
     public DateOnly? PlanEnd { get; private set; }
 
-    /// <summary>進捗度 (%。予定の棒の濃く塗る長さ。無ければ 0)</summary>
-    public int Progress { get; private set; }
-
     /// <summary>実績の棒 (連続した日ごと。日付の順)</summary>
     public IReadOnlyList<ScheduleActualRun> Runs { get; private set; } = [];
 
@@ -120,13 +117,11 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGr
 
         var changed = PlanStart != summary.StartDate
             || PlanEnd != summary.DueDate
-            || Progress != (summary.Progress ?? 0)
             || !ReferenceEquals(Axis, axis)
             || Today != today
             || !SameRuns(Runs, runs);
         PlanStart = summary.StartDate;
         PlanEnd = summary.DueDate;
-        Progress = summary.Progress ?? 0;
         Runs = runs;
         Axis = axis;
         Today = today;

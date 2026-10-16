@@ -92,6 +92,9 @@ public sealed partial class SchedulePage : Page
         ViewModel.UnitIndex = (int)ScheduleUnit.Day;
         UnitBar.SelectedItem = UnitBar.Items[(int)ScheduleUnit.Day];
 
+        // ページは使い回されるので、見えない間にテーマが変わっていても、開いたときの見出しの色を、今のテーマに合わせる
+        RefreshTimeline();
+
         await ViewModel.InitializeAsync();
         ScrollTo(ViewModel.Today, TodayRatio);
     }

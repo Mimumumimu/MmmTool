@@ -127,8 +127,8 @@ public static class ScheduleHeader
         var weekday = Text(JapaneseWeekday(date), FontSize, FontWeights.Normal, axis.DayWidth);
         if (isToday)
         {
-            number.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
-            weekday.Foreground = number.Foreground;
+            number.Foreground = palette.TodayText;
+            weekday.Foreground = palette.TodayText;
         }
         else if (date.DayOfWeek == DayOfWeek.Sunday || JapaneseHolidays.IsHoliday(date))
         {
