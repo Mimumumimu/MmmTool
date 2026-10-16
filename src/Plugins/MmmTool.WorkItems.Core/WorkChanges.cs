@@ -6,7 +6,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="Projects">選んでいる案件の行</param>
 /// <param name="Groups">選んでいる案件の中のグループ</param>
 /// <param name="Items">選んでいる案件の中の作業</param>
-/// <param name="Records">選んでいる案件の、指定した日の記録 (全員分)</param>
+/// <param name="Records">選んでいる案件の記録 (全員分。指定した日だけか、すべての日か)</param>
 /// <param name="Codes">更新されたコードマスタの件 (論理削除された件も含む)</param>
 public sealed record WorkChanges(
     IReadOnlyList<WorkProject> Projects,

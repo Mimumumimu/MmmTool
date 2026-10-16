@@ -5,4 +5,7 @@ public static class WorkItemSettingKeys
 {
     /// <summary>表示しない案件の番号 (カンマでつないだ文字列。例: <c>1,5,7</c>。無ければ、全部の案件を表示する)</summary>
     public const string HiddenProjects = "WorkItems.HiddenProjects";
+
+    /// <summary>自分の担当だけを表示するか (真偽。作業管理の表とスケジュールで共有する。無ければ、オフ)</summary>
+    public const string MineOnly = "WorkItems.MineOnly";
 }

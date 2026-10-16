@@ -42,6 +42,7 @@
   - 画面の XAML (`.xbf`・SDK の `.xaml`)は `MmmTool.pri` の中に入る。WinUI のビルドがばらのファイルも出力へコピーするので、csproj の `RemoveLooseXamlAfterBuild` がビルドのあとに消す (中身が `.xbf`・`.xaml` だけのフォルダと、EXE の横の `.xbf`)。発行の出力には、もともと出ない
   - WebView2 のキャッシュは `Data\WebView2`、エラーのログは `Data\Logs`(`Shell/AppInfo`)
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/`(ライセンスファイルも同じ場所)。SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
+- 同梱の内閣府「国民の祝日」の一覧 (`syukujitsu.csv`。ダウンロードしたままのファイル)は SDK の `MmmSdk.Core/Components/Holidays/`。SDK の csproj が、組み込まず、ファイルのまま出力・発行フォルダーの `Assets/Holidays/` へ配る (利用者が、最新の一覧に置き換えられる)。公共データ利用規約 (第 1.0 版)が求める出典の記載は、同じ場所の `syukujitsu.LICENSE.txt` で、同じく `Assets/Holidays/` へ配り、`THIRD-PARTY-NOTICES.txt` に載る (「名前.LICENSE.txt」の仕組み)。毎年、新しい年の分が内閣府から出たら、ファイルを取り直して置き換え、新しいバージョンをリリースする (更新を忘れた年は、利用者が置き換えるまで、祝日が出ない)
 
 ## 版を上げるとき
 版を上げるのは、ユーザーが決めたときだけ。次の順で行う (毎回同じ手順にして、やり取りを増やさない)。

@@ -10,7 +10,6 @@ using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Controls;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.WorkItems.Core;
-using MmmTool.WorkItems.ProjectPicker;
 using Windows.System;
 
 namespace MmmTool.WorkItems.Main;
@@ -53,6 +52,7 @@ public sealed partial class WorkItemPage : Page
     {
         ViewModel = viewModel;
         InitializeComponent();
+        ProjectPickerControl.Attach(ViewModel.ProjectPicker);
         DayNoteBox.Loaded += (_, _) => FitDayNoteHeight();
 
         _actualDayColumn = Column("ActualDay", "実績 (日)", 100, "ActualDayCell");
@@ -223,37 +223,6 @@ public sealed partial class WorkItemPage : Page
             TreeGridView.EndEdit(picker);
         }
     }
-
-    #region 表示する案件
-
-    /// <summary>表示する案件を選ぶ画面を開くとき、一覧を読み直す</summary>
-    /// <param name="sender">開く入れ物</param>
-    /// <param name="e">イベントの情報</param>
-    private void OnProjectsFlyoutOpening(object? sender, object e) => ViewModel.ProjectPicker.OpenAsync().Forget();
-
-    /// <summary>案件のチェックが押されたら、その場で保存する</summary>
-    /// <param name="sender">チェックボックス</param>
-    /// <param name="e">イベントの情報</param>
-    private void OnProjectChoiceClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is CheckBox { Tag: ProjectChoice choice } box)
-        {
-            ViewModel.ProjectPicker.SetSelectedAsync(choice, box.IsChecked == true).Forget();
-        }
-    }
-
-    /// <summary>一覧の最後の行が作られたら、続きを読む</summary>
-    /// <param name="sender">一覧</param>
-    /// <param name="args">行が作られたときの情報</param>
-    private void OnProjectChoiceContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    {
-        if (args.ItemIndex == ViewModel.ProjectPicker.Items.Count - 1)
-        {
-            ViewModel.ProjectPicker.LoadMoreAsync().Forget();
-        }
-    }
-
-    #endregion
 
     #region 列
 

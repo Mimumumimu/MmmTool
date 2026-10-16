@@ -49,6 +49,15 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
+    /// <summary>案件の、すべての日の記録を読む (スケジュールの実績)</summary>
+    /// <param name="projectIds">案件の番号</param>
+    /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>実績が 0 より大きい記録 (全員分。論理削除済みと、備考だけの記録を除く)</returns>
+    /// <remarks>日付で絞らない。案件の番号で絞る (<c>(ProjectId, Date)</c> のインデックス)。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<IReadOnlyList<WorkRecord>> LoadRecordsAsync(IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
+
     /// <summary>自分の、ある日の日報メモを読む</summary>
     /// <param name="date">日付</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -78,11 +87,13 @@ public interface IWorkItemRepository
     /// <summary>基準の時刻より後に更新された行を読む</summary>
     /// <param name="since">基準の時刻 (この時刻以後に更新された行を返す)</param>
     /// <param name="date">記録を読む日</param>
+    /// <param name="allRecordDates">記録を、すべての日で読むか (スケジュールが記録を持っているとき true。false なら、<paramref name="date"/> の記録だけ)</param>
     /// <param name="hiddenProjectIds">表示しない案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>更新された行 (論理削除された行も含む。表示しない案件の行は含まない)</returns>
+    /// <remarks>記録も、案件・グループ・作業と同じ 1 回の往復で受け取る (取り込みを、別の問い合わせに分けない)。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
+    Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
     /// <summary>自分の、ある日の日報メモを保存する</summary>
     /// <param name="date">日付</param>

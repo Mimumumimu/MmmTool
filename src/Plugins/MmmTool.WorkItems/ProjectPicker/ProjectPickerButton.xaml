@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.WorkItems.ProjectPicker.ProjectPickerButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:picker="using:MmmTool.WorkItems.ProjectPicker">
+
+    <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする)。作業管理の表とスケジュールで共有する -->
+    <DropDownButton Content="表示する案件">
+        <DropDownButton.Flyout>
+            <Flyout Opening="OnFlyoutOpening" Placement="BottomEdgeAlignedLeft">
+                <Grid Width="360" RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBox
+                        InputScope="Hiragana"
+                        PlaceholderText="案件を検索"
+                        Text="{x:Bind Picker.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox
+                        Grid.Row="1"
+                        MinWidth="0"
+                        Content="非表示の案件も表示"
+                        IsChecked="{x:Bind Picker.ShowHidden, Mode=TwoWay}" />
+                    <InfoBar
+                        Grid.Row="2"
+                        IsOpen="{x:Bind Picker.Error.IsOpen, Mode=TwoWay}"
+                        Message="{x:Bind Picker.Error.Message, Mode=OneWay}"
+                        Severity="Error" />
+                    <Grid Grid.Row="3">
+                        <ListView
+                            MaxHeight="320"
+                            ContainerContentChanging="OnChoiceContainerChanging"
+                            ItemsSource="{x:Bind Picker.Items}"
+                            SelectionMode="None">
+                            <ListView.ItemContainerStyle>
+                                <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
+                                    <Setter Property="MinHeight" Value="36" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="picker:ProjectChoice">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox
+                                            MinWidth="0"
+                                            Click="OnChoiceClick"
+                                            Content="{x:Bind Name}"
+                                            IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                            Tag="{x:Bind}" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Text="{x:Bind FinishedText}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <TextBlock
+                            Margin="0,16"
+                            HorizontalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Text="{x:Bind Picker.EmptyText, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind Picker.IsEmpty, Mode=OneWay}" />
+                    </Grid>
+                </Grid>
+            </Flyout>
+        </DropDownButton.Flyout>
+    </DropDownButton>
+</UserControl>

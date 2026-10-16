@@ -59,6 +59,16 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>その日の記録 (全員分)</summary>
     private List<WorkRecord> _dayRecords = [];
 
+    /// <summary>スケジュールの実績 (表示する案件の、すべての日の記録。作業と日付で 1 件。実績が 0 より大きいものだけ)</summary>
+    /// <remarks>スケジュールを開いている間だけ持つ (<see cref="_holdsScheduleRecords"/>)。表だけを開いている間は、読まず、差分も取らない。</remarks>
+    private readonly Dictionary<(int WorkItemId, DateOnly Date), WorkRecord> _scheduleRecords = [];
+
+    /// <summary>スケジュールの記録を持っているか (持っている間だけ、差分の取得で、すべての日の記録を読む)</summary>
+    private bool _holdsScheduleRecords;
+
+    /// <summary>定期的な取得を使っている画面の数 (作業管理の表とスケジュール。0 になったら止める)</summary>
+    private int _pollUsers;
+
     /// <summary>その日の、自分の日報メモ (無ければ null)</summary>
     private WorkDayNote? _dayNote;
 
@@ -88,6 +98,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>今日の日付</summary>
     public DateOnly Today => DateOnly.FromDateTime(time.GetLocalNow().DateTime);
+
+    /// <summary>記録を読んでいる日 (まだ読んでいなければ、今日)</summary>
+    /// <remarks>表の入力日と同じ。別の画面が読み直すときに、この日を渡して、表の日をずらさないために使う。</remarks>
+    public DateOnly Day => _day == default ? Today : _day;
+
 
     /// <summary>表示している案件が、1 つ以上あるか</summary>
     public bool HasVisibleProjects => _projects.Count > 0;
@@ -142,6 +157,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             _day = day;
             _dayRecords = [.. records];
             _dayNote = dayNote;
+
+            // 基準の時刻が変わるので、持っていたスケジュールの記録は捨てる (スケジュールが、あとから読み直す)
+            _scheduleRecords.Clear();
+            _holdsScheduleRecords = false;
             _baseline = new DateTimeOffset?[]
             {
                 data.Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
@@ -190,9 +209,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     }
 
     /// <summary>他の人の更新を取り込む定期的な取得を始める</summary>
-    /// <remarks>UI スレッドから呼ぶ。すでに動いていれば何もしない。</remarks>
+    /// <remarks>
+    /// UI スレッドから呼ぶ。使う画面の数を数え (作業管理の表とスケジュール)、すでに動いていれば、数を増やすだけ。
+    /// 画面の切り替えで、新しい画面の開始が、前の画面の停止より先でも後でも、取得が止まったままにならないため。
+    /// </remarks>
     public void StartPolling()
     {
+        _pollUsers++;
         if (_pollCts is not null)
         {
             return;
@@ -202,12 +225,56 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         PollAsync(_pollCts.Token).Forget();
     }
 
-    /// <summary>定期的な取得を止める</summary>
+    /// <summary>定期的な取得を、この画面の分だけ止める (使う画面がなくなったら、取得を止める)</summary>
     public void StopPolling()
     {
+        if (_pollUsers > 0)
+        {
+            _pollUsers--;
+        }
+        if (_pollUsers > 0)
+        {
+            return;
+        }
+
         _pollCts?.Cancel();
         _pollCts?.Dispose();
         _pollCts = null;
+    }
+
+    /// <summary>スケジュールの実績 (表示する案件の、すべての日の記録)を、保存先から読み込む</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>
+    /// スケジュールを開くたびに、案件と中身の読み込み (<see cref="LoadAsync"/>)のあとに呼ぶ。読んだあとは、60 秒ごとの取得が、すべての日の記録の差分も取り込む。
+    /// 離れるときは <see cref="ReleaseScheduleRecords"/> で捨てる。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    public async Task LoadScheduleRecordsAsync(CancellationToken cancellationToken = default)
+    {
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            var records = await repository.LoadRecordsAsync(_hidden, exclude: true, cancellationToken);
+            _scheduleRecords.Clear();
+            foreach (var record in records)
+            {
+                _scheduleRecords[(record.WorkItemId, record.Date)] = record;
+            }
+            _holdsScheduleRecords = true;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+        OnChanged();
+    }
+
+    /// <summary>スケジュールの実績を捨てる (スケジュールを離れたとき。以後、すべての日の記録の差分は読まない)</summary>
+    public void ReleaseScheduleRecords()
+    {
+        _holdsScheduleRecords = false;
+        _scheduleRecords.Clear();
     }
 
     /// <summary>基準の時刻より後に更新された行を読み、メモリに反映する</summary>
@@ -227,7 +294,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             }
 
             var since = _baseline is { } baseline ? baseline - PollOverlap : DateTimeOffset.MinValue;
-            var changes = await repository.GetChangesAsync(since, _day, _hidden, cancellationToken);
+            var changes = await repository.GetChangesAsync(since, _day, _holdsScheduleRecords, _hidden, cancellationToken);
             changed = await ApplyChangesAsync(changes, cancellationToken);
             if (changes.MaxUpdatedAt is { } max && (_baseline is null || max > _baseline))
             {
@@ -266,6 +333,26 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             WorkItemTree.RemoveFinished(roots, date, completed == CompletedDisplay.Hidden);
         }
         return roots;
+    }
+
+    /// <summary>スケジュールに出す内容を作る</summary>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <returns>行の木・実績の棒・軸の範囲</returns>
+    /// <remarks>
+    /// 完了した作業も、すべて出す (表の「完了」の選択には従わない)。実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree"/>と同じ理由)。
+    /// </remarks>
+    public ScheduleSnapshot BuildSchedule(bool mineOnly)
+    {
+        var today = Today;
+        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, [], today, _codes);
+        var actuals = ScheduleActuals.Build(roots, _scheduleRecords.Values);
+        var (start, end) = ScheduleSnapshot.Range(roots, actuals, today);
+        if (mineOnly && HasAssignees)
+        {
+            WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
+        }
+        return new ScheduleSnapshot(roots, actuals, start, end);
     }
 
     /// <summary>番号から、案件を探す</summary>
@@ -495,11 +582,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 Merge(await repository.LoadProjectsAsync([projectId]));
                 _hidden.Remove(projectId);
                 _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
+                if (_holdsScheduleRecords)
+                {
+                    foreach (var record in await repository.LoadRecordsAsync([projectId], exclude: false))
+                    {
+                        ApplyScheduleRecord(record);
+                    }
+                }
             }
             else
             {
                 _hidden.Add(projectId);
                 RemoveProjectContent(projectId);
+                PruneScheduleRecords();
             }
             await SaveHiddenAsync();
             OnChangedLater();
@@ -886,6 +981,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                     _dayRecords.Add(saved);
                 }
             }
+            if (_holdsScheduleRecords)
+            {
+                if (result.Record is { } savedRecord)
+                {
+                    ApplyScheduleRecord(savedRecord);
+                }
+                else
+                {
+                    _scheduleRecords.Remove((workItemId, date));
+                }
+            }
             _items[workItemId] = item with { ActualTotalHours = result.ActualTotalHours };
             OnChangedLater();
             return null;
@@ -1042,6 +1148,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             changed |= item.IsDeleted ? _items.Remove(item.Id) : Upsert(_items, item.Id, item);
         }
         changed |= PruneOrphans();
+        if (_holdsScheduleRecords)
+        {
+            PruneScheduleRecords();
+            foreach (var record in changes.Records.Where(r => !_hidden.Contains(r.ProjectId)))
+            {
+                changed |= ApplyScheduleRecord(record);
+            }
+        }
         foreach (var record in changes.Records.Where(r => !_hidden.Contains(r.ProjectId) && r.Date == _day))
         {
             var index = _dayRecords.FindIndex(r => r.Id == record.Id);
@@ -1072,6 +1186,34 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             changed = true;
         }
         return changed;
+    }
+
+    /// <summary>届いた記録 (または、保存した記録)を、スケジュールの実績に反映する</summary>
+    /// <param name="record">記録 (論理削除された行・実績が 0 の行は、実績から外す)</param>
+    /// <returns>実績が変わったら true</returns>
+    private bool ApplyScheduleRecord(WorkRecord record)
+    {
+        var key = (record.WorkItemId, record.Date);
+        if (record.IsDeleted || record.Hours <= 0)
+        {
+            return _scheduleRecords.Remove(key);
+        }
+
+        if (_scheduleRecords.TryGetValue(key, out var current) && current == record)
+        {
+            return false;
+        }
+        _scheduleRecords[key] = record;
+        return true;
+    }
+
+    /// <summary>作業が無くなった記録を、スケジュールの実績から外す (表示しなくなった案件・削除された作業の分)</summary>
+    private void PruneScheduleRecords()
+    {
+        foreach (var key in _scheduleRecords.Keys.Where(k => !_items.ContainsKey(k.WorkItemId)).ToList())
+        {
+            _scheduleRecords.Remove(key);
+        }
     }
 
     /// <summary>辞書に行を入れる (同じ内容なら何もしない)</summary>
