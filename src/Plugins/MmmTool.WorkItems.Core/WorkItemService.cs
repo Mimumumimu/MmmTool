@@ -680,7 +680,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             else
             {
                 var saved = await repository.AddItemAsync(
-                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Today, AssigneeUserId = UserId },
+                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Day, AssigneeUserId = UserId },
                     positions);
                 _items[saved.Id] = saved;
                 key = new WorkKey(WorkRowKind.Work, saved.Id);
