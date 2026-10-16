@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
 /// <remarks>
 /// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業。予定は、状態が作業予定・作業中の作業。
+/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業。予定は、状態が作業予定・作業中の作業。
 /// 並びは画面に表示している順 (案件は名前順、グループと作業は同じ親の下の並び順)。画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
@@ -29,8 +29,7 @@ public static class WorkReportBuilder
     /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
     /// <returns>テキスト (行の区切りは CRLF。末尾に改行は付けない)</returns>
     /// <remarks>
-    /// 日報メモ (<see cref="WorkDayNote"/>)は、実績の期間内の分を実績の末尾に、報告日の分を予定の末尾に、書いたとおり出す。
-    /// 実績のメモのある日が 2 日以上のときだけ、日付の行 (<c>10/12 (月)</c>)を付けて、日付の順に連結する。空 (空白だけも含む)のメモは、無いものとして扱う。
+    /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを予定の末尾に、書いたとおり出す。実績には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
     /// </remarks>
     public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress)
     {
@@ -47,16 +46,15 @@ public static class WorkReportBuilder
             .GroupBy(r => r.WorkItemId)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Date).ThenBy(r => r.Id).ToList());
 
-        // 実績: 期間内に、工数が 0 より大きい記録がある作業。備考は、共通の備考 → 期間内の備考 (日)の順
+        // 実績: 期間内に、工数が 0 より大きい記録があるか、完了にした作業。備考は、共通の備考 → 期間内の備考 (日)の順
         var done = new List<ReportEntry>();
         foreach (var item in items.Values)
         {
-            if (!records.TryGetValue(item.Id, out var itemRecords))
-            {
-                continue;
-            }
-            var inRange = itemRecords.Where(r => r.Date >= from && r.Date < reportDate).ToList();
-            if (!inRange.Any(r => r.Hours > 0))
+            var inRange = records.TryGetValue(item.Id, out var itemRecords)
+                ? itemRecords.Where(r => r.Date >= from && r.Date < reportDate).ToList()
+                : [];
+            var closedInRange = item.IsFinished && item.CompletedDate is { } completed && completed >= from && completed < reportDate;
+            if (!closedInRange && !inRange.Any(r => r.Hours > 0))
             {
                 continue;
             }
@@ -74,36 +72,15 @@ public static class WorkReportBuilder
             planned.Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. todayNotes]), null));
         }
 
-        // 日報メモ: 実績は期間内の分 (日付の順)、予定は報告日の分
-        var doneNotes = data.DayNotes.Where(n => n.HasText && n.Date >= from && n.Date < reportDate).OrderBy(n => n.Date).ToList();
+        // 日報メモ: 予定の末尾に、報告日の分だけ出す (実績には出さない)
         var plannedNotes = data.DayNotes.Where(n => n.HasText && n.Date == reportDate).ToList();
 
         var builder = new StringBuilder();
         builder.Append("■実績").Append(NewLine);
-        AppendSection(builder, done, projects, groups, codes, showProgress, DoneNoteLines(doneNotes));
+        AppendSection(builder, done, projects, groups, codes, showProgress, []);
         builder.Append(NewLine).Append("■予定").Append(NewLine);
         AppendSection(builder, planned, projects, groups, codes, showProgress, Indented(plannedNotes.SelectMany(n => ManualLines(n.Note)), 1));
         return builder.ToString().TrimEnd('\r', '\n');
-    }
-
-    /// <summary>実績に出す日報メモを、行にする</summary>
-    /// <param name="notes">期間内の、空でない日報メモ (日付の順)</param>
-    /// <returns>行 (1 段字下げ済み)。メモのある日が 1 日だけなら、メモの行だけ。2 日以上なら、日付の行 (1 段)のあとに、メモの行 (2 段)を続ける</returns>
-    private static List<string> DoneNoteLines(List<WorkDayNote> notes)
-    {
-        if (notes.Count <= 1)
-        {
-            return Indented(notes.SelectMany(n => ManualLines(n.Note)), 1);
-        }
-
-        var japanese = CultureInfo.GetCultureInfo("ja-JP");
-        var lines = new List<string>();
-        foreach (var note in notes)
-        {
-            lines.Add(Indent + $"{note.Date.Month}/{note.Date.Day} ({japanese.DateTimeFormat.GetAbbreviatedDayName(note.Date.DayOfWeek)})");
-            lines.AddRange(Indented(ManualLines(note.Note), 2));
-        }
-        return lines;
     }
 
     /// <summary>行を、指定の段数だけ字下げする (空の行は、そのまま)</summary>
