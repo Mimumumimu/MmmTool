@@ -21,8 +21,19 @@ public sealed partial class MessageSendControl : UserControl
     public MessageSendControl()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await ViewModel.InitializeAsync();
+        Loaded += async (_, _) =>
+        {
+            ViewModel.BodyReset -= OnBodyReset;
+            ViewModel.BodyReset += OnBodyReset;
+            await ViewModel.InitializeAsync();
+        };
+        Unloaded += (_, _) => ViewModel.BodyReset -= OnBodyReset;
     }
+
+    /// <summary>本文が署名だけの状態になったら、カーソルを本文の先頭に置く (署名の上に続けて書けるようにする)</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnBodyReset(object? sender, EventArgs e) => BodyBox.SelectionStart = 0;
 
     /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする (日本語の入力が多いため)</summary>
     /// <param name="sender">イベントの送信元</param>
