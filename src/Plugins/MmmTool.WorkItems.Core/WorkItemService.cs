@@ -79,7 +79,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private CancellationTokenSource? _pollCts;
 
     /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
-    public event EventHandler? Changed;
+    public event EventHandler<WorkChangedEventArgs>? Changed;
 
     /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
     public event EventHandler<string>? RefreshFailed;
@@ -343,10 +343,33 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree"/>と同じ理由)。
     /// </remarks>
     public ScheduleSnapshot BuildSchedule(bool mineOnly)
+        => BuildSchedule(mineOnly, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
+
+    /// <summary>スケジュールに出す内容を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <returns>その案件だけの行の木・実績の棒・軸の範囲 (軸の範囲は、この案件と今日だけから求めた値)。案件を読み込んでいなければ、行の木は空</returns>
+    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly)
+        => BuildSchedule(
+            mineOnly,
+            _projects.Values.Where(p => p.Id == projectId),
+            _groups.Values.Where(g => g.ProjectId == projectId),
+            _items.Values.Where(i => i.ProjectId == projectId),
+            _scheduleRecords.Values.Where(r => r.ProjectId == projectId));
+
+    /// <summary>渡された案件・グループ・作業・記録から、スケジュールに出す内容を作る</summary>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="projects">案件</param>
+    /// <param name="groups">グループ</param>
+    /// <param name="items">作業</param>
+    /// <param name="records">実績の記録</param>
+    /// <returns>行の木・実績の棒・軸の範囲</returns>
+    private ScheduleSnapshot BuildSchedule(bool mineOnly, IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> records)
     {
         var today = Today;
-        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, [], today, _codes);
-        var actuals = ScheduleActuals.Build(roots, _scheduleRecords.Values);
+        var roots = WorkItemTree.Build(projects, groups, items, [], today, _codes);
+        var actuals = ScheduleActuals.Build(roots, records);
         var (start, end) = ScheduleSnapshot.Range(roots, actuals, today);
         if (mineOnly && HasAssignees)
         {
@@ -581,7 +604,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 // 読み込みに失敗したときに、非表示の印だけが外れないよう、読んでから外す
                 Merge(await repository.LoadProjectsAsync([projectId]));
                 _hidden.Remove(projectId);
-                _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
+
+                // 日の記録は、スケジュールが使わない (作業管理の表だけが使う。表は、開くたびに読み直す)。スケジュールを開いている間は、読まない
+                if (!_holdsScheduleRecords)
+                {
+                    _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
+                }
                 if (_holdsScheduleRecords)
                 {
                     foreach (var record in await repository.LoadRecordsAsync([projectId], exclude: false))
@@ -597,7 +625,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 PruneScheduleRecords();
             }
             await SaveHiddenAsync();
-            OnChangedLater();
+            OnChangedLater(new WorkChangedEventArgs(selected ? WorkChangeKind.ProjectShown : WorkChangeKind.ProjectHidden, projectId));
         }
         finally
         {
@@ -1432,22 +1460,28 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return null;
     }
 
-    /// <summary>ロックを持っている間に、変更の通知を溜めたか</summary>
-    private bool _pendingChanged;
+    /// <summary>ロックを持っている間に溜めた、変更の通知 (無ければ null)</summary>
+    private WorkChangedEventArgs? _pendingChanged;
 
     /// <summary>変更の通知を、ロックを放したあとに出すよう予約する</summary>
-    private void OnChangedLater() => _pendingChanged = true;
+    /// <param name="args">通知の内容 (省略すると、全体の変更)</param>
+    /// <remarks>違う内容の通知が重なったときは、全体の変更にまとめる (どちらの変更も、全体を作り直せば反映できるため)。</remarks>
+    private void OnChangedLater(WorkChangedEventArgs? args = null)
+    {
+        args ??= WorkChangedEventArgs.All;
+        _pendingChanged = _pendingChanged is null || _pendingChanged == args ? args : WorkChangedEventArgs.All;
+    }
 
     /// <summary>予約した変更の通知を出す</summary>
     private void FlushChanged()
     {
-        if (_pendingChanged)
+        if (_pendingChanged is { } args)
         {
-            _pendingChanged = false;
-            OnChanged();
+            _pendingChanged = null;
+            Changed?.Invoke(this, args);
         }
     }
 
-    /// <summary><see cref="Changed"/> を発火する</summary>
-    private void OnChanged() => Changed?.Invoke(this, EventArgs.Empty);
+    /// <summary><see cref="Changed"/> を、全体の変更として発火する</summary>
+    private void OnChanged() => Changed?.Invoke(this, WorkChangedEventArgs.All);
 }

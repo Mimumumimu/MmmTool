@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.ProjectPicker;
@@ -11,13 +12,15 @@ namespace MmmTool.WorkItems.ProjectPicker;
 /// 表示する案件を選ぶ画面 (フライアウト)。案件マスターを検索して、チェックで選ぶ。
 /// </summary>
 /// <param name="service">作業管理の読み書き</param>
+/// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
 /// <remarks>
 /// チェックを入れる・外すと、その場で保存し (確認ボタンは無い)、画面の案件を出し入れする。外しても、案件とその中身は消えない。
+/// 出し入れの間 (読み込み・表の更新)は、マウスカーソルを砂時計にする。
 /// 一覧は数十件ずつ読み、終わりまで来たときに続きを読む。検索語は名前の一部で、入力が止まってから検索する。
 /// 既定では、表示している案件だけを出す (完了した案件も出る。外したい案件が、そのまま見つかるため)。「非表示の案件も表示」をオンにすると、非表示の案件も加わる。
 /// 「非表示の案件も表示」がオフのときは、外した案件がその場で一覧から消える (戻すには、オンにして入れ直す)。オンのときは、外した行が残る。選んだ案件は、一覧の先頭にまとめる。
 /// </remarks>
-public sealed partial class ProjectPickerViewModel(WorkItemService service) : ObservableObject
+public sealed partial class ProjectPickerViewModel(WorkItemService service, IBusyCursor busyCursor) : ObservableObject
 {
     /// <summary>1 回に読む件数</summary>
     private const int PageSize = 50;
@@ -157,7 +160,7 @@ public sealed partial class ProjectPickerViewModel(WorkItemService service) : Ob
     {
         try
         {
-            await service.SetProjectSelectedAsync(choice.Id, selected);
+            await busyCursor.RunAsync(() => service.SetProjectSelectedAsync(choice.Id, selected));
             choice.IsSelected = selected;
             if (!selected && !ShowHidden)
             {

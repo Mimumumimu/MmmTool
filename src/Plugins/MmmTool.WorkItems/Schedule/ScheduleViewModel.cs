@@ -4,6 +4,7 @@ using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.ProjectPicker;
@@ -26,6 +27,9 @@ public sealed partial class ScheduleViewModel : ObservableObject
     /// <summary>設定ストア</summary>
     private readonly ISettingsStore _settings;
 
+    /// <summary>マウスカーソルを処理待ちの形にする口</summary>
+    private readonly IBusyCursor _busyCursor;
+
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, ScheduleRow> _rowByKey = [];
 
@@ -34,6 +38,12 @@ public sealed partial class ScheduleViewModel : ObservableObject
 
     /// <summary>ページを開いている間か (離れている間は、サービスの変更で表を作り直さない)</summary>
     private bool _active;
+
+    /// <summary>続いている、開いたときの読み込みの数 (1 つ以上の間は、途中のサービスの変更で、表を作り直さない。ページの出し入れで、重なることがある)</summary>
+    private int _loadCount;
+
+    /// <summary>他の人の更新の取得を、このページが始めているか (二重に始めない・止め損なわない)</summary>
+    private bool _polling;
 
     /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
     private bool _initializing = true;
@@ -61,6 +71,11 @@ public sealed partial class ScheduleViewModel : ObservableObject
     [ObservableProperty]
     public partial int UnitIndex { get; set; } = (int)ScheduleUnit.Day;
 
+    /// <summary>保存先から読み込み中か (マウスカーソルを砂時計にする)</summary>
+    /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく (空にして、ちらつかせないため)。</remarks>
+    [ObservableProperty]
+    public partial bool IsLoading { get; private set; }
+
     /// <summary>行が 1 つも無いか (案内を出す)</summary>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
@@ -78,28 +93,41 @@ public sealed partial class ScheduleViewModel : ObservableObject
     /// <summary>日付の軸が変わった (範囲・単位が変わった。列の幅と見出しを作り直すため)</summary>
     public event EventHandler? AxisChanged;
 
+    /// <summary>行の塊 (案件 1 つぶん)を、差し込んだ・抜いた (表に、行の一覧を付け直させるため)</summary>
+    public event EventHandler? RowsBlockChanged;
+
     /// <summary>ViewModel を作る</summary>
     /// <param name="service">作業管理の読み書き</param>
     /// <param name="settings">設定ストア</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
-    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker)
+    /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
+    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker, IBusyCursor busyCursor)
     {
         _service = service;
         _settings = settings;
+        _busyCursor = busyCursor;
         ProjectPicker = projectPicker;
 
-        service.Changed += (_, _) => Rebuild();
+        service.Changed += (_, e) => OnServiceChanged(e);
         service.RefreshFailed += (_, message) => Error.Show(message);
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
         _initializing = false;
     }
 
+    /// <summary>読み込み中の表示 (砂時計)を、読み込みの開始より先に始める</summary>
+    /// <remarks>ページが画面に載ってから、読み込みを始めるまでの間にも、待ち時間があるため。終わりは <see cref="InitializeAsync"/> が決める。</remarks>
+    public void BeginLoading() => IsLoading = true;
+
     /// <summary>ページを開いたときに、保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
     /// <returns>初期化の完了を表すタスク</returns>
-    /// <remarks>作業管理の表の入力日をずらさないよう、記録を読んでいる日 (<see cref="WorkItemService.Day"/>)のまま読み直す。</remarks>
+    /// <remarks>
+    /// 作業管理の表の入力日をずらさないよう、記録を読んでいる日 (<see cref="WorkItemService.Day"/>)のまま読み直す。
+    /// 読み込みの途中は、表を作り直さない (案件・実績を読むたびに作り直すと、実績が空の表を挟んで、3 回作ることになるため)。読み終えてから 1 回だけ作る。
+    /// </remarks>
     public async Task InitializeAsync()
     {
         Error.Clear();
+        IsLoading = true;
 
         // 「自分の担当だけ」は、作業管理でも切り替えられる (同じ設定)。画面を開くたびに、設定の値に合わせる
         var mineOnly = _settings.Get(WorkItemSettingKeys.MineOnly, false);
@@ -111,6 +139,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         }
 
         _active = true;
+        _loadCount++;
         try
         {
             await _service.LoadAsync(_service.Day);
@@ -121,15 +150,38 @@ public sealed partial class ScheduleViewModel : ObservableObject
         {
             Error.Show(ex.Message);
         }
+        finally
+        {
+            _loadCount--;
+        }
+
+        // ページの出し入れで、読み込みが重なったときは、あとから始まった読み込みが続いている。表の作成と終わりの処理は、最後の読み込みに任せる
+        // (先に終わったほうが作ると、あとの読み込みが捨てた実績のない表を作り、そのあと、もう 1 回作り直すことになるため)
+        if (_loadCount > 0)
+        {
+            return;
+        }
+
         Rebuild();
-        _service.StartPolling();
+        IsLoading = false;
+
+        // 読んでいる間に、ページを離れていたら、取得を始めない (離れたときの停止は、始める前に済んでいるため)
+        if (_active && !_polling)
+        {
+            _polling = true;
+            _service.StartPolling();
+        }
     }
 
     /// <summary>ページを離れたときに、他の人の更新の取得を止め、実績を捨てる</summary>
     public void Suspend()
     {
         _active = false;
-        _service.StopPolling();
+        if (_polling)
+        {
+            _polling = false;
+            _service.StopPolling();
+        }
         _service.ReleaseScheduleRecords();
     }
 
@@ -141,7 +193,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         {
             _collapsed.Add(row.Key);
         }
-        Rebuild();
+        RebuildBusyAsync().Forget();
     }
 
     /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
@@ -154,23 +206,27 @@ public sealed partial class ScheduleViewModel : ObservableObject
         }
 
         _settings.SetAsync(WorkItemSettingKeys.MineOnly, value).Forget();
-        Rebuild();
+        RebuildBusyAsync().Forget();
     }
 
-    /// <summary>表示の単位が変わったら、軸を作り直す</summary>
+    /// <summary>表示の単位が変わったら、軸を作り直す (全部の日付の棒を描き直すので、砂時計を出す)</summary>
     /// <param name="value">単位の番号</param>
     partial void OnUnitIndexChanged(int value)
     {
         if (!_initializing)
         {
-            Rebuild();
+            RebuildBusyAsync().Forget();
         }
     }
+
+    /// <summary>マウスカーソルを砂時計にして、表を作り直す (長く動くので、先に砂時計を描かせる)</summary>
+    /// <returns>作り直しの完了を表すタスク</returns>
+    private Task RebuildBusyAsync() => _busyCursor.RunAsync(Rebuild);
 
     /// <summary>サービスの内容から、軸と行の一覧を作り直す (同じ行は使い回し、差分だけを一覧に反映する)</summary>
     private void Rebuild()
     {
-        if (!_active)
+        if (!_active || _loadCount > 0)
         {
             return;
         }
@@ -184,50 +240,11 @@ public sealed partial class ScheduleViewModel : ObservableObject
             Axis = new ScheduleAxisVisual(axis);
         }
 
-        var today = _service.Today;
         var target = new List<ScheduleRow>();
         var alive = new HashSet<WorkKey>();
-
-        void Visit(WorkNode node, int level)
-        {
-            if (!_rowByKey.TryGetValue(node.Key, out var row))
-            {
-                row = new ScheduleRow(node.Key);
-                _rowByKey[node.Key] = row;
-            }
-
-            var expanded = !_collapsed.Contains(node.Key);
-            row.Update(
-                node,
-                level,
-                node.Children.Count > 0,
-                expanded,
-                node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
-                snapshot.Actuals.TryGetValue(node.Key, out var runs) ? runs : [],
-                Axis!,
-                today);
-            alive.Add(node.Key);
-            target.Add(row);
-            if (expanded)
-            {
-                foreach (var child in node.Children)
-                {
-                    Visit(child, level + 1);
-                }
-            }
-            else
-            {
-                // 閉じている間も、行は使い回せるよう残す
-                foreach (var child in node.Children.SelectMany(c => c.SelfAndDescendants()))
-                {
-                    alive.Add(child.Key);
-                }
-            }
-        }
-
         foreach (var root in snapshot.Roots)
         {
-            Visit(root, 0);
+            Visit(root, 0, snapshot, target, alive);
         }
 
         TreeGridRowSync.Sync(Rows, target);
@@ -236,11 +253,160 @@ public sealed partial class ScheduleViewModel : ObservableObject
             _rowByKey.Remove(key);
         }
 
-        IsEmpty = Rows.Count == 0;
-        EmptyMessage = !IsEmpty || _service.HasVisibleProjects ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
+        UpdateEmptyState();
         if (axisChanged)
         {
             AxisChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>木の行から、表の行を作り (使い回し)、見えている行を、木の順に並べる</summary>
+    /// <param name="node">木の行</param>
+    /// <param name="level">字下げの段</param>
+    /// <param name="snapshot">スケジュールに出す内容 (実績の棒を引く)</param>
+    /// <param name="target">見えている行の並び (ここに足す)</param>
+    /// <param name="alive">使っている行の識別 (ここに足す)</param>
+    private void Visit(WorkNode node, int level, ScheduleSnapshot snapshot, List<ScheduleRow> target, HashSet<WorkKey> alive)
+    {
+        if (!_rowByKey.TryGetValue(node.Key, out var row))
+        {
+            row = new ScheduleRow(node.Key);
+            _rowByKey[node.Key] = row;
+        }
+
+        var expanded = !_collapsed.Contains(node.Key);
+        row.Update(
+            node,
+            level,
+            node.Children.Count > 0,
+            expanded,
+            node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
+            snapshot.Actuals.TryGetValue(node.Key, out var runs) ? runs : [],
+            Axis!,
+            _service.Today);
+        alive.Add(node.Key);
+        target.Add(row);
+        if (expanded)
+        {
+            foreach (var child in node.Children)
+            {
+                Visit(child, level + 1, snapshot, target, alive);
+            }
+        }
+        else
+        {
+            // 閉じている間も、行は使い回せるよう残す
+            foreach (var child in node.Children.SelectMany(c => c.SelfAndDescendants()))
+            {
+                alive.Add(child.Key);
+            }
+        }
+    }
+
+    /// <summary>表示する案件の変更に、その案件の行だけで応える (できないときは、全体を作り直す)</summary>
+    /// <param name="args">変更の内容</param>
+    /// <remarks>
+    /// 案件の中身は、ほかの案件に依存しない。そのため、外した案件は、その行のかたまりを抜くだけ、加えた案件は、その案件の分だけを作って、名前の順の位置へ差し込めばよい。
+    /// 日付の軸は、外したときは変えない (縮めない。開き直したときに、データに合わせる)。加えたときは、軸の範囲に収まるときだけ差し込み、はみ出すときは、全体を作り直す。
+    /// </remarks>
+    private void OnServiceChanged(WorkChangedEventArgs args)
+    {
+        var handled = _active && _loadCount == 0 && Axis is not null && args.Kind switch
+        {
+            WorkChangeKind.ProjectHidden => RemoveProjectRows(args.ProjectId),
+            WorkChangeKind.ProjectShown => InsertProjectRows(args.ProjectId),
+            _ => false,
+        };
+        if (!handled)
+        {
+            Rebuild();
+        }
+    }
+
+    /// <summary>外した案件の行のかたまり (案件の行と、その下の行)を、表から抜く</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <returns>反映できたら true (表に出ていない案件は、反映できなかったことにして、全体を作り直す)</returns>
+    private bool RemoveProjectRows(int projectId)
+    {
+        if (!_rowByKey.TryGetValue(new WorkKey(WorkRowKind.Project, projectId), out var projectRow))
+        {
+            return false;
+        }
+
+        var start = Rows.IndexOf(projectRow);
+        if (start < 0)
+        {
+            return false;
+        }
+
+        // 次の案件の行の手前までが、この案件のかたまり (案件の行の字下げの段は 0)
+        var end = start + 1;
+        while (end < Rows.Count && Rows[end].Level > 0)
+        {
+            end++;
+        }
+
+        // 末尾から抜く (抜くたびに、後ろの行の位置が動かない)
+        for (var i = end - 1; i >= start; i--)
+        {
+            _rowByKey.Remove(Rows[i].Key);
+            Rows.RemoveAt(i);
+        }
+        UpdateEmptyState();
+        RowsBlockChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>加えた案件の行のかたまりを作り、案件の名前の順の位置へ差し込む</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <returns>反映できたら true (日付の軸の範囲に収まらないとき・案件が無いときは false)</returns>
+    private bool InsertProjectRows(int projectId)
+    {
+        var key = new WorkKey(WorkRowKind.Project, projectId);
+        if (_rowByKey.ContainsKey(key))
+        {
+            return false;
+        }
+
+        var snapshot = _service.BuildScheduleOfProject(projectId, MineOnly);
+        var axis = Axis!.Axis;
+        if (snapshot.Roots.Count != 1 || snapshot.AxisStart < axis.Start || snapshot.AxisEnd > axis.End)
+        {
+            return false;
+        }
+
+        var target = new List<ScheduleRow>();
+        Visit(snapshot.Roots[0], 0, snapshot, target, []);
+
+        // 案件は、名前の順 (同じなら番号の順)。作る側 (WorkItemTree)と同じ並びで、入れる位置を決める
+        var name = snapshot.Roots[0].Name;
+        var index = Rows.Count;
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            if (Rows[i].IsProject)
+            {
+                var compared = StringComparer.CurrentCulture.Compare(Rows[i].Name, name);
+                if (compared > 0 || (compared == 0 && Rows[i].Key.Id > projectId))
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+
+        foreach (var row in target)
+        {
+            Rows.Insert(index++, row);
+        }
+        UpdateEmptyState();
+        RowsBlockChanged?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    /// <summary>行が無いときの案内を、今の行に合わせる</summary>
+    private void UpdateEmptyState()
+    {
+        IsEmpty = Rows.Count == 0;
+        EmptyMessage = !IsEmpty || _service.HasVisibleProjects ? "" : _masterEmpty ? "「案件の管理」から、案件を追加してください" : "表示する案件を選んでください";
     }
 }
