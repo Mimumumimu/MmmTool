@@ -700,6 +700,13 @@ public sealed partial class WorkItemPage : Page
         }
         AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
+        // 右クリックした所が、作業の日付のセルのときだけ (そのセルに固有の操作を、行全体の「リンクを編集…」より上に置く)
+        if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""), !row.IsLocked);
+        }
+
         // 「リンクを編集…」は、行のどこを右クリックしても出す (案件・グループ・作業とも)
         // 入力欄は、リンクのセルの下に出す (行の左端の下に出ると、視線が離れる)
         var onLinkCell = TreeGrid.ContextColumnKey == "Link" && TreeGrid.ContextCell is not null;
@@ -718,13 +725,6 @@ public sealed partial class WorkItemPage : Page
             {
                 AddItem(menu, "リンクをクリア", () => ViewModel.CommitLinkAsync(row, ""), row.HasLink && !row.IsLocked);
             }
-        }
-
-        // 右クリックした所が、作業の日付のセルのときだけ
-        if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
-        {
-            menu.Items.Add(new MenuFlyoutSeparator());
-            AddItem(menu, "日付をクリア", () => ViewModel.CommitTextAsync(row, dateKey, ""), !row.IsLocked);
         }
 
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
