@@ -10,6 +10,20 @@
 - 後で決める: リーダー的な人の更新の権限 (SQL Server の実装のとき)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: ガントチャート (別の画面。同じデータを読む)・Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
+## 不具合の調査
+
+- CLI補助の下の入力欄にテキスト (1 行)を貼ると固まり、しばらくして落ちる。CLI補助の入力欄だけで起きる (ほかの画面の入力欄では確かめていない)。アプリのログ (`Data/Logs`)には何も残らず、エラーのダイアログも出ない
+  - Windows のイベントビューアー (Windows ログ → アプリケーション)には、`Application Error` (イベント ID 1000)が残る。障害が発生したモジュールは `Microsoft.UI.Xaml.dll`、例外コードは `0xc000027b` (WinUI 内部の失敗による強制終了)
+  - 失敗の中身を見るため、落ちたときのダンプを取る。管理者の PowerShell で、次を順に実行する
+    - `cd "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"`
+    - `New-Item MmmTool.exe` (`LocalDumps` が無いときは、先に `New-Item LocalDumps`)
+    - `cd MmmTool.exe`
+    - `New-ItemProperty . -Name DumpFolder -Value D:\CrashDumps -PropertyType ExpandString`
+    - `New-ItemProperty . -Name DumpType -Value 2 -PropertyType DWord`
+  - 設定すると、`MmmTool.exe` が落ちるたびに、`D:\CrashDumps` に `MmmTool.exe.<番号>.dmp` ができる。完全なダンプなので、入力した文章やパスワードが入る。人に渡さない。中身は WinDbg で見る
+  - 調べ終わったら、管理者の PowerShell で `cd "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"` → `Remove-Item MmmTool.exe` で設定を消し、`D:\CrashDumps` のダンプを手で消す
+  - 原因が分かって直したら、この項目ごと消す
+
 ## そのうち (方向だけ)
 
 - サーバー側のビルド (GitHub Actions)で、タグを付けたら発行からリリースまで自動で行う。ユーザーが試したがっている。リポジトリは公開で、Actions は無料
