@@ -254,7 +254,6 @@
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
 - インデックス: `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(同上)・`IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`(案件の完了の計算。削除されていない行だけ)・`IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`(作業報告。担当が自分の作業を探す。削除されていない行だけ)
-
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -274,7 +273,7 @@
 - インデックス: `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`(その日の記録。削除されていない行だけ)・`IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(差分。論理削除された行も含む)
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
-作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)。作業報告が、実績 (期間内の分)と予定 (報告日の分)に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql` (リリース後の変更なので、`001_CreateTables.sql` は変えず、次の版の更新用スクリプトに集める。リリースまで、同じファイルを直す)。
+作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)。作業報告が、報告日の分を予定に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql` (リリース後の変更なので、`001_CreateTables.sql` は変えず、次の版の更新用スクリプトに集める。リリースまで、同じファイルを直す)。
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |

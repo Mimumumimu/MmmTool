@@ -56,11 +56,11 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkDayNote?> LoadDayNoteAsync(DateOnly date, CancellationToken cancellationToken = default);
 
-    /// <summary>作業報告のために、担当が自分の作業と、その記録と、自分の日報メモを読む</summary>
+    /// <summary>作業報告のために、担当が自分の作業と、その記録と、報告日の自分の日報メモを読む</summary>
     /// <param name="from">記録を読み始める日 (実績の開始日)</param>
     /// <param name="to">記録を読み終える日 (報告日。その日も含む)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>担当が自分で、状態が作業予定・作業中か、期間内に記録がある作業と、その作業が属する案件・グループ、期間内の記録、期間内の自分の日報メモ</returns>
+    /// <returns>担当が自分で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業と、その作業が属する案件・グループ、期間内の記録、報告日の自分の日報メモ</returns>
     /// <remarks>
     /// 表示しない案件も含む (表示しないのは、この PC の見え方の設定のため)。人で絞るのは作業の担当者 (<see cref="WorkItem.AssigneeUserId"/>)だけで、記録を付けた人は問わない。日報メモは、持ち主 (<c>UserId</c>)が自分の行だけ。
     /// 表ごとに別の <c>SELECT</c> で、1 回の往復で受け取る。
@@ -68,10 +68,10 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default);
 
-    /// <summary>実績のあった直近の日を探す (担当が自分の作業の工数が入った日か、自分の日報メモがある日の、新しいほう)</summary>
+    /// <summary>実績のあった直近の日を探す (担当が自分の作業の工数が入った日か、作業を完了にした日の、新しいほう)</summary>
     /// <param name="before">この日より前から探す (報告日)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>工数が 0 より大きい記録の日と、空でない日報メモの日のうち、最新の日。無ければ null</returns>
+    /// <returns>工数が 0 より大きい記録の日と、完了日のうち、最新の日。無ければ null</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<DateOnly?> GetLatestRecordedDateAsync(DateOnly before, CancellationToken cancellationToken = default);
 

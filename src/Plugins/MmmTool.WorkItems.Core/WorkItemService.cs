@@ -326,7 +326,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>作業報告のために、担当が自分の作業と、その記録と、日報メモを読む</summary>
+    /// <summary>作業報告のために、担当が自分の作業と、その記録と、報告日の日報メモを読む</summary>
     /// <param name="from">実績の開始日 (記録を読み始める日)</param>
     /// <param name="reportDate">報告日 (予定の日。その日の記録も読む)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -339,7 +339,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>作業報告の実績の開始日の既定を返す</summary>
     /// <param name="reportDate">報告日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>報告日より前で、担当が自分の作業に工数が入った日か、自分の日報メモがある日の、直近の日。無ければ、報告日の前日</returns>
+    /// <returns>報告日より前で、担当が自分の作業に工数が入った日か、作業を完了にした日の、直近の日。無ければ、報告日の前日</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     public async Task<DateOnly> GetDefaultReportFromAsync(DateOnly reportDate, CancellationToken cancellationToken = default)
         => await repository.GetLatestRecordedDateAsync(reportDate, cancellationToken) ?? reportDate.AddDays(-1);
