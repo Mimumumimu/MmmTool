@@ -57,6 +57,9 @@ public sealed class ScheduleTimelineCell : Canvas
         Height = ScheduleAxisVisual.RowHeight;
         IsHitTestVisible = false;
         ActualThemeChanged += (_, _) => Redraw();
+
+        // 表に載る前の ActualTheme は、アプリの既定のテーマを返すことがある。載ったあとに、正しいテーマで描き直す
+        Loaded += (_, _) => Redraw();
     }
 
     /// <summary>描く行</summary>
@@ -139,12 +142,12 @@ public sealed class ScheduleTimelineCell : Canvas
             return;
         }
 
-        var line = new Rectangle { Width = 2, Height = ScheduleAxisVisual.RowHeight, Fill = palette.Today };
+        var line = new Rectangle { Width = 2, Height = ScheduleAxisVisual.RowHeight, Fill = palette.Today, Opacity = 0.6 };
         SetLeft(line, axis.X(today) + (axis.DayWidth / 2) - 1);
         Children.Add(line);
     }
 
-    /// <summary>予定の棒 (開始日から期限日まで。進捗度の分だけ濃く塗る)を足す</summary>
+    /// <summary>予定の棒 (開始日から期限日まで。1 色)を足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
@@ -155,18 +158,13 @@ public sealed class ScheduleTimelineCell : Canvas
     private void AddPlan(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
         var isGroup = row.IsGroup;
-        var track = isGroup ? palette.GroupPlan : palette.Plan;
-        var done = isGroup ? palette.GroupDone : palette.PlanDone;
+        var plan = isGroup ? palette.GroupPlan : palette.Plan;
 
         if (row.PlanStart is { } start && row.PlanEnd is { } end && start <= end)
         {
             var left = axis.X(start) + 1;
             var width = Math.Max(2, axis.X(end) + axis.DayWidth - axis.X(start) - 2);
-            Children.Add(Bar(left, PlanBarTop, width, PlanBarHeight, 5, track));
-            if (row.Progress > 0)
-            {
-                Children.Add(Bar(left, PlanBarTop, Math.Max(2, width * Math.Min(row.Progress, 100) / 100), PlanBarHeight, 5, done));
-            }
+            Children.Add(Bar(left, PlanBarTop, width, PlanBarHeight, 5, plan));
             if (row.IsOverdue)
             {
                 var frame = Bar(left, PlanBarTop, width, PlanBarHeight, 5, null);
@@ -179,14 +177,14 @@ public sealed class ScheduleTimelineCell : Canvas
         {
             // 開始日だけの作業と同じ形 (印と点線)。印は期限日の右端、点線は、その左へ伸ばす
             var markLeft = axis.X(dueOnly) + axis.DayWidth - 1 - OpenMarkWidth;
-            Children.Add(Bar(markLeft, PlanBarTop, OpenMarkWidth, PlanBarHeight, 3, done));
-            Children.Add(OpenEndLine(markLeft - 4, markLeft - 32, track));
+            Children.Add(Bar(markLeft, PlanBarTop, OpenMarkWidth, PlanBarHeight, 3, plan));
+            Children.Add(OpenEndLine(markLeft - 4, markLeft - 32, plan));
         }
         else if (row.PlanStart is { } startOnly)
         {
             var left = axis.X(startOnly) + 1;
-            Children.Add(Bar(left, PlanBarTop, OpenMarkWidth, PlanBarHeight, 3, done));
-            Children.Add(OpenEndLine(left + OpenMarkWidth + 4, left + OpenMarkWidth + 32, track));
+            Children.Add(Bar(left, PlanBarTop, OpenMarkWidth, PlanBarHeight, 3, plan));
+            Children.Add(OpenEndLine(left + OpenMarkWidth + 4, left + OpenMarkWidth + 32, plan));
         }
     }
 
@@ -220,6 +218,9 @@ public sealed class ScheduleTimelineCell : Canvas
                             Foreground = palette.ActualText,
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center,
+
+                            // 文字の行の余白で、数字が札の中心より約 2px 下に寄るので、下に余白を足して上げる
+                            Margin = new Thickness(0, 0, 0, 4),
                         },
                     };
                     Grid.SetColumn(cell, i);
