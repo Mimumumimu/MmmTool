@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
@@ -91,11 +92,22 @@ public sealed partial class SchedulePage : Page
         {
             _busyScope ??= _busyCursor.Begin();
         }
-        else
+        else if (_busyScope is { } scope)
         {
-            _busyScope?.Dispose();
             _busyScope = null;
+            EndBusyAfterRenderAsync(scope).Forget();
         }
+    }
+
+    /// <summary>表の行・見出しが画面に描かれてから、処理待ちを終える</summary>
+    /// <param name="scope">終える処理待ちの入れ物</param>
+    /// <returns>終わりの完了を表すタスク</returns>
+    /// <remarks>読み込みが終わった時点では、行と見出しはまだ作られていない (そのあとのレイアウトで作られる)。続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。</remarks>
+    private async Task EndBusyAfterRenderAsync(IDisposable scope)
+    {
+        await WaitForRenderAsync();
+        await WaitForRenderAsync();
+        scope.Dispose();
     }
 
     /// <summary>左の固定の列の定義を作る</summary>
