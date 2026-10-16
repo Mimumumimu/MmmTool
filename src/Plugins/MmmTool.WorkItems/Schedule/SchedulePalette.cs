@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Schedule;
 /// <summary>スケジュールの色 (ライト・ダークの両方の値を持つ、名前のついた色)</summary>
 /// <remarks>
 /// 棒・休みの日の背景・今日の線のように、画面の部品が、コードで描くものの色。テーマごとに値を持たせ、どちらかを標準任せにしない。
-/// 実績の棒の中の数字は、棒の背景に対して 4.5 倍以上のコントラストにする (ライトは薄い背景と濃い文字、ダークは明るい背景と暗い文字)。
+/// 実績の棒の中の数字は、棒の背景に対して 4.5 倍以上のコントラストにする (ライトは薄い背景と濃い文字、ダークは暗い緑の背景と明るい文字。ダークで明るい面にすると、暗い背景の中で浮くため)。
 /// 休みの日の背景は、土曜を薄い青、日曜と祝日を薄い赤にし、どちらも半透明の色にする (行の背景が、白の作業の行でも、青い案件・グループの行でも、約 1.2 倍以上の差で見える。中立な灰色にしない。灰色は、入力できない行のように見えるため)。不透明にしない (ユーザーの決定。不透明にすると、行の背景や罫線が隠れて、のっぺりした帯になる)。土曜と日曜で、作りをそろえる。
 /// </remarks>
 public sealed class SchedulePalette
@@ -38,10 +38,10 @@ public sealed class SchedulePalette
         todayText: Color.FromArgb(0xFF, 0x1B, 0x1F, 0x27),
         plan: Color.FromArgb(0xFF, 0x62, 0x8C, 0xE2),
         groupPlan: Color.FromArgb(0xFF, 0x4E, 0x76, 0xC8),
-        actual: Color.FromArgb(0xFF, 0x46, 0xC3, 0x7D),
-        actualEdge: Color.FromArgb(0xFF, 0x1E, 0x5A, 0x3C),
-        actualSeparator: Color.FromArgb(0xFF, 0x28, 0x82, 0x50),
-        actualText: Color.FromArgb(0xFF, 0x08, 0x1E, 0x12),
+        actual: Color.FromArgb(0xFF, 0x1F, 0x5A, 0x40),
+        actualEdge: Color.FromArgb(0xFF, 0x2A, 0x70, 0x50),
+        actualSeparator: Color.FromArgb(0xFF, 0x2A, 0x70, 0x50),
+        actualText: Color.FromArgb(0xFF, 0xD6, 0xF2, 0xE2),
         critical: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
         saturday: Color.FromArgb(0xFF, 0x78, 0xAA, 0xFF),
         sunday: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4)));
