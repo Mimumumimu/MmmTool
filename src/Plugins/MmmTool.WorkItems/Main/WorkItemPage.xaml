@@ -511,14 +511,19 @@
                     OffContent="自分の担当だけ"
                     OnContent="自分の担当だけ" />
                 <!-- 完了して日がたった作業の見え方。選択肢の並びは CompletedDisplay の値と同じ。保存しない。幅は、選択肢が収まる固定の値 (選ぶたび・開くたびに幅が変わると、右寄せの左隣のボタンの位置が動くため) -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <!-- ComboBox の既定の VerticalAlignment は Top で、隣のボタンと高さがずれるため、中央にそろえる -->
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
                     <TextBlock
                         VerticalAlignment="Center"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="完了" />
+                        Text="過去の完了" />
                     <ComboBox
                         Width="152"
-                        AutomationProperties.Name="完了"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="過去の完了"
                         SelectedIndex="{x:Bind ViewModel.CompletedIndex, Mode=TwoWay}"
                         ToolTipService.ToolTip="入力日に完了した作業は、常に表示します">
                         <ComboBoxItem Content="表示" />
