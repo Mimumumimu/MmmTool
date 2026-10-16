@@ -23,6 +23,9 @@ public sealed partial class SchedulePage : Page
     /// <summary>単位を変えたときに、見ている範囲の中央に保つ日付 (軸が作り直されたら、その日付へ動かす)</summary>
     private DateOnly? _anchor;
 
+    /// <summary>保つ日付を置く位置 (見える範囲の左端からの割合。今日を基準にするときは <see cref="TodayRatio"/>、見ている範囲の中央を保つときは 0.5)</summary>
+    private double _anchorRatio = 0.5;
+
     /// <summary>マウスカーソルを処理待ちの形にする口</summary>
     private readonly IBusyCursor _busyCursor;
 
@@ -176,14 +179,16 @@ public sealed partial class SchedulePage : Page
             // 軸の全体が見えているとき (月の単位)は、「見ている範囲の中央」に意味が無い (軸の真ん中や、軸の外の日付になる)ので、今日を基準にする。
             // 途中を見ているときは、見ている範囲の中央の日付を保つ
             var visible = TimelineGrid.ViewportWidth - TimelineGrid.FrozenWidth;
-            _anchor = visual.Axis.Width <= visible
+            var allVisible = visual.Axis.Width <= visible;
+            _anchor = allVisible
                 ? ViewModel.Today
                 : visual.Axis.DateAt(TimelineGrid.HorizontalOffset + (visible / 2));
+            _anchorRatio = allVisible ? TodayRatio : 0.5;
         }
         ViewModel.UnitIndex = index;
     }
 
-    /// <summary>日付の軸が変わったら、広い列の幅と見出しを作り直し、保つ日付があれば、その日付を中央に動かす</summary>
+    /// <summary>日付の軸が変わったら、広い列の幅と見出しを作り直し、保つ日付があれば、その日付を決めた位置に動かす</summary>
     /// <param name="sender">ViewModel</param>
     /// <param name="e">イベントの情報</param>
     private void OnAxisChanged(object? sender, EventArgs e)
@@ -192,7 +197,7 @@ public sealed partial class SchedulePage : Page
         if (_anchor is { } anchor)
         {
             _anchor = null;
-            ScrollTo(anchor, 0.5);
+            ScrollTo(anchor, _anchorRatio);
         }
     }
 
