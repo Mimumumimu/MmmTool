@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MmmTool.Messages.Core\MmmTool.Messages.Core.csproj" />
+    <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
     <ProjectReference Include="..\..\NotificationChannels\MmmTool.NotificationChannels.Core\MmmTool.NotificationChannels.Core.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>

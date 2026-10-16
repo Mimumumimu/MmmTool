@@ -8,6 +8,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Move;
 using MmmTool.WorkItems.ProjectPicker;
@@ -26,9 +27,6 @@ public sealed partial class WorkItemViewModel : ObservableObject
 {
     /// <summary>非表示の列を、設定ストアに持つキー (列のキーを、カンマでつないだ文字列)</summary>
     private const string HiddenColumnsKey = "WorkItems.HiddenColumns";
-
-    /// <summary>自分の担当だけを表示するかの設定のキー (この PC の設定)</summary>
-    private const string MineOnlyKey = "WorkItems.MineOnly";
 
     /// <summary>日付として受け付ける書式</summary>
     private static readonly string[] DateFormats = ["yyyy/M/d", "yyyy-M-d", "yyyy.M.d", "yyyyMMdd", "M/d", "M-d"];
@@ -176,7 +174,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
         service.RefreshFailed += (_, message) => Error.Show(message);
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
-        MineOnly = settings.Get(MineOnlyKey, false);
+        MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
         InputDate = service.Today;
         _initializing = false;
     }
@@ -186,6 +184,16 @@ public sealed partial class WorkItemViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         Error.Clear();
+
+        // 「自分の担当だけ」は、スケジュールでも切り替えられる (同じ設定)。画面を開くたびに、設定の値に合わせる (表は、作り直す)
+        var mineOnly = _settings.Get(WorkItemSettingKeys.MineOnly, false);
+        if (mineOnly != MineOnly)
+        {
+            _initializing = true;
+            MineOnly = mineOnly;
+            _initializing = false;
+        }
+
         try
         {
             await _service.LoadAsync(InputDate);
@@ -314,7 +322,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             return;
         }
 
-        _settings.SetAsync(MineOnlyKey, value).Forget();
+        _settings.SetAsync(WorkItemSettingKeys.MineOnly, value).Forget();
         Rebuild();
     }
 
@@ -945,25 +953,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
             Visit(root, 0);
         }
 
-        for (var i = 0; i < target.Count; i++)
-        {
-            if (i < Rows.Count && ReferenceEquals(Rows[i], target[i]))
-            {
-                continue;
-            }
-
-            // 並びが変わった行は、一度外して入れ直す (行を動かす通知は、表が扱わないことがあるため、使わない)
-            var existing = Rows.IndexOf(target[i]);
-            if (existing >= 0)
-            {
-                Rows.RemoveAt(existing);
-            }
-            Rows.Insert(i, target[i]);
-        }
-        while (Rows.Count > target.Count)
-        {
-            Rows.RemoveAt(Rows.Count - 1);
-        }
+        TreeGridRowSync.Sync(Rows, target);
 
         foreach (var key in _rowByKey.Keys.Where(key => !alive.Contains(key)).ToList())
         {

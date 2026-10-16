@@ -7,6 +7,7 @@ using MmmTool.WorkItems.Move;
 using MmmTool.WorkItems.ProjectManager;
 using MmmTool.WorkItems.ProjectPicker;
 using MmmTool.WorkItems.Report;
+using MmmTool.WorkItems.Schedule;
 
 namespace MmmTool.WorkItems;
 
@@ -37,8 +38,11 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddTransient<WorkReportViewModel>();
 
         services.AddTransient<ProjectPickerViewModel>();
+        services.AddTransient<ScheduleViewModel>();
         services.AddTransient<WorkItemViewModel>();
         services.AddNavigationPage<WorkItemPage>(WorkItemsFeature.DisplayName, "", NavigationArea.Top, WorkItemsFeature.Key);
+        // スケジュールは、作業管理の子の項目 (作業管理がオフの間は出さない)
+        services.AddNavigationChildPage<SchedulePage, WorkItemPage>("スケジュール", "", WorkItemsFeature.Key);
 
         services.AddStartupTask<WorkItemStartup>(WorkItemsFeature.Key);
     }

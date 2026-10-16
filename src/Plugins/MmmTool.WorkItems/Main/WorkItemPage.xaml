@@ -6,25 +6,22 @@
     xmlns:local="using:MmmTool.WorkItems.Main"
     xmlns:picker="using:MmmTool.WorkItems.ProjectPicker"
     xmlns:sdk="using:MmmSdk.WinUI.Controls"
+    xmlns:wi="using:MmmTool.WorkItems"
     Loaded="OnLoaded">
 
     <Page.Resources>
         <ResourceDictionary>
+            <!-- 案件・グループの文字の色と、行の背景は、スケジュールと共有する (WorkItemTheme) -->
+            <ResourceDictionary.MergedDictionaries>
+                <wi:WorkItemTheme />
+            </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない)・案件 (濃い青)・グループ (青)の文字の色 (入力の手がかりの灰色と区別する)。背景 (明るい表示は、灰色ではなく、青の薄い色。グループの行は少し濃く、入力する行の固定の列 (初回だけ入力する列)は、さらに薄く。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま。灰色は、入力できないように見えるため) -->
+                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない。入力の手がかりの灰色と区別する)。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
-                    <SolidColorBrush x:Key="GroupTextBrush" Color="#0F6CBD" />
-                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#0B4F8F" />
-                    <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#DDEAFA" />
-                    <SolidColorBrush x:Key="InputRowBackgroundBrush" Color="#EAF2FC" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#4CC38A" />
-                    <SolidColorBrush x:Key="GroupTextBrush" Color="#7BBCFF" />
-                    <SolidColorBrush x:Key="ProjectTextBrush" Color="#B5D8FF" />
-                    <SolidColorBrush x:Key="GroupRowBackgroundBrush" Color="#1E2B3C" />
-                    <SolidColorBrush x:Key="InputRowBackgroundBrush" Color="#20262F" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
@@ -505,76 +502,7 @@
                 Spacing="16">
                 <!-- 左から右へ、範囲の広い順 (表示する案件 → 自分の担当だけ → 完了)。表示列は行の出し入れではないので、最後 -->
                 <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
-                <DropDownButton x:Name="ProjectsButton" Content="表示する案件">
-                    <DropDownButton.Flyout>
-                        <Flyout Opening="OnProjectsFlyoutOpening" Placement="BottomEdgeAlignedLeft">
-                            <Grid Width="360" RowSpacing="8">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <TextBox
-                                    InputScope="Hiragana"
-                                    PlaceholderText="案件を検索"
-                                    Text="{x:Bind ViewModel.ProjectPicker.Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <CheckBox
-                                    Grid.Row="1"
-                                    MinWidth="0"
-                                    Content="非表示の案件も表示"
-                                    IsChecked="{x:Bind ViewModel.ProjectPicker.ShowHidden, Mode=TwoWay}" />
-                                <InfoBar
-                                    Grid.Row="2"
-                                    IsOpen="{x:Bind ViewModel.ProjectPicker.Error.IsOpen, Mode=TwoWay}"
-                                    Message="{x:Bind ViewModel.ProjectPicker.Error.Message, Mode=OneWay}"
-                                    Severity="Error" />
-                                <Grid Grid.Row="3">
-                                    <ListView
-                                        MaxHeight="320"
-                                        ContainerContentChanging="OnProjectChoiceContainerChanging"
-                                        ItemsSource="{x:Bind ViewModel.ProjectPicker.Items}"
-                                        SelectionMode="None">
-                                        <ListView.ItemContainerStyle>
-                                            <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
-                                                <Setter Property="MinHeight" Value="36" />
-                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                            </Style>
-                                        </ListView.ItemContainerStyle>
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate x:DataType="picker:ProjectChoice">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <CheckBox
-                                                        MinWidth="0"
-                                                        Click="OnProjectChoiceClick"
-                                                        Content="{x:Bind Name}"
-                                                        IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
-                                                        Tag="{x:Bind}" />
-                                                    <TextBlock
-                                                        Grid.Column="1"
-                                                        VerticalAlignment="Center"
-                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                        Text="{x:Bind FinishedText}" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-                                    <TextBlock
-                                        Margin="0,16"
-                                        HorizontalAlignment="Center"
-                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Text="{x:Bind ViewModel.ProjectPicker.EmptyText, Mode=OneWay}"
-                                        TextWrapping="Wrap"
-                                        Visibility="{x:Bind ViewModel.ProjectPicker.IsEmpty, Mode=OneWay}" />
-                                </Grid>
-                            </Grid>
-                        </Flyout>
-                    </DropDownButton.Flyout>
-                </DropDownButton>
+                <picker:ProjectPickerButton x:Name="ProjectPickerControl" />
                 <ToggleSwitch
                     MinWidth="0"
                     VerticalAlignment="Center"

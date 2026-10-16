@@ -81,6 +81,20 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<WorkRecord>> LoadRecordsAsync(IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default)
+        => projectIds.Count == 0 && !exclude
+            ? Task.FromResult<IReadOnlyList<WorkRecord>>([])
+            : RunAsync<IReadOnlyList<WorkRecord>>(
+                connection => QueryAsync(
+                    connection,
+                    null,
+                    $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND {ProjectFilter("r", "ProjectId", exclude)}",
+                    [("@projects", ProjectsJson(projectIds))],
+                    reader => ReadRecord(reader).ToWorkRecord(),
+                    cancellationToken),
+                cancellationToken);
+
+    /// <inheritdoc />
     public Task<WorkDayNote?> LoadDayNoteAsync(DateOnly date, CancellationToken cancellationToken = default)
         => RunAsync<WorkDayNote?>(
             async connection => (await QueryAsync(
@@ -149,7 +163,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND ({alias}.StatusCodeNo IN (@planned, @inProgress) OR ({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))";
 
     /// <inheritdoc />
-    public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
+    public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
             // 更新日時のインデックスは、削除された行も含むので、論理削除も差分で届く。選んだ案件で絞る。5 つの問い合わせを 1 回の往復で受け取る
@@ -166,7 +180,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.UpdatedAt >= @since AND {ProjectFilter("p", "Id", exclude: true)}", r => projects.Add(ReadProject(r).ToWorkProject())),
                     ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.UpdatedAt >= @since AND {ProjectFilter("i", "ProjectId", exclude: true)}", r => items.Add(ReadItem(r).ToWorkItem())),
-                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.UpdatedAt >= @since AND r.Date = @date AND {ProjectFilter("r", "ProjectId", exclude: true)}", r => records.Add(ReadRecord(r).ToWorkRecord())),
+                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.UpdatedAt >= @since {(allRecordDates ? "" : "AND r.Date = @date")} AND {ProjectFilter("r", "ProjectId", exclude: true)}", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
                 ],
                 parameters,
