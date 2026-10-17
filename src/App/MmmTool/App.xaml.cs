@@ -92,16 +92,16 @@ public partial class App : Application
         services.AddUserSignIn();
 
         // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び (利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちら。トレイメニューは常に order の順)。登録の順は問わない
-        // order の並び: よく使う順 (CLI補助が主な機能。作業管理が 2 番目)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
+        // order の並び: よく使う順 (CLI補助が主な機能。ノート、作業管理と続く。メッセージはリマインダーの下)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
         services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
-        services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 5);
-        services.AddFeaturePlugin<RemindersPlugin>(order: 3, trayOrder: 2);
-        services.AddFeaturePlugin<BacklogPlugin>(order: 6);
-        services.AddFeaturePlugin<LinksPlugin>(order: 4, trayOrder: 3);
-        services.AddFeaturePlugin<WorkItemsPlugin>(order: 2);
-        services.AddFeaturePlugin<ToolsPlugin>(order: 7);
-        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 8, trayOrder: 1);
-        services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 9);
+        services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 2);
+        services.AddFeaturePlugin<WorkItemsPlugin>(order: 3);
+        services.AddFeaturePlugin<RemindersPlugin>(order: 4, trayOrder: 2);
+        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 5, trayOrder: 1);
+        services.AddFeaturePlugin<LinksPlugin>(order: 6, trayOrder: 3);
+        services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 7);
+        services.AddFeaturePlugin<BacklogPlugin>(order: 8);
+        services.AddFeaturePlugin<ToolsPlugin>(order: 9);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();

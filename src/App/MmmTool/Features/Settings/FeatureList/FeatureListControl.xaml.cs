@@ -26,10 +26,11 @@ public sealed partial class FeatureListControl : UserControl
     /// <summary>機能のスイッチが切り替わったときの処理</summary>
     /// <param name="sender">イベントの送信元 (スイッチ。データの行を持つ)</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>利用者が操作したスイッチだけを扱う。並べ替えや「既定の順に戻す」で行の部品が使い回されると、別の行の状態のままスイッチの切り替えが通知されるため、フォーカスの無いスイッチは無視する。</remarks>
     private async void OnFeatureToggled(object sender, RoutedEventArgs e)
     {
         // バインドの書き戻しより先に呼ばれることがあるので、スイッチの状態を行へ写してから渡す
-        if (sender is ToggleSwitch { DataContext: FeatureItem item } toggle)
+        if (sender is ToggleSwitch { DataContext: FeatureItem item, FocusState: not FocusState.Unfocused } toggle)
         {
             item.IsOn = toggle.IsOn;
             await ViewModel.ToggleFeatureAsync(item);
