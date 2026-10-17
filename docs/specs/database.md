@@ -24,7 +24,7 @@
 - 行の版 (更新のたびに DB が自動で変える列。SQL Server の `rowversion`)は持たない。他の PC の変更は、全件の読み直しで知る (読み直しの方法は Repository の仕様)。同時編集の上書きは検出しない (少人数のため。ユーザーの決定)。防ぎたくなったときは、表を変えずに、更新の SQL の条件に「`Id` が同じで、更新日時も読んだときと同じ」を足せばよい (更新日時がミリ秒・DB の時計なので、同じミリ秒の更新が重なる確率は小さい)
 - 連動削除 (`ON DELETE CASCADE`)は使わない (ユーザーの決定)。DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない
 - 外部キーは使わない。ほかの表の番号を持つ列 (`ReminderId`・`UserId`・作成者・更新者・宛先)に存在しない番号が入らないようにするのは、アプリの責任 (小規模のため。ユーザーの決定)
-- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ (リマインダー関係の表。検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)。**作業管理の表と `MessageSendRequest` は例外**で、読み方 (作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得。`MessageSendRequest` は、状態での絞り込み)ごとのインデックスを持つ。差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)。件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する (測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった)
+- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ (リマインダー関係の表。検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)。**作業管理の表・`Note`・`MessageSendRequest` は例外**で、読み方 (作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得。`Note` は、表示する日に有効な行を、日付の範囲で探す。`MessageSendRequest` は、状態での絞り込み)ごとのインデックスを持つ。差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)。件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する (測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった)
 
 ## 表の一覧
 | 表 | 内容 |
@@ -41,11 +41,12 @@
 | `WorkItem` | 作業管理の作業 |
 | `WorkRecord` | 作業管理の日ごとの記録。作業ごと・日ごとに 1 件 |
 | `WorkDayNote` | 作業管理の日報メモ。作業に結びつかない、その人の 1 日分の記入。1 人 1 日 1 件 |
+| `Note` | ノート。期間 (開始日・終了日)・タイトル・本文・重要度・公開範囲を持つ ([notes.md](notes.md)) |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
 
 `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageSendRequest` の 4 つは、外部への送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
 
-作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
+作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
 
 ## 列
 「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
@@ -294,6 +295,32 @@
 - 空にしたら論理削除せず、`Note` を空文字にして行を残す。作業報告は、空 (空白だけも含む)と、行が無いことを区別しない。1 人 1 日 1 行までしか増えないので、行を消さない
 - 長さ (2000)は、作業の備考 (1000)より長い。複数の打ち合わせを、1 日分まとめて書くため
 
+### ノートの表
+ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [notes.md](notes.md)。作成用のスクリプトは、SQLite・SQL Server とも `003_AddNote.sql` (リリース済みの `001_CreateTables.sql`・`002_AddWorkDayNote.sql` は変えない。リリースまで、この版の変更は、このファイルに集める)。SQLite は、開くとき版を 3 に上げて作る。SQL Server は、管理者が、DB を選んで流す。SQLite の型は、上の「型の対応 (作業管理の表)」。
+
+#### `Note`(ノート。期間とタイトルと本文を持つ 1 件)
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。復元は 0 に戻す |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。記録用で、検索・結合には使わない。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く)。画面の「今日の更新の印」に使う |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。カードに出すだけで、検索・結合・索引には使わない。0 以上の検査 |
+| `AuthorUserId` | 整数 | `int` | | 書いた人 (`AppUser.Id`。ローカルは 1)。業務の列。「自分だけ」のノートが見える人を決める。1 以上の検査 |
+| `IsPrivate` | 真偽 | `bit` | 0 | 公開範囲。0 は全員、1 は書いた人だけ。ローカルモードは常に 0 |
+| `StartDate` | 日付 | `date` | | 開始日 |
+| `EndDate` | 日付 | `date` | `9999-12-31` | 終了日。空 (無期限)は `9999-12-31`。`StartDate` 以上の検査 |
+| `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要。1 から 5 の検査) |
+| `Title` | 文字列 (100) | `nvarchar(100)` | | タイトル。1 文字以上。画面の上限 (`NoteLimits`)と同じ長さ |
+| `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 本文。書いたとおりの文字 (HTML のタグを含みうる)。長さの上限を決めない (列の最大まで。`CHECK` も付けない) |
+
+- 列の並び: 1 列目の `Id`・共通ヘッダー 5 列のあとに、誰の (`AuthorUserId`)・公開範囲 (`IsPrivate`)・期間 (`StartDate`・`EndDate`)・重要度 (`Priority`)・中身 (`Title`・`Body`) の順
+- 見える行は、`IsPrivate = 0` か `AuthorUserId` が自分のもの。人で絞るのは、業務の列 `AuthorUserId` で行う (共通ヘッダーの `CreatedByUserId` は使わない)
+- インデックス: `IX_Note_EndDate_StartDate (EndDate, StartDate)`。表示する日に有効な行 (`EndDate >= その日` かつ `StartDate <= その日`)を探すため。終了日を先頭にするのは、過去に終わった大量のノートを、読むたびに走査しないため。論理削除された行も含める (「削除したものも表示」が読むため)
+- 一意制約は付けない (同じタイトル・期間のノートを複数置ける)
+- 書いた人の存在は、アプリが検査する (外部キーは付けない)
+
 ### コードマスタの表
 機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite・SQL Server とも `001_CreateTables.sql` (表と作業管理の初期値。それぞれ `src/Data/MmmTool.Data.Sqlite/Sql/`・`src/Data/MmmTool.Data.SqlServer/Sql/`)。
 
@@ -416,6 +443,7 @@
 | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `TEXT` (`2026-10-11T14:30:00.123+09:00`) |
 | 日付 | `date` | `TEXT` (`2026-10-11`。ない日は `9999-12-31`。作業の開始日だけ `0001-01-01`) |
 | 文字列 (n) | `nvarchar(n)` | `TEXT` (長さは `CHECK`) |
+| 長い文字列 (上限なし) | `nvarchar(max)` | `TEXT` |
 | 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |
 
 - **時間は実数で持つ** (`WorkRecord.Hours`・`WorkItem.PlannedHours`・`ActualTotalHours`)。SQL Server の `decimal` は小数の足し算に誤差が出ない。SQLite の `REAL` は浮動小数なので、合計を書くたびに `ROUND(SUM(…), 2)` で小数 2 桁に丸める (誤差は 0.005 よりずっと小さいので、丸めれば積み上がらない)。集計し直すスクリプトの `SUM` も同じく丸める
@@ -433,7 +461,7 @@
 - ユーザー: `AppUser` の表は作らない。作成者・更新者の列は 1 (`Id = 1` の固定のローカルユーザー)。表の形は SQL Server と同じに保つ
 
 - **実装**: ファイルの場所・開く・版の更新・壊れたファイルの扱いは `MmmSdk.Db.Sqlite`(SDK。[db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))、表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)、作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`(埋め込みリソース。番号つきのものだけを版の更新に使う)。集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`(埋め込まない。管理者が、アプリを止めてから流す)。SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う。コードマスタの初期値は、作成用のスクリプトが入れる
-- ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する(`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)。MmmBatch は SQLite を参照しない(`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
+- ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する(`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)。選ぶ処理は、共通の部品 `AddStorage` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))。MmmBatch は SQLite を参照しない(`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
 
 ## 他の DB を足すとき
 列の表に、その DB の型の列を足し、「<DB> の場合」の節を足す。DB ごとの例外は、その節に書く。たとえば Oracle は、空文字を NULL として扱うので、「文字列の空は空文字」が成り立たない (「ない」の文字列の表し方を、Oracle の節で決める)。DynamoDB のように表を持たない保存先は、この文書の対象ではなく、別の保存先として書く。

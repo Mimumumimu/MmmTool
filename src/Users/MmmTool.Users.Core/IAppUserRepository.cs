@@ -10,6 +10,13 @@ public interface IAppUserRepository
     /// <returns>全ユーザー (論理削除済み・使える期間の外も含む)。番号の順。パスワードのハッシュは含まない</returns>
     Task<IReadOnlyList<AppUser>> GetUsersAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>番号を指定して、ユーザーを取得する</summary>
+    /// <param name="ids">ユーザーの番号 (重複していてもよい)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>指定した番号のユーザー (論理削除済み・使える期間の外も含む。存在しない番号は含まない)。番号の順。パスワードのハッシュは含まない</returns>
+    /// <remarks>名前を画面に出すためなど、必要な人だけを引く (全ユーザーを読まない)。</remarks>
+    Task<IReadOnlyList<AppUser>> GetUsersByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default);
+
     /// <summary>ログイン名から、ログインの照合に使う情報を取得する</summary>
     /// <param name="loginName">ログイン名 (大文字と小文字は区別しない)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

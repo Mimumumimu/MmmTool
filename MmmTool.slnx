@@ -77,6 +77,14 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/Notes/">
+    <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Notes/MmmTool.Notes.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/CodeMaster/">
     <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
       <Platform Project="x64" />

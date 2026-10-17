@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Notes.Main.NoteCardsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid>
+        <!-- その日のノートのカード一覧 (HTML の 1 枚のページ。カードごとに WebView2 を作らない) -->
+        <WebView2 x:Name="WebView" />
+
+        <!-- WebView2 を初期化できなかったときの理由 (ほかの機能は使える) -->
+        <TextBlock
+            x:Name="InitializationErrorText"
+            Padding="0,8,0,0"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            TextWrapping="Wrap"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

@@ -11,13 +11,13 @@
 | `src/Plugins/MmmBatch.ReminderSending(.Core)` / `src/Plugins/MmmBatch.MessageSending(.Core)` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (バッチ処理)ごとのプラグイン。毎分の仕事・ページ (サイドバーの項目)・DI 登録の入口を持つ。機能が増えたら、このプラグインを足す (ホストは機能の名前を持たない)。`MmmTool.Reminders.Core`・`MmmTool.Messages.Core`・`MmmTool.NotificationChannels.Core` の型は使うが、`MmmTool.Reminders` などの画面は参照しない。機能のプラグインどうしは参照しない |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)。MmmTool と MmmBatch で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
 | `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmBatch が使う DB の実装 (`ReminderSendStatus` と、送る対象を読む問い合わせ、メッセージの送信依頼 `MessageSendRequest` の読み出しと状態の更新)。MmmTool には参照させない |
-| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Reminders / Tools / WorkItems の 8 つ |
+| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)。Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー (`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定)。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ (番号と名前と数値の組。選択肢など)。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)。依存は無い。保存先の実装は `MmmTool.Data.<種類>` (表 `CodeMaster`。[specs/database.md](specs/database.md)) |
 | `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先 (`NotificationChannel`・区分・規則・`INotificationChannelRepository`)。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たない (登録の画面はリマインダーの機能)。保存先の実装は `MmmTool.Data.<種類>` |
-| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
-| `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite`)。SDK の `MmmSdk.Db.<種類>` を参照する。リマインダーは、ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える。作業管理は、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`。SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため) |
+| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分 (DB の行のクラスと、アプリの型との変換・接続の設定)。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
+| `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装 (`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite`)。SDK の `MmmSdk.Db.<種類>` を参照する。リマインダーは、ホストが設定で DB を選んだときだけ、機能が登録した JSON の Repository を置き換える。作業管理とノートは、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する (SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため)。選ぶ処理は、共通の部品 `AddStorage<TService, TLocal, TServer>` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)に 1 か所だけ持つ。ノートは `App.xaml.cs` で 1 行を足すだけ (機能名のファイルを、ホストに足さない)。作業管理の `WorkItemStorageServiceCollectionExtensions` は、その部品を呼び、モードが変わったときの後始末 (`IDatabaseModeChangeHandler`)だけを足す |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 (`MmmSdk.Db.SqlServer`)。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | 共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理。Win32 の宣言は CsWin32 でここに集める) |
@@ -33,7 +33,7 @@
 
 (`src/` からの相対)
 ```
-Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Messages / Reminders / Tools / WorkItems)
+Plugins/MmmTool.<機能>.Core/            Entity・Repository のインターフェース・サービス (Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems)
 Plugins/MmmTool.<機能>.Core/Json/       JSON の実装 (Json<名前>Repository)と機能ごとのソース生成 Context
 Plugins/MmmTool.<機能>/                 機能全体のつなぎ (<機能>Plugin・<機能>Startup・<機能>TrayMenuSource など、ホストへ登録するもの)と、
                                         複数の画面で共有するもの (ViewModel の基底クラス・行の書式・I<機能>DialogService)だけ

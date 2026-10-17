@@ -45,6 +45,7 @@
 - **クリップボード転送**: ファイルを、リモートデスクトップなどでクリップボードを共有している別の PC へ渡します。送る側はドロップするだけ、受け取る側はボタン 1 つで保存できます
 - **Backlog**: Backlog の共有ファイルの一覧を見て、ダウンロードできます
 - **ツール**: 小さな便利ツールを集めたページです。今は、文字コードになった URL を日本語に戻せます
+- **ノート**: 期間を決めて書いたノートを、その日になると、1 枚の画面に並べて読めます。連絡事項にも、書き足していく手順にも使えます
 
 ### サーバー保存なら、こんなこともできます
 
@@ -54,6 +55,7 @@
 - 作業管理で、作業ごとに担当者を付けて、「自分の担当だけ」に絞れます
 - リマインダーを、スマホ (ntfy)や Discord にも通知できます
 - 他のユーザーへ、短いメッセージを送れます
+- ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます
 
 ## ダウンロード
 
@@ -139,7 +141,7 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・履歴・開いているタブと選んでいるタブ |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文。編集画面で保存したときに作成 |
 | `Data/Links.json` | リンクの構成。無ければ空で作成 |
-| `Data/MmmTool.db` | 作業管理のデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
+| `Data/MmmTool.db` | 作業管理とノートのデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
 | `Data/Reminders.json` | リマインダー本体 |
 | `Data/ReminderStates.json` | リマインダーの対応状態 |
 | `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・メッセージで前回送った宛先など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
@@ -150,10 +152,10 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 
 設定ページの「保存先」(または、保存先をまだ選んでいない初回の起動で出る「保存先の選択」の画面)で、保存先を「サーバー」にして、接続を入力します。保存先の変更は、アプリの再起動で反映されます。
 
-- リマインダーと作業管理が、`Data` フォルダーではなく SQL Server に保存されます。ローカルの JSON と SQLite は使いません
+- リマインダー・作業管理・ノートが、`Data` フォルダーではなく SQL Server に保存されます。ローカルの JSON と SQLite は使いません
 - 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します
 - 起動時にログインが必要です。最初は「新規登録」でログイン名・表示名・パスワードを決めます。ログイン情報は、この PC(Windows アカウントごと)の資格情報マネージャーに覚え、次の起動からは自動でログインします
-- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` で作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます
+- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/` の `001_CreateTables.sql` から番号の順に流して作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます
 
 接続・ログイン・パスワードの再設定などの詳しいことは、[docs/specs/database.md](docs/specs/database.md) と [docs/specs/settings.md](docs/specs/settings.md) にあります。
 
@@ -294,7 +296,7 @@ git submodule update --remote external/MmmSdk
 
 | フォルダー | 内容 |
 | --- | --- |
-| `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Messages`・`Reminders`・`Tools`・`WorkItems` |
+| `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Messages`・`Notes`・`Reminders`・`Tools`・`WorkItems` |
 | `src/Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダー (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
 | `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
@@ -313,7 +315,7 @@ git submodule update --remote external/MmmSdk
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | 全体構成 (プロジェクト・フォルダー・DI・起動と終了・エラーの扱い)と、その決定の理由 |
 | [docs/build-and-distribution.md](docs/build-and-distribution.md) | ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由 |
-| `docs/specs/` | 機能ごとの仕様と実装メモ、決定の理由 (Backlog・CLI補助・クリップボード転送・リンク・メッセージ・MmmBatch・リマインダー・ツール・トレイとメイン画面・設定・保存・DB・作業管理) |
+| `docs/specs/` | 機能ごとの仕様と実装メモ、決定の理由 (Backlog・CLI補助・クリップボード転送・リンク・メッセージ・MmmBatch・ノート・リマインダー・ツール・トレイとメイン画面・設定・保存・DB・作業管理) |
 | [docs/todo.md](docs/todo.md) | 未実装・残りの作業 |
 | `external/MmmSdk/docs/` | 共有部品 (JSON の保存・設定ストア・通知ダイアログ・確認ダイアログ・タスクトレイ・ConPTY・ターミナル・コントロール)の仕様と、構成の決定の理由 |
 
