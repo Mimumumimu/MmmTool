@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.Db.Sqlite.Components.Connections;
+using MmmTool.Data.Sqlite.Notes;
 using MmmTool.Data.Sqlite.WorkItems;
 
 namespace MmmTool.Data.Sqlite;
@@ -28,6 +29,7 @@ public static class SqliteDataServiceCollectionExtensions
             Migrations = SqliteMigrations.Load(),
         }));
         services.AddSingleton<SqliteWorkItemRepository>();
+        services.AddSingleton<SqliteNoteRepository>();
         return services;
     }
 }

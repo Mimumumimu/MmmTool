@@ -27,6 +27,7 @@
     --c-clip: #0e7490;
     --c-back: #a1264f;
     --c-tool: #8a5a00;
+    --c-note: #8f3d3d;
     --c-set: #4a5468;
     --c-srv: #566a1f;
   }
@@ -52,6 +53,7 @@
       --c-clip: #5ccbe0;
       --c-back: #f08aa8;
       --c-tool: #e8b860;
+      --c-note: #e69a9a;
       --c-set: #aab3c5;
       --c-srv: #b8d070;
     }
@@ -212,6 +214,7 @@
     <li><a href="#clip" style="--c: var(--c-clip)">クリップボード転送</a></li>
     <li><a href="#backlog" style="--c: var(--c-back)">Backlog</a></li>
     <li><a href="#tools" style="--c: var(--c-tool)">ツール</a></li>
+    <li><a href="#notes" style="--c: var(--c-note)">ノート</a></li>
     <li><a href="#setting" style="--c: var(--c-set)">設定</a></li>
     <li><a href="#server" style="--c: var(--c-srv)">サーバー保存</a></li>
   </ul>
@@ -366,6 +369,30 @@
   <div class="note"><strong>注意</strong>結果は読むための文字列です。<code>/</code> や <code>&amp;</code> も戻すので、そのままブラウザで開くリンクとしては使えません。</div>
 </section>
 
+<section id="notes" style="--c: var(--c-note)">
+  <h2>ノート</h2>
+  <p class="lead">期間を決めて書いたノートが、その日になると、1 枚の画面に並びます。連絡事項にも、書き足していく手順やメモにも使えます。</p>
+  <h3>操作手順</h3>
+  <ol class="steps">
+    <li>サイドバーの「ノート」で、<span class="ui">新規</span> を押す</li>
+    <li>タイトルと本文を書き、開始日と終了日を決めて、<span class="ui">OK</span> を押す (終了日は、空のままだと無期限)</li>
+    <li>前の日・次の日・日付の選択で、日を変えて読む。その日に有効なノートが、重要度の高い順に並ぶ</li>
+    <li>カードの右上の <span class="ui">編集</span>・<span class="ui">削除</span> で、直したり削除したりする (カードの上で右クリックしても、同じ操作ができます)</li>
+  </ol>
+  <h3>補足</h3>
+  <ul>
+    <li><strong>書式</strong>: 本文は、書いたとおりに表示されます。文字を選んで右クリックすると、太字・斜体・下線・取消線・色を付けられます。<span class="ui">リンクを追加</span> では、リンク名と、URL またはファイル・フォルダーのパスを入れます</li>
+    <li><strong>ファイルのドロップ</strong>: 本文にファイルやフォルダーをドロップすると、そのリンクが入ります</li>
+    <li><strong>URL</strong>: <code>https://</code> で始まる文字は、自動でリンクになります</li>
+    <li><strong>HTML のタグ</strong>: 知っていれば、<code>&lt;b&gt;</code> や <code>&lt;a href="…"&gt;</code> などを、直接書けます。使えるタグは、太字・斜体・下線・取消線・改行・箇条書き・色・リンクだけです</li>
+    <li><strong>タイトルだけ</strong>: 上のバーのスイッチで、全部のカードを、タイトルだけの表示にできます。カードを押すと、そのカードだけが開きます</li>
+    <li><strong>削除したもの</strong>: <span class="ui">削除したものも表示</span> を入れると、削除済みのノートも出ます。<span class="ui">復元</span> で、いつでも戻せます</li>
+    <li><strong>重要度</strong>: 「最高」は赤、「高」は橙の帯が付きます。同じ重要度の中は、更新が新しい順です</li>
+    <li><strong>今日更新</strong>: 今日更新したノートには、「今日更新」の印が付きます</li>
+  </ul>
+  <div class="tip"><strong>ヒント</strong>終了日を空にしたノートは、毎日出ます。不要になったら、終了日を入れて終わらせます。</div>
+</section>
+
 <section id="setting" style="--c: var(--c-set)">
   <h2>設定</h2>
   <p class="lead">サイドバー下部の「設定」です。値を変えると、すぐ保存されます。</p>
@@ -381,12 +408,13 @@
 
 <section id="server" style="--c: var(--c-srv)">
   <h2>サーバー保存 <span class="badge">複数の PC で共有</span></h2>
-  <p class="lead">保存先をサーバーにすると、リマインダーと作業管理のデータを、複数の PC で共有できます。</p>
+  <p class="lead">保存先をサーバーにすると、リマインダー・作業管理・ノートのデータを、複数の PC で共有できます。</p>
   <ul>
     <li>サーバー側の準備が必要です。使いたいときは、管理者に相談してください</li>
     <li>設定の「保存先」で切り替えます。切り替えたあと、アプリの再起動が必要です</li>
     <li>サーバーを使うときは、起動時にログインが必要です。作業管理では、作業に担当者を付けられます</li>
     <li>サイドバーの「メッセージ」(またはトレイメニューの「メッセージ送信」)で、宛先を選んで短いメッセージを送れます。届くまで、最大で約 5 秒かかります</li>
+    <li>ノートは、複数の人で共有できます。ノートごとに、<span class="ui">全員</span> に見せるか、<span class="ui">自分だけ</span> にするかを選べます。ほかの人が書いたノートも、直したり削除したりできます (「自分だけ」のノートは、書いた人にしか見えません)</li>
   </ul>
 </section>
 

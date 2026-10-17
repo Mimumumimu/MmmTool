@@ -14,13 +14,16 @@ using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
 using MmmTool.Data.Sqlite;
+using MmmTool.Data.Sqlite.Notes;
 using MmmTool.Data.SqlServer;
+using MmmTool.Data.SqlServer.Notes;
 using MmmTool.Features.Database;
 using MmmTool.Features.Database.Choice;
 using MmmTool.Features.Debugging;
 using MmmTool.Features.Settings;
 using MmmTool.Features.Users;
 using MmmTool.Links;
+using MmmTool.Notes.Core;
 using MmmTool.Reminders;
 using MmmTool.Shell;
 using MmmTool.Shell.Main;
@@ -98,6 +101,7 @@ public partial class App : Application
         services.AddFeaturePlugin<WorkItemsPlugin>(order: 2);
         services.AddFeaturePlugin<ToolsPlugin>(order: 7);
         services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 8, trayOrder: 1);
+        services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 9);
 
         // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
@@ -105,6 +109,9 @@ public partial class App : Application
         // 作業管理の保存先。ローカルは SQLite (Data/MmmTool.db)、DB モードは SQL Server。ホストが設定で選ぶ
         services.AddSqliteData();
         services.AddWorkItemStorage();
+
+        // ノートの保存先。同じく、ローカルは SQLite、DB モードは SQL Server。選ぶ処理は共通の部品 (機能は 1 行を足すだけ)
+        services.AddStorage<INoteRepository, SqliteNoteRepository, SqlServerNoteRepository>();
 
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();

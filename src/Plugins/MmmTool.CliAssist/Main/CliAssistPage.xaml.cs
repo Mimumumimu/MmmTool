@@ -18,7 +18,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>セッションごとのタブと画面</summary>
     private readonly Dictionary<CliSessionViewModel, SessionTab> _tabs = [];
     /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー</summary>
-    /// <remarks>データのフォルダーの下の <c>WebView2</c>(WebView2 の既定の EXE の横ではなく、データにまとめる)。</remarks>
+    /// <remarks><see cref="AppEnvironment.WebView2Directory"/> (WebView2 の既定の EXE の横ではなく、データにまとめる。アプリの中の WebView2 は、すべて同じ場所を使う)。</remarks>
     private readonly string _webView2Directory;
     /// <summary>ターミナルをつないでよいか (定型コマンドの読み込みが済んだか)</summary>
     private bool _terminalsConnectable;
@@ -31,7 +31,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         ViewModel = viewModel;
         InitializeComponent();
 
-        _webView2Directory = Path.Combine(environment.DataDirectory, "WebView2");
+        _webView2Directory = environment.WebView2Directory;
         foreach (var session in ViewModel.Sessions)
         {
             AddTab(session);
