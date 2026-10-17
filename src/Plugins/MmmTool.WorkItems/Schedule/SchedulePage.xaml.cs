@@ -148,6 +148,9 @@ public sealed partial class SchedulePage : Page
         ViewModel.UnitIndex = (int)ScheduleUnit.Day;
         UnitBar.SelectedItem = UnitBar.Items[(int)ScheduleUnit.Day];
 
+        // 「完了」も、開くたびに「非表示」から始める (保存しない。ComboBox は ViewModel に結び付いているので、ViewModel を戻せば画面も戻る)
+        ViewModel.CompletedIndex = (int)CompletedDisplay.Hidden;
+
         // ページは使い回されるので、見えない間にテーマが変わっていても、開いたときの見出しの色を、今のテーマに合わせる
         RefreshTimeline();
 

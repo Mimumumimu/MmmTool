@@ -366,22 +366,25 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>スケジュールに出す内容を作る</summary>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <param name="completed">完了した作業の見え方 (作業管理の「過去の完了」とは別に選ぶ。今日完了した作業も隠す)</param>
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
-    /// 完了した作業も、すべて出す (表の「完了」の選択には従わない)。実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay)"/>と同じ理由)。
+    /// 実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay)"/>と同じ理由)。軸の範囲は、隠す前の内容から求める。
     /// </remarks>
-    public ScheduleSnapshot BuildSchedule(bool mineOnly)
-        => BuildSchedule(mineOnly, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
+    public ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed)
+        => BuildSchedule(mineOnly, completed, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
 
     /// <summary>スケジュールに出す内容を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <param name="completed">完了した作業の見え方</param>
     /// <returns>その案件だけの行の木・実績の棒・軸の範囲 (軸の範囲は、この案件と今日だけから求めた値)。案件を読み込んでいなければ、行の木は空</returns>
     /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
-    public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly)
+    public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(
             mineOnly,
+            completed,
             _projects.Values.Where(p => p.Id == projectId),
             _groups.Values.Where(g => g.ProjectId == projectId),
             _items.Values.Where(i => i.ProjectId == projectId),
@@ -389,12 +392,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>渡された案件・グループ・作業・記録から、スケジュールに出す内容を作る</summary>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了した作業の見え方</param>
     /// <param name="projects">案件</param>
     /// <param name="groups">グループ</param>
     /// <param name="items">作業</param>
     /// <param name="records">実績の記録</param>
     /// <returns>行の木・実績の棒・軸の範囲</returns>
-    private ScheduleSnapshot BuildSchedule(bool mineOnly, IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> records)
+    private ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed, IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> records)
     {
         var today = Today;
         var roots = WorkItemTree.Build(projects, groups, items, [], today, _codes);
@@ -403,6 +407,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         if (mineOnly && HasAssignees)
         {
             WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
+        }
+        if (completed != CompletedDisplay.Show)
+        {
+            WorkItemTree.RemoveFinished(roots, completed == CompletedDisplay.Hidden);
         }
         return new ScheduleSnapshot(roots, actuals, start, end);
     }

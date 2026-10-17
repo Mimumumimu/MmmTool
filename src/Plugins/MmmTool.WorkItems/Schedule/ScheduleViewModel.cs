@@ -71,6 +71,11 @@ public sealed partial class ScheduleViewModel : ObservableObject
     [ObservableProperty]
     public partial int UnitIndex { get; set; } = (int)ScheduleUnit.Day;
 
+    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。開くたびに「非表示」)</summary>
+    /// <remarks>作業管理の「過去の完了」とは共有しない。</remarks>
+    [ObservableProperty]
+    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.Hidden;
+
     /// <summary>保存先から読み込み中か (マウスカーソルを砂時計にする)</summary>
     /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく (空にして、ちらつかせないため)。</remarks>
     [ObservableProperty]
@@ -219,6 +224,16 @@ public sealed partial class ScheduleViewModel : ObservableObject
         }
     }
 
+    /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない。行の出し入れが多いので、砂時計を出す)</summary>
+    /// <param name="value">選択肢の番号</param>
+    partial void OnCompletedIndexChanged(int value)
+    {
+        if (!_initializing)
+        {
+            RebuildBusyAsync().Forget();
+        }
+    }
+
     /// <summary>マウスカーソルを砂時計にして、表を作り直す (長く動くので、先に砂時計を描かせる)</summary>
     /// <returns>作り直しの完了を表すタスク</returns>
     private Task RebuildBusyAsync() => _busyCursor.RunAsync(Rebuild);
@@ -231,7 +246,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             return;
         }
 
-        var snapshot = _service.BuildSchedule(MineOnly);
+        var snapshot = _service.BuildSchedule(MineOnly, Completed);
         var unit = Enum.IsDefined((ScheduleUnit)UnitIndex) ? (ScheduleUnit)UnitIndex : ScheduleUnit.Day;
         var axis = ScheduleAxis.Create(snapshot.AxisStart, snapshot.AxisEnd, unit);
         var axisChanged = Axis is null || Axis.Axis != axis;
@@ -353,7 +368,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             return false;
         }
 
-        var snapshot = _service.BuildScheduleOfProject(projectId, MineOnly);
+        var snapshot = _service.BuildScheduleOfProject(projectId, MineOnly, Completed);
         var axis = Axis!.Axis;
         if (snapshot.Roots.Count != 1 || snapshot.AxisStart < axis.Start || snapshot.AxisEnd > axis.End)
         {
@@ -368,6 +383,9 @@ public sealed partial class ScheduleViewModel : ObservableObject
         RowsBlockChanged?.Invoke(this, EventArgs.Empty);
         return true;
     }
+
+    /// <summary>完了した作業の見え方 (選択肢の番号から求める。範囲外の値は「非表示」)</summary>
+    private CompletedDisplay Completed => Enum.IsDefined((CompletedDisplay)CompletedIndex) ? (CompletedDisplay)CompletedIndex : CompletedDisplay.Hidden;
 
     /// <summary>行が無いときの案内を、今の行に合わせる</summary>
     private void UpdateEmptyState()

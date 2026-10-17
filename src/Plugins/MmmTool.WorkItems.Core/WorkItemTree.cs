@@ -117,18 +117,32 @@ public static class WorkItemTree
     /// 外したグループの下は、たどらない。
     /// </remarks>
     public static void RemoveFinished(IEnumerable<WorkNode> roots, DateOnly date, bool removeGroups)
+        => RemoveFinished(roots, summary => summary.IsFinishedBefore(date), removeGroups);
+
+    /// <summary>完了した作業の行 (と、必要ならグループの行)を、完了日に関わらず、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
+    /// <param name="removeGroups">すべて完了したグループの行も外すか</param>
+    /// <remarks>入力日を持たない画面 (スケジュール)用。今日完了した作業も外す。それ以外は <see cref="RemoveFinished(IEnumerable{WorkNode}, DateOnly, bool)"/> と同じ。</remarks>
+    public static void RemoveFinished(IEnumerable<WorkNode> roots, bool removeGroups)
+        => RemoveFinished(roots, summary => summary.IsFinished, removeGroups);
+
+    /// <summary>条件に合う完了の行を、木から外す</summary>
+    /// <param name="roots">案件の行の並び</param>
+    /// <param name="isFinished">外す対象の完了か (行の集計値から判定する)</param>
+    /// <param name="removeGroups">条件に合うグループの行も外すか</param>
+    private static void RemoveFinished(IEnumerable<WorkNode> roots, Func<WorkSummary, bool> isFinished, bool removeGroups)
     {
         foreach (var node in roots)
         {
             node.Children.RemoveAll(child => child.Key.Kind switch
             {
-                WorkRowKind.Work => child.Summary.IsFinishedBefore(date),
+                WorkRowKind.Work => isFinished(child.Summary),
                 WorkRowKind.Group => removeGroups
-                    && child.Summary.IsFinishedBefore(date)
+                    && isFinished(child.Summary)
                     && !child.Children.SelectMany(c => c.SelfAndDescendants()).Any(n => n.Key.Kind == WorkRowKind.Group && n.Summary.WorkCount == 0),
                 _ => false,
             });
-            RemoveFinished(node.Children, date, removeGroups);
+            RemoveFinished(node.Children, isFinished, removeGroups);
         }
     }
 
