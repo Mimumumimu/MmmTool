@@ -1,6 +1,8 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using MmmSdk.Core.Utilities;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 
@@ -22,14 +24,25 @@ public sealed partial class SchedulePage : Page
     /// <summary>単位を変えたときに、見ている範囲の中央に保つ日付 (軸が作り直されたら、その日付へ動かす)</summary>
     private DateOnly? _anchor;
 
+    /// <summary>保つ日付を置く位置 (見える範囲の左端からの割合。今日を基準にするときは <see cref="TodayRatio"/>、見ている範囲の中央を保つときは 0.5)</summary>
+    private double _anchorRatio = 0.5;
+
+    /// <summary>マウスカーソルを処理待ちの形にする口</summary>
+    private readonly IBusyCursor _busyCursor;
+
+    /// <summary>読み込み中の、処理待ちの入れ物 (読み込み中でなければ null)</summary>
+    private IDisposable? _busyScope;
+
     /// <summary>ページの ViewModel</summary>
     public ScheduleViewModel ViewModel { get; }
 
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
-    public SchedulePage(ScheduleViewModel viewModel)
+    /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
+    public SchedulePage(ScheduleViewModel viewModel, IBusyCursor busyCursor)
     {
         ViewModel = viewModel;
+        _busyCursor = busyCursor;
         InitializeComponent();
         ProjectPickerControl.Attach(ViewModel.ProjectPicker);
 
@@ -53,8 +66,48 @@ public sealed partial class SchedulePage : Page
         TimelineGrid.RowToggleRequested += (_, e) => ViewModel.Toggle((ScheduleRow)e.Row);
 
         ViewModel.AxisChanged += OnAxisChanged;
-        Unloaded += (_, _) => ViewModel.Suspend();
+
+        // 案件 1 つぶんの行の塊を差し込む・抜いたあとは、表に行を付け直させる (見える範囲に、行が作り直されないことがあるため)
+        ViewModel.RowsBlockChanged += (_, _) => TimelineGrid.RebindRows();
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ScheduleViewModel.IsLoading))
+            {
+                ApplyLoadingCursor();
+            }
+        };
+        Unloaded += (_, _) =>
+        {
+            ViewModel.Suspend();
+            _busyScope?.Dispose();
+            _busyScope = null;
+        };
         ActualThemeChanged += (_, _) => RefreshTimeline();
+    }
+
+    /// <summary>読み込み中は、ウィンドウ全体のマウスカーソルを砂時計にする (サイドバーを押した直後は、マウスがサイドバーの上にあるため。終わったら、元に戻す)</summary>
+    private void ApplyLoadingCursor()
+    {
+        if (ViewModel.IsLoading)
+        {
+            _busyScope ??= _busyCursor.Begin();
+        }
+        else if (_busyScope is { } scope)
+        {
+            _busyScope = null;
+            EndBusyAfterRenderAsync(scope).Forget();
+        }
+    }
+
+    /// <summary>表の行・見出しが画面に描かれてから、処理待ちを終える</summary>
+    /// <param name="scope">終える処理待ちの入れ物</param>
+    /// <returns>終わりの完了を表すタスク</returns>
+    /// <remarks>読み込みが終わった時点では、行と見出しはまだ作られていない (そのあとのレイアウトで作られる)。続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。</remarks>
+    private async Task EndBusyAfterRenderAsync(IDisposable scope)
+    {
+        await WaitForRenderAsync();
+        await WaitForRenderAsync();
+        scope.Dispose();
     }
 
     /// <summary>左の固定の列の定義を作る</summary>
@@ -87,16 +140,37 @@ public sealed partial class SchedulePage : Page
     /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // 砂時計は、画面に載った直後に出す (見出しの作り直しや、描画の待ちより先に)
+        ViewModel.BeginLoading();
+
         // 単位は、開くたびに「日」から始める (ページは使い回されるので、前に選んだ単位を戻す。先に ViewModel を戻すので、選択の変更は何もしない)
         _anchor = null;
         ViewModel.UnitIndex = (int)ScheduleUnit.Day;
         UnitBar.SelectedItem = UnitBar.Items[(int)ScheduleUnit.Day];
 
+        // 「完了」も、開くたびに「非表示」から始める (保存しない。ComboBox は ViewModel に結び付いているので、ViewModel を戻せば画面も戻る)
+        ViewModel.CompletedIndex = (int)CompletedDisplay.Hidden;
+
         // ページは使い回されるので、見えない間にテーマが変わっていても、開いたときの見出しの色を、今のテーマに合わせる
         RefreshTimeline();
 
+        // 画面を先に切り替えて描いてから、読み込みを始める (クリックした瞬間に固まらないため)
+        await WaitForRenderAsync();
         await ViewModel.InitializeAsync();
         ScrollTo(ViewModel.Today, TodayRatio);
+    }
+
+    /// <summary>画面の切り替えが描かれるまで待つ</summary>
+    /// <returns>待ちの完了を表すタスク</returns>
+    /// <remarks>低い優先度で呼ばれるので、すでに待っている描画・レイアウトのあとに動く。</remarks>
+    private Task WaitForRenderAsync()
+    {
+        var source = new TaskCompletionSource();
+        if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => source.SetResult()))
+        {
+            source.SetResult();
+        }
+        return source.Task;
     }
 
     /// <summary>「今日」が押されたら、今日が見える位置へ動かす</summary>
@@ -117,12 +191,19 @@ public sealed partial class SchedulePage : Page
 
         if (ViewModel.Axis is { } visual)
         {
-            _anchor = visual.Axis.DateAt(TimelineGrid.HorizontalOffset + ((TimelineGrid.ViewportWidth - TimelineGrid.FrozenWidth) / 2));
+            // 軸の全体が見えているとき (月の単位)は、「見ている範囲の中央」に意味が無い (軸の真ん中や、軸の外の日付になる)ので、今日を基準にする。
+            // 途中を見ているときは、見ている範囲の中央の日付を保つ
+            var visible = TimelineGrid.ViewportWidth - TimelineGrid.FrozenWidth;
+            var allVisible = visual.Axis.Width <= visible;
+            _anchor = allVisible
+                ? ViewModel.Today
+                : visual.Axis.DateAt(TimelineGrid.HorizontalOffset + (visible / 2));
+            _anchorRatio = allVisible ? TodayRatio : 0.5;
         }
         ViewModel.UnitIndex = index;
     }
 
-    /// <summary>日付の軸が変わったら、広い列の幅と見出しを作り直し、保つ日付があれば、その日付を中央に動かす</summary>
+    /// <summary>日付の軸が変わったら、広い列の幅と見出しを作り直し、保つ日付があれば、その日付を決めた位置に動かす</summary>
     /// <param name="sender">ViewModel</param>
     /// <param name="e">イベントの情報</param>
     private void OnAxisChanged(object? sender, EventArgs e)
@@ -131,7 +212,7 @@ public sealed partial class SchedulePage : Page
         if (_anchor is { } anchor)
         {
             _anchor = null;
-            ScrollTo(anchor, 0.5);
+            ScrollTo(anchor, _anchorRatio);
         }
     }
 

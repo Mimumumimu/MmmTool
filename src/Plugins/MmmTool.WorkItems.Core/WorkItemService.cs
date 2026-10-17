@@ -79,7 +79,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private CancellationTokenSource? _pollCts;
 
     /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
-    public event EventHandler? Changed;
+    public event EventHandler<WorkChangedEventArgs>? Changed;
 
     /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
     public event EventHandler<string>? RefreshFailed;
@@ -143,7 +143,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             var hidden = ReadHidden();
             var data = await repository.LoadVisibleAsync(hidden, cancellationToken);
-            var records = await repository.LoadDayAsync(day, hidden, cancellationToken);
+            var records = await repository.LoadDayAsync(day, hidden, exclude: true, cancellationToken);
             var dayNote = await repository.LoadDayNoteAsync(day, cancellationToken);
             _assignees = await repository.GetAssigneesAsync(cancellationToken);
 
@@ -197,7 +197,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             {
                 return;
             }
-            _dayRecords = [.. await repository.LoadDayAsync(day, _hidden)];
+            _dayRecords = [.. await repository.LoadDayAsync(day, _hidden, exclude: true)];
             _dayNote = await repository.LoadDayNoteAsync(day);
             _day = day;
         }
@@ -322,8 +322,37 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
     /// </remarks>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false, CompletedDisplay completed = CompletedDisplay.Show)
+        => BuildTree(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, mineOnly, completed);
+
+    /// <summary>作業管理の表に出す木を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <param name="date">入力日</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <returns>その案件の行。案件を読み込んでいなければ null</returns>
+    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    public WorkNode? BuildProjectTree(int projectId, DateOnly date, bool mineOnly, CompletedDisplay completed)
+        => BuildTree(
+            _projects.Values.Where(p => p.Id == projectId),
+            _groups.Values.Where(g => g.ProjectId == projectId),
+            _items.Values.Where(i => i.ProjectId == projectId),
+            _dayRecords.Where(r => r.ProjectId == projectId),
+            date,
+            mineOnly,
+            completed).FirstOrDefault();
+
+    /// <summary>渡された案件・グループ・作業・記録から、作業管理の表に出す木を作る</summary>
+    /// <param name="projects">案件</param>
+    /// <param name="groups">グループ</param>
+    /// <param name="items">作業</param>
+    /// <param name="dayRecords">入力日の記録</param>
+    /// <param name="date">入力日</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <returns>案件の行の並び</returns>
+    private IReadOnlyList<WorkNode> BuildTree(IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> dayRecords, DateOnly date, bool mineOnly, CompletedDisplay completed)
     {
-        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, _codes);
+        var roots = WorkItemTree.Build(projects, groups, items, dayRecords, date, _codes);
         if (mineOnly && HasAssignees)
         {
             WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
@@ -337,20 +366,51 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>スケジュールに出す内容を作る</summary>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <param name="completed">完了した作業の見え方 (作業管理の「過去の完了」とは別に選ぶ。今日完了した作業も隠す)</param>
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
-    /// 完了した作業も、すべて出す (表の「完了」の選択には従わない)。実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree"/>と同じ理由)。
+    /// 実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay)"/>と同じ理由)。軸の範囲は、隠す前の内容から求める。
     /// </remarks>
-    public ScheduleSnapshot BuildSchedule(bool mineOnly)
+    public ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed)
+        => BuildSchedule(mineOnly, completed, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
+
+    /// <summary>スケジュールに出す内容を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <param name="projectId">案件の番号</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <param name="completed">完了した作業の見え方</param>
+    /// <returns>その案件だけの行の木・実績の棒・軸の範囲 (軸の範囲は、この案件と今日だけから求めた値)。案件を読み込んでいなければ、行の木は空</returns>
+    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly, CompletedDisplay completed)
+        => BuildSchedule(
+            mineOnly,
+            completed,
+            _projects.Values.Where(p => p.Id == projectId),
+            _groups.Values.Where(g => g.ProjectId == projectId),
+            _items.Values.Where(i => i.ProjectId == projectId),
+            _scheduleRecords.Values.Where(r => r.ProjectId == projectId));
+
+    /// <summary>渡された案件・グループ・作業・記録から、スケジュールに出す内容を作る</summary>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
+    /// <param name="completed">完了した作業の見え方</param>
+    /// <param name="projects">案件</param>
+    /// <param name="groups">グループ</param>
+    /// <param name="items">作業</param>
+    /// <param name="records">実績の記録</param>
+    /// <returns>行の木・実績の棒・軸の範囲</returns>
+    private ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed, IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> records)
     {
         var today = Today;
-        var roots = WorkItemTree.Build(_projects.Values, _groups.Values, _items.Values, [], today, _codes);
-        var actuals = ScheduleActuals.Build(roots, _scheduleRecords.Values);
+        var roots = WorkItemTree.Build(projects, groups, items, [], today, _codes);
+        var actuals = ScheduleActuals.Build(roots, records);
         var (start, end) = ScheduleSnapshot.Range(roots, actuals, today);
         if (mineOnly && HasAssignees)
         {
             WorkItemTree.RemoveWorks(roots, item => item.AssigneeUserId == UserId);
+        }
+        if (completed != CompletedDisplay.Show)
+        {
+            WorkItemTree.RemoveFinished(roots, completed == CompletedDisplay.Hidden);
         }
         return new ScheduleSnapshot(roots, actuals, start, end);
     }
@@ -581,7 +641,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 // 読み込みに失敗したときに、非表示の印だけが外れないよう、読んでから外す
                 Merge(await repository.LoadProjectsAsync([projectId]));
                 _hidden.Remove(projectId);
-                _dayRecords = [.. await repository.LoadDayAsync(_day, _hidden)];
+
+                // 日の記録は、スケジュールが使わない (作業管理の表だけが使う。表は、開くたびに読み直す)。スケジュールを開いている間は、読まない。
+                // 読むのは、この案件の分だけ (ほかの案件の記録は、すでに持っている。外したときに、この案件の分は捨ててある)
+                if (!_holdsScheduleRecords)
+                {
+                    var records = await repository.LoadDayAsync(_day, [projectId], exclude: false);
+                    _dayRecords.RemoveAll(r => r.ProjectId == projectId);
+                    _dayRecords.AddRange(records);
+                }
                 if (_holdsScheduleRecords)
                 {
                     foreach (var record in await repository.LoadRecordsAsync([projectId], exclude: false))
@@ -597,7 +665,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 PruneScheduleRecords();
             }
             await SaveHiddenAsync();
-            OnChangedLater();
+            OnChangedLater(new WorkChangedEventArgs(selected ? WorkChangeKind.ProjectShown : WorkChangeKind.ProjectHidden, projectId));
         }
         finally
         {
@@ -652,7 +720,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             else
             {
                 var saved = await repository.AddItemAsync(
-                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Today, AssigneeUserId = UserId },
+                    new WorkItem { ProjectId = projectId, GroupId = parentGroupId, SortOrder = index, Name = "新しい作業", StartDate = Day, AssigneeUserId = UserId },
                     positions);
                 _items[saved.Id] = saved;
                 key = new WorkKey(WorkRowKind.Work, saved.Id);
@@ -1432,22 +1500,28 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return null;
     }
 
-    /// <summary>ロックを持っている間に、変更の通知を溜めたか</summary>
-    private bool _pendingChanged;
+    /// <summary>ロックを持っている間に溜めた、変更の通知 (無ければ null)</summary>
+    private WorkChangedEventArgs? _pendingChanged;
 
     /// <summary>変更の通知を、ロックを放したあとに出すよう予約する</summary>
-    private void OnChangedLater() => _pendingChanged = true;
+    /// <param name="args">通知の内容 (省略すると、全体の変更)</param>
+    /// <remarks>違う内容の通知が重なったときは、全体の変更にまとめる (どちらの変更も、全体を作り直せば反映できるため)。</remarks>
+    private void OnChangedLater(WorkChangedEventArgs? args = null)
+    {
+        args ??= WorkChangedEventArgs.All;
+        _pendingChanged = _pendingChanged is null || _pendingChanged == args ? args : WorkChangedEventArgs.All;
+    }
 
     /// <summary>予約した変更の通知を出す</summary>
     private void FlushChanged()
     {
-        if (_pendingChanged)
+        if (_pendingChanged is { } args)
         {
-            _pendingChanged = false;
-            OnChanged();
+            _pendingChanged = null;
+            Changed?.Invoke(this, args);
         }
     }
 
-    /// <summary><see cref="Changed"/> を発火する</summary>
-    private void OnChanged() => Changed?.Invoke(this, EventArgs.Empty);
+    /// <summary><see cref="Changed"/> を、全体の変更として発火する</summary>
+    private void OnChanged() => Changed?.Invoke(this, WorkChangedEventArgs.All);
 }

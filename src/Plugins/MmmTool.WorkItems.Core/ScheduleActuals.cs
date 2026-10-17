@@ -3,7 +3,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>スケジュールの実績の棒を、行ごとに作る</summary>
 /// <remarks>
 /// 作業の棒は、その作業の日ごとの記録 (実績が 0 より大きい日)。案件・グループの棒は、下の作業の日ごとの時間の合計。
-/// 日付が 1 日でも空けば、棒を切る (土日に実績が無ければ、土日で切れる。働いた日と、働いていない日が、そのまま見えるため)。
+/// 実績のある最初の日から最後の日までを、空いた日 (土日など)も含めて 1 本につなぐ (細かく切れて、ぶつぶつして見えるため)。
 /// </remarks>
 public static class ScheduleActuals
 {
@@ -65,35 +65,17 @@ public static class ScheduleActuals
         path.RemoveAt(path.Count - 1);
     }
 
-    /// <summary>日ごとの時間を、連続した日ごとの棒にまとめる</summary>
-    /// <param name="days">日付の順の、日ごとの時間</param>
-    /// <returns>棒の並び (日付の順)</returns>
+    /// <summary>日ごとの時間を、最初の日から最後の日までの 1 本の棒にまとめる</summary>
+    /// <param name="days">日付の順の、日ごとの時間 (1 日以上)</param>
+    /// <returns>棒の並び (1 本だけ。実績の無い日は時間 0)</returns>
     private static List<ScheduleActualRun> Runs(SortedDictionary<DateOnly, decimal> days)
     {
-        var runs = new List<ScheduleActualRun>();
-        var start = default(DateOnly);
+        var start = days.Keys.First();
         var hours = new List<double>();
-        DateOnly? previous = null;
-        foreach (var (date, value) in days)
+        for (var date = start; date <= days.Keys.Last(); date = date.AddDays(1))
         {
-            if (previous is not { } last || date.DayNumber - last.DayNumber != 1)
-            {
-                if (hours.Count > 0)
-                {
-                    runs.Add(new ScheduleActualRun(start, hours));
-                }
-                start = date;
-                hours = [];
-            }
-
-            hours.Add((double)Math.Round(value, 2, MidpointRounding.AwayFromZero));
-            previous = date;
+            hours.Add((double)Math.Round(days.GetValueOrDefault(date), 2, MidpointRounding.AwayFromZero));
         }
-
-        if (hours.Count > 0)
-        {
-            runs.Add(new ScheduleActualRun(start, hours));
-        }
-        return runs;
+        return [new ScheduleActualRun(start, hours)];
     }
 }

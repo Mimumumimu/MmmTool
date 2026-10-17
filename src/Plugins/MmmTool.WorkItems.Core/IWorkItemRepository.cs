@@ -43,11 +43,13 @@ public interface IWorkItemRepository
 
     /// <summary>ある日の記録を読む</summary>
     /// <param name="date">日付</param>
-    /// <param name="hiddenProjectIds">表示しない案件の番号</param>
+    /// <param name="projectIds">案件の番号</param>
+    /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>表示する案件の、その日の記録 (全員分。論理削除済みを除く)</returns>
+    /// <returns>その日の記録 (全員分。論理削除済みを除く)</returns>
+    /// <remarks>案件の番号で絞る (<c>(ProjectId, Date)</c> のインデックス)。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
-    Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
 
     /// <summary>案件の、すべての日の記録を読む (スケジュールの実績)</summary>
     /// <param name="projectIds">案件の番号</param>

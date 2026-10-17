@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Main;
@@ -10,7 +9,7 @@ namespace MmmTool.WorkItems.Main;
 /// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える (入力欄の位置・フォーカスを保つため)。
 /// 案件・グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示 (入力はできない)。
 /// </remarks>
-public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, ITreeGridRow
+public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {
     /// <summary>行の識別 (種類 + 番号)</summary>
     public WorkKey Key { get; } = key;

@@ -27,6 +27,20 @@
 - 設定ファイルを読めなかったとき (`IsReadOnly`)は、スイッチを無効にする。保存できなかったとき (読み込めない・`DataFileException`)は、一覧の見出しの下の InfoBar で知らせ、スイッチを元に戻す
 - 登録・ページの破棄などの仕組みは、下の「機能の登録とページの破棄」
 
+## 初回の機能の選択
+初めて起動したときに、使う機能をオン・オフで選ぶ画面。初回の保存先の選択 ([database.md](database.md))のあとに、続けて出す。
+
+- 出す条件は、設定ストアの `Setup.FeaturesChosen`(bool)が `false` のとき。初回の保存先の選択の決定が `false` を書き込み、この画面の決定が `true` に書き換える。キーが無いとき (この画面を足す前から使っているとき)は出さない。選ばずに閉じても `false` のまま残るので、次の起動は、保存先の選択を飛ばして、この画面から始まる
+  - 「機能の保存が 1 つも無いとき」では判定しない (機能の設定を触らずに使ってきた人にも出てしまうため)
+- 出す順は、保存先の選択 → 機能の選択 → 各機能の準備。選んだ内容を最初から効かせる (各機能の準備が、オフの機能を動かさないため)
+- 一覧は、設定ページの「機能」の一覧と同じ条件の機能 (`FeatureInfo.CanDisable` が true で、今の保存先のモードで使えるもの)を、登録の並びで出す。常にオンの機能 (リンク・リマインダー)は出さない。一覧は `FeatureService.Features` から作り、特定の機能を知らない
+- 各行は、機能名・`ToggleSwitch`(オン / オフ)・説明 1 行 (仮。機能の登録 (`AddFeature`)で渡す)。並べ替えはしない (設定ページの「機能」でする)
+- 最初の状態は、機能の登録の既定値 (`defaultEnabled`)。ただし、登録で `selectedOnFirstRun: true` を渡した機能 (今は CLI補助)は、最初からオン。機能の名前をホストに書かずに済む (機能が増えても、登録の 1 行で足りる)。登録の既定値は変えない (前から使っている人の動きが変わらないため)
+- 「決定」(仮)を押すと、一覧の全部の機能の `Feature.<キー>.Enabled` を保存し、`Setup.FeaturesChosen` を `true` にして先へ進む。保存できなかったときは、画面の InfoBar に出して、閉じない
+- 閉じる (×)と、保存先の選択と同じく、アプリを終了する (仮)
+- 初回の起動なので、メイン画面も出る ([tray-and-main.md](tray-and-main.md))
+- 画面はホストの `Features/Settings/FeatureSetup/`(`FeatureSetupWindow` ＋ `FeatureSetupViewModel`)。保存先の選択と同じ、モーダルのウィンドウ
+
 ## 項目
 ### 起動時にメイン画面を開く (`src/App/MmmTool/Features/Settings/General/MainWindowSettingsControl` ＋ `MainWindowSettingsViewModel`)
 - ホスト側の部品で、`AddSettingsSections()` が `AddSettingsSection` で登録する (どの機能にも属さず、オフにならない)。設定の部品のうち最初に登録するので、ページの一番上に並ぶ (Windows の設定アプリも、全般が先頭)。見出しは「全般」。設定の読み書き `MainWindowSettingsService` は、メインウィンドウと同じ `Shell/` にある

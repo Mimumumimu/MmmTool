@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Schedule;
@@ -11,7 +10,7 @@ namespace MmmTool.WorkItems.Schedule;
 /// 棒の描画に関わる値が変わったときだけ、<see cref="VisualVersion"/> を進めて、セルに描き直させる。
 /// 案件・グループの日付・進捗度・実績は、下の作業から計算した値 (<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/>)。見るだけで、入力はできない。
 /// </remarks>
-public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGridRow
+public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {
     /// <summary>行の識別 (種類 + 番号)</summary>
     public WorkKey Key { get; } = key;
@@ -113,13 +112,16 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGr
 
         var summary = node.Summary;
         ProgressText = summary.Progress is { } percent ? $"{percent}%" : "";
-        OverdueDays = IsWork ? summary.OverdueDays(today) : 0;
 
+        // 棒は、すべての値を書き換えたあとに、1 回だけ描き直させる (途中の値で描き直さないため。期限切れの枠の付け外しも、ここで見る)
+        var overdueDays = IsWork ? summary.OverdueDays(today) : 0;
         var changed = PlanStart != summary.StartDate
             || PlanEnd != summary.DueDate
             || !ReferenceEquals(Axis, axis)
             || Today != today
+            || OverdueDays != overdueDays
             || !SameRuns(Runs, runs);
+        OverdueDays = overdueDays;
         PlanStart = summary.StartDate;
         PlanEnd = summary.DueDate;
         Runs = runs;
@@ -130,10 +132,6 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, ITreeGr
             VisualVersion++;
         }
     }
-
-    /// <summary>期限切れの判定が変わったときも、棒を描き直す (期限切れの枠を付け外しするため)</summary>
-    /// <param name="value">新しい日数</param>
-    partial void OnOverdueDaysChanged(int value) => VisualVersion++;
 
     /// <summary>実績の棒が、同じ内容か</summary>
     /// <param name="a">一方</param>

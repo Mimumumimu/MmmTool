@@ -32,6 +32,9 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <summary>実績の棒の高さ</summary>
     private const double ActualBarHeight = 18;
 
+    /// <summary>実績の棒の左右の内側への寄せ幅の上限 (予定の棒の端の余白 1 と、期限切れの枠 2 を避け、枠に被らせない)</summary>
+    private const double ActualBarInset = 4;
+
     /// <summary>行 (<see cref="Row"/>)の依存関係プロパティ</summary>
     public static readonly DependencyProperty RowProperty = DependencyProperty.Register(
         nameof(Row),
@@ -196,7 +199,9 @@ public sealed class ScheduleTimelineCell : Canvas
     {
         foreach (var run in row.Runs)
         {
-            var bar = Bar(axis.X(run.Start), ActualBarTop, run.Hours.Count * axis.DayWidth, ActualBarHeight, 4, palette.Actual);
+            // 1 日の幅が狭い単位 (月など)で、棒の幅が負にならないよう、寄せる幅は 1 日の幅の 4 分の 1 までにする
+            var inset = Math.Min(ActualBarInset, axis.DayWidth / 4);
+            var bar = Bar(axis.X(run.Start) + inset, ActualBarTop, (run.Hours.Count * axis.DayWidth) - (2 * inset), ActualBarHeight, 4, palette.Actual);
             bar.BorderBrush = palette.ActualEdge;
             bar.BorderThickness = new Thickness(1);
             if (axis.ShowsHours)
@@ -205,26 +210,28 @@ public sealed class ScheduleTimelineCell : Canvas
                 for (var i = 0; i < run.Hours.Count; i++)
                 {
                     days.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    var text = run.Hours[i].ToString("0.##", CultureInfo.InvariantCulture);
-                    var cell = new Border
-                    {
-                        BorderBrush = palette.ActualSeparator,
-                        BorderThickness = new Thickness(i > 0 ? 1 : 0, 0, 0, 0),
-                        Child = new TextBlock
-                        {
-                            Text = text,
-                            FontSize = text.Length > 4 ? 11 : 13,
-                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                            Foreground = palette.ActualText,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center,
 
-                            // 文字の行の余白で、数字が札の中心より約 2px 下に寄るので、下に余白を足して上げる
-                            Margin = new Thickness(0, 0, 0, 4),
-                        },
+                    // 実績の無い日は、数字を出さない (棒は、空いた日も含めて 1 本につなぐ)
+                    if (run.Hours[i] <= 0)
+                    {
+                        continue;
+                    }
+
+                    var text = run.Hours[i].ToString("0.##", CultureInfo.InvariantCulture);
+                    var label = new TextBlock
+                    {
+                        Text = text,
+                        FontSize = text.Length > 4 ? 11 : 13,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Foreground = palette.ActualText,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+
+                        // 文字の行の余白で、数字が棒の中心より約 2px 下に寄るので、下に余白を足して上げる
+                        Margin = new Thickness(0, 0, 0, 4),
                     };
-                    Grid.SetColumn(cell, i);
-                    days.Children.Add(cell);
+                    Grid.SetColumn(label, i);
+                    days.Children.Add(label);
                 }
                 bar.Child = days;
             }

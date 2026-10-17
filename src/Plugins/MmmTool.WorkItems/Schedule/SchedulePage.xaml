@@ -119,7 +119,7 @@
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error" />
 
-        <!-- 表示の操作。左は、範囲の動かし方 (今日・単位)、右は、出す行の絞り込み (広い順: 表示する案件 → 自分の担当だけ) -->
+        <!-- 表示の操作。左は、範囲の動かし方 (今日・単位)、右は、出す行の絞り込み (広い順: 表示する案件 → 自分の担当だけ → 完了) -->
         <Grid Grid.Row="2" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -148,6 +148,26 @@
                     OffContent="自分の担当だけ"
                     OnContent="自分の担当だけ"
                     Visibility="{x:Bind ViewModel.HasAssignees}" />
+                <!-- 完了した作業の見え方。選択肢の並びは CompletedDisplay の値と同じ。保存しない。幅は、作業管理と同じ固定の値 -->
+                <!-- ComboBox の既定の VerticalAlignment は Top で、隣のボタンと高さがずれるため、中央にそろえる -->
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="完了" />
+                    <ComboBox
+                        Width="152"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="完了"
+                        SelectedIndex="{x:Bind ViewModel.CompletedIndex, Mode=TwoWay}">
+                        <ComboBoxItem Content="表示" />
+                        <ComboBoxItem Content="グループのみ表示" />
+                        <ComboBoxItem Content="非表示" />
+                    </ComboBox>
+                </StackPanel>
             </StackPanel>
         </Grid>
 
