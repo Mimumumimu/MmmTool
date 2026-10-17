@@ -23,7 +23,6 @@ public sealed class SchedulePalette
         groupPlan: Color.FromArgb(0xFF, 0x5A, 0x82, 0xD2),
         actual: Color.FromArgb(0xFF, 0xBC, 0xE8, 0xCE),
         actualEdge: Color.FromArgb(0xFF, 0x16, 0x7D, 0x46),
-        actualSeparator: Color.FromArgb(0xFF, 0x78, 0xB9, 0x96),
         actualText: Color.FromArgb(0xFF, 0x04, 0x3A, 0x1E),
         critical: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
         saturday: Color.FromArgb(0xFF, 0x1E, 0x5A, 0xC8),
@@ -40,7 +39,6 @@ public sealed class SchedulePalette
         groupPlan: Color.FromArgb(0xFF, 0x4E, 0x76, 0xC8),
         actual: Color.FromArgb(0xFF, 0x1F, 0x5A, 0x40),
         actualEdge: Color.FromArgb(0xFF, 0x2A, 0x70, 0x50),
-        actualSeparator: Color.FromArgb(0xFF, 0x2A, 0x70, 0x50),
         actualText: Color.FromArgb(0xFF, 0xD6, 0xF2, 0xE2),
         critical: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
         saturday: Color.FromArgb(0xFF, 0x78, 0xAA, 0xFF),
@@ -52,7 +50,7 @@ public sealed class SchedulePalette
     public static SchedulePalette For(ElementTheme theme) => theme == ElementTheme.Dark ? DarkPalette.Value : LightPalette.Value;
 
     /// <summary>色の組を作る</summary>
-    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualSeparator, Color actualText, Color critical, Color saturday, Color sunday)
+    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualText, Color critical, Color saturday, Color sunday)
     {
         SaturdayFill = new SolidColorBrush(saturdayFill);
         SundayFill = new SolidColorBrush(sundayFill);
@@ -63,7 +61,6 @@ public sealed class SchedulePalette
         GroupPlan = new SolidColorBrush(groupPlan);
         Actual = new SolidColorBrush(actual);
         ActualEdge = new SolidColorBrush(actualEdge);
-        ActualSeparator = new SolidColorBrush(actualSeparator);
         ActualText = new SolidColorBrush(actualText);
         Critical = new SolidColorBrush(critical);
         Saturday = new SolidColorBrush(saturday);
@@ -96,9 +93,6 @@ public sealed class SchedulePalette
 
     /// <summary>実績の棒の枠</summary>
     public SolidColorBrush ActualEdge { get; }
-
-    /// <summary>実績の棒の中の、日の境目の線</summary>
-    public SolidColorBrush ActualSeparator { get; }
 
     /// <summary>実績の棒の中の、時間の数字</summary>
     public SolidColorBrush ActualText { get; }
