@@ -17,6 +17,13 @@ public interface IAppUserRepository
     /// <remarks>名前を画面に出すためなど、必要な人だけを引く (全ユーザーを読まない)。</remarks>
     Task<IReadOnlyList<AppUser>> GetUsersByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default);
 
+    /// <summary>ログイン名から、ユーザーを取得する</summary>
+    /// <param name="loginName">ログイン名 (大文字と小文字は区別しない)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>削除されていないユーザー。無ければ null。パスワードのハッシュは読まない</returns>
+    /// <remarks>パスワードの照合をしない用途 (Web 版の管理操作など)で使う。パスワードのハッシュの列に権限の無いログインでも呼べる。</remarks>
+    Task<AppUser?> FindByLoginNameWithoutPasswordAsync(string loginName, CancellationToken cancellationToken = default);
+
     /// <summary>ログイン名から、ログインの照合に使う情報を取得する</summary>
     /// <param name="loginName">ログイン名 (大文字と小文字は区別しない)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

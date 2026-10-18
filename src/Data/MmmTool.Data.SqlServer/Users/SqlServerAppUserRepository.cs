@@ -75,6 +75,19 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
 
     /// <inheritdoc />
     /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    public Task<AppUser?> FindByLoginNameWithoutPasswordAsync(string loginName, CancellationToken cancellationToken = default)
+        => database.RunAsync<AppUser?>(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT {Columns} FROM dbo.AppUser WHERE LoginName = @LoginName AND IsDeleted = 0";
+            command.Parameters.Add(new SqlParameter("@LoginName", SqlDbType.NVarChar, AppUser.LoginNameMaxLength) { Value = loginName });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadRow(reader).ToAppUser() : null;
+        }, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
     public Task<AppUserCredential?> FindByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
         => database.RunAsync<AppUserCredential?>(async connection =>
         {

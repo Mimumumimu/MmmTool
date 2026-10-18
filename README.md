@@ -254,7 +254,7 @@ Visual Studio では、ソリューション エクスプローラーで `MmmToo
 dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
-取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
+取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb の3つを発行します。MmmTool だけ・MmmBatch だけ・MmmToolWeb だけを発行するときは、`update_and_publish_tool.bat`・`update_and_publish_batch.bat`・`update_and_publish_web.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
 
 発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/`(バージョンは `Directory.Build.props` の `Version`)ができます。このフォルダーをそのままコピーして配布します (インストーラーはありません)。
 

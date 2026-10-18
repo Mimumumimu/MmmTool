@@ -1,0 +1,95 @@
+@page "/"
+@using MmmToolWeb.Client.Auth
+@inject AuthClient Auth
+@inject PasskeyBrowser Browser
+
+<main class="page">
+    <h1>ログインの確認</h1>
+
+    <dl class="facts">
+        <dt>ホーム画面のアプリとして開いている</dt>
+        <dd>@(_standalone ? "はい" : "いいえ")</dd>
+        <dt>パスキーが使えるブラウザ</dt>
+        <dd>@(_supported ? "はい" : "いいえ")</dd>
+    </dl>
+
+    @if (_loading)
+    {
+        <p>確認しています。</p>
+    }
+    else if (_me is { } me)
+    {
+        <dl class="facts">
+            <dt>ログイン中</dt>
+            <dd>@me.Name</dd>
+            <dt>ログインした日時</dt>
+            <dd>@me.SignedInAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
+        </dl>
+        <button type="button" @onclick="LogoutAsync" disabled="@_busy">ログアウト</button>
+    }
+    else
+    {
+        <button type="button" class="primary" @onclick="LoginAsync" disabled="@_busy">パスキーでログイン</button>
+
+        <section class="enroll">
+            <h2>この端末のパスキーを登録</h2>
+            <label>
+                登録用コード
+                <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" @bind:event="oninput" />
+            </label>
+            <button type="button" @onclick="EnrollAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_code))">登録</button>
+        </section>
+    }
+
+    @if (_message is not null)
+    {
+        <p class="message" role="alert">@_message</p>
+    }
+</main>
+
+@code {
+    private bool _loading = true;
+    private bool _busy;
+    private bool _standalone;
+    private bool _supported;
+    private string _code = string.Empty;
+    private string? _message;
+    private MeResponse? _me;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _standalone = await Browser.IsStandaloneAsync();
+        _supported = await Browser.IsSupportedAsync();
+        _me = await Auth.GetMeAsync();
+        _loading = false;
+    }
+
+    private Task LoginAsync() => RunAsync(Auth.LoginAsync);
+
+    private Task EnrollAsync() => RunAsync(() => Auth.EnrollAsync(_code.Trim()));
+
+    private async Task LogoutAsync()
+    {
+        _busy = true;
+        await Auth.LogoutAsync();
+        _me = null;
+        _message = null;
+        _busy = false;
+    }
+
+    private async Task RunAsync(Func<Task<AuthResult>> action)
+    {
+        _busy = true;
+        _message = null;
+        var result = await action();
+        if (result.Succeeded)
+        {
+            _me = await Auth.GetMeAsync();
+        }
+        else
+        {
+            _message = result.Message;
+        }
+        _busy = false;
+    }
+}
