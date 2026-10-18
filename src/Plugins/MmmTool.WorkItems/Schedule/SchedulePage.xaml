@@ -104,10 +104,22 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock
-            VerticalAlignment="Center"
-            Style="{StaticResource TitleTextBlockStyle}"
-            Text="スケジュール" />
+        <!-- 見出しと、ページ全体の操作。更新ボタンは、どのページでも右端に置く (DB モードだけ) -->
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                VerticalAlignment="Center"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Text="スケジュール" />
+            <sdk:RefreshButton
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Command="{x:Bind ViewModel.RefreshCommand}"
+                Visibility="{x:Bind ViewModel.CanRefresh}" />
+        </Grid>
 
         <!-- エラー (操作のたびに、前の分は消える) -->
         <InfoBar

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fido2.AspNet" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 発行のプロファイル名 (PublishProfile)は Server のものなので、Client には渡さない (渡すと、Client に同名のプロファイルが無いという警告が出る) -->
+    <ProjectReference Include="..\Client\MmmToolWeb.Client.csproj" GlobalPropertiesToRemove="PublishProfile" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Features\MmmToolWeb.Features.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Messages\MmmToolWeb.Messages.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notes\MmmToolWeb.Notes.csproj" />
+    <ProjectReference Include="..\..\..\Auth\MmmToolWeb.Auth.Core\MmmToolWeb.Auth.Core.csproj" />
+    <ProjectReference Include="..\..\..\Data\MmmToolWeb.Data.SqlServer\MmmToolWeb.Data.SqlServer.csproj" />
+  </ItemGroup>
+
+</Project>

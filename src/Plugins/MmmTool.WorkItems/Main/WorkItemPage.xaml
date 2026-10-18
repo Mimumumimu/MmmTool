@@ -453,6 +453,8 @@
                 Spacing="8">
                 <Button Command="{x:Bind ViewModel.OpenReportCommand}" Content="作業報告" />
                 <Button Command="{x:Bind ViewModel.OpenProjectManagerCommand}" Content="案件の管理" />
+                <!-- 更新ボタンは、どのページでも右端に置く (DB モードだけ) -->
+                <sdk:RefreshButton Command="{x:Bind ViewModel.RefreshCommand}" Visibility="{x:Bind ViewModel.CanRefresh}" />
             </StackPanel>
         </Grid>
 

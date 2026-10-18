@@ -24,8 +24,8 @@ public interface IMessageSendRequestRepository
     /// <param name="title">タイトル。空文字ならタイトルなし</param>
     /// <param name="body">本文</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>足した依頼の完了を表すタスク</returns>
+    /// <returns>足せたとき true。選んだ送信先が削除されていて足さなかったとき false</returns>
     /// <exception cref="ArgumentException">タイトルが長すぎる・本文が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
-    Task AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default);
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<bool> AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default);
 }

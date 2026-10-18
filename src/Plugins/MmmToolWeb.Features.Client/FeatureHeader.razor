@@ -1,0 +1,74 @@
+@implements IDisposable
+
+<header class="bar">
+    <a class="home" href="@HomePath">‹ ホーム</a>
+    <h1>@Title</h1>
+    <div class="actions">@ChildContent</div>
+    @if (_showProgress)
+    {
+        <div class="progress" role="progressbar" aria-label="読み込み中"></div>
+    }
+</header>
+
+@code {
+    /// <summary>ホーム画面の道。</summary>
+    public const string HomePath = "home";
+
+    /// <summary>進行バーを最低限出し続ける時間。読み込みが速く終わっても、押したことが伝わるようにする。</summary>
+    private static readonly TimeSpan MinimumProgressShown = TimeSpan.FromMilliseconds(400);
+
+    private bool _showProgress;
+    private DateTime _shownAtUtc;
+    private int _hideVersion;
+    private bool _disposed;
+
+    /// <summary>機能の名前。バーの中央に出す。</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>読み込み中か。true の間、バーの下に進行バーを出す。</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>バーの右に並べる操作。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // 隠す予約が残っていれば取り消す (読み込みが続いた、または予約を作り直すため)
+        var version = ++_hideVersion;
+        if (Busy)
+        {
+            if (!_showProgress)
+            {
+                _showProgress = true;
+                _shownAtUtc = DateTime.UtcNow;
+            }
+        }
+        else if (_showProgress)
+        {
+            _ = HideAfterMinimumAsync(version);
+        }
+    }
+
+    /// <summary>最低限の時間が過ぎてから、進行バーを隠す。</summary>
+    /// <param name="version">予約の番号。途中で番号が変わっていたら、隠さない。</param>
+    /// <returns>隠す処理の完了を表すタスク。</returns>
+    private async Task HideAfterMinimumAsync(int version)
+    {
+        var remaining = MinimumProgressShown - (DateTime.UtcNow - _shownAtUtc);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining);
+        }
+        if (_disposed || version != _hideVersion)
+        {
+            return;
+        }
+        _showProgress = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => _disposed = true;
+}

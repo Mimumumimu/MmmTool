@@ -16,7 +16,7 @@ public sealed class UnavailableMessageSendRequestRepository : IMessageSendReques
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">メッセージの送信は、DB モードだけで使える。</exception>
-    public Task AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default)
+    public Task<bool> AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <summary>使えないときの例外を作る</summary>

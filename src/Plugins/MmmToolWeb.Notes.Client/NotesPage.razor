@@ -1,0 +1,255 @@
+@attribute [Route(Route)]
+@implements IAsyncDisposable
+@inject NotesClient Notes
+@inject BrowserClient Browser
+@inject NavigationManager Navigation
+
+<HeadContent>
+    <link rel="stylesheet" href="@NotesClient.StylesPath" />
+</HeadContent>
+
+<div class="screen">
+    <FeatureHeader Title="ノート" Busy="_loading">
+        <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
+    </FeatureHeader>
+
+    <section class="controls" aria-label="表示の条件">
+        <div class="day">
+            <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)">‹</button>
+            <input type="date" aria-label="表示する日" value="@_day.ToString("yyyy-MM-dd")" @onchange="OnDayChangedAsync" />
+            <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)">›</button>
+            <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
+        </div>
+        <div class="options">
+            <label class="option">
+                <input type="checkbox" role="switch" checked="@_titleOnly" @onchange="e => _titleOnly = (bool)e.Value!" />
+                <span>タイトルだけ</span>
+            </label>
+            <label class="option">
+                <input type="checkbox" checked="@_includeDeleted" @onchange="OnIncludeDeletedChangedAsync" />
+                <span>削除したものも表示</span>
+            </label>
+        </div>
+    </section>
+
+    @if (_error is not null)
+    {
+        <p class="message" role="alert">@_error</p>
+    }
+
+    <main class="cards">
+        @if (!_loading && _error is null && _notes.Count == 0)
+        {
+            <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>この日のノートはありません</p>
+        }
+        @foreach (var note in _notes)
+        {
+            <article class="@CardClass(note)" @key="note.Id">
+                @if (note.Priority >= 4)
+                {
+                    <span class="visually-hidden">重要度 @(note.Priority == 5 ? "最高" : "高")</span>
+                }
+                @if (string.IsNullOrWhiteSpace(note.Body))
+                {
+                    <div class="head">
+                        <NoteHeading Note="note" />
+                    </div>
+                }
+                else
+                {
+                    <details open="@(!_titleOnly)">
+                        <summary class="head">
+                            <NoteHeading Note="note" />
+                        </summary>
+                        <div class="body">@((MarkupString)note.BodyHtml)</div>
+                    </details>
+                }
+                <div class="actions">
+                    @if (note.IsDeleted)
+                    {
+                        <button type="button" class="text" @onclick="() => RestoreAsync(note)">復元</button>
+                    }
+                    else
+                    {
+                        <button type="button" class="text" @onclick="() => StartEdit(note)">編集</button>
+                        <button type="button" class="text danger" @onclick="() => _deleting = note">削除</button>
+                    }
+                </div>
+            </article>
+        }
+    </main>
+
+    <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+</div>
+
+@if (_editorOpen)
+{
+    <NoteEditSheet Note="_editing" DefaultStart="_day" OnSaved="OnSavedAsync" OnCancel="CloseEditor" OnFailed="OnEditFailedAsync" />
+}
+
+@if (_deleting is { } target)
+{
+    <div class="dialog-back">
+        <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+            <h2 id="delete-title">このノートを削除しますか?</h2>
+            <p class="dialog-target">@target.Title</p>
+            <div class="dialog-actions">
+                <button type="button" @onclick="() => _deleting = null">キャンセル</button>
+                <button type="button" class="danger-fill" @onclick="ConfirmDeleteAsync">削除</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>ノートの画面の道。</summary>
+    public const string Route = "/notes";
+
+    private DateOnly _day;
+    private bool _titleOnly;
+    private bool _includeDeleted;
+    private bool _loading = true;
+    private string? _error;
+    private IReadOnlyList<NoteDto> _notes = [];
+    private bool _editorOpen;
+    private NoteDto? _editing;
+    private NoteDto? _deleting;
+    private int _loadVersion;
+    private bool _watching;
+
+    /// <summary>カードの class。重要度ごとの帯と、削除済みの薄い表示に使う。</summary>
+    private static string CardClass(NoteDto note) => note.IsDeleted ? $"card p{note.Priority} deleted" : $"card p{note.Priority}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _day = await Browser.GetTodayAsync();
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_watching)
+        {
+            _watching = true;
+            Browser.BecameVisible += LoadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+    }
+
+    /// <summary>アプリが裏から戻ったときに、読み直す。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
+
+    private async Task LoadAsync()
+    {
+        var version = ++_loadVersion;
+        _loading = true;
+        // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
+        StateHasChanged();
+        var result = await Notes.LoadAsync(_day, _includeDeleted);
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        _loading = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (result.Succeeded)
+        {
+            _notes = result.Value!.Notes;
+            _error = null;
+        }
+        else
+        {
+            _error = result.Message;
+        }
+        StateHasChanged();
+    }
+
+    private Task MoveDayAsync(int days)
+    {
+        _day = _day.AddDays(days);
+        return LoadAsync();
+    }
+
+    private async Task GoTodayAsync()
+    {
+        _day = await Browser.GetTodayAsync();
+        await LoadAsync();
+    }
+
+    private Task OnDayChangedAsync(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        {
+            _day = day;
+            return LoadAsync();
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnIncludeDeletedChangedAsync(ChangeEventArgs e)
+    {
+        _includeDeleted = (bool)e.Value!;
+        return LoadAsync();
+    }
+
+    private void StartNew()
+    {
+        _editing = null;
+        _editorOpen = true;
+    }
+
+    private void StartEdit(NoteDto note)
+    {
+        _editing = note;
+        _editorOpen = true;
+    }
+
+    private void CloseEditor() => _editorOpen = false;
+
+    private Task OnSavedAsync()
+    {
+        _editorOpen = false;
+        return LoadAsync();
+    }
+
+    private async Task OnEditFailedAsync(string message)
+    {
+        _editorOpen = false;
+        await LoadAsync();
+        _error = message;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        var target = _deleting!;
+        _deleting = null;
+        await ChangeDeletedAsync(target, isDeleted: true);
+    }
+
+    private Task RestoreAsync(NoteDto note) => ChangeDeletedAsync(note, isDeleted: false);
+
+    private async Task ChangeDeletedAsync(NoteDto note, bool isDeleted)
+    {
+        var result = await Notes.SetDeletedAsync(note.Id, isDeleted);
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        await LoadAsync();
+        if (!result.Succeeded)
+        {
+            _error = result.Message;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Browser.BecameVisible -= LoadOnReturnAsync;
+        return ValueTask.CompletedTask;
+    }
+}

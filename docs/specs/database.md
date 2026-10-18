@@ -1,37 +1,107 @@
 # データベース
 
-リマインダーの保存先を、JSON からリレーショナル DB に切り替えられるようにする機能。複数の PC・人で、同じリマインダーを共有する。表の設計はどの DB でも共通で、DB ごとの違い (型・自動採番・接続など)は「SQL Server の場合」のように DB 別の節に書く。この文書は設計で、実装した部分から、各機能の仕様 ([reminders.md](reminders.md) / [storage.md](storage.md) / [settings.md](settings.md))へ移す。
+リマインダーなどの保存先を、JSON からリレーショナル DB に切り替えられるようにする機能の設計。
+
+## 概要
+
+- リマインダーの保存先を、JSON からリレーショナル DB に切り替えられるようにする機能
+- 複数の PC・人で、同じリマインダーを共有する
+- 表の設計はどの DB でも共通で、DB ごとの違い (型・自動採番・接続など)は「SQL Server の場合」のように DB 別の節に書く
+- この文書は設計で、実装した部分から、各機能の仕様へ移す ([reminders.md](reminders.md) / [storage.md](storage.md) / [settings.md](settings.md))
 
 ## 方針
-- 保存先は、設定で JSON (ローカルモード)か DB (DB モード)かを選ぶ (設定ページで変え、反映は再起動で)。設定値が無い初回だけ、起動時に選ぶ画面を出し、選んだ内容はそのまま最初から効く (各機能の準備より前に出すため。CLI補助の初期設定と同じ形で、起動のたびには聞かない)。設定ページで変えたときは、動いている最中なので、反映に再起動が要る。ローカルモードでは、DB に接続せず、ユーザーの特定・初回登録・宛先の選択も出さない (今までの動きと同じ)。DB を選んだときは、ローカルの JSON を使わない (保存先を 1 つにして、内容のずれを作らない)
-- 実装は `IReminderRepository` の差し替え (作業管理は、機能が保存先を登録せず、ホストが設定で SQLite と SQL Server から選ぶ。下の「SQLite の場合」)。リマインダーの機能は、これまでどおり JSON の Repository を登録し、ホストが設定 (`Database.Mode`)で DB を選んだときだけ、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()` など)で、DB 別の Repository (`SqlServerReminderRepository` など)に置き換える。Repository のインターフェースには、DB のドライバーの型を出さない。DB のコードの置き場所と理由は [../architecture.md](../architecture.md) の「DB のコードの置き場所」
-- SQL はパラメータ化だけで書く。接続は、操作のたびに開いて閉じる (接続プールが使い回す)。到達確認の Ping はしない (接続のタイムアウトで判断する)
-- 旧アプリ (MSchedule)のデータは引き継がない。表は旧アプリの DB とは別に新しく作る
-- 表の作成用のスクリプトは `src/Data/MmmTool.Data.<DB>/Sql/` に番号つきで置き (`001_*.sql`)、何度流しても壊れない形にする。アプリは接続時に表の有無を調べ、無ければ InfoBar で知らせる
+
+- 保存先は、設定で JSON (ローカルモード)か DB (DB モード)かを選ぶ (設定ページで変え、反映は再起動で)
+  - 設定値が無い初回だけ、起動時に選ぶ画面を出し、選んだ内容はそのまま最初から効く
+    - 各機能の準備より前に出すため
+    - CLI補助の初期設定と同じ形で、起動のたびには聞かない
+  - 設定ページで変えたときは、動いている最中なので、反映に再起動が要る
+  - ローカルモードでは、DB に接続せず、ユーザーの特定・初回登録・宛先の選択も出さない (今までの動きと同じ)
+  - DB を選んだときは、ローカルの JSON を使わない (保存先を 1 つにして、内容のずれを作らない)
+- 実装は `IReminderRepository` の差し替え
+  - 作業管理は、機能が保存先を登録せず、ホストが設定で SQLite と SQL Server から選ぶ (下の「SQLite の場合」)
+  - リマインダーの機能は、これまでどおり JSON の Repository を登録し、ホストが設定 (`Database.Mode`)で DB を選んだときだけ、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()` など)で、DB 別の Repository (`SqlServerReminderRepository` など)に置き換える
+  - Repository のインターフェースには、DB のドライバーの型を出さない
+  - DB のコードの置き場所と理由は [../architecture.md](../architecture.md) の「DB のコードの置き場所」
+- SQL はパラメータ化だけで書く
+  - 接続は、操作のたびに開いて閉じる (接続プールが使い回す)
+  - 到達確認の Ping はしない (接続のタイムアウトで判断する)
+- 旧アプリ (MSchedule)のデータは引き継がない。表は旧アプリの DB とは別に新しく作る。
+- 表の作成用のスクリプトは `src/Data/MmmTool.Data.<DB>/Sql/` に `001_*.sql` のように番号つきで置き、何度流しても壊れない形にする
+  - アプリは接続時に表の有無を調べ、無ければ InfoBar で知らせる
 
 ## 表の決まり
-- 名前は単数形・PascalCase。スキーマは標準の `dbo` (SQL Server だけの話。この文書の表名は、スキーマを付けずに書き、SQL では `dbo.` を付ける。SQLite にスキーマは無い)。接頭辞 (`D_` `M_`)や列の接頭辞は付けない。主キーは、全部の表で 1 列目の `Id`(自動採番の整数 1 つ。表が違っても同じ名前。業務上の番号は別に持たない。採番は 1 から)。ほかの表から指す列は `<表名>Id`(例: `ReminderId`・`UserId`)
-- **NULL を使わない**(全列 NOT NULL)。「ない」は次の値で表す
-  - 日付 (終わりがない・日付指定でない)は `9999-12-31`(日付として自然な果ての値。`ValidTo >= 今日` のような比較がそのまま使える。ただし、作業の開始日だけは最小値の `0001-01-01`)
+
+- 名前や主キーの付け方
+  - 名前は単数形・PascalCase
+  - スキーマは標準の `dbo` (SQL Server だけの話)
+    - この文書の表名は、スキーマを付けずに書き、SQL では `dbo.` を付ける
+    - SQLite にスキーマは無い
+  - 接頭辞 (`D_` `M_`)や列の接頭辞は付けない
+  - 主キーは、全部の表で 1 列目の `Id`(自動採番の整数 1 つ)
+    - 表が違っても同じ名前
+    - 業務上の番号は別に持たない
+    - 採番は 1 から
+  - ほかの表から指す列は `<表名>Id`(例: `ReminderId`・`UserId`)
+- **NULL を使わない**。全列を NOT NULL にして、「ない」は次の値で表す。
+  - 日付 (終わりがない・日付指定でない)は `9999-12-31`
+    - 日付として自然な果ての値で、`ValidTo >= 今日` のような比較がそのまま使える
+    - ただし、作業の開始日だけは最小値の `0001-01-01`
   - 文字列の空は空文字
-  - ユーザーの番号の 0 は、特定のユーザーではない (全員宛て・本人の登録の作成者)を表す約束の値。採番は 1 から振るので、本物のユーザーと衝突しない。固定の行は置かない
-- **共通ヘッダー**: 全部の表が、1 列目の `Id` に続けて、`IsDeleted`・`CreatedAt`・`CreatedByUserId`・`UpdatedAt`・`UpdatedByUserId` の 5 列を、この順で持つ (作成の組・更新の組にまとめる)。そのあとに中身の列を置く。共通の列は、最初にそろえて作る。中身の列を足しても、ヘッダーは前に固まったまま崩れない
-  - 作成者・更新者は `AppUser.Id`(アプリが書く)。ユーザーの登録は本人が行い (別の人が登録する口は作らない)、そのとき自分の番号はまだ無いので、`AppUser` の作成者は 0 にする
-  - 意味の薄い列も、共通化を優先して持つ。`ReminderState` の `IsDeleted` は常に 0 (「なし」は行を消す)、`ReminderState` の作成者・更新者は `UserId` と同じ人 (本人の操作のため)
-- 日時は時差つき・ミリ秒まで (日本時間 +09:00 のまま保存する。SSMS などで日本時間のまま読める)。同じミリ秒の値が重なっても、記録用なので許容する。作成日時は既定値が現在の日時。更新日時は、更新の SQL の中で DB サーバーの時計を使って書く (PC ごとの時計のずれを入れない)。作成者・更新者はアプリが書く
-- **列を足すときは、列の並びを設計する**。`ALTER TABLE ADD` で末尾に足すだけにしない。意味のまとまり (人を表す列を続ける・「誰の」を先頭に置く、など)で、置く位置を決めて、各表の定義に書く。作成スクリプトは、設計した並びで作る。すでにある DB は、`ALTER` では末尾にしか足せないので、足したあと、並びを SSMS で直す (ユーザーが行う。表を作り直す処理を、勝手に書かない。報告の書き方は `db-schema-change` スキル)
-- 論理削除は `IsDeleted`。DB では、完全削除 (行を消す)は行わない (ユーザーの決定。行は消さず、論理削除だけにする)
-- 行の版 (更新のたびに DB が自動で変える列。SQL Server の `rowversion`)は持たない。他の PC の変更は、全件の読み直しで知る (読み直しの方法は Repository の仕様)。同時編集の上書きは検出しない (少人数のため。ユーザーの決定)。防ぎたくなったときは、表を変えずに、更新の SQL の条件に「`Id` が同じで、更新日時も読んだときと同じ」を足せばよい (更新日時がミリ秒・DB の時計なので、同じミリ秒の更新が重なる確率は小さい)
-- 連動削除 (`ON DELETE CASCADE`)は使わない (ユーザーの決定)。DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない
-- 外部キーは使わない。ほかの表の番号を持つ列 (`ReminderId`・`UserId`・作成者・更新者・宛先)に存在しない番号が入らないようにするのは、アプリの責任 (小規模のため。ユーザーの決定)
-- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ (リマインダー関係の表。検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)。**作業管理の表・`Note`・`MessageSendRequest` は例外**で、読み方 (作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得。`Note` は、表示する日に有効な行を、日付の範囲で探す。`MessageSendRequest` は、状態での絞り込み)ごとのインデックスを持つ。差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)。件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する (測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった)
+  - ユーザーの番号の 0 は、特定のユーザーではない (全員宛て・本人の登録の作成者)を表す約束の値
+    - 採番は 1 から振るので、本物のユーザーと衝突しない
+    - 固定の行は置かない
+- **共通ヘッダー**: 全部の表が、1 列目の `Id` に続けて、`IsDeleted`・`CreatedAt`・`CreatedByUserId`・`UpdatedAt`・`UpdatedByUserId` の 5 列を、この順で持つ (作成の組・更新の組にまとめる)
+  - そのあとに中身の列を置く
+  - 共通の列は、最初にそろえて作る
+  - 中身の列を足しても、ヘッダーは前に固まったまま崩れない
+  - 作成者・更新者は `AppUser.Id`(アプリが書く)
+  - ユーザーの登録は本人が行う (別の人が登録する口は作らない)
+    - 登録のとき自分の番号はまだ無いので、`AppUser` の作成者は 0 にする
+  - 意味の薄い列も、共通化を優先して持つ
+    - `ReminderState` の `IsDeleted` は常に 0 (「なし」は行を消す)
+    - `ReminderState` の作成者・更新者は `UserId` と同じ人 (本人の操作のため)
+- 日時は時差つき・ミリ秒まで
+  - 日本時間 +09:00 のまま保存する (SSMS などで日本時間のまま読める)
+  - 同じミリ秒の値が重なっても、記録用なので許容する
+  - 作成日時は既定値が現在の日時
+  - 更新日時は、更新の SQL の中で DB サーバーの時計を使って書く (PC ごとの時計のずれを入れない)
+  - 作成者・更新者はアプリが書く
+- **列を足すときは、列の並びを設計する**。`ALTER TABLE ADD` で末尾に足すだけにしない。
+  - 意味のまとまり (人を表す列を続ける・「誰の」を先頭に置く、など)で、置く位置を決めて、各表の定義に書く
+  - 作成スクリプトは、設計した並びで作る
+  - すでにある DB は、`ALTER` では末尾にしか足せないので、足したあと、並びを SSMS で直す
+    - 直すのはユーザーが行う。表を作り直す処理を、勝手に書かない。
+    - 報告の書き方は `db-schema-change` スキル
+- 論理削除は `IsDeleted`
+  - DB では、完全削除 (行を消す)は行わない (ユーザーの決定)
+  - 行は消さず、論理削除だけにする
+- 行の版 (更新のたびに DB が自動で変える列で、SQL Server の `rowversion`)は持たない
+  - 他の PC の変更は、全件の読み直しで知る (読み直しの方法は Repository の仕様)
+  - 同時編集の上書きは検出しない (ユーザーの決定で、少人数のため)
+  - 防ぎたくなったときは、表を変えずに、更新の SQL の条件に「`Id` が同じで、更新日時も読んだときと同じ」を足せばよい
+    - 更新日時がミリ秒・DB の時計なので、同じミリ秒の更新が重なる確率は小さい
+- 連動削除 (`ON DELETE CASCADE`)は使わない (ユーザーの決定)
+  - DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない
+- 外部キーは使わない (ユーザーの決定で、小規模のため)
+  - ほかの表の番号を持つ列 (`ReminderId`・`UserId`・作成者・更新者・宛先)に存在しない番号が入らないようにするのは、アプリの責任
+- インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ
+  - これはリマインダー関係の表の話 (検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)
+  - **作業管理の表・`Note`・`MessageSendRequest` は例外**で、読み方ごとのインデックスを持つ
+    - 作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得
+    - `Note` は、表示する日に有効な行を、日付の範囲で探す
+    - `MessageSendRequest` は、状態での絞り込み
+  - 差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)
+  - 件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する
+    - 測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった
 
 ## 表の一覧
+
 | 表 | 内容 |
 | --- | --- |
 | `AppUser` | ユーザー。1 行が 1 人 (ログイン名とパスワードで特定する) |
 | `Reminder` | リマインダー。作成者と宛先を持つ |
-| `ReminderState` | リマインダーの対応状態 (完了・スヌーズ)。人ごと・日ごと |
+| `ReminderState` | リマインダーの対応状態で、完了・スヌーズ。人ごと・日ごと |
 | `NotificationChannel` | 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先 |
 | `ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
 | `ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
@@ -42,114 +112,147 @@
 | `WorkRecord` | 作業管理の日ごとの記録。作業ごと・日ごとに 1 件 |
 | `WorkDayNote` | 作業管理の日報メモ。作業に結びつかない、その人の 1 日分の記入。1 人 1 日 1 件 |
 | `Note` | ノート。期間 (開始日・終了日)・タイトル・本文・重要度・公開範囲を持つ ([notes.md](notes.md)) |
-| `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組 (作業管理の状態・進捗度・優先度から使う。[work-items.md](work-items.md)の「コードマスタ」)。全員で共通 |
+| `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組で、全員で共通。作業管理の状態・進捗度・優先度から使う ([work-items.md](work-items.md)の「コードマスタ」) |
 
-`NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageSendRequest` の 4 つは、外部への送信 ([mmmbatch.md](mmmbatch.md))のための表で、DB モードだけで使う (ローカルモードの JSON には、送信の項目を持たない)。
-
-作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ。列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)。読み書きは [work-items.md](work-items.md) の「データ」。型の対応は、下の「型の対応 (作業管理の表)」。SQL Server では他の表と同じ `dbo` スキーマに作る。
+- `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageSendRequest` の 4 つは、外部への送信のための表で、DB モードだけで使う ([mmmbatch.md](mmmbatch.md))
+  - ローカルモードの JSON には、送信の項目を持たない
+- 作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ
+  - 列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)
+  - 読み書きは [work-items.md](work-items.md) の「データ」
+  - 型の対応は、下の「型の対応 (作業管理の表)」
+  - SQL Server では他の表と同じ `dbo` スキーマに作る
 
 ## 列
-「型」は DB に依存しない型、「SQL Server」は SQL Server での型。各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ。
+
+- 「型」は DB に依存しない型、「SQL Server」は SQL Server での型
+- 各表は、上から主キー・共通ヘッダー・中身の列の順に並ぶ
 
 ### `AppUser`(ユーザー)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ほかの表からは `UserId` で指す |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。本人の登録のときは 0。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、本人の登録のときは 0。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `DisplayName` | 文字列 (50) | `nvarchar(50)` | | 表示名 |
 | `LoginName` | 文字列 (50) | `nvarchar(50)` | | ログイン名。大文字と小文字は区別しない。削除されていない行の間だけ一意 (`UX_AppUser_LoginName`。条件つきの一意インデックス) |
-| `PasswordHash` | 文字列 (200) | `varchar(200)` | 空文字 | パスワードのハッシュ。`pbkdf2-sha256$<回数>$<ソルト>$<ハッシュ>`(ソルト・ハッシュは Base64)。空文字は「新しく決める」状態 (管理者の再設定のあと) |
+| `PasswordHash` | 文字列 (200) | `varchar(200)` | 空文字 | 空文字は、管理者の再設定のあとの「新しく決める」状態。パスワードのハッシュで、形は `pbkdf2-sha256$<回数>$<ソルト>$<ハッシュ>` (ソルト・ハッシュは Base64) |
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
-| `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日 (含む)。終わりがなければ `9999-12-31` |
+| `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
 
 ### `Reminder`(リマインダー)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ドメインの `No`。ほかの表からは `ReminderId` で指す |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `AuthorUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。作った人。見える範囲・編集・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない)。作ったときに、作成者の列と同じ人を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`TargetUserId` の前** (人を表す 2 つの列を続ける)。作成スクリプトはこの並びで作る |
-| `TargetUserId` | 整数 | `int` | | 宛先 (`AppUser.Id`)。0 は全員宛て。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
+| `AuthorUserId` | 整数 | `int` | | 作った人の `AppUser.Id`。作ったときに、作成者の列と同じ人を入れ、0 以上の検査をする。見える範囲・編集・削除の条件に使う業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。**列の並び: 共通ヘッダーの次、`TargetUserId` の前**で、人を表す 2 つの列を続ける。作成スクリプトはこの並びで作る |
+| `TargetUserId` | 整数 | `int` | | 宛先の `AppUser.Id`。0 は全員宛て。0 以上の検査 |
 | `Date` | 日付 | `date` | `9999-12-31` | 日付指定の日付。曜日指定は `9999-12-31` |
 | `Time` | 時刻 | `time(0)` | | 時刻 |
-| `Weekdays` | 整数 (小) | `tinyint` | 0 | 曜日指定の曜日。月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数 (JSON の `Weekdays` と同じ。0 から 127 の検査)。0 (1 つも選ばれていない)は、曜日指定では毎日を表す |
+| `Weekdays` | 整数 (小) | `tinyint` | 0 | 曜日指定の曜日。月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数で、JSON の `Weekdays` と同じ。0 から 127 の検査。0 (1 つも選ばれていない)は、曜日指定では毎日を表す |
 | `Title` | 文字列 (200) | `nvarchar(200)` | | 件名 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク |
 | `IsSpeak` | 真偽 | `bit` | 0 | 通知のときに読み上げるか |
 
-- インデックス (業務の列だけ。共通ヘッダーの列は使わない): `IX_Reminder_TargetUserId (TargetUserId)`(宛先が自分・全員宛て)と `IX_Reminder_AuthorUserId (AuthorUserId)`(自分が作ったもの)。見える範囲は、この 2 つの条件を合わせる (削除済みも含めて持つ。「削除済みを表示」のため)
+- インデックスは、業務の列だけで作り、共通ヘッダーの列は使わない
+  - `IX_Reminder_TargetUserId (TargetUserId)`: 宛先が自分・全員宛て
+  - `IX_Reminder_AuthorUserId (AuthorUserId)`: 自分が作ったもの
+  - 見える範囲は、この 2 つの条件を合わせる
+  - 削除済みも含めて持つ (「削除済みを表示」のため)
 - 曜日の列は、ドメインの `[Flags]`(`Weekdays`)と JSON と同じ数をそのまま持つ (変換が要らない)
-- 件名・備考・リンクの長さ (200・1000・2000)は、アプリの `ReminderLimits` (入力画面の `MaxLength`)と同じ数にそろえる。長くするときは、`ReminderLimits` と列の両方を変える
-  - SQL Server の列は `ALTER TABLE dbo.Reminder ALTER COLUMN <列> nvarchar(<長さ>) NOT NULL` で長くできる (データの書き換えは無く、既定値の制約も残る)。`NOT NULL` を書き直さないと、NULL を許す列になる。4000 を超えるときは `nvarchar(max)`。短くするときは、その長さを超えるデータがあると失敗する
+- 件名・備考・リンクの長さ (200・1000・2000)は、アプリの `ReminderLimits` (入力画面の `MaxLength`)と同じ数にそろえる
+  - 長くするときは、`ReminderLimits` と列の両方を変える
+  - SQL Server の列は `ALTER TABLE dbo.Reminder ALTER COLUMN <列> nvarchar(<長さ>) NOT NULL` で長くできる (データの書き換えは無く、既定値の制約も残る)
+  - `NOT NULL` を書き直さないと、NULL を許す列になる
+  - 4000 を超えるときは `nvarchar(max)`
+  - 短くするときは、その長さを超えるデータがあると失敗する
 - ドメインの型 (`Reminder`)と DB の行 (`MmmTool.Data` の `ReminderRow`)の変換は、`ReminderRow.FromReminder` / `ToReminder` に集める (Repository も機能の Core も、自分では変換を書かない)
   - 日付なし (`NoDate`) ↔ `9999-12-31`、時刻 (`HHmm`) ↔ `time`、備考・リンクの `null` ↔ 空文字、曜日は同じ数のまま
-  - DB に入れられない値 (範囲外の時刻・正しくない日付・`9999-12-31` の日付指定・0〜127 の外の曜日。手で直した JSON の誤りなど)は、バグなので、`FromReminder` が `ArgumentException` にする (握りつぶさない)
-  - 時刻の秒は、DB から読むとき切り捨てる (アプリは分まで)。備考・リンクは、空文字と `null` を区別しない (空文字で保存し、読むときは `null`)
+  - DB に入れられない値は、バグなので、`FromReminder` が `ArgumentException` にする (握りつぶさない)
+    - 範囲外の時刻・正しくない日付・`9999-12-31` の日付指定・0〜127 の外の曜日が当たる
+    - 手で直した JSON の誤りなどで起きる
+  - 時刻の秒は、DB から読むとき切り捨てる (アプリは分まで)
+  - 備考・リンクは、空文字と `null` を区別しない (空文字で保存し、読むときは `null`)
   - 作成・更新の日時と、作成者・更新者・宛先は、アプリの型に無いので、`FromReminder` では決めない (Repository が入れる)
 
 ### `ReminderState`(対応状態。人ごと)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ドメインの `Seq` |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列。「なし」は行を消す) |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列で、「なし」は行を消す) |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。`UserId` と同じ人。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。`UserId` と同じ人。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `ReminderId` | 整数 | `int` | | 対応するリマインダー (`Reminder.Id`) |
 | `UserId` | 整数 | `int` | | 状態を持つ人 (`AppUser.Id`) |
 | `Date` | 日付 | `date` | | どの日の状態か |
-| `Status` | 整数 (小) | `tinyint` | | Done = 1 / Snooze = 2 (1 か 2 の検査)。None は行を持たない |
+| `Status` | 整数 (小) | `tinyint` | | Done = 1 / Snooze = 2 で、1 か 2 の検査。None は行を持たない |
 
 - `(ReminderId, UserId)` を一意にする (状態は人ごとに 1 件で上書き)
 - 全員宛てのリマインダーを自分が完了にしても、他の人の状態は変わらない
 - ドメインの型 (`ReminderState`)と DB の行 (`MmmTool.Data` の `ReminderStateRow`)の変換は、`ReminderStateRow.FromReminderState` / `ToReminderState` に集める
   - `Seq` ↔ `Id`、`BaseNo` ↔ `ReminderId`、日付 (`yyyyMMdd`) ↔ `date`、対応状態は完了 = 1・スヌーズ = 2 のまま
-  - 未対応 (`None`)は行にしない。`FromReminderState` は `ArgumentException` にするので、`None` への変更は、Repository が行を消す。範囲外の対応状態・正しくない日付も、バグなので例外 (握りつぶさない)
-  - アプリの型に人 (`UserId`)が無いので、変換では決めない。作成・更新の日時と、作成者・更新者も同じ (Repository が、操作した人を入れる)
+  - 未対応 (`None`)は行にしない
+    - `FromReminderState` は `ArgumentException` にするので、`None` への変更は、Repository が行を消す
+    - 範囲外の対応状態・正しくない日付も、バグなので例外 (握りつぶさない)
+  - アプリの型に人 (`UserId`)が無いので、変換では決めない
+    - 作成・更新の日時と、作成者・更新者も同じ (Repository が、操作した人を入れる)
 
 ### `NotificationChannel`(送信先)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ほかの表からは `ChannelId` で指す |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。この送信先を登録した人。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者の `AppUser.Id` で、この送信先を登録した人。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `UserId` | 整数 | `int` | | 使用者 (`AppUser.Id`)。この送信先を使う人。一覧・選択・更新・削除の条件に使う業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り)。作ったときに、登録した人 (作成者の列と同じ人)を入れる。0 以上の検査。**列の並び: 共通ヘッダーの次、`Kind` の前** (誰の送信先かを、区分・名前・値より前に置く)。作成スクリプトはこの並びで作る |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
+| `UserId` | 整数 | `int` | | 使用者の `AppUser.Id` で、この送信先を使う人。作ったときに、登録した人 (作成者の列と同じ人)を入れ、0 以上の検査をする。一覧・選択・更新・削除の条件に使う業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り。**列の並び: 共通ヘッダーの次、`Kind` の前**で、誰の送信先かを、区分・名前・値より前に置く。作成スクリプトはこの並びで作る |
 | `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 (1 か 2 の検査) |
 | `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名 (画面に出す名前) |
 | `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL。秘密なので、画面の一覧には出さない |
 
-- 選べるのは、自分が使用者のものだけ (`UserId` が自分。今は、自分で登録した送信先だけが、自分の使用者になる)
-- インデックス (業務の列だけ): `IX_NotificationChannel_UserId (UserId)`(自分の送信先の一覧。削除済みも含めて持つ。「削除済みを表示」のため)
+- 選べるのは、自分が使用者のものだけ (`UserId` が自分で、今は、自分で登録した送信先だけが、自分の使用者になる)
+- インデックスは、業務の列だけで作る: `IX_NotificationChannel_UserId (UserId)`(自分の送信先の一覧)
+  - 削除済みの行も含めて持つ (「削除済みを表示」のため)
 
 ### `ReminderSendSetting`(リマインダーの送信設定)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。選ばなくなった送信先は 1 にする |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `ReminderId` | 整数 | `int` | | 対象のリマインダー (`Reminder.Id`) |
 | `ChannelId` | 整数 | `int` | | 送る先 (`NotificationChannel.Id`) |
 
-- `(ReminderId, ChannelId)` は、削除されていない行の間で一意 (`UX_ReminderSendSetting_ReminderId_ChannelId`。条件つきの一意インデックス)。1 つのリマインダーに、送信先を複数選べる (1 つの送信先につき 1 行。ntfy と Discord のように、複数に送りたいため)
-- 読み書きするのは、自分が使用者の送信先 (`NotificationChannel.UserId` が自分)の行だけ。ほかの人の送信先の行は、読まず、足さず、外さない (全員宛てのリマインダーに、複数の人が送信先を付けたとき、片方の保存で、ほかの人の設定が消えないようにするため)
-- 保存のたびに、選んだ送信先の行を、更新日時を今にして書き直す (無ければ追加、削除済みなら戻す)。選んでいない送信先の行は、論理削除する。まとめて 1 つのトランザクション
+- `(ReminderId, ChannelId)` は、削除されていない行の間で一意 (`UX_ReminderSendSetting_ReminderId_ChannelId`の条件つきの一意インデックス)
+  - 1 つのリマインダーに、送信先を複数選べる (1 つの送信先につき 1 行)
+  - ntfy と Discord のように、複数に送りたいため
+- 読み書きするのは、自分が使用者の送信先 (`NotificationChannel.UserId` が自分)の行だけ
+  - ほかの人の送信先の行は、読まず、足さず、外さない
+  - 全員宛てのリマインダーに、複数の人が送信先を付けたとき、片方の保存で、ほかの人の設定が消えないようにするため
+- 保存のたびに、選んだ送信先の行を、更新日時を今にして書き直す (無ければ追加、削除済みなら戻す)
+  - 選んでいない送信先の行は、論理削除する
+  - まとめて 1 つのトランザクション
 
 ### `ReminderSendStatus`(リマインダーの送信の状況)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
@@ -165,220 +268,383 @@
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
-- 失敗の理由の列は持たない (理由は MmmBatch のログに残す。経過の記録は、状態を持つ表の役割ではないため)
-- `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)。送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
-- ログではなく状態で、「送ったか」の判断に使う。画面の「今日」(今日の送信予定)は、この表から読む。送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログ ([mmmbatch.md](mmmbatch.md)の「送信のログ」)に残し、画面の「履歴」はそちらから出す (この表は再送で同じ行を更新するので、経過が残らないため。ユーザーの決定)
+- 失敗の理由の列は持たない
+  - 理由は MmmBatch のログに残す
+  - 経過の記録は、状態を持つ表の役割ではないため
+- `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)
+  - 送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
+- ログではなく状態で、「送ったか」の判断に使う
+  - 画面の「今日」(今日の送信予定)は、この表から読む
+  - 送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログに残す ([mmmbatch.md](mmmbatch.md)の「送信のログ」)
+  - 画面の「履歴」はそちらから出す
+  - この表は再送で同じ行を更新するので、経過が残らないため (ユーザーの決定)
 
 ### `MessageSendRequest`(メッセージの送信依頼)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列) |
-| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (依頼した日時。画面の「今日」に時刻として出すだけで、条件には使わない) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)。送った人と同じ。0 以上の検査 |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (依頼した日時で、画面の「今日」に時刻として出すだけで、条件には使わない) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、送った人と同じ。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。MmmBatch が状況を変えるたびに、DB の時計で書く |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者。依頼したときは送った人、MmmBatch が更新するときは 0 (MmmBatch はユーザーではない)。0 以上の検査 |
-| `SenderUserId` | 整数 | `int` | | 送った人 (`AppUser.Id`)。業務の列 (共通ヘッダーの `CreatedByUserId` は、条件に使わない)。0 以上の検査。**列の並び: 共通ヘッダーの次、`ChannelId` の前** (誰が・誰にの順) |
-| `ChannelId` | 整数 | `int` | | 送る先 (`NotificationChannel.Id`)。送信先の値は持たない |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。依頼したときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
+| `SenderUserId` | 整数 | `int` | | 送った人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査。**列の並び: 共通ヘッダーの次、`ChannelId` の前**で、誰が・誰にの順 |
+| `ChannelId` | 整数 | `int` | | 送る先の `NotificationChannel.Id`。送信先の値は持たない |
 | `Title` | 文字列 (100) | `nvarchar(100)` | 空文字 | タイトル。空文字は「タイトルなし」。画面の上限 (`MessageLimits`)と同じ長さ |
 | `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
-| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 (1 から 3 の検査)。`ReminderSendStatus` と同じ意味 |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 で、1 から 3 の検査。`ReminderSendStatus` と同じ意味 |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
-- 行を足すのは MmmTool (送信待ちで足す)。送信の流れ・送り直し・行を取る条件は [mmmbatch.md](mmmbatch.md) の「メッセージの送信」。失敗の理由の列は持たない (`ReminderSendStatus` と同じ)
-- 一意制約は付けない (1 回の送信の操作が 1 行。同じ内容を続けて送っても別の行)
-- インデックス (業務の列だけ): `IX_MessageSendRequest_Status (Status)`。MmmBatch が 5 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため (件数が増え続ける表で、送信済みの大量の行を、読むたびに走査しないため)。MmmBatch の画面の「最近の依頼」は、主キー (`Id`)の降順で、先頭から決まった件数を読むので、索引は要らない
+- 行を足すのは MmmTool (送信待ちで足す)
+  - 送信の流れ・送り直し・行を取る条件は [mmmbatch.md](mmmbatch.md) の「メッセージの送信」
+  - 失敗の理由の列は持たない (`ReminderSendStatus` と同じ)
+- 一意制約は付けない (1 回の送信の操作が 1 行で、同じ内容を続けて送っても別の行)
+- インデックスは、業務の列だけで作る: `IX_MessageSendRequest_Status (Status)`
+  - MmmBatch が 5 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため
+  - 件数が増え続ける表で、送信済みの大量の行を、読むたびに走査しないため
+  - MmmBatch の画面の「最近の依頼」は、主キー (`Id`)の降順で、先頭から決まった件数を読むので、索引は要らない
 - 送った人・送る先の存在は、アプリが検査する (外部キーは付けない)
 
 ### 作業管理の表 (5 つ)
-ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの分。`WorkDayNote` だけは、リリース後に足したので、両方とも `002_AddWorkDayNote.sql`)。SQLite の型は、下の「型の対応 (作業管理の表)」。
 
-各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く。
+- ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る
+- 使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」
+- 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`
+  - リリース済みの分
+  - `WorkDayNote` だけは、リリース後に足したので、両方とも `002_AddWorkDayNote.sql`
+- SQLite の型は、下の「型の対応 (作業管理の表)」
+- 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く
 
 #### `WorkProject`(案件マスター。全員で共有する案件の 1 件)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id` で、ローカルは 1)で、0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | 案件名。1 文字以上 |
-| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字 |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- インデックス: `IX_WorkProject_UpdatedAt (UpdatedAt)`(差分の取得。論理削除された行も含む)
+- インデックスは、`IX_WorkProject_UpdatedAt (UpdatedAt)`(差分の取得)
+  - 論理削除された行も含む
 
 #### `WorkGroup`(グループ)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id` で、ローカルは 1)で、0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `ProjectId` | 整数 | `int` | | 属する案件 (`WorkProject.Id`) |
-| `ParentGroupId` | 整数 | `int` | 0 | 親のグループ (`WorkGroup.Id`)。0 は案件の直下。0 以上の検査 |
-| `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並び (グループと作業にまたがる 1 つの数)。0 以上の検査 |
+| `ParentGroupId` | 整数 | `int` | 0 | 親のグループの `WorkGroup.Id`。0 は案件の直下。0 以上の検査 |
+| `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並びで、グループと作業にまたがる 1 つの数。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | グループ名。1 文字以上 |
-| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字 |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- インデックス: `IX_WorkGroup_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(表示する案件の中身の読み込み・差分。論理削除された行も含む)
+- インデックスは、`IX_WorkGroup_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(表示する案件の中身の読み込み・差分)
+  - 論理削除された行も含む
 
 #### `WorkItem`(作業)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id` で、ローカルは 1)で、0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `ProjectId` | 整数 | `int` | | 属する案件 |
-| `GroupId` | 整数 | `int` | 0 | 親のグループ (`WorkGroup.Id`)。0 は案件の直下。0 以上の検査 |
+| `GroupId` | 整数 | `int` | 0 | 親のグループの `WorkGroup.Id`。0 は案件の直下。0 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 兄弟の中の並び。0 以上の検査 |
 | `Name` | 文字列 (200) | `nvarchar(200)` | | 作業名。1 文字以上 |
-| `AssigneeUserId` | 整数 | `int` | 0 | 担当者 (`AppUser.Id`)。0 は未割り当て。新しい作業は、作った人が担当。画面から変えられる。0 以上の検査 |
-| `PriorityCodeNo` | 整数 | `int` | 2 | 優先度のコード番号 (コードマスタの機能番号 2・区分 3)。High = 1 / Normal = 2 / Low = 3。1 以上の検査 |
-| `StartDate` | 日付 | `date` | `0001-01-01` | 開始日。ない日は `0001-01-01` (「いつからでも」を最小値で表す。`StartDate <= 今日` の比較で、開始日なしが開始済みに入る) |
+| `AssigneeUserId` | 整数 | `int` | 0 | 担当者の `AppUser.Id`。0 は未割り当て。新しい作業は、作った人が担当。画面から変えられる。0 以上の検査 |
+| `PriorityCodeNo` | 整数 | `int` | 2 | 優先度のコード番号で、コードマスタの機能番号 2・区分 3。High = 1 / Normal = 2 / Low = 3。1 以上の検査 |
+| `StartDate` | 日付 | `date` | `0001-01-01` | 開始日。ない日は `0001-01-01` (「いつからでも」を最小値で表すので、`StartDate <= 今日` の比較で、開始日なしが開始済みに入る) |
 | `DueDate` | 日付 | `date` | `9999-12-31` | 期限。ない日は `9999-12-31` |
 | `CompletedDate` | 日付 | `date` | `9999-12-31` | 完了日。未完了は `9999-12-31` |
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
-| `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く。0 以上の検査) |
-| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク (URL・フォルダ・ファイルのパス。1 つ)。無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
-| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号 (コードマスタの機能番号 2・区分 1)。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 (コードの列挙と同じ値。表示順と同じ並び)。1 以上の検査 |
-| `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号 (コードマスタの機能番号 2・区分 2)。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
+| `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
+| `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
+| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 2・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
+| `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 2・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- インデックス: `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(同上)・`IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`(案件の完了の計算。削除されていない行だけ)・`IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`(作業報告。担当が自分の作業を探す。削除されていない行だけ)
+- インデックスは、次の 3 つ
+  - `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 表示する案件の中身の読み込み・差分 (論理削除された行も含む)
+  - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
+  - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
+
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `bigint IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 最初に記録した人 (`AppUser.Id`。ローカルは 1)。記録用で、検索・一意・結合には使わない。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 最初に記録した人の `AppUser.Id` (ローカルは 1)で、記録用。検索・一意・結合には使わない。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `ProjectId` | 整数 | `int` | | 作業の案件 (表示しない案件を除いて読むため) |
 | `WorkItemId` | 整数 | `int` | | 作業 (`WorkItem.Id`) |
 | `Date` | 日付 | `date` | | 記録の日 |
 | `Hours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | その日の実績。0 から 24 の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
-- 記録は、作業ごと・日ごとに 1 件。人は区別しない。担当者が 1 人なので、ほかの人が入れても代行入力で、同じ 1 件を直す。`(WorkItemId, Date)` を一意にする (`UX_WorkRecord_WorkItemId_Date`。論理削除された行も含む。同じ日に入れ直したときは、この行を使い回す)。人ごとに分けると、同じ作業の同じ日に記録が複数でき、データが食い違うため
-- インデックス: `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`(その日の記録。削除されていない行だけ)・`IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`(差分。論理削除された行も含む)
+- 記録は、作業ごと・日ごとに 1 件。人は区別しない。
+  - 担当者が 1 人なので、ほかの人が入れても代行入力で、同じ 1 件を直す
+  - `(WorkItemId, Date)` を一意にする (`UX_WorkRecord_WorkItemId_Date`)
+    - 論理削除された行も含む
+    - 同じ日に入れ直したときは、この行を使い回す
+  - 人ごとに分けると、同じ作業の同じ日に記録が複数でき、データが食い違うため
+- インデックスは、次の 2 つ
+  - `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`: その日の記録 (削除されていない行だけ)
+  - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
-作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)。作業報告が、報告日の分を予定に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))。作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql` (リリース後の変更なので、`001_CreateTables.sql` は変えず、次の版の更新用スクリプトに集める。リリースまで、同じファイルを直す)。
+
+- 作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)
+  - 作業報告が、報告日の分を予定に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
+- 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql`
+  - リリース後の変更なので、`001_CreateTables.sql` は変えず、次の版の更新用スクリプトに集める
+  - リリースまで、同じファイルを直す
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 (共通ヘッダーの列。この表の操作では使わない。常に 0) |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 (共通ヘッダーの列で、この表の操作では使わず、常に 0) |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。記録用で、検索・一意・結合には使わない。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者の `AppUser.Id` (ローカルは 1)で、記録用。検索・一意・結合には使わない。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。0 以上の検査 |
-| `UserId` | 整数 | `int` | | 持ち主 (`AppUser.Id`。ローカルは 1)。業務の列。1 以上の検査 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
+| `UserId` | 整数 | `int` | | 持ち主の `AppUser.Id` (ローカルは 1)で、業務の列。1 以上の検査 |
 | `Date` | 日付 | `date` | | メモの日 |
 | `Note` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | メモ。空にしたときは、行を残して空文字にする |
 
-- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、持ち主 (`UserId`)・日付 (`Date`)・中身 (`Note`) の順 (「誰の・いつの・何」の順。`WorkRecord` の「何の作業の・いつの・中身」と同じ考え方)
-- 1 人 1 日 1 件。`(UserId, Date)` を一意にする (`UX_WorkDayNote_UserId_Date`。同じ日に書き直したときは、この行を使い回す。日付の範囲の読み込みと、直近の日の検索にも使う)
-- インデックスは、一意の `(UserId, Date)` だけ。差分の取得 (更新日時の索引)は持たない (日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない。問い合わせの数も増やさない)
-- 案件に属さないので、`ProjectId` は持たない。持ち主は業務の列 `UserId` で持ち、共通ヘッダーの `CreatedByUserId` は、検索・一意・結合に使わない (プロジェクトの `CLAUDE.md` のルール。`ReminderState.UserId` と同じ形)
-- 空にしたら論理削除せず、`Note` を空文字にして行を残す。作業報告は、空 (空白だけも含む)と、行が無いことを区別しない。1 人 1 日 1 行までしか増えないので、行を消さない
-- 長さ (2000)は、作業の備考 (1000)より長い。複数の打ち合わせを、1 日分まとめて書くため
+- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、持ち主 (`UserId`)・日付 (`Date`)・中身 (`Note`) の順
+  - 「誰の・いつの・何」の順で、`WorkRecord` の「何の作業の・いつの・中身」と同じ考え方
+- 1 人 1 日 1 件で、`(UserId, Date)` を一意にする (`UX_WorkDayNote_UserId_Date`)
+  - 同じ日に書き直したときは、この行を使い回す
+  - 日付の範囲の読み込みと、直近の日の検索にも使う
+- インデックスは、一意の `(UserId, Date)` だけ
+  - 差分の取得 (更新日時の索引)は持たない
+  - 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない
+  - 問い合わせの数も増やさない
+- 案件に属さないので、`ProjectId` は持たない
+  - 持ち主は業務の列 `UserId` で持ち、共通ヘッダーの `CreatedByUserId` は、検索・一意・結合に使わない (プロジェクトの `CLAUDE.md` のルール)
+  - `ReminderState.UserId` と同じ形
+- 空にしたら論理削除せず、`Note` を空文字にして行を残す
+  - 作業報告は、空 (空白だけも含む)と、行が無いことを区別しない
+  - 1 人 1 日 1 行までしか増えないので、行を消さない
+- 長さ (2000)は、作業の備考 (1000)より長い (複数の打ち合わせを、1 日分まとめて書くため)
 
 ### ノートの表
-ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [notes.md](notes.md)。作成用のスクリプトは、SQLite・SQL Server とも `003_AddNote.sql` (リリース済みの `001_CreateTables.sql`・`002_AddWorkDayNote.sql` は変えない。リリースまで、この版の変更は、このファイルに集める)。SQLite は、開くとき版を 3 に上げて作る。SQL Server は、管理者が、DB を選んで流す。SQLite の型は、上の「型の対応 (作業管理の表)」。
+
+- ローカルモードの SQLite と、DB モードの SQL Server で、同じ設計の表を持つ
+- 使い方は [notes.md](notes.md)
+- 作成用のスクリプトは、SQLite・SQL Server とも `003_AddNote.sql`
+  - リリース済みの `001_CreateTables.sql`・`002_AddWorkDayNote.sql` は変えない
+  - リリースまで、この版の変更は、このファイルに集める
+  - SQLite は、開くとき版を 3 に上げて作る
+  - SQL Server は、管理者が、DB を選んで流す
+- SQLite の型は、上の「型の対応 (作業管理の表)」
 
 #### `Note`(ノート。期間とタイトルと本文を持つ 1 件)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。復元は 0 に戻す |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`。ローカルは 1)。記録用で、検索・結合には使わない。0 以上の検査 |
-| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く)。画面の「今日の更新の印」に使う |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)。カードに出すだけで、検索・結合・索引には使わない。0 以上の検査 |
-| `AuthorUserId` | 整数 | `int` | | 書いた人 (`AppUser.Id`。ローカルは 1)。業務の列。「自分だけ」のノートが見える人を決める。1 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者の `AppUser.Id` (ローカルは 1)で、記録用。検索・結合には使わない。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時で、SQL Server は DB の時計、SQLite はアプリが書く。画面の「今日の更新の印」に使う |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者の `AppUser.Id`。カードに出すだけで、検索・結合・索引には使わない。0 以上の検査 |
+| `AuthorUserId` | 整数 | `int` | | 書いた人の `AppUser.Id` (ローカルは 1)で、業務の列。「自分だけ」のノートが見える人を決める。1 以上の検査 |
 | `IsPrivate` | 真偽 | `bit` | 0 | 公開範囲。0 は全員、1 は書いた人だけ。ローカルモードは常に 0 |
 | `StartDate` | 日付 | `date` | | 開始日 |
 | `EndDate` | 日付 | `date` | `9999-12-31` | 終了日。空 (無期限)は `9999-12-31`。`StartDate` 以上の検査 |
-| `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要。1 から 5 の検査) |
+| `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要で、1 から 5 の検査) |
 | `Title` | 文字列 (100) | `nvarchar(100)` | | タイトル。1 文字以上。画面の上限 (`NoteLimits`)と同じ長さ |
-| `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 本文。書いたとおりの文字 (HTML のタグを含みうる)。長さの上限を決めない (列の最大まで。`CHECK` も付けない) |
+| `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 長さの上限を決めず、列の最大までで、`CHECK` も付けない。本文は、書いたとおりの文字で、HTML のタグを含みうる |
 
-- 列の並び: 1 列目の `Id`・共通ヘッダー 5 列のあとに、誰の (`AuthorUserId`)・公開範囲 (`IsPrivate`)・期間 (`StartDate`・`EndDate`)・重要度 (`Priority`)・中身 (`Title`・`Body`) の順
-- 見える行は、`IsPrivate = 0` か `AuthorUserId` が自分のもの。人で絞るのは、業務の列 `AuthorUserId` で行う (共通ヘッダーの `CreatedByUserId` は使わない)
-- インデックス: `IX_Note_EndDate_StartDate (EndDate, StartDate)`。表示する日に有効な行 (`EndDate >= その日` かつ `StartDate <= その日`)を探すため。終了日を先頭にするのは、過去に終わった大量のノートを、読むたびに走査しないため。論理削除された行も含める (「削除したものも表示」が読むため)
+- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、誰の (`AuthorUserId`)・公開範囲 (`IsPrivate`)・期間 (`StartDate`・`EndDate`)・重要度 (`Priority`)・中身 (`Title`・`Body`) の順
+- 見える行は、`IsPrivate = 0` か `AuthorUserId` が自分のもの
+  - 人で絞るのは、業務の列 `AuthorUserId` で行う (共通ヘッダーの `CreatedByUserId` は使わない)
+- インデックスは、`IX_Note_EndDate_StartDate (EndDate, StartDate)`
+  - 表示する日に有効な行 (`EndDate >= その日` かつ `StartDate <= その日`)を探すため
+  - 終了日を先頭にするのは、過去に終わった大量のノートを、読むたびに走査しないため
+  - 論理削除された行も含める (「削除したものも表示」が読むため)
 - 一意制約は付けない (同じタイトル・期間のノートを複数置ける)
 - 書いた人の存在は、アプリが検査する (外部キーは付けない)
 
 ### コードマスタの表
-機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る。使い方は [work-items.md](work-items.md) の「コードマスタ」。作成用のスクリプトは、SQLite・SQL Server とも `001_CreateTables.sql` (表と作業管理の初期値。それぞれ `src/Data/MmmTool.Data.Sqlite/Sql/`・`src/Data/MmmTool.Data.SqlServer/Sql/`)。
+
+- 機能をまたいで使う、選択肢などの、番号と名前と数値の組。全員で共通。
+- SQLite と SQL Server の両方に、同じ設計で作る
+- 使い方は [work-items.md](work-items.md) の「コードマスタ」
+- 作成用のスクリプトは、SQLite・SQL Server とも `001_CreateTables.sql` (表と作業管理の初期値)
+  - 場所は、それぞれ `src/Data/MmmTool.Data.Sqlite/Sql/`・`src/Data/MmmTool.Data.SqlServer/Sql/`
 
 #### `CodeMaster`(コードマスタ)
+
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。選択肢から外した印 (外しても、その番号を持つ過去の行は、名前を引ける) |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
-| `CreatedByUserId` | 整数 | `int` | | 作成者。初期値の行は、SQL Server が 0 (特定のユーザーではない)、SQLite が 1 (ローカルのユーザー)。0 以上の検査 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者。初期値の行は、SQL Server が 0 で特定のユーザーではなく、SQLite が 1 でローカルのユーザー。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 (SQL Server は DB の時計、SQLite はアプリが書く) |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者。初期値の行は作成者と同じ。0 以上の検査 |
-| `FeatureNo` | 整数 | `int` | | 機能番号。機能の名前や並びが変わっても変えない数字 (台帳は `MmmTool.CodeMaster.Core` の `CodeFeatures`。作業管理は 2)。1 以上の検査 |
-| `CategoryNo` | 整数 | `int` | | 区分番号。機能の中の、コードの種類 (作業管理は 1 = 状態・2 = 進捗度・3 = 優先度)。1 以上の検査 |
+| `FeatureNo` | 整数 | `int` | | 機能番号で、機能の名前や並びが変わっても変えない数字。台帳は `MmmTool.CodeMaster.Core` の `CodeFeatures` で、作業管理は 2。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、コードの種類。作業管理は 1 = 状態・2 = 進捗度・3 = 優先度。1 以上の検査 |
 | `CodeNo` | 整数 | `int` | | コード番号。区分の中の識別子。利用する行は、この番号を保存する。一度使った番号は、同じ意味のまま変えない。1 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 表示順。小さいほど先。0 以上の検査 |
-| `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数 (進捗度の % など)。要らないコードは 0 |
-| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけ (「作成完了」。% は数値から組み立てる) |
+| `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数で、進捗度の % など。要らないコードは 0 |
+| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる (例: 「作成完了」) |
 
-- `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`。論理削除された行も含めて。外した選択肢を、同じコード番号で戻せる)
-- インデックス: `IX_CodeMaster_FeatureNo_UpdatedAt (FeatureNo, UpdatedAt)`(機能ごとの読み込み・差分。論理削除された行も含む)
-- 初期値 (作業管理 = 機能番号 2): 状態 3 件・進捗度 11 件・優先度 3 件。作成用のスクリプトが入れる。中身と使い方は [work-items.md](work-items.md) の「コードマスタ」
-- 画面からは編集しない。直すときは SQL で直す (外すときは `IsDeleted` を 1 にする。`DELETE` はしない)。列の番号を指す側 (`WorkItem` の `PriorityCodeNo` など)に、外部キーは付けない (ほかの表と同じ。存在する番号かどうかは、アプリが検査する)
+- `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`)
+  - 論理削除された行も含めて
+  - 外した選択肢を、同じコード番号で戻せる
+- インデックスは、`IX_CodeMaster_FeatureNo_UpdatedAt (FeatureNo, UpdatedAt)`(機能ごとの読み込み・差分)
+  - 論理削除された行も含む
+- 初期値 (作業管理 = 機能番号 2)は、状態 3 件・進捗度 11 件・優先度 3 件
+  - 作成用のスクリプトが入れる
+  - 中身と使い方は [work-items.md](work-items.md) の「コードマスタ」
+- 画面からは編集しない
+  - 直すときは SQL で直す (外すときは `IsDeleted` を 1 にして、`DELETE` はしない)
+  - 列の番号を指す側 (`WorkItem` の `PriorityCodeNo` など)に、外部キーは付けない (ほかの表と同じ)
+  - 存在する番号かどうかは、アプリが検査する
 
 ## 画面 (保存先と宛先)
-- **設定ページの「保存先」** (`src/App/MmmTool/Features/Database/Settings`。`AddSettingsSection` で登録するホスト側の部品。詳細は [settings.md](settings.md)): 保存先を一行で見せるカード (「ローカル」「サーバー (サーバー名)」)。押すと開く編集のウィンドウ (`Edit/`)で、保存先 (ローカル / サーバー)と、DB のときの接続の入力欄・「接続を確認」を扱い、そこの「保存」で保存する。保存先の種類が変わった、または DB のまま接続 (パスワード含む)が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認し、「今すぐ終了」ならアプリを終了する (トレイの「終了」と同じ処理。`AppExitService`。起動し直すのは利用者)。「あとで」なら、保存だけして、今の保存先のまま動き続ける
-- **初回の保存先の選択** (`src/App/MmmTool/Features/Database/Choice`): `Database.Mode` が保存されていないとき (`DatabaseSettingsService.IsModeSaved` が false。設定ファイルを読めなかったときは除く)だけ、起動のとき、トレイを作ったあと、各機能の起動時の準備より前に、独立したウィンドウで出す。ローカル (この PC だけで使う。既定)とサーバー (リマインダーなど一部のデータをサーバーに保存する)の 2 択で、サーバーのときは同じウィンドウで接続を入れる。「決定」で保存して先へ進み、選んだ保存先で最初から動く (再起動は要らない)。× で閉じたときは、保存せず、アプリを終了する (選ばないまま先へ進ませない。次の起動でもう一度出る)。「決定」のあと、メインウィンドウとログイン (DB のとき)が済んでから、メインウィンドウを出す (初回の起動だけ。トレイだけでは、何も起動していないように見えるため。2 回目以降はトレイだけ)。選択のウィンドウは、閉じずに隠して残し、メインウィンドウを作ってから閉じる (最初のウィンドウを閉じると、アプリごと終了しうるため)。画面の作りは、ログインの画面と同じ
-- 接続の入力欄 (`DatabaseConnectionForm` / `DatabaseConnectionViewModel`。`src/Data/MmmTool.Data.SqlServer.WinUI/Connection/`)は、この 2 つの画面 (編集のウィンドウと、初回の選択)と、MmmBatch の接続の設定画面で共有する: 接続先のサーバー・データベース名・ユーザー名・パスワード (`PasswordBox`)。ログインは、ユーザー名とパスワードで固定する (ログインの方式を選ぶ項目は、画面に無い)。データベース名とユーザー名の初期値は `MmmTool`。パスワードは入力したときだけ保存し (空のままなら、登録済みのものを変えない。登録済みなら見出しに添える)、「接続を確認」は、保存前の入力のまま、`SqlServerConnectionFactoryBuilder.TestConnectionAsync` で接続を試し、結果を InfoBar で知らせる。保存先が DB のときは、「接続を確認」で、つながると確認できる (`IsVerified`)まで、「決定」・「保存」を押せない (入力を直すと、確認済みを取り消す)。押せない間は、ボタンの近くに、「「接続を確認」で、つながることを確かめると、決定できます。」(保存先のウィンドウは「…保存できます。」)と出す。保存の処理も、確認できていなければ、保存の前に、つながることを確かめる (つながらない設定を保存しない)。確認の順序が、画面の見た目で分かるようにするため (裏で確認されるだけでは、利用者に伝わらない)。サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバーのとき (`SqlServerConnectionException.IsUntrustedCertificate`)だけ、初めての接続で 1 回、「このサーバーは、独自の証明書を使っています。」と知らせ、「接続する」かを聞く。「接続する」なら、`TrustServerCertificate` を true にして接続し直し、サーバーとセットで覚える (保存するのは、「保存」・「決定」のとき。サーバーを変えたときは、覚えた内容を使わず、また聞く)。設定を読めなかったとき (`IsReadOnly`)は、入力を無効にして、保存しない
-- **入力画面の「宛先」**: 今のユーザーを特定済み (`ReminderService.CurrentUserId` が 0 でない = DB モード)のときだけ出す。選択肢は、「自分」(新規の既定)・「全員」・ほかの使えるユーザー (`IsActiveOn(今日)`・名前の順)。編集 (コピーして新規追加を含む)は、保存されている宛先を選ぶ。宛先がもう選べないユーザー (削除済み・期間外)のときも、保存で宛先が変わらないよう、その名前を選択肢に足す。ユーザーの一覧を読めなかったときは、エラーを出して、「自分」「全員」だけにする
-- **送信先の登録と、入力画面の「送信先」**: DB モード (今のユーザーを特定済み)のときだけ出す。登録は、自分の送信先を、区分 (ntfy / Discord)・登録名・値で登録する画面 (リマインダーの機能の `ChannelList/` と `ChannelEdit/`。一覧は、リマインダーの一覧画面の「送信先」ボタンから開く)。ntfy は、値 (トピック名)を自動で作って見せ (コピー・再発行)、Discord は、Webhook の URL を貼る。URL は、一覧に出さず、編集でも伏せる。入力画面の「送信先」は、自分が登録した送信先と「なし」から 1 つ選ぶ。送る処理は、MmmTool に持たない ([mmmbatch.md](mmmbatch.md))
-- **一覧・メイン画面の出し分け**: 「完全削除」は、`ReminderService.CanPurge` が true のときだけ出す。「削除」(論理削除)は、見えるリマインダーすべてに出す (確認ダイアログあり)。
+
+- **設定ページの「保存先」** (`src/App/MmmTool/Features/Database/Settings`)
+  - `AddSettingsSection` で登録するホスト側の部品 (詳細は [settings.md](settings.md))
+  - 保存先を一行で見せるカード (「ローカル」「サーバー (サーバー名)」)
+  - 押すと開く編集のウィンドウ (`Edit/`)で、保存先 (ローカル / サーバー)と、DB のときの接続の入力欄・「接続を確認」を扱い、そこの「保存」で保存する
+  - 保存先の種類が変わった、または DB のまま接続 (パスワード含む)が変わったときは、「反映するには、アプリの再起動が必要です。今すぐ終了しますか？」と確認する
+    - 「今すぐ終了」ならアプリを終了する (トレイの「終了」と同じ処理の `AppExitService`)
+    - 起動し直すのは利用者
+    - 「あとで」なら、保存だけして、今の保存先のまま動き続ける
+- **初回の保存先の選択** (`src/App/MmmTool/Features/Database/Choice`)
+  - `Database.Mode` が保存されていないとき (`DatabaseSettingsService.IsModeSaved` が false で、設定ファイルを読めなかったときは除く)だけ出す
+  - 出す時期は、起動のとき、トレイを作ったあと、各機能の起動時の準備より前で、独立したウィンドウで出す
+  - ローカル (この PC だけで使う既定)とサーバー (リマインダーなど一部のデータをサーバーに保存する)の 2 択で、サーバーのときは同じウィンドウで接続を入れる
+  - 「決定」で保存して先へ進み、選んだ保存先で最初から動く (再起動は要らない)
+  - × で閉じたときは、保存せず、アプリを終了する (選ばないまま先へ進ませないため、次の起動でもう一度出る)
+  - 「決定」のあと、メインウィンドウとログイン (DB のとき)が済んでから、メインウィンドウを出す
+    - 初回の起動だけ。トレイだけでは、何も起動していないように見えるため。2 回目以降はトレイだけ。
+    - 選択のウィンドウは、閉じずに隠して残し、メインウィンドウを作ってから閉じる (最初のウィンドウを閉じると、アプリごと終了しうるため)
+  - 画面の作りは、ログインの画面と同じ
+- 接続の入力欄 (`DatabaseConnectionForm` / `DatabaseConnectionViewModel`)は、この 2 つの画面 (編集のウィンドウと、初回の選択)と、MmmBatch の接続の設定画面で共有する
+  - 場所は `src/Data/MmmTool.Data.SqlServer.WinUI/Connection/`
+  - 項目は、接続先のサーバー・データベース名・ユーザー名・パスワード (`PasswordBox`)
+  - ログインは、ユーザー名とパスワードで固定する (ログインの方式を選ぶ項目は、画面に無い)
+  - データベース名とユーザー名の初期値は `MmmTool`
+  - パスワードは入力したときだけ保存する (空のままなら、登録済みのものを変えず、登録済みなら見出しに添える)
+  - 「接続を確認」は、保存前の入力のまま、`SqlServerConnectionFactoryBuilder.TestConnectionAsync` で接続を試し、結果を InfoBar で知らせる
+  - 保存先が DB のときは、「接続を確認」で、つながると確認できる (`IsVerified`)まで、「決定」・「保存」を押せない (入力を直すと、確認済みを取り消す)
+    - 押せない間は、ボタンの近くに、「「接続を確認」で、つながることを確かめると、決定できます。」(保存先のウィンドウは「…保存できます。」)と出す
+    - 保存の処理も、確認できていなければ、保存の前に、つながることを確かめる (つながらない設定を保存しない)
+    - 確認の順序が、画面の見た目で分かるようにするため (裏で確認されるだけでは、利用者に伝わらない)
+  - サーバーの証明書は、画面の項目にしない
+    - 証明書を信頼できないサーバーのとき (`SqlServerConnectionException.IsUntrustedCertificate`)だけ、初めての接続で 1 回、「このサーバーは、独自の証明書を使っています。」と知らせ、「接続する」かを聞く
+    - 「接続する」なら、`TrustServerCertificate` を true にして接続し直し、サーバーとセットで覚える
+    - 保存するのは、「保存」・「決定」のとき
+    - サーバーを変えたときは、覚えた内容を使わず、また聞く
+  - 設定を読めなかったとき (`IsReadOnly`)は、入力を無効にして、保存しない
+- **入力画面の「宛先」**: 今のユーザーを特定済み (`ReminderService.CurrentUserId` が 0 でない = DB モード)のときだけ出す
+  - 選択肢は、「自分」(新規の既定)・「全員」・ほかの使えるユーザー (`IsActiveOn(今日)`・名前の順)
+  - 編集 (コピーして新規追加を含む)は、保存されている宛先を選ぶ
+  - 宛先がもう選べないユーザー (削除済み・期間外)のときも、保存で宛先が変わらないよう、その名前を選択肢に足す
+  - ユーザーの一覧を読めなかったときは、エラーを出して、「自分」「全員」だけにする
+- **送信先の登録と、入力画面の「送信先」**: DB モード (今のユーザーを特定済み)のときだけ出す
+  - 登録は、自分の送信先を、区分 (ntfy / Discord)・登録名・値で登録する画面 (リマインダーの機能の `ChannelList/` と `ChannelEdit/`)
+    - 一覧は、リマインダーの一覧画面の「送信先」ボタンから開く
+    - ntfy は、トピック名の値を自動で作って見せ、コピーと再発行ができる。Discord は、Webhook の URL を貼る。
+    - URL は、一覧に出さず、編集でも伏せる
+  - 入力画面の「送信先」は、自分が登録した送信先と「なし」から 1 つ選ぶ
+  - 送る処理は、MmmTool に持たない ([mmmbatch.md](mmmbatch.md))
+- **一覧・メイン画面の出し分け**: 「完全削除」は、`ReminderService.CanPurge` が true のときだけ出す。「削除」(論理削除)は、見えるリマインダーすべてに、確認ダイアログつきで出す。
 
 ## 見え方
-- 一覧に出る (見える)のは、宛先が自分のもの・全員宛て (`TargetUserId = 0`)・自分が作成したもの。それ以外 (ほかの人が、ほかの人に宛てたもの)は見えない
-- 通知と今日のリマインダー (メイン画面)の対象にするのは、宛先が自分と全員宛てだけ。自分が作成した、ほかの人宛てのものは、一覧には出るが、通知しない (通知は、宛先の人の PC だけに出す)
-- 編集は、見える人なら誰でもできる (作成者・宛先の人・全員宛ての全員)。削除済みを編集すると、復活する (誰の編集でも)
-- 論理削除 (と、その取り消し)も、**見える人なら誰でもできる** (編集と同じ)。画面は、自分のものも他人のものも、必ず確認ダイアログ (「「件名」を削除しますか?」)を出してから行う。見えない人の操作は、対象が無いのと同じ (false)
-- 完全削除 (行を消す)は、DB では行わない (ユーザーの決定)。画面は、完全削除の操作を出さない (`IReminderRepository.CanPurge` が false)
+
+- 一覧に出る (見える)のは、宛先が自分のもの・全員宛て (`TargetUserId = 0`)・自分が作成したもの
+  - それ以外 (ほかの人が、ほかの人に宛てたもの)は見えない
+- 通知と今日のリマインダー (メイン画面)の対象にするのは、宛先が自分と全員宛てだけ
+  - 自分が作成した、ほかの人宛てのものは、一覧には出るが、通知しない (通知は、宛先の人の PC だけに出す)
+- 編集は、見える人なら誰でもできる (作成者・宛先の人・全員宛ての全員)
+  - 削除済みを編集すると、復活する (誰の編集でも)
+- 論理削除と、その取り消しも、**見える人なら誰でもできる** (編集と同じ)
+  - 画面は、自分のものも他人のものも、必ず確認ダイアログ (「「件名」を削除しますか?」)を出してから行う
+  - 見えない人の操作は、対象が無いのと同じ (false)
+- 完全削除 (行を消す)は、DB では行わない (ユーザーの決定)
+  - 画面は、完全削除の操作を出さない (`IReminderRepository.CanPurge` が false)
 - 未対応への変更は、自分の対応状態の行を消す
 
 ## Repository の動き (`SqlServerReminderRepository`)
-- 読みはメモリから返す。見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに読み、そのあとは 1 分ごとに全件読み直す。前回と違えば `ExternalChanged` を発火する (ほかの PC の変更が、読み直しで反映される)。自分の書き込みでは発火しない (それは `ReminderService.Changed` が知らせる)
-- 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する (DB の内容と同じ形になる。備考・リンクの空文字は `null` など)。番号は `IDENTITY`、更新日時は DB の時計、作成者・更新者・対応状態の持ち主は今のユーザー (`CurrentUser`)
-- 読み込みに失敗したとき (DB に届かない・ユーザーを特定していない)は、最後に読めた内容 (最初なら空)を返し続け、`LoadError` に理由を残す。ユーザーを特定していないとき (起動時に DB に届かなかった・まだ登録していない)は、読み直しと保存のたびに、もう一度特定を試す。DB に届かなければ「接続の失敗」、登録が無ければ「ユーザー登録が必要」を知らせ、次の読み直しで特定できれば、消える。保存の失敗は、画面に出せるメッセージの `DataFileException`
-- DB に入れられない値 (範囲外の日付・時刻・曜日・宛先、上限 (`ReminderLimits`)を超える文字列)は、バグなので `ArgumentException`。長い文字列を、パラメーターの長さで黙って切り詰めさせないため
-- 保存先の選択は、ホストが、設定 (`Database.Mode`)で行う (`AddSqlServerData`。機能が登録した JSON の保存先を、DB のときだけ置き換える)。ローカルモードでは、DB に接続しない
-- 今のユーザーは、DB モードのとき、起動時の準備 (`DatabaseStartup`。各機能の準備より先)で、この PC に保存したログイン名とパスワードから特定する。接続できない・設定が足りないときは、起動を止めず、保存先が `LoadError` で知らせる
+
+- 読みはメモリから返す
+  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに読み、そのあとは 1 分ごとに全件読み直す
+  - 前回と違えば `ExternalChanged` を発火する (ほかの PC の変更が、読み直しで反映される)
+  - 自分の書き込みでは発火しない (それは `ReminderService.Changed` が知らせる)
+- 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する
+  - DB の内容と同じ形になる (備考・リンクの空文字は `null` など)
+  - 番号は `IDENTITY`、更新日時は DB の時計、作成者・更新者・対応状態の持ち主は今のユーザー (`CurrentUser`)
+- 読み込みに失敗したとき (DB に届かない・ユーザーを特定していない)は、最後に読めた内容 (最初なら空)を返し続け、`LoadError` に理由を残す
+  - ユーザーを特定していないとき (起動時に DB に届かなかった・まだ登録していない)は、読み直しと保存のたびに、もう一度特定を試す
+  - DB に届かなければ「接続の失敗」、登録が無ければ「ユーザー登録が必要」を知らせ、次の読み直しで特定できれば、消える
+  - 保存の失敗は、画面に出せるメッセージの `DataFileException`
+- DB に入れられない値は、バグなので `ArgumentException`
+  - 範囲外の日付・時刻・曜日・宛先、上限 (`ReminderLimits`)を超える文字列が当たる
+  - 長い文字列を、パラメーターの長さで黙って切り詰めさせないため
+- 保存先の選択は、ホストが、設定 (`Database.Mode`)で行う (`AddSqlServerData` で、機能が登録した JSON の保存先を、DB のときだけ置き換える)
+  - ローカルモードでは、DB に接続しない
+- 今のユーザーは、DB モードのとき、起動時の準備 (`DatabaseStartup` で、各機能の準備より先)で、この PC に保存したログイン名とパスワードから特定する
+  - 接続できない・設定が足りないときは、起動を止めず、保存先が `LoadError` で知らせる
 
 ## ユーザーの決め方
-ユーザーは、ログイン名とパスワードで特定する (端末の識別子 (MAC など)は使わない)。
-- **保存**: ログインに成功したら、ログイン名とパスワードを `ISecretStore` に保存する (キーは `MmmTool.Account.<サーバー名>/<データベース名>`。接続先が違うと別のキーになり、互いを上書きしない)。保存先は資格情報マネージャーで、Windows アカウントごと。別の人が自分の Windows アカウントで使うときは、保存が無いので、ログイン画面から始まる
-- **起動時**: 保存したログイン名とパスワードを、毎回 DB と照合する (ユーザー番号だけを保存して信じない)。削除されておらず、今日が `ValidFrom` 〜 `ValidTo` の間で、ハッシュが合えば、そのユーザーになる。保存が無い・合わない (パスワードが変わった・ユーザーが削除済み)ときは、保存を消して、ログイン画面を出す
-- **ログイン画面** (`src/App/MmmTool/Features/Users/SignIn`): 起動のとき、メインウィンドウを作ったあと、トレイを出す前に出す (作る前に出すと、最初のウィンドウが閉じたときにアプリごと終了しうるため)。済ませないと先へ進まない (ユーザーの決定。ログインせずに DB の機能が使えない状態で動き続けないため)。接続できないときは出さず、保存先が、読み込みの失敗として知らせる。× で閉じたときは、アプリを終了する (次の起動のときに、また出す)
+
+- ユーザーは、ログイン名とパスワードで特定する (端末の識別子 (MAC など)は使わない)
+- **保存**: ログインに成功したら、ログイン名とパスワードを `ISecretStore` に保存する
+  - キーは `MmmTool.Account.<サーバー名>/<データベース名>` (接続先が違うと別のキーになり、互いを上書きしない)
+  - 保存先は資格情報マネージャーで、Windows アカウントごと
+  - 別の人が自分の Windows アカウントで使うときは、保存が無いので、ログイン画面から始まる
+- **起動時**: 保存したログイン名とパスワードを、毎回 DB と照合する (ユーザー番号だけを保存して信じない)
+  - 削除されておらず、今日が `ValidFrom` 〜 `ValidTo` の間で、ハッシュが合えば、そのユーザーになる
+  - 保存が無い・合わない (パスワードが変わった・ユーザーが削除済み)ときは、保存を消して、ログイン画面を出す
+- **ログイン画面** (`src/App/MmmTool/Features/Users/SignIn`)
+  - 起動のとき、メインウィンドウを作ったあと、トレイを出す前に出す (作る前に出すと、最初のウィンドウが閉じたときにアプリごと終了しうるため)
+  - 済ませないと先へ進まない (ユーザーの決定で、ログインせずに DB の機能が使えない状態で動き続けないため)
+  - 接続できないときは出さず、保存先が、読み込みの失敗として知らせる
+  - × で閉じたときは、アプリを終了する (次の起動のときに、また出す)
   - 「ログイン」: ログイン名とパスワード
-  - 「新規登録」: ログイン名・表示名・パスワード (確認入力つき)。同じログイン名があるときは、`LoginNameTakenException` で知らせ、欄の下にエラーを出す (接続できないなどの保存先の失敗 (`DataFileException`)は、InfoBar に出す)。表示名の初期値は Windows のユーザー名。ログイン名の初期値も Windows のユーザー名だが、半角英数字と記号だけのときだけ入れる (漢字などを含むときは空欄)。ログイン名は 50 文字まで・空は不可・半角英数字と半角記号だけ (空白は不可。`AppUser.IsValidLoginName`)・使われているものは不可 (削除されていない行の間)。使えない文字は、入力した時点で欄の下にエラーを出す (保存を押したときも検証する)。この制限は、新規登録・ログイン・ログイン名の変更のすべてにかける (ASCII 以外で登録済みのログイン名への配慮は要らない)。ログイン名の変更画面を開いたとき、今のログイン名と同じ間は、判定しない。パスワードは空でなければよい (文字数や種類の決まりは設けない。自分用の小規模な利用のため。ユーザーの決定)。使い始める日は今日、使い終わる日は無期限で、画面には出さない
+  - 「新規登録」: ログイン名・表示名・パスワード (確認入力つき)
+    - 同じログイン名があるときは、`LoginNameTakenException` で知らせ、欄の下にエラーを出す
+    - 接続できないなどの保存先の失敗 (`DataFileException`)は、InfoBar に出す
+    - 表示名の初期値は Windows のユーザー名
+    - ログイン名の初期値も Windows のユーザー名だが、半角英数字と記号だけのときだけ入れる (漢字などを含むときは空欄)
+    - ログイン名は 50 文字まで・空は不可・半角英数字と半角記号だけ (空白は不可で、`AppUser.IsValidLoginName`)・使われているものは不可 (削除されていない行の間)
+    - 使えない文字は、入力した時点で欄の下にエラーを出す (保存を押したときも検証する)
+    - この制限は、新規登録・ログイン・ログイン名の変更のすべてにかける (ASCII 以外で登録済みのログイン名への配慮は要らない)
+    - ログイン名の変更画面を開いたとき、今のログイン名と同じ間は、判定しない
+    - パスワードは空でなければよい (文字数や種類の決まりは設けず、ユーザーの決定で、自分用の小規模な利用のため)
+    - 使い始める日は今日、使い終わる日は無期限で、画面には出さない
   - 成功したら、保存して、そのユーザーになる
-- **パスワードのハッシュ**: .NET 標準の `Rfc2898DeriveBytes.Pbkdf2` (SHA-256・ソルト 16 バイト・回数は 600,000。OWASP の Password Storage Cheat Sheet が PBKDF2-HMAC-SHA256 に示す値)。列に方式と回数を一緒に入れ、あとで強くできるようにする。OWASP の第一候補は Argon2id と bcrypt だが、.NET の標準だけで書け、NuGet を足さずに済む PBKDF2 を選ぶ
-- **忘れたとき**: 管理者が SQL で `PasswordHash` を空文字にする (アプリ用の `MmmTool` ログインでも流せる)。
+- **パスワードのハッシュ**: .NET 標準の `Rfc2898DeriveBytes.Pbkdf2` を使う
+  - SHA-256・ソルト 16 バイト・回数は 600,000 (OWASP の Password Storage Cheat Sheet が PBKDF2-HMAC-SHA256 に示す値)
+  - 列に方式と回数を一緒に入れ、あとで強くできるようにする
+  - OWASP の第一候補は Argon2id と bcrypt だが、.NET の標準だけで書け、NuGet を足さずに済む PBKDF2 を選ぶ
+- **忘れたとき**: 管理者が SQL で `PasswordHash` を空文字にする (アプリ用の `MmmTool` ログインでも流せる)
 
   ```sql
   UPDATE dbo.AppUser
@@ -386,24 +652,71 @@
   WHERE LoginName = N'<ログイン名>' AND IsDeleted = 0;
   ```
 
-  次にそのログイン名でログインしようとすると、新しいパスワードを決める画面になる (決めるまでの間は、ログイン名を知っていれば誰でも決められるので、管理者が本人に伝えてすぐ行ってもらう)。画面での再設定の手段 (メールなど)は作らない
-- **アカウントの変更とログアウト** (設定ページの「アカウント」。`src/App/MmmTool/Features/Users/Settings`・`Edit`。処理は `UserAccountService`): ローカルモードと、ログイン前は出さない (部品を作るときに決める)。カードは「表示名」「ログイン名」「パスワード」(押すと編集のウィンドウが開く)と「ログアウト」(ボタン)
-  - **編集のウィンドウ** (`AccountEditWindow`。1 つのウィンドウを項目で出し分ける): 表示名は新しい名前だけ。ログイン名と、パスワードは、本人の確認のため「現在のパスワード」を入力させる (間違いは「現在のパスワードが違います。」)。パスワードは新しいパスワード + 確認入力。ログイン名の重複は「ログイン名はすでに使われています。」。保存先の失敗 (接続できないなど)は InfoBar。値が変わっていなければ、何も保存せず閉じる
-  - **変えたあと**: 今のユーザーと、資格情報マネージャーに覚えているログイン名とパスワードも新しくする (新しくしないと、次の起動の照合に失敗してログイン画面になる)。更新者には自分の番号を入れる。パスワードの変更は、管理者の再設定 (`SetPasswordHashAsync`。ハッシュが空のときだけ書く)とは別の `ChangePasswordHashAsync` (今のパスワードを確かめたうえで、無条件に書く)
+  - 次にそのログイン名でログインしようとすると、新しいパスワードを決める画面になる
+  - 決めるまでの間は、ログイン名を知っていれば誰でも決められるので、管理者が本人に伝えてすぐ行ってもらう
+  - 画面での再設定の手段 (メールなど)は作らない
+- **アカウントの変更とログアウト** (設定ページの「アカウント」で、`src/App/MmmTool/Features/Users/Settings`・`Edit` にあり、処理は `UserAccountService`)
+  - ローカルモードと、ログイン前は出さない (部品を作るときに決める)
+  - カードは「表示名」「ログイン名」「パスワード」(押すと編集のウィンドウが開く)と「ログアウト」(ボタン)
+  - **編集のウィンドウ** (`AccountEditWindow`で、1 つのウィンドウを項目で出し分ける)
+    - 表示名は新しい名前だけ
+    - ログイン名と、パスワードは、本人の確認のため「現在のパスワード」を入力させる (間違いは「現在のパスワードが違います。」)
+    - パスワードは新しいパスワード + 確認入力
+    - ログイン名の重複は「ログイン名はすでに使われています。」
+    - 保存先の失敗 (接続できないなど)は InfoBar
+    - 値が変わっていなければ、何も保存せず閉じる
+  - **変えたあと**: 今のユーザーと、資格情報マネージャーに覚えているログイン名とパスワードも新しくする
+    - 新しくしないと、次の起動の照合に失敗してログイン画面になる
+    - 更新者には自分の番号を入れる
+    - パスワードの変更は、管理者の再設定 (`SetPasswordHashAsync`で、ハッシュが空のときだけ書く)とは別の `ChangePasswordHashAsync` (今のパスワードを確かめたうえで、無条件に書く)
   - **ほかの PC**: 古いパスワードを覚えている PC は、次の起動で照合に失敗し、覚えている内容を消して、ログイン画面を出す (正しい動き)
-  - **ログアウト**: 確認 (「保存してあるログイン情報を消して、アプリを終了します。」)のあと、覚えているログイン名とパスワードを消し、アプリを終了する。次の起動でログイン画面になる。消せなかったとき (`SecretStoreException`)は、InfoBar に出して終了しない。終了にする (ログインし直す画面をその場で出さない)のは、ユーザーの決定。理由は下の「設計の判断」の「アカウントの変更とログアウト」
-  - **覚え直しに失敗したとき**: ログイン名・パスワードの変更で、DB は変わったが、資格情報マネージャーに書けなかったとき (`SecretStoreException`)は、編集画面の InfoBar に出す。この PC は、次の起動でログインし直しになる
-- **守る範囲**: アプリを通した取り違えと不注意な利用まで。DB の接続パスワードを知る人は、SSMS でほかの人のリマインダーもハッシュも読める。同じ Windows アカウントの別のプロセスは、保存したパスワードを読める。守りきるには API 方式が要る (下の「設計の判断」の「DB に直接つなぎ…」)
+  - **ログアウト**: 確認 (「保存してあるログイン情報を消して、アプリを終了します。」)のあと、覚えているログイン名とパスワードを消し、アプリを終了する
+    - 次の起動でログイン画面になる
+    - 消せなかったとき (`SecretStoreException`)は、InfoBar に出して終了しない
+    - 終了にする (ログインし直す画面をその場で出さない)のは、ユーザーの決定
+    - 理由は下の「設計の判断」の「アカウントの変更とログアウト」
+  - **覚え直しに失敗したとき**: ログイン名・パスワードの変更で、DB は変わったが、資格情報マネージャーに書けなかったとき (`SecretStoreException`)は、編集画面の InfoBar に出す
+    - この PC は、次の起動でログインし直しになる
+- **守る範囲**: アプリを通した取り違えと不注意な利用まで
+  - DB の接続パスワードを知る人は、SSMS でほかの人のリマインダーもハッシュも読める
+  - 同じ Windows アカウントの別のプロセスは、保存したパスワードを読める
+  - 守りきるには API 方式が要る (下の「設計の判断」の「DB に直接つなぎ…」)
 
 ## SQL Server の場合
-- ドライバーは `Microsoft.Data.SqlClient`(SQL Server 専用。`System.Data.SqlClient` は非推奨)。SDK の `MmmSdk.Db.SqlServer`(接続の設定と接続の生成)に置き、表の操作 (行のクラスは `MmmTool.Data`、SQL Server の実装は `MmmTool.Data.SqlServer`)は、アプリの `MmmTool.Data*` に置く
-- 接続の設定は、設定ストアの `Database.` の接頭辞のキー (データベース名とユーザー名は、保存されていなければ、初期値の `MmmTool`。入力欄にも最初から入る): `Mode`(`Json` / `SqlServer`)・`Server`・`Name`(データベース名)・`Authentication`(`Sql` / `Windows`)・`UserName`・`TrustServerCertificate`
+
+- ドライバーは `Microsoft.Data.SqlClient`(SQL Server 専用で、`System.Data.SqlClient` は非推奨)
+  - SDK の `MmmSdk.Db.SqlServer`(接続の設定と接続の生成)に置く
+  - 表の操作は、アプリの `MmmTool.Data*` に置く (行のクラスは `MmmTool.Data`、SQL Server の実装は `MmmTool.Data.SqlServer`)
+- 接続の設定は、設定ストアの `Database.` の接頭辞のキー
+  - データベース名とユーザー名は、保存されていなければ、初期値の `MmmTool` (入力欄にも最初から入る)
+  - キーは、`Mode`(`Json` / `SqlServer`)・`Server`・`Name`(データベース名)・`Authentication`(`Sql` / `Windows`)・`UserName`・`TrustServerCertificate`
   - パスワードは設定ファイルに書かず、`ISecretStore` の `MmmTool.Database` に保存する ([../../external/MmmSdk/docs/storage.md](../../external/MmmSdk/docs/storage.md))
-  - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`。`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)。設定は `DatabaseSettings`(パスワードを除く)。種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
-  - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`。`Build()`)。足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする (利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
-  - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql` (日報メモの表 `WorkDayNote`。リリースまで、この版の変更は、このファイルに足す)。先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する。リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)、送信のための表 (`NotificationChannel`・`ReminderSendSetting`)、作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)、コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)を、この 1 本が作る・入れる (何度流しても、無いものだけを作る・入れる。`DELETE` 文は含まない)。MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る。sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)。記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (普段は使わない。番号つきでないので、作成用のスクリプトの流れに混ざらない)
-- アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool`。DB の名前や、ほかのアプリのログインとは分ける)。管理者 (`sa` など)でアプリをつながない。権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)。表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
+  - 読み書きは `MmmTool.Data` の `DatabaseSettingsService`(`Connection/`で、`Load` / `SaveAsync`・`GetPassword` / `SetPassword`)
+    - 設定は `DatabaseSettings`(パスワードを除く)
+    - 種類 (`DatabaseMode`・`DatabaseAuthentication`)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする
+    - 何も保存されていないときも、既定値 (JSON・サーバー名などは空・証明書は信頼しない)
+  - 設定とパスワードから、接続を作るファクトリを作るのは、`MmmTool.Data.SqlServer` の `SqlServerConnectionFactoryBuilder`(`Connection/`で、`Build()`)
+    - 足りない設定 (サーバー名・データベース名・ユーザー名が空、パスワードが未登録)は、画面に出せるメッセージの `DatabaseSettingsException`(`MmmTool.Data`)にする
+    - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
+    - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
+  - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`
+  - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote` で、リリースまで、この版の変更は、このファイルに足す
+  - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
+  - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
+    - リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)
+    - 送信のための表 (`NotificationChannel`・`ReminderSendSetting`)
+    - 作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)
+    - コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)
+  - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る
+  - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
+  - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
+    - 普段は使わない
+    - 番号つきでないので、作成用のスクリプトの流れに混ざらない
+- アプリが使うログインは、アプリごとに 1 つ (名前は `MmmTool` で、DB の名前や、ほかのアプリのログインとは分ける)
+  - 管理者 (`sa` など)でアプリをつながない
+  - 権限は、この専用の DB (`MmmTool`)の `dbo` スキーマへの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを、スキーマ単位で与える (アプリは表の読み書きだけで、表は作らない)
+  - 表を作ったあとに、DB を選んで次を実行する (パスワードは長いランダムなものにする)
 
   ```sql
   -- サーバーのログイン (master で実行)
@@ -412,7 +725,14 @@
   CREATE USER [MmmTool] FOR LOGIN [MmmTool];
   GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO [MmmTool];
   ```
-  - MmmBatch は、今は `MmmTool` のログインをそのまま使う (ユーザーの決定。接続の入力欄の初期値も `MmmTool`)。パスワードの保存名だけは、アプリごとに分ける (`MmmBatch.Database`。同じ Windows アカウントで、ログインを変えたときに、お互いのパスワードを上書きしないため)。権限を、MmmBatch に必要な表だけに絞りたいときは、別のログイン `MmmBatch` を作る。その権限は、`Reminder`・`NotificationChannel`・`ReminderSendSetting` の `SELECT` と、`ReminderSendStatus` の `SELECT`・`INSERT`・`UPDATE` (リマインダーや送信先は、読むだけで書かない)。作る SQL は次のとおり。作ったら、MmmBatch の接続の設定で、ユーザー名を `MmmBatch` に直す
+
+  - MmmBatch は、今は `MmmTool` のログインをそのまま使う (ユーザーの決定で、接続の入力欄の初期値も `MmmTool`)
+    - パスワードの保存名だけは、アプリごとに分ける (`MmmBatch.Database`)
+      - 同じ Windows アカウントで、ログインを変えたときに、お互いのパスワードを上書きしないため
+    - 権限を、MmmBatch に必要な表だけに絞りたいときは、別のログイン `MmmBatch` を作る
+      - その権限は、`Reminder`・`NotificationChannel`・`ReminderSendSetting` の `SELECT` と、`ReminderSendStatus` の `SELECT`・`INSERT`・`UPDATE` (リマインダーや送信先は、読むだけで書かない)
+      - 作る SQL は次のとおり
+      - 作ったら、MmmBatch の接続の設定で、ユーザー名を `MmmBatch` に直す
 
     ```sql
     -- サーバーのログイン (master で実行)
@@ -424,14 +744,25 @@
     GRANT SELECT ON dbo.ReminderSendSetting TO [MmmBatch];
     GRANT SELECT, INSERT, UPDATE ON dbo.ReminderSendStatus TO [MmmBatch];
     ```
-  - パスワードポリシー (`CHECK_POLICY`)は適用しない (ユーザーの判断。意図した仕様で、指摘しない)。簡単なパスワードも許すが、小規模で、信頼できる LAN・VPN の中だけでつなぐ前提 (上の守る範囲)のため。ログイン名と同じパスワードは使わない
-- 認証は SQL 認証 (ドメインを使わない環境のため)。パスワードは、各 PC の設定画面から 1 度だけ入力し、資格情報マネージャーに保存する。EXE にも設定ファイルにも書かない。サーバー名・DB 名は秘密ではない。SQL Server は、同じ LAN か VPN の中だけでつなぐ (インターネットに出さない。通信は暗号化必須)
-- 自動採番は `IDENTITY(1,1)`。更新日時は更新の SQL の中で `SYSDATETIMEOFFSET()` を使って書く。0 以上の検査・1 か 2 の検査は `CHECK` 制約
+
+  - パスワードポリシー (`CHECK_POLICY`)は適用しない (ユーザーの判断で、意図した仕様のため、指摘しない)
+    - 簡単なパスワードも許すが、小規模で、信頼できる LAN・VPN の中だけでつなぐ前提 (上の守る範囲)のため
+    - ログイン名と同じパスワードは使わない
+- 認証は SQL 認証 (ドメインを使わない環境のため)
+  - パスワードは、各 PC の設定画面から 1 度だけ入力し、資格情報マネージャーに保存する
+  - EXE にも設定ファイルにも書かない
+  - サーバー名・DB 名は秘密ではない
+  - SQL Server は、同じ LAN か VPN の中だけでつなぐ (インターネットに出さず、通信は暗号化必須)
+- 自動採番は `IDENTITY(1,1)`
+  - 更新日時は更新の SQL の中で `SYSDATETIMEOFFSET()` を使って書く
+  - 0 以上の検査・1 か 2 の検査は `CHECK` 制約
 - 空文字を、そのまま保存できる (「ない」の文字列を空文字で表せる)
 - 型の対応は、上の列の表の「SQL Server」の列
 
 ## 型の対応 (作業管理の表)
-作業管理の表は、SQL Server と SQLite の両方にある。列の定義は DB に依存しない型で書き、DB ごとの型は次のとおり。
+
+- 作業管理の表は、SQL Server と SQLite の両方にある
+- 列の定義は DB に依存しない型で書き、DB ごとの型は次のとおり
 
 | 型 | SQL Server | SQLite |
 | --- | --- | --- |
@@ -446,118 +777,222 @@
 | 長い文字列 (上限なし) | `nvarchar(max)` | `TEXT` |
 | 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |
 
-- **時間は実数で持つ** (`WorkRecord.Hours`・`WorkItem.PlannedHours`・`ActualTotalHours`)。SQL Server の `decimal` は小数の足し算に誤差が出ない。SQLite の `REAL` は浮動小数なので、合計を書くたびに `ROUND(SUM(…), 2)` で小数 2 桁に丸める (誤差は 0.005 よりずっと小さいので、丸めれば積み上がらない)。集計し直すスクリプトの `SUM` も同じく丸める
+- **時間は実数で持つ** (`WorkRecord.Hours`・`WorkItem.PlannedHours`・`ActualTotalHours`)
+  - SQL Server の `decimal` は小数の足し算に誤差が出ない
+  - SQLite の `REAL` は浮動小数なので、合計を書くたびに `ROUND(SUM(…), 2)` で小数 2 桁に丸める (誤差は 0.005 よりずっと小さいので、丸めれば積み上がらない)
+  - 集計し直すスクリプトの `SUM` も同じく丸める
 - 日時と日付の文字列は、同じ形・同じ時差なら、文字の大小がそのまま日時の前後になる (比較に使える)
 
 ## SQLite の場合
-ローカルモードの作業管理の保存先。SQL Server の設計 (表の決まり・読み書きの形)を、そのまま使う。
-- ドライバーは `Microsoft.Data.Sqlite` (Microsoft 製・MIT)。SQLite 本体は、パッケージに同梱されるネイティブ DLL (`e_sqlite3.dll`)で、`Lib` に置かれる。利用者が入れるものは無い。接続の生成 (ファイルの場所・開く・設定・版の更新・壊れたファイルの扱い)は、SDK の `MmmSdk.Db.Sqlite` に置き、SDK の Core には SQLite の依存を入れない (`MmmSdk.Db.SqlServer` と同じ理由)。表の操作は、`MmmTool.Data.Sqlite` に置く (行の型は `MmmTool.Data`。MmmBatch も参照する `MmmTool.Data` に、SQLite の依存は入れない)
-- ファイルは `Data/MmmTool.db` の 1 つ。将来、他の機能がローカルの DB に移るときも、同じファイルに表を足す (バックアップが 1 つのコピーで済み、接続の仕組みも 1 つで済む)
-- ジャーナルは既定の方式 (`DELETE`)。ファイルが 1 つのまま残り、コピーでバックアップできる。書き込み中だけ、横に `-journal` ができる。`WAL` は、`-wal`・`-shm` が常に横に残るので使わない
-- 外部キーは使わない (SQLite は既定でも無効のまま。連動削除も使わない)
-- **表の作成と版の更新**: スクリプトを `src/Data/MmmTool.Data.Sqlite/Sql/` に番号つきで置く (`001_CreateTables.sql`)。何度流しても壊れない形 (`IF NOT EXISTS`)にする。ローカルのファイルはアプリのものなので、開くとき、`PRAGMA user_version` より新しい番号のスクリプトを順に、1 つのトランザクションで実行して、`user_version` を更新する (SQL Server は、アプリが表の有無を調べて知らせるだけ)
-- **壊れたファイル**: DB として開けない (`SQLITE_NOTADB`・`SQLITE_CORRUPT`)ときは、[storage.md](storage.md) の決まりと同じく、同じフォルダの `MmmTool.broken-yyyyMMdd-HHmmss.db`(同じ秒なら `-2` 以降)へ名前を変えて退避し、空の DB を作り直して、メッセージを返す (自動では消さない)。ロック・権限などの IO エラーは退避できないので、`DataFileException`にして、保存を止める
-- 更新日時は、SQLite にサーバーの時計が無いので、アプリが書く (`TimeProvider`。ミリ秒・日本時間の時差つき)。作成日時の既定値も、アプリが入れる
-- ユーザー: `AppUser` の表は作らない。作成者・更新者の列は 1 (`Id = 1` の固定のローカルユーザー)。表の形は SQL Server と同じに保つ
 
-- **実装**: ファイルの場所・開く・版の更新・壊れたファイルの扱いは `MmmSdk.Db.Sqlite`(SDK。[db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))、表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)、作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`(埋め込みリソース。番号つきのものだけを版の更新に使う)。集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`(埋め込まない。管理者が、アプリを止めてから流す)。SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う。コードマスタの初期値は、作成用のスクリプトが入れる
-- ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する(`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)。選ぶ処理は、共通の部品 `AddStorage` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))。MmmBatch は SQLite を参照しない(`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
+- ローカルモードの作業管理の保存先
+- SQL Server の設計 (表の決まり・読み書きの形)を、そのまま使う
+- ドライバーは `Microsoft.Data.Sqlite` (Microsoft 製・MIT)
+  - SQLite 本体は、パッケージに同梱されるネイティブ DLL (`e_sqlite3.dll`)で、`Lib` に置かれる
+  - 利用者が入れるものは無い
+  - 接続の生成 (ファイルの場所・開く・設定・版の更新・壊れたファイルの扱い)は、SDK の `MmmSdk.Db.Sqlite` に置き、SDK の Core には SQLite の依存を入れない (`MmmSdk.Db.SqlServer` と同じ理由)
+  - 表の操作は、`MmmTool.Data.Sqlite` に置く (行の型は `MmmTool.Data` にあり、MmmBatch も参照する `MmmTool.Data` に、SQLite の依存は入れない)
+- ファイルは `Data/MmmTool.db` の 1 つ
+  - 将来、他の機能がローカルの DB に移るときも、同じファイルに表を足す (バックアップが 1 つのコピーで済み、接続の仕組みも 1 つで済む)
+- ジャーナルは既定の方式 (`DELETE`)
+  - ファイルが 1 つのまま残り、コピーでバックアップできる
+  - 書き込み中だけ、横に `-journal` ができる
+  - `WAL` は、`-wal`・`-shm` が常に横に残るので使わない
+- 外部キーは使わない (SQLite は既定でも無効のままで、連動削除も使わない)
+- **表の作成と版の更新**: スクリプトを `src/Data/MmmTool.Data.Sqlite/Sql/` に番号つきで置く (`001_CreateTables.sql`)
+  - 何度流しても壊れない形 (`IF NOT EXISTS`)にする
+  - ローカルのファイルはアプリのものなので、開くとき、`PRAGMA user_version` より新しい番号のスクリプトを順に、1 つのトランザクションで実行して、`user_version` を更新する
+  - SQL Server は、アプリが表の有無を調べて知らせるだけ
+- **壊れたファイル**: DB として開けない (`SQLITE_NOTADB`・`SQLITE_CORRUPT`)ときは、[storage.md](storage.md) の決まりと同じく、同じフォルダの `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて退避し、空の DB を作り直して、メッセージを返す
+  - 同じ秒なら `-2` 以降を付ける
+  - 自動では消さない
+  - ロック・権限などの IO エラーは退避できないので、`DataFileException` にして、保存を止める
+- 更新日時は、SQLite にサーバーの時計が無いので、アプリが書く (`TimeProvider`で、ミリ秒・日本時間の時差つき)
+  - 作成日時の既定値も、アプリが入れる
+- ユーザー: `AppUser` の表は作らない
+  - 作成者・更新者の列は 1 (`Id = 1` の固定のローカルユーザー)
+  - 表の形は SQL Server と同じに保つ
+- **実装**
+  - ファイルの場所・開く・版の更新・壊れたファイルの扱いは SDK の `MmmSdk.Db.Sqlite` ([db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))
+  - 表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)
+  - 作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql` (埋め込みリソースで、番号つきのものだけを版の更新に使う)
+  - 集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (埋め込まず、管理者が、アプリを止めてから流す)
+  - SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う
+  - コードマスタの初期値は、作成用のスクリプトが入れる
+- ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)
+  - 選ぶ処理は、共通の部品 `AddStorage` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))
+  - MmmBatch は SQLite を参照しない (`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
 
 ## 他の DB を足すとき
-列の表に、その DB の型の列を足し、「<DB> の場合」の節を足す。DB ごとの例外は、その節に書く。たとえば Oracle は、空文字を NULL として扱うので、「文字列の空は空文字」が成り立たない (「ない」の文字列の表し方を、Oracle の節で決める)。DynamoDB のように表を持たない保存先は、この文書の対象ではなく、別の保存先として書く。
+
+- 列の表に、その DB の型の列を足し、「<DB> の場合」の節を足す
+- DB ごとの例外は、その節に書く
+  - たとえば Oracle は、空文字を NULL として扱うので、「文字列の空は空文字」が成り立たない (「ない」の文字列の表し方を、Oracle の節で決める)
+- DynamoDB のように表を持たない保存先は、この文書の対象ではなく、別の保存先として書く
 
 ## 設計の判断 (理由つき)
-- 保存先を 1 つにする: DB と JSON を行き来すると内容がずれ、戻すときの統合が要る。ユーザーの決定 (DB モードではローカルを使わない)
-- 設計を DB に依存させず、型の対応を同じ文書の列に並べる: 表と列の意味は DB が変わっても同じで、別の文書に分けると同じ列を 2 か所に書くことになる。DB ごとの違いは「<DB> の場合」の節に集める (ユーザーの決定)
-- `Microsoft.Data.SqlClient` を使う: Microsoft の現行の推奨ドライバーで、`System.Data.SqlClient` は非推奨。SQL Server 専用なので、型は SDK の `MmmSdk.Db.SqlServer` とアプリの `SqlServer/` の中に閉じ、保存先の差し替えは Repository のインターフェースで行う
-- 接続の部品を、SDK の独立したプロジェクト `MmmSdk.Db.SqlServer` にする: SDK の Core はトリミング・AOT 対応を宣言していて、SqlClient (リフレクションを使う)を混ぜると宣言と合わなくなる。別プロジェクトなら、SQL Server を使わないアプリには SqlClient の DLL が入らず、ほかの DB のドライバーも `MmmSdk.Db.<製品名>` として並べられる
-- データ層は素の ADO.NET: マッピングする型が少なく、リフレクションを使わないため。EF Core は DLL が多く、配布物の方針 ([../build-and-distribution.md](../build-and-distribution.md))と合わない
-- NULL を使わない: NULL との比較は結果が不明になり (`= NULL` は常に偽)、集計や結合で結果を静かに変える。「ない」を決まった値 (`9999-12-31`・空文字・0)で表せば、比較が単純になる。ユーザーの決定。旧アプリの `99999999` のような、本物のデータと見分けにくい値は避け、日付の果て (`9999-12-31`)という、日付として自然な値にしている
-- ログインをアプリごとに 1 つにし、権限を `dbo` スキーマの読み書きだけに絞る: 資格情報が漏れても、被害をそのアプリの DB の表の読み書きに閉じ込める (最小権限。表の作成・削除はできない)。DB ごとにログインを作る (増えるたびにパスワードも増える)・全部の DB に入れる共通のユーザー (漏れると全部の DB が危険)にはしない (ユーザーの決定)
-- スキーマは標準の `dbo` にする (専用のスキーマ `mmm` は使わない): この DB は MmmTool 専用で、ほかのアプリの表と同居しないため、スキーマで分ける利点が無い。名前が短く、SQL も単純 (ユーザーの決定。意図した仕様で、指摘しない)
-- DB に直接つなぎ、パスワードを各 PC で 1 度入力して資格情報マネージャーに保存する (API を間に置かない): 信頼できる少人数・LAN か VPN の中での利用で、守る範囲は、設定ファイルや画面からのうっかりした漏れと、権限の広がりまで。PC の中を調べ上げた取り出しは守らない。公開版にするときは、`HttpReminderRepository` を保存先に足して API 方式にする (今作る `SqlServerReminderRepository` は、API の中の保存先として、そのまま使える) (ユーザーの決定)
-- 日時を時差つき・ミリ秒にする: 日本時間のまま SSMS などで読めて、時刻の意味もあいまいにならない (UTC の時差なしの型は、見るたびに 9 時間ずれる)。秒までだと、同じ秒の更新を区別できないため、ミリ秒まで持つ。それでも同じミリ秒は重なりうるが、記録用なので許容する (ユーザーの決定)
+
+- 保存先を 1 つにする: DB と JSON を行き来すると内容がずれ、戻すときの統合が要る。ユーザーの決定で、DB モードではローカルを使わない。
+- 設計を DB に依存させず、型の対応を同じ文書の列に並べる: 表と列の意味は DB が変わっても同じで、別の文書に分けると同じ列を 2 か所に書くことになる。DB ごとの違いは「<DB> の場合」の節に集める。ユーザーの決定。
+- `Microsoft.Data.SqlClient` を使う: Microsoft の現行の推奨ドライバーで、`System.Data.SqlClient` は非推奨。SQL Server 専用なので、型は SDK の `MmmSdk.Db.SqlServer` とアプリの `SqlServer/` の中に閉じ、保存先の差し替えは Repository のインターフェースで行う。
+- 接続の部品を、SDK の独立したプロジェクト `MmmSdk.Db.SqlServer` にする: SDK の Core はトリミング・AOT 対応を宣言していて、SqlClient (リフレクションを使う)を混ぜると宣言と合わなくなる。別プロジェクトなら、SQL Server を使わないアプリには SqlClient の DLL が入らず、ほかの DB のドライバーも `MmmSdk.Db.<製品名>` として並べられる。
+- データ層は素の ADO.NET: マッピングする型が少なく、リフレクションを使わないため。EF Core は DLL が多く、配布物の方針 ([../build-and-distribution.md](../build-and-distribution.md))と合わない。
+- NULL を使わない: NULL との比較は結果が不明になり、`= NULL` は常に偽で、集計や結合で結果を静かに変える。「ない」を `9999-12-31`・空文字・0 のような決まった値で表せば、比較が単純になる。ユーザーの決定。旧アプリの `99999999` のような、本物のデータと見分けにくい値は避け、日付の果て (`9999-12-31`)という、日付として自然な値にしている。
+- ログインをアプリごとに 1 つにし、権限を `dbo` スキーマの読み書きだけに絞る: 資格情報が漏れても、被害をそのアプリの DB の表の読み書きに閉じ込める。最小権限で、表の作成・削除はできない。DB ごとにログインを作る (増えるたびにパスワードも増える)・全部の DB に入れる共通のユーザー (漏れると全部の DB が危険)にはしない。ユーザーの決定。
+- スキーマは標準の `dbo` にする (専用のスキーマ `mmm` は使わない): この DB は MmmTool 専用で、ほかのアプリの表と同居しないため、スキーマで分ける利点が無い。名前が短く、SQL も単純。ユーザーの決定で、意図した仕様のため、指摘しない。
+- DB に直接つなぎ、パスワードを各 PC で 1 度入力して資格情報マネージャーに保存する (API を間に置かない): 信頼できる少人数・LAN か VPN の中での利用で、守る範囲は、設定ファイルや画面からのうっかりした漏れと、権限の広がりまで。PC の中を調べ上げた取り出しは守らない。公開版にするときは、`HttpReminderRepository` を保存先に足して API 方式にする。今作る `SqlServerReminderRepository` は、API の中の保存先として、そのまま使える。ユーザーの決定。
+- 日時を時差つき・ミリ秒にする: 日本時間のまま SSMS などで読めて、時刻の意味もあいまいにならない。UTC の時差なしの型は、見るたびに 9 時間ずれる。秒までだと、同じ秒の更新を区別できないため、ミリ秒まで持つ。それでも同じミリ秒は重なりうるが、記録用なので許容する。ユーザーの決定。
 - 更新日時を DB の時計で書く: 複数の PC の時計のずれを、日時に入れないため
-- 行の版 (`rowversion`)を持たない: 使い道は変更の検知と上書きの検出だけで、規模が小さく、変更は全件の読み直しで足り、上書きは許容する。使わない列と、合計を取るなどの検知の仕組みを持たない。ユーザーの決定
-- 主キーを、全部の表で同じ名前 `Id` の 1 列目にする: 全部の表の先頭がそろい、読む人も、扱う処理も、表ごとの違いを覚えなくて済む。ほかの表から指す列は `<表名>Id` にして、どの表の何かを名前で分かるようにする (ユーザーの決定)
-- 連動削除を使わない: 仕組みが増えすぎる。DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない (ユーザーの決定)
-- 共通ヘッダーを前に置く: 中身の列は、機能の変更でよく足される。ヘッダーを後ろに置くと、足すたびにヘッダーが中身の列に挟まれる。共通の列は最初にそろえて作るので、前に置けば崩れない (ユーザーの決定)
-- 曜日を JSON と同じ数 1 つで持つ: 保存先ごとに持ち方を変えず、変換を要らなくする (共通化)。DB の中身を直接見ることはないので、数が読みにくいことは問題にしない。旧アプリの持ち方 (曜日のビットの並び)には引きずらない (ユーザーの決定。7 つの列にする案は、列が増えるため選ばなかった)
-- ユーザーをログイン名とパスワードで決める (MAC をやめる): MAC は端末の識別子で、本人確認の材料ではない。PC や LAN アダプターを替えると変わり、偽装もでき、PC を別の人に渡すと、その人が黙って前の人になる。アカウントで本人確認をして、端末にログイン状態を覚えさせるのが今の標準。PC を替えても、同じアカウントでログインすれば、リマインダーを引き継げる (ユーザーの決定)
+- 行の版 (`rowversion`)を持たない: 使い道は変更の検知と上書きの検出だけで、規模が小さく、変更は全件の読み直しで足り、上書きは許容する。使わない列と、合計を取るなどの検知の仕組みを持たない。ユーザーの決定。
+- 主キーを、全部の表で同じ名前 `Id` の 1 列目にする: 全部の表の先頭がそろい、読む人も、扱う処理も、表ごとの違いを覚えなくて済む。ほかの表から指す列は `<表名>Id` にして、どの表の何かを名前で分かるようにする。ユーザーの決定。
+- 連動削除を使わない: 仕組みが増えすぎる。DB では完全削除 (行を消す)をしないので、状態を一緒に消す処理も要らない。ユーザーの決定。
+- 共通ヘッダーを前に置く: 中身の列は、機能の変更でよく足される。ヘッダーを後ろに置くと、足すたびにヘッダーが中身の列に挟まれる。共通の列は最初にそろえて作るので、前に置けば崩れない。ユーザーの決定。
+- 曜日を JSON と同じ数 1 つで持つ: 保存先ごとに持ち方を変えず、変換を要らなくする共通化のため。DB の中身を直接見ることはないので、数が読みにくいことは問題にしない。旧アプリの、曜日のビットの並びの持ち方には引きずらない。ユーザーの決定で、7 つの列にする案は、列が増えるため選ばなかった。
+- ユーザーをログイン名とパスワードで決める (MAC をやめる): MAC は端末の識別子で、本人確認の材料ではない。PC や LAN アダプターを替えると変わり、偽装もでき、PC を別の人に渡すと、その人が黙って前の人になる。アカウントで本人確認をして、端末にログイン状態を覚えさせるのが今の標準。PC を替えても、同じアカウントでログインすれば、リマインダーを引き継げる。ユーザーの決定。
 - 状態を人ごとに持つ: 全員宛てを、人ごとに完了・スヌーズできるようにするため
-- 人で絞る条件は、業務の列で行い、共通ヘッダーの `CreatedByUserId` は条件に使わない (記録用の列で、MmmBatch が書くときは 0 になり、将来、別の人が登録するときは使用者と別の人になるため。条件と索引は、意味を持つ業務の列にする)。そのため、リマインダーは作った人を `AuthorUserId`、通知の送信先は使う人を `UserId` で持つ。作成者の列と同じ値でも、列を分ける (`ReminderState.UserId` と同じ前例)。「Owner」は、何の持ち主か分かりにくいので、列名に使わない
-- 「全員」の固定の行を置かず、0 を約束の値にする: 固定の行は、ダミーのログイン名・一覧や自動判定から除く処理を生む。採番は 1 から振るので、0 は本物のユーザーと衝突しない。負の値は、0 以上の検査で防ぐ (ユーザーの決定)
-- 外部キー・連動削除・行の版・同時編集の上書きの検出を持たない (ユーザーの決定。意図した仕様で、レビューで指摘・提案しない)。インデックスも、主キーと一意制約だけにする。理由は次のとおり
+- 人で絞る条件は、業務の列で行い、共通ヘッダーの `CreatedByUserId` は条件に使わない: 記録用の列で、MmmBatch が書くときは 0 になり、将来、別の人が登録するときは使用者と別の人になるため。条件と索引は、意味を持つ業務の列にする。
+  - そのため、リマインダーは作った人を `AuthorUserId`、通知の送信先は使う人を `UserId` で持つ
+  - 作成者の列と同じ値でも、列を分ける (`ReminderState.UserId` と同じ前例)
+  - 「Owner」は、何の持ち主か分かりにくいので、列名に使わない
+- 「全員」の固定の行を置かず、0 を約束の値にする: 固定の行は、ダミーのログイン名・一覧や自動判定から除く処理を生む。採番は 1 から振るので、0 は本物のユーザーと衝突しない。負の値は、0 以上の検査で防ぐ。ユーザーの決定。
+- 外部キー・連動削除・行の版・同時編集の上書きの検出を持たない。ユーザーの決定で、意図した仕様のため、レビューで指摘・提案しない。インデックスも、主キーと一意制約だけにする。理由は次のとおり。
   - 小規模: 少人数で使い、リマインダーは人が手で登録する件数で、DB の仕組みで守る必要のある量・同時性ではない
-  - 書き込みはアプリの Repository だけ: ほかの表の番号を持つ列に、存在しない番号が入らないようにする責任は、Repository の 1 か所にある。DB では行を消さない (論理削除だけ)ので、消えた行を指す番号が残ることがない
-  - DB の仕組みを増やさない: 外部キー・連動削除・行の版は、決まりと例外 (0 を入れる列には付けられない、など)を増やす。持たなければ、表の定義も SQL も単純になり、DB を替える (Oracle など)ときの違いも小さい
+  - 書き込みはアプリの Repository だけ: ほかの表の番号を持つ列に、存在しない番号が入らないようにする責任は、Repository の 1 か所にある。DB では行を消さない (論理削除だけ)ので、消えた行を指す番号が残ることがない。
+  - DB の仕組みを増やさない: 外部キー・連動削除・行の版は、決まりと例外 (0 を入れる列には付けられない、など)を増やす。持たなければ、表の定義も SQL も単純になり、DB を替える (Oracle など)ときの違いも小さい。
   - 上書きを防ぎたくなったときは、表を変えずに、更新の SQL の条件に更新日時を足せる (「表の決まり」)
-- 作業管理のローカルの保存先を SQLite にし、表を SQL Server と同じ設計にする: 日々増える記録は、1 件を書くたびにファイル全体を書き直す JSON と相性が悪い。表と読み書きの形が同じなら、行の型と変換を共有でき、機能の中身 (サービス・画面)は保存先を知らずに済む。SQLite は、パッケージ同梱のネイティブ DLL だけで動き、利用者が入れるものは無い。LocalDB は、別に入れる必要があるため、選ばない。LiteDB は、SQL ではなく設計が合わず、安定版の更新が 2024-07 で止まっているため選ばない (ユーザーの決定)
-- 作業管理の表だけ、インデックスを読み方ごとに持つ: 件数が増え続け、全員の分を読むため。リマインダー関係の表の決定 (主キーと一意制約だけ)は変えない
-- 時間を実数で持ち、足すたびに小数 2 桁に丸める (ユーザーの決定): 100 倍した整数で持つ案は、画面や SQL で読みにくいため採らない。累計への足し算は `SET Total = ROUND(Total + @差分, 2)` で行うので、誤差が積み上がらず、集計し直した値と一致する
-- 全部の表に同じ共通ヘッダー (5 列)を持たせる: 意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0 など)が混ざっても、全部の表の形をそろえる共通化を優先する。表ごとに持つ列を変えると、どの表に何があるかを覚える必要が出て、扱う処理も表ごとに分かれる (ユーザーの決定)
+- 作業管理のローカルの保存先を SQLite にし、表を SQL Server と同じ設計にする: 日々増える記録は、1 件を書くたびにファイル全体を書き直す JSON と相性が悪い。表と読み書きの形が同じなら、行の型と変換を共有でき、機能の中身 (サービス・画面)は保存先を知らずに済む。SQLite は、パッケージ同梱のネイティブ DLL だけで動き、利用者が入れるものは無い。LocalDB は、別に入れる必要があるため、選ばない。LiteDB は、SQL ではなく設計が合わず、安定版の更新が 2024-07 で止まっているため選ばない。ユーザーの決定。
+- 作業管理の表だけ、インデックスを読み方ごとに持つ: 件数が増え続け、全員の分を読むため。リマインダー関係の表の決定 (主キーと一意制約だけ)は変えない。
+- 時間を実数で持ち、足すたびに小数 2 桁に丸める (ユーザーの決定): 100 倍した整数で持つ案は、画面や SQL で読みにくいため採らない。累計への足し算は `SET Total = ROUND(Total + @差分, 2)` で行うので、誤差が積み上がらず、集計し直した値と一致する。
+- 全部の表に同じ共通ヘッダー (5 列)を持たせる: 意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0 など)が混ざっても、全部の表の形をそろえる共通化を優先する。表ごとに持つ列を変えると、どの表に何があるかを覚える必要が出て、扱う処理も表ごとに分かれる。ユーザーの決定。
 
 ### リマインダーと送信先は、業務の列で絞る
-リマインダーと通知の送信先は、共通ヘッダーの列 (`CreatedByUserId`)を、見える範囲・更新・削除・一覧の条件に使わない。
-- 業務の列: `Reminder.AuthorUserId` (作成者)・`NotificationChannel.UserId` (使用者)。上の各表の定義。索引も上の定義
-- 条件: 見える範囲は `TargetUserId IN (0, 自分) OR AuthorUserId = 自分`。更新も同じ。削除は、見える人なら誰でも。送信先は `UserId = 自分`
+
+- リマインダーと通知の送信先は、共通ヘッダーの列 (`CreatedByUserId`)を、見える範囲・更新・削除・一覧の条件に使わない
+- 業務の列は、`Reminder.AuthorUserId` (作成者)・`NotificationChannel.UserId` (使用者)
+  - 上の各表の定義に書いてある。索引も上の定義。
+- 条件
+  - 見える範囲は `TargetUserId IN (0, 自分) OR AuthorUserId = 自分`
+  - 更新も同じ
+  - 削除は、見える人なら誰でも
+  - 送信先は `UserId = 自分`
 - 対象のコード: `SqlServerReminderRepository`・`SqlServerNotificationChannelRepository`・`ReminderService.CanDelete`・行のクラスと変換 (`ReminderRow`・`NotificationChannelRow`)・MmmBatch が同じ表を読む処理 (`SqlServerSendTargetSource`)
-- 例外は無い。共通ヘッダーの列を条件に使う処理は、どこにも無い
+- 例外は無い。共通ヘッダーの列を条件に使う処理は、どこにも無い。
 
 ### 送信の表は、別の表にする
-`Reminder` や `ReminderState` に混ぜない理由と、`ReminderSendStatus` の使い方は [mmmbatch.md](mmmbatch.md)。ローカルモードでは、JSON に送信の項目が出ない (設定は別の表と別の Repository にあり、JSON の Repository は実装しない)。
+
+- `Reminder` や `ReminderState` に混ぜない理由と、`ReminderSendStatus` の使い方は [mmmbatch.md](mmmbatch.md)
+- ローカルモードでは、JSON に送信の項目が出ない
+  - 設定は別の表と別の Repository にあり、JSON の Repository は実装しない
 
 ### 初回の保存先の選択を、各機能の準備より前に出して、すぐ反映する
-保存先 (`IReminderRepository` の選択)は、各機能の起動時の準備で最初に使われて決まり、そのあとは変わらない。初回に準備のあとで選ばせると、選ぶ前に、ローカルで動き出してしまう (DB を選んでも、そのあとの保存はローカルの JSON に入り、次の起動で見えなくなる)。そこで、準備より前に選ばせ、選んだ内容を最初から効かせる。最終形は、起動時に保存先が 1 回だけ決まり、あとは変わらない形で、初回の選択もその「1 回」の前に済ませる。選ばずに閉じたときに先へ進ませないのは、ユーザーの決定。
+
+- 保存先 (`IReminderRepository` の選択)は、各機能の起動時の準備で最初に使われて決まり、そのあとは変わらない
+- 初回に準備のあとで選ばせると、選ぶ前に、ローカルで動き出してしまう
+  - DB を選んでも、そのあとの保存はローカルの JSON に入り、次の起動で見えなくなる
+- そこで、準備より前に選ばせ、選んだ内容を最初から効かせる
+- 最終形は、起動時に保存先が 1 回だけ決まり、あとは変わらない形で、初回の選択もその「1 回」の前に済ませる
+- 選ばずに閉じたときに先へ進ませないのは、ユーザーの決定
 
 ### 設定ページの変更は、再起動を確認して終了する
-保存先は起動時に 1 回だけ決まるので、動いている最中の変更は、再起動で反映する (ユーザーの決定)。保存先に関わる変更のときだけ確認し、ローカルのままの DB 入力欄の変更では出さない。自動で再起動はしない (起動し直すのは利用者)。
+
+- 保存先は起動時に 1 回だけ決まるので、動いている最中の変更は、再起動で反映する (ユーザーの決定)
+- 保存先に関わる変更のときだけ確認し、ローカルのままの DB 入力欄の変更では出さない
+- 自動で再起動はしない (起動し直すのは利用者)
 
 ### サーバーの証明書を、画面の項目にせず、初めての接続で 1 回だけ聞く
-「サーバーの証明書を信頼する」のスイッチは、専門用語で、何のことか分からず、オフのままだと、接続できないエラーで、初めて気づく。そこで、項目をやめ、証明書を信頼できないサーバー (自己署名など)のときだけ、初めての接続で 1 回、画面の中で聞く。答えるのは、サーバーを使う人 (家族など)なので、文言は、怖がらせず、事実を短く言い (「独自の証明書を使っています」)、補足で、よくあることと、押す手がかり (教えてもらった接続先なら)を伝える。自動で黙って信頼しないのは、検証を省く判断を、使う人が知らないまま行わないため (通信は暗号化されたまま。信頼するのは、そのサーバーに対してだけで、サーバーを変えると、また聞く)。ログインの方式 (Windows 認証)も、画面の項目にしない (ユーザー名とパスワードで固定)。設定の保存の形 (`Database.Authentication`・`Database.TrustServerCertificate`)は変えない。最終形は、利用者が、接続の専門用語に触れずに設定できる画面。
+
+- 「サーバーの証明書を信頼する」のスイッチは、専門用語で、何のことか分からず、オフのままだと、接続できないエラーで、初めて気づく
+- そこで、項目をやめ、証明書を信頼できないサーバー (自己署名など)のときだけ、初めての接続で 1 回、画面の中で聞く
+  - 答えるのは、サーバーを使う人 (ほかの人など)なので、文言は、怖がらせず、事実を短く言う (「独自の証明書を使っています」)
+  - 補足で、よくあることと、押す手がかり (教えてもらった接続先なら)を伝える
+- 自動で黙って信頼しない
+  - 検証を省く判断を、使う人が知らないまま行わないため
+  - 通信は暗号化されたまま
+  - 信頼するのは、そのサーバーに対してだけで、サーバーを変えると、また聞く
+- ログインの方式 (Windows 認証)も、画面の項目にしない (ユーザー名とパスワードで固定)
+- 設定の保存の形 (`Database.Authentication`・`Database.TrustServerCertificate`)は変えない
+- 最終形は、利用者が、接続の専門用語に触れずに設定できる画面
 
 ### ログイン名の一意は、削除されていない行の間だけにする
-削除済みのユーザーのログイン名は、新しい人が使える。行を使い回さない (前の持ち主のユーザー番号・宛先・作成者を、新しい人が引き継がないため)ので、削除済みの行は一意の対象から外す (条件つきの一意インデックス)。最終形は、ユーザーの再登録が、DB を手で直さずに済む形。
+
+- 削除済みのユーザーのログイン名は、新しい人が使える
+- 行を使い回さない (前の持ち主のユーザー番号・宛先・作成者を、新しい人が引き継がないため)
+- 削除済みの行は一意の対象から外す (条件つきの一意インデックス)
+- 最終形は、ユーザーの再登録が、DB を手で直さずに済む形
 
 ### アカウントの変更とログアウト
-- 設定ページに、アカウントの変更とログアウトを置く。資格情報マネージャーを手で消さないと PC を渡せず、表示名やパスワードも変えられないのは不便なため。最終形: ログイン状態の持ち方 (パスワードを端末に覚える)は変えないまま、利用者が自分で消せる口と、変えられる口を設定ページに置く
-- **ログアウトはアプリを終了する** (ユーザーの決定)。その場でログイン画面を出す案もあったが、DB の機能が動いたまま、ログインの状態だけが入れ替わる処理 (各機能が持つ読み込み済みの内容・今のユーザーの切り替え)を作らずに済み、次の起動は、いつもの初回ログインと同じ流れになる
-- **ログイン名とパスワードの変更に、現在のパスワードを求める**: 席を外した間に、開いたままのアプリから乗っ取られるのを防ぐ、今の標準の確認 (OWASP の Authentication Cheat Sheet)。表示名は、ほかの人の目に出るだけで、ログインの手がかりにならないので、求めない
-- **ログイン名の変更を許す**: 参照はすべて番号 (`AppUser.Id`)で、ログイン名は一意の名前札にすぎないので、変えてもデータは壊れない。重複は、登録のときと同じ仕組み (`LoginNameTakenException`)で防ぐ
-- **パスワードの再設定とは別の口**: 管理者の再設定 (`SetPasswordHashAsync`)は、ハッシュが空のときだけ書く (ほかの人が先に決めたパスワードを上書きしないため)。本人の変更 (`ChangePasswordHashAsync`)は、今のパスワードを確かめたうえで書く。1 つにまとめると、どちらかの安全の条件が弱くなる
+
+- 設定ページに、アカウントの変更とログアウトを置く
+  - 資格情報マネージャーを手で消さないと PC を渡せず、表示名やパスワードも変えられないのは不便なため
+  - 最終形: ログイン状態の持ち方 (パスワードを端末に覚える)は変えないまま、利用者が自分で消せる口と、変えられる口を設定ページに置く
+- **ログアウトはアプリを終了する** (ユーザーの決定)
+  - その場でログイン画面を出す案もあったが、DB の機能が動いたまま、ログインの状態だけが入れ替わる処理 (各機能が持つ読み込み済みの内容・今のユーザーの切り替え)を作らずに済む
+  - 次の起動は、いつもの初回ログインと同じ流れになる
+- **ログイン名とパスワードの変更に、現在のパスワードを求める**
+  - 席を外した間に、開いたままのアプリから乗っ取られるのを防ぐ、今の標準の確認 (OWASP の Authentication Cheat Sheet)
+  - 表示名は、ほかの人の目に出るだけで、ログインの手がかりにならないので、求めない
+- **ログイン名の変更を許す**
+  - 参照はすべて番号 (`AppUser.Id`)で、ログイン名は一意の名前札にすぎないので、変えてもデータは壊れない
+  - 重複は、登録のときと同じ仕組み (`LoginNameTakenException`)で防ぐ
+- **パスワードの再設定とは別の口**
+  - 管理者の再設定 (`SetPasswordHashAsync`)は、ハッシュが空のときだけ書く (ほかの人が先に決めたパスワードを上書きしないため)
+  - 本人の変更 (`ChangePasswordHashAsync`)は、今のパスワードを確かめたうえで書く
+  - 1 つにまとめると、どちらかの安全の条件が弱くなる
 
 ### 端末に覚えさせるのは、パスワードそのもの (トークンにしない)
-ログイン状態は、ログイン名とパスワードを資格情報マネージャーに保存して覚える (ユーザーの決定)。ランダムなトークンを端末に置き、DB にはそのハッシュだけを持つ形 (`AppUserToken` の表を足し、管理者が端末ごとに無効にできる)のほうが、パスワードを端末に残さず、今の標準に近い。それでも選ばなかったのは、表と仕組みを増やさないため。弱点は、同じ Windows アカウントの別のプロセスが、パスワードを読めること (守る範囲は「ユーザーの決め方」)。パスワードを使い回さない約束にして、公開版にするときの API 方式でトークンに替える。
+
+- ログイン状態は、ログイン名とパスワードを資格情報マネージャーに保存して覚える (ユーザーの決定)
+- ランダムなトークンを端末に置き、DB にはそのハッシュだけを持つ形のほうが、パスワードを端末に残さず、今の標準に近い
+  - 形は、`AppUserToken` の表を足し、管理者が端末ごとに無効にできる
+- それでも選ばなかったのは、表と仕組みを増やさないため
+- 弱点は、同じ Windows アカウントの別のプロセスが、パスワードを読めること (守る範囲は「ユーザーの決め方」)
+- パスワードを使い回さない約束にして、公開版にするときの API 方式でトークンに替える
 
 ### コードマスタは、機能をまたぐ 1 つの汎用の表にする
-- 状態・進捗度・優先度のように、番号を保存して名前・数値を引く選択肢を、表ごとに作らず、`CodeMaster` 1 つに集める。選択肢が増えるたびに、表・行の型・読み書き・差分の取得を足さずに済む (ユーザーの決定)。選択肢以外の「番号 + 名前 + 数値」(初期入力値など)も入る
-- 汎用の参照表は、「ドメインごとの外部キーを張れない」「値の型が混ざる」点が弱点と言われる。ここは外部キーを使わない方針で、値は整数と短い文字列だけなので、その弱点は当てはまらない。残る弱点は、コードが特定の番号の意味を知る必要がある点 (状態の「完了」)。そのため、状態・優先度のコード番号は、コードの列挙 (`WorkItemStatus`・`WorkItemPriority`)と同じ値に固定し、表は名前と表示順だけを持つ
-- 入れるのは、全員共通で、番号・数値・名前で表せる値だけ。ユーザーごとの設定 (縦持ちの設定の表を別に作る方向)と、自由に入力する文字列は入れない
-- 3 段のキー (機能番号・区分番号・コード番号): 機能ごとに区分を引け、機能の名前や並びが変わっても番号は変わらない。機能番号と区分番号を 1 つの数に合成しない (数の中に意味を詰めない)。選択肢の中に階層が要る場合は、4 段目を足さず、同じ表に親のコード番号の列を 1 つ足す
-- 列の名前: 「項目」は列を指す言葉と紛れ、「リスト」「選択肢」は選択専用に聞こえるので、区分 (`CategoryNo`)・コード (`CodeNo`)にした。数値は `NumericValue`、名前は `Name`
-- ラベルを画面から編集する口は持たない (全員に影響し、アプリにユーザー・権限の区別が無いため。管理は別ツールの責務)
+
+- 状態・進捗度・優先度のように、番号を保存して名前・数値を引く選択肢を、表ごとに作らず、`CodeMaster` 1 つに集める
+  - 選択肢が増えるたびに、表・行の型・読み書き・差分の取得を足さずに済む (ユーザーの決定)
+  - 選択肢以外の「番号 + 名前 + 数値」(初期入力値など)も入る
+- 汎用の参照表は、「ドメインごとの外部キーを張れない」「値の型が混ざる」点が弱点と言われる
+  - ここは外部キーを使わない方針で、値は整数と短い文字列だけなので、その弱点は当てはまらない
+  - 残る弱点は、コードが特定の番号の意味を知る必要がある点 (状態の「完了」)
+  - そのため、状態・優先度のコード番号は、コードの列挙 (`WorkItemStatus`・`WorkItemPriority`)と同じ値に固定し、表は名前と表示順だけを持つ
+- 入れるのは、全員共通で、番号・数値・名前で表せる値だけ
+  - ユーザーごとの設定 (縦持ちの設定の表を別に作る方向)と、自由に入力する文字列は入れない
+- 3 段のキー (機能番号・区分番号・コード番号)
+  - 機能ごとに区分を引け、機能の名前や並びが変わっても番号は変わらない
+  - 機能番号と区分番号を 1 つの数に合成しない (数の中に意味を詰めない)
+  - 選択肢の中に階層が要る場合は、4 段目を足さず、同じ表に親のコード番号の列を 1 つ足す
+- 列の名前
+  - 「項目」は列を指す言葉と紛れ、「リスト」「選択肢」は選択専用に聞こえるので、区分 (`CategoryNo`)・コード (`CodeNo`)にした
+  - 数値は `NumericValue`、名前は `Name`
+- ラベルを画面から編集する口は持たない。全員に影響し、アプリにユーザー・権限の区別が無いため。管理は別ツールの責務。
 
 ### 置き場所の基準: 共有するものは DB、その人の見え方の選択は、その PC の設定
-データを DB の表に置くか、その PC の設定 (`Data/AppSettings.json`)に置くかは、次の 3 つで決める。
-1. **他の人と共有するか**: 他の人が読む・書く・集計するものは、DB に置く (案件・作業・記録・担当者など)。
-2. **別の PC から追いかけてほしいか**: これは、要件として、ユーザーが決める。標準の振る舞いとして、勝手に足さない。
-3. **一時的な見え方の選択か**: 表示する列・自分の担当だけ・表示する案件の選びのように、その人が見え方を決めるだけのものは、PC の設定に置く。
 
-例: 作業管理の「表示する案件」の選びは、他の人と共有せず、PC ごとに違ってよいので、PC の設定に置く。選びを DB の表に置くと、読み込みの問い合わせが選びの表に依存し、置き場所を変えるときに、問い合わせから直す大きな作業になる。そのため、DB の問い合わせは「案件の番号の一覧」を受け取る形にして、選びの置き場所と切り離す ([work-items.md](work-items.md) の「表示する案件」)。
-
-「ユーザーごとの設定を DB に置くときは、縦持ちにする」(`CLAUDE.md`)は、置くと決めたときの形の方針で、置くことの決定ではない。置くかどうかは、上の 3 つで決める。
+- データを DB の表に置くか、その PC の設定 (`Data/AppSettings.json`)に置くかは、次の 3 つで決める
+  1. **他の人と共有するか**: 他の人が読む・書く・集計するものは、DB に置く (案件・作業・記録・担当者など)
+  2. **別の PC から追いかけてほしいか**: これは、要件として、ユーザーが決める。標準の振る舞いとして、勝手に足さない。
+  3. **一時的な見え方の選択か**: 表示する列・自分の担当だけ・表示する案件の選びのように、その人が見え方を決めるだけのものは、PC の設定に置く
+- 例: 作業管理の「表示する案件」の選びは、他の人と共有せず、PC ごとに違ってよいので、PC の設定に置く
+  - 選びを DB の表に置くと、読み込みの問い合わせが選びの表に依存し、置き場所を変えるときに、問い合わせから直す大きな作業になる
+  - そのため、DB の問い合わせは「案件の番号の一覧」を受け取る形にして、選びの置き場所と切り離す ([work-items.md](work-items.md) の「表示する案件」)
+- 「ユーザーごとの設定を DB に置くときは、縦持ちにする」(`CLAUDE.md`)は、置くと決めたときの形の方針で、置くことの決定ではない
+  - 置くかどうかは、上の 3 つで決める
 
 ### 意図した仕様 (レビューで指摘・提案しない)
-次は、設計の検討で出た提案を、ユーザーが選ばなかったもの。どれも意図した仕様で、レビューや作業のまとめで、指摘・提案しない。理由は、上の各項目と、ここに 1 行で書く。
 
-- 外部キー・連動削除・行の版 (`rowversion`)・同時編集の上書きの検出が無い。リマインダー関係の表のインデックスが主キーと一意制約だけ: 書くのはアプリだけで、番号の正しさは Repository が守る (上の「外部キー・連動削除・行の版…を持たない」)。作業管理の表は、読み方ごとのインデックスを持つ (「表の決まり」)
-- 曜日が JSON と同じ数 1 列 (`Weekdays`)で、DB の中身を見ても読みにくい: DB を直接見ないため。曜日ごとの列 (7 列)・文字列 (7 桁)・子の表にしない (保存先ごとに持ち方を変えず、変換を要らなくする共通化を優先)
+- 次は、設計の検討で出た提案を、ユーザーが選ばなかったもの
+  - どれも意図した仕様で、レビューや作業のまとめで、指摘・提案しない
+  - 理由は、上の各項目と、ここに 1 行で書く
+- 外部キー・連動削除・行の版 (`rowversion`)・同時編集の上書きの検出が無い。リマインダー関係の表のインデックスが主キーと一意制約だけ: 書くのはアプリだけで、番号の正しさは Repository が守る。上の「外部キー・連動削除・行の版…を持たない」が理由。作業管理の表は、読み方ごとのインデックスを持つ。「表の決まり」が理由。
+- 曜日が JSON と同じ数 1 列 (`Weekdays`)で、DB の中身を見ても読みにくい: DB を直接見ないため。曜日ごとの列 (7 列)・文字列 (7 桁)・子の表にしない。保存先ごとに持ち方を変えず、変換を要らなくする共通化を優先するため。
 - 「全員宛て」の固定の行が無く、宛先の 0 が約束の値で、`TargetUserId` に外部キーが無い: ダミーのログイン名・一覧や自動判定から除く処理を生むため
-- NULL を使わず、「ない」を `9999-12-31`・空文字・0 で表す: 比較を単純にするため。`ValidTo` の無期限も `9999-12-31`。ただし、作業の開始日だけは最小値の `0001-01-01` (開始日なしは「いつからでも」の意味で、`StartDate <= 今日` の比較がそのまま使える)
-- 共通ヘッダーが全部の表に同じ 5 列で、意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0、`ReminderState` の作成者・更新者は `UserId` と同じ)が混ざる: 表の形をそろえる共通化を優先するため。ヘッダーは前 (主キーの次)で、後ろにしない (中身の列を足すたびにヘッダーが挟まれるのを避ける)
+- NULL を使わず、「ない」を `9999-12-31`・空文字・0 で表す: 比較を単純にするため。`ValidTo` の無期限も `9999-12-31`。ただし、作業の開始日だけは最小値の `0001-01-01` にする。開始日なしは「いつからでも」の意味で、`StartDate <= 今日` の比較がそのまま使えるため。
+- 共通ヘッダーが全部の表に同じ 5 列で、意味の薄い列 (`AppUser` の作成者は常に 0、`ReminderState` の `IsDeleted` は常に 0、`ReminderState` の作成者・更新者は `UserId` と同じ)が混ざる: 表の形をそろえる共通化を優先するため。ヘッダーは主キーの次に置き、後ろにしない。中身の列を足すたびにヘッダーが挟まれるのを避けるため。
 - 主キーが全部の表で同じ名前 `Id`(`<表名>Id` にしない): 全部の表の先頭をそろえるため
-- 日時が、時差つきの日本時間・ミリ秒で、UTC にしない。同じミリ秒の値が重なるのを許容する: SSMS などで日本時間のまま読めるため。記録用の日時なので、重なってもよい
-- ユーザーをログイン名とパスワードで特定し、ログイン状態をパスワードそのもので覚える (トークンにしない)。パスワードを忘れたときの再設定の画面が無い (管理者が SQL で空にする。今のパスワードを知っている人が変える口は、設定ページにある)。DB の接続パスワードを知る人は、ハッシュも読める: 信頼できる少人数・LAN か VPN の中で使うため。守る範囲は「ユーザーの決め方」
+- 日時が、時差つきの日本時間・ミリ秒で、UTC にしない。同じミリ秒の値が重なるのを許容する: SSMS などで日本時間のまま読めるため。記録用の日時なので、重なってもよい。
+- ユーザーをログイン名とパスワードで特定し、ログイン状態をパスワードそのもので覚え、トークンにしない。パスワードを忘れたときの再設定の画面が無い。管理者が SQL で空にし、今のパスワードを知っている人が変える口は、設定ページにある。DB の接続パスワードを知る人は、ハッシュも読める: 信頼できる少人数・LAN か VPN の中で使うため。守る範囲は「ユーザーの決め方」。
 - 旧アプリ (MSchedule)のデータを引き継がない・旧 DB の表を使わない: 新しく作る (ユーザーの決定)
-- アプリが DB に直接つなぎ、接続のパスワードを各 PC で入力する (API を間に置かない・Windows 認証にしない・利用者にパスワードを知らせない方式にしない): 信頼できる少人数・ドメインなしの環境のため。守る範囲と理由は、上の「DB に直接つなぎ…」
-- DB で完全削除 (行を消す)をしない。通知は宛先の人だけで、作成者でも、ほかの人宛てのものは通知されない (一覧には出る)。削除済みの編集で復活する: 行を消さないのは、DB の記録を残すため。通知を宛先の人だけにするのは、通知が、宛先の人の用事だから (ユーザーの決定)
+- アプリが DB に直接つなぎ、接続のパスワードを各 PC で入力する (API を間に置かない・Windows 認証にしない・利用者にパスワードを知らせない方式にしない): 信頼できる少人数・ドメインなしの環境のため。守る範囲と理由は、上の「DB に直接つなぎ…」。
+- DB で完全削除 (行を消す)をしない。通知は宛先の人だけで、作成者でも、ほかの人宛てのものは、一覧には出ても通知されない。削除済みの編集で復活する: 行を消さないのは、DB の記録を残すため。通知を宛先の人だけにするのは、通知が、宛先の人の用事だから。ユーザーの決定。

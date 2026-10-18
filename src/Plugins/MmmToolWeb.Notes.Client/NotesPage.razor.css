@@ -1,0 +1,250 @@
+/* 重要度の帯の色。ライトとダークの両方の値を持つ。最高は赤、高は橙で、中より下は帯を付けない */
+.screen {
+    --band-highest: #c62828;
+    --band-high: #d97200;
+    --danger-fill: #b3261e;
+    --danger-fill-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    .screen,
+    .dialog {
+        --band-highest: #ef6a62;
+        --band-high: #f0a04b;
+        --danger-fill: #f2b8b5;
+        --danger-fill-text: #601410;
+    }
+}
+
+.screen {
+    box-sizing: border-box;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 6rem) calc(env(safe-area-inset-left) + 1rem);
+}
+
+.text {
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+}
+
+.text.danger {
+    color: var(--danger);
+}
+
+.icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.75rem;
+    padding: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.controls {
+    padding: 0.75rem 0;
+}
+
+.day {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.day input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    text-align: center;
+}
+
+.options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+.option input {
+    display: inline-block;
+    flex: none;
+    width: 1.5rem;
+    min-height: 0;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+}
+
+.message {
+    margin: 0 0 0.75rem;
+    color: var(--danger);
+}
+
+.cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.empty {
+    margin: 3rem 0;
+    text-align: center;
+    color: var(--muted);
+}
+
+.empty-date {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 1.1rem;
+}
+
+.card {
+    position: relative;
+    padding: 0.5rem 0.75rem 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+.card.p5 {
+    border-left: 4px solid var(--band-highest);
+}
+
+.card.p4 {
+    border-left: 4px solid var(--band-high);
+}
+
+.card.deleted {
+    opacity: 0.6;
+}
+
+.head {
+    display: block;
+    padding: 0.25rem 1.5rem 0.25rem 0;
+}
+
+details > summary.head {
+    position: relative;
+    list-style: none;
+    cursor: pointer;
+}
+
+details > summary.head::-webkit-details-marker {
+    display: none;
+}
+
+/* 開閉を示す矢印。開いているときは下向き */
+details > summary.head::after {
+    content: "›";
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    color: var(--muted);
+    font-size: 1.25rem;
+    line-height: 1.5;
+    transition: transform 0.15s;
+}
+
+details[open] > summary.head::after {
+    transform: rotate(90deg);
+}
+
+/* 本文は、サーバーが組み立てた HTML。ここで作った要素ではないので、::deep で書く */
+.body {
+    padding: 0.25rem 0 0.5rem;
+    overflow-wrap: anywhere;
+}
+
+.body ::deep a {
+    color: var(--accent);
+}
+
+.body ::deep ul,
+.body ::deep ol {
+    margin: 0.25rem 0;
+    padding-left: 1.5rem;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+}
+
+.fab {
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 1rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    z-index: 10;
+    min-height: 3.25rem;
+    padding: 0 1.5rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+.dialog-back {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 22rem;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.dialog h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+}
+
+.dialog-target {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.danger-fill {
+    border-color: var(--danger-fill);
+    background: var(--danger-fill);
+    color: var(--danger-fill-text);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}

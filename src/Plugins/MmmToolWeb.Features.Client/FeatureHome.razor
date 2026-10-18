@@ -1,0 +1,19 @@
+@page "/home"
+@inject IEnumerable<ClientFeature> Features
+@inject SessionClient Session
+
+<main class="home">
+    <h1>ホーム</h1>
+
+    <nav class="tiles" aria-label="機能">
+        @foreach (var feature in Features)
+        {
+            <a class="tile" href="@feature.Route">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg>
+                <span>@feature.Title</span>
+            </a>
+        }
+    </nav>
+
+    <button type="button" class="logout" @onclick="Session.LogoutAsync">ログアウト</button>
+</main>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- ASP.NET Core の部品を使うので、Web 用の SDK と同じ using を足す -->
+  <ItemGroup>
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmmToolWeb.Features\MmmToolWeb.Features.csproj" />
+    <ProjectReference Include="..\MmmToolWeb.Notes.Client\MmmToolWeb.Notes.Client.csproj" />
+    <ProjectReference Include="..\MmmTool.Notes.Core\MmmTool.Notes.Core.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
+  </ItemGroup>
+
+</Project>

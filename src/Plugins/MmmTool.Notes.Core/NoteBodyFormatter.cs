@@ -61,6 +61,26 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
     /// <param name="Emitted">開きタグを出力に出したか (出していないものは、閉じタグも出さない)</param>
     private readonly record struct OpenTag(string Name, bool Emitted);
 
+    /// <summary><c>file:</c> のリンクを、リンクにするか</summary>
+    private readonly bool _allowFileLinks;
+
+    /// <summary>
+    /// <c>file:</c> のリンクも、リンクにする整形を作る。パソコンのアプリが使う。
+    /// </summary>
+    public NoteBodyFormatter()
+        : this(allowFileLinks: true)
+    {
+    }
+
+    /// <summary>
+    /// 整形を作る。
+    /// </summary>
+    /// <param name="allowFileLinks"><c>file:</c> のリンクを、リンクにするか。false のときは、中の文字だけを残す (ファイルを開けない iPhone の Web 版)</param>
+    public NoteBodyFormatter(bool allowFileLinks)
+    {
+        _allowFileLinks = allowFileLinks;
+    }
+
     /// <inheritdoc />
     public string ToHtml(string body)
     {
@@ -99,7 +119,7 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
     /// <param name="tag">見つけたタグ</param>
     /// <param name="output">出力</param>
     /// <param name="open">閉じていないタグ</param>
-    private static void HandleTag(Match tag, StringBuilder output, List<OpenTag> open)
+    private void HandleTag(Match tag, StringBuilder output, List<OpenTag> open)
     {
         if (tag.Groups["simple"].Success)
         {
@@ -136,7 +156,7 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         else if (tag.Groups["h1"].Success || tag.Groups["h2"].Success)
         {
             var raw = tag.Groups["h1"].Success ? tag.Groups["h1"].Value : tag.Groups["h2"].Value;
-            if (NoteLinks.TryNormalizeHref(raw, out var href))
+            if (NoteLinks.TryNormalizeHref(raw, out var href) && (_allowFileLinks || !href.StartsWith("file:", StringComparison.OrdinalIgnoreCase)))
             {
                 output.Append("<a href=\"").Append(EscapeAttribute(NoteLinks.ToPageHref(href))).Append("\">");
                 open.Add(new OpenTag("a", true));

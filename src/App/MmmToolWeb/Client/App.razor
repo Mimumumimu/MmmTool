@@ -1,0 +1,15 @@
+@inject IEnumerable<ClientFeature> Features
+
+<Router AppAssembly="typeof(App).Assembly" AdditionalAssemblies="_additionalAssemblies">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+</Router>
+
+@code {
+    /// <summary>機能の画面と、機能に共通の画面 (ホーム)を持つアセンブリ。</summary>
+    private IEnumerable<System.Reflection.Assembly> _additionalAssemblies = [];
+
+    protected override void OnInitialized()
+        => _additionalAssemblies = Features.Select(feature => feature.Assembly).Append(typeof(ClientFeature).Assembly).Distinct().ToList();
+}

@@ -56,8 +56,8 @@ public sealed class SqlServerMessageSendRequestRepository(SqlServerDatabase data
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">送る先の番号が正しくない・タイトルが長すぎる・本文が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・送る先が無い・保存できなかった (メッセージは画面に出せる)。</exception>
-    public Task AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default)
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    public Task<bool> AddAsync(int channelId, string title, string body, CancellationToken cancellationToken = default)
     {
         MessageSendRequestRow.Validate(channelId, title, body);
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -76,12 +76,7 @@ public sealed class SqlServerMessageSendRequestRepository(SqlServerDatabase data
             command.Parameters.Add(new SqlParameter("@Title", SqlDbType.NVarChar, MessageLimits.TitleMaxLength) { Value = title });
             command.Parameters.Add(new SqlParameter("@Body", SqlDbType.NVarChar, MessageLimits.BodyMaxLength) { Value = body });
 
-            if (await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
-            {
-                const string Message = "選んだ送信先がありません (削除された可能性があります)。宛先を選び直してください。";
-                throw new DataFileException(Message, new InvalidOperationException(Message));
-            }
-            return 0;
+            return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
         }, cancellationToken);
     }
 }

@@ -78,6 +78,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>定期的な差分の取得を止めるためのトークン源 (動いていなければ null)</summary>
     private CancellationTokenSource? _pollCts;
 
+    /// <summary>定期的な差分の取得の間隔を待つタイマー (手動で取得したとき、数え直す)</summary>
+    private readonly RestartableTimer _pollTimer = new(PollInterval);
+
     /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
     public event EventHandler<WorkChangedEventArgs>? Changed;
 
@@ -309,6 +312,34 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         if (changed)
         {
             OnChanged();
+        }
+    }
+
+    /// <summary>他の人の更新を、今すぐ取り込む (利用者が更新ボタンを押したとき)</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>取り込みの完了を表すタスク</returns>
+    /// <remarks>
+    /// 定期的な取得 (<see cref="PollInterval"/>)と同じ取り込みを、間隔を待たずに行う。直後に自動の取り込みが重ならないよう、間隔は数え直す。
+    /// 失敗は、定期的な取得と同じく <see cref="RefreshFailed"/> で知らせる。UI スレッドから呼ぶ。
+    /// </remarks>
+    public async Task RefreshNowAsync(CancellationToken cancellationToken = default)
+    {
+        _pollTimer.Restart();
+        await TryRefreshAsync(cancellationToken);
+    }
+
+    /// <summary>差分を取り込む (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>取り込みの完了を表すタスク</returns>
+    private async Task TryRefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await RefreshAsync(cancellationToken);
+        }
+        catch (DataFileException ex)
+        {
+            RefreshFailed?.Invoke(this, ex.Message);
         }
     }
 
@@ -1121,19 +1152,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>繰り返しの完了を表すタスク</returns>
     private async Task PollAsync(CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(PollInterval);
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken))
+            while (await _pollTimer.WaitForNextTickAsync(cancellationToken))
             {
-                try
-                {
-                    await RefreshAsync(cancellationToken);
-                }
-                catch (DataFileException ex)
-                {
-                    RefreshFailed?.Invoke(this, ex.Message);
-                }
+                await TryRefreshAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
