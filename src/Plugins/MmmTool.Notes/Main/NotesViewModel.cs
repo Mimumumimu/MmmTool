@@ -27,6 +27,9 @@ public sealed partial class NotesViewModel(
     /// <summary>ほかの人の更新を読み直す間隔</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
 
+    /// <summary>読み直しの間隔を待つタイマー (手動で読み直したとき、数え直す)</summary>
+    private readonly RestartableTimer _refreshTimer = new(RefreshInterval);
+
     /// <summary>今、表示しているカード</summary>
     private IReadOnlyList<NoteCard> _cards = [];
 
@@ -84,6 +87,20 @@ public sealed partial class NotesViewModel(
     [RelayCommand]
     private void Today() => Day = notes.Today;
 
+    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    public bool CanRefresh => notes.IsShared;
+
+    /// <summary>ほかの人の更新を、今すぐ読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    /// <remarks>定期的な読み直しと同じく、読んでいる位置と開いているカードを保つ。直後に自動の読み直しが重ならないよう、間隔は数え直す。</remarks>
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        Error.Clear();
+        _refreshTimer.Restart();
+        await ReloadAsync(preserveState: true);
+    }
+
     /// <summary>ノートを新しく書く</summary>
     /// <returns>入力ウィンドウを閉じるまでの完了を表すタスク</returns>
     [RelayCommand]
@@ -105,10 +122,9 @@ public sealed partial class NotesViewModel(
 
         await ReloadAsync(preserveState: false);
 
-        using var timer = new PeriodicTimer(RefreshInterval);
         try
         {
-            while (await timer.WaitForNextTickAsync(source.Token))
+            while (await _refreshTimer.WaitForNextTickAsync(source.Token))
             {
                 await ReloadAsync(preserveState: true);
             }

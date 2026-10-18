@@ -3,7 +3,8 @@
     x:Class="MmmTool.Notes.Main.NotesPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:MmmTool.Notes.Main">
+    xmlns:local="using:MmmTool.Notes.Main"
+    xmlns:sdk="using:MmmSdk.WinUI.Controls">
 
     <!-- 見出し・操作の行・カードを、同じ幅の 1 本の列にして中央に置く (広い画面でも、右端が揃い、本文の 1 行が長くなりすぎない) -->
     <Grid
@@ -23,11 +24,17 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="ノート" />
-            <Button
+            <!-- ページ全体の操作。更新ボタンは、どのページでも右端に置く -->
+            <StackPanel
                 Grid.Column="1"
-                Command="{x:Bind ViewModel.NewNoteCommand}"
-                Content="新規"
-                Style="{StaticResource AccentButtonStyle}" />
+                Orientation="Horizontal"
+                Spacing="8">
+                <Button
+                    Command="{x:Bind ViewModel.NewNoteCommand}"
+                    Content="新規"
+                    Style="{StaticResource AccentButtonStyle}" />
+                <sdk:RefreshButton Command="{x:Bind ViewModel.RefreshCommand}" Visibility="{x:Bind ViewModel.CanRefresh}" />
+            </StackPanel>
         </Grid>
 
         <!-- 表示する日 (左)と、表示の切り替え (右) -->

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
@@ -63,6 +64,9 @@ public sealed partial class ScheduleViewModel : ObservableObject
     /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
     public bool HasAssignees => _service.HasAssignees;
 
+    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    public bool CanRefresh => _service.HasAssignees;
+
     /// <summary>自分が担当の作業だけを表示するか (作業管理と同じ設定)</summary>
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
@@ -122,6 +126,16 @@ public sealed partial class ScheduleViewModel : ObservableObject
     /// <summary>読み込み中の表示 (砂時計)を、読み込みの開始より先に始める</summary>
     /// <remarks>ページが画面に載ってから、読み込みを始めるまでの間にも、待ち時間があるため。終わりは <see cref="InitializeAsync"/> が決める。</remarks>
     public void BeginLoading() => IsLoading = true;
+
+    /// <summary>他の人の更新を、今すぐ取り込む</summary>
+    /// <returns>取り込みの完了を表すタスク</returns>
+    /// <remarks>失敗は、定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        Error.Clear();
+        await _service.RefreshNowAsync();
+    }
 
     /// <summary>ページを開いたときに、保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
     /// <returns>初期化の完了を表すタスク</returns>

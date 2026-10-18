@@ -116,6 +116,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
     public bool HasAssignees => _service.HasAssignees;
 
+    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    public bool CanRefresh => _service.HasAssignees;
+
     /// <summary>自分が担当の作業だけを表示するか</summary>
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
@@ -269,6 +272,16 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>入力日を、今日にする</summary>
     [RelayCommand]
     private void Today() => InputDate = _service.Today;
+
+    /// <summary>他の人の更新を、今すぐ取り込む</summary>
+    /// <returns>取り込みの完了を表すタスク</returns>
+    /// <remarks>失敗は、定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        Error.Clear();
+        await _service.RefreshNowAsync();
+    }
 
     /// <summary>入力日が変わったら、その日の記録だけを読み直す</summary>
     /// <param name="value">新しい入力日</param>
