@@ -1,0 +1,35 @@
+.title-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.5rem;
+}
+
+.title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.chip {
+    flex: none;
+    padding: 0 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.chip.today {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+    margin-top: 0.125rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}

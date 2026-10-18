@@ -8,10 +8,12 @@
     --accent-text: #ffffff;
     --border: #d5d9e0;
     --danger: #b3261e;
+    --disabled: #a3a9b4;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
+        --disabled: #5b626e;
         --bg: #14161a;
         --surface: #1e2126;
         --text: #eceef2;
@@ -81,8 +83,28 @@ button.primary {
     width: 100%;
 }
 
-button:disabled {
-    opacity: 0.5;
+/* 押せない部品は、文字を薄い専用の色にする。補助の文字の色 (--muted)だと濃く、押せそうに見えるため */
+button:disabled,
+button.text:disabled,
+select:disabled,
+input:disabled,
+textarea:disabled {
+    color: var(--disabled);
+}
+
+button.primary:disabled {
+    color: var(--accent-text);
+    opacity: 0.4;
+}
+
+/* iPhone の日付入力は、標準の見た目のままだと、幅を決めても最低限の幅があり、枠をはみ出す。標準の見た目を外して、幅を守らせる。タップすると、標準の日付の選択が開く */
+input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+    text-align: center;
 }
 
 input {

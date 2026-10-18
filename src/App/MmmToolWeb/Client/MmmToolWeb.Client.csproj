@@ -12,4 +12,10 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Features.Client\MmmToolWeb.Features.Client.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Messages.Client\MmmToolWeb.Messages.Client.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notes.Client\MmmToolWeb.Notes.Client.csproj" />
+  </ItemGroup>
+
 </Project>

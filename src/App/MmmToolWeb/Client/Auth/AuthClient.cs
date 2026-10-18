@@ -35,9 +35,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
     public async Task<MeResponse?> GetMeAsync()
     {
         using var response = await http.GetAsync("api/auth/me");
-        return response.StatusCode == HttpStatusCode.Unauthorized
-            ? null
-            : await response.Content.ReadFromJsonAsync<MeResponse>();
+        return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<MeResponse>() : null;
     }
 
     /// <summary>
@@ -54,7 +52,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
         }
         if (!start.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"登録を始められませんでした ({(int)start.StatusCode})。");
+            return AuthResult.Fail($"登録を始められませんでした。エラー番号は {(int)start.StatusCode} です。");
         }
         var ceremony = await start.Content.ReadFromJsonAsync<CeremonyStartResponse>();
         var credential = await browser.CreateAsync(ceremony!.Options);
@@ -66,7 +64,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
             "api/auth/enroll/finish", new EnrollFinishRequest(code, ceremony.CeremonyId, credential.Value));
         return finish.IsSuccessStatusCode
             ? AuthResult.Success
-            : AuthResult.Fail($"登録を完了できませんでした ({(int)finish.StatusCode})。");
+            : AuthResult.Fail($"登録を完了できませんでした。エラー番号は {(int)finish.StatusCode} です。");
     }
 
     /// <summary>
@@ -78,7 +76,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
         using var start = await http.PostAsync("api/auth/login/start", content: null);
         if (!start.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"ログインを始められませんでした ({(int)start.StatusCode})。");
+            return AuthResult.Fail($"ログインを始められませんでした。エラー番号は {(int)start.StatusCode} です。");
         }
         var ceremony = await start.Content.ReadFromJsonAsync<CeremonyStartResponse>();
         var credential = await browser.GetAsync(ceremony!.Options);
@@ -90,15 +88,6 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
             "api/auth/login/finish", new LoginFinishRequest(ceremony.CeremonyId, credential.Value));
         return finish.IsSuccessStatusCode
             ? AuthResult.Success
-            : AuthResult.Fail($"ログインできませんでした ({(int)finish.StatusCode})。");
-    }
-
-    /// <summary>
-    /// ログアウトする。
-    /// </summary>
-    /// <returns>ログアウトの完了を表すタスク。</returns>
-    public async Task LogoutAsync()
-    {
-        using var response = await http.PostAsync("api/auth/logout", content: null);
+            : AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)finish.StatusCode} です。");
     }
 }

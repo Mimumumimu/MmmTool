@@ -1,7 +1,8 @@
 @page "/"
 @using MmmToolWeb.Client.Auth
 @inject AuthClient Auth
-@inject PasskeyBrowser Browser
+@inject PasskeyBrowser Passkeys
+@inject NavigationManager Navigation
 
 <main class="page">
     <h1>ログインの確認</h1>
@@ -13,19 +14,9 @@
         <dd>@(_supported ? "はい" : "いいえ")</dd>
     </dl>
 
-    @if (_loading)
+    @if (_loading || _me is not null)
     {
         <p>確認しています。</p>
-    }
-    else if (_me is { } me)
-    {
-        <dl class="facts">
-            <dt>ログイン中</dt>
-            <dd>@me.Name</dd>
-            <dt>ログインした日時</dt>
-            <dd>@me.SignedInAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</dd>
-        </dl>
-        <button type="button" @onclick="LogoutAsync" disabled="@_busy">ログアウト</button>
     }
     else
     {
@@ -58,24 +49,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _standalone = await Browser.IsStandaloneAsync();
-        _supported = await Browser.IsSupportedAsync();
+        _standalone = await Passkeys.IsStandaloneAsync();
+        _supported = await Passkeys.IsSupportedAsync();
         _me = await Auth.GetMeAsync();
         _loading = false;
+        GoToHome();
+    }
+
+    /// <summary>ログインしていれば、ホーム画面へ移る。</summary>
+    private void GoToHome()
+    {
+        if (_me is not null)
+        {
+            Navigation.NavigateTo(FeatureHeader.HomePath, replace: true);
+        }
     }
 
     private Task LoginAsync() => RunAsync(Auth.LoginAsync);
 
     private Task EnrollAsync() => RunAsync(() => Auth.EnrollAsync(_code.Trim()));
-
-    private async Task LogoutAsync()
-    {
-        _busy = true;
-        await Auth.LogoutAsync();
-        _me = null;
-        _message = null;
-        _busy = false;
-    }
 
     private async Task RunAsync(Func<Task<AuthResult>> action)
     {
@@ -85,6 +77,7 @@
         if (result.Succeeded)
         {
             _me = await Auth.GetMeAsync();
+            GoToHome();
         }
         else
         {

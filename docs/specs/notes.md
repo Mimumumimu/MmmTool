@@ -8,6 +8,7 @@
 - 複数人では連絡事項、1 人ではナレッジの書き足しに使う
 - サイドバーのページ「ノート」だけを持つ
 - 場所は `src/Plugins/MmmTool.Notes/` で、Core 側は `src/Plugins/MmmTool.Notes.Core/`
+- iPhone の Web 版は、この Core (`NoteService`・本文の整形)を使う。画面と API は [web.md](web.md) の「ノート (Web 版)」にある。
 
 ## 位置づけ
 

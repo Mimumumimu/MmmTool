@@ -57,10 +57,12 @@ internal sealed class ProbeGuardMiddleware(RequestDelegate next, ProbeGuard guar
     private bool IsProbe(HttpContext context)
     {
         var path = context.Request.Path;
+        var endpoint = context.GetEndpoint();
         if (context.Response.StatusCode == StatusCodes.Status404NotFound)
         {
-            return !NormalNotFoundPaths.Contains(path.Value ?? string.Empty);
+            // 経路が決まっているものは、API が「ノートが無い」と返した 404 で、探りではない
+            return endpoint is null && !NormalNotFoundPaths.Contains(path.Value ?? string.Empty);
         }
-        return context.GetEndpoint() is RouteEndpoint { RoutePattern.RawText: FallbackPattern } && !routes.IsKnown(path);
+        return endpoint is RouteEndpoint { RoutePattern.RawText: FallbackPattern } && !routes.IsKnown(path);
     }
 }

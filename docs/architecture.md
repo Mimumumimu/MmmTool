@@ -14,6 +14,9 @@
 | --- | --- | --- |
 | `src/App/MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト。メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページ・DEBUG ページを持ち、機能のプラグインを参照して登録する |
 | `src/App/MmmToolWeb/Server` / `src/App/MmmToolWeb/Client` | `net10.0`(ASP.NET Core) / `net10.0`(Blazor WebAssembly・AnyCPU) | 複数人が iPhone のホーム画面から使う Web 版で、別のソリューション `MmmToolWeb.slnx` にある。`Server` は画面の配信と API を持つ常駐する EXE で、`Client` はブラウザで動く画面。仕様は [specs/web.md](specs/web.md) |
+| `src/Plugins/MmmToolWeb.Features` / `src/Plugins/MmmToolWeb.Features.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | Web 版の、機能の差し込み口。サーバー側の `IWebFeature` と、ブラウザ側の `ClientFeature`・ホーム画面・上のバー。機能は、これを通して足し、本体に機能の名前を書かない。MmmTool は参照しない。仕様は [specs/web.md](specs/web.md) |
+| `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | ノートの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。ノートの読み書きは、MmmTool と同じ `MmmTool.Notes.Core` と `MmmTool.Data.SqlServer` を使う |
+| `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | メッセージの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。宛先の読み出しと依頼の保存は、MmmTool と同じ `MmmTool.Messages.Core` と `MmmTool.Data.SqlServer` を使う。外部へ送る処理は無い |
 | `src/Auth/MmmToolWeb.Auth.Core` / `src/Data/MmmToolWeb.Data.SqlServer` | `net10.0` | MmmTool は参照しない。Web 版のパスキーの手続き (画面に依存しない) / Web 版の認証用の表の保存 (SQL Server だけ) |
 | `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホストで、別のソリューション `MmmBatch.slnx` にある。リマインダーとメッセージの送信 (ntfy・Discord)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
 | `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の、機能に共通の部分で、送る口・ntfy / Discord・送信のログ・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口と、機能に共通の画面の部品を持つ。**外部へ送る処理は、MmmBatch のプロジェクトだけに置く** (MmmTool は参照しない) |

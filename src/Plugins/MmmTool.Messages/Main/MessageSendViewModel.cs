@@ -20,7 +20,7 @@ public sealed partial class MessageSendViewModel(IMessageSendRequestRepository r
 
     /// <summary>本文の最初の入力 (改行 2 つと「○○より」)。今のユーザーが分からなければ空文字</summary>
     /// <remarks>送る人が何を送るか見えるよう、本文欄に実際に入れる (送るときに足さない)。書き換えても消してもよい。</remarks>
-    private string Signature => currentUser.User is { DisplayName.Length: > 0 } user ? $"\n\n{user.DisplayName}より" : "";
+    private string Signature => MessageDraft.CreateSignature(currentUser.User?.DisplayName);
 
     /// <summary>本文を署名だけの状態にする</summary>
     private void ResetBody()
@@ -113,7 +113,7 @@ public sealed partial class MessageSendViewModel(IMessageSendRequestRepository r
 
     /// <summary>送れる状態か (サーバーモードで、宛先と本文がある)</summary>
     /// <returns>送れるとき true</returns>
-    private bool CanSend() => IsAvailable && SelectedRecipient is not null && Body.Trim() != Signature.Trim() && !string.IsNullOrWhiteSpace(Body);
+    private bool CanSend() => IsAvailable && MessageDraft.CanSend(SelectedRecipient is not null, Body, Signature);
 
     /// <summary>送信を依頼する (依頼の行を DB に書く)</summary>
     /// <returns>依頼の保存の完了を表すタスク</returns>
@@ -122,14 +122,24 @@ public sealed partial class MessageSendViewModel(IMessageSendRequestRepository r
     private async Task SendAsync()
     {
         var recipient = SelectedRecipient!;
+        bool added;
         try
         {
-            await repository.AddAsync(recipient.ChannelId, TitleText.Trim(), Body.Trim());
+            added = await repository.AddAsync(recipient.ChannelId, TitleText.Trim(), Body.Trim());
         }
         catch (DataFileException ex)
         {
             IsResultError = true;
             ResultMessage = $"送信を依頼できませんでした: {ex.Message}";
+            IsResultOpen = true;
+            return;
+        }
+
+        // 選んだあとに送信先が削除されたときは、本文を残して、宛先を選び直してもらう
+        if (!added)
+        {
+            IsResultError = true;
+            ResultMessage = $"送信を依頼できませんでした: {MessageDraft.RecipientMissingMessage}";
             IsResultOpen = true;
             return;
         }

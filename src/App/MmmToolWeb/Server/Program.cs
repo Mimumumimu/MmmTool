@@ -6,15 +6,26 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Logging.Console;
 using MmmSdk.Core;
+using MmmTool.Users.Core;
 using MmmToolWeb.Auth.Core;
 using MmmToolWeb.Auth.Core.Enrollment;
 using MmmToolWeb.Auth.Core.Passkeys;
 using MmmToolWeb.Data.SqlServer;
+using MmmToolWeb.Features;
+using MmmToolWeb.Messages;
+using MmmToolWeb.Notes;
 using MmmToolWeb.Server.Auth;
 using MmmToolWeb.Server.Commands;
 using MmmToolWeb.Server.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 要求ごとの部品 (今のユーザー)を、全体で使う部品が抱えると、ほかの人のユーザーが混ざる。本番でも、起動のときに見つける
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateScopes = true;
+    options.ValidateOnBuild = true;
+});
 
 // 外から見えるアドレス (Tailscale Funnel など)。パスキーは、このアドレスに結びついて作られる
 var publicOrigin = new Uri(builder.Configuration["Web:PublicOrigin"] ?? "http://localhost:5080");
@@ -74,6 +85,13 @@ builder.Services.AddFido2(options =>
     options.RPName = "MmmToolWeb";
     options.Origins = new HashSet<string> { publicOrigin.GetLeftPart(UriPartial.Authority) };
 });
+
+// 今のユーザーは、要求ごとに作り、ログインの Cookie から決める (ActiveUserMiddleware)
+builder.Services.AddScoped<CurrentUser>();
+
+// 機能。足すときに、サーバー本体で書くのは、この 1 行だけ
+builder.Services.AddWebFeature<NotesWebFeature>();
+builder.Services.AddWebFeature<MessagesWebFeature>();
 
 builder.Services.AddSingleton<PasskeyCeremonyStore>();
 builder.Services.AddScoped<PasskeyService>();
@@ -147,18 +165,25 @@ switch (args)
 
 app.Logger.LogInformation("公開アドレス: {Origin}", publicOrigin);
 
-// 順番: 本当の接続元を決める → アクセスログ → 探りの接続元を断る → DB の失敗の受け止め → 画面のファイル → 守りの記録 → 回数制限 (429 も記録の対象にするため、記録のあと)
+// 順番: 本当の接続元を決める → ブラウザの守りの指定 → アクセスログ → 探りの接続元を断る → DB の失敗の受け止め → 画面のファイル → 守りの記録 → 回数制限 (429 も記録の対象にするため、記録のあと)
 app.UseForwardedHeaders();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseW3CLogging();
 app.UseMiddleware<ProbeGuardMiddleware>();
 app.UseMiddleware<DatabaseErrorMiddleware>();
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+// 画面のファイル (js など)は、使うたびに更新の有無を確かめさせる。端末に古い js が残ったまま、新しい画面と組み合わさらないため
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
+});
 app.UseMiddleware<AuthAuditMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<ActiveUserMiddleware>();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+app.MapWebFeatures();
 app.MapFallbackToFile("index.html");
 
 app.Run();

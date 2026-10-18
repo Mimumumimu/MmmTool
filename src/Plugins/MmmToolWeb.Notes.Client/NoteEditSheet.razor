@@ -1,0 +1,167 @@
+@inject NotesClient Notes
+@inject NavigationManager Navigation
+
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <header class="sheet-bar">
+        <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
+        <h2 id="sheet-title">@(Note is null ? "新規ノート" : "ノートの編集")</h2>
+        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(_saving || string.IsNullOrWhiteSpace(_title))">保存</button>
+    </header>
+
+    <div class="sheet-body">
+        @if (_error is not null)
+        {
+            <p class="message" role="alert">@_error</p>
+        }
+
+        <label class="field">
+            <span>タイトル</span>
+            <input type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
+        </label>
+
+        <label class="field">
+            <span>本文</span>
+            <textarea rows="10" @bind="_body" @bind:event="oninput"></textarea>
+        </label>
+
+        <div class="dates">
+            <label class="field">
+                <span>開始日</span>
+                <input type="date" value="@_start.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
+            </label>
+
+            <div class="field">
+                <span>終了日</span>
+                <input type="date" aria-label="終了日" value="@(_end?.ToString("yyyy-MM-dd"))" @onchange="OnEndChanged" />
+                <div class="end-footer">
+                    <button type="button" class="text" @onclick="() => _end = null" disabled="@(_end is null)">クリア</button>
+                </div>
+                @if (_end is null)
+                {
+                    <small class="hint">空のときは無期限です</small>
+                }
+            </div>
+        </div>
+
+        <fieldset class="priority">
+            <legend>重要度</legend>
+            <div class="segments">
+                @foreach (var (value, label) in Priorities)
+                {
+                    <label class="segment">
+                        <input type="radio" name="priority" checked="@(_priority == value)" @onchange="() => _priority = value" />
+                        <span>@label</span>
+                    </label>
+                }
+            </div>
+        </fieldset>
+
+        @if (Note is null || Note.IsMine)
+        {
+            <label class="check">
+                <input type="checkbox" @bind="_private" />
+                <span>自分だけに表示</span>
+            </label>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>重要度の選択肢。左が低く、右が高い。</summary>
+    private static readonly (int Value, string Label)[] Priorities = [(1, "最低"), (2, "低"), (3, "中"), (4, "高"), (5, "最高")];
+
+    /// <summary>編集するノート。新規のときは null。</summary>
+    [Parameter]
+    public NoteDto? Note { get; set; }
+
+    /// <summary>新規のときの開始日の初期値。画面が表示している日。</summary>
+    [Parameter]
+    public DateOnly DefaultStart { get; set; }
+
+    /// <summary>保存できたときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    /// <summary>取りやめたときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>ノートが見つからなかったときに呼ぶ。ほかの人が先に変えた場合などで、理由を渡す。</summary>
+    [Parameter]
+    public EventCallback<string> OnFailed { get; set; }
+
+    private string _title = "";
+    private string _body = "";
+    private int _priority = 3;
+    private bool _private;
+    private DateOnly _start;
+    private DateOnly? _end;
+    private bool _saving;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Note is { } note)
+        {
+            _title = note.Title;
+            _body = note.Body;
+            _priority = note.Priority;
+            _private = note.IsPrivate;
+            _start = note.StartDate;
+            _end = note.EndDate;
+        }
+        else
+        {
+            _start = DefaultStart;
+        }
+    }
+
+    /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。</summary>
+    private void OnStartChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        {
+            _start = day;
+            if (_end is { } end && end < day)
+            {
+                _end = day;
+            }
+        }
+    }
+
+    /// <summary>終了日を変えたとき、開始日より前になるなら、開始日を同じ日に合わせる。</summary>
+    private void OnEndChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        {
+            _end = day;
+            if (day < _start)
+            {
+                _start = day;
+            }
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end));
+        _saving = false;
+        switch (result.Status)
+        {
+            case ApiFailure.None:
+                await OnSaved.InvokeAsync();
+                break;
+            case ApiFailure.SignedOut:
+                Navigation.NavigateTo("/", forceLoad: true);
+                break;
+            case ApiFailure.NotFound:
+                await OnFailed.InvokeAsync(result.Message ?? "ノートが見つかりません。");
+                break;
+            default:
+                _error = result.Message;
+                break;
+        }
+    }
+}
