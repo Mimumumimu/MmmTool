@@ -5,10 +5,10 @@
 
 こんなときに使えます。
 
-- 会話の圧縮や再開のコマンドを、毎回打ちたくない
-- その日の作業の実績を入力するだけで、報告用の文にしたい
-- 時刻になったら、気づくまで知らせてほしい
-- よく開く URL・フォルダー・ファイルへ、すぐ行きたい
+- 会話の圧縮や再開のコマンドを、毎回打ちたくない。
+- その日の作業の実績を入力するだけで、報告用の文にしたい。
+- 時刻になったら、気づくまで知らせてほしい。
+- よく開く URL・フォルダー・ファイルへ、すぐ行きたい。
 
 ![CLI補助の画面。左に定型コマンドのツリー、右にターミナル、下に送信欄](docs/images/cli-assist.jpg)
 
@@ -20,7 +20,7 @@
 
 アプリの中でターミナルを動かし、Claude Code・Kiro を使う作業を助けます。会話の圧縮や再開など、いつも打つコマンドは、左に並べて、クリック 1 つで送れます。コマンドは自分で追加できて、ターミナルに直接打つこともできます。画像は Ctrl+V、ファイルはドロップで添付でき、フォルダーごとにタブを開いて並行して動かせます。WSL に入れた CLI も使えます。
 
-<!-- TODO(画像): CLI補助の、冒頭とは別の画像 (候補: Ctrl+V で画像を添付する場面・会話の圧縮をクリックで送る場面の動く画像 cli-assist-demo.gif)。docs/todo.md の「ユーザーが用意するもの待ち」を参照 -->
+<!-- TODO(画像): CLI補助の、冒頭とは別の画像。候補は、Ctrl+V で画像を添付する場面・会話の圧縮をクリックで送る場面の動く画像 cli-assist-demo.gif。docs/todo.md の「ユーザーが用意するもの待ち」を参照 -->
 
 ### 作業管理
 
@@ -42,29 +42,29 @@
 
 ### その他の補助ツール
 
-- **クリップボード転送**: ファイルを、リモートデスクトップなどでクリップボードを共有している別の PC へ渡します。送る側はドロップするだけ、受け取る側はボタン 1 つで保存できます
-- **Backlog**: Backlog の共有ファイルの一覧を見て、ダウンロードできます
-- **ツール**: 小さな便利ツールを集めたページです。今は、文字コードになった URL を日本語に戻せます
-- **ノート**: 期間を決めて書いたノートを、その日になると、1 枚の画面に並べて読めます。連絡事項にも、書き足していく手順にも使えます
+- **クリップボード転送**: ファイルを、リモートデスクトップなどでクリップボードを共有している別の PC へ渡します。送る側はドロップするだけ、受け取る側はボタン 1 つで保存できます。
+- **Backlog**: Backlog の共有ファイルの一覧を見て、ダウンロードできます。
+- **ツール**: 小さな便利ツールを集めたページです。今は、文字コードになった URL を日本語に戻せます。
+- **ノート**: 期間を決めて書いたノートを、その日になると、1 枚の画面に並べて読めます。連絡事項にも、書き足していく手順にも使えます。
 
 ### サーバー保存なら、こんなこともできます
 
 保存先をローカルからサーバー (SQL Server)に変えると、次のことができます。サーバー側の準備が必要なので、使いたいときは管理者に相談してください。
 
-- リマインダーと作業管理のデータを、複数の PC・複数の人で共有できます
-- 作業管理で、作業ごとに担当者を付けて、「自分の担当だけ」に絞れます
-- リマインダーを、スマホ (ntfy)や Discord にも通知できます
-- 他のユーザーへ、短いメッセージを送れます
-- ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます
+- リマインダーと作業管理のデータを、複数の PC・複数の人で共有できます。
+- 作業管理で、作業ごとに担当者を付けて、「自分の担当だけ」に絞れます。
+- リマインダーを、スマホ (ntfy)や Discord にも通知できます。
+- 他のユーザーへ、短いメッセージを送れます。
+- ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます。
 
 ## ダウンロード
 
-[Releases](https://github.com/Mimumumimu/MmmTool/releases) から zip をダウンロードして、展開するだけで使えます (インストール不要)。
+[Releases](https://github.com/Mimumumimu/MmmTool/releases) から zip をダウンロードして、展開するだけで使えます。インストールは不要です。
 
 > [!WARNING]
 > **ダウンロードしたとき、Microsoft Defender が「ウイルスを検出しました」と表示して、zip を削除することがあります。**
 >
-> MmmTool にコード署名が無いため、危険ではないのに危険と判定される誤検知です (`Trojan:Script/Wacatac.B!ml` など)。Microsoft には、誤検知として報告しています。
+> MmmTool にコード署名が無いため、危険ではないのに危険と判定される誤検知です。`Trojan:Script/Wacatac.B!ml` などと表示されます。Microsoft には、誤検知として報告しています。
 >
 > MmmTool は、利用者が設定した接続先 (データの保存先のサーバーや Backlog など)以外へは通信しません。ソースコードはこのリポジトリで公開しています。
 >
@@ -76,22 +76,26 @@
 - [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)(x64)
 - [Windows App Runtime 2.5](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)(x64)
 - [Microsoft Edge WebView2 ランタイム](https://developer.microsoft.com/microsoft-edge/webview2/)(Windows 11 には標準で入っています)
-- 日本語の音声 (リマインダーの読み上げを使うとき。日本語版の Windows には標準で入っています。外国語版の Windows では、設定の「言語と地域」で日本語を追加すると入ります)
-- PowerShell 7(任意。入っていればターミナルで優先して使います)
-- WSL(任意。CLI補助で、WSL に入れた Claude Code・Kiro を使うとき。会話履歴の削除の補助スクリプトには、WSL の中に Python 3 が要ります。Ubuntu には標準で入っています)
+- 日本語の音声 (リマインダーの読み上げを使うとき)
+  - 日本語版の Windows には標準で入っています。外国語版の Windows では、設定の「言語と地域」で日本語を追加すると入ります。
+- PowerShell 7(任意)
+  - 入っていれば、ターミナルで優先して使います。
+- WSL(任意)
+  - CLI補助で、WSL に入れた Claude Code・Kiro を使うときに入れます。
+  - 会話履歴の削除の補助スクリプトには、WSL の中に Python 3 が要ります。Ubuntu には標準で入っています。
 
 ランタイムはアプリに同梱していません。.NET と Windows App Runtime は、入っていなければ `MmmTool.exe` を起動したときに案内のダイアログが出るので、そこからダウンロードしてインストールできます。
 
 ### 導入
 
-1. zip を展開します。できたフォルダーに、アプリ本体の `MmmTool.exe` と、説明書 `README.txt`・`操作説明.html` が並んでいます
-2. `MmmTool.exe` を開きます。ウィンドウは出ず、タスクトレイにアイコンが出ます
+1. zip を展開します。できたフォルダーに、アプリ本体の `MmmTool.exe` と、説明書 `README.txt`・`操作説明.html` が並んでいます。
+2. `MmmTool.exe` を開きます。ウィンドウは出ず、タスクトレイにアイコンが出ます。
 
-- 展開したフォルダーは、好きな場所 (例: `D:\Tools\MmmTool`)へ移して使えます。フォルダー名も、好きな名前に変えられます。ただし、**他の人が書き込めるフォルダーには置かないでください**(理由は「[データ保存場所](#データ保存場所)」)
-- **`Data` フォルダーを上書きしないでください。** 入力したデータはすべて `Data` フォルダーに保存されます。`Data` フォルダーは、`MmmTool.exe` を起動したときに、`MmmTool.exe` と同じフォルダーに作られます。ダウンロードしたばかりの状態では、まだありません。起動したフォルダーごとに、別々の `Data` ができます
-  - `MmmTool` 一式をコピーするとき、コピー先に `Data` フォルダーがあると、Windows が「置き換えますか」といった確認を出します。`Data` フォルダーが置き換わると、元のデータは消えて戻せません
-  - 別の場所へ移すときや新しいバージョンに替えるときは、これまで使ってきた `Data` フォルダーを先にバックアップしてください。`Data` フォルダーを丸ごと別の場所にコピーしておけば、上書きしてしまっても元に戻せます
-- `Lib` フォルダーの中身を動かしたり、`MmmTool.exe` と同じフォルダーへ移したりしないでください (起動できなくなります)
+- 展開したフォルダーは、好きな場所 (例: `D:\Tools\MmmTool`)へ移して使えます。フォルダー名も、好きな名前に変えられます。ただし、**他の人が書き込めるフォルダーには置かないでください**。理由は「[データ保存場所](#データ保存場所)」にあります。
+- **`Data` フォルダーを上書きしないでください。** 入力したデータはすべて `Data` フォルダーに保存されます。`Data` フォルダーは、`MmmTool.exe` を起動したときに、`MmmTool.exe` と同じフォルダーに作られます。ダウンロードしたばかりの状態では、まだありません。起動したフォルダーごとに、別々の `Data` ができます。
+  - `MmmTool` 一式をコピーするとき、コピー先に `Data` フォルダーがあると、Windows が「置き換えますか」といった確認を出します。`Data` フォルダーが置き換わると、元のデータは消えて戻せません。
+  - 別の場所へ移すときや新しいバージョンに替えるときは、これまで使ってきた `Data` フォルダーを先にバックアップしてください。`Data` フォルダーを丸ごと別の場所にコピーしておけば、上書きしてしまっても元に戻せます。
+- `Lib` フォルダーの中身を動かしたり、`MmmTool.exe` と同じフォルダーへ移したりしないでください。起動できなくなります。
 
 ### アンインストール
 
@@ -99,9 +103,9 @@ MmmTool のフォルダーを、丸ごと削除してください。`%TEMP%\MmmT
 
 ## 使い方
 
-1. `MmmTool.exe` を開くと、タスクトレイにアイコンが出ます。左クリックでメインウィンドウを開きます
-2. 左のメニューから機能を選びます。初期状態では、CLI補助・作業管理・クリップボード転送・Backlog は出ません。使う機能は、設定の「機能」でオンにします
-3. ウィンドウを × で閉じてもトレイに残ります。完全に終了するときは、トレイアイコンの右クリックメニューから「終了」を選びます (未保存の編集内容は破棄されます)
+1. `MmmTool.exe` を開くと、タスクトレイにアイコンが出ます。左クリックでメインウィンドウを開きます。
+2. 左のメニューから機能を選びます。初期状態では、CLI補助・作業管理・クリップボード転送・Backlog は出ません。使う機能は、設定の「機能」でオンにします。
+3. ウィンドウを × で閉じてもトレイに残ります。完全に終了するときは、トレイアイコンの右クリックメニューから「終了」を選びます。未保存の編集内容は破棄されます。
 
 機能ごとの使い方は、展開したフォルダーの `操作説明.html` にまとめています。ブラウザーで開いてください。
 
@@ -124,14 +128,14 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 }
 ```
 
-- `environment`: コマンドを動かす環境 (`"windows"` / `"wsl"`)。省略すると Windows です。変えるときは、書き換えるより、左の一覧の右上の「⋯」メニューの「定型コマンドを初期化…」で選び直してください
-- `switchTo`: 送信後に切り替えるタブ (`"shell"` / `"session"`)。省略すると切り替えません
-- `focus`: 送信後のフォーカスの移動先 (`"terminal"` / `"input"`(送信欄))。省略すると移しません
-- コマンド中の `{AppDir}` は、送信時に `MmmTool.exe` のあるフォルダーに置き換わります。引用符は付かないので、`"{AppDir}\tool.ps1"` のように自分で囲んでください。WSL では `/mnt/d/...` の形になるので、区切りは `/` で書きます
+- `environment`: コマンドを動かす環境です。`"windows"` か `"wsl"` を書きます。省略すると Windows です。変えるときは、書き換えるより、左の一覧の右上の「⋯」メニューの「定型コマンドを初期化…」で選び直してください。
+- `switchTo`: 送信後に切り替えるタブです。`"shell"` か `"session"` を書きます。省略すると切り替えません。
+- `focus`: 送信後のフォーカスの移動先です。`"terminal"` か、送信欄を指す `"input"` を書きます。省略すると移しません。
+- コマンド中の `{AppDir}` は、送信時に `MmmTool.exe` のあるフォルダーに置き換わります。引用符は付かないので、`"{AppDir}\tool.ps1"` のように自分で囲んでください。WSL では `/mnt/d/...` の形になるので、区切りは `/` で書きます。
 
 ## データ保存場所
 
-`MmmTool.exe` と同じフォルダーの `Data` フォルダーに保存します。手で直すときは、アプリを終了してから行ってください (起動中はメモリ上の内容で上書きされることがあります)。
+`MmmTool.exe` と同じフォルダーの `Data` フォルダーに保存します。手で直すときは、アプリを終了してから行ってください。起動中は、メモリ上の内容で上書きされることがあります。
 
 **置き場所の注意:** `Data/CliCommands.json` の定型コマンドは、クリックするとターミナルへ送られて実行されます。`Data` フォルダーを他の人が書き込めるフォルダーに置くと、そのコマンドを書き換えられて、任意のコマンドを実行されるおそれがあります。自分だけが書き込めるフォルダー (ユーザーフォルダーの下など)に置いてください。
 
@@ -152,10 +156,10 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 
 設定ページの「保存先」(または、保存先をまだ選んでいない初回の起動で出る「保存先の選択」の画面)で、保存先を「サーバー」にして、接続を入力します。保存先の変更は、アプリの再起動で反映されます。
 
-- リマインダー・作業管理・ノートが、`Data` フォルダーではなく SQL Server に保存されます。ローカルの JSON と SQLite は使いません
-- 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します
-- 起動時にログインが必要です。最初は「新規登録」でログイン名・表示名・パスワードを決めます。ログイン情報は、この PC(Windows アカウントごと)の資格情報マネージャーに覚え、次の起動からは自動でログインします
-- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/` の `001_CreateTables.sql` から番号の順に流して作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます
+- リマインダー・作業管理・ノートが、`Data` フォルダーではなく SQL Server に保存されます。ローカルの JSON と SQLite は使いません。
+- 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します。
+- 起動時にログインが必要です。最初は「新規登録」でログイン名・表示名・パスワードを決めます。ログイン情報は、この PC(Windows アカウントごと)の資格情報マネージャーに覚え、次の起動からは自動でログインします。
+- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/` の `001_CreateTables.sql` から番号の順に流して作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます。
 
 接続・ログイン・パスワードの再設定などの詳しいことは、[docs/specs/database.md](docs/specs/database.md) と [docs/specs/settings.md](docs/specs/settings.md) にあります。
 
@@ -163,19 +167,19 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 
 実行すると、次の場所にもファイルが作られます。
 
-- `%TEMP%\MmmTool\session_日時\`: CLI補助で貼り付けた画像など、元がファイルではない添付。タブを閉じるとき・終了時に削除します。ドロップしたファイルはコピーしないので、ここには入りません
-- WSL の `/tmp/MmmTool/session_日時/`: CLI補助を WSL で使うときの、貼り付けた画像の置き場所 (`%TEMP%` の代わり)
+- `%TEMP%\MmmTool\session_日時\`: CLI補助で貼り付けた画像など、元がファイルではない添付。タブを閉じるとき・終了時に削除します。ドロップしたファイルはコピーしないので、ここには入りません。
+- WSL の `/tmp/MmmTool/session_日時/`: CLI補助を WSL で使うときに、`%TEMP%` の代わりに使う、貼り付けた画像の置き場所。
 - WSL の `~/.local/share/Trash/`: WSL 版の「会話履歴の削除」で消した履歴の移動先 (Linux のごみ箱)
-- `Data\WebView2\`: ターミナルの画面 (WebView2)のキャッシュ。消しても、次に開いたときに作り直されます。他の人が書き込めるとキャッシュを書き換えられるおそれがあるので、`Data` フォルダーと同じく、自分だけが書き込めるフォルダーに置いてください
-- `Data\Logs\`: エラーのログ。自動では消えません。例外のスタックトレースに、ユーザー名を含むパスが入ることがあるので、ログを他の人に渡すときは、中身を確かめてください
+- `Data\WebView2\`: ターミナルの画面 (WebView2)のキャッシュ。消しても、次に開いたときに作り直されます。他の人が書き込めるとキャッシュを書き換えられるおそれがあるので、`Data` フォルダーと同じく、自分だけが書き込めるフォルダーに置いてください。
+- `Data\Logs\`: エラーのログ。自動では消えません。例外のスタックトレースに、ユーザー名を含むパスが入ることがあるので、ログを他の人に渡すときは、中身を確かめてください。
 
-`%TEMP%` と WSL の中のファイルのほかは、すべて `Data` の下に作られます (`MmmTool.exe` のフォルダーの外には書きません)。ただし Backlog の API キー・サーバーのパスワード・サーバー保存のログイン情報は、`Data` ではなく Windows の資格情報マネージャーに保存します。
+`%TEMP%` と WSL の中のファイルのほかは、すべて `Data` の下に作られます。`MmmTool.exe` のフォルダーの外には書きません。ただし Backlog の API キー・サーバーのパスワード・サーバー保存のログイン情報は、`Data` ではなく Windows の資格情報マネージャーに保存します。
 
 ## ライセンス
 
 このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。記載の製品名・サービス名は、各社の商標または登録商標です。各社とは関係ありません。
 
-同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています (発行のたびに、配布物に入るパッケージから自動で作ります)。リポジトリに直接入れているものは、次のファイルです。
+同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています。発行のたびに、配布物に入るパッケージから自動で作ります。リポジトリに直接入れているものは、次のファイルです。
 
 - xterm.js(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
 - @xterm/addon-fit(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)
@@ -193,16 +197,18 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 - CommunityToolkit.Mvvm
 - CommunityToolkit.WinUI.Controls.Segmented(リマインダーの対応状態の切り替え)
 - CommunityToolkit.WinUI.Controls.SettingsControls(設定ページのカード)
-- Microsoft.Extensions.Hosting(Generic Host による DI。設定・ログの既定は無効)
+- Microsoft.Extensions.Hosting(Generic Host による DI)
+  - 設定・ログの既定は無効
 - WebView2 + [xterm.js](https://xtermjs.org/) 6.0.0 / addon-fit 0.11.0(ターミナル描画)
-- Win32 API の直接呼び出し (ConPTY、`Shell_NotifyIcon` によるトレイアイコンなど。WinForms には依存しません)
+- Win32 API の直接呼び出し (ConPTY・`Shell_NotifyIcon` によるトレイアイコンなど)
+  - WinForms には依存しません
 - 共有部品 [MmmSdk](https://github.com/Mimumumimu/MmmSdk)(Git サブモジュール)
 
 ## 開発環境
 
 - .NET 10 SDK
 - Visual Studio 2026 以降 (「WinUI アプリケーション開発」ワークロード)
-- 実行には、上の「[動作環境](#動作環境)」のランタイムも要ります (フレームワーク依存の構成のため)
+- 実行には、上の「[動作環境](#動作環境)」のランタイムも要ります。フレームワーク依存の構成のためです。
 
 ## 取得方法
 
@@ -234,7 +240,7 @@ dotnet build .\MmmTool.slnx
 
 `MmmBatch.slnx` も同じ手順です。共通のプロジェクトを直したときは、両方がビルドできることを確かめてください。
 
-ビルドの共通設定はリポジトリ直下にまとめています (`external/MmmSdk` は SDK 自身の同名ファイルを使います)。
+ビルドの共通設定はリポジトリ直下にまとめています。`external/MmmSdk` は、SDK 自身の同名ファイルを使います。
 
 | ファイル | 内容 |
 | --- | --- |
@@ -248,7 +254,7 @@ dotnet build .\MmmTool.slnx
 
 Visual Studio では、ソリューション エクスプローラーで `MmmTool` プロジェクトを右クリックし、「発行」を選びます。発行プロファイル `win-x64`(構成は Release | x64)を選んで「発行」を押します。
 
-コマンドで発行するときは、次のとおりです (Visual Studio と同じ結果になります)。
+コマンドで発行すると、Visual Studio と同じ結果になります。
 
 ```powershell
 dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
@@ -256,7 +262,7 @@ dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 
 取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb の3つを発行します。MmmTool だけ・MmmBatch だけ・MmmToolWeb だけを発行するときは、`update_and_publish_tool.bat`・`update_and_publish_batch.bat`・`update_and_publish_web.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
 
-発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/`(バージョンは `Directory.Build.props` の `Version`)ができます。このフォルダーをそのままコピーして配布します (インストーラーはありません)。
+発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/` ができます。バージョンは `Directory.Build.props` の `Version` で決まります。このフォルダーをそのままコピーして配布します。インストーラーはありません。
 
 ```
 MmmTool_<バージョン>\
@@ -268,15 +274,15 @@ MmmTool_<バージョン>\
   Lib\ など
 ```
 
-- `Version` を上げずに発行し直すと、同じバージョンのフォルダーに、前回のファイルを消さずに上書きします。前のバージョンにだけあったファイルを残したくないときは、発行の前にそのフォルダーを消してください
-- `README.txt` の元は `src/App/MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のものです。`THIRD-PARTY-NOTICES.txt` は、発行のたびに、配布物に入るパッケージから自動で作ります
-- `MmmTool.exe` の横のフォルダーは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけです。実行すると `Data`(アプリが書くもの)ができます。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を `MmmTool.exe` の横へ移したりしないでください (起動できなくなります)
+- `Version` を上げずに発行し直すと、同じバージョンのフォルダーに、前回のファイルを消さずに上書きします。前のバージョンにだけあったファイルを残したくないときは、発行の前にそのフォルダーを消してください。
+- `README.txt` の元は `src/App/MmmTool/Distribution/README.txt`、`LICENSE.txt` はリポジトリ直下のものです。`THIRD-PARTY-NOTICES.txt` は、発行のたびに、配布物に入るパッケージから自動で作ります。
+- `MmmTool.exe` の横のフォルダーは `Assets`(配布物)と `Lib`(使っているライブラリの DLL)だけです。実行すると `Data`(アプリが書くもの)ができます。`Lib` の DLL の場所は `MmmTool.deps.json` に書いてあるので、`Lib` を動かしたり、DLL を `MmmTool.exe` の横へ移したりしないでください。起動できなくなります。
 
 発行の設定と配布物の決まりは、[docs/build-and-distribution.md](docs/build-and-distribution.md) にあります。
 
 ## MmmSdk を更新するとき
 
-SDK を直したら、先にサブモジュールの中でコミット・push し、そのあと MmmTool 側で「新しいコミットを指す」変更をコミットします。SDK 側のブランチは、MmmTool 側と同じ種類にします (通常の開発は `develop`)。
+SDK を直したら、先にサブモジュールの中でコミット・push し、そのあと MmmTool 側で「新しいコミットを指す」変更をコミットします。SDK 側のブランチは、MmmTool 側と同じ種類にします。通常の開発は `develop` です。
 
 ```powershell
 cd external/MmmSdk
@@ -305,7 +311,7 @@ git submodule update --remote external/MmmSdk
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
-機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます (`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先。トレイだけ別の順にするときは `trayOrder: n` も渡します)。機能を外すときは、参照と 1 行を削除します (使わない機能を含まない配布物を作れます)。詳しくは [docs/architecture.md](docs/architecture.md) にあります。
+機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます。`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先です。トレイだけ別の順にするときは `trayOrder: n` も渡します。機能を外すときは、参照と 1 行を削除します。使わない機能を含まない配布物を作れます。詳しくは [docs/architecture.md](docs/architecture.md) にあります。
 
 ## ドキュメント
 
@@ -321,4 +327,4 @@ git submodule update --remote external/MmmSdk
 
 ## バージョン
 
-バージョンは `Directory.Build.props` の `Version` で決めます (ファイル・アセンブリのバージョンは、末尾に 0 を足した 4 桁になります)。変更履歴は、配布物の説明書 (元は `src/App/MmmTool/Distribution/README.txt`)の「変更履歴」に書いています。
+バージョンは `Directory.Build.props` の `Version` で決めます。ファイル・アセンブリのバージョンは、末尾に 0 を足した 4 桁になります。変更履歴は、配布物の説明書の「変更履歴」に書いています。説明書の元は `src/App/MmmTool/Distribution/README.txt` です。
