@@ -186,8 +186,8 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             html, body { margin:0; background:transparent; color:var(--text); }
             body { padding:4px 20px 24px 4px; font:14px/1.7 "BIZ UDGothic","BIZ UDゴシック","MS Gothic","ＭＳ ゴシック",Consolas,monospace; }
             a { color:var(--link); }
-            .empty { margin:32px 0; color:var(--sub); }
-            .empty-date { margin-right:16px; font-weight:600; color:var(--text); }
+            .empty { margin:16px 0 0; padding-left:16px; text-align:center; color:var(--sub); }
+            .empty-date { display:block; margin-bottom:4px; font-size:1.1em; font-weight:600; color:var(--text); }
             .card { position:relative; margin:0 0 8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 16px 8px 19px; }
             .card.p5, .card.p4 { border-left-width:4px; padding-left:16px; }
             .card.p5 { border-left-color:var(--p5); }
