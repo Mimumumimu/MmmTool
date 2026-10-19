@@ -91,6 +91,53 @@
     color: var(--danger);
 }
 
+/* 他の機能の内容 (作業報告など)を出すかを選ぶ。押すと開く */
+.sources > summary {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.source-detail {
+    display: flex;
+    flex-direction: column;
+    padding-left: 1.75rem;
+}
+
+.source-from {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+.source-from input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+/* 他の機能の内容の枠。ノートのカードと同じ見た目で、文は等幅のフォントで出す */
+.frame {
+    padding: 0.5rem 0.75rem 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+.frame .title {
+    font-weight: 600;
+}
+
+.frame-text {
+    margin: 0;
+    padding: 0.25rem 0 0.5rem;
+    font-family: "BIZ UDGothic", "MS Gothic", ui-monospace, monospace;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .cards {
     display: flex;
     flex-direction: column;

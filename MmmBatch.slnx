@@ -57,6 +57,11 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/DayContent/">
+    <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/NotificationChannels/">
     <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj">
       <Platform Project="x64" />

@@ -384,6 +384,7 @@
   - `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 表示する案件の中身の読み込み・差分 (論理削除された行も含む)
   - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
   - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
+  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
 
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 
@@ -407,9 +408,10 @@
     - 論理削除された行も含む
     - 同じ日に入れ直したときは、この行を使い回す
   - 人ごとに分けると、同じ作業の同じ日に記録が複数でき、データが食い違うため
-- インデックスは、次の 2 つ
+- インデックスは、次の 3 つ
   - `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`: その日の記録 (削除されていない行だけ)
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
+  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
 
@@ -436,7 +438,9 @@
 - 1 人 1 日 1 件で、`(UserId, Date)` を一意にする (`UX_WorkDayNote_UserId_Date`)
   - 同じ日に書き直したときは、この行を使い回す
   - 日付の範囲の読み込みと、直近の日の検索にも使う
-- インデックスは、一意の `(UserId, Date)` だけ
+- インデックスは、次の 2 つ
+  - 一意の `(UserId, Date)`
+  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
   - 差分の取得 (更新日時の索引)は持たない
   - 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない
   - 問い合わせの数も増やさない
@@ -700,8 +704,9 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`
-  - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote` で、リリースまで、この版の変更は、このファイルに足す
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportPeopleIndexes.sql`
+  - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
+  - `004_AddWorkReportPeopleIndexes.sql` は、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。SQLite も同じ名前・同じ設計のスクリプトを持つ。
   - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
   - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
     - リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)

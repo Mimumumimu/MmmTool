@@ -55,6 +55,9 @@
     <Project Path="src/Plugins/MmmToolWeb.Notes.Client/MmmToolWeb.Notes.Client.csproj">
       <Platform Solution="*|x64" Project="Any CPU" />
     </Project>
+    <Project Path="src/Plugins/MmmToolWeb.WorkItems/MmmToolWeb.WorkItems.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj">
       <Platform Project="x64" />
     </Project>
@@ -70,6 +73,11 @@
   </Folder>
   <Folder Name="/CodeMaster/">
     <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/DayContent/">
+    <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>

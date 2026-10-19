@@ -97,11 +97,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
 
     /// <inheritdoc />
-    public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, int? userId = null, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
-            // 担当が自分で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が自分の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る
-            (string, object)[] parameters = [("@me", UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@feature", WorkCodes.FeatureNo)];
+            // 担当が指定の人 (@me)で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る
+            (string, object)[] parameters = [("@me", userId ?? UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
@@ -123,6 +123,27 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 cancellationToken);
             return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records, dayNotes);
         }, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<int>> GetReportPeopleAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<int>>(
+            connection => QueryAsync(
+                connection,
+                null,
+                // SQL Server と同じ問い合わせ。担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く (索引は 004_AddWorkReportPeopleIndexes.sql)
+                """
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.StatusCodeNo IN (@planned, @inProgress)
+                UNION
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.StatusCodeNo = @closed AND i.CompletedDate >= @from AND i.CompletedDate <= @to
+                UNION
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.Id IN (SELECT r.WorkItemId FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to)
+                UNION
+                SELECT n.UserId FROM WorkDayNote n WHERE n.IsDeleted = 0 AND n.Date = @to AND TRIM(n.Note) <> ''
+                """,
+                [("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed)],
+                reader => reader.GetInt32(0),
+                cancellationToken),
+            cancellationToken);
 
     /// <inheritdoc />
     public Task<DateOnly?> GetLatestRecordedDateAsync(DateOnly before, CancellationToken cancellationToken = default)

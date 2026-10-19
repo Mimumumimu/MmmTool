@@ -106,7 +106,8 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>カードの id (<c>"n"</c> + ノートの番号)の配列から、ノートの番号の集まりにする</summary>
+    /// <summary>カードと枠の id (<c>"n"</c> + 番号)の配列から、番号の集まりにする</summary>
+    /// <remarks>他の機能の内容の枠は、ノートの番号と重ならないよう、負の番号を付ける。</remarks>
     /// <param name="ids">カードの id の配列</param>
     /// <returns>ノートの番号</returns>
     private static HashSet<int> ReadNoteIds(JsonElement ids)
@@ -114,7 +115,7 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         var result = new HashSet<int>();
         foreach (var element in ids.EnumerateArray())
         {
-            if (element.GetString() is { Length: > 1 } id && int.TryParse(id.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out var noteId))
+            if (element.GetString() is { Length: > 1 } id && int.TryParse(id.AsSpan(1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var noteId))
             {
                 result.Add(noteId);
             }

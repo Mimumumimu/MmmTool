@@ -83,6 +83,52 @@
                     VerticalContentAlignment="Center"
                     Content="削除したものも表示"
                     IsChecked="{x:Bind ViewModel.ShowDeleted, Mode=TwoWay}" />
+                <!-- 他の機能 (作業管理など)の内容を、カードの上に出す。内容が増えても、バーの部品は増えない -->
+                <Button Content="表示する内容" Visibility="{x:Bind ViewModel.HasSources, Mode=OneWay}">
+                    <Button.Flyout>
+                        <Flyout Opening="OnSourcesFlyoutOpening" Placement="BottomEdgeAlignedRight">
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Sources}" MinWidth="280">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:DayContentSourceItem">
+                                        <StackPanel Spacing="8">
+                                            <CheckBox
+                                                MinWidth="0"
+                                                Content="{x:Bind Title}"
+                                                IsChecked="{x:Bind IsEnabled, Mode=TwoWay}" />
+                                            <StackPanel
+                                                Margin="28,0,0,8"
+                                                Spacing="8"
+                                                Visibility="{x:Bind IsEnabled, Mode=OneWay}">
+                                                <CheckBox
+                                                    MinWidth="0"
+                                                    Content="全員の分も出す"
+                                                    IsChecked="{x:Bind Everyone, Mode=TwoWay}"
+                                                    Visibility="{x:Bind IsShared}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
+                                                    <CalendarDatePicker
+                                                        DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})"
+                                                        Language="ja-JP"
+                                                        Date="{x:Bind FromPickerDate, Mode=TwoWay}" />
+                                                </StackPanel>
+                                                <ItemsControl ItemsSource="{x:Bind Options}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:DayContentOptionItem">
+                                                            <CheckBox
+                                                                MinWidth="0"
+                                                                Content="{x:Bind Label}"
+                                                                IsChecked="{x:Bind IsOn, Mode=TwoWay}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
             </StackPanel>
         </Grid>
 

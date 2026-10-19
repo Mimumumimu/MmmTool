@@ -14,5 +14,7 @@ namespace MmmToolWeb.Notes.Client;
 [JsonSerializable(typeof(NoteListResponse))]
 [JsonSerializable(typeof(NoteSaveRequest))]
 [JsonSerializable(typeof(NoteDeletedRequest))]
+[JsonSerializable(typeof(DayContentSourceListResponse))]
+[JsonSerializable(typeof(DayContentFramesResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
 public sealed partial class NotesJsonContext : JsonSerializerContext;

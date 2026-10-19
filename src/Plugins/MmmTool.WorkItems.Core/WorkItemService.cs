@@ -512,7 +512,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <remarks>表示している案件・隠している行の設定には従わない。読んだ内容を、メモリの木とは別に扱うので、画面の状態を変えない。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly reportDate, CancellationToken cancellationToken = default)
-        => repository.LoadReportAsync(from, reportDate, cancellationToken);
+        => repository.LoadReportAsync(from, reportDate, cancellationToken: cancellationToken);
 
     /// <summary>作業報告の実績の開始日の既定を返す</summary>
     /// <param name="reportDate">報告日</param>

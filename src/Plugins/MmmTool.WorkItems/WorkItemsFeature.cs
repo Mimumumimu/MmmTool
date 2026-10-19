@@ -4,7 +4,7 @@ namespace MmmTool.WorkItems;
 public static class WorkItemsFeature
 {
     /// <summary>機能のキー (設定ファイルにも使う。変えると、保存済みのオン・オフが外れる)</summary>
-    public const string Key = "WorkItems";
+    public const string Key = Core.WorkReportDayContentSource.WorkItemsFeatureKey;
 
     /// <summary>設定ページに出す機能の名前</summary>
     public const string DisplayName = "作業管理";

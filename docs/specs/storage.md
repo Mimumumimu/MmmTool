@@ -46,6 +46,7 @@
 | 作業管理の表示列 | `WorkItems.HiddenColumns`・`WorkItems.MineOnly` | |
 | 作業報告の「実績に時間を出す」 | `WorkItems.Report.ShowHours` | 真偽。既定は false |
 | 作業報告の「進捗度表示」 | `WorkItems.Report.ShowProgress` | 真偽。既定は true |
+| ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |
 | 表示しない案件 | `WorkItems.HiddenProjects` | 案件の番号をカンマでつないだ文字列で、例は `1,5,7`。無ければ全部表示 |
 | 読み上げの音量 | `Speech.VolumePercent` | 0〜100 の整数 |
 | メッセージで前回送った宛先の送信先の番号 | `Messages.LastChannelId` | 整数。無ければ 0。詳細は [messages.md](messages.md) |

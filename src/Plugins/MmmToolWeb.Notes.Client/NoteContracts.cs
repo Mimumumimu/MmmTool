@@ -41,6 +41,42 @@ public sealed record NoteDto(
 public sealed record NoteListResponse(DateOnly Day, IReadOnlyList<NoteDto> Notes);
 
 /// <summary>
+/// 内容の選択肢 1 つ。
+/// </summary>
+/// <param name="Key">選択肢の識別。</param>
+/// <param name="Label">画面に出す名前。</param>
+/// <param name="Default">既定値。</param>
+public sealed record DayContentOptionDto(string Key, string Label, bool Default);
+
+/// <summary>
+/// ノートの画面に出せる、他の機能の内容 (作業報告など) 1 つ。
+/// </summary>
+/// <param name="Key">内容の識別。</param>
+/// <param name="Title">画面に出す名前。</param>
+/// <param name="DefaultFrom">実績の開始日の既定。</param>
+/// <param name="Options">真偽の選択肢。</param>
+public sealed record DayContentSourceDto(string Key, string Title, DateOnly DefaultFrom, IReadOnlyList<DayContentOptionDto> Options);
+
+/// <summary>
+/// 出せる内容の一覧。
+/// </summary>
+/// <param name="Sources">出せる内容。サーバーに登録された機能の分だけ。</param>
+public sealed record DayContentSourceListResponse(IReadOnlyList<DayContentSourceDto> Sources);
+
+/// <summary>
+/// ノートのカードの上に出す、内容の枠 1 つ。
+/// </summary>
+/// <param name="Title">見出し。</param>
+/// <param name="Text">文。改行と字下げは、そのまま出す。</param>
+public sealed record DayContentFrameDto(string Title, string Text);
+
+/// <summary>
+/// 内容の枠の一覧。全員のときは、自分の枠が先頭で、あとは名前順。
+/// </summary>
+/// <param name="Frames">枠。</param>
+public sealed record DayContentFramesResponse(IReadOnlyList<DayContentFrameDto> Frames);
+
+/// <summary>
 /// ノートを保存する要求。新規の登録と編集で同じ。
 /// </summary>
 /// <param name="Title">タイトル。</param>
