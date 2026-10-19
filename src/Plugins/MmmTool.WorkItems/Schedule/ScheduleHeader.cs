@@ -23,6 +23,9 @@ public static class ScheduleHeader
     /// <summary>文字の大きさ</summary>
     private const double FontSize = 12;
 
+    /// <summary>月の文字の、月の初めの線からの左の余白 (右も同じ幅をあける)</summary>
+    private const double MonthLabelMargin = 4;
+
     /// <summary>見出しを作る</summary>
     /// <param name="visual">日付の軸</param>
     /// <param name="palette">色</param>
@@ -81,6 +84,7 @@ public static class ScheduleHeader
     /// <param name="canvas">見出し</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="format">月の文字の書式</param>
+    /// <remarks>軸の左端の月は月の途中から始まるので、次の月までの幅が狭いことがある。年を含む文字が入らないときは「M月」だけにし、それも入らないときは出さない。次の月の文字と重ならないようにするため。</remarks>
     private static void AddMonthLabels(Canvas canvas, ScheduleAxis axis, string format)
     {
         for (var date = axis.Start; date <= axis.End; date = date.AddDays(1))
@@ -90,12 +94,34 @@ public static class ScheduleHeader
                 continue;
             }
 
-            var label = Text(date.ToString(format, System.Globalization.CultureInfo.InvariantCulture), FontSize, FontWeights.Normal);
-            label.Opacity = 0.7;
-            Canvas.SetLeft(label, axis.X(date) + 4);
+            var nextMonth = new DateOnly(date.Year, date.Month, 1).AddMonths(1);
+            var span = (Math.Min(nextMonth.DayNumber, axis.End.DayNumber + 1) - date.DayNumber) * axis.DayWidth - (2 * MonthLabelMargin);
+
+            var label = MonthLabel(date.ToString(format, System.Globalization.CultureInfo.InvariantCulture));
+            if (label.DesiredSize.Width > span)
+            {
+                label = MonthLabel($"{date.Month}月");
+                if (label.DesiredSize.Width > span)
+                {
+                    continue;
+                }
+            }
+
+            Canvas.SetLeft(label, axis.X(date) + MonthLabelMargin);
             Canvas.SetTop(label, 4);
             canvas.Children.Add(label);
         }
+    }
+
+    /// <summary>月の文字を作り、大きさを測る</summary>
+    /// <param name="text">月の文字</param>
+    /// <returns>測り終えた文字の部品</returns>
+    private static TextBlock MonthLabel(string text)
+    {
+        var label = Text(text, FontSize, FontWeights.Normal);
+        label.Opacity = 0.7;
+        label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        return label;
     }
 
     /// <summary>日の単位の、1 日ぶんの見出し (日付と曜日。土曜は青、日曜と祝日は赤。どちらも日付と曜日の両方。今日は印を付ける)を足す</summary>

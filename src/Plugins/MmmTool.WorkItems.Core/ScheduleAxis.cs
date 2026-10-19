@@ -30,7 +30,7 @@ public sealed record ScheduleAxis(DateOnly Start, DateOnly End, ScheduleUnit Uni
     /// <summary>1 日の幅 (単位ごとの固定の値。日は数字が入る幅、週・月は狭い)</summary>
     public double DayWidth => Unit switch
     {
-        ScheduleUnit.Day => 30,
+        ScheduleUnit.Day => 40,
         ScheduleUnit.Week => 10,
         _ => 3,
     };
