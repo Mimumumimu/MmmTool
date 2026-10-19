@@ -21,9 +21,9 @@ public sealed partial class ReminderInputWindow : Window
     /// <remarks>表示する前の仮の高さ。表示して中身が載ったら、中身の高さを測って、ちょうど合わせ直す (<see cref="OnRootLoaded"/>)。送信先の欄が出るときは、<see cref="ChannelFieldHeight"/> を足す。</remarks>
     private const double WindowHeight = 724;
 
-    /// <summary>送信先の欄の高さの見積もり (DIP。見出し + 選択欄 + 間隔)</summary>
+    /// <summary>送信先の欄の高さの見積もり (DIP で、見出し + 3 行の一覧の枠 + 間隔)</summary>
     /// <remarks>送信先の欄が出るとき (DB モードで、送信先を読み込めたとき)だけ、<see cref="WindowHeight"/> に足す。表示前の仮の高さのための数字で、最終の高さは、中身を測って決める。</remarks>
-    private const double ChannelFieldHeight = 76;
+    private const double ChannelFieldHeight = 134;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
@@ -96,7 +96,8 @@ public sealed partial class ReminderInputWindow : Window
         DateArea.MinHeight = Math.Max(DatePanel.DesiredSize.Height, WeekdayPanel.DesiredSize.Height);
         Bindings.Update();
 
-        // ウィンドウの高さを、中身の高さにちょうど合わせる (欄の出入り・文字の大きさ・画面の倍率で、見積もりの数字とずれても、切れない)
+        // ウィンドウの高さを、中身の高さにちょうど合わせる (文字の大きさ・画面の倍率で、見積もりの数字とずれても、切れない)
+        // 送信先の一覧は高さが固定なので、行が作られる前に測っても、高さは変わらない
         if (this.ResizeToContentHeight(RootGrid, WindowWidth))
         {
             _modal.CenterOnOwner();
