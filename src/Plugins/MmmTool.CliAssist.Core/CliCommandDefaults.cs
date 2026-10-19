@@ -73,6 +73,8 @@ public static class CliCommandDefaults
                 Leaf("会話要約 (コンテキスト圧縮)", "/compact"),
                 Leaf("steering を作成", KiroSteeringPrompt)),
             Leaf("モデル切替", "/model", focus: FocusTarget.Terminal),
+            // 引数なしの /effort は選択画面を開くので、キー操作できるようターミナルへ
+            Leaf("エフォート切替", "/effort", focus: FocusTarget.Terminal),
             Leaf("会話履歴と再開", "/chat", focus: FocusTarget.Terminal),
             Leaf("使用量の確認", "/usage", focus: FocusTarget.Terminal),
             Leaf("終了", "/quit", switchTo: CommandCategory.Shell)),
@@ -84,6 +86,8 @@ public static class CliCommandDefaults
                 Leaf("CLAUDE.md を作成", "/init")),
             // 一覧から選ぶ操作になるので、キー操作できるようターミナルへ
             Leaf("モデル切替", "/model", focus: FocusTarget.Terminal),
+            // 引数なしの /effort は選択画面を開くので、キー操作できるようターミナルへ
+            Leaf("エフォート切替", "/effort", focus: FocusTarget.Terminal),
             Leaf("会話履歴と再開", "/resume", focus: FocusTarget.Terminal),
             Leaf("コスト確認", "/cost", focus: FocusTarget.Terminal),
             // 終了したらシェルに戻るので、シェルのタブへ切り替える

@@ -30,6 +30,7 @@ public sealed partial class CliSessionView : UserControl
         InputBox.KeepCaretVisible();
 
         // 入力欄 (TextBox)が先にドラッグを処理しても受け取れるよう、処理済みのイベントも拾う
+        Composer.AddHandler(DragEnterEvent, new DragEventHandler(OnComposerDragEnter), handledEventsToo: true);
         Composer.AddHandler(DragOverEvent, new DragEventHandler(OnComposerDragOver), handledEventsToo: true);
         Composer.AddHandler(DropEvent, new DragEventHandler(OnComposerDrop), handledEventsToo: true);
     }
@@ -204,7 +205,50 @@ public sealed partial class CliSessionView : UserControl
         }
     }
 
-    /// <summary>ドラッグ中、ファイルなら添付できると示す</summary>
+    /// <summary>ドラッグ中に出す案内の文言</summary>
+    private string _dropCaption = AttachCaption;
+
+    /// <summary>ファイルを含むドラッグの案内</summary>
+    private const string AttachCaption = "添付する";
+
+    /// <summary>フォルダーだけのドラッグの案内</summary>
+    private const string PastePathCaption = "パスを貼り付ける";
+
+    /// <summary>ドラッグが入ったとき、中身がフォルダーだけかを調べて、案内の文言を決める</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">ドラッグの情報</param>
+    /// <remarks>
+    /// 中身の読み取りは非同期なので、ドラッグごとに 1 回だけここで行う。ドラッグ中に何度も呼ばれる <see cref="OnComposerDragOver"/> では行わない。
+    /// 読めなかったときは、既定の「添付する」のままにして、読めなかったことはドロップのときに知らせる。
+    /// </remarks>
+    private async void OnComposerDragEnter(object sender, DragEventArgs e)
+    {
+        _dropCaption = AttachCaption;
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            return;
+        }
+
+        var deferral = e.GetDeferral();
+        try
+        {
+            var items = await e.DataView.GetStorageItemsAsync();
+            if (items.Count > 0 && items.All(item => item.IsOfType(StorageItemTypes.Folder)))
+            {
+                _dropCaption = PastePathCaption;
+            }
+        }
+        catch (COMException)
+        {
+            // 案内の文言を決められないだけなので、既定のまま続ける
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>ドラッグ中、ファイルなら添付、フォルダーならパスを貼り付けると示す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ドラッグの情報</param>
     private void OnComposerDragOver(object sender, DragEventArgs e)
@@ -212,11 +256,11 @@ public sealed partial class CliSessionView : UserControl
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = "添付する";
+            e.DragUIOverride.Caption = _dropCaption;
         }
     }
 
-    /// <summary>ドロップされたファイルを添付する</summary>
+    /// <summary>ドロップされたファイルを添付し、フォルダーのパスを入力欄に貼り付ける</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ドロップの情報</param>
     private async void OnComposerDrop(object sender, DragEventArgs e)
@@ -228,12 +272,33 @@ public sealed partial class CliSessionView : UserControl
 
         try
         {
-            await AddAttachmentFilesAsync(await e.DataView.GetStorageItemsAsync());
+            var items = await e.DataView.GetStorageItemsAsync();
+            await AddAttachmentFilesAsync(items);
+            PasteFolderPaths(items.OfType<StorageFolder>());
         }
         catch (COMException ex)
         {
             ViewModel.Error.Show($"ドロップされたファイルを読めませんでした。{ex.Message}");
         }
+    }
+
+    /// <summary>ドロップされたフォルダーのパスを、入力欄の選択範囲へ入れる</summary>
+    /// <param name="folders">ドロップされたフォルダー</param>
+    /// <remarks>選択範囲があれば置き換える。入れたあとは、入力欄にフォーカスを移し、入れた文字の後ろにカーソルを置く。</remarks>
+    private void PasteFolderPaths(IEnumerable<StorageFolder> folders)
+    {
+        // パスの無いフォルダー (仮想フォルダーなど)は、入れられない
+        var text = ViewModel.CreateFolderPathText(folders.Select(folder => folder.Path).Where(path => !string.IsNullOrEmpty(path)));
+        if (text is null)
+        {
+            return;
+        }
+
+        var start = InputBox.SelectionStart;
+        InputBox.SelectedText = text;
+        InputBox.Focus(FocusState.Programmatic);
+        InputBox.SelectionStart = start + text.Length;
+        InputBox.SelectionLength = 0;
     }
 
     /// <summary>ドロップ・貼り付けされたファイルを添付する</summary>
