@@ -134,6 +134,9 @@ public sealed partial class NotesViewModel(
         _refreshing = source;
 
         RefreshSources();
+
+        // 見えていない間に、作業報告の窓などが同じ設定を変えているかもしれない。続く読み込みで反映する
+        SyncSourceSettings();
         await ReloadAsync(preserveState: false);
 
         try
@@ -170,15 +173,22 @@ public sealed partial class NotesViewModel(
     /// <remarks>作業報告の窓など、別の画面が同じ設定を変えていたら、その値に合わせて、枠を作り直す。</remarks>
     public void RefreshSourceSettings()
     {
+        if (SyncSourceSettings())
+        {
+            ReloadAsync(preserveState: true).Forget();
+        }
+    }
+
+    /// <summary>他の機能の内容の設定を、この PC の設定から読み直す (画面は作り直さない)</summary>
+    /// <returns>値が変わったものがあるか</returns>
+    private bool SyncSourceSettings()
+    {
         var changed = false;
         foreach (var item in Sources)
         {
             changed |= item.SyncFromSettings();
         }
-        if (changed)
-        {
-            ReloadAsync(preserveState: true).Forget();
-        }
+        return changed;
     }
 
     /// <summary>他の機能の内容の設定が変わった。枠を作り直す</summary>
