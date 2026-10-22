@@ -21,6 +21,10 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     /// <summary>画面に出している日付と今の日付を毎分比べ、違っていたら読み直させる</summary>
     private readonly DayChangeWatcher _dayWatcher;
 
+    /// <summary>日付の監視を始めたか</summary>
+    /// <remarks>サイドバーのページは使い回され、表示のたびに <see cref="InitializeAsync"/> が呼ばれるので、監視は最初の 1 回だけ始める。</remarks>
+    private bool _isWatching;
+
     /// <summary>直近の操作 (保存・リンクを開く)の失敗のメッセージ。無ければ null</summary>
     /// <remarks>読み込みの失敗と違い、保存先の状態からは組み立てられないので、次の操作が成功するまで覚えておく。</remarks>
     private string? _operationError;
@@ -61,7 +65,11 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     {
         await RefreshAsync();
         UpdateError();
-        _dayWatcher.Start(PostRefresh);
+        if (!_isWatching)
+        {
+            _isWatching = true;
+            _dayWatcher.Start(PostRefresh);
+        }
     }
 
     /// <summary>購読をやめ、日付の監視を止める</summary>

@@ -94,10 +94,19 @@ public sealed partial class CliSessionView : UserControl
         });
     }
 
-    /// <summary>読み込み時の処理 (入力欄の高さ調整)</summary>
+    /// <summary>読み込み時の処理 (入力欄の高さ調整・入力欄へのフォーカス)</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    private void OnLoaded(object sender, RoutedEventArgs e) => FitInputBoxToThreeLines();
+    /// <remarks>
+    /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスは、ターミナルではなく入力欄に置く。
+    /// ターミナル (WebView2)にフォーカスがあると、Alt+矢印のページ移動が効かないため。
+    /// </remarks>
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        FitInputBoxToThreeLines();
+        InputBox.Focus(FocusState.Programmatic);
+        InputBox.SelectionStart = InputBox.Text.Length;
+    }
 
     /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>
     /// <remarks>固定値だと、フォントによって下だけ余る・欠けるため。</remarks>
