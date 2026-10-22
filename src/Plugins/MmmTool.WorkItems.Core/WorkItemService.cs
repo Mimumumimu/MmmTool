@@ -395,6 +395,23 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return roots;
     }
 
+    /// <summary>読んでいる日の、実績の合計を数える</summary>
+    /// <param name="mineOnly">自分が担当の作業だけを数えるか (表の「自分の担当だけ」と同じ)</param>
+    /// <returns>実績の合計 (小数 2 桁の時間)</returns>
+    /// <remarks>
+    /// 表示している案件の作業の、その日の記録を足す。
+    /// 「過去の完了」で行を隠した作業も数える。隠しても、その日に働いた時間は変わらないため。
+    /// 案件・グループの集計値 <see cref="WorkSummary.ActualDay"/> は全員の分のままなので、使わずに、記録から数える。
+    /// </remarks>
+    public double BuildDayTotal(bool mineOnly)
+    {
+        var onlyMine = mineOnly && HasAssignees;
+        return WorkActualTotal.Calculate(_dayRecords
+            .Where(r => r.Date == _day && !r.IsDeleted)
+            .Where(r => _items.GetValueOrDefault(r.WorkItemId) is { } item && _projects.ContainsKey(item.ProjectId) && (!onlyMine || item.AssigneeUserId == UserId))
+            .Select(r => r.Hours));
+    }
+
     /// <summary>スケジュールに出す内容を作る</summary>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
     /// <param name="completed">完了した作業の見え方 (作業管理の「過去の完了」とは別に選ぶ。今日完了した作業も隠す)</param>

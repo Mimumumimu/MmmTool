@@ -280,7 +280,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>時間を、表の表示にする</summary>
     /// <param name="hours">時間 (無ければ null)</param>
     /// <returns>小数 2 桁までの数字。無ければ空</returns>
-    private static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
+    internal static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
 
     /// <summary>文章の先頭の 1 行を返す</summary>
     /// <param name="text">文章 (改行を含んでよい)</param>

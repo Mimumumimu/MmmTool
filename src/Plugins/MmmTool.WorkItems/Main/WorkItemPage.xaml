@@ -496,6 +496,13 @@
                     <FontIcon FontSize="12" Glyph="&#xE76C;" />
                 </Button>
                 <Button Command="{x:Bind ViewModel.TodayCommand}" Content="今日" />
+                <!-- 入力日の実績の合計。入力日の隣に置き、日付は付けない。「自分の担当だけ」と「表示する案件」に従い、「過去の完了」で隠した作業も数える -->
+                <TextBlock
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="入力日の実績の合計"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.DayTotalText, Mode=OneWay}" />
             </StackPanel>
 
             <StackPanel
@@ -553,7 +560,7 @@
             </Grid>
         </Border>
 
-        <!-- 日報メモ (作業に結びつかない、入力日の記入。打ち合わせなど)。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する (入力欄の既定の更新のタイミング)。高さは、行数 (DayNoteLines)から計算して決める (FitDayNoteHeight)。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
+        <!-- 日報メモ。作業に結びつかない、入力日の記入で、打ち合わせなどが当たる。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する。入力欄の既定の更新のタイミングと同じ。高さは、行数 (DayNoteLines)から計算して決める (FitDayNoteHeight)。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
         <TextBox
             x:Name="DayNoteBox"
             Grid.Row="4"
