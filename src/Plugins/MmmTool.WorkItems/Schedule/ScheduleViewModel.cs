@@ -311,6 +311,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             expanded,
             node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
             snapshot.Actuals.TryGetValue(node.Key, out var runs) ? runs : [],
+            snapshot.DayNotes.TryGetValue(node.Key, out var dayNotes) ? dayNotes : ScheduleRow.NoDayNotes,
             Axis!,
             _service.Today);
         alive.Add(node.Key);

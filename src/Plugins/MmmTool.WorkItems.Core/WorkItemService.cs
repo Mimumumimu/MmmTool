@@ -450,7 +450,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     {
         var today = Today;
         var roots = WorkItemTree.Build(projects, groups, items, [], today, _codes);
-        var actuals = ScheduleActuals.Build(roots, records);
+        var recordList = records.ToList();
+        var actuals = ScheduleActuals.Build(roots, recordList);
+        var dayNotes = ScheduleDayNotes.Build(roots, recordList);
         var (start, end) = ScheduleSnapshot.Range(roots, actuals, today);
         if (mineOnly && HasAssignees)
         {
@@ -460,7 +462,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             WorkItemTree.RemoveFinished(roots, completed == CompletedDisplay.Hidden);
         }
-        return new ScheduleSnapshot(roots, actuals, start, end);
+        return new ScheduleSnapshot(roots, actuals, dayNotes, start, end);
     }
 
     /// <summary>番号から、案件を探す</summary>
@@ -1298,12 +1300,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     }
 
     /// <summary>届いた記録 (または、保存した記録)を、スケジュールの実績に反映する</summary>
-    /// <param name="record">記録 (論理削除された行・実績が 0 の行は、実績から外す)</param>
-    /// <returns>実績が変わったら true</returns>
+    /// <param name="record">記録 (論理削除された行と、実績が 0 で備考も空の行は、外す)</param>
+    /// <returns>持っている記録が変わったら true</returns>
+    /// <remarks>実績が 0 でも備考がある行は残す。スケジュールの日の備考に出すため。</remarks>
     private bool ApplyScheduleRecord(WorkRecord record)
     {
         var key = (record.WorkItemId, record.Date);
-        if (record.IsDeleted || record.Hours <= 0)
+        if (record.IsDeleted || record.IsEmpty)
         {
             return _scheduleRecords.Remove(key);
         }

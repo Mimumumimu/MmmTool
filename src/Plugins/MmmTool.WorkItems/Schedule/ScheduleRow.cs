@@ -43,7 +43,25 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string Name { get; private set; } = "";
 
-    /// <summary>担当者の表示名 (作業だけ。無ければ空)</summary>
+    /// <summary>共通の備考 (作業・グループ・案件の備考で、無ければ空)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNote))]
+    [NotifyPropertyChangedFor(nameof(NoteTip))]
+    public partial string Note { get; private set; } = "";
+
+    /// <summary>共通の備考があるか (名前の横の印を出す)</summary>
+    public bool HasNote => !string.IsNullOrWhiteSpace(Note);
+
+    /// <summary>共通の備考の吹き出しの文 (長い備考は、上限で切る)</summary>
+    public string NoteTip => ScheduleNoteText.Shorten(Note);
+
+    /// <summary>備考が無いときの日の備考</summary>
+    public static readonly IReadOnlyDictionary<DateOnly, string> NoDayNotes = new Dictionary<DateOnly, string>();
+
+    /// <summary>日付ごとの日の備考 (作業の行だけで、無ければ空)</summary>
+    public IReadOnlyDictionary<DateOnly, string> DayNotes { get; private set; } = NoDayNotes;
+
+    /// <summary>担当者の表示名 (作業の行だけで、無ければ空)</summary>
     [ObservableProperty]
     public partial string AssigneeName { get; private set; } = "";
 
@@ -100,14 +118,16 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <param name="isExpanded">開いているか</param>
     /// <param name="assigneeName">担当者の表示名 (作業の行だけ)</param>
     /// <param name="runs">実績の棒</param>
+    /// <param name="dayNotes">日付ごとの日の備考 (作業の行だけで、無ければ空)</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="today">今日</param>
-    public void Update(WorkNode node, int level, bool hasChildren, bool isExpanded, string assigneeName, IReadOnlyList<ScheduleActualRun> runs, ScheduleAxisVisual axis, DateOnly today)
+    public void Update(WorkNode node, int level, bool hasChildren, bool isExpanded, string assigneeName, IReadOnlyList<ScheduleActualRun> runs, IReadOnlyDictionary<DateOnly, string> dayNotes, ScheduleAxisVisual axis, DateOnly today)
     {
         Level = level;
         HasChildren = hasChildren;
         IsExpanded = isExpanded;
         Name = node.Name;
+        Note = node.Note;
         AssigneeName = assigneeName;
 
         var summary = node.Summary;
@@ -120,8 +140,10 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
             || !ReferenceEquals(Axis, axis)
             || Today != today
             || OverdueDays != overdueDays
-            || !SameRuns(Runs, runs);
+            || !SameRuns(Runs, runs)
+            || !SameDayNotes(DayNotes, dayNotes);
         OverdueDays = overdueDays;
+        DayNotes = dayNotes;
         PlanStart = summary.StartDate;
         PlanEnd = summary.DueDate;
         Runs = runs;
@@ -132,6 +154,13 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
             VisualVersion++;
         }
     }
+
+    /// <summary>日の備考が、同じ内容か</summary>
+    /// <param name="a">一方</param>
+    /// <param name="b">もう一方</param>
+    /// <returns>同じ (日付と備考が、すべて等しい)なら true</returns>
+    private static bool SameDayNotes(IReadOnlyDictionary<DateOnly, string> a, IReadOnlyDictionary<DateOnly, string> b)
+        => ReferenceEquals(a, b) || (a.Count == b.Count && a.All(pair => b.TryGetValue(pair.Key, out var text) && text == pair.Value));
 
     /// <summary>実績の棒が、同じ内容か</summary>
     /// <param name="a">一方</param>

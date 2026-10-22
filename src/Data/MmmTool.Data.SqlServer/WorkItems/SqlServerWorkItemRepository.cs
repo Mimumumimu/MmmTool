@@ -90,7 +90,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 connection => QueryAsync(
                     connection,
                     null,
-                    $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND {ProjectFilter("r", "ProjectId", exclude)}",
+                    $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND (r.Hours > 0 OR r.Note <> '') AND {ProjectFilter("r", "ProjectId", exclude)}",
                     [("@projects", ProjectsJson(projectIds))],
                     reader => ReadRecord(reader).ToWorkRecord(),
                     cancellationToken),

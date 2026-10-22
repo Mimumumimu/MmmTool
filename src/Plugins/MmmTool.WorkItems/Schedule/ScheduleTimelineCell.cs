@@ -26,6 +26,12 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <summary>開始日だけ・期限日だけの作業の、印の幅</summary>
     private const double OpenMarkWidth = 7;
 
+    /// <summary>日の備考の印 (日のセルの右上の三角)の一辺</summary>
+    private const double NoteMarkSize = 9;
+
+    /// <summary>日の備考の吹き出しの日付の書式に使う文化 (曜日を日本語で出す)</summary>
+    private static readonly CultureInfo JapaneseCulture = new("ja-JP");
+
     /// <summary>実績の棒の上端 (予定の棒の中央に重ねる)</summary>
     private const double ActualBarTop = 9;
 
@@ -92,7 +98,8 @@ public sealed class ScheduleTimelineCell : Canvas
     public ScheduleTimelineCell()
     {
         Height = ScheduleAxisVisual.RowHeight;
-        IsHitTestVisible = false;
+
+        // 背景は持たないので、空いたところはクリックを通す。当たるのは、日の備考の吹き出しの面だけ (そのほかの図形は、描くたびに当たらないようにする)
         ActualThemeChanged += (_, _) => Redraw();
 
         // 表に載る前の ActualTheme は、アプリの既定のテーマを返すことがある。載ったあとに、正しいテーマで描き直す
@@ -166,6 +173,54 @@ public sealed class ScheduleTimelineCell : Canvas
         AddTodayLine(axis, palette, row.Today);
         AddPlan(axis, palette, row);
         AddActual(axis, palette, row);
+        foreach (var child in Children)
+        {
+            child.IsHitTestVisible = false;
+        }
+        AddDayNotes(axis, palette, row);
+    }
+
+    /// <summary>日の備考がある日に、角の印と、触れると備考を出す吹き出しを足す (日の単位だけ)</summary>
+    /// <param name="axis">日付の軸</param>
+    /// <param name="palette">色</param>
+    /// <param name="row">行</param>
+    /// <remarks>週・月の単位は、1 日の幅が狭く、印も触れる面も作れないので出さない。吹き出しの面は、備考のある日だけに置くので、ほかの場所のクリックは、表が受ける。</remarks>
+    private void AddDayNotes(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
+    {
+        if (!axis.ShowsHours)
+        {
+            return;
+        }
+
+        foreach (var (date, note) in row.DayNotes)
+        {
+            if (date < axis.Start || date > axis.End)
+            {
+                continue;
+            }
+
+            var face = new Grid { Width = axis.DayWidth, Height = ScheduleAxisVisual.RowHeight, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+            face.Children.Add(new Polygon
+            {
+                Points = [new Windows.Foundation.Point(0, 0), new Windows.Foundation.Point(NoteMarkSize, 0), new Windows.Foundation.Point(NoteMarkSize, NoteMarkSize)],
+                Fill = palette.NoteMark,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                IsHitTestVisible = false,
+            });
+
+            var tip = new StackPanel { MaxWidth = 360, Spacing = 4 };
+            tip.Children.Add(new TextBlock
+            {
+                Text = date.ToString("M/d(ddd)", JapaneseCulture),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            });
+            tip.Children.Add(new TextBlock { Text = ScheduleNoteText.Shorten(note), TextWrapping = TextWrapping.Wrap });
+            ToolTipService.SetToolTip(face, tip);
+
+            SetLeft(face, axis.X(date));
+            Children.Add(face);
+        }
     }
 
     /// <summary>今日の列の中央に、縦の線を足す (棒と数字の下に描く)</summary>
