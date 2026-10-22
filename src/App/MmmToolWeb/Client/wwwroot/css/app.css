@@ -40,6 +40,12 @@ body {
     padding: calc(env(safe-area-inset-top) + 1rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
+/* シートやダイアログ (aria-modal)が開いている間は、裏の画面をスクロールさせない。キーボードを出す操作で、裏の画面が見えたり、横にずれたりするのを防ぐ */
+html:has([aria-modal="true"]),
+body:has([aria-modal="true"]) {
+    overflow: hidden;
+}
+
 h1 {
     font-size: 1.4rem;
 }

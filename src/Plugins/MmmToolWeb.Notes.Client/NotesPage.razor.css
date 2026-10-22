@@ -23,6 +23,11 @@
     padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 6rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
+/* 編集のシートが開いている間は、裏の画面を見せない。位置は残る。キーボードで画面がずれても、裏が透けないようにする */
+.screen.behind {
+    visibility: hidden;
+}
+
 .text {
     min-height: 2.75rem;
     padding: 0 0.75rem;

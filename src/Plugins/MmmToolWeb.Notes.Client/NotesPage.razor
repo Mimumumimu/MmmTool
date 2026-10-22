@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
 </HeadContent>
 
-<div class="screen">
+<div class="@(_editorOpen ? "screen behind" : "screen")">
     <FeatureHeader Title="ノート" Busy="_loading">
         <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
     </FeatureHeader>
