@@ -33,6 +33,12 @@
                         <TextBlock Text="新規追加" />
                     </StackPanel>
                 </Button>
+                <Button MinWidth="96" Command="{x:Bind ViewModel.BulkAddCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="14" Glyph="&#xE7C3;" />
+                        <TextBlock Text="まとめて追加" />
+                    </StackPanel>
+                </Button>
                 <!-- 送信先の登録 (DB モードだけ) -->
                 <Button
                     MinWidth="96"

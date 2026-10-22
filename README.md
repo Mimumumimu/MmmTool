@@ -148,7 +148,7 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/MmmTool.db` | 作業管理とノートのデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
 | `Data/Reminders.json` | リマインダー本体 |
 | `Data/ReminderStates.json` | リマインダーの対応状態 |
-| `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・メッセージで前回送った宛先など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
+| `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・メッセージで前回送った宛先・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
 
 JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json` に名前を変えて同じフォルダーに退避し、新しく作り直します。退避したファイルは自動では消えないので、必要な内容を戻したら削除してください。
 

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Reminders.ReminderChannelPicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.Reminders">
+
+    <!-- 送信先のチェックの一覧。複数選べて、何も選ばなければ送らない。高さは置く側が決め、はみ出す分は、この中だけがスクロールする -->
+    <Border
+        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        CornerRadius="4">
+        <Grid>
+            <ScrollViewer Padding="8,0" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{x:Bind Options, Mode=OneWay}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:ReminderChannelOption">
+                            <CheckBox
+                                MinHeight="32"
+                                Content="{x:Bind Text}"
+                                IsChecked="{x:Bind IsChecked, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="送信先が登録されていません。"
+                Visibility="{x:Bind IsEmpty, Mode=OneWay}" />
+        </Grid>
+    </Border>
+</UserControl>

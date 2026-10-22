@@ -49,6 +49,9 @@
 | ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |
 | 表示しない案件 | `WorkItems.HiddenProjects` | 案件の番号をカンマでつないだ文字列で、例は `1,5,7`。無ければ全部表示 |
 | 読み上げの音量 | `Speech.VolumePercent` | 0〜100 の整数 |
+| まとめて追加で前回選んだ「何分前に通知」 | `Reminder.Bulk.LeadMinutes` | 0・3・5・10・15 のどれか。無ければ 5。詳細は [reminders.md](reminders.md) の「まとめて追加」 |
+| まとめて追加で前回選んだ「通知を読み上げる」 | `Reminder.Bulk.IsSpeak` | 真偽。既定は false |
+| まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
 | メッセージで前回送った宛先の送信先の番号 | `Messages.LastChannelId` | 整数。無ければ 0。詳細は [messages.md](messages.md) |
 | Backlog の連携用パス | `Backlog.Url` | |
 | スヌーズ間隔・ウィンドウ位置など | 各機能・SDK が持つキー | |

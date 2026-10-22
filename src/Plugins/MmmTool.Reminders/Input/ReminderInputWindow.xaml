@@ -6,6 +6,7 @@
     xmlns:controls="using:MmmSdk.WinUI.Controls"
     xmlns:core="using:MmmTool.Reminders.Core"
     xmlns:local="using:MmmTool.Reminders.Input"
+    xmlns:reminders="using:MmmTool.Reminders"
     Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}">
 
     <Window.SystemBackdrop>
@@ -127,34 +128,11 @@
             <!-- 送信先 (DB モードで、送信先を読み込めたときだけ。送る処理は MmmBatch が行う) -->
             <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsChannelVisible, Mode=OneWay}">
                 <TextBlock Text="送信先" />
-                <!-- 複数選べて、何も選ばなければ送らない。枠の高さは、3 行 x 32 + 枠 2 で固定。4 個以上のときは、この中だけがスクロールする -->
-                <Border
+                <!-- 一覧の高さは、3 行 x 32 + 枠 2 で固定。4 個以上のときは、一覧の中だけがスクロールする -->
+                <reminders:ReminderChannelPicker
                     Height="98"
-                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="4">
-                    <Grid>
-                        <ScrollViewer Padding="8,0" VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{x:Bind ViewModel.ChannelOptions}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:ReminderChannelOption">
-                                        <CheckBox
-                                            MinHeight="32"
-                                            Content="{x:Bind Text}"
-                                            IsChecked="{x:Bind IsChecked, Mode=TwoWay}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-                        <TextBlock
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="送信先が登録されていません。"
-                            Visibility="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}" />
-                    </Grid>
-                </Border>
+                    IsEmpty="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}"
+                    Options="{x:Bind ViewModel.ChannelOptions}" />
             </StackPanel>
         </StackPanel>
 

@@ -73,6 +73,11 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     [RelayCommand]
     private Task AddAsync() => _reminderDialogs.ShowInputAsync(null);
 
+    /// <summary>まとめて追加 (まとめて追加の画面を開く)</summary>
+    /// <returns>まとめて追加の画面が閉じるまでの待機を表すタスク</returns>
+    [RelayCommand]
+    private Task BulkAddAsync() => _reminderDialogs.ShowBulkInputAsync();
+
     /// <summary>編集 (入力画面を開く)</summary>
     /// <param name="item">編集する行</param>
     /// <returns>編集の完了を表すタスク</returns>

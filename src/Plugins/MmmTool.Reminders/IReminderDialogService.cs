@@ -12,6 +12,10 @@ public interface IReminderDialogService
     /// <returns>保存した内容。キャンセルなら null</returns>
     Task<Reminder?> ShowInputAsync(Reminder? reminder, int copySourceNo = 0);
 
+    /// <summary>まとめて追加の画面を、いちばん手前の画面の上にモーダルで開く</summary>
+    /// <returns>登録した件数。キャンセルなら 0</returns>
+    Task<int> ShowBulkInputAsync();
+
     /// <summary>リマインダー一覧画面を、いちばん手前の画面の上にモーダルで開き、閉じるまで待つ</summary>
     /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     Task ShowListAsync();
