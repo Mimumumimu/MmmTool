@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 namespace MmmTool.CliAssist.QuickMessages;
 
 /// <summary>よく使う文の編集ダイアログ</summary>
-public sealed partial class QuickMessageDialog : ContentDialog
+public sealed partial class QuickMessageDialog : ContentDialog, ICliEditDialog
 {
     /// <summary>ダイアログの ViewModel</summary>
     public QuickMessageDialogViewModel ViewModel { get; }
@@ -17,8 +17,7 @@ public sealed partial class QuickMessageDialog : ContentDialog
         PrimaryButtonClick += OnPrimaryButtonClick;
     }
 
-    /// <summary>ダイアログを開く</summary>
-    /// <returns>ダイアログが閉じるまでの完了を表すタスク</returns>
+    /// <inheritdoc />
     public async Task EditAsync()
     {
         ViewModel.Initialize();

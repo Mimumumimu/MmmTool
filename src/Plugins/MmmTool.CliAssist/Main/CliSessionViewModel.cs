@@ -36,6 +36,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly CliQuickMessageService _quickMessageService;
     /// <summary>よく使う文の編集ダイアログ</summary>
     private readonly IQuickMessageDialogService _quickMessageDialog;
+    /// <summary>ターミナルへ移る文字列</summary>
+    private readonly CliFocusTriggerService _focusTriggerService;
+    /// <summary>ターミナルの出力から、ターミナルへ移る文字列を見つける</summary>
+    private readonly TerminalOutputWatcher _focusTriggerWatcher;
     /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
     private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
@@ -50,6 +54,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="timeProvider">現在時刻の提供元</param>
     /// <param name="quickMessages">よく使う文</param>
     /// <param name="quickMessageDialog">よく使う文の編集ダイアログ</param>
+    /// <param name="focusTriggers">フォーカスを移す文字列</param>
     public CliSessionViewModel(
         ITerminalSession terminal,
         [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
@@ -58,7 +63,8 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         SendHistory sendHistory,
         TimeProvider timeProvider,
         CliQuickMessageService quickMessages,
-        IQuickMessageDialogService quickMessageDialog)
+        IQuickMessageDialogService quickMessageDialog,
+        CliFocusTriggerService focusTriggers)
     {
         _quickMessageService = quickMessages;
         _quickMessageDialog = quickMessageDialog;
@@ -79,6 +85,13 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         Category = CommandCategory.Shell;
         _uiContext = SynchronizationContext.Current;
         Terminal.Exited += OnShellExited;
+
+        _focusTriggerService = focusTriggers;
+        _focusTriggerWatcher = new TerminalOutputWatcher(terminal);
+        _focusTriggerWatcher.SetPatterns(focusTriggers.Texts);
+        _focusTriggerWatcher.Matched += OnFocusTriggerMatched;
+        // 編集画面で保存したら、全タブの見張りの文字列を差し替える
+        _focusTriggerService.Changed += OnFocusTriggersChanged;
 
         Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
         HistoryItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
@@ -141,9 +154,34 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <remarks>起動し直すには端末の大きさが要り、それは画面 (ターミナルのコントロール)が持っているため。</remarks>
     public event EventHandler? TerminalRestartRequested;
 
+    /// <summary>出力に、フォーカスを移す文字列が出たので、ターミナルへのフォーカスの移動を View に頼む</summary>
+    /// <remarks>
+    /// 入力欄が空のときだけ頼む。打ちかけの文字が、ターミナルへ入ってしまわないようにするため。
+    /// 画面に出ているかは、View が確かめる。
+    /// </remarks>
+    public event EventHandler? FocusTriggerMatched;
+
     /// <summary>フォーカスを移すよう、View に頼む</summary>
     /// <param name="target">フォーカスを移す先</param>
     public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(this, target);
+
+    /// <summary>ターミナルへ移る文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
+    private void OnFocusTriggersChanged() => _focusTriggerWatcher.SetPatterns(_focusTriggerService.Texts);
+
+    /// <summary>フォーカスを移す文字列が出力に出たときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="text">見つかった文字列</param>
+    /// <remarks>出力はスレッドプールから届くので、UI スレッドへ移して頼む。</remarks>
+    private void OnFocusTriggerMatched(object? sender, string text)
+    {
+        _uiContext?.Post(_ =>
+        {
+            if (!_disposed && string.IsNullOrEmpty(InputText))
+            {
+                FocusTriggerMatched?.Invoke(this, EventArgs.Empty);
+            }
+        }, null);
+    }
 
     /// <summary>ターミナルのシェルを起動し直すよう、View に頼む</summary>
     public void RequestTerminalRestart() => TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
@@ -491,6 +529,9 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
         _quickMessageService.Changed -= OnQuickMessagesChanged;
         Terminal.Exited -= OnShellExited;
+        _focusTriggerService.Changed -= OnFocusTriggersChanged;
+        _focusTriggerWatcher.Matched -= OnFocusTriggerMatched;
+        _focusTriggerWatcher.Dispose();
         Terminal.Dispose();
         _windowsAttachmentStore.Dispose();
         _wslAttachmentStore.Dispose();

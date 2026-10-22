@@ -8,6 +8,7 @@ namespace MmmTool.CliAssist.Core.Json;
 [JsonSerializable(typeof(CliCommandSet))]
 [JsonSerializable(typeof(CliSettings))]
 [JsonSerializable(typeof(List<CliQuickMessage>))]
+[JsonSerializable(typeof(List<CliFocusTrigger>))]
 internal sealed partial class CliAssistJsonContext : JsonSerializerContext
 {
     /// <summary>手で読み書きしやすい形の設定</summary>

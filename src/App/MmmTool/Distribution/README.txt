@@ -107,6 +107,7 @@ Data フォルダを丸ごと別の場所にコピーしておけば、上書き
   Data\CliCommands.json        CLI補助の定型コマンド
   Data\CliSettings.json        CLI補助の最後の作業ディレクトリ・履歴・開いているタブ
   Data\CliQuickMessages.json   CLI補助のよく使う文
+  Data\CliFocusTriggers.json   CLI補助で、ターミナルへ移る文字列
   Data\Links.json              リンク
   Data\Reminders.json          リマインダー
   Data\ReminderStates.json     リマインダーの対応状態
@@ -143,6 +144,8 @@ Backlog の API キーやサーバーの接続情報を登録していたとき�
 未リリース
 
 追加
+　[CLI補助]
+　　・ターミナルの出力に、指定した文字列が出たら、ターミナルへフォーカスを移す機能を追加。左の一覧の右上の「⋯」→「ターミナルへ移る文字列…」で、文字列を登録する。
 　[ノート]
 　　・「実施日」を追加。その日のカードが、紫の帯と枠で目立ち、ほかのカードより上に出る。
 　　　・アプリの起動時と日付が変わったときに、今日が実施日のノートを通知する。通知を押すと、ノートのページが開く。
