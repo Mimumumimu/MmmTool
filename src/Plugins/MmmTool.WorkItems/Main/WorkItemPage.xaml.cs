@@ -307,7 +307,7 @@ public sealed partial class WorkItemPage : Page
 
             var width = column.Key switch
             {
-                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExcludedMark ? ReportExcludedMarkWidth : 0)).DefaultIfEmpty(0).Max()),
+                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsPlanExcludedMark ? PlanExcludedMarkWidth : 0)).DefaultIfEmpty(0).Max()),
                 "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
@@ -335,8 +335,8 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
     private const double NoteMaxWidth = 320;
 
-    /// <summary>名前のセルに出す、作業報告に含めない印の幅 (アイコンの大きさ 14 に、文字との間の余白を足した値)</summary>
-    private const double ReportExcludedMarkWidth = 24;
+    /// <summary>名前のセルに出す、予定に含めない印の幅 (アイコンの大きさ 14 に、文字との間の余白を足した値)</summary>
+    private const double PlanExcludedMarkWidth = 24;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
@@ -764,7 +764,7 @@ public sealed partial class WorkItemPage : Page
         if (row.IsWork)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
-            AddToggleItem(menu, "作業報告に含めない", row.ReportExcluded, isChecked => ViewModel.SetReportExcludedAsync(row, isChecked), !row.IsLocked);
+            AddToggleItem(menu, "予定に含めない", row.PlanExcluded, isChecked => ViewModel.SetPlanExcludedAsync(row, isChecked), !row.IsLocked);
         }
 
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う

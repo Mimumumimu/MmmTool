@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
 /// <remarks>
 /// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業。予定は、状態が作業予定・作業中の作業。
+/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。
 /// 並びは画面に表示している順 (案件は名前順、グループと作業は同じ親の下の並び順)。画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
@@ -62,9 +62,9 @@ public static class WorkReportBuilder
             done.Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. inRange.SelectMany(r => Lines(r.Note))]), showHours ? hours : null));
         }
 
-        // 予定: 状態が作業予定・作業中の作業。共通の備考は、実績に出した作業でも、予定に出す
+        // 予定: 状態が作業予定・作業中で、予定に含めない印が無い作業。共通の備考は、実績に出した作業でも、予定に出す
         var planned = new List<ReportEntry>();
-        foreach (var item in items.Values.Where(i => i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
+        foreach (var item in items.Values.Where(i => !i.PlanExcluded && i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
         {
             IEnumerable<string> todayNotes = records.TryGetValue(item.Id, out var itemRecords)
                 ? itemRecords.Where(r => r.Date == reportDate).SelectMany(r => Lines(r.Note))

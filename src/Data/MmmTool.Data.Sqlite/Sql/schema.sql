@@ -1,6 +1,6 @@
 -- ローカルモード用の SQLite の、あるべき表と索引の形。起動のたびに、実際の DB と比べて、足りないものを足す。点検は SDK の SqliteSchemaRepair が行う。
 -- 列・索引・表を足す変更は、番号つきのスクリプトではなく、このファイルに書き足す。何度流しても壊れないよう、IF NOT EXISTS を付ける。
--- 列の追加は、実際の DB の表の末尾に付く。列の名前の変更・型の変更・削除・データの書き換えは、ここでは直せないので、番号つきのスクリプトで行う。
+-- 列の追加は、実際の DB の表の末尾に付く。型の変更・削除・データの書き換えは、ここでは直せないので、番号つきのスクリプトで行う。列の名前の変更は、SqliteMigrations.ColumnRenames に足す。
 -- 初期データのコードマスタは、001_CreateTables.sql が入れる。ここには書かない。
 -- 表の中にコメントは書かない。列の定義を取り出すとき、定義の一部になるため。コメントは、表の上の行に書く。
 
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS WorkGroup
 );
 
 -- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、完了日の 9999-12-31 は未完了
--- ReportExcluded の 1 は、作業報告の実績にも予定にも出さない作業
+-- PlanExcluded の 1 は、作業報告の予定に出さない作業 (実績には出す)
 CREATE TABLE IF NOT EXISTS WorkItem
 (
     Id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS WorkItem
     PlannedHours     REAL    NOT NULL DEFAULT 0 CHECK (PlannedHours >= 0 AND PlannedHours <= 9999),
     ActualTotalHours REAL    NOT NULL DEFAULT 0 CHECK (ActualTotalHours >= 0),
     Link             TEXT    NOT NULL DEFAULT '' CHECK (length(Link) <= 2000),
-    ReportExcluded   INTEGER NOT NULL DEFAULT 0 CHECK (ReportExcluded IN (0, 1)),
+    PlanExcluded     INTEGER NOT NULL DEFAULT 0 CHECK (PlanExcluded IN (0, 1)),
     StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)

@@ -28,6 +28,7 @@ public static class SqliteDataServiceCollectionExtensions
             FilePath = Path.Combine(provider.GetRequiredService<AppEnvironment>().DataDirectory, FileName),
             Migrations = SqliteMigrations.Load(),
             SchemaSql = SqliteMigrations.LoadSchema(),
+            ColumnRenames = SqliteMigrations.ColumnRenames,
         }));
         services.AddSingleton<SqliteWorkItemRepository>();
         services.AddSingleton<SqliteNoteRepository>();

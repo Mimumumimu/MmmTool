@@ -376,7 +376,7 @@
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
-| `ReportExcluded` | 真偽 | `bit` | 0 | 作業報告に含めないか。1 は、作業報告の実績にも予定にも、ノートの「全員」の人の一覧にも出さない。定例の会議など、報告しない作業に付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列なので、SQL Server は更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、SQLite は `Sql/schema.sql` との点検が足す。SQL Server は ALTER で末尾に付くので、並びは SSMS で直す。SQLite は列の位置を決められず、末尾のまま |
+| `PlanExcluded` | 真偽 | `bit` | 0 | 作業報告の予定に含めないか。1 は、作業報告の予定にだけ出さない。実績には、ほかの作業と同じ条件で出す。ノートの「全員」の人の一覧は、予定の枝からだけ外す。定例の会議など、予定に書かない作業に付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列 (0.7.0 は `ReportExcluded` の名前で足した)なので、SQL Server は更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、`005_AddNoteEventDate.sql` が名前を変える。SQLite は `Sql/schema.sql` との点検が足し、名前は `ColumnRenames` が変える。SQL Server は ALTER で末尾に付くので、並びは SSMS で直す。SQLite は列の位置を決められず、末尾のまま |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 2・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 2・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
@@ -711,9 +711,9 @@
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
 - 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`
-  - `005_AddNoteEventDate.sql` は、`Note` の列 `EventDate` と、その検査 (`CK_Note_EventDate`)と、索引 `IX_Note_EventDate` で、リリースまで、この版の変更は、このファイルに足す。列の並びは、ALTER で末尾に付くので、`EndDate` の次へ SSMS で直す。SQLite は、あるべき形の `Sql/schema.sql` との点検が足す。
+  - `005_AddNoteEventDate.sql` は、`WorkItem` の列 `ReportExcluded` を `PlanExcluded` に変える名前の変更 (既定値の制約 `DF_WorkItem_ReportExcluded` も `DF_WorkItem_PlanExcluded` にする)と、`Note` の列 `EventDate` と、その検査 (`CK_Note_EventDate`)と、索引 `IX_Note_EventDate` で、リリースまで、この版の変更は、このファイルに足す。名前の変更は、列があるときだけ行う。列の並びは、ALTER で末尾に付くので、`EndDate` の次へ SSMS で直す。SQLite は、あるべき形の `Sql/schema.sql` との点検が足す。
   - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
-  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` と、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。
+  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` (版 5 で `PlanExcluded` に名前を変える)と、ノートの「全員」の人の一覧用の索引 3 つで、リリース済みなので変えない。
   - SQL Server は、管理者が手で流すので、リリースまで同じ番号のファイルに変更を集める。SQLite は、あるべき形の `Sql/schema.sql` が列・索引・表の追加を担うので、同じ変更を番号つきのスクリプトに書かない。詳細は、下の「あるべき形の点検」にある。
   - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
   - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
@@ -824,7 +824,11 @@
     - 版の番号を細かく上げる方式にしない。変更ごとに番号を足すと、リリースのたびに、まとめ直しが要るため
   - 足した列は、実際の DB の表の末尾に付く。SQLite は、列の位置を決められないため
     - 定義は、`schema.sql` の `CREATE TABLE` に書いたまま使い、`CHECK` も含む
-  - 直せないもの: 列の名前の変更・型の変更・削除・データの書き換え。これらは、番号つきのスクリプトで行う
+  - 直せないもの: 型の変更・削除・データの書き換え。これらは、番号つきのスクリプトで行う
+  - 列の名前の変更は、点検の前に、`SqliteMigrations.ColumnRenames` (SDK の `SqliteDatabaseOptions.ColumnRenames`)で行う
+    - 古い名前の列がある DB だけ変わる。新しい DB は、`schema.sql` が新しい名前で作る。
+    - 番号つきのスクリプトにしない。スクリプトは、列があるかどうかで分けられず、列の無い DB で失敗するため。
+    - 古い名前の DB が無くなったら、一覧から外す
   - 表の中に、コメントを書かない (列の定義を取り出すとき、定義の一部になるため)
   - `001` から `004` を流した結果と、`schema.sql` の形は同じ。番号つきのスクリプトは、リリース済みなので変えない
 - **壊れたファイル**: DB として開けない (`SQLITE_NOTADB`・`SQLITE_CORRUPT`)ときは、[storage.md](storage.md) の決まりと同じく、同じフォルダの `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて退避し、空の DB を作り直して、メッセージを返す

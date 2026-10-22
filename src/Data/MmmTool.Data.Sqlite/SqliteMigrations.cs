@@ -15,6 +15,17 @@ internal static class SqliteMigrations
     /// <remarks>番号つきのスクリプトの前置き (<see cref="ResourcePrefix"/>)とは別にする。同じ前置きだと、版を上げるスクリプトとして読まれる。</remarks>
     private const string SchemaResourceName = "MmmTool.Data.Sqlite.Schema.schema.sql";
 
+    /// <summary>列の名前の変更 (リリース済みの DB が持つ古い名前を、<c>schema.sql</c> の名前に変える)</summary>
+    /// <remarks>
+    /// 古い名前の列がある DB だけ変わる。新しい DB は、<c>schema.sql</c> が新しい名前で作る。
+    /// 名前を変える列が増えたら、ここに足す。次のリリース以降、古い名前の DB が無くなったら外す。
+    /// </remarks>
+    public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } =
+    [
+        // 作業報告の予定から外す印。版 0.7.0 は ReportExcluded の名前で足した。印は予定だけを外すので、PlanExcluded にする
+        new SqliteColumnRename("WorkItem", "ReportExcluded", "PlanExcluded"),
+    ];
+
     /// <summary>埋め込んだスクリプトを、版の順に読む</summary>
     /// <returns>版を上げるスクリプト</returns>
     public static IReadOnlyList<SqliteMigration> Load()
