@@ -5,7 +5,7 @@
     <header class="sheet-bar">
         <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
         <h2 id="sheet-title">@(Note is null ? "新規ノート" : "ノートの編集")</h2>
-        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(_saving || string.IsNullOrWhiteSpace(_title))">保存</button>
+        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)">保存</button>
     </header>
 
     <div class="sheet-body">
@@ -27,14 +27,14 @@
         <div class="dates">
             <label class="field">
                 <span>開始日</span>
-                <input type="date" value="@_start.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
+                <input type="date" class="@InvalidClass" value="@_start.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
             </label>
 
             <div class="field">
                 <span>終了日</span>
-                <input type="date" aria-label="終了日" value="@(_end?.ToString("yyyy-MM-dd"))" @onchange="OnEndChanged" />
+                <input type="date" class="@InvalidClass" aria-label="終了日" value="@(_end?.ToString("yyyy-MM-dd"))" @onchange="OnEndChanged" />
                 <div class="end-footer">
-                    <button type="button" class="text" @onclick="() => _end = null" disabled="@(_end is null)">クリア</button>
+                    <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
                 </div>
                 @if (_end is null)
                 {
@@ -42,6 +42,25 @@
                 }
             </div>
         </div>
+
+        <div class="dates">
+            <div class="field">
+                <span>実施日</span>
+                <input type="date" class="@InvalidClass" aria-label="実施日" value="@(_eventDate?.ToString("yyyy-MM-dd"))" @onchange="OnEventChanged" />
+                <div class="end-footer">
+                    <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
+                </div>
+            </div>
+        </div>
+
+        @if (IsEventOutOfPeriod)
+        {
+            <p class="alert" role="alert">実施日 (@EventText)が期間の外です。開始日・終了日か実施日を直してください。</p>
+        }
+        else if (_info is not null)
+        {
+            <p class="info" role="status">@_info</p>
+        }
 
         <fieldset class="priority">
             <legend>重要度</legend>
@@ -96,8 +115,21 @@
     private bool _private;
     private DateOnly _start;
     private DateOnly? _end;
+    private DateOnly? _eventDate;
     private bool _saving;
     private string? _error;
+
+    /// <summary>実施日が原因で、開始日・終了日を動かしたことの知らせ。</summary>
+    private string? _info;
+
+    /// <summary>実施日が、開始日から終了日の外にあるか。未設定は、外ではない。終了日が空のときは、終了日の側は常に中。</summary>
+    private bool IsEventOutOfPeriod => _eventDate is { } date && (date < _start || (_end is { } end && date > end));
+
+    /// <summary>警告に出す、実施日の表示。</summary>
+    private string EventText => _eventDate?.ToString("yyyy/MM/dd") ?? "";
+
+    /// <summary>期間の外の警告が出ている間、3 つの日付の欄に付ける class。</summary>
+    private string InvalidClass => IsEventOutOfPeriod ? "invalid" : "";
 
     protected override void OnInitialized()
     {
@@ -109,6 +141,7 @@
             _private = note.IsPrivate;
             _start = note.StartDate;
             _end = note.EndDate;
+            _eventDate = note.EventDate;
         }
         else
         {
@@ -116,11 +149,12 @@
         }
     }
 
-    /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。</summary>
+    /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
     private void OnStartChanged(ChangeEventArgs e)
     {
         if (DateOnly.TryParse(e.Value?.ToString(), out var day))
         {
+            _info = null;
             _start = day;
             if (_end is { } end && end < day)
             {
@@ -129,11 +163,12 @@
         }
     }
 
-    /// <summary>終了日を変えたとき、開始日より前になるなら、開始日を同じ日に合わせる。</summary>
+    /// <summary>終了日を変えたとき、開始日より前になるなら、開始日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
     private void OnEndChanged(ChangeEventArgs e)
     {
         if (DateOnly.TryParse(e.Value?.ToString(), out var day))
         {
+            _info = null;
             _end = day;
             if (day < _start)
             {
@@ -142,11 +177,56 @@
         }
     }
 
+    /// <summary>終了日をクリアして、無期限にする。実施日が、期間の外になることはない。</summary>
+    private void OnEndCleared()
+    {
+        _info = null;
+        _end = null;
+    }
+
+    /// <summary>実施日を変えたとき、期間の外ならば、開始日・終了日を動かして合わせる。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
+    private void OnEventChanged(ChangeEventArgs e)
+    {
+        _info = null;
+        if (!DateOnly.TryParse(e.Value?.ToString(), out var day))
+        {
+            _eventDate = null;
+            return;
+        }
+
+        _eventDate = day;
+        var messages = new List<string>();
+        if (day < _start)
+        {
+            _start = day;
+            messages.Add($"開始日を {day:yyyy/MM/dd} に早めました。");
+        }
+        if (_end is { } end && day > end)
+        {
+            _end = day;
+            messages.Add($"終了日を {day:yyyy/MM/dd} に伸ばしました。");
+        }
+        _info = messages.Count > 0 ? string.Concat(messages) : null;
+    }
+
+    /// <summary>実施日をクリアして、未設定にする。</summary>
+    private void OnEventCleared()
+    {
+        _info = null;
+        _eventDate = null;
+    }
+
     private async Task SaveAsync()
     {
+        // 押せない条件は、次の描画まで効かない。続けて 2 回押されても、処理が 2 回動かないよう、先頭で確かめる
+        if (_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)
+        {
+            return;
+        }
+
         _saving = true;
         _error = null;
-        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end));
+        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate));
         _saving = false;
         switch (result.Status)
         {

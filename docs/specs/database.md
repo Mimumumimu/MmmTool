@@ -478,17 +478,22 @@
 | `IsPrivate` | 真偽 | `bit` | 0 | 公開範囲。0 は全員、1 は書いた人だけ。ローカルモードは常に 0 |
 | `StartDate` | 日付 | `date` | | 開始日 |
 | `EndDate` | 日付 | `date` | `9999-12-31` | 終了日。空 (無期限)は `9999-12-31`。`StartDate` 以上の検査 |
+| `EventDate` | 日付 | `date` | `9999-12-31` | 実施日。空 (未設定)は `9999-12-31`。未設定でないときは、`StartDate` 以上かつ `EndDate` 以下の検査。位置は `EndDate` の次。リリース後に足した列なので、SQL Server は更新用スクリプト `005_AddNoteEventDate.sql` が足し (ALTER で末尾に付くので、並びは SSMS で直す)、SQLite は `Sql/schema.sql` との点検が足す (列の位置は決められず、末尾のまま) |
 | `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要で、1 から 5 の検査) |
 | `Title` | 文字列 (100) | `nvarchar(100)` | | タイトル。1 文字以上。画面の上限 (`NoteLimits`)と同じ長さ |
 | `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 長さの上限を決めず、列の最大までで、`CHECK` も付けない。本文は、書いたとおりの文字で、HTML のタグを含みうる |
 
-- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、誰の (`AuthorUserId`)・公開範囲 (`IsPrivate`)・期間 (`StartDate`・`EndDate`)・重要度 (`Priority`)・中身 (`Title`・`Body`) の順
+- 列の並びは、1 列目の `Id`・共通ヘッダー 5 列のあとに、誰の (`AuthorUserId`)・公開範囲 (`IsPrivate`)・期間 (`StartDate`・`EndDate`)・実施日 (`EventDate`)・重要度 (`Priority`)・中身 (`Title`・`Body`) の順
 - 見える行は、`IsPrivate = 0` か `AuthorUserId` が自分のもの
   - 人で絞るのは、業務の列 `AuthorUserId` で行う (共通ヘッダーの `CreatedByUserId` は使わない)
 - インデックスは、`IX_Note_EndDate_StartDate (EndDate, StartDate)`
   - 表示する日に有効な行 (`EndDate >= その日` かつ `StartDate <= その日`)を探すため
   - 終了日を先頭にするのは、過去に終わった大量のノートを、読むたびに走査しないため
   - 論理削除された行も含める (「削除したものも表示」が読むため)
+- インデックスは、もう 1 つ、`IX_Note_EventDate (EventDate)`
+  - 実際の今日が実施日の行 (`EventDate = 今日`)を探して、通知ダイアログに出すため
+  - 未設定の大量の行 (`9999-12-31`)を、起動のたびに走査しないため
+  - SQL Server と SQLite の両方に、同じ名前・同じ列で入れる
 - 一意制約は付けない (同じタイトル・期間のノートを複数置ける)
 - 書いた人の存在は、アプリが検査する (外部キーは付けない)
 
@@ -705,7 +710,8 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`
+  - `005_AddNoteEventDate.sql` は、`Note` の列 `EventDate` と、その検査 (`CK_Note_EventDate`)と、索引 `IX_Note_EventDate` で、リリースまで、この版の変更は、このファイルに足す。列の並びは、ALTER で末尾に付くので、`EndDate` の次へ SSMS で直す。SQLite は、あるべき形の `Sql/schema.sql` との点検が足す。
   - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
   - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` と、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。
   - SQL Server は、管理者が手で流すので、リリースまで同じ番号のファイルに変更を集める。SQLite は、あるべき形の `Sql/schema.sql` が列・索引・表の追加を担うので、同じ変更を番号つきのスクリプトに書かない。詳細は、下の「あるべき形の点検」にある。

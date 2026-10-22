@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS Note
     IsPrivate       INTEGER NOT NULL DEFAULT 0 CHECK (IsPrivate IN (0, 1)),
     StartDate       TEXT    NOT NULL,
     EndDate         TEXT    NOT NULL DEFAULT '9999-12-31' CHECK (EndDate >= StartDate),
+    EventDate      TEXT    NOT NULL DEFAULT '9999-12-31' CHECK (EventDate = '9999-12-31' OR (EventDate >= StartDate AND EventDate <= EndDate)),
     Priority        INTEGER NOT NULL DEFAULT 3 CHECK (Priority BETWEEN 1 AND 5),
     Title           TEXT    NOT NULL CHECK (length(Title) BETWEEN 1 AND 100),
     Body            TEXT    NOT NULL DEFAULT ''
@@ -163,6 +164,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS UX_WorkDayNote_UserId_Date ON WorkDayNote (Use
 
 -- ノートの期間の読み込み
 CREATE INDEX IF NOT EXISTS IX_Note_EndDate_StartDate ON Note (EndDate, StartDate);
+
+-- 実際の今日が実施日のノートを探す (未設定の行を走査しない)
+CREATE INDEX IF NOT EXISTS IX_Note_EventDate ON Note (EventDate);
 
 -- ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId ON WorkItem (StatusCodeNo, CompletedDate, AssigneeUserId) WHERE IsDeleted = 0;

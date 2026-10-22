@@ -89,6 +89,10 @@
         @foreach (var note in _notes)
         {
             <article class="@CardClass(note)" @key="note.Id">
+                @if (note.IsEventDay)
+                {
+                    <div class="event-band">@(note.IsEventToday ? "今日が実施日" : "この日が実施日")</div>
+                }
                 @if (note.Priority >= 4)
                 {
                     <span class="visually-hidden">重要度 @(note.Priority == 5 ? "最高" : "高")</span>
@@ -96,14 +100,14 @@
                 @if (string.IsNullOrWhiteSpace(note.Body))
                 {
                     <div class="head">
-                        <NoteHeading Note="note" />
+                        <NoteHeading Note="note" Day="_day" />
                     </div>
                 }
                 else
                 {
                     <details open="@(!_titleOnly)">
                         <summary class="head">
-                            <NoteHeading Note="note" />
+                            <NoteHeading Note="note" Day="_day" />
                         </summary>
                         <div class="body">@((MarkupString)note.BodyHtml)</div>
                     </details>
@@ -187,8 +191,9 @@
     /// <summary>日付の入力欄に渡す文字。</summary>
     private static string DateText(DateOnly day) => day.ToString("yyyy-MM-dd");
 
-    /// <summary>カードの class。重要度ごとの帯と、削除済みの薄い表示に使う。</summary>
-    private static string CardClass(NoteDto note) => note.IsDeleted ? $"card p{note.Priority} deleted" : $"card p{note.Priority}";
+    /// <summary>カードの class。重要度ごとの帯と、実施日の目立たせ方と、削除済みの薄い表示に使う。</summary>
+    private static string CardClass(NoteDto note)
+        => $"card p{note.Priority}{(note.IsEventDay ? " event" : "")}{(note.IsDeleted ? " deleted" : "")}";
 
     protected override async Task OnInitializedAsync()
     {

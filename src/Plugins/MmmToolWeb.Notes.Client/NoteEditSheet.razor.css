@@ -93,6 +93,31 @@
     line-height: 1.6;
 }
 
+/* 実施日が期間の外のとき、原因の日付の欄を、エラーの色の太い枠にする */
+.field input.invalid {
+    border: 2px solid var(--danger);
+}
+
+/* 期間の外の強い警告。直すまで出続け、保存を押せなくする */
+.alert {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--danger);
+    border-radius: 0.75rem;
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* 開始日・終了日を動かしたことの知らせ */
+.info {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
 /* 開始日と終了日は、常に横に並べる。長さは 11rem までで、狭い画面では、2 つが同じだけ縮む。幅いっぱいにすると間延びするため */
 .dates {
     display: flex;

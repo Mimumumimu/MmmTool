@@ -10,6 +10,11 @@
     overflow-wrap: anywhere;
 }
 
+/* 実施日のカードのタイトルは、1 段大きくする */
+.title.big {
+    font-size: 1.2rem;
+}
+
 .chip {
     flex: none;
     padding: 0 0.5rem;

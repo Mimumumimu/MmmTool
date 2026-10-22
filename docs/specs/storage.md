@@ -37,7 +37,7 @@
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件)・開いているタブと選んでいるタブ (次回の起動で戻す) | ローカル専用 |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (`label` 省略可・`text`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
-| `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・日報メモ (自分の分で、表 `WorkDayNote` の `UserId`・`Date`・`Note`)・コードマスタ (状態・進捗度・優先度の選択肢)・ノート (表 `Note` の期間・タイトル・本文・重要度) | SQLite で、ローカルモードの保存先。DB モードでは SQL Server に保存するので使わない。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`・`CodeMaster`・`Note` の 7 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す。詳細は [work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」・ノートは [notes.md](notes.md) |
+| `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・日報メモ (自分の分で、表 `WorkDayNote` の `UserId`・`Date`・`Note`)・コードマスタ (状態・進捗度・優先度の選択肢)・ノート (表 `Note` の期間・実施日 `EventDate`・タイトル・本文・重要度) | SQLite で、ローカルモードの保存先。DB モードでは SQL Server に保存するので使わない。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`・`CodeMaster`・`Note` の 7 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す。詳細は [work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」・ノートは [notes.md](notes.md) |
 | `Data/Reminders.json` | リマインダー | ローカルモードの保存先で、ID あり。DB モードでは使わない (SQL Server に保存する) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
 | `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。キーは下の「AppSettings.json のキー」 |

@@ -23,6 +23,15 @@ public sealed record NoteInput
     /// <summary>終了日 (含む)。無期限は <see cref="DateOnly.MaxValue"/></summary>
     public DateOnly EndDate { get; init; } = DateOnly.MaxValue;
 
+    /// <summary>実施日。未設定は <see cref="DateOnly.MaxValue"/></summary>
+    public DateOnly EventDate { get; init; } = DateOnly.MaxValue;
+
+    /// <summary>実施日が設定されているか</summary>
+    public bool HasEventDate => EventDate != DateOnly.MaxValue;
+
+    /// <summary>実施日が、開始日から終了日の外にあるか (未設定は、外ではない)</summary>
+    public bool IsEventDateOutOfPeriod => HasEventDate && (EventDate < StartDate || EventDate > EndDate);
+
     /// <summary>保存できる内容かを調べる</summary>
     /// <returns>保存できるなら null。できないときは、画面に出せる理由</returns>
     public string? Validate()
@@ -43,6 +52,10 @@ public sealed record NoteInput
         if (EndDate < StartDate)
         {
             return "終了日は、開始日以降にしてください。";
+        }
+        if (IsEventDateOutOfPeriod)
+        {
+            return "実施日は、開始日から終了日の間にしてください。";
         }
         return null;
     }

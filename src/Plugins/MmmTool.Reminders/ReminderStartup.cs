@@ -1,5 +1,6 @@
 using Microsoft.UI.Dispatching;
 using MmmSdk.Core.Components.Features;
+using MmmSdk.Core.Components.Notifications;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Notifications;
 using MmmSdk.WinUI.Components.Speech;
@@ -23,6 +24,12 @@ public sealed class ReminderStartup(
     ISpeechService speech,
     ReminderWindowService reminderWindows) : IStartupTask
 {
+    /// <summary>通知ダイアログの節の、送り元のキー</summary>
+    private const string NotificationSourceKey = "Reminders";
+
+    /// <summary>通知ダイアログの節の並びの値。サイドバーの並び (リマインダー 4)と同じで、ノート (2)の下に出す</summary>
+    private const int NotificationOrder = 4;
+
     /// <inheritdoc />
     /// <remarks>UI スレッドから呼ぶ (通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う)。</remarks>
     public Task StartAsync()
@@ -32,9 +39,9 @@ public sealed class ReminderStartup(
             (title, items, speechText) => dispatcher.TryEnqueue(
                 () =>
                 {
-                    notifications.Show(title, items, onClicked: () => dispatcher.TryEnqueue(
+                    notifications.Show(new NotificationSection(NotificationSourceKey, NotificationOrder, title, items, OnClicked: () => dispatcher.TryEnqueue(
                         // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く
-                        DispatcherQueuePriority.Low, async () => await reminderWindows.ShowFromNotificationAsync()));
+                        DispatcherQueuePriority.Low, async () => await reminderWindows.ShowFromNotificationAsync())));
                     if (speechText is not null)
                     {
                         speech.SpeakAsync(speechText).Forget();

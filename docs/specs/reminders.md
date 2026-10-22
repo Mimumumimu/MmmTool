@@ -96,7 +96,9 @@
   - `ReminderMonitor` はそれらをつなぎ、スヌーズの通知時刻を覚える
   - スヌーズ間隔は `ReminderSettingsService` から読む (設定ストアに直接触れない)
 - 起動時の準備 `ReminderStartup`(`IStartupTask`)で `Start(コールバック)` を呼ぶ
-  - コールバックは `DispatcherQueue` で UI スレッドへ移し、`INotificationDialogService.Show(タイトル, 項目)` を呼ぶ
+  - コールバックは `DispatcherQueue` で UI スレッドへ移し、`INotificationDialogService.Show(節)` を呼ぶ
+    - 節は、送り元 `Reminders`・並びの値 4 (ノートの 2 の下)の `NotificationSection`
+    - 通知の窓は 1 枚で、ノートの節など、ほかの機能の節と同じ窓に並ぶ。リマインダーが通知しても、リマインダーの節だけが入れ替わる ([通知ダイアログ](../../external/MmmSdk/docs/notification-dialog.md))
   - Host の破棄で停止する
 - `TimeProvider` の単発タイマー: 開始直後に 1 回、以後は毎分 00 秒に判定する
   - 次の 00 秒までの時間をその都度計算して掛け直す (早く来て同じ分になったら、判定せず掛け直すだけ)

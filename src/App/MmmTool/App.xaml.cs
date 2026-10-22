@@ -8,6 +8,7 @@ using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Backlog;
@@ -165,6 +166,8 @@ public partial class App : Application
         _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
 
         tray.OpenRequested += (_, _) => _window.BringToFront();
+        // 通知のクリックなどで、機能がサイドバーのページを開くとき、トレイへ隠れているメインウィンドウも前面に出す
+        _host.Services.GetRequiredService<INavigationService>().ShowRequested += (_, _) => _window.BringToFront();
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 設定ページなど、画面からの終了の依頼も、トレイの「終了」と同じ処理にする
         _host.Services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();

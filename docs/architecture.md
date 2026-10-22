@@ -168,9 +168,10 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
     - 作業管理の `WorkItemStorageServiceCollectionExtensions` は、その部品を呼び、モードが変わったときの後始末 (`IDatabaseModeChangeHandler`)だけを足す
   - 詳細は [specs/database.md](specs/database.md)
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
-- 機能のオン・オフ: オフにできる機能は、CLI補助・クリップボード転送・Backlog・作業管理・ツール
+- 機能のオン・オフ: オフにできる機能は、CLI補助・ノート・作業管理・メッセージ・クリップボード転送・Backlog・ツール
   - `<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録する
-  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ、ツールはオン。
+  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ、ノート・メッセージ・ツールはオン。
+  - メッセージは、`availableWhen` で、サーバーモード (DB モード)のときだけ、一覧に出る
   - ページ・起動時の準備・トレイメニュー・設定の部品の登録に、同じキーを渡す
     - キーは、`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数
     - 省略したものは、オフにできない機能

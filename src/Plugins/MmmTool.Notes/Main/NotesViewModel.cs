@@ -100,7 +100,11 @@ public sealed partial class NotesViewModel(
     [RelayCommand]
     private void Today() => Day = notes.Today;
 
-    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    /// <summary>実際の今日を表示する</summary>
+    /// <remarks>通知のクリックから、ページを開いたあとに呼ぶ。すでに今日を表示しているときは、何もしない。</remarks>
+    public void ShowToday() => Day = notes.Today;
+
+    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
     public bool CanRefresh => notes.IsShared;
 
     /// <summary>ほかの人の更新を、今すぐ読み直す</summary>

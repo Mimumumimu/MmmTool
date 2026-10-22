@@ -41,6 +41,9 @@ public sealed record NoteRow
     /// <summary>終了日。無期限は <c>9999-12-31</c></summary>
     public DateOnly EndDate { get; init; } = DateOnly.MaxValue;
 
+    /// <summary>実施日。未設定は <c>9999-12-31</c></summary>
+    public DateOnly EventDate { get; init; } = DateOnly.MaxValue;
+
     /// <summary>重要度 (最低 = 1 … 最高 = 5)</summary>
     public byte Priority { get; init; }
 
@@ -81,6 +84,7 @@ public sealed record NoteRow
             IsPrivate = IsPrivate,
             StartDate = StartDate,
             EndDate = EndDate,
+            EventDate = EventDate,
             Priority = priority,
             Title = Title,
             Body = Body,

@@ -27,13 +27,13 @@ public sealed partial class NoteEditWindow : Window
     private const double WindowWidth = 640;
 
     /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む)</summary>
-    private const double WindowHeight = 700;
+    private const double WindowHeight = 790;
 
     /// <summary>最小の幅 (DIP)</summary>
     private const double MinimumWidth = 520;
 
     /// <summary>最小の高さ (DIP)</summary>
-    private const double MinimumHeight = 620;
+    private const double MinimumHeight = 710;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
@@ -85,11 +85,12 @@ public sealed partial class NoteEditWindow : Window
         this.UseCustomTitleBar(TitleBarArea, environment.IconPath);
         _modal = new PseudoModal(this);
 
-        foreach (var picker in new[] { StartDatePicker, EndDatePicker })
+        foreach (var picker in PeriodPickers())
         {
             picker.Language = "ja-JP";
             picker.DateFormat = DateFormat;
         }
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         // パネルやリンクの入力に移っても、選んでいた文字が選択のまま見えるように (標準では、フォーカスを失うと選択の色が消える)
         BodyBox.SelectionHighlightColorWhenNotFocused = (SolidColorBrush)Application.Current.Resources["AccentFillColorDefaultBrush"];
@@ -120,6 +121,36 @@ public sealed partial class NoteEditWindow : Window
 
         _modal.Show();
         return await _closed.Task;
+    }
+
+    /// <summary>期間と実施日の日付の欄</summary>
+    /// <returns>開始日・終了日・実施日の欄</returns>
+    private CalendarDatePicker[] PeriodPickers() => [StartDatePicker, EndDatePicker, EventDatePicker];
+
+    /// <summary>期間の外の警告が出ている間、3 つの日付の欄の枠を、エラーの色にする</summary>
+    /// <param name="sender">ViewModel</param>
+    /// <param name="e">変わったプロパティの情報</param>
+    /// <remarks>どの欄が原因かを、警告の文と別に、欄そのものでも分かるようにする。</remarks>
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(NoteEditViewModel.IsPeriodErrorOpen))
+        {
+            return;
+        }
+
+        foreach (var picker in PeriodPickers())
+        {
+            if (ViewModel.IsPeriodErrorOpen)
+            {
+                picker.BorderBrush = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+                picker.BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                picker.ClearValue(Control.BorderBrushProperty);
+                picker.ClearValue(Control.BorderThicknessProperty);
+            }
+        }
     }
 
     /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする (日本語の入力が多いため)</summary>
@@ -407,6 +438,7 @@ public sealed partial class NoteEditWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         ViewModel.CloseRequested -= OnCloseRequested;
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _closed.TrySetResult(_saved);
     }
 }

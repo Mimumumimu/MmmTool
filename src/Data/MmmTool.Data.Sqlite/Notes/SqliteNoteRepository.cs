@@ -20,7 +20,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     private const int LocalUserId = 1;
 
     /// <summary>表の全部の列 (読む順)</summary>
-    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, Priority, Title, Body";
+    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
     /// <inheritdoc />
     public bool IsShared => false;
@@ -41,6 +41,18 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<Note>>(
+            async connection => [.. (await SqliteQueries.QueryAsync(
+                connection,
+                null,
+                $"SELECT {Columns} FROM Note WHERE EventDate = @day AND IsDeleted = 0 AND (IsPrivate = 0 OR AuthorUserId = @me)",
+                [("@day", day), ("@me", LocalUserId)],
+                reader => ReadRow(reader).ToNote(),
+                cancellationToken).ConfigureAwait(false))],
+            cancellationToken);
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
     public async Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)
     {
@@ -54,8 +66,8 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
                 await SqliteQueries.ExecuteAsync(
                     connection,
                     transaction,
-                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @priority, @title, @body)",
-                    [("@now", now), ("@user", LocalUserId), ("@private", false), ("@start", input.StartDate), ("@end", input.EndDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body)],
+                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body)",
+                    [("@now", now), ("@user", LocalUserId), ("@private", false), ("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body)],
                     cancellationToken).ConfigureAwait(false);
                 var id = Convert.ToInt32(await SqliteQueries.ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken).ConfigureAwait(false));
                 saved = new Note
@@ -64,6 +76,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
                     AuthorUserId = LocalUserId,
                     StartDate = input.StartDate,
                     EndDate = input.EndDate,
+                    EventDate = input.EventDate,
                     Priority = input.Priority,
                     Title = input.Title,
                     Body = input.Body,
@@ -86,8 +99,8 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
             async (connection, transaction) => changed = await SqliteQueries.ExecuteAsync(
                 connection,
                 transaction,
-                "UPDATE Note SET StartDate = @start, EndDate = @end, Priority = @priority, Title = @title, Body = @body, UpdatedAt = @now, UpdatedByUserId = @user WHERE Id = @id",
-                [("@start", input.StartDate), ("@end", input.EndDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body), ("@now", time.GetUtcNow()), ("@user", LocalUserId), ("@id", id)],
+                "UPDATE Note SET StartDate = @start, EndDate = @end, EventDate = @eventDate, Priority = @priority, Title = @title, Body = @body, UpdatedAt = @now, UpdatedByUserId = @user WHERE Id = @id",
+                [("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body), ("@now", time.GetUtcNow()), ("@user", LocalUserId), ("@id", id)],
                 cancellationToken).ConfigureAwait(false),
             cancellationToken).ConfigureAwait(false);
         return changed > 0;
@@ -138,8 +151,9 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         IsPrivate = r.GetInt64(7) != 0,
         StartDate = SqliteValues.ParseDate(r.GetString(8)),
         EndDate = SqliteValues.ParseDate(r.GetString(9)),
-        Priority = checked((byte)r.GetInt64(10)),
-        Title = r.GetString(11),
-        Body = r.GetString(12),
+        EventDate = SqliteValues.ParseDate(r.GetString(10)),
+        Priority = checked((byte)r.GetInt64(11)),
+        Title = r.GetString(12),
+        Body = r.GetString(13),
     };
 }

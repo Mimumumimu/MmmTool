@@ -26,6 +26,10 @@ public sealed class NotesPlugin : IFeaturePlugin
 
         services.AddFeature(NotesFeature.Key, NotesFeature.DisplayName);
 
+        // 今日が実施日のノートを、起動時と日付が変わったときに、通知ダイアログで知らせる
+        services.AddSingleton<NoteEventMonitor>();
+        services.AddStartupTask<NotesEventStartup>(NotesFeature.Key);
+
         services.AddSingleton<INoteDialogService, NoteDialogService>();
 
         // 閉じたウィンドウは再表示できないので、開くたびに作る
