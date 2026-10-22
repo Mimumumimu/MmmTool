@@ -65,7 +65,7 @@
             <TextBox
                 x:Name="BodyBox"
                 Grid.Row="1"
-                MinHeight="180"
+                MinHeight="120"
                 AcceptsReturn="True"
                 AllowDrop="True"
                 FontFamily="BIZ UDGothic, MS Gothic, Consolas"

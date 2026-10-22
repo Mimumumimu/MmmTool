@@ -27,13 +27,13 @@ public sealed partial class NoteEditWindow : Window
     private const double WindowWidth = 640;
 
     /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む)</summary>
-    private const double WindowHeight = 790;
+    private const double WindowHeight = 720;
 
     /// <summary>最小の幅 (DIP)</summary>
     private const double MinimumWidth = 520;
 
     /// <summary>最小の高さ (DIP)</summary>
-    private const double MinimumHeight = 710;
+    private const double MinimumHeight = 650;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
@@ -115,8 +115,11 @@ public sealed partial class NoteEditWindow : Window
 
         _modal.SetOwner(owner);
         var scale = this.GetDpiScale();
-        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)));
-        this.ResizeClientDip(WindowWidth, WindowHeight - TitleBarHeight, _modal.OwnerScale, roundUp: true);
+        // 画面が小さい (フル HD の 125% など)ときは、作業領域に収まる高さまで抑える。最小の高さも、その分下げる
+        var height = Math.Min(WindowHeight, _modal.GetAvailableHeightDip());
+        var minimumHeight = Math.Min(MinimumHeight, height);
+        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(minimumHeight * scale)));
+        this.ResizeClientDip(WindowWidth, height - TitleBarHeight, _modal.OwnerScale, roundUp: true);
         _modal.CenterOnOwner();
 
         _modal.Show();
