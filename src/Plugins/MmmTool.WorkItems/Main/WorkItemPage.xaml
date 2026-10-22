@@ -104,6 +104,16 @@
                         Style="{StaticResource ValueTextStyle}"
                         Text="{x:Bind Name, Mode=OneWay}"
                         Visibility="{x:Bind IsWork}" />
+                    <!-- 作業報告に含めない作業の印。名前の列の幅は、この印がある行の分だけ広げて測る -->
+                    <FontIcon
+                        Margin="0,0,6,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="&#xED1A;"
+                        ToolTipService.ToolTip="作業報告に含めない"
+                        Visibility="{x:Bind ShowsReportExcludedMark, Mode=OneWay}" />
                     <TextBlock
                         FontSize="{x:Bind local:WorkItemOptions.ProjectFontSize}"
                         FontWeight="Bold"

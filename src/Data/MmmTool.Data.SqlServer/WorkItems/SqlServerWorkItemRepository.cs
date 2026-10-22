@@ -127,7 +127,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
                     ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
-                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
+                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
                     ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Date = @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
                 ],
@@ -142,13 +142,13 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             connection => QueryAsync(
                 connection,
                 null,
-                // 担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。索引は 004_AddWorkReportPeopleIndexes.sql にある。条件ごとに分けて UNION し、それぞれが索引を使えるようにする
+                // 担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。作業報告に含めない作業は数えない。索引は 004_AddWorkReportExclusion.sql にある。条件ごとに分けて UNION し、それぞれが索引を使えるようにする
                 """
-                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.StatusCodeNo IN (@planned, @inProgress)
+                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.StatusCodeNo IN (@planned, @inProgress)
                 UNION
-                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.StatusCodeNo = @closed AND i.CompletedDate >= @from AND i.CompletedDate <= @to
+                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.StatusCodeNo = @closed AND i.CompletedDate >= @from AND i.CompletedDate <= @to
                 UNION
-                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.Id IN (SELECT r.WorkItemId FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to)
+                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.Id IN (SELECT r.WorkItemId FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to)
                 UNION
                 SELECT n.UserId FROM dbo.WorkDayNote n WHERE n.IsDeleted = 0 AND n.Date = @to AND LTRIM(RTRIM(n.Note)) <> N''
                 """,
@@ -162,15 +162,15 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         => RunAsync<DateOnly?>(
             async connection =>
             {
-                // 工数が入った日と、作業を完了にした日の、新しいほう
+                // 工数が入った日と、作業を完了にした日の、新しいほう。作業報告に含めない作業は数えない
                 var value = await ScalarAsync(
                     connection,
                     null,
                     """
                     SELECT MAX(d) FROM (
-                        SELECT MAX(r.Date) AS d FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)
+                        SELECT MAX(r.Date) AS d FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0)
                         UNION ALL
-                        SELECT MAX(w.CompletedDate) FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.StatusCodeNo = @closed AND w.CompletedDate < @before
+                        SELECT MAX(w.CompletedDate) FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0 AND w.StatusCodeNo = @closed AND w.CompletedDate < @before
                     ) AS x
                     """,
                     [("@before", before), ("@me", UserId), ("@closed", (int)WorkItemStatus.Closed)],
@@ -179,11 +179,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             },
             cancellationToken);
 
-    /// <summary>作業報告の対象の作業の条件 (担当が指定の人で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した)</summary>
+    /// <summary>作業報告の対象の作業の条件 (担当が指定の人で、作業報告に含めない印が無く、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した)</summary>
     /// <param name="alias">作業の表の別名</param>
     /// <returns>条件の SQL。パラメーター <c>@me</c>・<c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c> を使う</returns>
     private static string ReportItemCondition(string alias)
-        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND ({alias}.StatusCodeNo IN (@planned, @inProgress) OR ({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))";
+        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND {alias}.ReportExcluded = 0 AND ({alias}.StatusCodeNo IN (@planned, @inProgress) OR ({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))";
 
     /// <inheritdoc />
     public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
@@ -329,13 +329,13 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 transaction,
                 """
                 INSERT INTO dbo.WorkItem (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                          PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note)
+                                          PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExcluded, StatusCodeNo, ProgressCodeNo, Note)
                 OUTPUT INSERTED.Id, INSERTED.CreatedAt, INSERTED.UpdatedAt
-                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @status, @progress, @note)
+                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExcluded, @status, @progress, @note)
                 """,
                 [
                     ("@user", user), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
-                    ("@name", row.Name), ("@note", row.Note), ("@assignee", row.AssigneeUserId), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
+                    ("@name", row.Name), ("@note", row.Note), ("@reportExcluded", row.ReportExcluded), ("@assignee", row.AssigneeUserId), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
                     ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
                 ]);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -369,6 +369,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("Link", b.Link, a.Link);
+        changes.Add("ReportExcluded", b.ReportExcluded, a.ReportExcluded);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
@@ -694,9 +695,9 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>作業の中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
-    /// <returns>列の並び (14 列)</returns>
+    /// <returns>列の並び (16 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExcluded, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -756,9 +757,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         PlannedHours = r.GetDecimal(15),
         ActualTotalHours = r.GetDecimal(16),
         Link = r.GetString(17),
-        StatusCodeNo = r.GetInt32(18),
-        ProgressCodeNo = r.GetInt32(19),
-        Note = r.GetString(20),
+        ReportExcluded = r.GetBoolean(18),
+        StatusCodeNo = r.GetInt32(19),
+        ProgressCodeNo = r.GetInt32(20),
+        Note = r.GetString(21),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

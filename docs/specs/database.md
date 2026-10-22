@@ -376,6 +376,7 @@
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
+| `ReportExcluded` | 真偽 | `bit` | 0 | 作業報告に含めないか。1 は、作業報告の実績にも予定にも、ノートの「全員」の人の一覧にも出さない。定例の会議など、報告しない作業に付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列なので、更新用スクリプト `004_AddWorkReportExclusion.sql` が足す。SQL Server は ALTER で末尾に付くので、並びは SSMS で直す。SQLite は列の位置を決められず、末尾のまま |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 2・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 2・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
@@ -384,7 +385,7 @@
   - `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 表示する案件の中身の読み込み・差分 (論理削除された行も含む)
   - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
   - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
-  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
+  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
 
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 
@@ -411,7 +412,7 @@
 - インデックスは、次の 3 つ
   - `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`: その日の記録 (削除されていない行だけ)
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
-  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
+  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
 
@@ -440,7 +441,7 @@
   - 日付の範囲の読み込みと、直近の日の検索にも使う
 - インデックスは、次の 2 つ
   - 一意の `(UserId, Date)`
-  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、`004_AddWorkReportPeopleIndexes.sql` で足した
+  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
   - 差分の取得 (更新日時の索引)は持たない
   - 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない
   - 問い合わせの数も増やさない
@@ -704,9 +705,9 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportPeopleIndexes.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`
   - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
-  - `004_AddWorkReportPeopleIndexes.sql` は、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。SQLite も同じ名前・同じ設計のスクリプトを持つ。
+  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` と、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。SQLite も同じ名前・同じ設計のスクリプトを持つ。
   - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
   - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
     - リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)
