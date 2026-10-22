@@ -78,6 +78,14 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>リンクがあるか (表のセルに「リンク」の文字を出すか)</summary>
     public bool HasLink => Link.Length > 0;
 
+    /// <summary>作業報告に含めないか (作業のみ)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsReportExcludedMark))]
+    public partial bool ReportExcluded { get; private set; }
+
+    /// <summary>作業報告に含めない印を、名前のセルに出すか</summary>
+    public bool ShowsReportExcludedMark => IsWork && ReportExcluded;
+
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NoteFirstLine))]
@@ -234,6 +242,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
         if (item is not null)
         {
+            ReportExcluded = item.ReportExcluded;
             AssigneeUserId = item.AssigneeUserId;
             AssigneeText = assigneeText;
             PriorityIndex = WorkChoices.IndexOf(choices.Priorities, (int)item.Priority);
@@ -280,7 +289,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>時間を、表の表示にする</summary>
     /// <param name="hours">時間 (無ければ null)</param>
     /// <returns>小数 2 桁までの数字。無ければ空</returns>
-    private static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
+    internal static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
 
     /// <summary>文章の先頭の 1 行を返す</summary>
     /// <param name="text">文章 (改行を含んでよい)</param>

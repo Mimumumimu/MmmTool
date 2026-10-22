@@ -56,7 +56,7 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる)。BIZ UDGothic は行の間が詰まっているので、TextBlock にして行の高さを指定する (TextBox には行の高さの指定が無い) -->
+            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる)。BIZ UDGothic は行の間が詰まっているので、RichTextBlock にして行の高さを指定する (TextBox には行の高さの指定が無い)。選べる TextBlock は、サイズ変更のあとに折り返しの位置が更新されないことがあるため、使わない -->
             <Grid
                 Grid.Row="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -64,19 +64,22 @@
                 BorderThickness="1"
                 CornerRadius="{StaticResource OverlayCornerRadius}">
                 <ScrollViewer
-                    HorizontalScrollBarVisibility="Auto"
-                    HorizontalScrollMode="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    HorizontalScrollMode="Disabled"
                     VerticalScrollBarVisibility="Auto"
                     VerticalScrollMode="Auto">
-                    <TextBlock
+                    <RichTextBlock
                         Padding="12,8,12,8"
                         AutomationProperties.Name="報告のプレビュー"
                         FontFamily="BIZ UDGothic, MS Gothic, Consolas"
                         IsTextSelectionEnabled="True"
                         LineHeight="22"
                         LineStackingStrategy="BlockLineHeight"
-                        Text="{x:Bind ViewModel.PreviewText, Mode=OneWay}"
-                        TextWrapping="NoWrap" />
+                        TextWrapping="Wrap">
+                        <Paragraph>
+                            <Run Text="{x:Bind ViewModel.PreviewText, Mode=OneWay}" />
+                        </Paragraph>
+                    </RichTextBlock>
                 </ScrollViewer>
                 <!-- エラー。レイアウトに場所を取らず、プレビューの上部に重ねる -->
                 <InfoBar

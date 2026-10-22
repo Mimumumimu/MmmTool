@@ -320,6 +320,34 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         Error.Clear();
     }
 
+    /// <summary>ドロップされたフォルダーのパスを、入力欄に入れる文字列にする</summary>
+    /// <param name="folderPaths">ドロップされたフォルダーのパス (Windows のパス)</param>
+    /// <returns>シェルから見たパスを <c>"</c> で囲み、空白で区切った文字列。入れるものが無いときは null</returns>
+    /// <remarks>
+    /// 入力欄の文字は、送るときに変換できないので、入れる時点でシェルから見たパスにする。
+    /// WSL から開けない場所のフォルダーは入れず、知らせる。ネットワークのフォルダーなどが当たり、添付と同じ扱い。
+    /// 空白の有無で形が変わらないよう、すべてのパスを囲む。
+    /// </remarks>
+    public string? CreateFolderPathText(IEnumerable<string> folderPaths)
+    {
+        var paths = new List<string>();
+        foreach (var folderPath in folderPaths)
+        {
+            if (ShellCommands.TryConvertPath(Terminal.Shell, folderPath, out var path))
+            {
+                paths.Add($"\"{path}\"");
+            }
+            else
+            {
+                Error.Show($"WSL からは開けない場所のフォルダーなので、パスを貼り付けできません (ドライブ文字のあるフォルダーか、WSL のフォルダーを選んでください): {folderPath}");
+            }
+        }
+
+        if (paths.Count == 0) return null;
+        Error.Clear();
+        return string.Join(' ', paths);
+    }
+
     /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
     /// <param name="filePath">添付ファイルのパス (Windows のパス)</param>
     /// <returns>シェルから見たパス</returns>

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Core\MmmSdk.Core.csproj" />
+    <ProjectReference Include="..\..\DayContent\MmmTool.DayContent.Core\MmmTool.DayContent.Core.csproj" />
     <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
   </ItemGroup>
 

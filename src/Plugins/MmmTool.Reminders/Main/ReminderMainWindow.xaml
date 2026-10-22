@@ -162,6 +162,12 @@
                     <TextBlock Text="新規追加" />
                 </StackPanel>
             </Button>
+            <Button Padding="10,4" Command="{x:Bind ViewModel.BulkAddCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontSize="13" Glyph="&#xE7C3;" />
+                    <TextBlock Text="まとめて追加" />
+                </StackPanel>
+            </Button>
             <Button Padding="10,4" Command="{x:Bind ViewModel.ShowListCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon FontSize="13" Glyph="&#xE8FD;" />

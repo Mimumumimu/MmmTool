@@ -294,7 +294,7 @@ public sealed partial class WorkItemPage : Page
 
             var width = column.Key switch
             {
-                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40).DefaultIfEmpty(0).Max()),
+                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExcludedMark ? ReportExcludedMarkWidth : 0)).DefaultIfEmpty(0).Max()),
                 "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
@@ -321,6 +321,9 @@ public sealed partial class WorkItemPage : Page
 
     /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
     private const double NoteMaxWidth = 320;
+
+    /// <summary>名前のセルに出す、作業報告に含めない印の幅 (アイコンの大きさ 14 に、文字との間の余白を足した値)</summary>
+    private const double ReportExcludedMarkWidth = 24;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
@@ -727,6 +730,13 @@ public sealed partial class WorkItemPage : Page
             }
         }
 
+        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、メニューだけに置く (印は名前のセルに出す)
+        if (row.IsWork)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            AddToggleItem(menu, "作業報告に含めない", row.ReportExcluded, isChecked => ViewModel.SetReportExcludedAsync(row, isChecked), !row.IsLocked);
+        }
+
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
         if (row.IsProject)
         {
@@ -750,6 +760,19 @@ public sealed partial class WorkItemPage : Page
     {
         var item = new MenuFlyoutItem { Text = text, IsEnabled = isEnabled };
         item.Click += (_, _) => action().Forget();
+        menu.Items.Add(item);
+    }
+
+    /// <summary>メニューに、チェック付きの項目を足す</summary>
+    /// <param name="menu">足し先のメニュー</param>
+    /// <param name="text">項目の文言</param>
+    /// <param name="isChecked">今、チェックが付いているか</param>
+    /// <param name="action">選ばれたときの処理 (選んだあとのチェックの状態を受け取る)</param>
+    /// <param name="isEnabled">選べるか</param>
+    private static void AddToggleItem(MenuFlyout menu, string text, bool isChecked, Func<bool, Task> action, bool isEnabled = true)
+    {
+        var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = isChecked, IsEnabled = isEnabled };
+        item.Click += (_, _) => action(item.IsChecked).Forget();
         menu.Items.Add(item);
     }
 

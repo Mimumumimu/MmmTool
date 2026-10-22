@@ -96,6 +96,11 @@ public sealed partial class NotesPage : Page
         }
     }
 
+    /// <summary>「表示する内容」を開いたら、設定を読み直す</summary>
+    /// <param name="sender">開く枠</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnSourcesFlyoutOpening(object? sender, object e) => ViewModel.RefreshSourceSettings();
+
     /// <summary>日付の欄が変わったら、表示する日を変える</summary>
     /// <param name="sender">日付の欄</param>
     /// <param name="args">変更の情報</param>

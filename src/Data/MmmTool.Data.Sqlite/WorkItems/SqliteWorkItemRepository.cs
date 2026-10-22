@@ -97,11 +97,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
 
     /// <inheritdoc />
-    public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, int? userId = null, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
-            // 担当が自分で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が自分の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る
-            (string, object)[] parameters = [("@me", UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@feature", WorkCodes.FeatureNo)];
+            // 担当が指定の人 (@me)で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る
+            (string, object)[] parameters = [("@me", userId ?? UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
@@ -115,7 +115,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                     ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
                     ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
-                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)", r => records.Add(ReadRecord(r).ToWorkRecord())),
+                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0)", r => records.Add(ReadRecord(r).ToWorkRecord())),
                     ($"SELECT {Header("c")}, {CodeColumns("c")} FROM CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
                     ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM WorkDayNote n WHERE n.UserId = @me AND n.Date = @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
                 ],
@@ -125,19 +125,40 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         }, cancellationToken);
 
     /// <inheritdoc />
+    public Task<IReadOnlyList<int>> GetReportPeopleAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<int>>(
+            connection => QueryAsync(
+                connection,
+                null,
+                // SQL Server と同じ問い合わせ。担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。作業報告に含めない作業は数えない。索引は schema.sql にある
+                """
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.StatusCodeNo IN (@planned, @inProgress)
+                UNION
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.StatusCodeNo = @closed AND i.CompletedDate >= @from AND i.CompletedDate <= @to
+                UNION
+                SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.Id IN (SELECT r.WorkItemId FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to)
+                UNION
+                SELECT n.UserId FROM WorkDayNote n WHERE n.IsDeleted = 0 AND n.Date = @to AND TRIM(n.Note) <> ''
+                """,
+                [("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed)],
+                reader => reader.GetInt32(0),
+                cancellationToken),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<DateOnly?> GetLatestRecordedDateAsync(DateOnly before, CancellationToken cancellationToken = default)
         => RunAsync<DateOnly?>(
             async connection =>
             {
-                // 工数が入った日と、作業を完了にした日の、新しいほう
+                // 工数が入った日と、作業を完了にした日の、新しいほう。作業報告に含めない作業は数えない
                 var value = await ScalarAsync(
                     connection,
                     null,
                     """
                     SELECT MAX(d) FROM (
-                        SELECT MAX(r.Date) AS d FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)
+                        SELECT MAX(r.Date) AS d FROM WorkRecord r WHERE r.IsDeleted = 0 AND r.Hours > 0 AND r.Date < @before AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0)
                         UNION ALL
-                        SELECT MAX(w.CompletedDate) FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.StatusCodeNo = @closed AND w.CompletedDate < @before
+                        SELECT MAX(w.CompletedDate) FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExcluded = 0 AND w.StatusCodeNo = @closed AND w.CompletedDate < @before
                     )
                     """,
                     [("@before", before), ("@me", UserId), ("@closed", (int)WorkItemStatus.Closed)],
@@ -146,11 +167,11 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             },
             cancellationToken);
 
-    /// <summary>作業報告の対象の作業の条件 (担当が自分で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した)</summary>
+    /// <summary>作業報告の対象の作業の条件 (担当が自分で、作業報告に含めない印が無く、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した)</summary>
     /// <param name="alias">作業の表の別名</param>
     /// <returns>条件の SQL (パラメーター <c>@me</c>・<c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c> を使う)</returns>
     private static string ReportItemCondition(string alias)
-        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND ({alias}.StatusCodeNo IN (@planned, @inProgress) OR ({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))";
+        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND {alias}.ReportExcluded = 0 AND ({alias}.StatusCodeNo IN (@planned, @inProgress) OR ({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))";
 
     /// <inheritdoc />
     public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
@@ -312,12 +333,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 transaction,
                 """
                 INSERT INTO WorkItem (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                      PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, StatusCodeNo, ProgressCodeNo, Note)
-                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @status, @progress, @note)
+                                      PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExcluded, StatusCodeNo, ProgressCodeNo, Note)
+                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExcluded, @status, @progress, @note)
                 """,
                 [
                     ("@now", now), ("@user", LocalUserId), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
-                    ("@name", row.Name), ("@assignee", row.AssigneeUserId), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
+                    ("@name", row.Name), ("@reportExcluded", row.ReportExcluded ? 1 : 0), ("@assignee", row.AssigneeUserId), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
                     ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
                 ],
                 cancellationToken);
@@ -351,6 +372,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         changes.Add("CompletedDate", b.CompletedDate, a.CompletedDate);
         changes.Add("PlannedHours", b.PlannedHours, a.PlannedHours);
         changes.Add("Link", b.Link, a.Link);
+        changes.Add("ReportExcluded", b.ReportExcluded, a.ReportExcluded);
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
@@ -631,9 +653,9 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
 
     /// <summary>作業の中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
-    /// <returns>列の並び (14 列)</returns>
+    /// <returns>列の並び (16 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExcluded, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
 
     /// <summary>コードマスタの中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
@@ -699,9 +721,10 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         PlannedHours = SqliteValues.ToHours(r.GetDouble(15)),
         ActualTotalHours = SqliteValues.ToHours(r.GetDouble(16)),
         Link = r.GetString(17),
-        StatusCodeNo = r.GetInt32(18),
-        ProgressCodeNo = r.GetInt32(19),
-        Note = r.GetString(20),
+        ReportExcluded = r.GetInt64(18) != 0,
+        StatusCodeNo = r.GetInt32(19),
+        ProgressCodeNo = r.GetInt32(20),
+        Note = r.GetString(21),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

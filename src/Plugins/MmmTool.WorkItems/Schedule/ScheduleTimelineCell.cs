@@ -35,6 +35,40 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <summary>実績の棒の左右の内側への寄せ幅の上限 (予定の棒の端の余白 1 と、期限切れの枠 2 を避け、枠に被らせない)</summary>
     private const double ActualBarInset = 4;
 
+    /// <summary>実績の時間の文字の標準の大きさ</summary>
+    private const double HoursFontSize = 13;
+
+    /// <summary>実績の時間の文字のフォント</summary>
+    /// <remarks>等幅にして、同じ桁数の数字を同じ大きさにそろえる。縦の位置は、このフォントの寸法 (<see cref="HoursAscent"/>・<see cref="HoursDigitHeight"/>)から、大きさごとに計算する。</remarks>
+    private static readonly FontFamily HoursFont = new("BIZ UDGothic, MS Gothic, Consolas");
+
+    /// <summary>実績の時間の文字の、行の上端からベースラインまでの長さ</summary>
+    /// <remarks>フォントの大きさに対する比。BIZ UDGothic の 1802 / 2048。</remarks>
+    private const double HoursAscent = 1802.0 / 2048;
+
+    /// <summary>実績の時間の数字の高さ</summary>
+    /// <remarks>フォントの大きさに対する比。BIZ UDGothic の大文字の高さ 1567 / 2048。</remarks>
+    private const double HoursDigitHeight = 1567.0 / 2048;
+
+    /// <summary>実績の棒の中の、数字を置ける高さ</summary>
+    /// <remarks>棒の高さから、枠の上下を引いた値。</remarks>
+    private const double HoursInnerHeight = ActualBarHeight - 2;
+
+    /// <summary>実績の時間の、大きさごとの上端の位置</summary>
+    /// <remarks>大きさごとに 1 回だけ計算して使い回す。</remarks>
+    private static readonly Dictionary<double, double> HoursTops = [];
+
+    /// <summary>実績の時間の 1 文字の幅</summary>
+    /// <remarks>標準の大きさで 1 回だけ測って使い回す。等幅なので、文字数に掛けて幅にする。</remarks>
+    private static double _hoursCharWidth;
+
+    /// <summary>実績の時間の文字を縮めるときの下限</summary>
+    private const double MinHoursFontSize = 8;
+
+    /// <summary>実績の時間の文字の左右に空ける幅</summary>
+    /// <remarks>0 にする。数字は棒の縦の中央にあり、角の丸みに被らない。文字の幅に、左右の余白が元から含まれる。</remarks>
+    private const double HoursSideMargin = 0;
+
     /// <summary>行 (<see cref="Row"/>)の依存関係プロパティ</summary>
     public static readonly DependencyProperty RowProperty = DependencyProperty.Register(
         nameof(Row),
@@ -207,6 +241,9 @@ public sealed class ScheduleTimelineCell : Canvas
             if (axis.ShowsHours)
             {
                 var days = new Grid();
+
+                // 1 日ぶんの欄の幅は、棒の幅から枠の左右を引いて、日数で割って求める。文字は、この幅に収まるまで縮める
+                var columnWidth = (bar.Width - (2 * bar.BorderThickness.Left)) / run.Hours.Count;
                 for (var i = 0; i < run.Hours.Count; i++)
                 {
                     days.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -218,17 +255,17 @@ public sealed class ScheduleTimelineCell : Canvas
                     }
 
                     var text = run.Hours[i].ToString("0.##", CultureInfo.InvariantCulture);
+                    var fontSize = FittedFontSize(text, columnWidth);
                     var label = new TextBlock
                     {
                         Text = text,
-                        FontSize = text.Length > 4 ? 11 : 13,
+                        FontFamily = HoursFont,
+                        FontSize = fontSize,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         Foreground = palette.ActualText,
                         HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-
-                        // 文字の行の余白で、数字が棒の中心より約 2px 下に寄るので、下に余白を足して上げる
-                        Margin = new Thickness(0, 0, 0, 4),
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = new Thickness(0, HoursTop(fontSize), 0, 0),
                     };
                     Grid.SetColumn(label, i);
                     days.Children.Add(label);
@@ -237,6 +274,50 @@ public sealed class ScheduleTimelineCell : Canvas
             }
             Children.Add(bar);
         }
+    }
+
+    /// <summary>実績の時間の文字が、1 日ぶんの欄の幅に収まる大きさを求める</summary>
+    /// <param name="text">時間の文字</param>
+    /// <param name="columnWidth">1 日ぶんの欄の幅</param>
+    /// <returns>フォントの大きさ</returns>
+    /// <remarks>収まるなら標準の大きさにし、収まらないときは <see cref="MinHoursFontSize"/> を下限に縮める。</remarks>
+    private static double FittedFontSize(string text, double columnWidth)
+    {
+        if (_hoursCharWidth == 0)
+        {
+            var probe = new TextBlock { Text = "0", FontFamily = HoursFont, FontSize = HoursFontSize, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            probe.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            _hoursCharWidth = probe.DesiredSize.Width;
+        }
+
+        var width = text.Length * _hoursCharWidth;
+        var available = columnWidth - (2 * HoursSideMargin);
+        if (width <= available)
+        {
+            return HoursFontSize;
+        }
+
+        // 端数の大きさだと、文字と余白が半ピクセルずれて縦の位置が揃わないので、整数に切り下げる
+        return Math.Max(MinHoursFontSize, Math.Floor(HoursFontSize * available / width));
+    }
+
+    /// <summary>実績の時間の文字の、棒の中での上端の位置を求める</summary>
+    /// <param name="fontSize">フォントの大きさ</param>
+    /// <returns>棒の中の上端から、文字の枠の上端までの長さ (整数のピクセル)</returns>
+    /// <remarks>
+    /// 数字の真ん中が、棒の中の高さの中央に来る位置を、ベースラインの丸めまで含めて計算する。
+    /// 文字はベースラインが整数のピクセルに丸められるので、丸めたあとの数字の真ん中が中央に最も近い整数を選ぶ。
+    /// 大きさごとに 1 回だけ計算して使い回す。
+    /// </remarks>
+    private static double HoursTop(double fontSize)
+    {
+        if (!HoursTops.TryGetValue(fontSize, out var top))
+        {
+            top = Math.Round((HoursInnerHeight / 2) - Math.Round(HoursAscent * fontSize) + (HoursDigitHeight * fontSize / 2));
+            HoursTops[fontSize] = top;
+        }
+
+        return top;
     }
 
     /// <summary>期間の片方が決まっていない側へ伸ばす点線を作る (予定の棒の高さの中央)</summary>

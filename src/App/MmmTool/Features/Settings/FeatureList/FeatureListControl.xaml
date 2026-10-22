@@ -54,6 +54,8 @@
                             IsOn="{x:Bind IsOn, Mode=TwoWay}"
                             OffContent="オフ"
                             OnContent="オン"
+                            PointerEntered="OnTogglePointerEntered"
+                            PointerExited="OnTogglePointerExited"
                             Toggled="OnFeatureToggled"
                             Visibility="{x:Bind CanDisable}" />
                     </controls:SettingsCard>

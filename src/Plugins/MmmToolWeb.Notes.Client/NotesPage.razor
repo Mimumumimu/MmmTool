@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
 </HeadContent>
 
-<div class="screen">
+<div class="@(_editorOpen ? "screen behind" : "screen")">
     <FeatureHeader Title="ノート" Busy="_loading">
         <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
     </FeatureHeader>
@@ -30,6 +30,41 @@
                 <span>削除したものも表示</span>
             </label>
         </div>
+        @if (_sources.Count > 0)
+        {
+            <details class="sources">
+                <summary class="text">表示する内容</summary>
+                @foreach (var source in _sources)
+                {
+                    <div class="source">
+                        <label class="option">
+                            <input type="checkbox" checked="@source.Enabled" @onchange="e => OnSourceEnabledChangedAsync(source, (bool)e.Value!)" />
+                            <span>@source.Title</span>
+                        </label>
+                        @if (source.Enabled)
+                        {
+                            <div class="source-detail">
+                                <label class="option">
+                                    <input type="checkbox" checked="@source.Everyone" @onchange="e => OnSourceEveryoneChangedAsync(source, (bool)e.Value!)" />
+                                    <span>全員の分も出す</span>
+                                </label>
+                                <label class="source-from">
+                                    <span>実績の開始日</span>
+                                    <input type="date" value="@DateText(source.From)" @onchange="e => OnSourceFromChangedAsync(source, e)" />
+                                </label>
+                                @foreach (var option in source.Options)
+                                {
+                                    <label class="option">
+                                        <input type="checkbox" checked="@source.On.Contains(option.Key)" @onchange="e => OnSourceOptionChangedAsync(source, option.Key, (bool)e.Value!)" />
+                                        <span>@option.Label</span>
+                                    </label>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </details>
+        }
     </section>
 
     @if (_error is not null)
@@ -38,6 +73,15 @@
     }
 
     <main class="cards">
+        @foreach (var frame in _frames)
+        {
+            <section class="frame">
+                <details open="@(!_titleOnly)">
+                    <summary class="head"><span class="title">@frame.Title</span></summary>
+                    <pre class="frame-text">@frame.Text</pre>
+                </details>
+            </section>
+        }
         @if (!_loading && _error is null && _notes.Count == 0)
         {
             <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>この日のノートはありません</p>
@@ -117,6 +161,32 @@
     private int _loadVersion;
     private bool _watching;
 
+    /// <summary>出せる他の機能の内容 (作業報告など)の設定。サーバーに登録された機能の分だけ。</summary>
+    private readonly List<SourceState> _sources = [];
+
+    /// <summary>実績の開始日の既定を決めた、表示する日。</summary>
+    private DateOnly? _sourcesDay;
+
+    /// <summary>カードの上に出す、他の機能の内容の枠。</summary>
+    private IReadOnlyList<DayContentFrameDto> _frames = [];
+
+    /// <summary>他の機能の内容 1 つ分の設定。出すか・全員か・実績の開始日・選択肢。ブラウザの中だけで持つ。</summary>
+    private sealed class SourceState(DayContentSourceDto dto)
+    {
+        public string Key { get; } = dto.Key;
+        public string Title { get; } = dto.Title;
+        public IReadOnlyList<DayContentOptionDto> Options { get; } = dto.Options;
+        public bool Enabled { get; set; }
+        public bool Everyone { get; set; }
+        public DateOnly From { get; set; } = dto.DefaultFrom;
+
+        /// <summary>選んでいる選択肢の識別。</summary>
+        public HashSet<string> On { get; } = [.. dto.Options.Where(o => o.Default).Select(o => o.Key)];
+    }
+
+    /// <summary>日付の入力欄に渡す文字。</summary>
+    private static string DateText(DateOnly day) => day.ToString("yyyy-MM-dd");
+
     /// <summary>カードの class。重要度ごとの帯と、削除済みの薄い表示に使う。</summary>
     private static string CardClass(NoteDto note) => note.IsDeleted ? $"card p{note.Priority} deleted" : $"card p{note.Priority}";
 
@@ -166,6 +236,107 @@
             _error = result.Message;
         }
         StateHasChanged();
+
+        if (result.Succeeded)
+        {
+            await LoadContentsAsync(version);
+        }
+    }
+
+    /// <summary>他の機能の内容を読む。表示する日が変わったときは、出せる内容と、実績の開始日の既定を読み直す。</summary>
+    /// <param name="version">読み込みの番号。古い結果を捨てるため。</param>
+    private async Task LoadContentsAsync(int version)
+    {
+        if (_sourcesDay != _day)
+        {
+            var sources = await Notes.LoadContentSourcesAsync(_day);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+            if (!sources.Succeeded)
+            {
+                _error = sources.Message;
+                StateHasChanged();
+                return;
+            }
+
+            // 表示する日が変わったら、実績の開始日は既定に戻す
+            foreach (var dto in sources.Value!.Sources)
+            {
+                var state = _sources.FirstOrDefault(s => s.Key == dto.Key);
+                if (state is null)
+                {
+                    _sources.Add(new SourceState(dto));
+                }
+                else
+                {
+                    state.From = dto.DefaultFrom;
+                }
+            }
+            _sourcesDay = _day;
+        }
+        await LoadFramesAsync(version);
+    }
+
+    /// <summary>オンにした他の機能の内容を、枠として読む。</summary>
+    /// <param name="version">読み込みの番号。古い結果を捨てるため。設定を変えたときは null。</param>
+    private async Task LoadFramesAsync(int? version = null)
+    {
+        var frames = new List<DayContentFrameDto>();
+        foreach (var source in _sources.Where(s => s.Enabled).ToList())
+        {
+            var result = await Notes.LoadContentAsync(source.Key, _day, source.From, source.Everyone, source.On);
+            if (version is { } current && current != _loadVersion)
+            {
+                return;
+            }
+            if (!result.Succeeded)
+            {
+                _error = result.Message;
+                break;
+            }
+            frames.AddRange(result.Value!.Frames);
+        }
+        _frames = frames;
+        StateHasChanged();
+    }
+
+    private Task OnSourceEnabledChangedAsync(SourceState source, bool enabled)
+    {
+        source.Enabled = enabled;
+        return LoadFramesAsync();
+    }
+
+    private Task OnSourceEveryoneChangedAsync(SourceState source, bool everyone)
+    {
+        source.Everyone = everyone;
+        return LoadFramesAsync();
+    }
+
+    private Task OnSourceFromChangedAsync(SourceState source, ChangeEventArgs e)
+    {
+        if (!DateOnly.TryParse(e.Value?.ToString(), out var from))
+        {
+            return Task.CompletedTask;
+        }
+
+        // 期間の終わり (表示する日)以降は選べない。前日までに直す
+        source.From = from >= _day ? _day.AddDays(-1) : from;
+        return LoadFramesAsync();
+    }
+
+    private Task OnSourceOptionChangedAsync(SourceState source, string key, bool on)
+    {
+        if (on)
+        {
+            source.On.Add(key);
+        }
+        else
+        {
+            source.On.Remove(key);
+        }
+        return LoadFramesAsync();
     }
 
     private Task MoveDayAsync(int days)

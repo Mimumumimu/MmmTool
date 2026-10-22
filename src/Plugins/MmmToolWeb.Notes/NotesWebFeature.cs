@@ -27,6 +27,9 @@ public sealed class NotesWebFeature : IWebFeature
         services.AddScoped<INoteRepository, SqlServerNoteRepository>();
         services.AddScoped<NoteService>();
 
+        // 他の機能が登録した内容 (作業報告など)を集める。提供する機能の名前は持たない
+        services.AddScoped<DayContentService>();
+
         services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Insert(0, NotesJsonContext.Default));
     }
 

@@ -21,6 +21,9 @@ public sealed class NotesPlugin : IFeaturePlugin
         services.AddSingleton<NotePageBuilder>();
         services.AddSingleton<NoteService>();
 
+        // 他の機能 (作業管理など)が登録した内容を集めて、カードの上に出す。提供する機能の名前は持たない
+        services.AddSingleton<DayContentService>();
+
         services.AddFeature(NotesFeature.Key, NotesFeature.DisplayName);
 
         services.AddSingleton<INoteDialogService, NoteDialogService>();

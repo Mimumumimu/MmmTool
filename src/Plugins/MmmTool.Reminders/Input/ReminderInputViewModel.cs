@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
-using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.Core;
 using MmmTool.Users.Core;
 
@@ -25,8 +24,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private readonly ReminderService _reminders;
     /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
     private readonly IAppUserRepository _users;
-    /// <summary>送信先の保存先 (送信先の選択肢に使う)</summary>
-    private readonly INotificationChannelRepository _channels;
+    /// <summary>送信先の選択肢を作る</summary>
+    private readonly ReminderChannelLoader _channelLoader;
     /// <summary>リマインダーの送信設定の保存先</summary>
     private readonly IReminderSendSettingRepository _sendSettings;
     /// <summary>現在日時</summary>
@@ -42,16 +41,16 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
-    /// <param name="channels">送信先の保存先</param>
+    /// <param name="channelLoader">送信先の選択肢を作る</param>
     /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderInputViewModel(
-        ReminderService reminders, IAppUserRepository users, INotificationChannelRepository channels,
+        ReminderService reminders, IAppUserRepository users, ReminderChannelLoader channelLoader,
         IReminderSendSettingRepository sendSettings, TimeProvider time)
     {
         _reminders = reminders;
         _users = users;
-        _channels = channels;
+        _channelLoader = channelLoader;
         _sendSettings = sendSettings;
         _time = time;
         WeekdayOptions = [.. ReminderDates.WeekdayNames.Select(weekday => new WeekdayOption(weekday.Flag, weekday.Name))];
@@ -152,7 +151,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         ChannelOptions.Clear();
         _initialChannelIds = [];
         HasNoChannels = false;
-        IsChannelVisible = _channels.IsAvailable && _sendSettings.IsAvailable && _reminders.CurrentUserId != 0;
+        IsChannelVisible = _channelLoader.IsAvailable;
         if (!IsChannelVisible)
         {
             return;
@@ -160,7 +159,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
         try
         {
-            var mine = await _channels.GetChannelsAsync(includeDeleted: false);
             var settings = await _sendSettings.GetChannelIdsAsync();
             HashSet<int> checkedIds = [];
             if (_target is { No: > 0 } target)
@@ -176,9 +174,9 @@ public sealed partial class ReminderInputViewModel : ObservableObject
                 checkedIds = [.. sourceIds];
             }
 
-            foreach (var channel in mine)
+            foreach (var option in await _channelLoader.LoadMineAsync(checkedIds))
             {
-                ChannelOptions.Add(new ReminderChannelOption(channel.Id, channel.Kind, channel.Name, checkedIds.Contains(channel.Id)));
+                ChannelOptions.Add(option);
             }
 
             HasNoChannels = ChannelOptions.Count == 0;

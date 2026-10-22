@@ -3,6 +3,7 @@ using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
 using MmmTool.NotificationChannels.Core;
+using MmmTool.Reminders.BulkInput;
 using MmmTool.Reminders.ChannelEdit;
 using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;
@@ -38,6 +39,7 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddSingleton<ReminderService>();
         services.AddSingleton<ReminderMonitor>();
         services.AddSingleton<ReminderSettingsService>();
+        services.AddSingleton<ReminderChannelLoader>();
 
         services.AddSingleton<IReminderDialogService, ReminderDialogService>();
         // メイン画面はアプリ内で 1 枚だけ (開いていれば前面に出す)
@@ -46,9 +48,11 @@ public sealed class RemindersPlugin : IFeaturePlugin
 
         // 閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddTransient<ReminderInputWindow>();
+        services.AddTransient<ReminderBulkInputWindow>();
         services.AddTransient<ReminderListWindow>();
         services.AddTransient<ReminderMainWindow>();
         services.AddTransient<ReminderInputViewModel>();
+        services.AddTransient<ReminderBulkInputViewModel>();
         services.AddTransient<ReminderListViewModel>();
         services.AddTransient<ReminderMainViewModel>();
         services.AddTransient<NotificationChannelListWindow>();

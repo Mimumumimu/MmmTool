@@ -1,10 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.Input;
+namespace MmmTool.Reminders;
 
 /// <summary>
-/// 入力画面で選ぶ、リマインダーの送信先 (チェックのリストの 1 行)。
+/// リマインダーの画面で選ぶ、送信先のチェックのリストの 1 行。入力画面とまとめて追加の画面が共有する。
 /// </summary>
 /// <param name="id">送信先の番号 (<c>NotificationChannel.Id</c>)</param>
 /// <param name="kind">送信先の区分。分からなければ null</param>

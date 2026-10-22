@@ -17,6 +17,7 @@ using MmmToolWeb.Notes;
 using MmmToolWeb.Server.Auth;
 using MmmToolWeb.Server.Commands;
 using MmmToolWeb.Server.Hosting;
+using MmmToolWeb.WorkItems;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,6 +93,7 @@ builder.Services.AddScoped<CurrentUser>();
 // 機能。足すときに、サーバー本体で書くのは、この 1 行だけ
 builder.Services.AddWebFeature<NotesWebFeature>();
 builder.Services.AddWebFeature<MessagesWebFeature>();
+builder.Services.AddWebFeature<WorkItemsWebFeature>();
 
 builder.Services.AddSingleton<PasskeyCeremonyStore>();
 builder.Services.AddScoped<PasskeyService>();

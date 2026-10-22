@@ -25,10 +25,10 @@ namespace MmmTool.WorkItems.Report;
 public sealed partial class WorkReportViewModel(WorkItemService service, ISettingsStore settings, IClipboardService clipboard) : ObservableObject
 {
     /// <summary>「実績に時間を出す」の選択を残す設定のキー (この PC の設定。真偽)</summary>
-    public const string ShowHoursKey = "WorkItems.Report.ShowHours";
+    public const string ShowHoursKey = WorkReportDayContentSource.ShowHoursKey;
 
     /// <summary>「進捗度を出す」の選択を残す設定のキー (この PC の設定。真偽。既定はオン)</summary>
-    public const string ShowProgressKey = "WorkItems.Report.ShowProgress";
+    public const string ShowProgressKey = WorkReportDayContentSource.ShowProgressKey;
 
     /// <summary>今の読み込みの番号 (古い結果を捨てるため)</summary>
     private int _version;

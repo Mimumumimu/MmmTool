@@ -19,6 +19,7 @@
 | `src/Data/MmmToolWeb.Data.SqlServer` | SQL Server だけの、認証用の表の保存。`MmmBatch.Data.SqlServer` と同じ作りで、`MmmTool.Data.SqlServer` を参照する |
 | `src/Plugins/MmmToolWeb.Features` | サーバー側の、機能の差し込み口 `IWebFeature` (サービスの登録・API の登録・画面のアセンブリ)と、足す 1 行 `AddWebFeature`・API を `/api` の下にまとめてログイン必須にする `MapWebFeatures` |
 | `src/Plugins/MmmToolWeb.Features.Client` | ブラウザ側の、機能の差し込み口 `ClientFeature` (名前・アイコン・最初の画面の道・アセンブリ)と、機能に共通の部品。ホーム画面 `/home`・上のバー `FeatureHeader`・ブラウザの今日と前面への復帰と端末への記憶 `BrowserClient`・API の呼び出しと失敗の分類 `ApiCaller`・ログアウト `SessionClient`。Client と同じく AnyCPU |
+| `src/Plugins/MmmToolWeb.WorkItems` | 作業管理の Web 版。画面と API は持たず、ノートの画面に出す作業報告の提供元を登録するだけ ([notes-sources.md](notes-sources.md)) |
 | `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | ノートの Web 版。サーバー側の API (`NoteService` と `SqlServerNoteRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
 | `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | メッセージの Web 版。サーバー側の API (`SqlServerMessageSendRequestRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
 
@@ -235,7 +236,7 @@
 ## DB の接続
 
 - アプリが使うログインは、専用の `MmmToolWeb` を作る
-  - 権限は、ノート・メッセージ・リマインダー・`AppUser`・認証用の表だけ
+  - 権限は、ノート・メッセージ・リマインダー・`AppUser`・認証用の表と、ノートの画面に出す作業報告を読むための作業管理の表 (読むだけ)だけ
   - 権限を必要な表だけに絞る考え方は、`MmmBatch` に絞ったログインを作るときと同じ。[database.md](database.md)の「MmmBatch」の項を見る
 - Windows 認証にしない (サーバーを動かしたユーザーが管理者権限のとき、Web アプリが破られると DB 全体を読まれるため)
 - 接続のパスワードは、SDK の `ISecretStore` (実装は `CredentialSecretStore`。サーバーを動かすユーザーの資格情報マネージャーに保存する)に置く。サーバーだけが持ち、画面 (Client)は接続先もパスワードも知らない
@@ -255,6 +256,13 @@
     GRANT SELECT, INSERT, UPDATE ON dbo.AppUserPasskey TO [MmmToolWeb];
     GRANT SELECT, INSERT, UPDATE ON dbo.AppUserWebAuth TO [MmmToolWeb];
     GRANT SELECT, INSERT, UPDATE ON dbo.Note TO [MmmToolWeb];
+    -- ノートの画面に出す作業報告の読み。読むだけで、日報メモは、ほかの人の分も読む
+    GRANT SELECT ON dbo.WorkProject TO [MmmToolWeb];
+    GRANT SELECT ON dbo.WorkGroup TO [MmmToolWeb];
+    GRANT SELECT ON dbo.WorkItem TO [MmmToolWeb];
+    GRANT SELECT ON dbo.WorkRecord TO [MmmToolWeb];
+    GRANT SELECT ON dbo.WorkDayNote TO [MmmToolWeb];
+    GRANT SELECT ON dbo.CodeMaster TO [MmmToolWeb];
     -- メッセージの送信依頼は、行を足すだけ。状態を変えるのは MmmBatch
     GRANT INSERT ON dbo.MessageSendRequest TO [MmmToolWeb];
     -- 送信先は、宛先の一覧を作るために、送る先の値 (Value)を除いた列だけ読める
@@ -265,6 +273,7 @@
 
   - リマインダーの表の権限は、リマインダーの Web 画面を作るときに足す
   - `dbo.Note` には `DELETE` を付けない (ノートは論理削除で、行を消さないため)
+  - 作業管理の表には、`SELECT` だけを付ける。Web 版は作業管理を書き換えないため。
 
 ## 動かし方
 

@@ -4,7 +4,7 @@
 
 ## プロジェクト
 
-- コードは `src/` の下に、役割ごとのフォルダ (`App/` ホスト・`Plugins/` 機能・`Data/` DB・`Users/` ユーザー・`CodeMaster/` コードマスタ・`NotificationChannels/` 通知の送信先・`Auth/` Web 版のログイン)で置く
+- コードは `src/` の下に、役割ごとのフォルダ (`App/` ホスト・`Plugins/` 機能・`Data/` DB・`Users/` ユーザー・`CodeMaster/` コードマスタ・`DayContent/` 日ごとの内容の契約・`NotificationChannels/` 通知の送信先・`Auth/` Web 版のログイン)で置く
   - `App/` の中で、複数のプロジェクトでできているアプリ (`MmmToolWeb`)は、アプリの名前のフォルダの下に `Server/` と `Client/` を置く
   - どのフォルダも「役割 / プロジェクト」の形にする
   - `external/` (SDK のサブモジュール)・`docs/`・`scripts/` は `src/` の外に置く
@@ -16,6 +16,7 @@
 | `src/App/MmmToolWeb/Server` / `src/App/MmmToolWeb/Client` | `net10.0`(ASP.NET Core) / `net10.0`(Blazor WebAssembly・AnyCPU) | 複数人が iPhone のホーム画面から使う Web 版で、別のソリューション `MmmToolWeb.slnx` にある。`Server` は画面の配信と API を持つ常駐する EXE で、`Client` はブラウザで動く画面。仕様は [specs/web.md](specs/web.md) |
 | `src/Plugins/MmmToolWeb.Features` / `src/Plugins/MmmToolWeb.Features.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | Web 版の、機能の差し込み口。サーバー側の `IWebFeature` と、ブラウザ側の `ClientFeature`・ホーム画面・上のバー。機能は、これを通して足し、本体に機能の名前を書かない。MmmTool は参照しない。仕様は [specs/web.md](specs/web.md) |
 | `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | ノートの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。ノートの読み書きは、MmmTool と同じ `MmmTool.Notes.Core` と `MmmTool.Data.SqlServer` を使う |
+| `src/Plugins/MmmToolWeb.WorkItems` | `net10.0` (ASP.NET Core) | 作業管理の Web 版のサーバー側。画面と API は持たず、ノートの画面に作業報告を出すための提供元 `WorkReportDayContentSource` を登録するだけ。読みは、MmmTool と同じ `MmmTool.WorkItems.Core` と `MmmTool.Data.SqlServer` を使う |
 | `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | メッセージの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。宛先の読み出しと依頼の保存は、MmmTool と同じ `MmmTool.Messages.Core` と `MmmTool.Data.SqlServer` を使う。外部へ送る処理は無い |
 | `src/Auth/MmmToolWeb.Auth.Core` / `src/Data/MmmToolWeb.Data.SqlServer` | `net10.0` | MmmTool は参照しない。Web 版のパスキーの手続き (画面に依存しない) / Web 版の認証用の表の保存 (SQL Server だけ) |
 | `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホストで、別のソリューション `MmmBatch.slnx` にある。リマインダーとメッセージの送信 (ntfy・Discord)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
@@ -27,6 +28,7 @@
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー。`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定を持つ。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)を持つ。依存は無い。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
+| `src/DayContent/MmmTool.DayContent.Core` | `net10.0` | 機能をまたいで共有する、日ごとの内容の契約 `IDayContentSource`。提供する機能 (作業管理の作業報告など)と、使う機能 (ノート)の両方が、これだけを参照するので、機能どうしは参照しない。画面は持たず、依存は無い。仕様は [specs/notes-sources.md](specs/notes-sources.md) |
 | `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先。`NotificationChannel`・区分・規則・`INotificationChannelRepository` を持つ。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たず、登録の画面はリマインダーの機能にある。保存先の実装は `MmmTool.Data.<種類>` |
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装で、`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite` がある。SDK の `MmmSdk.Db.<種類>` を参照する。保存先の選び方は、「DI と起動」の「保存先」に書く |
@@ -88,6 +90,7 @@ Plugins/MmmTool.<機能>/<画面>/          そのほかの画面。例は Remin
                                         1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 Users/MmmTool.Users.Core/               機能をまたいで共有するユーザー (AppUser・CurrentUser・UserSignInService・PasswordHasher)
 CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコードマスタ (CodeMasterEntry・CodeBook・CodeFeatures)
+DayContent/MmmTool.DayContent.Core/     機能をまたいで共有する、日ごとの内容の契約 (IDayContentSource)
 NotificationChannels/MmmTool.NotificationChannels.Core/   機能をまたいで共有する通知の送信先 (NotificationChannel・INotificationChannelRepository)
 Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService)
                                         機能をまたぐので、機能のフォルダではない

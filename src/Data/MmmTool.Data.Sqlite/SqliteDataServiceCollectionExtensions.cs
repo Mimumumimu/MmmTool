@@ -18,7 +18,7 @@ public static class SqliteDataServiceCollectionExtensions
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// データのフォルダー (<see cref="AppEnvironment.DataDirectory"/>)の <c>MmmTool.db</c> を使う。ファイルは最初に使うときに作り、版を上げる。
+    /// データのフォルダー (<see cref="AppEnvironment.DataDirectory"/>)の <c>MmmTool.db</c> を使う。ファイルは最初に使うときに作り、版を上げたあと、あるべき形 (<c>Sql/schema.sql</c>)と比べて、足りない列・表・索引を足す。
     /// 保存先の選択 (ローカル / DB)は、ホストが設定で行う (<c>IWorkItemRepository</c> は、ここでは登録しない)。
     /// </remarks>
     public static IServiceCollection AddSqliteData(this IServiceCollection services)
@@ -27,6 +27,7 @@ public static class SqliteDataServiceCollectionExtensions
         {
             FilePath = Path.Combine(provider.GetRequiredService<AppEnvironment>().DataDirectory, FileName),
             Migrations = SqliteMigrations.Load(),
+            SchemaSql = SqliteMigrations.LoadSchema(),
         }));
         services.AddSingleton<SqliteWorkItemRepository>();
         services.AddSingleton<SqliteNoteRepository>();

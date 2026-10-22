@@ -108,7 +108,12 @@ public sealed partial class WorkItemViewModel : ObservableObject
     public partial string DayNote { get; set; } = "";
 
     /// <summary>日報メモの入力欄が空のときの薄い文字 (どの日のメモかが分かるよう、入力日つき。曜日は PC の言語に依らず日本語)</summary>
-    public string DayNotePlaceholder => $"{InputDate.ToString("yyyy/MM/dd (ddd)", CultureInfo.GetCultureInfo("ja-JP"))} の日報メモ";
+    public string DayNotePlaceholder => $"{FormatDay(InputDate)} の日報メモ";
+
+    /// <summary>入力日の実績の合計の表示</summary>
+    /// <remarks>入力日の隣に出すので、日付は付けない。表を作り直したときに更新する。</remarks>
+    [ObservableProperty]
+    public partial string DayTotalText { get; private set; } = "";
 
     /// <summary>日報メモの入力欄の最大の長さ</summary>
     public int DayNoteMaxLength => WorkItemLimits.DayNoteMaxLength;
@@ -715,6 +720,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
+    /// <summary>作業を、作業報告に含めるかどうかを切り替える</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="excluded">含めないなら true</param>
+    /// <returns>切り替えの完了を表すタスク</returns>
+    public async Task SetReportExcludedAsync(WorkItemRow row, bool excluded)
+    {
+        if (!row.IsWork || row.IsLocked || excluded == row.ReportExcluded)
+        {
+            return;
+        }
+
+        await UpdateItemAsync(row, item => item with { ReportExcluded = excluded });
+    }
+
     /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>
     /// <param name="row">行</param>
     /// <returns>開く処理の完了を表すタスク</returns>
@@ -956,8 +975,18 @@ public sealed partial class WorkItemViewModel : ObservableObject
         {
             SelectedRow = null;
         }
+        UpdateDayTotals();
         RowsRebuilt?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>入力日の実績の合計を、サービスの内容から作り直す</summary>
+    /// <remarks>表の行ではなく記録から数えるので、「過去の完了」で隠した作業も数える。「自分の担当だけ」には従う。</remarks>
+    private void UpdateDayTotals() => DayTotalText = $"実績合計 {WorkItemRow.FormatHours(_service.BuildDayTotal(MineOnly))} 時間";
+
+    /// <summary>日付を、曜日つきの表示にする</summary>
+    /// <param name="date">日付</param>
+    /// <returns>2026/10/13 (火) の形。曜日は PC の言語に依らず日本語</returns>
+    private static string FormatDay(DateOnly date) => date.ToString("yyyy/MM/dd (ddd)", CultureInfo.GetCultureInfo("ja-JP"));
 
     /// <summary>完了して日がたった (完了日が入力日より前の)ものか</summary>
     /// <param name="node">木の行</param>

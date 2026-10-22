@@ -26,6 +26,59 @@ internal static class NoteEndpoints
         notes.MapPut("/{id:int}", UpdateAsync);
         notes.MapPost("/{id:int}/deleted", SetDeletedAsync);
         notes.MapGet("/styles.css", GetStyles);
+        notes.MapGet("/contents", LoadContentSourcesAsync);
+        notes.MapGet("/contents/{key}", LoadContentAsync);
+    }
+
+    /// <summary>
+    /// ノートの画面に出せる、他の機能の内容 (作業報告など)を返す。
+    /// </summary>
+    /// <param name="day">表示する日。実績の開始日の既定を、この日で決める。</param>
+    /// <param name="contents">他の機能の内容を集める処理。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>出せる内容の一覧。サーバーに登録された機能の分だけ。</returns>
+    private static async Task<IResult> LoadContentSourcesAsync(DateOnly day, DayContentService contents, CancellationToken cancellationToken)
+    {
+        var sources = new List<DayContentSourceDto>();
+        foreach (var source in contents.Sources)
+        {
+            var from = await source.GetDefaultFromAsync(day, cancellationToken);
+            sources.Add(new DayContentSourceDto(
+                source.Key,
+                source.Title,
+                from,
+                [.. source.Options.Select(option => new DayContentOptionDto(option.Key, option.Label, option.Default))]));
+        }
+        return Results.Ok(new DayContentSourceListResponse(sources));
+    }
+
+    /// <summary>
+    /// 他の機能の内容を、枠にして返す。
+    /// </summary>
+    /// <param name="key">内容の識別。</param>
+    /// <param name="day">表示する日で、期間の終わり。</param>
+    /// <param name="from">実績の開始日で、期間の始まり。</param>
+    /// <param name="everyone">全員の分を出すか。</param>
+    /// <param name="on">選んでいる選択肢の識別を、カンマでつないだ文字。無い識別は、選んでいない。</param>
+    /// <param name="contents">他の機能の内容を集める処理。</param>
+    /// <param name="notes">ノートの読み書き。自分の番号を引く。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>枠の一覧。内容の識別が無いときは 404。</returns>
+    private static async Task<IResult> LoadContentAsync(
+        string key, DateOnly day, DateOnly from, bool? everyone, string? on, DayContentService contents, NoteService notes,
+        CancellationToken cancellationToken)
+    {
+        var source = contents.Sources.FirstOrDefault(s => s.Key == key);
+        if (source is null)
+        {
+            return Results.NotFound(new ErrorResponse("この内容は、見つかりません。"));
+        }
+
+        var onKeys = (on ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var options = source.Options.ToDictionary(option => option.Key, option => onKeys.Contains(option.Key));
+        var all = everyone ?? false;
+        var frames = await contents.LoadAsync(source, from, day, all, all ? notes.CurrentUserId : 0, options, cancellationToken);
+        return Results.Ok(new DayContentFramesResponse([.. frames.Select(frame => new DayContentFrameDto(frame.Title, frame.Text))]));
     }
 
     /// <summary>

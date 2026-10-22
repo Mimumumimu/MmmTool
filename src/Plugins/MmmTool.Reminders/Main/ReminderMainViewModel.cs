@@ -68,6 +68,11 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     [RelayCommand]
     private Task AddAsync() => _dialogs.ShowInputAsync(null);
 
+    /// <summary>まとめて追加 (まとめて追加の画面を開く)</summary>
+    /// <returns>まとめて追加の画面が閉じるまでの待機を表すタスク</returns>
+    [RelayCommand]
+    private Task BulkAddAsync() => _dialogs.ShowBulkInputAsync();
+
     /// <summary>一覧画面を開く</summary>
     /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
@@ -152,7 +157,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         DoneHeader = $"完了 ({Done.Count})";
         IsEmpty = targets.Count == 0;
 
-        ScheduleDayChange(now);
+        MarkShown(now);
     }
 
     /// <summary>行を並ぶべき内容に合わせる (差分更新)</summary>

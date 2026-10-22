@@ -1,6 +1,9 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Paths;
+using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
@@ -17,12 +20,16 @@ namespace MmmTool.Notes.Main;
 /// <param name="dialogs">ノートの入力ウィンドウを開く口</param>
 /// <param name="confirm">確認ダイアログを開く口</param>
 /// <param name="opener">リンクのパスを既定のアプリで開く処理</param>
+/// <param name="contents">他の機能の内容 (作業報告など)を集める処理</param>
+/// <param name="settings">この PC の設定の保存先 (他の機能の内容を出すか・選択肢を覚える)</param>
+/// <param name="features">機能のオン・オフ (オフの機能の内容は出さない)</param>
 /// <remarks>
 /// ほかの人の更新は、ページが見えている間だけ、表示している日の分を <see cref="RefreshInterval"/> ごとに読み直して反映する (<see cref="ResumeAsync"/> / <see cref="Suspend"/>)。
 /// 読み直しでページを作り直すときは、読んでいる位置と、開いているカードを保つ。日付・切り替えを変えたときは、先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
 /// </remarks>
 public sealed partial class NotesViewModel(
-    NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener) : ObservableObject
+    NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
+    DayContentService contents, ISettingsStore settings, IFeatureStatus features) : ObservableObject
 {
     /// <summary>ほかの人の更新を読み直す間隔</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
@@ -62,6 +69,12 @@ public sealed partial class NotesViewModel(
 
     /// <summary>読み込み・操作の失敗</summary>
     public ErrorState Error { get; } = new();
+
+    /// <summary>「表示する内容」に出す、他の機能の内容。オンの機能の分だけ</summary>
+    public ObservableCollection<DayContentSourceItem> Sources { get; } = [];
+
+    /// <summary>「表示する内容」のボタンを出すか (出せる内容が 1 つ以上ある)</summary>
+    public bool HasSources => Sources.Count > 0;
 
     /// <summary>日付を変えたら、先頭から表示し直す</summary>
     /// <param name="value">新しい日</param>
@@ -120,6 +133,10 @@ public sealed partial class NotesViewModel(
         var source = new CancellationTokenSource();
         _refreshing = source;
 
+        RefreshSources();
+
+        // 見えていない間に、作業報告の窓などが同じ設定を変えているかもしれない。続く読み込みで反映する
+        SyncSourceSettings();
         await ReloadAsync(preserveState: false);
 
         try
@@ -135,7 +152,49 @@ public sealed partial class NotesViewModel(
         }
     }
 
-    /// <summary>ページが見えなくなった (読み直しを止める。見えていない間は、DB に問い合わせない)</summary>
+    /// <summary>出せる内容を、機能のオン・オフに合わせて作り直す (変わったときだけ)</summary>
+    private void RefreshSources()
+    {
+        var available = contents.Sources.Where(s => s.FeatureKey is null || features.IsEnabled(s.FeatureKey)).ToList();
+        if (Sources.Select(item => item.Source).SequenceEqual(available))
+        {
+            return;
+        }
+
+        Sources.Clear();
+        foreach (var source in available)
+        {
+            Sources.Add(new DayContentSourceItem(source, settings, notes.IsShared, OnSourceChanged));
+        }
+        OnPropertyChanged(nameof(HasSources));
+    }
+
+    /// <summary>「表示する内容」を開いたとき、設定を読み直す</summary>
+    /// <remarks>作業報告の窓など、別の画面が同じ設定を変えていたら、その値に合わせて、枠を作り直す。</remarks>
+    public void RefreshSourceSettings()
+    {
+        if (SyncSourceSettings())
+        {
+            ReloadAsync(preserveState: true).Forget();
+        }
+    }
+
+    /// <summary>他の機能の内容の設定を、この PC の設定から読み直す (画面は作り直さない)</summary>
+    /// <returns>値が変わったものがあるか</returns>
+    private bool SyncSourceSettings()
+    {
+        var changed = false;
+        foreach (var item in Sources)
+        {
+            changed |= item.SyncFromSettings();
+        }
+        return changed;
+    }
+
+    /// <summary>他の機能の内容の設定が変わった。枠を作り直す</summary>
+    private void OnSourceChanged() => ReloadAsync(preserveState: true).Forget();
+
+    /// <summary>ページが見えなくなった。読み直しを止め、見えていない間は DB に問い合わせない</summary>
     public void Suspend()
     {
         _refreshing?.Cancel();
@@ -220,6 +279,21 @@ public sealed partial class NotesViewModel(
         await ReloadAsync(preserveState: true);
     }
 
+    /// <summary>オンにした他の機能の内容を、表示する日の分だけ読んで、枠にする</summary>
+    /// <returns>枠 (オンの内容が無ければ空)</returns>
+    /// <exception cref="DataFileException">読めなかった。</exception>
+    private async Task<IReadOnlyList<DayContentFrame>> LoadFramesAsync()
+    {
+        var frames = new List<DayContentFrame>();
+        foreach (var item in Sources.Where(i => i.IsEnabled).ToList())
+        {
+            await item.EnsureFromAsync(Day);
+            var everyone = item.IsShared && item.Everyone;
+            frames.AddRange(await contents.LoadAsync(item.Source, item.From, Day, everyone, everyone ? notes.CurrentUserId : 0, item.OptionValues));
+        }
+        return frames;
+    }
+
     /// <summary>表示する日のノートを読み込んで、ページを作り直す</summary>
     /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は、先頭から表示する)</param>
     /// <returns>読み込みと表示の完了を表すタスク</returns>
@@ -240,6 +314,18 @@ public sealed partial class NotesViewModel(
             return;
         }
 
+        // 他の機能の内容が読めなくても、ノートは出す (失敗は画面に出す)
+        IReadOnlyList<DayContentFrame> frames = [];
+        string? frameError = null;
+        try
+        {
+            frames = await LoadFramesAsync();
+        }
+        catch (DataFileException ex)
+        {
+            frameError = $"表示する内容を読み込めませんでした: {ex.Message}";
+        }
+
         // 待っている間に、もっと新しい読み込みが始まっていたら、この結果は捨てる
         if (version != _version)
         {
@@ -247,8 +333,12 @@ public sealed partial class NotesViewModel(
         }
 
         Error.Clear();
+        if (frameError is not null)
+        {
+            Error.Show(frameError);
+        }
         _cards = cards;
-        var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, state?.OpenIds, state?.KnownIds));
+        var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, state?.OpenIds, state?.KnownIds), frames);
         if (preserveState && html == _lastHtml)
         {
             return;

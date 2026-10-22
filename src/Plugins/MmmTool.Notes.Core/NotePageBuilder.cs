@@ -20,8 +20,13 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <summary>ページを作る</summary>
     /// <param name="cards">カードに出す内容 (並べ終えたもの)</param>
     /// <param name="options">条件</param>
+    /// <param name="frames">カードの上に出す、他の機能の内容の枠 (無ければ null)</param>
     /// <returns>HTML のページ</returns>
-    public string Build(IReadOnlyList<NoteCard> cards, NotePageOptions options)
+    /// <remarks>
+    /// 枠は、ノートの番号と重ならないよう、負の番号 (<c>n-1</c> から)の id を付け、カードと同じ開閉の決まり (<see cref="NotePageOptions.OpenIds"/>)で出す。
+    /// 枠の文は、すべて HTML の文字に直して出す。
+    /// </remarks>
+    public string Build(IReadOnlyList<NoteCard> cards, NotePageOptions options, IReadOnlyList<DayContentFrame>? frames = null)
     {
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(options);
@@ -30,6 +35,11 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         html.Append("<!DOCTYPE html>\n<html lang=\"ja\" class=\"").Append(options.IsDark ? "dark" : "light").Append("\">\n<head>\n");
         html.Append("<meta charset=\"utf-8\">\n<meta name=\"color-scheme\" content=\"").Append(options.IsDark ? "dark" : "light").Append("\">\n");
         html.Append("<title>ノート</title>\n<style>\n").Append(Css()).Append("</style>\n</head>\n<body>\n");
+
+        for (var i = 0; i < (frames?.Count ?? 0); i++)
+        {
+            AppendFrame(html, frames![i], -(i + 1), options);
+        }
 
         if (cards.Count == 0)
         {
@@ -42,6 +52,20 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 
         html.Append("</body>\n</html>\n");
         return html.ToString();
+    }
+
+    /// <summary>他の機能の内容の枠 1 つを出力に出す</summary>
+    /// <param name="html">出力</param>
+    /// <param name="frame">枠の内容</param>
+    /// <param name="id">枠の番号で、負の数。カードの開閉の状態と同じ仕組みで覚える</param>
+    /// <param name="options">条件</param>
+    private static void AppendFrame(StringBuilder html, DayContentFrame frame, int id, NotePageOptions options)
+    {
+        var isKnown = options.OpenIds is not null && options.KnownIds?.Contains(id) == true;
+        var isOpen = isKnown ? options.OpenIds!.Contains(id) : !options.TitleOnly;
+        html.Append("<section class=\"frame\" id=\"n").Append(id.ToString(CultureInfo.InvariantCulture)).Append("\">\n<details").Append(isOpen ? " open" : "").Append(">\n");
+        html.Append("<summary><span class=\"title\">").Append(Escape(frame.Title)).Append("</span></summary>\n");
+        html.Append("<pre class=\"text\">").Append(Escape(frame.Text)).Append("</pre>\n</details>\n</section>\n");
     }
 
     /// <summary>カード 1 枚を出力に出す</summary>
@@ -186,8 +210,11 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             html, body { margin:0; background:transparent; color:var(--text); }
             body { padding:4px 20px 24px 4px; font:14px/1.7 "BIZ UDGothic","BIZ UDゴシック","MS Gothic","ＭＳ ゴシック",Consolas,monospace; }
             a { color:var(--link); }
-            .empty { margin:32px 0; color:var(--sub); }
-            .empty-date { margin-right:16px; font-weight:600; color:var(--text); }
+            .empty { margin:16px 0 0; padding-left:16px; text-align:center; color:var(--sub); }
+            .empty-date { display:block; margin-bottom:4px; font-size:1.1em; font-weight:600; color:var(--text); }
+            .frame { margin:0 0 8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 16px 8px 19px; }
+            .frame summary { cursor:pointer; list-style:none; }
+            .frame .text { margin:6px 0 2px 18px; font:inherit; line-height:22px; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
             .card { position:relative; margin:0 0 8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 16px 8px 19px; }
             .card.p5, .card.p4 { border-left-width:4px; padding-left:16px; }
             .card.p5 { border-left-color:var(--p5); }
@@ -202,6 +229,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             .head > .title { margin-left:18px; max-width:calc(100% - 18px); }
             summary > .title { max-width:calc(100% - 22px); }
             summary::-webkit-details-marker { display:none; }
+            .frame summary > .title { max-width:100%; }
             summary::before { content:"\203A"; display:inline-block; width:12px; margin:0 10px 0 -4px; text-align:center; color:var(--sub); transition:transform 0.1s; }
             details[open] > summary::before { transform:rotate(90deg); }
             .title { font-size:16px; font-weight:600; }
