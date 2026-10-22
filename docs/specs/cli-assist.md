@@ -205,7 +205,6 @@ CLI補助機能の仕様。
   | 会話要約 (コンテキスト圧縮) | `/compact` | `/compact` | |
   | CLAUDE.md を作成 / steering を作成 | `/init` | 作成を頼む文 | Kiro の CLI に `/init` は無いので、`.kiro/steering/` に product.md・tech.md・structure.md (Kiro の IDE の「Generate Steering Docs」と同じ 3 つ)を作るよう頼む文を送る (ユーザーの決定) |
   | モデル切替 | `/model` | `/model` | |
-  | エフォート切替 | `/effort` | `/effort` | 引数なしで送る。選択画面が開くので、送信後はターミナルへフォーカスを移す。`/effort high` のように値を付けた定型コマンドは足さない。選ぶのは画面でさせる、というユーザーの決定による。どちらの `/effort` も、選んだ値が次回以降の既定にも保存されることがある (Claude Code は設定の `effortLevel`、Kiro は `~/.kiro/settings/cli.json`)。そのタブだけに効かせる形にはしない |
   | 会話履歴と再開 | `/resume` | `/chat` | |
   | コスト確認 / 使用量の確認 | `/cost` | `/usage` | Kiro は料金・残りクレジットを出す |
   | 終了 | `/exit` | `/quit` | |
@@ -217,7 +216,7 @@ CLI補助機能の仕様。
     - 既定では「起動」「続きから再開」「履歴から選んで再開」→ AI セッション、「終了」→ シェル
   - `"focus": "terminal" | "input"`: 送信後のフォーカスの移動先 (input = 送信欄)
     - 既定では、起動・新規チャット → input
-    - 履歴から選んで再開・モデル切替・エフォート切替・会話履歴と再開 → terminal (一覧から選ぶ操作でキーを使うため)
+    - 履歴から選んで再開・モデル切替・会話履歴と再開 → terminal (一覧から選ぶ操作でキーを使うため)
 - 文字列中の `{AppDir}` は、送信時に EXE のフォルダへ展開する (`CommandPlaceholders`)
 - 既定のコマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない (無いときだけ生成)
   - 反映するには「定型コマンドを初期化…」を選ぶ (上の「初期設定 (使うツール・環境)」)

@@ -29,6 +29,12 @@
     - セマンティックバージョニングにする。機能の追加は真ん中、不具合の修正だけなら最後を上げる。1.0.0 未満のあいだは、大きな変更でも真ん中を上げる。
     - 公開するときに、「未リリース」を「<版>(<日付>)」に書き換え、`Version` も同じ値にする
     - SDK の版は別に持つ
+  - MmmToolWeb (Web 版)の変更履歴は、MmmTool の `README.txt` に混ぜず、`src/App/MmmToolWeb/CHANGELOG.md` に書く
+    - 形は `README.txt` と同じ (区分・機能ごとの見出し)で、Markdown の標準の箇条書きにする
+    - Web 版の版は MmmTool と別に持つ
+      - MmmTool の版を上げるたびに、Web 版の中身が無くても版が進むのを避けるため
+      - 最初のリリースのときに、`Server` の csproj に `Version` を書き、「未リリース」を書き換える
+    - MmmTool の変更履歴 (`README.txt`)には、Web 版だけの変更を書かない
   - ライセンスは MIT にする
     - `LICENSE.txt` の著作者は mimumu。SDK も同じ。
     - ライセンスの文書は、`LICENSE.txt` と、自動で作る同梱ライブラリのライセンス全文 `THIRD-PARTY-NOTICES.txt` (手で直さない)で、アプリ本体の `Assets\Licenses\` に入る (「配布」)
