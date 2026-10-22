@@ -697,11 +697,12 @@ public sealed partial class WorkItemPage : Page
             return;
         }
 
+        // よく使う「作業を追加」を上に置く (グループは、作る頻度が低い)
+        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
         if (row.IsGroup)
         {
             AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkRowKind.Group, row));
         }
-        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
         // 右クリックした所が、作業の日付のセルのときだけ (そのセルに固有の操作を、行全体の「リンクを編集…」より上に置く)
         if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
