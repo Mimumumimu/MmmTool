@@ -13,11 +13,14 @@
     - 「`Data` を上書きしない」の 1 点だけを、配布物の説明書の先頭 (`README.txt`・`README.md`)とリリース本文の先頭に書く
     - `操作説明.html` には書かない (初回の注意とは役割が違う)
     - アプリの画面の中に出す案 (設定ページに `Data` の場所と「フォルダを開く」)は、ユーザーの判断で見送った
-- `Data` の下には、JSON のほかに、アプリが書くフォルダとして `Logs` と `WebView2` がある
+- `Data` の下には、JSON のほかに、アプリが書くフォルダとして `Logs` がある
   - `Logs`: エラーのログ
-  - `WebView2`: ターミナルとノートの画面のキャッシュ。アプリの中の WebView2 は、すべて同じ場所を使う。
+- EXE の横の `Cache` は、消しても作り直されるデータの置き場 (`AppInfo.CacheDirectory`)
+  - `Cache\WebView2`: ターミナルとノートの画面のキャッシュ。アプリの中の WebView2 は、すべて同じ場所を使う。
+  - `Cache` を `Data` と分けるのは、`Data` を軽く保ち、バックアップや持ち運びの対象にキャッシュを入れないため
+  - 消しても作り直されるデータは、種類ごとにフォルダを足さず、`Cache` の下に置く
 - Web 版 (MmmToolWeb)の `Data` に保存するものは [web.md](web.md) の「保存するもの」
-- EXE の横には `Data` 以外の書き込み先を作らない (理由は [../build-and-distribution.md](../build-and-distribution.md) の「EXE の横のフォルダと DLL」)
+- EXE の横には `Data` と `Cache` 以外の書き込み先を作らない (理由は [../build-and-distribution.md](../build-and-distribution.md) の「EXE の横のフォルダと DLL」)
 - DB に保存する機能 (リマインダー・作業管理・ノート)は、設定で選んだ保存先 (ローカルの JSON・SQLite、または SQL Server)に保存する ([database.md](database.md))
 - どの保存先も、Repository のインターフェース (非同期)と DI で差し替える
 - JSON のソース生成と書式の決まりは、`csharp-dotnet` スキルに従う。書式は SDK の `ReadableJsonOptions.Create()` にある。

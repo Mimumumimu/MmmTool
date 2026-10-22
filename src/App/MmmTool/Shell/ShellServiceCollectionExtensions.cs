@@ -23,7 +23,7 @@ public static class ShellServiceCollectionExtensions
         // 画面から、アプリの終了 (トレイの「終了」と同じ処理)を頼む口
         services.AddSingleton<AppExitService>();
         // 機能 (プラグイン)が、アプリの名前・データ・アイコンの置き場所を知る口
-        services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppIcon.FilePath));
+        services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppInfo.CacheDirectory, AppIcon.FilePath));
         // メインウィンドウの設定 (起動時に開くか)
         services.AddSingleton<MainWindowSettingsService>();
         // 機能のオン・オフ (状態の保存・起動時の準備の実行・切り替えの通知)と、機能 (プラグイン)が自分のキーのオン・オフを調べる口

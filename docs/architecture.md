@@ -236,8 +236,8 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`(TwoWay)と `Message` に結び付け、閉じる処理は書かない。ファイルの読み込み結果は SDK の `LoadStatus` で持つ。
 - ウィンドウの共通の設定 (アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ)は SDK の `Window` 拡張メソッド (`UseCustomTitleBar` など)にある
 - アイコンのパスは `Shell/AppIcon` (ウィンドウ・トレイで共通)にある
-- アプリの名前・Data フォルダー・トレイのクラス名は、`Shell/AppInfo` の 1 か所に持つ
-  - Data フォルダーの下の Logs・WebView2 も同じ
+- アプリの名前・Data フォルダー・Cache フォルダー・トレイのクラス名は、`Shell/AppInfo` の 1 か所に持つ
+  - Data フォルダーの下の Logs、Cache フォルダーの下の WebView2 も同じ
   - 多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格 (保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化)を `Features/Reminders/ReminderViewModelBase` に持つ
 - ターミナルの後始末 (SDK の `PseudoConsoleSession` の `Dispose`)は同期のままにする
