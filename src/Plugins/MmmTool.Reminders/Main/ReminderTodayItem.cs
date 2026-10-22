@@ -33,7 +33,7 @@ public sealed partial class ReminderTodayItem : ObservableObject
 
     /// <summary>元のリマインダー</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TimeText), nameof(Title), nameof(HasLink))]
+    [NotifyPropertyChangedFor(nameof(TimeText), nameof(Title), nameof(HasLink), nameof(Note), nameof(HasNote))]
     public partial Reminder Source { get; private set; }
 
     /// <summary>今日の対応状態</summary>
@@ -46,6 +46,13 @@ public sealed partial class ReminderTodayItem : ObservableObject
 
     /// <summary>件名</summary>
     public string Title => Source.Title;
+
+    /// <summary>備考</summary>
+    /// <remarks>前後の空白を除く。備考が無ければ空文字列。</remarks>
+    public string Note => Source.Note?.Trim() ?? "";
+
+    /// <summary>備考があるか</summary>
+    public bool HasNote => Note.Length > 0;
 
     /// <summary>リンクがあるか</summary>
     public bool HasLink => !string.IsNullOrWhiteSpace(Source.Link);

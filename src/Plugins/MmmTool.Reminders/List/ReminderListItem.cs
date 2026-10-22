@@ -28,6 +28,13 @@ public sealed class ReminderListItem(Reminder source, bool canPurge)
     /// <summary>件名</summary>
     public string Title => Source.Title;
 
+    /// <summary>備考</summary>
+    /// <remarks>前後の空白を除く。備考が無ければ空文字列。</remarks>
+    public string Note { get; } = source.Note?.Trim() ?? "";
+
+    /// <summary>備考があるか</summary>
+    public bool HasNote => Note.Length > 0;
+
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted => Source.IsDeleted;
 

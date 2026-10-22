@@ -181,13 +181,28 @@
                                 VerticalAlignment="Center"
                                 Text="{x:Bind TimeText}"
                                 TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}" />
-                            <TextBlock
-                                Grid.Column="3"
-                                VerticalAlignment="Center"
-                                Text="{x:Bind Title}"
-                                TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}"
-                                TextTrimming="CharacterEllipsis"
-                                TextWrapping="NoWrap" />
+                            <!-- 件名の右端に、備考があるときだけメモのアイコンを出す。カーソルを合わせると備考を表示する -->
+                            <Grid Grid.Column="3" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind Title}"
+                                    TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="NoWrap" />
+                                <FontIcon
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Glyph="&#xE70B;"
+                                    ToolTipService.ToolTip="{x:Bind Note}"
+                                    Visibility="{x:Bind HasNote}" />
+                            </Grid>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
