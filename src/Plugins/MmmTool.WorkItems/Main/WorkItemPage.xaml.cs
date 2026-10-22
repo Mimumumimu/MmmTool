@@ -79,6 +79,11 @@ public sealed partial class WorkItemPage : Page
         _columns.First(c => c.Key == "Planned").HeaderToolTip = "作業全体の予定の工数 (時間)";
         foreach (var column in _columns)
         {
+            // 名前の列は、常に出す (「表示列」にも無い)ので、右クリックのメニューを付けない
+            if (column.Key != "Name")
+            {
+                column.HeaderContextFlyout = BuildHeaderMenu(column.Key);
+            }
             TreeGrid.Columns.Add(column);
         }
 
@@ -102,7 +107,15 @@ public sealed partial class WorkItemPage : Page
         ApplyColumns(fitAll: true);
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-        ViewModel.ColumnVisibilityChanged += (_, _) => ApplyColumns();
+        ViewModel.ColumnVisibilityChanged += (_, _) =>
+        {
+            // 見出しの右クリックで隠した列も、「表示列」のチェックに反映する
+            foreach (var (key, check) in _columnChecks)
+            {
+                check.IsChecked = ViewModel.IsColumnVisible(key);
+            }
+            ApplyColumns();
+        };
         ViewModel.RowsRebuilt += (_, _) =>
         {
             if (FitColumns())
@@ -353,6 +366,21 @@ public sealed partial class WorkItemPage : Page
     /// <returns>見出しの文字の幅に、左右の余白を足したもの</returns>
     private double HeaderWidth(TreeGridColumn column) => TextWidth(column.Header, Microsoft.UI.Text.FontWeights.SemiBold) + 28;
 
+    /// <summary>「表示列」の入れ物にある、列ごとのチェック (列のキーが引く)</summary>
+    private readonly Dictionary<string, CheckBox> _columnChecks = [];
+
+    /// <summary>列の見出しの右クリックのメニュー (その列を非表示にする)を作る</summary>
+    /// <param name="key">列のキー</param>
+    /// <returns>メニュー</returns>
+    private MenuFlyout BuildHeaderMenu(string key)
+    {
+        var menu = new MenuFlyout();
+        var hide = new MenuFlyoutItem { Text = "列を非表示" };
+        hide.Click += (_, _) => ViewModel.SetColumnVisible(key, false);
+        menu.Items.Add(hide);
+        return menu;
+    }
+
     /// <summary>「表示列」のボタンに、列ごとのチェックを並べた入れ物を付ける</summary>
     /// <remarks>続けて何列も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
     private void BuildColumnsFlyout()
@@ -368,6 +396,7 @@ public sealed partial class WorkItemPage : Page
                 MinWidth = 0,
             };
             check.Click += (_, _) => ViewModel.SetColumnVisible(key, check.IsChecked == true);
+            _columnChecks[key] = check;
             panel.Children.Add(check);
         }
         ColumnsButton.Flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
