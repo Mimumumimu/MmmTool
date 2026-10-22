@@ -376,7 +376,7 @@
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
-| `ReportExcluded` | 真偽 | `bit` | 0 | 作業報告に含めないか。1 は、作業報告の実績にも予定にも、ノートの「全員」の人の一覧にも出さない。定例の会議など、報告しない作業に付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列なので、更新用スクリプト `004_AddWorkReportExclusion.sql` が足す。SQL Server は ALTER で末尾に付くので、並びは SSMS で直す。SQLite は列の位置を決められず、末尾のまま |
+| `ReportExcluded` | 真偽 | `bit` | 0 | 作業報告に含めないか。1 は、作業報告の実績にも予定にも、ノートの「全員」の人の一覧にも出さない。定例の会議など、報告しない作業に付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列なので、SQL Server は更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、SQLite は `Sql/schema.sql` との点検が足す。SQL Server は ALTER で末尾に付くので、並びは SSMS で直す。SQLite は列の位置を決められず、末尾のまま |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 2・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 2・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
@@ -385,7 +385,7 @@
   - `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 表示する案件の中身の読み込み・差分 (論理削除された行も含む)
   - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
   - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
-  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
+  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、更新用スクリプトの `004` で足した
 
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 
@@ -412,7 +412,7 @@
 - インデックスは、次の 3 つ
   - `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`: その日の記録 (削除されていない行だけ)
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
-  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
+  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、更新用スクリプトの `004` で足した
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
 
@@ -441,7 +441,7 @@
   - 日付の範囲の読み込みと、直近の日の検索にも使う
 - インデックスは、次の 2 つ
   - 一意の `(UserId, Date)`
-  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、`004_AddWorkReportExclusion.sql` で足した
+  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、更新用スクリプトの `004` で足した
   - 差分の取得 (更新日時の索引)は持たない
   - 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない
   - 問い合わせの数も増やさない
@@ -707,7 +707,8 @@
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
 - 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`
   - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
-  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` と、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。SQLite も同じ名前・同じ設計のスクリプトを持つ。
+  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` と、ノートの「全員」の人の一覧用の索引 3 つで、リリースまで、この版の変更は、このファイルに足す。
+  - SQL Server は、管理者が手で流すので、リリースまで同じ番号のファイルに変更を集める。SQLite は、あるべき形の `Sql/schema.sql` が列・索引・表の追加を担うので、同じ変更を番号つきのスクリプトに書かない。詳細は、下の「あるべき形の点検」にある。
   - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
   - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
     - リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)
@@ -809,6 +810,17 @@
   - 何度流しても壊れない形 (`IF NOT EXISTS`)にする
   - ローカルのファイルはアプリのものなので、開くとき、`PRAGMA user_version` より新しい番号のスクリプトを順に、1 つのトランザクションで実行して、`user_version` を更新する
   - SQL Server は、アプリが表の有無を調べて知らせるだけ
+- **あるべき形の点検**: `Sql/schema.sql` に、今の設計の表と索引を、すべて書く (初期データは含めない)
+  - 開くとき、版の更新のあとに、実際の DB と比べて、足りない列・表・索引を足す
+    - 点検は SDK の `SqliteSchemaRepair` が行い、版の番号には頼らない
+  - 列・索引・表を足す変更は、`schema.sql` に書き足すだけにする。番号つきのスクリプトには書かない
+    - 番号つきのスクリプトは、一度流した DB には二度と流れないので、書き換えると、流し済みの DB に変更が届かないため
+    - 版の番号を細かく上げる方式にしない。変更ごとに番号を足すと、リリースのたびに、まとめ直しが要るため
+  - 足した列は、実際の DB の表の末尾に付く。SQLite は、列の位置を決められないため
+    - 定義は、`schema.sql` の `CREATE TABLE` に書いたまま使い、`CHECK` も含む
+  - 直せないもの: 列の名前の変更・型の変更・削除・データの書き換え。これらは、番号つきのスクリプトで行う
+  - 表の中に、コメントを書かない (列の定義を取り出すとき、定義の一部になるため)
+  - `001` から `004` を流した結果と、`schema.sql` の形は同じ。番号つきのスクリプトは、リリース済みなので変えない
 - **壊れたファイル**: DB として開けない (`SQLITE_NOTADB`・`SQLITE_CORRUPT`)ときは、[storage.md](storage.md) の決まりと同じく、同じフォルダの `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて退避し、空の DB を作り直して、メッセージを返す
   - 同じ秒なら `-2` 以降を付ける
   - 自動では消さない
@@ -822,6 +834,7 @@
   - ファイルの場所・開く・版の更新・壊れたファイルの扱いは SDK の `MmmSdk.Db.Sqlite` ([db-sqlite.md](../../external/MmmSdk/docs/db-sqlite.md))
   - 表の操作は `MmmTool.Data.Sqlite`(`SqliteWorkItemRepository`)
   - 作成用のスクリプトは `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql` (埋め込みリソースで、番号つきのものだけを版の更新に使う)
+  - あるべき形は `Sql/schema.sql` (埋め込みリソースで、`SqliteDatabaseOptions.SchemaSql` に渡す)
   - 集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (埋め込まず、管理者が、アプリを止めてから流す)
   - SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う
   - コードマスタの初期値は、作成用のスクリプトが入れる

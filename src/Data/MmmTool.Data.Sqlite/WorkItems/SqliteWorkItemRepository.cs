@@ -130,7 +130,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             connection => QueryAsync(
                 connection,
                 null,
-                // SQL Server と同じ問い合わせ。担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。作業報告に含めない作業は数えない。索引は 004_AddWorkReportExclusion.sql にある
+                // SQL Server と同じ問い合わせ。担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。作業報告に含めない作業は数えない。索引は schema.sql にある
                 """
                 SELECT i.AssigneeUserId FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExcluded = 0 AND i.StatusCodeNo IN (@planned, @inProgress)
                 UNION

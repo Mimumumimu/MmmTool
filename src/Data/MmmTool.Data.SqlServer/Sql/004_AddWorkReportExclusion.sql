@@ -1,5 +1,5 @@
 -- 版 4: 作業に「作業報告に含めない」列を足す。ノートの「全員」の枠が、作業報告の人の一覧を引くための索引を 3 つ足す。設計は docs/specs/work-report.md と docs/specs/database.md。
--- 何度流しても壊れない。無いものだけを作る。リリースまで、この版の変更はこのファイルに集める。DELETE 文は含まない。SQLite の 004_AddWorkReportExclusion.sql と同じ設計。
+-- 何度流しても壊れない。無いものだけを作る。リリースまで、この版の変更はこのファイルに集める。DELETE 文は含まない。SQLite は、同じ列と索引を、あるべき形の schema.sql が足す。
 -- 使い方: 001_CreateTables.sql と同じ。DB を選んでから、表を作れる権限のあるユーザーで実行する。sqlcmd は -I と -f 65001 を付ける。
 
 -- 作業報告に含めない作業の印。定例の会議などに付け、1 は実績にも予定にも出さない。ALTER で付いた列は表の末尾にあるので、並びは docs/specs/database.md の WorkItem の表のとおり Link の次に直す

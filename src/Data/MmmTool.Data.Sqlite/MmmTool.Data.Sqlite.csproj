@@ -7,6 +7,8 @@
   <ItemGroup>
     <!-- 版を上げるスクリプト (番号つき)だけを埋め込む。集計の作り直しのスクリプト (Sql/Maintenance)は含めない -->
     <EmbeddedResource Include="Sql\0*.sql" LogicalName="MmmTool.Data.Sqlite.Sql.%(Filename)%(Extension)" />
+    <!-- あるべき表と索引の形。起動のたびに、実際の DB と比べて、足りないものを足す -->
+    <EmbeddedResource Include="Sql\schema.sql" LogicalName="MmmTool.Data.Sqlite.Sql.schema.sql" />
   </ItemGroup>
 
   <ItemGroup>

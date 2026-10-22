@@ -32,4 +32,15 @@ internal static class SqliteMigrations
         }
         return migrations;
     }
+
+    /// <summary>あるべき表と索引の SQL を読む</summary>
+    /// <returns>あるべき形の SQL</returns>
+    /// <remarks>埋め込みリソースの <c>Sql/schema.sql</c> を読む。番号つきのスクリプトとは別で、版の番号を持たない。列・索引・表を足す変更は、このファイルに書き足す。</remarks>
+    public static string LoadSchema()
+    {
+        var assembly = typeof(SqliteMigrations).Assembly;
+        using var stream = assembly.GetManifestResourceStream(ResourcePrefix + "schema.sql") ?? throw new InvalidOperationException("あるべき形の schema.sql を読めません。");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 }
