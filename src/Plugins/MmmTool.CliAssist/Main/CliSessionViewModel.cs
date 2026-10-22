@@ -220,8 +220,9 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <returns>チップの一覧</returns>
     private List<QuickMessageItem> CreateQuickMessageItems() => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem)];
 
-    /// <summary>よく使う文のチップを出すか (入力欄が空で、文が 1 件以上あるとき)</summary>
-    public bool ShowQuickMessages => QuickMessages.Count > 0 && string.IsNullOrEmpty(InputText);
+    /// <summary>よく使う文の行を出すか</summary>
+    /// <remarks>入力欄が空のときに出す。編集ボタンがあるので、文が 0 件でも出す。</remarks>
+    public bool ShowQuickMessages => string.IsNullOrEmpty(InputText);
 
     /// <summary>よく使う文を入力欄に入れる (送信はしない)。</summary>
     /// <param name="item">選ばれたチップ</param>
