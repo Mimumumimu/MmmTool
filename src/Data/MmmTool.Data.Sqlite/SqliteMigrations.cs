@@ -11,6 +11,10 @@ internal static class SqliteMigrations
     /// <summary>リソース名の前置き (csproj の <c>LogicalName</c> と同じ)</summary>
     private const string ResourcePrefix = "MmmTool.Data.Sqlite.Sql.";
 
+    /// <summary>あるべき形の埋め込みリソースの名前 (csproj の <c>LogicalName</c> と同じ)</summary>
+    /// <remarks>番号つきのスクリプトの前置き (<see cref="ResourcePrefix"/>)とは別にする。同じ前置きだと、版を上げるスクリプトとして読まれる。</remarks>
+    private const string SchemaResourceName = "MmmTool.Data.Sqlite.Schema.schema.sql";
+
     /// <summary>埋め込んだスクリプトを、版の順に読む</summary>
     /// <returns>版を上げるスクリプト</returns>
     public static IReadOnlyList<SqliteMigration> Load()
@@ -39,7 +43,7 @@ internal static class SqliteMigrations
     public static string LoadSchema()
     {
         var assembly = typeof(SqliteMigrations).Assembly;
-        using var stream = assembly.GetManifestResourceStream(ResourcePrefix + "schema.sql") ?? throw new InvalidOperationException("あるべき形の schema.sql を読めません。");
+        using var stream = assembly.GetManifestResourceStream(SchemaResourceName) ?? throw new InvalidOperationException("あるべき形の schema.sql を読めません。");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
