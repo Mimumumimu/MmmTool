@@ -159,7 +159,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
             Items.RemoveAt(Items.Count - 1);
         }
 
-        // 開いたまま日付が変わっても、「過去」の判定が古いままにならないよう、0 時に読み直す
-        ScheduleDayChange(now);
+        // 開いたまま日付が変わっても、「過去」の判定が古いままにならないよう、日付が変わったら読み直す
+        MarkShown(now);
     }
 }

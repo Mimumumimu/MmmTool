@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
@@ -14,15 +15,11 @@ namespace MmmTool.Reminders;
 /// </remarks>
 public abstract class ReminderViewModelBase : ObservableObject, IDisposable
 {
-    /// <summary>日付が変わってから読み直すまでの余裕</summary>
-    /// <remarks>タイマーが 0 時ちょうどより少し早く来ても、前の日のまま読み直さないため。</remarks>
-    private static readonly TimeSpan DayChangeMargin = TimeSpan.FromSeconds(1);
-
-    /// <summary>作ったスレッド (UI スレッド)。変更の通知をここへ戻す</summary>
+    /// <summary>作ったスレッドである UI スレッド。変更の通知をここへ戻す</summary>
     private readonly SynchronizationContext _context;
 
-    /// <summary>日付が変わったら読み直すタイマー</summary>
-    private readonly ITimer _dayTimer;
+    /// <summary>画面に出している日付と今の日付を毎分比べ、違っていたら読み直させる</summary>
+    private readonly DayChangeWatcher _dayWatcher;
 
     /// <summary>直近の操作 (保存・リンクを開く)の失敗のメッセージ。無ければ null</summary>
     /// <remarks>読み込みの失敗と違い、保存先の状態からは組み立てられないので、次の操作が成功するまで覚えておく。</remarks>
@@ -41,7 +38,7 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
         Time = time;
         _context = SynchronizationContext.Current
             ?? throw new InvalidOperationException("ViewModel は UI スレッドで作ってください (変更の通知を、作ったスレッドへ戻して反映するため)。");
-        _dayTimer = time.CreateTimer(_ => PostRefresh(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _dayWatcher = new DayChangeWatcher(time);
         Reminders.Changed += OnRemindersChanged;
     }
 
@@ -56,18 +53,22 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
 
     /// <summary>最初の読み込み</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <remarks>ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。</remarks>
+    /// <remarks>
+    /// ファイルを読めなかった・壊れていたときは、そのことをエラーに出す。
+    /// 日付の監視は、最初の読み込みのあとに始める。読み込みの前に始めると、日付を覚える前に比べて、二重に読み込むため。
+    /// </remarks>
     public async Task InitializeAsync()
     {
         await RefreshAsync();
         UpdateError();
+        _dayWatcher.Start(PostRefresh);
     }
 
-    /// <summary>購読をやめ、日付変更のタイマーを止める</summary>
+    /// <summary>購読をやめ、日付の監視を止める</summary>
     public virtual void Dispose()
     {
         Reminders.Changed -= OnRemindersChanged;
-        _dayTimer.Dispose();
+        _dayWatcher.Dispose();
     }
 
     /// <summary>読み直す</summary>
@@ -113,17 +114,13 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
         UpdateError();
     }
 
-    /// <summary>次の 0 時に読み直すよう、タイマーを掛け直す</summary>
-    /// <param name="now">読み直しの基準にした現在の日時</param>
+    /// <summary>画面に出した一覧が、何日の分かを覚える</summary>
+    /// <param name="now">一覧を作るのに使った現在の日時</param>
     /// <remarks>
-    /// 今日の対象・「過去」の判定が、開いたまま日付をまたいで古くならないようにする。読み直すたびに掛け直すので、時計の変更にもある程度追従する。
-    /// 読み直し (<see cref="RefreshAsync"/>)の最後で呼ぶ。
+    /// 今日の対象・「過去」の判定が、開いたまま日付をまたいで古くならないようにする。毎分、今の日付とここで覚えた日付を比べ、違っていれば読み直す。
+    /// 読み直し (<see cref="RefreshAsync"/>)で、古い読み込みとして捨てなかった結果を画面に反映した後に呼ぶ。
     /// </remarks>
-    protected void ScheduleDayChange(DateTime now)
-    {
-        var nextDay = DateOnly.FromDateTime(now).AddDays(1).ToDateTime(TimeOnly.MinValue);
-        _dayTimer.Change(nextDay - now + DayChangeMargin, Timeout.InfiniteTimeSpan);
-    }
+    protected void MarkShown(DateTime now) => _dayWatcher.MarkShown(now);
 
     /// <summary>保存を伴う操作を行い、失敗したらエラーに出す</summary>
     /// <param name="action">行う操作</param>

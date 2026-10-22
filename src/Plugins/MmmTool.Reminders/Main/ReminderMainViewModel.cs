@@ -152,7 +152,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
         DoneHeader = $"完了 ({Done.Count})";
         IsEmpty = targets.Count == 0;
 
-        ScheduleDayChange(now);
+        MarkShown(now);
     }
 
     /// <summary>行を並ぶべき内容に合わせる (差分更新)</summary>
