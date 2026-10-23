@@ -285,6 +285,13 @@
   - `Web:PublicOrigin` は、外から見えるアドレスで、パスキーの検証に使う (既定は `http://localhost:5080`)
 - 公開は `tailscale funnel 5080`。サーバーは `localhost` だけで待ち受け、外へ出すのは Funnel だけにする。
 - 起動と停止は手動 (サービスやスタートアップにしない)
+- 開発中は、発行せずに、VS の F5 か `dotnet run --project src\App\MmmToolWeb\Server` で動かす (`Properties/launchSettings.json` の `http://localhost:5080`)
+  - 初回だけ、`bin\Debug\net10.0` の実行ファイルで `setup-db` を流して、DB の接続を保存する (`Data` は実行ファイルのフォルダにあるため)
+  - 開発用ログイン: Debug ビルドで、環境が `Development` のときだけ、ログイン画面 (`/`)に「開発用ログイン (Debug のみ)」の欄が出る。ログイン名を手で入れて押すと、パスワードなしでその人としてログインする (`POST /api/auth/dev-login`)
+    - 省くのはパスキーの確認だけ。ログイン状態の Cookie は本物を発行し、そのあとの今のユーザーの決め方は本番と同じ
+    - サーバーの口 (`DevAuthEndpoints`)・画面の欄 (`Home.razor`)・呼び出し (`AuthClient.DevLoginAsync`)・要求の型 (`DevLoginRequest`)は、すべて `#if DEBUG` で囲むので、Release で発行した物には入らない
+    - Funnel も同じ PC の `localhost` から転送してくるので、「`localhost` からの要求だけ」を条件にしない。代わりに、Funnel が付ける `X-Forwarded-For` か `X-Original-For` (`UseForwardedHeaders` が前者を後者へ移す)がある要求を 404 で断る。Debug ビルドを公開したままにしても、外からは使えない
+    - 自動ログイン (ログイン名を設定で決めておく形)は作らない (設定の置き場が 2 つになるため)
 - 配る形は、`dotnet publish` の出力 (フレームワーク依存)
   - 動かす PC に ASP.NET Core Runtime 10 が要る
 

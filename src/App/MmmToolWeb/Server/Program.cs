@@ -185,6 +185,10 @@ app.UseAuthentication();
 app.UseMiddleware<ActiveUserMiddleware>();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+#if DEBUG
+// 開発用のビルドだけ、ログイン名だけでログインできる口を足す (Release の発行物には入らない)
+app.MapDevAuthEndpoints();
+#endif
 app.MapWebFeatures();
 app.MapFallbackToFile("index.html");
 

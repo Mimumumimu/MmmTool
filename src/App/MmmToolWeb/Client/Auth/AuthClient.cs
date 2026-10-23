@@ -67,6 +67,24 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
             : AuthResult.Fail($"登録を完了できませんでした。エラー番号は {(int)finish.StatusCode} です。");
     }
 
+#if DEBUG
+    /// <summary>
+    /// 開発用のビルド (Debug)だけ、ログイン名を指定して、パスワードなしでログインする。
+    /// </summary>
+    /// <param name="loginName">ログインする人のログイン名。</param>
+    /// <returns>手続きの結果。</returns>
+    public async Task<AuthResult> DevLoginAsync(string loginName)
+    {
+        using var response = await http.PostAsJsonAsync("api/auth/dev-login", new DevLoginRequest(loginName));
+        return response.StatusCode switch
+        {
+            HttpStatusCode.NoContent => AuthResult.Success,
+            HttpStatusCode.Unauthorized => AuthResult.Fail("今使えるユーザーが見つかりません。"),
+            _ => AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)response.StatusCode} です。"),
+        };
+    }
+
+#endif
     /// <summary>
     /// 登録済みのパスキーでログインする。
     /// </summary>

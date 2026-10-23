@@ -187,12 +187,26 @@ internal static class AuthEndpoints
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>発行できたら 204。その人が今は使えない状態 (削除済み・使える期間の外)なら 401。</returns>
     private static async Task<IResult> SignInAsync(
+        HttpContext context, WebUserLookup users, int appUserId, CancellationToken cancellationToken) =>
+        await IssueSessionAsync(context, users, appUserId, cancellationToken) is null
+            ? Results.Unauthorized()
+            : Results.NoContent();
+
+    /// <summary>
+    /// ログイン状態の Cookie を発行し、その人のログイン状態を返す。
+    /// </summary>
+    /// <param name="context">今の要求。</param>
+    /// <param name="users">ログインできる人の検索。</param>
+    /// <param name="appUserId">ログインした人のユーザーの番号。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>発行したログイン状態。その人が今は使えない状態 (削除済み・使える期間の外)なら null。</returns>
+    internal static async Task<ClaimsPrincipal?> IssueSessionAsync(
         HttpContext context, WebUserLookup users, int appUserId, CancellationToken cancellationToken)
     {
         var user = await users.FindActiveAsync(appUserId, cancellationToken);
         if (user is null)
         {
-            return Results.Unauthorized();
+            return null;
         }
         var now = DateTimeOffset.UtcNow;
         var identity = new ClaimsIdentity(
@@ -202,13 +216,14 @@ internal static class AuthEndpoints
                 new Claim(SignedInAtClaim, now.ToString("O")),
             ],
             CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
         await context.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
+            principal,
             new AuthenticationProperties { IsPersistent = true, IssuedUtc = now, ExpiresUtc = now + SessionLifetime });
         context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(SecurityLog.Category)
             .LogInformation("ログイン状態を発行しました。ユーザー番号={UserId} 接続元={Address}", user.Id, context.Connection.RemoteIpAddress);
-        return Results.NoContent();
+        return principal;
     }
 
     /// <summary>
