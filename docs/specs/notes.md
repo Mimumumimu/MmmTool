@@ -99,6 +99,7 @@
   - 作り直すとき (切り替え・読み直し・保存)は、読んでいる位置と開いているカードを、作り直す前に取り出して、保つ (日付・切り替えを変えたときは、保たない)
   - WebView2 は、SDK のターミナルと同じ保存先 (`AppEnvironment.WebView2Directory`)・同じ設定 (`WebView2Setup`)で作る
     - 同じプロセスの WebView2 は、同じ保存先なら同じ設定が要るため
+    - スクロールバーは、細い重なりの形 (`FluentOverlay`)にする。既定の形は、幅が広く上下に矢印が付き、ほかの画面と見た目が違うため。指定は `WebView2Setup` の1か所で、ターミナルも同じ。
     - 詳細は [SDK の terminal.md](../../external/MmmSdk/docs/terminal.md)
   - 初期化できないとき (WebView2 ランタイムが無い)は、一覧の場所に理由を文字で出す
 - 1 枚のカードの上の行に出すもの
