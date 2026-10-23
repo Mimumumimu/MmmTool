@@ -256,7 +256,9 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>よく使う文から、チップの一覧を作る</summary>
     /// <returns>チップの一覧</returns>
-    private List<QuickMessageItem> CreateQuickMessageItems() => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem)];
+    /// <remarks>文が 0 件のグループは、押しても何も開かないので、出さない。</remarks>
+    private List<QuickMessageItem> CreateQuickMessageItems()
+        => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem).Where(item => item.Items is not { Count: 0 })];
 
     /// <summary>よく使う文の行を出すか</summary>
     /// <remarks>入力欄が空のときに出す。編集ボタンがあるので、文が 0 件でも出す。</remarks>
@@ -264,13 +266,20 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>よく使う文を入力欄に入れる (送信はしない)。</summary>
     /// <param name="item">選ばれたチップ</param>
-    public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text;
+    public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text ?? string.Empty;
 
-    /// <summary>よく使う文からチップを作る</summary>
-    /// <param name="message">よく使う文 (本文は空でない)</param>
-    /// <returns>チップ (名前が無いときは、本文の 1 行目を名前にする)</returns>
+    /// <summary>よく使う文またはグループからチップを作る</summary>
+    /// <param name="message">よく使う文 (本文は空でない)またはグループ</param>
+    /// <returns>チップ</returns>
+    /// <remarks>文は、名前が無ければ本文の 1 行目を名前にする。グループは、中の文のチップを持つ。</remarks>
     private static QuickMessageItem CreateQuickMessageItem(CliQuickMessage message)
     {
+        if (message.Items is { } children)
+        {
+            var groupName = string.IsNullOrWhiteSpace(message.Label) ? "(未入力)" : SendText.ToSingleLine(message.Label);
+            return new QuickMessageItem(groupName, null, [.. children.Select(CreateQuickMessageItem)]);
+        }
+
         var text = message.Text!;
         var source = string.IsNullOrWhiteSpace(message.Label)
             ? text.Split('\n').First(line => !string.IsNullOrWhiteSpace(line))

@@ -19,55 +19,66 @@
 
         <Grid Height="300" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="264" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- 一覧 (ドラッグで並べ替え) + 追加・削除 -->
+            <!-- 一覧 (ドラッグで並べ替えと、グループへの出し入れ) + 追加・削除 -->
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid>
-                    <ListView
+                    <!-- 文は子を持てないので、その上へは落とせない。AllowDrop はグループの行だけで、グループをドラッグしている間は、コードビハインドが外す。グループの中の文の間へ落ちたときは、ViewModel が外へ出す -->
+                    <TreeView
+                        x:Name="Tree"
                         AllowDrop="True"
+                        CanDragItems="True"
                         CanReorderItems="True"
-                        ItemsSource="{x:Bind ViewModel.Items}"
-                        SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
+                        DragItemsStarting="OnTreeDragItemsStarting"
+                        ItemsSource="{x:Bind ViewModel.RootItems}"
+                        SelectionChanged="OnTreeSelectionChanged"
                         SelectionMode="Single">
-                        <ListView.ItemTemplate>
+                        <TreeView.ItemTemplate>
                             <DataTemplate x:DataType="local:QuickMessageEditItem">
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon
-                                        VerticalAlignment="Center"
-                                        FontSize="12"
-                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                        Glyph="&#xE76F;"
-                                        ToolTipService.ToolTip="ドラッグで並べ替え" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        Text="{x:Bind DisplayName, Mode=OneWay}"
-                                        TextTrimming="CharacterEllipsis"
-                                        ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
-                                </Grid>
+                                <TreeViewItem
+                                    AllowDrop="{x:Bind IsGroup}"
+                                    AutomationProperties.Name="{x:Bind DisplayName, Mode=OneWay}"
+                                    HorizontalContentAlignment="Stretch"
+                                    IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                    ItemsSource="{x:Bind Children}">
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <FontIcon
+                                            VerticalAlignment="Center"
+                                            FontSize="14"
+                                            Glyph="{x:Bind Glyph, Mode=OneWay}" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind DisplayName, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis"
+                                            ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                    </Grid>
+                                </TreeViewItem>
                             </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
                     <TextBlock
                         Margin="4,8"
                         Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Text="よく使う文はありません。「追加」で作成します"
+                        IsHitTestVisible="False"
+                        Text="よく使う文はありません。「文を追加」で作成します"
                         TextWrapping="Wrap"
                         Visibility="{x:Bind ViewModel.HasNoItems, Mode=OneWay}" />
                 </Grid>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
-                    <Button Command="{x:Bind ViewModel.AddCommand}" Content="追加" />
+                    <Button Command="{x:Bind ViewModel.AddMessageCommand}" Content="文を追加" />
+                    <Button Command="{x:Bind ViewModel.AddGroupCommand}" Content="グループを追加" />
                     <Button Command="{x:Bind ViewModel.RemoveCommand}" Content="削除" />
                 </StackPanel>
             </Grid>
@@ -76,12 +87,22 @@
             <StackPanel
                 Grid.Column="1"
                 Spacing="12"
-                Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                Visibility="{x:Bind ViewModel.IsGroupSelected, Mode=OneWay}">
+                <TextBox
+                    x:Name="GroupNameBox"
+                    Header="グループ名"
+                    Text="{x:Bind ViewModel.SelectedItem.Label, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
+            </StackPanel>
+            <StackPanel
+                Grid.Column="1"
+                Spacing="12"
+                Visibility="{x:Bind ViewModel.IsMessageSelected, Mode=OneWay}">
                 <TextBox
                     Header="表示名 (省略可)"
                     PlaceholderText="省略すると、文の 1 行目"
                     Text="{x:Bind ViewModel.SelectedItem.Label, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
                 <TextBox
+                    x:Name="MessageTextBox"
                     Height="180"
                     AcceptsReturn="True"
                     Header="文"

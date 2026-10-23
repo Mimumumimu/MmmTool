@@ -401,17 +401,18 @@ public sealed partial class CliSessionView : UserControl
 
     #region よく使う文
 
-    /// <summary>よく使う文のチップが押されたら、入力欄に入れる (送信はしない)</summary>
-    /// <param name="sender">イベントの送信元 (チップのボタン)</param>
-    /// <param name="e">イベントの情報</param>
-    private void OnQuickMessageClick(object sender, RoutedEventArgs e)
+    /// <summary>よく使う文が選ばれたら、入力欄に入れる (送信はしない)</summary>
+    /// <param name="sender">イベントの送信元 (チップの行)</param>
+    /// <param name="item">選ばれた文</param>
+    /// <remarks>一覧から選んだときは、一覧が閉じてから元のボタンにフォーカスが戻るので、そのあとに入力欄へ移す。</remarks>
+    private void OnQuickMessageChosen(object? sender, QuickMessageItem item)
     {
-        if ((sender as FrameworkElement)?.Tag is QuickMessageItem item)
+        ViewModel.UseQuickMessage(item);
+        DispatcherQueue.TryEnqueue(() =>
         {
-            ViewModel.UseQuickMessage(item);
             InputBox.Focus(FocusState.Programmatic);
             InputBox.SelectionStart = InputBox.Text.Length;
-        }
+        });
     }
 
     #endregion

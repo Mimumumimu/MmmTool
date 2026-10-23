@@ -166,84 +166,13 @@
                         </TextBox.Resources>
                     </TextBox>
                     <!-- よく使う文 (入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く) -->
-                    <ScrollViewer
+                    <local:QuickMessageBar
                         Margin="0,0,8,0"
-                        HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
-                        HorizontalScrollBarVisibility="Hidden"
-                        HorizontalScrollMode="Auto"
-                        VerticalScrollMode="Disabled"
-                        Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <!-- 控えめな見た目。枠だけで押せることを示し、マウスを乗せたときだけ薄く塗る。編集ボタンと文のチップで共有する -->
-                            <!-- 色はテーマごとの辞書に直接書く (StaticResource の別名は読み込み時のテーマで固定され、テーマを切り替えても追従しない) -->
-                            <StackPanel.Resources>
-                                <ResourceDictionary>
-                                    <ResourceDictionary.ThemeDictionaries>
-                                        <ResourceDictionary x:Key="Default">
-                                            <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#0FFFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0AFFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#66FFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#66FFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#66FFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonForeground" Color="#C5FFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF" />
-                                            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#C5FFFFFF" />
-                                        </ResourceDictionary>
-                                        <ResourceDictionary x:Key="Light">
-                                            <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#09000000" />
-                                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#06000000" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrush" Color="#66000000" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#66000000" />
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#66000000" />
-                                            <SolidColorBrush x:Key="ButtonForeground" Color="#9E000000" />
-                                            <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#E4000000" />
-                                            <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#9E000000" />
-                                        </ResourceDictionary>
-                                    </ResourceDictionary.ThemeDictionaries>
-                                </ResourceDictionary>
-                            </StackPanel.Resources>
-
-                            <!-- よく使う文の編集。先頭に固定し、文が 0 件でも出す -->
-                            <Button
-                                Width="32"
-                                Height="22"
-                                Padding="0"
-                                AutomationProperties.Name="よく使う文を編集"
-                                Command="{x:Bind ViewModel.EditQuickMessagesCommand}"
-                                CornerRadius="12"
-                                ToolTipService.ToolTip="よく使う文を編集">
-                                <FontIcon FontSize="12" Glyph="&#xE70F;" />
-                            </Button>
-                            <ItemsControl ItemsSource="{x:Bind ViewModel.QuickMessages, Mode=OneWay}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" Spacing="6" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:QuickMessageItem">
-                                        <Button
-                                            Height="22"
-                                            MaxWidth="240"
-                                            Padding="10,0"
-                                            AutomationProperties.Name="{x:Bind Text}"
-                                            Click="OnQuickMessageClick"
-                                            CornerRadius="12"
-                                            FontSize="12"
-                                            Tag="{x:Bind}"
-                                            ToolTipService.ToolTip="{x:Bind Text}">
-                                            <TextBlock Text="{x:Bind Label}" TextTrimming="CharacterEllipsis" />
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </ScrollViewer>
+                        EditCommand="{x:Bind ViewModel.EditQuickMessagesCommand}"
+                        MessageChosen="OnQuickMessageChosen"
+                        Messages="{x:Bind ViewModel.QuickMessages, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}" />
                     <StackPanel
                         Grid.Column="1"
                         VerticalAlignment="Center"
