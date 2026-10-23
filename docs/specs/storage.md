@@ -47,7 +47,7 @@
 
 | 項目 | キー | 値 |
 | --- | --- | --- |
-| 作業管理の表示列 | `WorkItems.HiddenColumns`・`WorkItems.MineOnly` | |
+| 作業管理の列の表示と自分の担当だけ | `WorkItems.HiddenColumns`・`WorkItems.MineOnly` | |
 | 作業報告の「実績に時間を出す」 | `WorkItems.Report.ShowHours` | 真偽。既定は false |
 | 作業報告の「進捗度表示」 | `WorkItems.Report.ShowProgress` | 真偽。既定は true |
 | ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |

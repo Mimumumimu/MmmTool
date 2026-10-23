@@ -10,6 +10,7 @@ using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Controls;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.WorkItems.Core;
+using MmmTool.WorkItems.ViewOptions;
 using Windows.System;
 
 namespace MmmTool.WorkItems.Main;
@@ -96,14 +97,22 @@ public sealed partial class WorkItemPage : Page
         rowMenu.Opening += OnRowMenuOpening;
         TreeGrid.RowContextFlyout = rowMenu;
         TreeGrid.CellInvoked += OnCellInvoked;
-        TreeGrid.EditCanceled += (_, e) => (e.Row as WorkItemRow)?.Revert();
+        TreeGrid.EditCanceled += (_, e) =>
+        {
+            if (e.Row is WorkItemRow row)
+            {
+                row.Revert();
+                ViewModel.ReleaseAdded(row);
+            }
+        };
         TreeGrid.EditEnding += OnEditEnding;
         TreeGrid.ItemsSource = ViewModel.Rows;
         TreeGrid.RowToggleRequested += (_, e) => ViewModel.Toggle((WorkItemRow)e.Row);
         Unloaded += (_, _) => ViewModel.Suspend();
         TreeGrid.SelectedRowChanged += (_, _) => ViewModel.SelectedRow = TreeGrid.SelectedRow as WorkItemRow;
 
-        BuildColumnsFlyout();
+        BuildViewFlyout();
+        BuildFilterFlyout();
         ApplyColumns(fitAll: true);
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -382,10 +391,11 @@ public sealed partial class WorkItemPage : Page
         return menu;
     }
 
-    /// <summary>「表示列」のボタンに、列ごとのチェックを並べた入れ物を付ける</summary>
-    /// <remarks>続けて何列も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
-    private void BuildColumnsFlyout()
+    /// <summary>「表示」のボタンに、見え方の設定 (過去の完了・列)を並べた入れ物を付ける</summary>
+    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
+    private void BuildViewFlyout()
     {
+        var completed = new CompletedDisplaySection("過去の完了", "入力日に完了した作業は、常に表示します", index => ViewModel.CompletedIndex = index);
         var panel = new StackPanel { Spacing = 0 };
         foreach (var column in _columns.Where(c => c.Key != "Name" && (c.Key != "Assignee" || ViewModel.HasAssignees)))
         {
@@ -400,7 +410,41 @@ public sealed partial class WorkItemPage : Page
             _columnChecks[key] = check;
             panel.Children.Add(check);
         }
-        ColumnsButton.Flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        var content = new StackPanel { Spacing = 16 };
+        content.Children.Add(completed);
+        var columns = new StackPanel { Spacing = 4 };
+        columns.Children.Add(new TextBlock { Text = "列", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        columns.Children.Add(panel);
+        content.Children.Add(columns);
+        var flyout = new Flyout { Content = content, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        flyout.Opening += (_, _) => completed.Select(ViewModel.CompletedIndex);
+        ViewButton.Flyout = flyout;
+    }
+
+    /// <summary>「絞り込み」のボタンに、絞り込みの条件 (状態)を並べた入れ物を付ける</summary>
+    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。条件が増えたときは、見出し付きの部を足す。チェックはコードマスタの状態から、開くたびに作る。</remarks>
+    private void BuildFilterFlyout()
+    {
+        var panel = new StackPanel { Spacing = 0 };
+        var flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        flyout.Opening += (_, _) =>
+        {
+            panel.Children.Clear();
+            panel.Children.Add(new TextBlock { Text = "状態", Margin = new Thickness(0, 0, 0, 4), Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            foreach (var status in ViewModel.StatusChoices)
+            {
+                var codeNo = status.CodeNo;
+                var check = new CheckBox
+                {
+                    Content = status.Text,
+                    IsChecked = ViewModel.IsStatusShown(codeNo),
+                    MinWidth = 0,
+                };
+                check.Click += (_, _) => ViewModel.SetStatusShown(codeNo, check.IsChecked == true);
+                panel.Children.Add(check);
+            }
+        };
+        FilterButton.Flyout = flyout;
     }
 
     #endregion

@@ -62,6 +62,14 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
 
+    /// <summary>隠す状態のコード番号</summary>
+    /// <remarks>保存しない。空なら、すべての状態を出す。</remarks>
+    private readonly HashSet<int> _hiddenStatuses = [];
+
+    /// <summary>追加した直後で、名前を入力中の作業</summary>
+    /// <remarks>状態の絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
+    private WorkKey? _addedKey;
+
     /// <summary>選択欄の選択肢 (コードマスタが変わらない間は、同じ一覧を使い回す)</summary>
     private WorkChoices _choices = new(MmmTool.CodeMaster.Core.CodeBook.Empty);
 
@@ -131,6 +139,13 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。既定は「グループのみ表示」)</summary>
     [ObservableProperty]
     public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.GroupsOnly;
+
+    /// <summary>絞り込みのボタンの文字 (効いている条件があるときは、その数を添える)</summary>
+    [ObservableProperty]
+    public partial string FilterText { get; private set; } = "絞り込み";
+
+    /// <summary>状態の選択肢 (コードマスタの表示順で、絞り込みのチェックに並べる)</summary>
+    public IReadOnlyList<WorkChoice> StatusChoices => _choices.Statuses;
 
     /// <summary>担当者に選べる人 (先頭は未割り当て、次が自分、そのあとは表示名の順)</summary>
     public IReadOnlyList<WorkAssignee> AssigneeChoices
@@ -294,6 +309,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     {
         if (!_initializing)
         {
+            _addedKey = null;
             ChangeDayAsync(value).Forget();
         }
     }
@@ -380,6 +396,56 @@ public sealed partial class WorkItemViewModel : ObservableObject
         Rebuild();
     }
 
+    /// <summary>状態を表示するか</summary>
+    /// <param name="codeNo">状態のコード番号</param>
+    /// <returns>表示するなら true</returns>
+    public bool IsStatusShown(int codeNo) => !_hiddenStatuses.Contains(codeNo);
+
+    /// <summary>状態の表示・非表示を切り替えて、表を作り直す (保存しない)</summary>
+    /// <param name="codeNo">状態のコード番号</param>
+    /// <param name="isShown">表示するか</param>
+    public void SetStatusShown(int codeNo, bool isShown)
+    {
+        if (isShown ? !_hiddenStatuses.Remove(codeNo) : !_hiddenStatuses.Add(codeNo))
+        {
+            return;
+        }
+
+        _addedKey = null;
+        Rebuild();
+    }
+
+    /// <summary>追加した作業の名前の入力を取りやめたときに、状態の絞り込みの例外を外して、表を作り直す</summary>
+    /// <param name="row">入力を取りやめた行</param>
+    public void ReleaseAdded(WorkItemRow row)
+    {
+        if (_addedKey != row.Key)
+        {
+            return;
+        }
+
+        _addedKey = null;
+        Rebuild();
+    }
+
+    /// <summary>状態の絞り込みを通る作業か</summary>
+    /// <param name="item">作業</param>
+    /// <returns>残すなら true (隠す状態に入っていない作業と、名前を入力中の追加した作業)</returns>
+    /// <remarks>隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、いつも残る。</remarks>
+    private bool KeepByStatus(WorkItem item)
+        => !_hiddenStatuses.Contains((int)item.Status) || _addedKey == new WorkKey(WorkRowKind.Work, item.Id);
+
+    /// <summary>状態の絞り込みを使っていないときは null、使っているときは <see cref="KeepByStatus"/> を返す</summary>
+    private Func<WorkItem, bool>? StatusFilter => _hiddenStatuses.Count == 0 ? null : KeepByStatus;
+
+    /// <summary>絞り込みのボタンの文字を、効いている条件の数に合わせる</summary>
+    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。</remarks>
+    private void UpdateFilterText()
+    {
+        var active = _choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0;
+        FilterText = active == 0 ? "絞り込み" : $"絞り込み ({active})";
+    }
+
     /// <summary>担当者を、確定する</summary>
     /// <param name="row">行 (作業)</param>
     /// <param name="userId">新しい担当者の番号 (0 は未割り当て)</param>
@@ -464,7 +530,17 @@ public sealed partial class WorkItemViewModel : ObservableObject
             }
 
             Error.Clear();
-            if (result.Key is { } key && _rowByKey.TryGetValue(key, out var row))
+            if (result.Key is { } key)
+            {
+                // 追加した作業が状態の絞り込みで隠れていても、名前を入力するあいだは出す
+                if (key.Kind == WorkRowKind.Work && !_rowByKey.ContainsKey(key))
+                {
+                    _addedKey = key;
+                    Rebuild();
+                }
+            }
+
+            if (result.Key is { } addedKey && _rowByKey.TryGetValue(addedKey, out var row))
             {
                 SelectedRow = row;
                 FocusNameRequested?.Invoke(this, row);
@@ -616,7 +692,28 @@ public sealed partial class WorkItemViewModel : ObservableObject
     /// <param name="column">列のキー (Name / Start / Due / Planned / ActualDay)</param>
     /// <param name="text">入力された文字</param>
     /// <returns>確定の完了を表すタスク</returns>
+    /// <remarks>追加した作業の名前を確定したら、状態の絞り込みに従って表を作り直す。隠れる状態の作業は、ここで消える。</remarks>
     public async Task CommitTextAsync(WorkItemRow row, string column, string text)
+    {
+        var released = column == "Name" && text.Trim().Length > 0 && _addedKey == row.Key;
+        if (released)
+        {
+            _addedKey = null;
+        }
+
+        await CommitTextCoreAsync(row, column, text);
+        if (released)
+        {
+            Rebuild();
+        }
+    }
+
+    /// <summary>文字の入力欄の入力を、確定する (<see cref="CommitTextAsync"/> の本体)</summary>
+    /// <param name="row">行</param>
+    /// <param name="column">列のキー</param>
+    /// <param name="text">入力された文字</param>
+    /// <returns>確定の完了を表すタスク</returns>
+    private async Task CommitTextCoreAsync(WorkItemRow row, string column, string text)
     {
         if (row.IsLocked)
         {
@@ -947,13 +1044,20 @@ public sealed partial class WorkItemViewModel : ObservableObject
         if (!ReferenceEquals(_choices.Book, _service.Codes))
         {
             _choices = new WorkChoices(_service.Codes);
+
+            // 選択肢から外れた状態 (論理削除)は、チェックから外せなくなるので、隠す状態からも外す
+            if (_choices.Statuses.Count > 0)
+            {
+                _hiddenStatuses.IntersectWith(_choices.Statuses.Select(s => s.CodeNo));
+            }
         }
+        UpdateFilterText();
 
         SyncDayNote(force: false);
 
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();
-        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter))
         {
             Visit(root, 0, target, alive);
         }
@@ -1100,7 +1204,7 @@ public sealed partial class WorkItemViewModel : ObservableObject
     private bool InsertProjectRows(int projectId)
     {
         if (_rowByKey.ContainsKey(new WorkKey(WorkRowKind.Project, projectId))
-            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex) is not { } node)
+            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter) is not { } node)
         {
             return false;
         }

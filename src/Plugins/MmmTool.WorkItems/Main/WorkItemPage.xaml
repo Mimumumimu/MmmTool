@@ -541,7 +541,7 @@
                 Grid.Column="2"
                 Orientation="Horizontal"
                 Spacing="16">
-                <!-- 左から右へ、範囲の広い順 (表示する案件 → 自分の担当だけ → 完了)。表示列は行の出し入れではないので、最後 -->
+                <!-- 左から右へ、保存する設定の絞り込み、一時的な絞り込み、見え方の設定の順。保存する設定の絞り込みは、表示する案件と自分の担当だけ。絞り込みの条件と見え方の設定は、増えても、入れ物の中の部が増えるだけで、バーの部品は増えない -->
                 <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする) -->
                 <picker:ProjectPickerButton x:Name="ProjectPickerControl" />
                 <ToggleSwitch
@@ -551,28 +551,10 @@
                     Visibility="{x:Bind ViewModel.HasAssignees}"
                     OffContent="自分の担当だけ"
                     OnContent="自分の担当だけ" />
-                <!-- 完了して日がたった作業の見え方。選択肢の並びは CompletedDisplay の値と同じ。保存しない。幅は、選択肢が収まる固定の値 (選ぶたび・開くたびに幅が変わると、右寄せの左隣のボタンの位置が動くため) -->
-                <!-- ComboBox の既定の VerticalAlignment は Top で、隣のボタンと高さがずれるため、中央にそろえる -->
-                <StackPanel
-                    VerticalAlignment="Center"
-                    Orientation="Horizontal"
-                    Spacing="8">
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="過去の完了" />
-                    <ComboBox
-                        Width="152"
-                        VerticalAlignment="Center"
-                        AutomationProperties.Name="過去の完了"
-                        SelectedIndex="{x:Bind ViewModel.CompletedIndex, Mode=TwoWay}"
-                        ToolTipService.ToolTip="入力日に完了した作業は、常に表示します">
-                        <ComboBoxItem Content="表示" />
-                        <ComboBoxItem Content="グループのみ表示" />
-                        <ComboBoxItem Content="非表示" />
-                    </ComboBox>
-                </StackPanel>
-                <DropDownButton x:Name="ColumnsButton" Content="表示列" />
+                <!-- 一時的な絞り込み。中は、見出し付きの部で、状態の部がある。保存しない。幅は固定にする。数が変わっても、右寄せの左隣のボタンの位置が動かないため -->
+                <DropDownButton x:Name="FilterButton" Width="120" VerticalAlignment="Center" Content="{x:Bind ViewModel.FilterText, Mode=OneWay}" />
+                <!-- 見え方の設定。中は、見出し付きの部 (過去の完了・列) -->
+                <DropDownButton x:Name="ViewButton" VerticalAlignment="Center" Content="表示" />
             </StackPanel>
         </Grid>
 
