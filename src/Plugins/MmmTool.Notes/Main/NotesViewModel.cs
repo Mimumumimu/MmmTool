@@ -8,6 +8,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmTool.DayContent.Core;
 using MmmTool.Notes.Core;
 
 namespace MmmTool.Notes.Main;
@@ -24,15 +25,29 @@ namespace MmmTool.Notes.Main;
 /// <param name="settings">この PC の設定の保存先 (他の機能の内容を出すか・選択肢を覚える)</param>
 /// <param name="features">機能のオン・オフ (オフの機能の内容は出さない)</param>
 /// <remarks>
-/// ほかの人の更新は、ページが見えている間だけ、表示している日の分を <see cref="RefreshInterval"/> ごとに読み直して反映する (<see cref="ResumeAsync"/> / <see cref="Suspend"/>)。
+/// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を <see cref="RefreshInterval"/> ごとに読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
+/// 他の機能の内容 (作業報告など)が変わったときは、その機能からの通知で、すぐ読み直す。見えている間だけ購読する。
 /// 読み直しでページを作り直すときは、読んでいる位置と、開いているカードを保つ。日付・切り替えを変えたときは、先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
-    DayContentService contents, ISettingsStore settings, IFeatureStatus features) : ObservableObject
+    DayContentService contents, ISettingsStore settings, IFeatureStatus features) : ObservableObject, IDisposable
 {
     /// <summary>ほかの人の更新を読み直す間隔</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>他の機能の内容が変わってから、読み直すまでの待ち時間</summary>
+    /// <remarks>表のセルを続けて直したときなど、通知が続けて来るので、まとめて 1 回だけ読み直す。</remarks>
+    private static readonly TimeSpan ContentChangeDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>変更の通知を購読している、他の機能の内容の提供元</summary>
+    private readonly List<IDayContentSource> _watched = [];
+
+    /// <summary>購読を始めたときの、画面のスレッドの同期コンテキスト (通知は、どのスレッドからでも来るため)</summary>
+    private SynchronizationContext? _uiContext;
+
+    /// <summary>通知のあとの読み直しを、取り消すためのトークンの元 (待っていないときは null)</summary>
+    private CancellationTokenSource? _contentChange;
 
     /// <summary>読み直しの間隔を待つタイマー (手動で読み直したとき、数え直す)</summary>
     private readonly RestartableTimer _refreshTimer = new(RefreshInterval);
@@ -141,7 +156,14 @@ public sealed partial class NotesViewModel(
 
         // 見えていない間に、作業報告の窓などが同じ設定を変えているかもしれない。続く読み込みで反映する
         SyncSourceSettings();
+        WatchContents();
         await ReloadAsync(preserveState: false);
+
+        // 保存先が自分だけのときは、ほかの人の更新が無いので、定期の読み直しは要らない。内容の変更は、通知で反映する
+        if (!notes.IsShared)
+        {
+            return;
+        }
 
         try
         {
@@ -204,6 +226,91 @@ public sealed partial class NotesViewModel(
         _refreshing?.Cancel();
         _refreshing?.Dispose();
         _refreshing = null;
+        UnwatchContents();
+    }
+
+    /// <summary>購読を解除する</summary>
+    /// <remarks>
+    /// 提供元はアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel がメモリに残り続ける。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)にも、呼ばれる。
+    /// </remarks>
+    public void Dispose() => Suspend();
+
+    /// <summary>他の機能の内容が変わったら読み直せるよう、変更の通知を購読する</summary>
+    private void WatchContents()
+    {
+        _uiContext = SynchronizationContext.Current;
+        foreach (var source in contents.Sources)
+        {
+            source.Changed += OnContentChanged;
+            _watched.Add(source);
+        }
+        features.Changed += OnFeatureChanged;
+    }
+
+    /// <summary>機能のオン・オフが切り替わった。画面のスレッドへ戻して、出せる内容を合わせ直す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="featureKey">切り替わった機能のキー</param>
+    private void OnFeatureChanged(object? sender, string featureKey) => _uiContext?.Post(_ =>
+    {
+        if (_refreshing is null)
+        {
+            return;
+        }
+
+        RefreshSources();
+        ScheduleContentReload();
+    }, null);
+
+    /// <summary>変更の通知の購読を解除し、待っている読み直しを取り消す</summary>
+    private void UnwatchContents()
+    {
+        foreach (var source in _watched)
+        {
+            source.Changed -= OnContentChanged;
+        }
+        _watched.Clear();
+        features.Changed -= OnFeatureChanged;
+
+        _contentChange?.Cancel();
+        _contentChange?.Dispose();
+        _contentChange = null;
+    }
+
+    /// <summary>他の機能の内容が変わった。画面のスレッドへ戻して、読み直しを予約する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnContentChanged(object? sender, EventArgs e) => _uiContext?.Post(_ => ScheduleContentReload(), null);
+
+    /// <summary>少し待ってから、枠を読み直す。待っている間に次の通知が来たら、待ち直す</summary>
+    private void ScheduleContentReload()
+    {
+        if (_refreshing is null)
+        {
+            return;
+        }
+
+        _contentChange?.Cancel();
+        _contentChange?.Dispose();
+        var source = new CancellationTokenSource();
+        _contentChange = source;
+        ReloadAfterContentChangeAsync(source.Token).Forget();
+    }
+
+    /// <summary>待ってから、読んでいる位置と開いているカードを保って読み直す</summary>
+    /// <param name="cancellationToken">見えなくなったとき・次の通知が来たときに、取り消すトークン</param>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    private async Task ReloadAfterContentChangeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(ContentChangeDelay, cancellationToken);
+            await ReloadAsync(preserveState: true);
+        }
+        catch (OperationCanceledException)
+        {
+            // 次の通知が来た、またはページが見えなくなった (読み直しは、そちらに任せる)
+        }
     }
 
     /// <summary>テーマが変わった (ページを、新しい配色で作り直す)</summary>

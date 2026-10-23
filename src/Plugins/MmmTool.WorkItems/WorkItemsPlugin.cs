@@ -32,8 +32,8 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         // 最後に読み込み・保存した内容と、変更の通知 (Changed)を、ページ・起動時の読み込みで共有するため、アプリ全体で 1 つ
         services.AddSingleton<WorkItemService>();
 
-        // ノートの画面に、作業報告を出す (ノートは、契約 IDayContentSource だけを知る)
-        services.AddSingleton<IDayContentSource, WorkReportDayContentSource>();
+        // ノートの画面に、作業報告を出す。ノートは、契約 IDayContentSource だけを知る。作業管理の変更は、ノートへ知らせる
+        services.AddSingleton<IDayContentSource, LiveWorkReportDayContentSource>();
 
         // 設定ページの「選択肢」から、進捗度の名前 (数値の後ろの括弧の中)を直せる。保存したら、開いている画面の表記を読み直す
         services.AddCodeCategoryEditor(provider => new CodeCategoryEditor

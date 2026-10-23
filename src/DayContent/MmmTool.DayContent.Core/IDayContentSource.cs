@@ -23,6 +23,18 @@ public interface IDayContentSource
     /// <summary>画面に出す、真偽の選択肢 (チェックとして並べる)</summary>
     IReadOnlyList<DayContentOption> Options { get; }
 
+    /// <summary>内容が変わった</summary>
+    /// <remarks>
+    /// 使う側 (ノートなど)は、見えている間だけ購読して、変わったら読み直す。見えなくなったら、購読を解除する。
+    /// 通知しない提供元は、実装しなくてよい。何もしない既定の実装がある。
+    /// どのスレッドからでも通知してよい。使う側が、画面のスレッドへ戻す。
+    /// </remarks>
+    event EventHandler? Changed
+    {
+        add { }
+        remove { }
+    }
+
     /// <summary>期間の開始日の既定を返す</summary>
     /// <param name="to">期間の終了日 (報告日)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

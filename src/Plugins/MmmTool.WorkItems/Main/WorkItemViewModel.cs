@@ -24,7 +24,7 @@ namespace MmmTool.WorkItems.Main;
 /// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
 /// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
-public sealed partial class WorkItemViewModel : ObservableObject
+public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 {
     /// <summary>非表示の列を、設定ストアに持つキー (列のキーを、カンマでつないだ文字列)</summary>
     private const string HiddenColumnsKey = "WorkItems.HiddenColumns";
@@ -205,8 +205,9 @@ public sealed partial class WorkItemViewModel : ObservableObject
         ProjectPicker = projectPicker;
 
         _hiddenColumns = [.. settings.Get(HiddenColumnsKey, "").Split(',', StringSplitOptions.RemoveEmptyEntries)];
-        service.Changed += (_, e) => OnServiceChanged(e);
-        service.RefreshFailed += (_, message) => Error.Show(message);
+        service.Changed += OnServiceChangedEvent;
+        service.RefreshFailed += OnServiceRefreshFailed;
+        service.MineOnlyChanged += OnServiceMineOnlyChanged;
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
@@ -260,6 +261,32 @@ public sealed partial class WorkItemViewModel : ObservableObject
         _active = false;
         _synced = false;
         _service.StopPolling();
+    }
+
+    /// <summary>サービスの変更の通知を受け取る</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変更の内容</param>
+    private void OnServiceChangedEvent(object? sender, WorkChangedEventArgs e) => OnServiceChanged(e);
+
+    /// <summary>取り込みに失敗したことを、画面のエラーに出す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="message">失敗の内容</param>
+    private void OnServiceRefreshFailed(object? sender, string message) => Error.Show(message);
+
+    /// <summary>サービスの通知の購読を解除する</summary>
+    /// <remarks>
+    /// サービスはアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel とページがメモリに残り続ける。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は、取得の参照も返す。
+    /// </remarks>
+    public void Dispose()
+    {
+        _service.Changed -= OnServiceChangedEvent;
+        _service.RefreshFailed -= OnServiceRefreshFailed;
+        _service.MineOnlyChanged -= OnServiceMineOnlyChanged;
+        if (_active)
+        {
+            Suspend();
+        }
     }
 
     /// <summary>列が、表示されているか</summary>
@@ -381,7 +408,28 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
 
         _settings.SetAsync(WorkItemSettingKeys.MineOnly, value).Forget();
+        _service.NotifyMineOnlyChanged(value);
         Rebuild();
+    }
+
+    /// <summary>スケジュールで「自分の担当だけ」が変わったとき、この画面の値を合わせる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="value">新しい値</param>
+    /// <remarks>設定へは、変えた側が保存する。画面が見えていなければ、次に開くときに、設定から読む。</remarks>
+    private void OnServiceMineOnlyChanged(object? sender, bool value)
+    {
+        if (value == MineOnly)
+        {
+            return;
+        }
+
+        _initializing = true;
+        MineOnly = value;
+        _initializing = false;
+        if (_active)
+        {
+            Rebuild();
+        }
     }
 
     /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない)</summary>

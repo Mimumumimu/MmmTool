@@ -132,6 +132,14 @@
 - MmmBatch を MmmToolBatch に改名する
   - アプリの名前を MmmTool・MmmToolWeb とそろえるため
   - 直す範囲は、フォルダ・プロジェクト・名前空間・文書・DB のログイン名
+- CLI補助を、サイドバーから別のウィンドウに外せるようにする
+  - 方向: 動いているシェルは残し、ターミナルの表示 (WebView2)だけを、外した先で作り直す
+  - 理由: WebView2 は、作られたウィンドウから別のウィンドウへ移すと、入力が元のウィンドウへ届いてしまうため。ページごと作り直すと、シェルが終了する。
+  - 作り方の案
+    - 画面の中身は引き継がない。外した先では、以降の出力から表示する。画面を描き直し続ける表示 (Claude Code など)は、ターミナルの大きさを変えて描き直させる。
+    - 画面の中身も引き継ぐなら、xterm.js の `addon-serialize` を SDK に足して、外す前に保存し、外した先で復元する。MIT ライセンスで、同梱の一覧にも足す。
+  - 直す場所は、`CliSessionView`・`CliAssistPage` と、SDK の `PageDetacher`・`TerminalControl`
+  - 登録は `AddNavigationPage` の `canDetach: true` で決める ([specs/tray-and-main.md](specs/tray-and-main.md))
 
 ## ユーザーが用意するもの待ち
 

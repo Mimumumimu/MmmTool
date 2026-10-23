@@ -10,8 +10,15 @@ namespace MmmTool.WorkItems.Core;
 /// 文は <see cref="WorkReportBuilder"/> が作る。作業報告の窓と同じ形で、期間の終わりが報告日、始まりが実績の開始日。
 /// 選択肢のキーは、作業報告の窓が覚える設定のキーと同じにして、選択を共有する。
 /// </remarks>
-public sealed class WorkReportDayContentSource(IWorkItemRepository repository) : IDayContentSource
+public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayContentSource
 {
+    /// <inheritdoc />
+    public event EventHandler? Changed;
+
+    /// <summary>内容が変わったことを知らせる</summary>
+    /// <remarks>変わったことを知れる派生クラスだけが呼ぶ。</remarks>
+    protected void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
     /// <summary>「実績に時間を出す」の選択を残す設定のキー</summary>
     public const string ShowHoursKey = "WorkItems.Report.ShowHours";
 

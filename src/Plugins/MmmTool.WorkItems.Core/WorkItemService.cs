@@ -87,6 +87,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
     public event EventHandler<string>? RefreshFailed;
 
+    /// <summary>「自分の担当だけ」の設定が変わった (引数は新しい値)</summary>
+    /// <remarks>作業管理とスケジュールは、同じ設定を使う。両方の画面が同時に見えているとき、片方の変更を、もう片方へ伝えるため。</remarks>
+    public event EventHandler<bool>? MineOnlyChanged;
+
+    /// <summary>「自分の担当だけ」の設定を変えたことを、ほかの画面へ知らせる</summary>
+    /// <param name="value">新しい値</param>
+    public void NotifyMineOnlyChanged(bool value) => MineOnlyChanged?.Invoke(this, value);
+
     /// <summary>最後の読み込みに失敗したときのメッセージ。成功したら null</summary>
     public string? LoadError => _status.LoadError;
 
