@@ -75,6 +75,7 @@
                         CanReorderItems="True"
                         DragItemsStarting="OnTreeDragItemsStarting"
                         ItemsSource="{x:Bind ViewModel.RootItems}"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
                         SelectionChanged="OnTreeSelectionChanged"
                         SelectionMode="Single">
                         <TreeView.ItemTemplate>
@@ -172,7 +173,7 @@
                     VerticalAlignment="Stretch"
                     AcceptsReturn="True"
                     Header="文"
-                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                     Text="{x:Bind ViewModel.SelectedItem.Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}"
                     TextWrapping="Wrap" />
             </Grid>

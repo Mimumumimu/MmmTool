@@ -36,6 +36,7 @@
                     MaxHeight="200"
                     MinHeight="96"
                     PlaceholderText="ここに URL を貼り付け"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                     Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                     TextWrapping="Wrap" />
                 <TextBox
@@ -44,6 +45,7 @@
                     IsReadOnly="True"
                     MaxHeight="200"
                     MinHeight="96"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                     Text="{x:Bind ViewModel.DecodedText, Mode=OneWay}"
                     TextWrapping="Wrap" />
             </StackPanel>

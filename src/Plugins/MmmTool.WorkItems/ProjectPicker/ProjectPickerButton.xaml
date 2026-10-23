@@ -35,6 +35,7 @@
                             MaxHeight="320"
                             ContainerContentChanging="OnChoiceContainerChanging"
                             ItemsSource="{x:Bind Picker.Items}"
+                            ScrollViewer.VerticalScrollBarVisibility="Visible"
                             SelectionMode="None">
                             <ListView.ItemContainerStyle>
                                 <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">

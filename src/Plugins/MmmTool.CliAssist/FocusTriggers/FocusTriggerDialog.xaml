@@ -26,7 +26,7 @@
 
         <!-- 項目の数が変わっても、ダイアログの大きさは変えない。高さを固定した枠の中でスクロールする -->
         <Grid Grid.Row="1" Height="200">
-            <ScrollViewer x:Name="TriggerScroll" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="TriggerScroll" VerticalScrollBarVisibility="Visible">
                 <!-- スクロールバーは中身の上に重なって出るので、右に余白を取って「削除」を隠さない -->
                 <ItemsControl
                     x:Name="TriggerList"

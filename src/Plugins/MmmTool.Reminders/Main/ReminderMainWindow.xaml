@@ -195,7 +195,7 @@
             Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
         <!-- 今日の対象。未対応を上に、完了を下の折りたたみに -->
-        <ScrollViewer Grid.Row="3">
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Visible">
             <StackPanel Margin="10,0,10,10" Spacing="6">
                 <ItemsControl
                     ItemTemplate="{StaticResource RowTemplate}"

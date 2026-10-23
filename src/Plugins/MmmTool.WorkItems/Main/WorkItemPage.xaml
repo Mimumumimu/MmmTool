@@ -412,6 +412,7 @@
                                     InputScope="Hiragana"
                                     KeyDown="OnNoteKeyDown"
                                     MaxLength="1000"
+                                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                                     TextWrapping="Wrap" />
                             </Flyout>
                         </Button.Flyout>
@@ -449,6 +450,7 @@
                                     InputScope="Hiragana"
                                     KeyDown="OnNoteKeyDown"
                                     MaxLength="1000"
+                                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                                     TextWrapping="Wrap" />
                             </Flyout>
                         </Button.Flyout>
@@ -584,7 +586,7 @@
             InputScope="Hiragana"
             MaxLength="{x:Bind ViewModel.DayNoteMaxLength}"
             PlaceholderText="{x:Bind ViewModel.DayNotePlaceholder, Mode=OneWay}"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollBarVisibility="Visible"
             Text="{x:Bind ViewModel.DayNote, Mode=TwoWay}"
             TextWrapping="Wrap" />
     </Grid>

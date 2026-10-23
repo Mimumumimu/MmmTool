@@ -71,7 +71,7 @@
                 FontFamily="BIZ UDGothic, MS Gothic, Consolas"
                 GotFocus="OnJapaneseBoxGotFocus"
                 Header="本文"
-                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.VerticalScrollBarVisibility="Visible"
                 Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 TextWrapping="Wrap" />
 

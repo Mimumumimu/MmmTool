@@ -152,7 +152,7 @@
                         Paste="OnInputPaste"
                         PlaceholderText="ターミナルへ送るテキスト (Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付)"
                         PreviewKeyDown="OnInputPreviewKeyDown"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
                         Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap">
                         <!-- カードの中に溶け込ませる (枠と背景を消す) -->
@@ -214,6 +214,7 @@
                                                     IsItemClickEnabled="True"
                                                     ItemClick="OnHistoryItemClick"
                                                     ItemsSource="{x:Bind ViewModel.HistoryItems}"
+                                                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                                                     SelectionMode="None">
                                                     <ListView.ItemTemplate>
                                                         <DataTemplate x:DataType="local:SendHistoryItem">

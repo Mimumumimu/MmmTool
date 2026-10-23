@@ -51,6 +51,7 @@
                 Grid.Row="1"
                 Padding="0,4"
                 ItemsSource="{x:Bind ViewModel.Items}"
+                ScrollViewer.VerticalScrollBarVisibility="Visible"
                 SelectionMode="Single">
                 <ListView.ItemContainerStyle>
                     <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">

@@ -90,6 +90,7 @@
                     Grid.Row="1"
                     ItemContainerStyle="{StaticResource FileRowStyle}"
                     ItemsSource="{x:Bind ViewModel.Files, Mode=OneWay}"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                     SelectionMode="None">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:BacklogFileItem">
