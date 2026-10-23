@@ -32,6 +32,10 @@ public sealed class ReminderListItem(Reminder source, bool canPurge)
     /// <remarks>前後の空白を除く。備考が無ければ空文字列。</remarks>
     public string Note { get; } = source.Note?.Trim() ?? "";
 
+    /// <summary>一覧の列に出す備考 (改行を空白にして 1 行にしたもの)</summary>
+    /// <remarks>複数行のまま出すと行の高さが行ごとに変わるため。全文は、カーソルを合わせたツールチップで見せる。</remarks>
+    public string NoteLine { get; } = string.Join(' ', (source.Note ?? "").Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
     /// <summary>備考があるか</summary>
     public bool HasNote => Note.Length > 0;
 
