@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.CodeMaster.Settings.CodeMasterSettingsControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:core="using:MmmTool.CodeMaster.Core"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 編集できる保存先で、出す区分があるときだけ並べる。部品そのものを隠すので、ページの Spacing の場所も取らない -->
+    <StackPanel Spacing="4">
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="選択肢" />
+
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Items}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="core:CodeCategoryEditor">
+                    <!-- カード全体を押すと、編集画面が開く (保存は、編集画面の「保存」) -->
+                    <controls:SettingsCard
+                        Click="OnCardClick"
+                        Description="{x:Bind Description}"
+                        Header="{x:Bind Title}"
+                        IsClickEnabled="True"
+                        Tag="{x:Bind}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MmmTool.WorkItems.Core\MmmTool.WorkItems.Core.csproj" />
+    <ProjectReference Include="..\..\CodeMaster\MmmTool.CodeMaster\MmmTool.CodeMaster.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 
