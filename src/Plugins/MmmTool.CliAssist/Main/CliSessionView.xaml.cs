@@ -55,17 +55,28 @@ public sealed partial class CliSessionView : UserControl
     /// <remarks>
     /// 画面に出ているとき、つまり選ばれているタブで、CLI補助のページを開いていて、ウィンドウが見えているときだけ移す。
     /// 選ばれていないタブの画面と、ほかのページを開いている間の画面は、画面の木から外れていて、読み込まれた状態ではない。
-    /// トレイに隠れているときと最小化しているときは、画面の木に残るので、ウィンドウが見えているかも確かめる。
+    /// この間に出た確認は、入力欄に下書きがあっても、タブの印 (<see cref="CliSessionViewModel.IsAwaitingInput"/>)で覚えておき、画面に出たとき (<see cref="OnLoaded"/>)に移す。
+    /// 画面に出ているときは、入力欄が空のときだけ移す。打ちかけの文字が、ターミナルへ入ってしまわないようにするため。
+    /// トレイに隠れているときと最小化しているときは、画面の木に残るので、ウィンドウが見えているかも確かめる。この間は覚えない。
     /// ダイアログを開いている間も、移さない。入力欄に打っている途中で、後ろのターミナルへフォーカスが移ると、打った文字が CLI に入ってしまうため。
     /// 出ていないタブやページを、勝手に切り替えて見せることはしない。ウィンドウも前面に出さない。
     /// </remarks>
     private void OnFocusTriggerMatched(object? sender, EventArgs e)
     {
-        if (IsLoaded && XamlRoot is { IsHostVisible: true } root && !IsDialogOpen(root))
+        if (!IsLoaded)
+        {
+            ViewModel.IsAwaitingInput = true;
+        }
+        else if (string.IsNullOrEmpty(ViewModel.InputText) && CanMoveFocusToTerminal())
         {
             TerminalView.FocusTerminal();
         }
     }
+
+    /// <summary>ウィンドウが見えていて、ダイアログを開いていないか (ターミナルへフォーカスを移してよいか)</summary>
+    /// <returns>移してよければ true</returns>
+    private bool CanMoveFocusToTerminal()
+        => XamlRoot is { IsHostVisible: true } root && !IsDialogOpen(root);
 
     /// <summary>ダイアログを開いているか</summary>
     /// <param name="root">調べるウィンドウの XamlRoot</param>
@@ -127,12 +138,29 @@ public sealed partial class CliSessionView : UserControl
     /// <remarks>
     /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスは、ターミナルではなく入力欄に置く。
     /// ターミナル (WebView2)にフォーカスがあると、Alt+矢印のページ移動が効かないため。
+    /// ただし、画面に出ていない間に確認が出ていたときは、入力欄が空で、ダイアログを開いていなければ、ターミナルへ移す。
+    /// 入力欄へのフォーカスのあとに移すため、移すのは次の処理に回す。
     /// </remarks>
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         FitInputBoxToThreeLines();
         InputBox.Focus(FocusState.Programmatic);
         InputBox.SelectionStart = InputBox.Text.Length;
+
+        if (ViewModel.IsAwaitingInput)
+        {
+            ViewModel.IsAwaitingInput = false;
+            if (string.IsNullOrEmpty(ViewModel.InputText))
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (CanMoveFocusToTerminal())
+                    {
+                        TerminalView.FocusTerminal();
+                    }
+                });
+            }
+        }
     }
 
     /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>

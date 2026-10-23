@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.CliAssist.Main.SessionTabHeader"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!-- 点の色は、OS のアクセント色に連動させない。設定次第で暗い色になり、見分けにくくなるため。ライトは白の約 6 倍、ダークは #2B2B2B の約 9 倍 -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="SessionAwaitingDotBrush" Color="#005FB8" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="SessionAwaitingDotBrush" Color="#60CDFF" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid ColumnSpacing="6">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <!-- 選ばれていない間に、ターミナルで確認が出たタブの印。タブを選ぶと消える -->
+        <Ellipse
+            x:Name="AwaitingDot"
+            Width="8"
+            Height="8"
+            VerticalAlignment="Center"
+            Fill="{ThemeResource SessionAwaitingDotBrush}"
+            Visibility="Collapsed" />
+        <TextBlock
+            x:Name="TitleText"
+            Grid.Column="1"
+            VerticalAlignment="Center"
+            TextTrimming="CharacterEllipsis" />
+    </Grid>
+</UserControl>
