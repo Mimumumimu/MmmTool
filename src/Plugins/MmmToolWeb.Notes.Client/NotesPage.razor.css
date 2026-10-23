@@ -4,6 +4,12 @@
     --band-high: #d97200;
     --danger-fill: #b3261e;
     --danger-fill-text: #ffffff;
+    /* 実施日。重要度の赤・橙と区別するため、固定の紫にする */
+    --event: #6f2da8;
+    --event-text: #ffffff;
+    --event-bg: #f3e8fb;
+    --event-glow: rgba(111, 45, 168, 0.55);
+    --event-glow-peak: rgba(111, 45, 168, 0.9);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -13,6 +19,11 @@
         --band-high: #f0a04b;
         --danger-fill: #f2b8b5;
         --danger-fill-text: #601410;
+        --event: #b58cf0;
+        --event-text: #1a1030;
+        --event-bg: #3a2d4d;
+        --event-glow: rgba(181, 140, 240, 0.5);
+        --event-glow-peak: rgba(181, 140, 240, 0.9);
     }
 }
 
@@ -175,6 +186,52 @@
 
 .card.p4 {
     border-left: 4px solid var(--band-high);
+}
+
+/* 実施日のカード。帯・色味・枠・光で目立たせる。重要度の帯 (左の太い線)は、そのまま残す */
+.card.event {
+    border: 2px solid var(--event);
+    background: var(--event-bg);
+    box-shadow: 0 0 10px 1px var(--event-glow);
+    /* ページを開いたとき、光が 3 回だけ脈打って止まる。1 秒に 3 回未満 */
+    animation: event-pulse 1.2s ease-in-out 3;
+}
+
+.card.event.p5 {
+    border-left: 4px solid var(--band-highest);
+}
+
+.card.event.p4 {
+    border-left: 4px solid var(--band-high);
+}
+
+.event-band {
+    margin: -0.5rem -0.75rem 0.5rem;
+    padding: 0.125rem 0.75rem;
+    border-radius: 0.6rem 0.6rem 0 0;
+    background: var(--event);
+    color: var(--event-text);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
+@keyframes event-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 10px 1px var(--event-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 20px 5px var(--event-glow-peak);
+    }
+}
+
+/* 「視覚効果を減らす」の設定では、光を動かさない */
+@media (prefers-reduced-motion: reduce) {
+    .card.event {
+        animation: none;
+    }
 }
 
 .card.deleted {

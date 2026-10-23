@@ -24,6 +24,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
@@ -49,6 +50,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBox
@@ -63,13 +65,13 @@
             <TextBox
                 x:Name="BodyBox"
                 Grid.Row="1"
-                MinHeight="180"
+                MinHeight="120"
                 AcceptsReturn="True"
                 AllowDrop="True"
                 FontFamily="BIZ UDGothic, MS Gothic, Consolas"
                 GotFocus="OnJapaneseBoxGotFocus"
                 Header="本文"
-                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.VerticalScrollBarVisibility="Visible"
                 Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                 TextWrapping="Wrap" />
 
@@ -98,8 +100,25 @@
                     ToolTipService.ToolTip="終了日をクリアして、無期限にします" />
             </StackPanel>
 
+            <!-- 実施日。空は未設定。期間の外に入れると、開始日・終了日が動く -->
+            <StackPanel
+                Grid.Row="3"
+                Orientation="Horizontal"
+                Spacing="8">
+                <CalendarDatePicker
+                    x:Name="EventDatePicker"
+                    Date="{x:Bind ViewModel.EventDate, Mode=TwoWay}"
+                    Header="実施日"
+                    PlaceholderText="なし" />
+                <Button
+                    VerticalAlignment="Bottom"
+                    Command="{x:Bind ViewModel.ClearEventDateCommand}"
+                    Content="クリア"
+                    ToolTipService.ToolTip="実施日をクリアして、未設定にします" />
+            </StackPanel>
+
             <!-- 重要度 -->
-            <StackPanel Grid.Row="3" Spacing="4">
+            <StackPanel Grid.Row="4" Spacing="4">
                 <TextBlock Text="重要度" />
                 <toolkit:Segmented HorizontalAlignment="Left" SelectedIndex="{x:Bind ViewModel.PriorityIndex, Mode=TwoWay}">
                     <toolkit:SegmentedItem Content="最低" />
@@ -112,16 +131,32 @@
 
             <!-- 公開範囲 (DB モードだけ。オフは全員に見える。変えられるのは、書いた人だけ) -->
             <CheckBox
-                Grid.Row="4"
+                Grid.Row="5"
                 Content="自分だけに表示"
                 IsChecked="{x:Bind ViewModel.IsPrivate, Mode=TwoWay}"
                 IsEnabled="{x:Bind ViewModel.CanChangeVisibility, Mode=OneWay}"
                 Visibility="{x:Bind ViewModel.IsShared}" />
         </Grid>
 
-        <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
+        <!-- 期間の警告と、期間を動かした知らせ。入力欄に重ねず、ボタンの上に場所を取る (警告は直すまで出続けるため) -->
         <StackPanel
             Grid.Row="2"
+            Margin="24,12,24,0"
+            Spacing="8">
+            <InfoBar
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.IsPeriodErrorOpen, Mode=OneWay}"
+                Message="{x:Bind ViewModel.PeriodErrorMessage, Mode=OneWay}"
+                Severity="Error" />
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.AdjustInfo.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.AdjustInfo.Message, Mode=OneWay}"
+                Severity="Informational" />
+        </StackPanel>
+
+        <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
+        <StackPanel
+            Grid.Row="3"
             Padding="24,24,24,24"
             HorizontalAlignment="Right"
             Orientation="Horizontal"

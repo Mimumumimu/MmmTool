@@ -56,12 +56,12 @@ public static class ReminderEvaluator
     /// <summary>リマインダーを通知の項目にする (件名と備考をテキスト、リンクがあればリンク先に)</summary>
     /// <param name="reminder">リマインダー</param>
     /// <returns>通知の項目</returns>
-    /// <remarks>備考があれば「件名 (備考)」にする。</remarks>
+    /// <remarks>備考があれば、件名の下に出す補足 (<see cref="NotificationItem.Detail"/>)にする。</remarks>
     private static NotificationItem ToItem(Reminder reminder)
-    {
-        var text = string.IsNullOrWhiteSpace(reminder.Note) ? reminder.Title : $"{reminder.Title} ({reminder.Note})";
-        return new NotificationItem(text, string.IsNullOrWhiteSpace(reminder.Link) ? null : reminder.Link);
-    }
+        => new(
+            reminder.Title,
+            string.IsNullOrWhiteSpace(reminder.Link) ? null : reminder.Link,
+            string.IsNullOrWhiteSpace(reminder.Note) ? null : reminder.Note);
 
     /// <summary>リマインダーを読み上げる文にする</summary>
     /// <param name="reminder">リマインダー</param>

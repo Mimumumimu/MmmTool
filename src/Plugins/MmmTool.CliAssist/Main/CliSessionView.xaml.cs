@@ -3,6 +3,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Utilities;
@@ -43,9 +44,34 @@ public sealed partial class CliSessionView : UserControl
         {
             _viewModel = value;
             _viewModel.FocusRequested += OnFocusRequested;
+            _viewModel.FocusTriggerMatched += OnFocusTriggerMatched;
             _viewModel.TerminalRestartRequested += OnTerminalRestartRequested;
         }
     }
+
+    /// <summary>フォーカスを移す文字列が出力に出たら、ターミナルへフォーカスを移す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 画面に出ているとき、つまり選ばれているタブで、CLI補助のページを開いていて、ウィンドウが見えているときだけ移す。
+    /// 選ばれていないタブの画面と、ほかのページを開いている間の画面は、画面の木から外れていて、読み込まれた状態ではない。
+    /// トレイに隠れているときと最小化しているときは、画面の木に残るので、ウィンドウが見えているかも確かめる。
+    /// ダイアログを開いている間も、移さない。入力欄に打っている途中で、後ろのターミナルへフォーカスが移ると、打った文字が CLI に入ってしまうため。
+    /// 出ていないタブやページを、勝手に切り替えて見せることはしない。ウィンドウも前面に出さない。
+    /// </remarks>
+    private void OnFocusTriggerMatched(object? sender, EventArgs e)
+    {
+        if (IsLoaded && XamlRoot is { IsHostVisible: true } root && !IsDialogOpen(root))
+        {
+            TerminalView.FocusTerminal();
+        }
+    }
+
+    /// <summary>ダイアログを開いているか</summary>
+    /// <param name="root">調べるウィンドウの XamlRoot</param>
+    /// <returns>ContentDialog を開いていれば true</returns>
+    private static bool IsDialogOpen(XamlRoot root)
+        => VisualTreeHelper.GetOpenPopupsForXamlRoot(root).Any(popup => popup.Child is ContentDialog);
 
     /// <summary>ターミナルの起動し直しを求められたら、起動し直す</summary>
     /// <param name="sender">イベントの送信元</param>
@@ -70,6 +96,7 @@ public sealed partial class CliSessionView : UserControl
     {
         TerminalView.Close();
         _viewModel.FocusRequested -= OnFocusRequested;
+        _viewModel.FocusTriggerMatched -= OnFocusTriggerMatched;
         _viewModel.TerminalRestartRequested -= OnTerminalRestartRequested;
     }
 
@@ -94,10 +121,19 @@ public sealed partial class CliSessionView : UserControl
         });
     }
 
-    /// <summary>読み込み時の処理 (入力欄の高さ調整)</summary>
+    /// <summary>読み込み時の処理 (入力欄の高さ調整・入力欄へのフォーカス)</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    private void OnLoaded(object sender, RoutedEventArgs e) => FitInputBoxToThreeLines();
+    /// <remarks>
+    /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスは、ターミナルではなく入力欄に置く。
+    /// ターミナル (WebView2)にフォーカスがあると、Alt+矢印のページ移動が効かないため。
+    /// </remarks>
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        FitInputBoxToThreeLines();
+        InputBox.Focus(FocusState.Programmatic);
+        InputBox.SelectionStart = InputBox.Text.Length;
+    }
 
     /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>
     /// <remarks>固定値だと、フォントによって下だけ余る・欠けるため。</remarks>
@@ -365,17 +401,18 @@ public sealed partial class CliSessionView : UserControl
 
     #region よく使う文
 
-    /// <summary>よく使う文のチップが押されたら、入力欄に入れる (送信はしない)</summary>
-    /// <param name="sender">イベントの送信元 (チップのボタン)</param>
-    /// <param name="e">イベントの情報</param>
-    private void OnQuickMessageClick(object sender, RoutedEventArgs e)
+    /// <summary>よく使う文が選ばれたら、入力欄に入れる (送信はしない)</summary>
+    /// <param name="sender">イベントの送信元 (チップの行)</param>
+    /// <param name="item">選ばれた文</param>
+    /// <remarks>一覧から選んだときは、一覧が閉じてから元のボタンにフォーカスが戻るので、そのあとに入力欄へ移す。</remarks>
+    private void OnQuickMessageChosen(object? sender, QuickMessageItem item)
     {
-        if ((sender as FrameworkElement)?.Tag is QuickMessageItem item)
+        ViewModel.UseQuickMessage(item);
+        DispatcherQueue.TryEnqueue(() =>
         {
-            ViewModel.UseQuickMessage(item);
             InputBox.Focus(FocusState.Programmatic);
             InputBox.SelectionStart = InputBox.Text.Length;
-        }
+        });
     }
 
     #endregion

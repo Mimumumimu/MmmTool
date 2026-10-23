@@ -68,6 +68,7 @@
                     Padding="0,4"
                     ContainerContentChanging="OnContainerContentChanging"
                     ItemsSource="{x:Bind ViewModel.Items}"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                     SelectionMode="None">
                     <ListView.ItemContainerStyle>
                         <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">

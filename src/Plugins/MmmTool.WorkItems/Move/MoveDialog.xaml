@@ -15,6 +15,7 @@
         x:Name="DestinationList"
         Width="420"
         MaxHeight="360"
+        ScrollViewer.VerticalScrollBarVisibility="Visible"
         SelectionChanged="OnSelectionChanged"
         SelectionMode="Single">
         <ListView.ItemTemplate>

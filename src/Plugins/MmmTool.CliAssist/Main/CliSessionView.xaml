@@ -22,6 +22,7 @@
             <!-- Session は、起動するシェル (環境)が決まってから、コードビハインドでつなぐ (ConnectTerminal) -->
             <terminal:TerminalControl
                 x:Name="TerminalView"
+                AutoFocus="False"
                 UserDataFolder="{x:Bind WebView2Directory}" />
         </Border>
 
@@ -151,7 +152,7 @@
                         Paste="OnInputPaste"
                         PlaceholderText="ターミナルへ送るテキスト (Ctrl+Enter で送信 ・ 画像は Ctrl+V、ファイルはドラッグ＆ドロップで添付)"
                         PreviewKeyDown="OnInputPreviewKeyDown"
-                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
                         Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap">
                         <!-- カードの中に溶け込ませる (枠と背景を消す) -->
@@ -165,77 +166,19 @@
                         </TextBox.Resources>
                     </TextBox>
                     <!-- よく使う文 (入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く) -->
-                    <ScrollViewer
+                    <local:QuickMessageBar
                         Margin="0,0,8,0"
-                        HorizontalAlignment="Left"
                         VerticalAlignment="Bottom"
-                        HorizontalScrollBarVisibility="Hidden"
-                        HorizontalScrollMode="Auto"
-                        VerticalScrollMode="Disabled"
-                        Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.QuickMessages, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="6" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:QuickMessageItem">
-                                    <Button
-                                        Height="22"
-                                        MaxWidth="240"
-                                        Padding="10,0"
-                                        AutomationProperties.Name="{x:Bind Text}"
-                                        Click="OnQuickMessageClick"
-                                        CornerRadius="12"
-                                        FontSize="12"
-                                        Tag="{x:Bind}"
-                                        ToolTipService.ToolTip="{x:Bind Text}">
-                                        <!-- 控えめな見た目 (枠だけ。押せることは枠で示し、マウスを乗せたときだけ薄く塗る) -->
-                                        <!-- 色はテーマごとの辞書に直接書く (StaticResource の別名は読み込み時のテーマで固定され、テーマを切り替えても追従しない) -->
-                                        <Button.Resources>
-                                            <ResourceDictionary>
-                                                <ResourceDictionary.ThemeDictionaries>
-                                                    <ResourceDictionary x:Key="Default">
-                                                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#0FFFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#0AFFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#66FFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#66FFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#66FFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonForeground" Color="#C5FFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFFFF" />
-                                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#C5FFFFFF" />
-                                                    </ResourceDictionary>
-                                                    <ResourceDictionary x:Key="Light">
-                                                        <SolidColorBrush x:Key="ButtonBackground" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#09000000" />
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#06000000" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#66000000" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#66000000" />
-                                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#66000000" />
-                                                        <SolidColorBrush x:Key="ButtonForeground" Color="#9E000000" />
-                                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#E4000000" />
-                                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#9E000000" />
-                                                    </ResourceDictionary>
-                                                </ResourceDictionary.ThemeDictionaries>
-                                            </ResourceDictionary>
-                                        </Button.Resources>
-                                        <TextBlock Text="{x:Bind Label}" TextTrimming="CharacterEllipsis" />
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                        EditCommand="{x:Bind ViewModel.EditQuickMessagesCommand}"
+                        MessageChosen="OnQuickMessageChosen"
+                        Messages="{x:Bind ViewModel.QuickMessages, Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.ShowQuickMessages, Mode=OneWay}" />
                     <StackPanel
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         Spacing="4">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Button
-                                Width="40"
+                        <Button
+                                Width="84"
                                 Height="30"
                                 Padding="0"
                                 AutomationProperties.Name="送信履歴"
@@ -271,6 +214,7 @@
                                                     IsItemClickEnabled="True"
                                                     ItemClick="OnHistoryItemClick"
                                                     ItemsSource="{x:Bind ViewModel.HistoryItems}"
+                                                    ScrollViewer.VerticalScrollBarVisibility="Visible"
                                                     SelectionMode="None">
                                                     <ListView.ItemTemplate>
                                                         <DataTemplate x:DataType="local:SendHistoryItem">
@@ -305,17 +249,7 @@
                                         </Grid>
                                     </Flyout>
                                 </Button.Flyout>
-                            </Button>
-                            <Button
-                                Width="40"
-                                Height="30"
-                                Padding="0"
-                                AutomationProperties.Name="よく使う文を編集"
-                                Command="{x:Bind ViewModel.EditQuickMessagesCommand}"
-                                ToolTipService.ToolTip="よく使う文を編集">
-                                <FontIcon FontSize="16" Glyph="&#xE70F;" />
-                            </Button>
-                        </StackPanel>
+                        </Button>
                         <Button
                             Width="84"
                             Height="30"

@@ -1,7 +1,7 @@
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// ノート 1 件。期間 (開始日から終了日まで)・タイトル・本文・重要度・公開範囲を持つ。
+/// ノート 1 件。期間 (開始日から終了日まで)・実施日・タイトル・本文・重要度・公開範囲を持つ。
 /// </summary>
 /// <remarks>
 /// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る (<c>init</c>)。
@@ -27,6 +27,9 @@ public sealed record Note
     /// <summary>終了日 (含む)。終わりがなければ <see cref="DateOnly.MaxValue"/> (無期限)</summary>
     public DateOnly EndDate { get; init; } = DateOnly.MaxValue;
 
+    /// <summary>実施日。未設定なら <see cref="DateOnly.MaxValue"/></summary>
+    public DateOnly EventDate { get; init; } = DateOnly.MaxValue;
+
     /// <summary>重要度</summary>
     public NotePriority Priority { get; init; } = NotePriority.Normal;
 
@@ -44,6 +47,14 @@ public sealed record Note
 
     /// <summary>終了日が無い (無期限)か</summary>
     public bool IsOpenEnded => EndDate == DateOnly.MaxValue;
+
+    /// <summary>実施日が設定されているか</summary>
+    public bool HasEventDate => EventDate != DateOnly.MaxValue;
+
+    /// <summary>指定の日が、実施日か</summary>
+    /// <param name="day">調べる日</param>
+    /// <returns>実施日が設定されていて、その日なら true</returns>
+    public bool IsEventOn(DateOnly day) => HasEventDate && EventDate == day;
 
     /// <summary>指定の日に有効か (開始日 ≤ その日 ≤ 終了日)</summary>
     /// <param name="day">調べる日</param>

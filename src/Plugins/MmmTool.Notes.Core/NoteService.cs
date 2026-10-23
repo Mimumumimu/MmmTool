@@ -9,7 +9,7 @@ namespace MmmTool.Notes.Core;
 /// <param name="users">ユーザーの保存先 (作成者・更新者の名前を引く。DB モードだけで使う)</param>
 /// <param name="time">現在時刻の取得元</param>
 /// <remarks>
-/// 並びは、重要度の高い順、同じ重要度の中は更新日時の新しい順 (同じ更新日時なら番号の大きい順)。
+/// 並びは、表示する日が実施日のカードが先頭で、そのあとは重要度の高い順。同じ重要度の中は、更新日時の新しい順で、同じ更新日時なら番号の大きい順。
 /// 作成者・更新者の名前は、SQL で結合せず、必要な人だけを番号で引く (<see cref="IAppUserRepository.GetUsersByIdsAsync"/>)。
 /// </remarks>
 public sealed class NoteService(INoteRepository repository, IAppUserRepository users, TimeProvider time)
@@ -31,13 +31,14 @@ public sealed class NoteService(INoteRepository repository, IAppUserRepository u
     /// <param name="day">日</param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>カードに出す内容 (重要度の高い順、同じ重要度の中は更新日時の新しい順)</returns>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">読めなかった (メッセージは画面に出せる)。</exception>
+    /// <returns>カードに出す内容 (実施日のカードが先頭、そのあとは重要度の高い順、同じ重要度の中は更新日時の新しい順)</returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">読めなかった。メッセージは画面に出せる。</exception>
     public async Task<IReadOnlyList<NoteCard>> LoadAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var notes = await repository.GetOnDayAsync(day, includeDeleted, cancellationToken).ConfigureAwait(false);
         var sorted = notes
-            .OrderByDescending(note => note.Priority)
+            .OrderByDescending(note => note.IsEventOn(day))
+            .ThenByDescending(note => note.Priority)
             .ThenByDescending(note => note.UpdatedAt)
             .ThenByDescending(note => note.Id)
             .ToList();
@@ -48,7 +49,19 @@ public sealed class NoteService(INoteRepository repository, IAppUserRepository u
             note,
             NameOf(names, note.AuthorUserId),
             NameOf(names, note.UpdatedByUserId),
-            DateOnly.FromDateTime(note.UpdatedAt.ToLocalTime().DateTime) == today))];
+            DateOnly.FromDateTime(note.UpdatedAt.ToLocalTime().DateTime) == today,
+            note.IsEventOn(day),
+            day == today))];
+    }
+
+    /// <summary>実際の今日が実施日のノートを、並べて取得する (通知ダイアログに出す)</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>削除されていない、見えるノート (重要度の高い順、同じ重要度の中は更新日時の新しい順)</returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">読めなかった。メッセージは画面に出せる。</exception>
+    public async Task<IReadOnlyList<Note>> LoadEventsTodayAsync(CancellationToken cancellationToken = default)
+    {
+        var notes = await repository.GetOnEventDateAsync(Today, cancellationToken).ConfigureAwait(false);
+        return [.. notes.OrderByDescending(note => note.Priority).ThenByDescending(note => note.UpdatedAt).ThenByDescending(note => note.Id)];
     }
 
     /// <summary>ノートを追加する</summary>

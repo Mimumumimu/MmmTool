@@ -193,6 +193,9 @@ internal static class NoteEndpoints
             (int)note.Priority,
             note.StartDate,
             note.IsOpenEnded ? null : note.EndDate,
+            note.HasEventDate ? note.EventDate : null,
+            card.IsEventDay,
+            card.IsEventToday,
             note.IsPrivate,
             note.IsDeleted,
             note.AuthorUserId == userId,
@@ -215,5 +218,6 @@ internal static class NoteEndpoints
         IsPrivate = request.IsPrivate,
         StartDate = request.StartDate,
         EndDate = request.EndDate ?? DateOnly.MaxValue,
+        EventDate = request.EventDate ?? DateOnly.MaxValue,
     };
 }

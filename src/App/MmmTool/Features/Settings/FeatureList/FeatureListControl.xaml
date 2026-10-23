@@ -38,7 +38,7 @@
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:FeatureItem">
                     <controls:SettingsCard>
-                        <!-- 取っ手 + 機能名 (取っ手は「よく使う文の編集」と同じ小さな薄い色) -->
+                        <!-- 取っ手 + 機能名 (取っ手は小さな薄い色) -->
                         <controls:SettingsCard.Header>
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <FontIcon

@@ -20,7 +20,7 @@ namespace MmmTool.WorkItems.Schedule;
 /// 実績 (すべての日の記録)は、ページを開くたびに読み、離れたら捨てる (<see cref="InitializeAsync"/>・<see cref="Suspend"/>)。
 /// 「表示する案件」「自分の担当だけ」は、作業管理と同じ設定を共有する。
 /// </remarks>
-public sealed partial class ScheduleViewModel : ObservableObject
+public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
 {
     /// <summary>作業管理の読み書き</summary>
     private readonly WorkItemService _service;
@@ -117,8 +117,9 @@ public sealed partial class ScheduleViewModel : ObservableObject
         _busyCursor = busyCursor;
         ProjectPicker = projectPicker;
 
-        service.Changed += (_, e) => OnServiceChanged(e);
-        service.RefreshFailed += (_, message) => Error.Show(message);
+        service.Changed += OnServiceChangedEvent;
+        service.RefreshFailed += OnServiceRefreshFailed;
+        service.MineOnlyChanged += OnServiceMineOnlyChanged;
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
         _initializing = false;
     }
@@ -204,6 +205,32 @@ public sealed partial class ScheduleViewModel : ObservableObject
         _service.ReleaseScheduleRecords();
     }
 
+    /// <summary>サービスの変更の通知を受け取る</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変更の内容</param>
+    private void OnServiceChangedEvent(object? sender, WorkChangedEventArgs e) => OnServiceChanged(e);
+
+    /// <summary>取り込みに失敗したことを、画面のエラーに出す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="message">失敗の内容</param>
+    private void OnServiceRefreshFailed(object? sender, string message) => Error.Show(message);
+
+    /// <summary>サービスの通知の購読を解除する</summary>
+    /// <remarks>
+    /// サービスはアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel とページがメモリに残り続ける。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は、取得の参照と実績も返す。
+    /// </remarks>
+    public void Dispose()
+    {
+        _service.Changed -= OnServiceChangedEvent;
+        _service.RefreshFailed -= OnServiceRefreshFailed;
+        _service.MineOnlyChanged -= OnServiceMineOnlyChanged;
+        if (_active)
+        {
+            Suspend();
+        }
+    }
+
     /// <summary>案件・グループを、開く・閉じる</summary>
     /// <param name="row">押された行</param>
     public void Toggle(ScheduleRow row)
@@ -225,7 +252,28 @@ public sealed partial class ScheduleViewModel : ObservableObject
         }
 
         _settings.SetAsync(WorkItemSettingKeys.MineOnly, value).Forget();
+        _service.NotifyMineOnlyChanged(value);
         RebuildBusyAsync().Forget();
+    }
+
+    /// <summary>作業管理で「自分の担当だけ」が変わったとき、この画面の値を合わせる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="value">新しい値</param>
+    /// <remarks>設定へは、変えた側が保存する。画面が見えていなければ、次に開くときに、設定から読む。</remarks>
+    private void OnServiceMineOnlyChanged(object? sender, bool value)
+    {
+        if (value == MineOnly)
+        {
+            return;
+        }
+
+        _initializing = true;
+        MineOnly = value;
+        _initializing = false;
+        if (_active)
+        {
+            RebuildBusyAsync().Forget();
+        }
     }
 
     /// <summary>表示の単位が変わったら、軸を作り直す (全部の日付の棒を描き直すので、砂時計を出す)</summary>
@@ -311,6 +359,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             expanded,
             node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
             snapshot.Actuals.TryGetValue(node.Key, out var runs) ? runs : [],
+            snapshot.DayNotes.TryGetValue(node.Key, out var dayNotes) ? dayNotes : ScheduleRow.NoDayNotes,
             Axis!,
             _service.Today);
         alive.Add(node.Key);

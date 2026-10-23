@@ -3,11 +3,13 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>スケジュールに出す内容 (行の木と、実績の棒と、日付の軸の範囲)</summary>
 /// <param name="Roots">案件の行の並び (「自分の担当だけ」のときは、自分が担当でない作業の行を外したもの。合計は、全員の作業から計算したまま)</param>
 /// <param name="Actuals">行ごとの、実績の棒 (実績が無い行は含まれない)</param>
+/// <param name="DayNotes">作業ごとの、日の備考 (備考が無い作業と、案件・グループは含まれない)</param>
 /// <param name="AxisStart">軸の最初の日</param>
 /// <param name="AxisEnd">軸の最後の日</param>
 public sealed record ScheduleSnapshot(
     IReadOnlyList<WorkNode> Roots,
     IReadOnlyDictionary<WorkKey, IReadOnlyList<ScheduleActualRun>> Actuals,
+    IReadOnlyDictionary<WorkKey, IReadOnlyDictionary<DateOnly, string>> DayNotes,
     DateOnly AxisStart,
     DateOnly AxisEnd)
 {

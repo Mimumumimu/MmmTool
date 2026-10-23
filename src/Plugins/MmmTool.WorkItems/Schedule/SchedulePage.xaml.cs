@@ -1,10 +1,12 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
 using MmmTool.WorkItems.Core;
+using MmmTool.WorkItems.ViewOptions;
 
 namespace MmmTool.WorkItems.Schedule;
 
@@ -36,6 +38,16 @@ public sealed partial class SchedulePage : Page
     /// <summary>ページの ViewModel</summary>
     public ScheduleViewModel ViewModel { get; }
 
+    /// <summary>「表示」のボタンに、見え方の設定 (完了)を並べた入れ物を付ける</summary>
+    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。作業管理の「過去の完了」とは別の設定で、選びは保存しない。</remarks>
+    private void BuildViewFlyout()
+    {
+        var completed = new CompletedDisplaySection("完了", null, index => ViewModel.CompletedIndex = index);
+        var flyout = new Flyout { Content = completed, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        flyout.Opening += (_, _) => completed.Select(ViewModel.CompletedIndex);
+        ViewButton.Flyout = flyout;
+    }
+
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
     /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
@@ -45,6 +57,7 @@ public sealed partial class SchedulePage : Page
         _busyCursor = busyCursor;
         InitializeComponent();
         ProjectPickerControl.Attach(ViewModel.ProjectPicker);
+        BuildViewFlyout();
 
         // 日付の棒の列は、表示だけで、フォーカスを受けない (幅が表より広く、フォーカスが来ると、左端までスクロールが動くため)。見出しは、軸ごとに作る
         _timelineColumn = new TreeGridColumn

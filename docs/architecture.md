@@ -27,7 +27,8 @@
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)を持ち、Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー。`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定を持つ。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
-| `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)を持つ。依存は無い。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
+| `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)と、名前を編集する保存先の口 (`ICodeMasterRepository`)・編集できる区分の登録 (`CodeCategoryEditor`)を持つ。依存は SDK の Core だけ。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
+| `src/CodeMaster/MmmTool.CodeMaster` | `net10.0-windows` | コードマスタの名前を編集する画面で、設定ページの「選択肢」と編集ウィンドウ。登録された区分を並べるだけで、特定の機能を知らない。機能は `AddCodeCategoryEditor` で区分を足す ([specs/settings.md](specs/settings.md)の「選択肢」) |
 | `src/DayContent/MmmTool.DayContent.Core` | `net10.0` | 機能をまたいで共有する、日ごとの内容の契約 `IDayContentSource`。提供する機能 (作業管理の作業報告など)と、使う機能 (ノート)の両方が、これだけを参照するので、機能どうしは参照しない。画面は持たず、依存は無い。仕様は [specs/notes-sources.md](specs/notes-sources.md) |
 | `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先。`NotificationChannel`・区分・規則・`INotificationChannelRepository` を持つ。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たず、登録の画面はリマインダーの機能にある。保存先の実装は `MmmTool.Data.<種類>` |
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
@@ -89,7 +90,8 @@ Plugins/MmmTool.<機能>/Main/            その機能の入口の画面 (サイ
 Plugins/MmmTool.<機能>/<画面>/          そのほかの画面。例は Reminders/{Input, List, Settings} と CliAssist/WorkingDirectory。
                                         1 画面 = 1 フォルダ。その画面の View・ViewModel・行の型・その画面だけのサービスを一緒に置く
 Users/MmmTool.Users.Core/               機能をまたいで共有するユーザー (AppUser・CurrentUser・UserSignInService・PasswordHasher)
-CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコードマスタ (CodeMasterEntry・CodeBook・CodeFeatures)
+CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコードマスタ (CodeMasterEntry・CodeBook・CodeFeatures・ICodeMasterRepository・CodeCategoryEditor)
+CodeMaster/MmmTool.CodeMaster/          コードマスタの名前を編集する画面 (設定ページの「選択肢」と編集ウィンドウ)
 DayContent/MmmTool.DayContent.Core/     機能をまたいで共有する、日ごとの内容の契約 (IDayContentSource)
 NotificationChannels/MmmTool.NotificationChannels.Core/   機能をまたいで共有する通知の送信先 (NotificationChannel・INotificationChannelRepository)
 Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService)
@@ -168,9 +170,10 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
     - 作業管理の `WorkItemStorageServiceCollectionExtensions` は、その部品を呼び、モードが変わったときの後始末 (`IDatabaseModeChangeHandler`)だけを足す
   - 詳細は [specs/database.md](specs/database.md)
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
-- 機能のオン・オフ: オフにできる機能は、CLI補助・クリップボード転送・Backlog・作業管理・ツール
+- 機能のオン・オフ: オフにできる機能は、CLI補助・ノート・作業管理・メッセージ・クリップボード転送・Backlog・ツール
   - `<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録する
-  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ、ツールはオン。
+  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ、ノート・メッセージ・ツールはオン。
+  - メッセージは、`availableWhen` で、サーバーモード (DB モード)のときだけ、一覧に出る
   - ページ・起動時の準備・トレイメニュー・設定の部品の登録に、同じキーを渡す
     - キーは、`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数
     - 省略したものは、オフにできない機能
@@ -236,8 +239,8 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - エラー表示: ViewModel は SDK の `ErrorState` を `Error` として 1 つ持ち、`InfoBar` の `IsOpen`(TwoWay)と `Message` に結び付け、閉じる処理は書かない。ファイルの読み込み結果は SDK の `LoadStatus` で持つ。
 - ウィンドウの共通の設定 (アイコン + タイトルバー・最大化/最小化なしの枠・大きさ・位置合わせ)は SDK の `Window` 拡張メソッド (`UseCustomTitleBar` など)にある
 - アイコンのパスは `Shell/AppIcon` (ウィンドウ・トレイで共通)にある
-- アプリの名前・Data フォルダー・トレイのクラス名は、`Shell/AppInfo` の 1 か所に持つ
-  - Data フォルダーの下の Logs・WebView2 も同じ
+- アプリの名前・Data フォルダー・Cache フォルダー・トレイのクラス名は、`Shell/AppInfo` の 1 か所に持つ
+  - Data フォルダーの下の Logs、Cache フォルダーの下の WebView2 も同じ
   - 多重起動の防止・エラーのダイアログ・添付の一時フォルダーでも使う
 - リマインダーのメイン画面・一覧画面の ViewModel は、共通の骨格 (保存内容の変更の購読・読み込みの世代管理・保存の失敗のエラー化)を `Features/Reminders/ReminderViewModelBase` に持つ
 - ターミナルの後始末 (SDK の `PseudoConsoleSession` の `Dispose`)は同期のままにする

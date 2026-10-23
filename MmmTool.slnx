@@ -89,6 +89,9 @@
     <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster/MmmTool.CodeMaster.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/DayContent/">
     <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj">

@@ -8,12 +8,16 @@ using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
+using MmmTool.CodeMaster;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.Sqlite;
+using MmmTool.Data.Sqlite.CodeMaster;
 using MmmTool.Data.Sqlite.Notes;
 using MmmTool.Data.SqlServer;
 using MmmTool.Data.SqlServer.Notes;
@@ -113,6 +117,11 @@ public partial class App : Application
         // ノートの保存先。同じく、ローカルは SQLite、DB モードは SQL Server。選ぶ処理は共通の部品 (機能は 1 行を足すだけ)
         services.AddStorage<INoteRepository, SqliteNoteRepository, SqlServerNoteRepository>();
 
+        // コードマスタの編集。ローカルは SQLite に書けるが、DB モードは編集できない。全員で共通なので、管理ツールで直す。設定ページの「選択肢」は、編集できるときだけ出る
+        services.AddSingleton<UnavailableCodeMasterRepository>();
+        services.AddStorage<ICodeMasterRepository, SqliteCodeMasterRepository, UnavailableCodeMasterRepository>();
+        services.AddCodeMasterSettings(SettingsSectionOrder.CodeMaster);
+
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();
 
@@ -165,6 +174,8 @@ public partial class App : Application
         _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
 
         tray.OpenRequested += (_, _) => _window.BringToFront();
+        // 通知のクリックなどで、機能がサイドバーのページを開くとき、トレイへ隠れているメインウィンドウも前面に出す
+        _host.Services.GetRequiredService<INavigationService>().ShowRequested += (_, _) => _window.BringToFront();
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 設定ページなど、画面からの終了の依頼も、トレイの「終了」と同じ処理にする
         _host.Services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();

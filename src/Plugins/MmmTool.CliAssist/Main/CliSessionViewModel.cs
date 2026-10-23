@@ -36,6 +36,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly CliQuickMessageService _quickMessageService;
     /// <summary>よく使う文の編集ダイアログ</summary>
     private readonly IQuickMessageDialogService _quickMessageDialog;
+    /// <summary>ターミナルへ移る文字列</summary>
+    private readonly CliFocusTriggerService _focusTriggerService;
+    /// <summary>ターミナルの出力から、ターミナルへ移る文字列を見つける</summary>
+    private readonly TerminalOutputWatcher _focusTriggerWatcher;
     /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
     private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
@@ -50,6 +54,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="timeProvider">現在時刻の提供元</param>
     /// <param name="quickMessages">よく使う文</param>
     /// <param name="quickMessageDialog">よく使う文の編集ダイアログ</param>
+    /// <param name="focusTriggers">フォーカスを移す文字列</param>
     public CliSessionViewModel(
         ITerminalSession terminal,
         [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
@@ -58,7 +63,8 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         SendHistory sendHistory,
         TimeProvider timeProvider,
         CliQuickMessageService quickMessages,
-        IQuickMessageDialogService quickMessageDialog)
+        IQuickMessageDialogService quickMessageDialog,
+        CliFocusTriggerService focusTriggers)
     {
         _quickMessageService = quickMessages;
         _quickMessageDialog = quickMessageDialog;
@@ -79,6 +85,13 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         Category = CommandCategory.Shell;
         _uiContext = SynchronizationContext.Current;
         Terminal.Exited += OnShellExited;
+
+        _focusTriggerService = focusTriggers;
+        _focusTriggerWatcher = new TerminalOutputWatcher(terminal);
+        _focusTriggerWatcher.SetPatterns(focusTriggers.Texts);
+        _focusTriggerWatcher.Matched += OnFocusTriggerMatched;
+        // 編集画面で保存したら、全タブの見張りの文字列を差し替える
+        _focusTriggerService.Changed += OnFocusTriggersChanged;
 
         Attachments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAttachments));
         HistoryItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
@@ -141,9 +154,34 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <remarks>起動し直すには端末の大きさが要り、それは画面 (ターミナルのコントロール)が持っているため。</remarks>
     public event EventHandler? TerminalRestartRequested;
 
+    /// <summary>出力に、フォーカスを移す文字列が出たので、ターミナルへのフォーカスの移動を View に頼む</summary>
+    /// <remarks>
+    /// 入力欄が空のときだけ頼む。打ちかけの文字が、ターミナルへ入ってしまわないようにするため。
+    /// 画面に出ているかは、View が確かめる。
+    /// </remarks>
+    public event EventHandler? FocusTriggerMatched;
+
     /// <summary>フォーカスを移すよう、View に頼む</summary>
     /// <param name="target">フォーカスを移す先</param>
     public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(this, target);
+
+    /// <summary>ターミナルへ移る文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
+    private void OnFocusTriggersChanged() => _focusTriggerWatcher.SetPatterns(_focusTriggerService.Texts);
+
+    /// <summary>フォーカスを移す文字列が出力に出たときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="text">見つかった文字列</param>
+    /// <remarks>出力はスレッドプールから届くので、UI スレッドへ移して頼む。</remarks>
+    private void OnFocusTriggerMatched(object? sender, string text)
+    {
+        _uiContext?.Post(_ =>
+        {
+            if (!_disposed && string.IsNullOrEmpty(InputText))
+            {
+                FocusTriggerMatched?.Invoke(this, EventArgs.Empty);
+            }
+        }, null);
+    }
 
     /// <summary>ターミナルのシェルを起動し直すよう、View に頼む</summary>
     public void RequestTerminalRestart() => TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
@@ -218,20 +256,30 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>よく使う文から、チップの一覧を作る</summary>
     /// <returns>チップの一覧</returns>
-    private List<QuickMessageItem> CreateQuickMessageItems() => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem)];
+    /// <remarks>文が 0 件のグループは、押しても何も開かないので、出さない。</remarks>
+    private List<QuickMessageItem> CreateQuickMessageItems()
+        => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem).Where(item => item.Items is not { Count: 0 })];
 
-    /// <summary>よく使う文のチップを出すか (入力欄が空で、文が 1 件以上あるとき)</summary>
-    public bool ShowQuickMessages => QuickMessages.Count > 0 && string.IsNullOrEmpty(InputText);
+    /// <summary>よく使う文の行を出すか</summary>
+    /// <remarks>入力欄が空のときに出す。編集ボタンがあるので、文が 0 件でも出す。</remarks>
+    public bool ShowQuickMessages => string.IsNullOrEmpty(InputText);
 
     /// <summary>よく使う文を入力欄に入れる (送信はしない)。</summary>
     /// <param name="item">選ばれたチップ</param>
-    public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text;
+    public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text ?? string.Empty;
 
-    /// <summary>よく使う文からチップを作る</summary>
-    /// <param name="message">よく使う文 (本文は空でない)</param>
-    /// <returns>チップ (名前が無いときは、本文の 1 行目を名前にする)</returns>
+    /// <summary>よく使う文またはグループからチップを作る</summary>
+    /// <param name="message">よく使う文 (本文は空でない)またはグループ</param>
+    /// <returns>チップ</returns>
+    /// <remarks>文は、名前が無ければ本文の 1 行目を名前にする。グループは、中の文のチップを持つ。</remarks>
     private static QuickMessageItem CreateQuickMessageItem(CliQuickMessage message)
     {
+        if (message.Items is { } children)
+        {
+            var groupName = string.IsNullOrWhiteSpace(message.Label) ? "(未入力)" : SendText.ToSingleLine(message.Label);
+            return new QuickMessageItem(groupName, null, [.. children.Select(CreateQuickMessageItem)]);
+        }
+
         var text = message.Text!;
         var source = string.IsNullOrWhiteSpace(message.Label)
             ? text.Split('\n').First(line => !string.IsNullOrWhiteSpace(line))
@@ -490,6 +538,9 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
         _quickMessageService.Changed -= OnQuickMessagesChanged;
         Terminal.Exited -= OnShellExited;
+        _focusTriggerService.Changed -= OnFocusTriggersChanged;
+        _focusTriggerWatcher.Matched -= OnFocusTriggerMatched;
+        _focusTriggerWatcher.Dispose();
         Terminal.Dispose();
         _windowsAttachmentStore.Dispose();
         _wslAttachmentStore.Dispose();

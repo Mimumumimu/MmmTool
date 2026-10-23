@@ -107,6 +107,7 @@
                         CanReorderItems="True"
                         ItemsSource="{x:Bind ViewModel.RootItems}"
                         KeyDown="OnTreeKeyDown"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
                         SelectionChanged="OnTreeSelectionChanged"
                         SelectionMode="Single">
                         <TreeView.ItemTemplate>
@@ -221,7 +222,7 @@
                 Style="{StaticResource CardStyle}">
                 <Grid>
                     <!-- リンク・フォルダーの編集欄 -->
-                    <ScrollViewer Visibility="{x:Bind ViewModel.IsEditorVisible, Mode=OneWay}">
+                    <ScrollViewer VerticalScrollBarVisibility="Visible" Visibility="{x:Bind ViewModel.IsEditorVisible, Mode=OneWay}">
                         <!-- 入力欄は、左寄せのまま、広がっても 640 までにする -->
                         <Grid>
                         <Grid.ColumnDefinitions>

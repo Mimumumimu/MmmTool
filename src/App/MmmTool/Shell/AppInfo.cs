@@ -11,6 +11,10 @@ public static class AppInfo
     /// <remarks>EXE と同じ場所の <c>Data</c>。</remarks>
     public static string DataDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Data");
 
+    /// <summary>消しても作り直されるデータ (キャッシュ)の保存先フォルダー</summary>
+    /// <remarks>EXE と同じ場所の <c>Cache</c>。<c>Data</c> を軽く保ち、バックアップや持ち運びの対象にしないために分ける。</remarks>
+    public static string CacheDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Cache");
+
     /// <summary>エラーのログの保存先フォルダー</summary>
     /// <remarks><see cref="DataDirectory"/> の下の <c>Logs</c>(アプリが書くものは Data にまとめ、EXE の横にフォルダーを増やさない)。</remarks>
     public static string LogDirectory { get; } = Path.Combine(DataDirectory, "Logs");

@@ -81,7 +81,7 @@ public partial class App : Application
         services.AddMmmSdkCore(AppInfo.DataDirectory);
         services.AddMmmSdkWinUI();
         // アプリの名前・データのフォルダー・アイコンの置き場所 (SDK の画面が、アイコンを読むために受け取る)
-        services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppIcon.FilePath));
+        services.AddSingleton(new AppEnvironment(AppInfo.Name, AppInfo.DataDirectory, AppInfo.CacheDirectory, AppIcon.FilePath));
 
         // タスクトレイ (メニューは「終了」だけ。クリックでウィンドウを開く)
         services.AddMmmSdkTray(new TrayIconOptions(

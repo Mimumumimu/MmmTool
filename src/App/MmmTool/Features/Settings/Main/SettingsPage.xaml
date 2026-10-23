@@ -13,7 +13,7 @@
         <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="{x:Bind ViewModel.Title}" />
 
         <!-- 項目が画面に収まらないときは縦にスクロールする。スクロールバーが右端に来るよう、右の余白はスクロールの外側の中身に付ける -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
             <StackPanel Padding="0,0,24,24" Spacing="4">
                 <!-- 設定ファイルを読めなかったとき (変更は保存できない)。閉じている間は、Spacing の分の場所も取らない -->
                 <InfoBar

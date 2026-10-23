@@ -102,6 +102,7 @@
     <ProjectReference Include="..\..\Plugins\MmmTool.ClipboardTransfer\MmmTool.ClipboardTransfer.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
+    <ProjectReference Include="..\..\CodeMaster\MmmTool.CodeMaster\MmmTool.CodeMaster.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.Sqlite\MmmTool.Data.Sqlite.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />

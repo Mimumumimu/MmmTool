@@ -26,7 +26,8 @@ public sealed class SchedulePalette
         actualText: Color.FromArgb(0xFF, 0x04, 0x3A, 0x1E),
         critical: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
         saturday: Color.FromArgb(0xFF, 0x1E, 0x5A, 0xC8),
-        sunday: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C)));
+        sunday: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
+        noteMark: Color.FromArgb(0xFF, 0xC2, 0x6A, 0x00)));
 
     /// <summary>ダークの色</summary>
     private static readonly Lazy<SchedulePalette> DarkPalette = new(() => new SchedulePalette(
@@ -42,7 +43,8 @@ public sealed class SchedulePalette
         actualText: Color.FromArgb(0xFF, 0xD6, 0xF2, 0xE2),
         critical: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
         saturday: Color.FromArgb(0xFF, 0x78, 0xAA, 0xFF),
-        sunday: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4)));
+        sunday: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
+        noteMark: Color.FromArgb(0xFF, 0xFF, 0xC8, 0x57)));
 
     /// <summary>テーマに合った色を返す</summary>
     /// <param name="theme">要素の実際のテーマ (<see cref="FrameworkElement.ActualTheme"/>)</param>
@@ -50,8 +52,9 @@ public sealed class SchedulePalette
     public static SchedulePalette For(ElementTheme theme) => theme == ElementTheme.Dark ? DarkPalette.Value : LightPalette.Value;
 
     /// <summary>色の組を作る</summary>
-    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualText, Color critical, Color saturday, Color sunday)
+    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualText, Color critical, Color saturday, Color sunday, Color noteMark)
     {
+        NoteMark = new SolidColorBrush(noteMark);
         SaturdayFill = new SolidColorBrush(saturdayFill);
         SundayFill = new SolidColorBrush(sundayFill);
         Line = new SolidColorBrush(line);
@@ -105,4 +108,7 @@ public sealed class SchedulePalette
 
     /// <summary>見出しの、日曜・祝日の文字</summary>
     public SolidColorBrush Sunday { get; }
+
+    /// <summary>日の備考がある日の印 (棒の青・実績の緑・休みの赤と混ざらない琥珀色)</summary>
+    public SolidColorBrush NoteMark { get; }
 }

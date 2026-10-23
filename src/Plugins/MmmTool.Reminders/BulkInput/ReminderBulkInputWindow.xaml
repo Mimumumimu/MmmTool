@@ -131,7 +131,7 @@
                         <ScrollViewer
                             x:Name="TableScroll"
                             Grid.Row="1"
-                            VerticalScrollBarVisibility="Auto">
+                            VerticalScrollBarVisibility="Visible">
                             <ItemsControl ItemsSource="{x:Bind ViewModel.HourRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="local:ReminderBulkHourRow">
@@ -178,7 +178,7 @@
                     BorderThickness="1"
                     CornerRadius="{StaticResource ControlCornerRadius}">
                     <Grid>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer VerticalScrollBarVisibility="Visible">
                             <ItemsControl ItemsSource="{x:Bind ViewModel.Entries}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="local:ReminderBulkEntry">

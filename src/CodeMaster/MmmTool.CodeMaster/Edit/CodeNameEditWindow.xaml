@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MmmTool.CodeMaster.Edit.CodeNameEditWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.CodeMaster.Edit">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ドラッグで移動できるタイトル帯。右上の × と重ならないよう右に余白を空ける -->
+        <Grid
+            x:Name="TitleBarArea"
+            Grid.Row="0"
+            Height="56"
+            Padding="24,0,48,0">
+            <TextBlock
+                VerticalAlignment="Bottom"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Text="{x:Bind ViewModel.Title, Mode=OneWay}" />
+        </Grid>
+
+        <StackPanel
+            Grid.Row="1"
+            Padding="24,16,24,0"
+            Spacing="12">
+
+            <!-- 読み込み・保存のエラー (閉じている間は、Spacing の分の場所も取らない) -->
+            <InfoBar
+                IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+                Severity="Error"
+                Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+
+            <!-- 選択肢の数が変わっても、ウィンドウの大きさを変えない固定の高さの枠 -->
+            <!-- ListView は入力欄のあいだを Tab で移れないので、ScrollViewer と ItemsControl にする -->
+            <ScrollViewer
+                Height="200"
+                VerticalScrollBarVisibility="Visible">
+                <ItemsControl ItemsSource="{x:Bind ViewModel.Items}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:CodeNameItem">
+                            <Grid Margin="0,0,12,0" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind Label}" />
+                                <TextBox
+                                    Grid.Column="1"
+                                    MaxLength="100"
+                                    PlaceholderText="名前なし"
+                                    Text="{x:Bind Name, Mode=TwoWay}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </StackPanel>
+
+        <!-- 操作ボタン (肯定を左・キャンセルを右に) -->
+        <StackPanel
+            Grid.Row="2"
+            Padding="24,24,24,24"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal"
+            Spacing="8">
+            <Button
+                MinWidth="96"
+                Command="{x:Bind ViewModel.SaveCommand}"
+                Content="保存"
+                Style="{StaticResource AccentButtonStyle}" />
+            <Button
+                MinWidth="96"
+                Command="{x:Bind ViewModel.CancelCommand}"
+                Content="閉じる" />
+        </StackPanel>
+    </Grid>
+</Window>

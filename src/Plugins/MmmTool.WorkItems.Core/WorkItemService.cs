@@ -87,6 +87,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
     public event EventHandler<string>? RefreshFailed;
 
+    /// <summary>「自分の担当だけ」の設定が変わった (引数は新しい値)</summary>
+    /// <remarks>作業管理とスケジュールは、同じ設定を使う。両方の画面が同時に見えているとき、片方の変更を、もう片方へ伝えるため。</remarks>
+    public event EventHandler<bool>? MineOnlyChanged;
+
+    /// <summary>「自分の担当だけ」の設定を変えたことを、ほかの画面へ知らせる</summary>
+    /// <param name="value">新しい値</param>
+    public void NotifyMineOnlyChanged(bool value) => MineOnlyChanged?.Invoke(this, value);
+
     /// <summary>最後の読み込みに失敗したときのメッセージ。成功したら null</summary>
     public string? LoadError => _status.LoadError;
 
@@ -347,22 +355,24 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="date">入力日</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (グループ・案件の集計は、全員の作業から計算したまま)</param>
     /// <param name="completed">完了して日がたった作業の見え方 (隠しても、集計は変えない)</param>
+    /// <param name="keepWork">ほかの絞り込みを通った作業のうち、残す作業の条件 (状態の絞り込みで、null なら絞らない)</param>
     /// <returns>案件の行の並び</returns>
     /// <remarks>
     /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。集計を変えないのは、案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため。
     /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
     /// </remarks>
-    public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false, CompletedDisplay completed = CompletedDisplay.Show)
-        => BuildTree(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, mineOnly, completed);
+    public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false, CompletedDisplay completed = CompletedDisplay.Show, Func<WorkItem, bool>? keepWork = null)
+        => BuildTree(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, mineOnly, completed, keepWork);
 
     /// <summary>作業管理の表に出す木を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="date">入力日</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
     /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <param name="keepWork">残す作業の条件 (状態の絞り込みで、null なら絞らない)</param>
     /// <returns>その案件の行。案件を読み込んでいなければ null</returns>
     /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
-    public WorkNode? BuildProjectTree(int projectId, DateOnly date, bool mineOnly, CompletedDisplay completed)
+    public WorkNode? BuildProjectTree(int projectId, DateOnly date, bool mineOnly, CompletedDisplay completed, Func<WorkItem, bool>? keepWork = null)
         => BuildTree(
             _projects.Values.Where(p => p.Id == projectId),
             _groups.Values.Where(g => g.ProjectId == projectId),
@@ -370,7 +380,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             _dayRecords.Where(r => r.ProjectId == projectId),
             date,
             mineOnly,
-            completed).FirstOrDefault();
+            completed,
+            keepWork).FirstOrDefault();
 
     /// <summary>渡された案件・グループ・作業・記録から、作業管理の表に出す木を作る</summary>
     /// <param name="projects">案件</param>
@@ -380,8 +391,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="date">入力日</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
     /// <param name="completed">完了して日がたった作業の見え方</param>
+    /// <param name="keepWork">残す作業の条件 (null なら絞らない)</param>
     /// <returns>案件の行の並び</returns>
-    private IReadOnlyList<WorkNode> BuildTree(IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> dayRecords, DateOnly date, bool mineOnly, CompletedDisplay completed)
+    private IReadOnlyList<WorkNode> BuildTree(IEnumerable<WorkProject> projects, IEnumerable<WorkGroup> groups, IEnumerable<WorkItem> items, IEnumerable<WorkRecord> dayRecords, DateOnly date, bool mineOnly, CompletedDisplay completed, Func<WorkItem, bool>? keepWork)
     {
         var roots = WorkItemTree.Build(projects, groups, items, dayRecords, date, _codes);
         if (mineOnly && HasAssignees)
@@ -391,6 +403,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         if (completed != CompletedDisplay.Show)
         {
             WorkItemTree.RemoveFinished(roots, date, completed == CompletedDisplay.Hidden);
+        }
+        if (keepWork is not null)
+        {
+            WorkItemTree.RemoveWorks(roots, keepWork);
         }
         return roots;
     }
@@ -418,7 +434,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
     /// 実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay)"/>と同じ理由)。軸の範囲は、隠す前の内容から求める。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay, Func{WorkItem, bool}?)"/>と同じ理由)。軸の範囲は、隠す前の内容から求める。
     /// </remarks>
     public ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(mineOnly, completed, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
@@ -450,7 +466,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     {
         var today = Today;
         var roots = WorkItemTree.Build(projects, groups, items, [], today, _codes);
-        var actuals = ScheduleActuals.Build(roots, records);
+        var recordList = records.ToList();
+        var actuals = ScheduleActuals.Build(roots, recordList);
+        var dayNotes = ScheduleDayNotes.Build(roots, recordList);
         var (start, end) = ScheduleSnapshot.Range(roots, actuals, today);
         if (mineOnly && HasAssignees)
         {
@@ -460,7 +478,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         {
             WorkItemTree.RemoveFinished(roots, completed == CompletedDisplay.Hidden);
         }
-        return new ScheduleSnapshot(roots, actuals, start, end);
+        return new ScheduleSnapshot(roots, actuals, dayNotes, start, end);
     }
 
     /// <summary>番号から、案件を探す</summary>
@@ -853,7 +871,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             {
                 Name = updated.Name.Trim(),
                 Link = updated.Link.Trim(),
-                ReportExcluded = updated.ReportExcluded,
+                ReportExclusion = updated.ReportExclusion,
                 Note = updated.Note,
                 Priority = updated.Priority,
                 StartDate = updated.StartDate,
@@ -1298,12 +1316,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     }
 
     /// <summary>届いた記録 (または、保存した記録)を、スケジュールの実績に反映する</summary>
-    /// <param name="record">記録 (論理削除された行・実績が 0 の行は、実績から外す)</param>
-    /// <returns>実績が変わったら true</returns>
+    /// <param name="record">記録 (論理削除された行と、実績が 0 で備考も空の行は、外す)</param>
+    /// <returns>持っている記録が変わったら true</returns>
+    /// <remarks>実績が 0 でも備考がある行は残す。スケジュールの日の備考に出すため。</remarks>
     private bool ApplyScheduleRecord(WorkRecord record)
     {
         var key = (record.WorkItemId, record.Date);
-        if (record.IsDeleted || record.Hours <= 0)
+        if (record.IsDeleted || record.IsEmpty)
         {
             return _scheduleRecords.Remove(key);
         }

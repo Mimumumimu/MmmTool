@@ -6,6 +6,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.CliAssist.Core;
+using MmmTool.CliAssist.FocusTriggers;
 using MmmTool.CliAssist.Setup;
 using MmmTool.CliAssist.WorkingDirectory;
 
@@ -24,12 +25,16 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private readonly CliSettingsService _settings;
     /// <summary>よく使う文</summary>
     private readonly CliQuickMessageService _quickMessages;
+    /// <summary>フォーカスを移す文字列</summary>
+    private readonly CliFocusTriggerService _focusTriggers;
     /// <summary>セッションを作る</summary>
     private readonly CliSessionFactory _sessionFactory;
     /// <summary>作業ディレクトリ変更ダイアログ</summary>
     private readonly IWorkingDirectoryDialogService _workingDirectoryDialog;
     /// <summary>初期設定ダイアログ</summary>
     private readonly ICliSetupDialogService _setupDialog;
+    /// <summary>ターミナルへ移る文字列の編集ダイアログ</summary>
+    private readonly IFocusTriggerDialogService _focusTriggerDialog;
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _dialogs;
 
@@ -44,25 +49,31 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <param name="commandRepository">定型コマンドの保存先</param>
     /// <param name="settings">CLI補助の利用状態</param>
     /// <param name="quickMessages">よく使う文</param>
+    /// <param name="focusTriggers">フォーカスを移す文字列</param>
     /// <param name="sessionFactory">セッションを作る</param>
     /// <param name="workingDirectoryDialog">作業ディレクトリ変更ダイアログを開く</param>
     /// <param name="setupDialog">初期設定ダイアログを開く</param>
+    /// <param name="focusTriggerDialog">ターミナルへ移る文字列の編集ダイアログを開く</param>
     /// <param name="dialogs">確認ダイアログ</param>
     public CliAssistViewModel(
         ICliCommandRepository commandRepository,
         CliSettingsService settings,
         CliQuickMessageService quickMessages,
+        CliFocusTriggerService focusTriggers,
         CliSessionFactory sessionFactory,
         IWorkingDirectoryDialogService workingDirectoryDialog,
         ICliSetupDialogService setupDialog,
+        IFocusTriggerDialogService focusTriggerDialog,
         IDialogService dialogs)
     {
         _commandRepository = commandRepository;
         _settings = settings;
         _quickMessages = quickMessages;
+        _focusTriggers = focusTriggers;
         _sessionFactory = sessionFactory;
         _workingDirectoryDialog = workingDirectoryDialog;
         _setupDialog = setupDialog;
+        _focusTriggerDialog = focusTriggerDialog;
         _dialogs = dialogs;
 
         CommandItems = [];
@@ -281,7 +292,12 @@ public sealed partial class CliAssistViewModel : ObservableObject
         _initialized = true;
 
         // 読み込みの問題は複数あり得るので、まとめて 1 つの InfoBar で知らせる
-        List<string?> messages = [_settings.LoadError, _settings.RecoveryMessage, _quickMessages.LoadError, _quickMessages.RecoveryMessage];
+        List<string?> messages =
+        [
+            _settings.LoadError, _settings.RecoveryMessage,
+            _quickMessages.LoadError, _quickMessages.RecoveryMessage,
+            _focusTriggers.LoadError, _focusTriggers.RecoveryMessage,
+        ];
         try
         {
             string? recoveryMessage;
@@ -303,6 +319,20 @@ public sealed partial class CliAssistViewModel : ObservableObject
             SelectedSession.Error.Show(string.Join("\n\n", errors));
         }
         RebuildCommandItems();
+    }
+
+    /// <summary>ターミナルへ移る文字列の編集ダイアログを開く</summary>
+    /// <returns>ダイアログが閉じるまでの完了を表すタスク</returns>
+    /// <remarks>読み込みに失敗しているときは、読めなかったファイルを上書きしないよう、開かずに理由を InfoBar で知らせる。</remarks>
+    [RelayCommand]
+    private async Task EditFocusTriggersAsync()
+    {
+        if (!_focusTriggers.CanEdit)
+        {
+            SelectedSession.Error.Show(_focusTriggers.LoadError ?? "ターミナルへ移る文字列を読み込めなかったため、編集できません。");
+            return;
+        }
+        await _focusTriggerDialog.ShowAsync();
     }
 
     /// <summary>定型コマンドを既定の内容に作り直す (初期化)</summary>

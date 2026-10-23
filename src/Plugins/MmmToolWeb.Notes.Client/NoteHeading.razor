@@ -1,5 +1,5 @@
 <div class="title-line">
-    <span class="title">@Note.Title</span>
+    <span class="@TitleClass">@Note.Title</span>
     @if (Note.IsUpdatedToday)
     {
         <span class="chip today">今日更新</span>
@@ -15,6 +15,10 @@
 </div>
 <div class="meta">
     <span>@Period</span>
+    @if (UpcomingEvent is { } upcoming)
+    {
+        <span>実施 @upcoming</span>
+    }
     @if (Note.AuthorName.Length > 0)
     {
         <span>作成 @Note.AuthorName</span>
@@ -27,8 +31,20 @@
     [Parameter, EditorRequired]
     public NoteDto Note { get; set; } = null!;
 
+    /// <summary>画面が表示している日。実施日が、この日より後のときだけ、実施日を小さく出す。</summary>
+    [Parameter, EditorRequired]
+    public DateOnly Day { get; set; }
+
+    /// <summary>タイトルの class。実施日のカードは、1 段大きくする。</summary>
+    private string TitleClass => Note.IsEventDay ? "title big" : "title";
+
     /// <summary>期間の表示。終了日が無いときは、開始日からだけ出す。</summary>
     private string Period => Note.EndDate is { } end
         ? $"{Note.StartDate:yyyy/MM/dd} ～ {end:yyyy/MM/dd}"
         : $"{Note.StartDate:yyyy/MM/dd} ～";
+
+    /// <summary>これから来る実施日の表示。同じ年は、年を省く。当日は帯で示し、過ぎたあと・未設定のときは null。</summary>
+    private string? UpcomingEvent => Note.EventDate is { } date && date > Day
+        ? (date.Year == Day.Year ? $"{date:MM/dd}" : $"{date:yyyy/MM/dd}")
+        : null;
 }

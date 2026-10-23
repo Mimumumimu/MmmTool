@@ -8,10 +8,12 @@
 
     <Grid>
         <Grid.Resources>
-            <!-- 列の幅 (見出しと行で共通)。日付 / 曜日 / 時刻 / 件名 (残り全部) -->
+            <!-- 見出しと行で共通の列の幅。日付 / 曜日 / 時刻は固定で、残りを件名と備考で 2 対 3 に分ける -->
             <GridLength x:Key="DateColumnWidth">120</GridLength>
             <GridLength x:Key="WeekdayColumnWidth">120</GridLength>
             <GridLength x:Key="TimeColumnWidth">80</GridLength>
+            <GridLength x:Key="TitleColumnWidth">2*</GridLength>
+            <GridLength x:Key="NoteColumnWidth">3*</GridLength>
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -89,7 +91,8 @@
                     <ColumnDefinition Width="{StaticResource DateColumnWidth}" />
                     <ColumnDefinition Width="{StaticResource WeekdayColumnWidth}" />
                     <ColumnDefinition Width="{StaticResource TimeColumnWidth}" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource TitleColumnWidth}" />
+                    <ColumnDefinition Width="{StaticResource NoteColumnWidth}" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
                     Grid.Column="0"
@@ -111,6 +114,11 @@
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Text="件名" />
+                <TextBlock
+                    Grid.Column="4"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="備考" />
             </Grid>
 
             <ListView
@@ -118,6 +126,7 @@
                 Grid.Row="1"
                 Padding="0,4"
                 ItemsSource="{x:Bind ViewModel.Items}"
+                ScrollViewer.VerticalScrollBarVisibility="Visible"
                 SelectionMode="Single">
                 <ListView.ItemContainerStyle>
                     <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
@@ -136,7 +145,8 @@
                                 <ColumnDefinition Width="{StaticResource DateColumnWidth}" />
                                 <ColumnDefinition Width="{StaticResource WeekdayColumnWidth}" />
                                 <ColumnDefinition Width="{StaticResource TimeColumnWidth}" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="{StaticResource TitleColumnWidth}" />
+                                <ColumnDefinition Width="{StaticResource NoteColumnWidth}" />
                             </Grid.ColumnDefinitions>
                             <Grid.ContextFlyout>
                                 <MenuFlyout>
@@ -183,11 +193,23 @@
                                 TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}" />
                             <TextBlock
                                 Grid.Column="3"
+                                Margin="0,0,16,0"
                                 VerticalAlignment="Center"
                                 Text="{x:Bind Title}"
                                 TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}"
                                 TextTrimming="CharacterEllipsis"
                                 TextWrapping="NoWrap" />
+                            <!-- 備考は 1 行で出す。全文は、カーソルを合わせると表示する。備考が無い行は、空のツールチップを出さないよう隠す -->
+                            <TextBlock
+                                Grid.Column="4"
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind NoteLine}"
+                                TextDecorations="{x:Bind reminders:ReminderRowStyle.Strike(IsDeleted)}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap"
+                                ToolTipService.ToolTip="{x:Bind Note}"
+                                Visibility="{x:Bind HasNote}" />
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

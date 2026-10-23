@@ -1,6 +1,6 @@
 -- ローカルモード用の SQLite の、あるべき表と索引の形。起動のたびに、実際の DB と比べて、足りないものを足す。点検は SDK の SqliteSchemaRepair が行う。
 -- 列・索引・表を足す変更は、番号つきのスクリプトではなく、このファイルに書き足す。何度流しても壊れないよう、IF NOT EXISTS を付ける。
--- 列の追加は、実際の DB の表の末尾に付く。列の名前の変更・型の変更・削除・データの書き換えは、ここでは直せないので、番号つきのスクリプトで行う。
+-- 列の追加は、実際の DB の表の末尾に付く。型の変更・削除・データの書き換えは、ここでは直せないので、番号つきのスクリプトで行う。列の名前の変更は、SqliteMigrations.ColumnRenames に足す。
 -- 初期データのコードマスタは、001_CreateTables.sql が入れる。ここには書かない。
 -- 表の中にコメントは書かない。列の定義を取り出すとき、定義の一部になるため。コメントは、表の上の行に書く。
 
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS WorkGroup
 );
 
 -- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、完了日の 9999-12-31 は未完了
--- ReportExcluded の 1 は、作業報告の実績にも予定にも出さない作業
+-- ReportExclusion は、作業報告のどの部分から外すか。0 は外さない、1 は予定から外して実績には出す、2 は実績と予定の両方から外す
 CREATE TABLE IF NOT EXISTS WorkItem
 (
     Id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS WorkItem
     PlannedHours     REAL    NOT NULL DEFAULT 0 CHECK (PlannedHours >= 0 AND PlannedHours <= 9999),
     ActualTotalHours REAL    NOT NULL DEFAULT 0 CHECK (ActualTotalHours >= 0),
     Link             TEXT    NOT NULL DEFAULT '' CHECK (length(Link) <= 2000),
-    ReportExcluded   INTEGER NOT NULL DEFAULT 0 CHECK (ReportExcluded IN (0, 1)),
+    ReportExclusion  INTEGER NOT NULL DEFAULT 0 CHECK (ReportExclusion IN (0, 1, 2)),
     StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)
@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS Note
     IsPrivate       INTEGER NOT NULL DEFAULT 0 CHECK (IsPrivate IN (0, 1)),
     StartDate       TEXT    NOT NULL,
     EndDate         TEXT    NOT NULL DEFAULT '9999-12-31' CHECK (EndDate >= StartDate),
+    EventDate      TEXT    NOT NULL DEFAULT '9999-12-31' CHECK (EventDate = '9999-12-31' OR (EventDate >= StartDate AND EventDate <= EndDate)),
     Priority        INTEGER NOT NULL DEFAULT 3 CHECK (Priority BETWEEN 1 AND 5),
     Title           TEXT    NOT NULL CHECK (length(Title) BETWEEN 1 AND 100),
     Body            TEXT    NOT NULL DEFAULT ''
@@ -163,6 +164,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS UX_WorkDayNote_UserId_Date ON WorkDayNote (Use
 
 -- ノートの期間の読み込み
 CREATE INDEX IF NOT EXISTS IX_Note_EndDate_StartDate ON Note (EndDate, StartDate);
+
+-- 実際の今日が実施日のノートを探す (未設定の行を走査しない)
+CREATE INDEX IF NOT EXISTS IX_Note_EventDate ON Note (EventDate);
 
 -- ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId ON WorkItem (StatusCodeNo, CompletedDate, AssigneeUserId) WHERE IsDeleted = 0;

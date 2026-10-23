@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.Db.Sqlite.Components.Connections;
+using MmmTool.Data.Sqlite.CodeMaster;
 using MmmTool.Data.Sqlite.Notes;
 using MmmTool.Data.Sqlite.WorkItems;
 
@@ -28,9 +29,12 @@ public static class SqliteDataServiceCollectionExtensions
             FilePath = Path.Combine(provider.GetRequiredService<AppEnvironment>().DataDirectory, FileName),
             Migrations = SqliteMigrations.Load(),
             SchemaSql = SqliteMigrations.LoadSchema(),
+            ColumnRenames = SqliteMigrations.ColumnRenames,
+            ColumnReplacements = SqliteMigrations.ColumnReplacements,
         }));
         services.AddSingleton<SqliteWorkItemRepository>();
         services.AddSingleton<SqliteNoteRepository>();
+        services.AddSingleton<SqliteCodeMasterRepository>();
         return services;
     }
 }

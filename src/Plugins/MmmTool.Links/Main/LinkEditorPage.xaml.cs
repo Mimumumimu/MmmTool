@@ -3,7 +3,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
+using MmmSdk.WinUI.Utilities;
 using VirtualKey = Windows.System.VirtualKey;
 using Windows.Foundation;
 
@@ -52,18 +52,9 @@ public sealed partial class LinkEditorPage : Page
     /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
-    /// <remarks>
-    /// TreeView.SelectedItem は object 型で x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。
-    /// このイベントの中では sender.SelectedItem がまだ前の選択を返すので、args の追加分から取る。
-    /// 追加分はクリックでの選択ならデータだが、コードから選択したときは TreeViewNode で来ることがあるので、両方から取り出す。
-    /// </remarks>
+    /// <remarks>TreeView.SelectedItem は x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。</remarks>
     private void OnTreeSelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
-        => ViewModel.SelectedItem = args.AddedItems.FirstOrDefault() switch
-        {
-            LinkTreeItem item => item,
-            TreeViewNode { Content: LinkTreeItem item } => item,
-            _ => null,
-        };
+        => ViewModel.SelectedItem = args.GetAddedItem<LinkTreeItem>();
 
     /// <summary>ViewModel の選択が変わったら、ツリーの選択を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
@@ -82,7 +73,7 @@ public sealed partial class LinkEditorPage : Page
     /// <remarks>メニューの操作はその行が対象。何も無い所なら選択を外す。</remarks>
     private void SelectForContextMenu(object source)
     {
-        var item = FindItem(source);
+        var item = LinkTree.FindItem<LinkTreeItem>(source);
         ViewModel.SelectedItem = item;
         // メニューが出る前に、画面上の選択もその行へ移す (どこに追加されるか見えるように)
         LinkTree.SelectedItem = item;
@@ -98,22 +89,6 @@ public sealed partial class LinkEditorPage : Page
             e.Handled = true;
             ViewModel.DeleteCommand.Execute(null);
         }
-    }
-
-    /// <summary>画面上の要素から、その行の項目を探す。</summary>
-    /// <param name="source">画面上の要素</param>
-    /// <returns>その行の項目。見つからなければ null</returns>
-    /// <remarks>行 (TreeViewItem)の DataContext はデータではなく TreeViewNode のことがあるので、TreeView に行からデータを引かせる。</remarks>
-    private LinkTreeItem? FindItem(object source)
-    {
-        for (var current = source as DependencyObject; current is not null and not TreeView; current = VisualTreeHelper.GetParent(current))
-        {
-            if (current is TreeViewItem container)
-            {
-                return LinkTree.ItemFromContainer(container) as LinkTreeItem;
-            }
-        }
-        return null;
     }
 
     #endregion

@@ -78,7 +78,13 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         var isKnown = options.OpenIds is not null && options.KnownIds?.Contains(note.Id) == true;
         var isOpen = isKnown ? options.OpenIds!.Contains(note.Id) : !options.TitleOnly;
 
-        html.Append("<article class=\"card p").Append((int)note.Priority).Append(note.IsDeleted ? " deleted" : "").Append("\" id=\"n").Append(note.Id.ToString(CultureInfo.InvariantCulture)).Append("\">\n");
+        html.Append("<article class=\"card p").Append((int)note.Priority).Append(card.IsEventDay ? " event" : "").Append(note.IsDeleted ? " deleted" : "").Append("\" id=\"n").Append(note.Id.ToString(CultureInfo.InvariantCulture)).Append("\">\n");
+
+        // 実施日の帯は、カードの上端に置く。閉じていても見える
+        if (card.IsEventDay)
+        {
+            html.Append("<div class=\"event-band\">").Append(card.IsEventToday ? "今日が実施日" : "この日が実施日").Append("</div>\n");
+        }
 
         // 操作 (カードの右上)
         html.Append("<div class=\"actions\">");
@@ -107,7 +113,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         html.Append("<span class=\"title\">").Append(Escape(note.Title)).Append("</span>");
         AppendBadges(html, card, options.IsShared);
         html.Append("<span class=\"meta\">");
-        foreach (var part in Meta(card, options.IsShared))
+        foreach (var part in Meta(card, options.IsShared, options.Day))
         {
             html.Append("<span>").Append(Escape(part)).Append("</span>");
         }
@@ -160,17 +166,26 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         html.Append("</span>\n");
     }
 
-    /// <summary>カードの上の行に出す、期間・作成者・更新者・更新日時の文字を作る</summary>
+    /// <summary>カードの上の行に出す、期間・実施日・作成者・更新者・更新日時の文字を作る</summary>
     /// <param name="card">カードに出す内容</param>
     /// <param name="isShared">複数の人で共有するか</param>
-    /// <returns>項目ごとの文字 (期間・作成者・更新)。項目の間の区切りは、CSS が付ける</returns>
-    private static List<string> Meta(NoteCard card, bool isShared)
+    /// <param name="day">表示する日</param>
+    /// <returns>項目ごとの文字。期間・実施日・作成者・更新の順で、項目の間の区切りは CSS が付ける</returns>
+    /// <remarks>実施日は、設定があり、表示する日より後のときだけ小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
+    private static List<string> Meta(NoteCard card, bool isShared, DateOnly day)
     {
         var note = card.Note;
         var parts = new List<string>
         {
             note.IsOpenEnded ? $"{FormatDate(note.StartDate)} ～" : $"{FormatDate(note.StartDate)} ～ {FormatDate(note.EndDate)}",
         };
+        if (note.HasEventDate && note.EventDate > day)
+        {
+            var text = note.EventDate.Year == day.Year
+                ? note.EventDate.ToString("MM/dd", CultureInfo.InvariantCulture)
+                : FormatDate(note.EventDate);
+            parts.Add($"実施 {text}");
+        }
         if (isShared)
         {
             parts.Add($"作成 {card.AuthorName}");
@@ -204,8 +219,8 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         var css = new StringBuilder(8192);
         css.Append(
             """
-            :root { --text:#1B1B1B; --sub:#5B5B5B; --card:#FFFFFF; --border:#D6D6D6; --link:#0F6CBD; --p5:#C42B1C; --p4:#D9730D; --badge:#EAEAEA; --badge-text:#303030; --today:#FDE7E9; --today-text:#8E1B10; }
-            html.dark { --text:#F0F0F0; --sub:#BDBDBD; --card:#2B2B2B; --border:#454545; --link:#6CB8F6; --p5:#FF7B6E; --p4:#FFB454; --badge:#3A3A3A; --badge-text:#E6E6E6; --today:#5A2A28; --today-text:#FFD0CB; }
+            :root { --text:#1B1B1B; --sub:#5B5B5B; --card:#FFFFFF; --border:#D6D6D6; --link:#0F6CBD; --p5:#C42B1C; --p4:#D9730D; --badge:#EAEAEA; --badge-text:#303030; --today:#FDE7E9; --today-text:#8E1B10; --event:#6F2DA8; --event-text:#FFFFFF; --event-bg:#F3E8FB; --event-glow:rgba(111,45,168,0.55); --event-glow-peak:rgba(111,45,168,0.9); }
+            html.dark { --text:#F0F0F0; --sub:#BDBDBD; --card:#2B2B2B; --border:#454545; --link:#6CB8F6; --p5:#FF7B6E; --p4:#FFB454; --badge:#3A3A3A; --badge-text:#E6E6E6; --today:#5A2A28; --today-text:#FFD0CB; --event:#B58CF0; --event-text:#1A1030; --event-bg:#3A2D4D; --event-glow:rgba(181,140,240,0.5); --event-glow-peak:rgba(181,140,240,0.9); }
             * { box-sizing:border-box; }
             html, body { margin:0; background:transparent; color:var(--text); }
             body { padding:4px 20px 24px 4px; font:14px/1.7 "BIZ UDGothic","BIZ UDゴシック","MS Gothic","ＭＳ ゴシック",Consolas,monospace; }
@@ -219,6 +234,15 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             .card.p5, .card.p4 { border-left-width:4px; padding-left:16px; }
             .card.p5 { border-left-color:var(--p5); }
             .card.p4 { border-left-color:var(--p4); }
+            .card.event { --pl:18px; padding:0 15px 7px 18px; background:var(--event-bg); border:2px solid var(--event); box-shadow:0 0 10px 1px var(--event-glow); animation:event-pulse 1.2s ease-in-out 3; }
+            .card.event.p5, .card.event.p4 { --pl:16px; padding-left:16px; border-left-width:4px; }
+            .card.event.p5 { border-left-color:var(--p5); }
+            .card.event.p4 { border-left-color:var(--p4); }
+            .event-band { margin:0 -15px 8px calc(-1 * var(--pl)); padding:2px 16px; border-radius:6px 6px 0 0; background:var(--event); color:var(--event-text); font-size:13px; font-weight:700; line-height:22px; }
+            .card.event .actions { top:34px; }
+            .card.event .title { font-size:19px; }
+            @keyframes event-pulse { 0%, 100% { box-shadow:0 0 10px 1px var(--event-glow); } 50% { box-shadow:0 0 20px 5px var(--event-glow-peak); } }
+            @media (prefers-reduced-motion: reduce) { .card.event { animation:none; } }
             .card.deleted { opacity:0.6; }
             .card.deleted .title { text-decoration:line-through; }
             .actions { position:absolute; top:8px; right:14px; display:flex; gap:12px; line-height:1.7; }

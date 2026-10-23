@@ -24,6 +24,13 @@ public interface INoteRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
     Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
 
+    /// <summary>指定の日が実施日のノートを取得する (削除済みは含めない)</summary>
+    /// <param name="day">日</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>実施日が、その日のノート (並びは不定)</returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default);
+
     /// <summary>ノートを追加する</summary>
     /// <param name="input">入力内容 (<see cref="NoteInput.Validate"/> を通ったもの)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

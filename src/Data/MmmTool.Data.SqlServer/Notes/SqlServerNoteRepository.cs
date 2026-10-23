@@ -24,8 +24,11 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
     private const int InvalidObjectName = 208;
 
+    /// <summary>列名が正しくない (列が無い)ときの SQL Server のエラー番号</summary>
+    private const int InvalidColumnName = 207;
+
     /// <summary>表の全部の列 (読む順)</summary>
-    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, Priority, Title, Body";
+    private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
     /// <inheritdoc />
     public bool IsShared => true;
@@ -34,7 +37,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     public int CurrentUserId => currentUser.Id;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
@@ -64,8 +67,36 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default)
+    {
+        var userId = RequireUserId();
+        return RunAsync<IReadOnlyList<Note>>(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                $"""
+                SELECT {Columns}
+                FROM dbo.Note
+                WHERE EventDate = @Day AND IsDeleted = 0
+                  AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                """;
+            command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var notes = new List<Note>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                notes.Add(ReadRow(reader).ToNote());
+            }
+            return notes;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -75,9 +106,9 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
-                INSERT INTO dbo.Note (CreatedByUserId, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, Priority, Title, Body)
+                INSERT INTO dbo.Note (CreatedByUserId, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body)
                 OUTPUT INSERTED.Id, INSERTED.UpdatedAt
-                VALUES (@UserId, @UserId, @UserId, @IsPrivate, @StartDate, @EndDate, @Priority, @Title, @Body)
+                VALUES (@UserId, @UserId, @UserId, @IsPrivate, @StartDate, @EndDate, @EventDate, @Priority, @Title, @Body)
                 """;
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
             AddInputParameters(command, input);
@@ -91,6 +122,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
                 IsPrivate = input.IsPrivate,
                 StartDate = input.StartDate,
                 EndDate = input.EndDate,
+                EventDate = input.EventDate,
                 Priority = input.Priority,
                 Title = input.Title,
                 Body = input.Body,
@@ -102,7 +134,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> UpdateAsync(int id, NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -114,7 +146,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
                 """
                 UPDATE dbo.Note
                 SET IsPrivate = CASE WHEN AuthorUserId = @UserId THEN @IsPrivate ELSE IsPrivate END,
-                    StartDate = @StartDate, EndDate = @EndDate, Priority = @Priority, Title = @Title, Body = @Body,
+                    StartDate = @StartDate, EndDate = @EndDate, EventDate = @EventDate, Priority = @Priority, Title = @Title, Body = @Body,
                     UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
                 WHERE Id = @Id AND (IsPrivate = 0 OR AuthorUserId = @UserId)
                 """;
@@ -126,7 +158,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
@@ -146,7 +178,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         }, cancellationToken);
     }
 
-    /// <summary>入力内容のパラメーターを足す (<c>@IsPrivate</c> <c>@StartDate</c> <c>@EndDate</c> <c>@Priority</c> <c>@Title</c> <c>@Body</c>)</summary>
+    /// <summary>入力内容のパラメーターを足す (<c>@IsPrivate</c> <c>@StartDate</c> <c>@EndDate</c> <c>@EventDate</c> <c>@Priority</c> <c>@Title</c> <c>@Body</c>)</summary>
     /// <param name="command">コマンド</param>
     /// <param name="input">入力内容</param>
     private static void AddInputParameters(SqlCommand command, NoteInput input)
@@ -154,6 +186,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         command.Parameters.Add(new SqlParameter("@IsPrivate", SqlDbType.Bit) { Value = input.IsPrivate });
         command.Parameters.Add(new SqlParameter("@StartDate", SqlDbType.Date) { Value = input.StartDate.ToDateTime(TimeOnly.MinValue) });
         command.Parameters.Add(new SqlParameter("@EndDate", SqlDbType.Date) { Value = input.EndDate.ToDateTime(TimeOnly.MinValue) });
+        command.Parameters.Add(new SqlParameter("@EventDate", SqlDbType.Date) { Value = input.EventDate.ToDateTime(TimeOnly.MinValue) });
         command.Parameters.Add(new SqlParameter("@Priority", SqlDbType.TinyInt) { Value = (byte)input.Priority });
         command.Parameters.Add(new SqlParameter("@Title", SqlDbType.NVarChar, NoteLimits.TitleMaxLength) { Value = input.Title });
 
@@ -175,7 +208,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
     /// <remarks>表は、管理者が <c>003_AddNote.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝える。</remarks>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
@@ -187,6 +220,10 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
                 throw new DataFileException("ノートの表がデータベースにありません。管理者に、003_AddNote.sql を実行してもらってください。", ex);
+            }
+            catch (SqlException ex) when (ex.Number == InvalidColumnName)
+            {
+                throw new DataFileException("ノートの表に実施日の列がありません。管理者に、005_AddNoteEventDate.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 
@@ -205,8 +242,9 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         IsPrivate = reader.GetBoolean(7),
         StartDate = DateOnly.FromDateTime(reader.GetDateTime(8)),
         EndDate = DateOnly.FromDateTime(reader.GetDateTime(9)),
-        Priority = reader.GetByte(10),
-        Title = reader.GetString(11),
-        Body = reader.GetString(12),
+        EventDate = DateOnly.FromDateTime(reader.GetDateTime(10)),
+        Priority = reader.GetByte(11),
+        Title = reader.GetString(12),
+        Body = reader.GetString(13),
     };
 }

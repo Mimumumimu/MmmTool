@@ -10,6 +10,7 @@ using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Controls;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.WorkItems.Core;
+using MmmTool.WorkItems.ViewOptions;
 using Windows.System;
 
 namespace MmmTool.WorkItems.Main;
@@ -79,6 +80,11 @@ public sealed partial class WorkItemPage : Page
         _columns.First(c => c.Key == "Planned").HeaderToolTip = "作業全体の予定の工数 (時間)";
         foreach (var column in _columns)
         {
+            // 名前の列は、常に出す (「表示列」にも無い)ので、右クリックのメニューを付けない
+            if (column.Key != "Name")
+            {
+                column.HeaderContextFlyout = BuildHeaderMenu(column.Key);
+            }
             TreeGrid.Columns.Add(column);
         }
 
@@ -91,18 +97,34 @@ public sealed partial class WorkItemPage : Page
         rowMenu.Opening += OnRowMenuOpening;
         TreeGrid.RowContextFlyout = rowMenu;
         TreeGrid.CellInvoked += OnCellInvoked;
-        TreeGrid.EditCanceled += (_, e) => (e.Row as WorkItemRow)?.Revert();
+        TreeGrid.EditCanceled += (_, e) =>
+        {
+            if (e.Row is WorkItemRow row)
+            {
+                row.Revert();
+                ViewModel.ReleaseAdded(row);
+            }
+        };
         TreeGrid.EditEnding += OnEditEnding;
         TreeGrid.ItemsSource = ViewModel.Rows;
         TreeGrid.RowToggleRequested += (_, e) => ViewModel.Toggle((WorkItemRow)e.Row);
         Unloaded += (_, _) => ViewModel.Suspend();
         TreeGrid.SelectedRowChanged += (_, _) => ViewModel.SelectedRow = TreeGrid.SelectedRow as WorkItemRow;
 
-        BuildColumnsFlyout();
+        BuildViewFlyout();
+        BuildFilterFlyout();
         ApplyColumns(fitAll: true);
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-        ViewModel.ColumnVisibilityChanged += (_, _) => ApplyColumns();
+        ViewModel.ColumnVisibilityChanged += (_, _) =>
+        {
+            // 見出しの右クリックで隠した列も、「表示列」のチェックに反映する
+            foreach (var (key, check) in _columnChecks)
+            {
+                check.IsChecked = ViewModel.IsColumnVisible(key);
+            }
+            ApplyColumns();
+        };
         ViewModel.RowsRebuilt += (_, _) =>
         {
             if (FitColumns())
@@ -294,7 +316,7 @@ public sealed partial class WorkItemPage : Page
 
             var width = column.Key switch
             {
-                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExcludedMark ? ReportExcludedMarkWidth : 0)).DefaultIfEmpty(0).Max()),
+                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExclusionMark ? ReportExclusionMarkWidth : 0)).DefaultIfEmpty(0).Max()),
                 "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
@@ -322,8 +344,9 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
     private const double NoteMaxWidth = 320;
 
-    /// <summary>名前のセルに出す、作業報告に含めない印の幅 (アイコンの大きさ 14 に、文字との間の余白を足した値)</summary>
-    private const double ReportExcludedMarkWidth = 24;
+    /// <summary>名前のセルに出す、作業報告から外す印の幅</summary>
+    /// <remarks>アイコンの大きさ 14 に、文字との間の余白を足した値。予定に含めない印も、実績・予定に含めない印も、同じ大きさ。</remarks>
+    private const double ReportExclusionMarkWidth = 24;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
@@ -353,10 +376,26 @@ public sealed partial class WorkItemPage : Page
     /// <returns>見出しの文字の幅に、左右の余白を足したもの</returns>
     private double HeaderWidth(TreeGridColumn column) => TextWidth(column.Header, Microsoft.UI.Text.FontWeights.SemiBold) + 28;
 
-    /// <summary>「表示列」のボタンに、列ごとのチェックを並べた入れ物を付ける</summary>
-    /// <remarks>続けて何列も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
-    private void BuildColumnsFlyout()
+    /// <summary>「表示列」の入れ物にある、列ごとのチェック (列のキーが引く)</summary>
+    private readonly Dictionary<string, CheckBox> _columnChecks = [];
+
+    /// <summary>列の見出しの右クリックのメニュー (その列を非表示にする)を作る</summary>
+    /// <param name="key">列のキー</param>
+    /// <returns>メニュー</returns>
+    private MenuFlyout BuildHeaderMenu(string key)
     {
+        var menu = new MenuFlyout();
+        var hide = new MenuFlyoutItem { Text = "列を非表示" };
+        hide.Click += (_, _) => ViewModel.SetColumnVisible(key, false);
+        menu.Items.Add(hide);
+        return menu;
+    }
+
+    /// <summary>「表示」のボタンに、見え方の設定 (過去の完了・列)を並べた入れ物を付ける</summary>
+    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
+    private void BuildViewFlyout()
+    {
+        var completed = new CompletedDisplaySection("過去の完了", "入力日に完了した作業は、常に表示します", index => ViewModel.CompletedIndex = index);
         var panel = new StackPanel { Spacing = 0 };
         foreach (var column in _columns.Where(c => c.Key != "Name" && (c.Key != "Assignee" || ViewModel.HasAssignees)))
         {
@@ -368,9 +407,44 @@ public sealed partial class WorkItemPage : Page
                 MinWidth = 0,
             };
             check.Click += (_, _) => ViewModel.SetColumnVisible(key, check.IsChecked == true);
+            _columnChecks[key] = check;
             panel.Children.Add(check);
         }
-        ColumnsButton.Flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        var content = new StackPanel { Spacing = 16 };
+        content.Children.Add(completed);
+        var columns = new StackPanel { Spacing = 4 };
+        columns.Children.Add(new TextBlock { Text = "列", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+        columns.Children.Add(panel);
+        content.Children.Add(columns);
+        var flyout = new Flyout { Content = content, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        flyout.Opening += (_, _) => completed.Select(ViewModel.CompletedIndex);
+        ViewButton.Flyout = flyout;
+    }
+
+    /// <summary>「絞り込み」のボタンに、絞り込みの条件 (状態)を並べた入れ物を付ける</summary>
+    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。条件が増えたときは、見出し付きの部を足す。チェックはコードマスタの状態から、開くたびに作る。</remarks>
+    private void BuildFilterFlyout()
+    {
+        var panel = new StackPanel { Spacing = 0 };
+        var flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+        flyout.Opening += (_, _) =>
+        {
+            panel.Children.Clear();
+            panel.Children.Add(new TextBlock { Text = "状態", Margin = new Thickness(0, 0, 0, 4), Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            foreach (var status in ViewModel.StatusChoices)
+            {
+                var codeNo = status.CodeNo;
+                var check = new CheckBox
+                {
+                    Content = status.Text,
+                    IsChecked = ViewModel.IsStatusShown(codeNo),
+                    MinWidth = 0,
+                };
+                check.Click += (_, _) => ViewModel.SetStatusShown(codeNo, check.IsChecked == true);
+                panel.Children.Add(check);
+            }
+        };
+        FilterButton.Flyout = flyout;
     }
 
     #endregion
@@ -697,11 +771,12 @@ public sealed partial class WorkItemPage : Page
             return;
         }
 
+        // よく使う「作業を追加」を上に置く (グループは、作る頻度が低い)
+        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
         if (row.IsGroup)
         {
             AddItem(menu, "グループを追加", () => ViewModel.AddAsync(WorkRowKind.Group, row));
         }
-        AddItem(menu, "作業を追加", () => ViewModel.AddAsync(WorkRowKind.Work, row));
 
         // 右クリックした所が、作業の日付のセルのときだけ (そのセルに固有の操作を、行全体の「リンクを編集…」より上に置く)
         if (row.IsWork && TreeGrid.ContextColumnKey is ("Start" or "Due") and { } dateKey)
@@ -730,11 +805,11 @@ public sealed partial class WorkItemPage : Page
             }
         }
 
-        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、メニューだけに置く (印は名前のセルに出す)
+        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、サブメニューに置く (印は名前のセルに出す)
         if (row.IsWork)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
-            AddToggleItem(menu, "作業報告に含めない", row.ReportExcluded, isChecked => ViewModel.SetReportExcludedAsync(row, isChecked), !row.IsLocked);
+            AddReportExclusionMenu(menu, row);
         }
 
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
@@ -763,17 +838,33 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(item);
     }
 
-    /// <summary>メニューに、チェック付きの項目を足す</summary>
+    /// <summary>メニューに、作業報告から外す範囲を選ぶサブメニューを足す</summary>
     /// <param name="menu">足し先のメニュー</param>
-    /// <param name="text">項目の文言</param>
-    /// <param name="isChecked">今、チェックが付いているか</param>
-    /// <param name="action">選ばれたときの処理 (選んだあとのチェックの状態を受け取る)</param>
-    /// <param name="isEnabled">選べるか</param>
-    private static void AddToggleItem(MenuFlyout menu, string text, bool isChecked, Func<bool, Task> action, bool isEnabled = true)
+    /// <param name="row">行 (作業)</param>
+    /// <remarks>
+    /// 3 つのうち 1 つだけが選ばれるので、ラジオ付きの項目にする。
+    /// メニューは開くたびに行から作るので、チェックは行の値から付け、選んだときの処理は Click で行う。
+    /// 今と同じ値を選んでも、何も書かない。触れない行では、選べない。
+    /// </remarks>
+    private void AddReportExclusionMenu(MenuFlyout menu, WorkItemRow row)
     {
-        var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = isChecked, IsEnabled = isEnabled };
-        item.Click += (_, _) => action(item.IsChecked).Forget();
-        menu.Items.Add(item);
+        var submenu = new MenuFlyoutSubItem { Text = "作業報告", IsEnabled = !row.IsLocked };
+        AddReportExclusionItem(submenu, row, "すべて含める", WorkReportExclusion.None);
+        AddReportExclusionItem(submenu, row, "予定に含めない", WorkReportExclusion.Plan);
+        AddReportExclusionItem(submenu, row, "実績・予定に含めない", WorkReportExclusion.PlanAndActual);
+        menu.Items.Add(submenu);
+    }
+
+    /// <summary>サブメニューに、作業報告から外す範囲の項目を足す</summary>
+    /// <param name="submenu">足し先のサブメニュー</param>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="text">項目の文言</param>
+    /// <param name="value">この項目が表す範囲</param>
+    private void AddReportExclusionItem(MenuFlyoutSubItem submenu, WorkItemRow row, string text, WorkReportExclusion value)
+    {
+        var item = new RadioMenuFlyoutItem { Text = text, GroupName = "ReportExclusion", IsChecked = row.ReportExclusion == value };
+        item.Click += (_, _) => ViewModel.SetReportExclusionAsync(row, value).Forget();
+        submenu.Items.Add(item);
     }
 
     #endregion

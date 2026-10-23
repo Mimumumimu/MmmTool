@@ -70,6 +70,7 @@
                 IsItemClickEnabled="True"
                 ItemClick="OnDirectoryClick"
                 ItemsSource="{x:Bind ViewModel.Directories}"
+                ScrollViewer.VerticalScrollBarVisibility="Visible"
                 SelectionMode="None">
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
