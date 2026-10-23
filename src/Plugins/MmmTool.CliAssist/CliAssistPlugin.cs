@@ -51,8 +51,8 @@ public sealed class CliAssistPlugin : IFeaturePlugin
 
         services.AddTransient<WorkingDirectoryDialog>();
         services.AddTransient<WorkingDirectoryDialogViewModel>();
-        services.AddTransient<QuickMessageDialog>();
-        services.AddTransient<QuickMessageDialogViewModel>();
+        services.AddTransient<QuickMessageWindow>();
+        services.AddTransient<QuickMessageWindowViewModel>();
         services.AddTransient<FocusTriggerDialog>();
         services.AddTransient<FocusTriggerDialogViewModel>();
         services.AddTransient<CliSetupDialog>();

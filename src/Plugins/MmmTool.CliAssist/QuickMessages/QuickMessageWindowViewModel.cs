@@ -8,15 +8,15 @@ using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.QuickMessages;
 
-/// <summary>よく使う文の編集ダイアログの ViewModel</summary>
-public sealed partial class QuickMessageDialogViewModel : ObservableObject
+/// <summary>よく使う文の編集ウィンドウの ViewModel</summary>
+public sealed partial class QuickMessageWindowViewModel : ObservableObject
 {
     /// <summary>よく使う文</summary>
     private readonly CliQuickMessageService _quickMessages;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="quickMessages">よく使う文</param>
-    public QuickMessageDialogViewModel(CliQuickMessageService quickMessages)
+    public QuickMessageWindowViewModel(CliQuickMessageService quickMessages)
     {
         _quickMessages = quickMessages;
         RootItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoItems));
@@ -137,7 +137,7 @@ public sealed partial class QuickMessageDialogViewModel : ObservableObject
     }
 
     /// <summary>入力を調べて保存する</summary>
-    /// <returns>保存できたら true で、ダイアログを閉じてよい。名前や文が空の項目がある・保存に失敗したときは false</returns>
+    /// <returns>保存できたら true で、ウィンドウを閉じてよい。名前や文が空の項目がある・保存に失敗したときは false</returns>
     public async Task<bool> SaveAsync()
     {
         if (FindInvalid() is { } found)

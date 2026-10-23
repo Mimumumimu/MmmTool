@@ -308,8 +308,17 @@ CLI補助機能の仕様。
     - 空の一覧で動き、InfoBar で「直して名前を戻し、再起動する」案内を出す
     - 退避した名前は、SDK のメッセージに含まれる
 - 全タブで共通で、シェル・AI セッションのどちらのタブでも出す (`CliQuickMessageService`)
-- 編集画面 (`QuickMessages/QuickMessageDialog` で、題名「よく使う文の編集」)は、チップの行の先頭の鉛筆ボタン (ツールチップ「よく使う文を編集」)で開く
+- 編集画面 (`QuickMessages/QuickMessageWindow` で、題名「よく使う文の編集」)は、チップの行の先頭の鉛筆ボタン (ツールチップ「よく使う文を編集」)で開く
   - 文が 0 件でも開ける
+  - 大きさを変えられるウィンドウで、親ウィンドウの上にモーダルで出す (`QuickMessageDialogService`が `IDialogHost.ShowModalAsync` で開く)
+    - ContentDialog にしない (大きさを変えられず、項目が増えると、ツリーがスクロールして、ドラッグ中の端の自動スクロールで狙った行へ落とせないため)
+    - 開くときは、幅 800 × 高さ 500 DIP の黄金比の横長にする (ただし、高さは親のいるモニターの作業領域に収める)
+      - アプリの高さに合わせて縦長にしない (縦に伸びる形は、画面の決まりに反し、アプリが大きいほどウィンドウが大きくなりすぎるため)
+      - 項目が多いときは、利用者が縁をドラッグして広げる
+    - 最小は 560 × 400 DIP。最大化・最小化はできない。
+    - 左のツリーと右の入力欄は、ウィンドウの大きさに合わせて伸びる。文の入力欄は、残りの高さいっぱいに伸びる。
+    - 大きさは保存せず、開くたびに同じ大きさで開く (保存すると、広げた大きさが次回の開き方を決めてしまうため)
+    - × で閉じたときは、「キャンセル」と同じ (変更を捨てる)
   - 左にツリー (`TreeView`)と、その下に「文を追加」「グループを追加」「削除」のボタンを置く
     - 行の名前は、表示名で、無ければ文の 1 行目、どちらも無ければ「(未入力)」
     - 作りは MmmTool.Links の編集画面と同じで、`ItemsSource` に `ObservableCollection`・`CanDragItems`・`CanReorderItems`を使い、グループの行だけ `AllowDrop` にする
@@ -333,7 +342,7 @@ CLI補助機能の仕様。
     - グループの中にグループは入れない
       - グループをドラッグしている間は、グループの行の `AllowDrop` を外す
         - `DragItemsStarting` のたびに決め直し、文をドラッグするときは戻す
-      - グループの中の文の間へ落ちたグループは、`AllowDrop` では防げない。ドロップの処理が終わってから、入った先のグループの直後へ出す (`QuickMessageDialogViewModel.MoveNestedGroupsOut`)
+      - グループの中の文の間へ落ちたグループは、`AllowDrop` では防げない。ドロップの処理が終わってから、入った先のグループの直後へ出す (`QuickMessageWindowViewModel.MoveNestedGroupsOut`)
       - ドラッグの終わりの通知 (`DragItemsCompleted`)で戻す作りにしない。設定の機能の一覧 (`ListView`)で届かなかったため、`TreeView` でも当てにしない。
   - 右に、選んだ項目の入力欄を置く
     - 文は「表示名 (省略可)」と「文」(複数行)
@@ -382,7 +391,8 @@ CLI補助機能の仕様。
   - 読み込みに失敗している (ファイルを読めなかった)ときは、読めなかったファイルを上書きしないよう、画面を開かずに、理由を InfoBar で知らせる
   - 手で書いたファイルは、保存すると、整った形に書き直される
 - よく使う文と同じ、手で書いてもよい一覧のファイルの読み書きは、`CliListFileService` と `JsonCliListFileRepository` で共通にする (一覧のファイルが増えても、読み込みの失敗・退避・保存の処理を写さないため)
-  - 編集ダイアログを開く処理も、`CliEditDialogService` で共通にする
+  - ContentDialog の編集画面を開く処理は、`CliEditDialogService` で共通にする (ターミナルへ移る文字列の編集)
+  - ウィンドウの編集画面 (よく使う文の編集)は、`CliEditDialogService` を使わず、`QuickMessageDialogService` が開く
 
 - 探し方は SDK の `TerminalOutputWatcher`(`external/MmmSdk/docs/terminal.md`)
   - 制御文字と空白を除き、大文字小文字を区別せずに探す。書く文字列のほうも、空白を除いて比べる。
