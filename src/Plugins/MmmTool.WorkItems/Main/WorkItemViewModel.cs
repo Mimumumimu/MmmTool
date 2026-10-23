@@ -66,8 +66,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <remarks>保存しない。空なら、すべての状態を出す。</remarks>
     private readonly HashSet<int> _hiddenStatuses = [];
 
+    /// <summary>開始日がまだ来ていない作業を隠すか</summary>
+    /// <remarks>保存しない。起動のたびに、隠さない状態へ戻る。</remarks>
+    private bool _hideNotStarted;
+
     /// <summary>追加した直後で、名前を入力中の作業</summary>
-    /// <remarks>状態の絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
+    /// <remarks>絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
     private WorkKey? _addedKey;
 
     /// <summary>選択欄の選択肢 (コードマスタが変わらない間は、同じ一覧を使い回す)</summary>
@@ -476,21 +480,43 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>状態の絞り込みを通る作業か</summary>
-    /// <param name="item">作業</param>
-    /// <returns>残すなら true (隠す状態に入っていない作業と、名前を入力中の追加した作業)</returns>
-    /// <remarks>隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、いつも残る。</remarks>
-    private bool KeepByStatus(WorkItem item)
-        => !_hiddenStatuses.Contains((int)item.Status) || _addedKey == new WorkKey(WorkRowKind.Work, item.Id);
+    /// <summary>開始日がまだ来ていない作業を隠すか</summary>
+    public bool HideNotStarted => _hideNotStarted;
 
-    /// <summary>状態の絞り込みを使っていないときは null、使っているときは <see cref="KeepByStatus"/> を返す</summary>
-    private Func<WorkItem, bool>? StatusFilter => _hiddenStatuses.Count == 0 ? null : KeepByStatus;
+    /// <summary>開始日がまだ来ていない作業を隠すかを切り替えて、表を作り直す (保存しない)</summary>
+    /// <param name="hide">隠すなら true</param>
+    public void SetHideNotStarted(bool hide)
+    {
+        if (_hideNotStarted == hide)
+        {
+            return;
+        }
+
+        _hideNotStarted = hide;
+        _addedKey = null;
+        Rebuild();
+    }
+
+    /// <summary>絞り込みの条件 (状態・開始日)を通る作業か</summary>
+    /// <param name="item">作業</param>
+    /// <returns>残すなら true (すべての条件を通る作業と、名前を入力中の追加した作業)</returns>
+    /// <remarks>
+    /// 隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、状態では隠れない。
+    /// 開始日は入力日と比べ、開始日が空の作業と、開始日が入力日以前の作業は隠れない。
+    /// </remarks>
+    private bool KeepByFilter(WorkItem item)
+        => _addedKey == new WorkKey(WorkRowKind.Work, item.Id)
+        || (!_hiddenStatuses.Contains((int)item.Status)
+            && !(_hideNotStarted && item.StartDate is { } start && start > InputDate));
+
+    /// <summary>絞り込みを使っていないときは null、使っているときは <see cref="KeepByFilter"/> を返す</summary>
+    private Func<WorkItem, bool>? ItemFilter => _hiddenStatuses.Count == 0 && !_hideNotStarted ? null : KeepByFilter;
 
     /// <summary>絞り込みのボタンの文字を、効いている条件の数に合わせる</summary>
-    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。</remarks>
+    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。開始日の条件は、1 つと数える。</remarks>
     private void UpdateFilterText()
     {
-        var active = _choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0;
+        var active = (_choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0) + (_hideNotStarted ? 1 : 0);
         FilterText = active == 0 ? "絞り込み" : $"絞り込み ({active})";
     }
 
@@ -1105,7 +1131,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();
-        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex, ItemFilter))
         {
             Visit(root, 0, target, alive);
         }
@@ -1252,7 +1278,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     private bool InsertProjectRows(int projectId)
     {
         if (_rowByKey.ContainsKey(new WorkKey(WorkRowKind.Project, projectId))
-            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter) is not { } node)
+            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex, ItemFilter) is not { } node)
         {
             return false;
         }
