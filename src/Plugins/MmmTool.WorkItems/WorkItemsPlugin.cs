@@ -59,9 +59,9 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddTransient<ProjectPickerViewModel>();
         services.AddTransient<ScheduleViewModel>();
         services.AddTransient<WorkItemViewModel>();
-        services.AddNavigationPage<WorkItemPage>(WorkItemsFeature.DisplayName, "", NavigationArea.Top, WorkItemsFeature.Key);
+        services.AddNavigationPage<WorkItemPage>(WorkItemsFeature.DisplayName, "", NavigationArea.Top, WorkItemsFeature.Key, canDetach: true);
         // スケジュールは、作業管理の子の項目 (作業管理がオフの間は出さない)
-        services.AddNavigationChildPage<SchedulePage, WorkItemPage>("スケジュール", "", WorkItemsFeature.Key);
+        services.AddNavigationChildPage<SchedulePage, WorkItemPage>("スケジュール", "", WorkItemsFeature.Key, canDetach: true);
 
         services.AddStartupTask<WorkItemStartup>(WorkItemsFeature.Key);
     }

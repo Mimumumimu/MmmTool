@@ -58,6 +58,7 @@
 | まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
 | メッセージで前回送った宛先の送信先の番号 | `Messages.LastChannelId` | 整数。無ければ 0。詳細は [messages.md](messages.md) |
 | Backlog の連携用パス | `Backlog.Url` | |
+| サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値 (X・Y・Width・Height)。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
 | スヌーズ間隔・ウィンドウ位置など | 各機能・SDK が持つキー | |
 
 ## ファイルに書かないもの
