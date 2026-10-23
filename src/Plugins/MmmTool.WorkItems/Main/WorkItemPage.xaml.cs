@@ -307,7 +307,7 @@ public sealed partial class WorkItemPage : Page
 
             var width = column.Key switch
             {
-                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsPlanExcludedMark ? PlanExcludedMarkWidth : 0)).DefaultIfEmpty(0).Max()),
+                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExclusionMark ? ReportExclusionMarkWidth : 0)).DefaultIfEmpty(0).Max()),
                 "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
@@ -335,8 +335,9 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
     private const double NoteMaxWidth = 320;
 
-    /// <summary>名前のセルに出す、予定に含めない印の幅 (アイコンの大きさ 14 に、文字との間の余白を足した値)</summary>
-    private const double PlanExcludedMarkWidth = 24;
+    /// <summary>名前のセルに出す、作業報告から外す印の幅</summary>
+    /// <remarks>アイコンの大きさ 14 に、文字との間の余白を足した値。予定に含めない印も、実績・予定に含めない印も、同じ大きさ。</remarks>
+    private const double ReportExclusionMarkWidth = 24;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
@@ -760,11 +761,11 @@ public sealed partial class WorkItemPage : Page
             }
         }
 
-        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、メニューだけに置く (印は名前のセルに出す)
+        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、サブメニューに置く (印は名前のセルに出す)
         if (row.IsWork)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
-            AddToggleItem(menu, "予定に含めない", row.PlanExcluded, isChecked => ViewModel.SetPlanExcludedAsync(row, isChecked), !row.IsLocked);
+            AddReportExclusionMenu(menu, row);
         }
 
         // 案件の並びは名前の順で、案件の登録・名前の変更・削除は案件の管理のウィンドウで行う
@@ -793,17 +794,33 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(item);
     }
 
-    /// <summary>メニューに、チェック付きの項目を足す</summary>
+    /// <summary>メニューに、作業報告から外す範囲を選ぶサブメニューを足す</summary>
     /// <param name="menu">足し先のメニュー</param>
-    /// <param name="text">項目の文言</param>
-    /// <param name="isChecked">今、チェックが付いているか</param>
-    /// <param name="action">選ばれたときの処理 (選んだあとのチェックの状態を受け取る)</param>
-    /// <param name="isEnabled">選べるか</param>
-    private static void AddToggleItem(MenuFlyout menu, string text, bool isChecked, Func<bool, Task> action, bool isEnabled = true)
+    /// <param name="row">行 (作業)</param>
+    /// <remarks>
+    /// 3 つのうち 1 つだけが選ばれるので、ラジオ付きの項目にする。
+    /// メニューは開くたびに行から作るので、チェックは行の値から付け、選んだときの処理は Click で行う。
+    /// 今と同じ値を選んでも、何も書かない。触れない行では、選べない。
+    /// </remarks>
+    private void AddReportExclusionMenu(MenuFlyout menu, WorkItemRow row)
     {
-        var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = isChecked, IsEnabled = isEnabled };
-        item.Click += (_, _) => action(item.IsChecked).Forget();
-        menu.Items.Add(item);
+        var submenu = new MenuFlyoutSubItem { Text = "作業報告", IsEnabled = !row.IsLocked };
+        AddReportExclusionItem(submenu, row, "すべて含める", WorkReportExclusion.None);
+        AddReportExclusionItem(submenu, row, "予定に含めない", WorkReportExclusion.Plan);
+        AddReportExclusionItem(submenu, row, "実績・予定に含めない", WorkReportExclusion.PlanAndActual);
+        menu.Items.Add(submenu);
+    }
+
+    /// <summary>サブメニューに、作業報告から外す範囲の項目を足す</summary>
+    /// <param name="submenu">足し先のサブメニュー</param>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="text">項目の文言</param>
+    /// <param name="value">この項目が表す範囲</param>
+    private void AddReportExclusionItem(MenuFlyoutSubItem submenu, WorkItemRow row, string text, WorkReportExclusion value)
+    {
+        var item = new RadioMenuFlyoutItem { Text = text, GroupName = "ReportExclusion", IsChecked = row.ReportExclusion == value };
+        item.Click += (_, _) => ViewModel.SetReportExclusionAsync(row, value).Forget();
+        submenu.Items.Add(item);
     }
 
     #endregion

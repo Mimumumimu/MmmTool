@@ -20,10 +20,21 @@ internal static class SqliteMigrations
     /// 古い名前の列がある DB だけ変わる。新しい DB は、<c>schema.sql</c> が新しい名前で作る。
     /// 名前を変える列が増えたら、ここに足す。次のリリース以降、古い名前の DB が無くなったら外す。
     /// </remarks>
-    public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } =
+    public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } = [];
+
+    /// <summary>列の置き換え (古い列の値を、<c>schema.sql</c> の新しい列に移して、古い列を落とす)</summary>
+    /// <remarks>
+    /// 古い列と新しい列が両方ある DB だけ変わる。
+    /// 値の範囲を広げる変更に使う。名前の変更では、古い列の <c>CHECK</c> を引き継いで、広げられないため。
+    /// 次のリリース以降、古い列の DB が無くなったら外す。
+    /// </remarks>
+    public static IReadOnlyList<SqliteColumnReplacement> ColumnReplacements { get; } =
     [
-        // 作業報告の予定から外す印。版 0.7.0 は ReportExcluded の名前で足した。印は予定だけを外すので、PlanExcluded にする
-        new SqliteColumnRename("WorkItem", "ReportExcluded", "PlanExcluded"),
+        // 作業が、作業報告のどの部分から外れるか。版 0.7.0 は、列 ReportExcluded (0 と 1)で、1 は実績と予定の両方から外す印だったので、新しい値の 2 にする
+        new SqliteColumnReplacement("WorkItem", "ReportExcluded", "ReportExclusion", "CASE \"ReportExcluded\" WHEN 1 THEN 2 ELSE 0 END"),
+
+        // リリース前の版は、列 PlanExcluded (0 と 1)で、1 は予定だけから外す印だったので、新しい値の 1 のまま移す
+        new SqliteColumnReplacement("WorkItem", "PlanExcluded", "ReportExclusion", "\"PlanExcluded\""),
     ];
 
     /// <summary>埋め込んだスクリプトを、版の順に読む</summary>

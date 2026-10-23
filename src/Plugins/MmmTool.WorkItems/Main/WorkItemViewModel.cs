@@ -720,18 +720,19 @@ public sealed partial class WorkItemViewModel : ObservableObject
         }
     }
 
-    /// <summary>作業を、作業報告の予定に含めるかどうかを切り替える</summary>
+    /// <summary>作業を、作業報告のどの部分から外すかを変える</summary>
     /// <param name="row">行 (作業)</param>
-    /// <param name="excluded">含めないなら true</param>
-    /// <returns>切り替えの完了を表すタスク</returns>
-    public async Task SetPlanExcludedAsync(WorkItemRow row, bool excluded)
+    /// <param name="exclusion">外す範囲</param>
+    /// <returns>変更の完了を表すタスク</returns>
+    /// <remarks>今と同じ値、触れない行、作業ではない行では、何も書かない。</remarks>
+    public async Task SetReportExclusionAsync(WorkItemRow row, WorkReportExclusion exclusion)
     {
-        if (!row.IsWork || row.IsLocked || excluded == row.PlanExcluded)
+        if (!row.IsWork || row.IsLocked || exclusion == row.ReportExclusion)
         {
             return;
         }
 
-        await UpdateItemAsync(row, item => item with { PlanExcluded = excluded });
+        await UpdateItemAsync(row, item => item with { ReportExclusion = exclusion });
     }
 
     /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>

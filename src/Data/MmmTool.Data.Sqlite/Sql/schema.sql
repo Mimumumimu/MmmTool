@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS WorkGroup
 );
 
 -- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、完了日の 9999-12-31 は未完了
--- PlanExcluded の 1 は、作業報告の予定に出さない作業 (実績には出す)
+-- ReportExclusion は、作業報告のどの部分から外すか。0 は外さない、1 は予定から外して実績には出す、2 は実績と予定の両方から外す
 CREATE TABLE IF NOT EXISTS WorkItem
 (
     Id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS WorkItem
     PlannedHours     REAL    NOT NULL DEFAULT 0 CHECK (PlannedHours >= 0 AND PlannedHours <= 9999),
     ActualTotalHours REAL    NOT NULL DEFAULT 0 CHECK (ActualTotalHours >= 0),
     Link             TEXT    NOT NULL DEFAULT '' CHECK (length(Link) <= 2000),
-    PlanExcluded     INTEGER NOT NULL DEFAULT 0 CHECK (PlanExcluded IN (0, 1)),
+    ReportExclusion  INTEGER NOT NULL DEFAULT 0 CHECK (ReportExclusion IN (0, 1, 2)),
     StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)

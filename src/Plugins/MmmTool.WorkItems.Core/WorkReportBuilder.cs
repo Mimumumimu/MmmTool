@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
 /// <remarks>
 /// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。
+/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。
 /// 並びは画面に表示している順 (案件は名前順、グループと作業は同じ親の下の並び順)。画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
@@ -46,9 +46,9 @@ public static class WorkReportBuilder
             .GroupBy(r => r.WorkItemId)
             .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Date).ThenBy(r => r.Id).ToList());
 
-        // 実績: 期間内に、工数が 0 より大きい記録があるか、完了にした作業。備考は、共通の備考 → 期間内の備考 (日)の順
+        // 実績: 期間内に、工数が 0 より大きい記録があるか、完了にした作業。備考は、共通の備考 → 期間内の備考 (日)の順。実績に含めない印のある作業は除く
         var done = new List<ReportEntry>();
-        foreach (var item in items.Values)
+        foreach (var item in items.Values.Where(i => i.ReportExclusion != WorkReportExclusion.PlanAndActual))
         {
             var inRange = records.TryGetValue(item.Id, out var itemRecords)
                 ? itemRecords.Where(r => r.Date >= from && r.Date < reportDate).ToList()
@@ -64,7 +64,7 @@ public static class WorkReportBuilder
 
         // 予定: 状態が作業予定・作業中で、予定に含めない印が無い作業。共通の備考は、実績に出した作業でも、予定に出す
         var planned = new List<ReportEntry>();
-        foreach (var item in items.Values.Where(i => !i.PlanExcluded && i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
+        foreach (var item in items.Values.Where(i => i.ReportExclusion == WorkReportExclusion.None && i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
         {
             IEnumerable<string> todayNotes = records.TryGetValue(item.Id, out var itemRecords)
                 ? itemRecords.Where(r => r.Date == reportDate).SelectMany(r => Lines(r.Note))

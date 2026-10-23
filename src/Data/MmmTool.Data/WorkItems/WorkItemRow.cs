@@ -59,8 +59,8 @@ public sealed record WorkItemRow
     /// <summary>リンク (無いときは空文字)</summary>
     public string Link { get; init; } = "";
 
-    /// <summary>作業報告の予定に含めないか</summary>
-    public bool PlanExcluded { get; init; }
+    /// <summary>作業報告のどの部分から外すか (0 = 外さない・1 = 予定から外す・2 = 実績と予定から外す)</summary>
+    public byte ReportExclusion { get; init; }
 
     /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4)</summary>
     public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
@@ -90,7 +90,11 @@ public sealed record WorkItemRow
         }
         if ((int)item.Priority < 1 || (int)item.Status < 1 || item.ProgressCodeNo < 1)
         {
-            throw new ArgumentException("作業の優先度・状態・進捗度のコード番号が正しくありません (1 以上)。", nameof(item));
+            throw new ArgumentException("作業の優先度・状態・進捗度のコード番号が正しくありません。1 以上にしてください。", nameof(item));
+        }
+        if (!Enum.IsDefined(item.ReportExclusion))
+        {
+            throw new ArgumentException("作業の報告から外す範囲の値が正しくありません。", nameof(item));
         }
         return new WorkItemRow
         {
@@ -106,7 +110,7 @@ public sealed record WorkItemRow
             StartDate = WorkRowValues.FromDate(item.StartDate, "開始日", WorkRowValues.NoStartDate),
             DueDate = WorkRowValues.FromDate(item.DueDate, "期限日"),
             Link = WorkRowValues.CheckText(item.Link, "作業のリンク", WorkRowValues.LinkMax),
-            PlanExcluded = item.PlanExcluded,
+            ReportExclusion = (byte)item.ReportExclusion,
             StatusCodeNo = (int)item.Status,
             ProgressCodeNo = item.ProgressCodeNo,
             PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
@@ -130,7 +134,7 @@ public sealed record WorkItemRow
         StartDate = WorkRowValues.ToDate(StartDate, WorkRowValues.NoStartDate),
         DueDate = WorkRowValues.ToDate(DueDate),
         Link = Link,
-        PlanExcluded = PlanExcluded,
+        ReportExclusion = (WorkReportExclusion)ReportExclusion,
         Status = (WorkItemStatus)StatusCodeNo,
         ProgressCodeNo = ProgressCodeNo,
         PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,

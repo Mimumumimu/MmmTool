@@ -855,7 +855,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             {
                 Name = updated.Name.Trim(),
                 Link = updated.Link.Trim(),
-                PlanExcluded = updated.PlanExcluded,
+                ReportExclusion = updated.ReportExclusion,
                 Note = updated.Note,
                 Priority = updated.Priority,
                 StartDate = updated.StartDate,

@@ -29,6 +29,7 @@ public static class SqliteDataServiceCollectionExtensions
             Migrations = SqliteMigrations.Load(),
             SchemaSql = SqliteMigrations.LoadSchema(),
             ColumnRenames = SqliteMigrations.ColumnRenames,
+            ColumnReplacements = SqliteMigrations.ColumnReplacements,
         }));
         services.AddSingleton<SqliteWorkItemRepository>();
         services.AddSingleton<SqliteNoteRepository>();

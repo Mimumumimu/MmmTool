@@ -78,13 +78,19 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>リンクがあるか (表のセルに「リンク」の文字を出すか)</summary>
     public bool HasLink => Link.Length > 0;
 
-    /// <summary>作業報告の予定に含めないか (作業のみ)</summary>
+    /// <summary>作業報告のどの部分から外すか (作業のみ)</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsPlanExcludedMark))]
-    public partial bool PlanExcluded { get; private set; }
+    [NotifyPropertyChangedFor(nameof(ShowsReportExclusionMark), nameof(ShowsPlanExclusionMark), nameof(ShowsFullExclusionMark))]
+    public partial WorkReportExclusion ReportExclusion { get; private set; }
 
-    /// <summary>予定に含めない印を、名前のセルに出すか</summary>
-    public bool ShowsPlanExcludedMark => IsWork && PlanExcluded;
+    /// <summary>予定に含めない印 (カレンダーに斜線)を、名前のセルに出すか</summary>
+    public bool ShowsPlanExclusionMark => IsWork && ReportExclusion == WorkReportExclusion.Plan;
+
+    /// <summary>実績・予定に含めない印 (隠す)を、名前のセルに出すか</summary>
+    public bool ShowsFullExclusionMark => IsWork && ReportExclusion == WorkReportExclusion.PlanAndActual;
+
+    /// <summary>作業報告から外す印を、名前のセルに出すか (どちらの印でも)</summary>
+    public bool ShowsReportExclusionMark => ShowsPlanExclusionMark || ShowsFullExclusionMark;
 
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]
@@ -242,7 +248,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
         if (item is not null)
         {
-            PlanExcluded = item.PlanExcluded;
+            ReportExclusion = item.ReportExclusion;
             AssigneeUserId = item.AssigneeUserId;
             AssigneeText = assigneeText;
             PriorityIndex = WorkChoices.IndexOf(choices.Priorities, (int)item.Priority);

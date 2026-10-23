@@ -25,9 +25,9 @@ public sealed record WorkItem
     /// <summary>リンク (URL・フォルダ・ファイルのパス。無いときは空文字)</summary>
     public string Link { get; init; } = "";
 
-    /// <summary>作業報告の予定に含めないか</summary>
-    /// <remarks>定例の会議など、予定に出さない作業に付ける。予定には出さない。実績には、工数を記入した日や完了にした日があれば出す。</remarks>
-    public bool PlanExcluded { get; init; }
+    /// <summary>作業報告のどの部分から外すか</summary>
+    /// <remarks>定例の会議など、報告に書かない作業に付ける。<see cref="WorkReportExclusion.Plan"/> は予定だけを外し、実績には、工数を記入した日や完了にした日があれば出す。</remarks>
+    public WorkReportExclusion ReportExclusion { get; init; }
 
     /// <summary>備考 (作業ごとの共通の備考。永続)</summary>
     public string Note { get; init; } = "";
