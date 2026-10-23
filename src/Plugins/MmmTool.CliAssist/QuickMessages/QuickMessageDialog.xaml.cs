@@ -2,13 +2,18 @@ using System.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using MmmSdk.WinUI.Utilities;
+using Windows.Foundation;
 
 namespace MmmTool.CliAssist.QuickMessages;
 
 /// <summary>よく使う文の編集ダイアログ</summary>
 public sealed partial class QuickMessageDialog : ContentDialog, ICliEditDialog
 {
+    /// <summary>右クリックした行 (メニューの「削除」の確認を、この行のそばに出す)</summary>
+    private TreeViewItem? _contextRow;
+
     /// <summary>ダイアログの ViewModel</summary>
     public QuickMessageDialogViewModel ViewModel { get; }
 
@@ -21,6 +26,9 @@ public sealed partial class QuickMessageDialog : ContentDialog, ICliEditDialog
         PrimaryButtonClick += OnPrimaryButtonClick;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         ViewModel.EditRequested += (_, _) => FocusEditBox();
+
+        // 行の中身が右クリックを処理済みにするので、処理済みでも受け取る
+        Tree.AddHandler(ContextRequestedEvent, new TypedEventHandler<UIElement, ContextRequestedEventArgs>(OnTreeContextRequested), handledEventsToo: true);
 
         // ドロップの処理の途中では一覧を変えられないので、処理が終わってから、グループの入れ子を直す
         ViewModel.GroupNested += (_, _) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, ViewModel.MoveNestedGroupsOut);
@@ -55,6 +63,77 @@ public sealed partial class QuickMessageDialog : ContentDialog, ICliEditDialog
     /// <remarks>TreeView.SelectedItem は x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。</remarks>
     private void OnTreeSelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
         => ViewModel.SelectedItem = args.GetAddedItem<QuickMessageEditItem>();
+
+    /// <summary>「削除」のボタンが押されたとき、削除を始める</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnRemoveClick(object sender, RoutedEventArgs e) => RequestRemove(RemoveButton);
+
+    /// <summary>右クリックのメニューの「削除」が押されたとき、削除を始める</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnRowMenuRemoveClick(object sender, RoutedEventArgs e) => RequestRemove(_contextRow ?? (FrameworkElement)RemoveButton);
+
+    /// <summary>選んでいる項目を削除する。中に文があるグループなら、先に確認を出す</summary>
+    /// <param name="target">確認の吹き出しを出す場所 (押したボタン、または右クリックした行)</param>
+    /// <remarks>ボタンとメニューで、同じ確認を使う。中に文が無いグループと、文は、確認なしで削除する。</remarks>
+    private void RequestRemove(FrameworkElement target)
+    {
+        if (ViewModel.SelectedItem is { IsGroup: true, Children.Count: > 0 } group)
+        {
+            RemoveConfirmTitle.Text = $"「{group.DisplayName}」を削除しますか？";
+            RemoveConfirmBody.Text = $"中の {group.Children.Count} 件の文もまとめて削除されます。";
+            RemoveConfirmFlyout.ShowAt(target);
+            return;
+        }
+
+        ViewModel.RemoveCommand.Execute(null);
+    }
+
+    /// <summary>ツリーの行を右クリックしたとき、その行を選んで、メニューを出す</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 何も無い所では、メニューを出さない。
+    /// 行の中身 (ListView の行)が右クリックを処理済みにするので、処理済みでも受け取る。
+    /// </remarks>
+    private void OnTreeContextRequested(UIElement sender, ContextRequestedEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source
+            || Tree.FindContainer(source) is not { } row
+            || Tree.ItemFromContainer(row) is not QuickMessageEditItem item)
+        {
+            return;
+        }
+
+        // メニューが出る前に、画面上の選択もその行へ移す (どの行への操作か見えるように)
+        ViewModel.SelectedItem = item;
+        Tree.SelectedItem = item;
+        _contextRow = row;
+        if (e.TryGetPosition(row, out var position))
+        {
+            RowMenu.ShowAt(row, position);
+        }
+        else
+        {
+            RowMenu.ShowAt(row);
+        }
+        e.Handled = true;
+    }
+
+    /// <summary>確認の「削除」が押されたら、吹き出しを閉じて削除する</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnRemoveConfirmed(object sender, RoutedEventArgs e)
+    {
+        RemoveConfirmFlyout.Hide();
+        ViewModel.RemoveCommand.Execute(null);
+    }
+
+    /// <summary>確認の「キャンセル」が押されたら、吹き出しを閉じる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnRemoveCanceled(object sender, RoutedEventArgs e) => RemoveConfirmFlyout.Hide();
 
     /// <summary>ドラッグを始めたとき、グループをドラッグしているなら、グループの行へ落とせなくする</summary>
     /// <param name="sender">イベントの送信元</param>

@@ -10,6 +10,28 @@
     PrimaryButtonText="保存"
     Style="{StaticResource DefaultContentDialogStyle}">
 
+    <ContentDialog.Resources>
+        <!-- 行を右クリックしたときのメニュー。何も無い所では出さない。追加は左下のボタンと同じ動きで、削除は確認の吹き出しを、右クリックした行のそばに出す -->
+        <MenuFlyout x:Name="RowMenu">
+            <MenuFlyoutItem Command="{x:Bind ViewModel.AddMessageCommand}" Text="文を追加">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE710;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem Command="{x:Bind ViewModel.AddGroupCommand}" Text="グループを追加">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE8F4;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutSeparator />
+            <MenuFlyoutItem Click="OnRowMenuRemoveClick" Text="削除">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon Glyph="&#xE74D;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+        </MenuFlyout>
+    </ContentDialog.Resources>
+
     <!-- ContentDialog の幅の上限 (ContentDialogMaxWidth = 548)に収まる幅 -->
     <Grid Width="500" RowSpacing="8">
         <Grid.RowDefinitions>
@@ -79,7 +101,31 @@
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4">
                     <Button Command="{x:Bind ViewModel.AddMessageCommand}" Content="文を追加" />
                     <Button Command="{x:Bind ViewModel.AddGroupCommand}" Content="グループを追加" />
-                    <Button Command="{x:Bind ViewModel.RemoveCommand}" Content="削除" />
+                    <!-- 中に文があるグループだけ、削除の前に確認の吹き出しを出す。ContentDialog の上には、別のダイアログを重ねられないため -->
+                    <Button
+                        x:Name="RemoveButton"
+                        Click="OnRemoveClick"
+                        Content="削除"
+                        IsEnabled="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                        <FlyoutBase.AttachedFlyout>
+                            <Flyout x:Name="RemoveConfirmFlyout" Placement="Top">
+                                <StackPanel Width="260" Spacing="12">
+                                    <TextBlock
+                                        x:Name="RemoveConfirmTitle"
+                                        FontWeight="SemiBold"
+                                        TextWrapping="Wrap" />
+                                    <TextBlock x:Name="RemoveConfirmBody" TextWrapping="Wrap" />
+                                    <StackPanel
+                                        HorizontalAlignment="Right"
+                                        Orientation="Horizontal"
+                                        Spacing="8">
+                                        <Button Click="OnRemoveConfirmed" Content="削除" />
+                                        <Button Click="OnRemoveCanceled" Content="キャンセル" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Flyout>
+                        </FlyoutBase.AttachedFlyout>
+                    </Button>
                 </StackPanel>
             </Grid>
 
