@@ -12,6 +12,7 @@ using MmmTool.WorkItems.ProjectManager;
 using MmmTool.WorkItems.ProjectPicker;
 using MmmTool.WorkItems.Report;
 using MmmTool.WorkItems.Schedule;
+using MmmTool.WorkItems.Settings;
 
 namespace MmmTool.WorkItems;
 
@@ -34,6 +35,13 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
 
         // 最後に読み込み・保存した内容と、変更の通知 (Changed)を、ページ・起動時の読み込みで共有するため、アプリ全体で 1 つ
         services.AddSingleton<WorkItemService>();
+
+        // 作業管理とスケジュールの、起動時の表示の設定 (画面を作るときに読む)
+        services.AddSingleton<WorkItemDisplaySettings>();
+
+        // 設定ページの「作業管理」 (起動時の表示)
+        services.AddTransient<WorkItemSettingsViewModel>();
+        services.AddSettingsSection<WorkItemSettingsControl>(WorkItemsFeature.Key);
 
         // ノートの画面に、作業報告を出す。ノートは、契約 IDayContentSource だけを知る。作業管理の変更は、ノートへ知らせる
         services.AddSingleton<IDayContentSource, LiveWorkReportDayContentSource>();

@@ -140,9 +140,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。既定は「グループのみ表示」)</summary>
+    /// <summary>「過去の完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
+    /// <remarks>画面で選んだ値は保存しない。作るときに、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.PastCompleted"/>)を入れる。</remarks>
     [ObservableProperty]
-    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.GroupsOnly;
+    public partial int CompletedIndex { get; set; }
 
     /// <summary>絞り込みのボタンの文字 (効いている条件があるときは、その数を添える)</summary>
     [ObservableProperty]
@@ -198,7 +199,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
-    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener, IBusyCursor busyCursor)
+    /// <param name="displaySettings">起動時の表示の設定</param>
+    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener, IBusyCursor busyCursor, WorkItemDisplaySettings displaySettings)
     {
         _busyCursor = busyCursor;
         _service = service;
@@ -215,6 +217,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
+        CompletedIndex = (int)displaySettings.PastCompleted;
         InputDate = service.Today;
         _initializing = false;
     }

@@ -49,6 +49,8 @@
 | 項目 | キー | 値 |
 | --- | --- | --- |
 | 作業管理の列の表示と自分の担当だけ | `WorkItems.HiddenColumns`・`WorkItems.MineOnly` | |
+| 作業管理の「過去の完了」の、起動時の表示 | `WorkItems.InitialPastCompleted` | 0 (表示)・1 (グループのみ表示)・2 (非表示)の整数。無ければ 1 |
+| スケジュールの「完了」の、起動時の表示 | `WorkItems.InitialScheduleCompleted` | 0 (表示)・1 (グループのみ表示)・2 (非表示)の整数。無ければ 0 |
 | 作業報告の「実績に時間を出す」 | `WorkItems.Report.ShowHours` | 真偽。既定は false |
 | 作業報告の「進捗度表示」 | `WorkItems.Report.ShowProgress` | 真偽。既定は true |
 | ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |

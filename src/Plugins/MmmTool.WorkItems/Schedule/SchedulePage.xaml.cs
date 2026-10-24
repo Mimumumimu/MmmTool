@@ -5,7 +5,6 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Controls;
-using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.ViewOptions;
 
 namespace MmmTool.WorkItems.Schedule;
@@ -156,13 +155,8 @@ public sealed partial class SchedulePage : Page
         // 砂時計は、画面に載った直後に出す (見出しの作り直しや、描画の待ちより先に)
         ViewModel.BeginLoading();
 
-        // 単位は、開くたびに「日」から始める (ページは使い回されるので、前に選んだ単位を戻す。先に ViewModel を戻すので、選択の変更は何もしない)
+        // 単位を変えたときに保つ日付は、開くたびに捨てる。単位と「完了」は戻さない (ページは使い回されるので、前に選んだままが残る)
         _anchor = null;
-        ViewModel.UnitIndex = (int)ScheduleUnit.Day;
-        UnitBar.SelectedItem = UnitBar.Items[(int)ScheduleUnit.Day];
-
-        // 「完了」も、開くたびに「非表示」から始める (保存しない。ComboBox は ViewModel に結び付いているので、ViewModel を戻せば画面も戻る)
-        ViewModel.CompletedIndex = (int)CompletedDisplay.Hidden;
 
         // ページは使い回されるので、見えない間にテーマが変わっていても、開いたときの見出しの色を、今のテーマに合わせる
         RefreshTimeline();

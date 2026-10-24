@@ -264,7 +264,7 @@
   - アプリが全部入りのパッケージをやめられない理由: CommunityToolkit (`CommunityToolkit.WinUI.Controls.Segmented`)が古い全部入りのパッケージ (1.6)に依存していて、アプリが参照をやめると 1.6 が入ってきてビルドが通らない
     - 全部入り (2.5.1)を参照して版を決め、使わない部品 (`.AI`・`.ML`・`.Search`・`.Widgets`)と、それらだけが使う依存 (`Microsoft.Windows.AI.MachineLearning`・`System.Numerics.Tensors`)を `ExcludeAssets="all"` で外す
     - 全部入りを上げるときは、`Directory.Packages.props` の部品の版も、新しい全部入りの依存に合わせる
-  - 設定ページのカード (`CommunityToolkit.WinUI.Controls.SettingsControls`)も、`Segmented` と同じ版 (8.2.251219)で、同じ依存を持つ。使う csproj (アプリ本体・Reminders・Backlog)に、同じ指定 (全部入りの直接参照と、使わない部品の `ExcludeAssets`)を書く。
+  - 設定ページのカード (`CommunityToolkit.WinUI.Controls.SettingsControls`)も、`Segmented` と同じ版 (8.2.251219)で、同じ依存を持つ。使う csproj (アプリ本体・Reminders・Backlog・WorkItems)に、同じ指定 (全部入りの直接参照と、使わない部品の `ExcludeAssets`)を書く。
   - SDK は CommunityToolkit の WinUI 部品を使わないので、使う部品のパッケージ (`.WinUI`・`.Foundation`・`.InteractiveExperiences`)だけを参照する
     - InteractiveExperiences を明示する理由: WinUI 2.3.9 が求める 2.1.8 は公開されておらず、NuGet が警告 (NU1603)を出して 2.1.9 を選ぶ。全部入り 2.5.1 と同じ 2.1.9 を明示する。
 - `Lib` への移動: `MmmTool.dll` 以外の DLL は `Lib` に置く

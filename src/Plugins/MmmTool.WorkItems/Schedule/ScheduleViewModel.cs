@@ -71,14 +71,18 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>表示の単位の番号 (<see cref="ScheduleUnit"/> の値と同じ。保存しない。開くたびに日)</summary>
+    /// <summary>表示の単位の番号 (<see cref="ScheduleUnit"/> の値と同じ)</summary>
+    /// <remarks>保存しない。起動したときは日で、画面を開き直しても戻さない。</remarks>
     [ObservableProperty]
     public partial int UnitIndex { get; set; } = (int)ScheduleUnit.Day;
 
-    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。開くたびに「非表示」)</summary>
-    /// <remarks>作業管理の「過去の完了」とは共有しない。</remarks>
+    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
+    /// <remarks>
+    /// 画面で選んだ値は保存しない。作るときに、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.ScheduleCompleted"/>)を入れる。
+    /// 作業管理の「過去の完了」とは共有しない。
+    /// </remarks>
     [ObservableProperty]
-    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.Hidden;
+    public partial int CompletedIndex { get; set; }
 
     /// <summary>保存先から読み込み中か (マウスカーソルを砂時計にする)</summary>
     /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく (空にして、ちらつかせないため)。</remarks>
@@ -110,7 +114,8 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <param name="settings">設定ストア</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
-    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker, IBusyCursor busyCursor)
+    /// <param name="displaySettings">起動時の表示の設定</param>
+    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker, IBusyCursor busyCursor, WorkItemDisplaySettings displaySettings)
     {
         _service = service;
         _settings = settings;
@@ -121,6 +126,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         service.RefreshFailed += OnServiceRefreshFailed;
         service.MineOnlyChanged += OnServiceMineOnlyChanged;
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
+        CompletedIndex = (int)displaySettings.ScheduleCompleted;
         _initializing = false;
     }
 

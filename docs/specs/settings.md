@@ -199,6 +199,17 @@
     - 声と速さは変わらず、Windows の音声の設定に従う
     - 音量を Windows の音声の設定に任せない (ミキサーでも下げられるが、アプリの設定として見えず、試し聞きもできないため)
   - 音量の設定行の位置 (読み上げの声・速さの行の下)・「50%」の表示・試し聞きの文 (「読み上げの音量を確認します。」)は仮
+- **作業管理の起動時の表示** (`src/Plugins/MmmTool.WorkItems/Settings/WorkItemSettingsControl` ＋ `WorkItemSettingsViewModel`)
+  - 作業管理の機能の設定の部品で、`WorkItemsFeature.Key` で登録する。作業管理がオフの間は並べない。
+  - 見出しは「作業管理」で、カードは 2 枚
+    - 「作業管理の過去の完了」と「スケジュールの完了」で、説明は「アプリの起動時の表示。画面で変えた表示は保存しません」
+    - 右に `ComboBox` (固定幅)で「表示」「グループのみ表示」「非表示」を選ぶ。選択肢の並びは、画面の「表示」の入れ物と同じ。
+    - カードの題名に画面の名前を付ける。設定ページでは、「完了」だけだと、どの画面の話か分からないため。
+  - 変えた時点で保存する。保存の読み書きは Core の `WorkItemDisplaySettings`。
+  - 保存先は、設定ストアの整数のキー `WorkItems.InitialPastCompleted` と `WorkItems.InitialScheduleCompleted`。PC ごとの設定で、DB モードでも DB には置かない。
+  - 既定は、作業管理の「過去の完了」が「グループのみ表示」で、スケジュールの「完了」が「表示」
+  - 反映は次の起動から。画面を作るときに読むだけなので、動いている画面は変わらない。
+  - 設定ファイルを読めなかったとき (`IsReadOnly`)は、選択欄を無効にする。保存の失敗 (`DataFileException`)は、画面の InfoBar に出す。
 - **送信先** (`src/Plugins/MmmTool.Reminders/Settings/NotificationChannelSettingsControl` ＋ `NotificationChannelSettingsViewModel`)
   - リマインダーの機能の設定の部品 (`ReminderSettingsControl` の次に並ぶ)
   - 見出しは「送信先」で、カードは 1 枚
