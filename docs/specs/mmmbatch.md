@@ -37,7 +37,7 @@
 - 管理の操作 (パスワードの初期化など)は、バッチと同じ exe に載せない
   - バッチは無人で動き続け、必要最小限の権限だけを持たせたいため
   - 権限が強い機能を、起動しっぱなしの exe に載せない
-  - 管理ツールは、最初の機能が決まってから別のアプリ (`MmmAdmin`)として作る
+  - 管理ツールは、別のアプリ `MmmToolAdmin` にある ([mmmtooladmin.md](mmmtooladmin.md))
 
 ## 全体の形
 
@@ -45,7 +45,7 @@
 | --- | --- |
 | `src/App/MmmBatch` | ホスト。Host の構築・起動と終了の順序・メインウィンドウ (サイドバーを載せる)・DB の接続の設定画面を持つ。個々の機能の名前を持たない (機能のプラグインを `AddFeaturePlugin` で 1 行ずつ登録するだけ) |
 | `src/Plugins/MmmBatch.Sending.Core` | 機能に共通の処理 (UI に依存しない)を持つ: 送る口 `INotifier`・ntfy と Discord と Web 版通知の実装・送信のログ (`ISendLog`)・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口 `BatchAlertService`・送り直しの決まり `SendRetryPolicy` (回数の上限と待ち時間を持ち、機能どうしで参照し合わずに、同じ決まりを使うため) |
-| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品 (読み込みの失敗の InfoBar `SendErrorBar`・接続の設定を開く操作を持つ ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`) |
+| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品 (仕事の変更を受けて読み直す ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`)。読み込みの失敗の InfoBar `ConnectionErrorBar` と、接続の設定を開く操作を持つ基底 `DatabaseViewModelBase` は、MmmToolAdmin と共有するので、`MmmTool.Data.SqlServer.WinUI` にある |
 | `src/Plugins/MmmBatch.ReminderSending.Core` / `src/Plugins/MmmBatch.ReminderSending` | プラグインは `ReminderSendingPlugin`。リマインダーの送信 (仕事 (毎分)・送る対象・`ReminderSendStatus` の保存先のインターフェース)と、そのページ (「今日」「履歴」) |
 | `src/Plugins/MmmBatch.MessageSending.Core` / `src/Plugins/MmmBatch.MessageSending` | プラグインは `MessageSendingPlugin`。メッセージの送信 (仕事 (1 秒おき)・`IMessageSendStore`)と、そのページ (「最近の依頼」「履歴」) |
 | `src/Data/MmmBatch.Data.SqlServer` | `MmmTool.Data`(リマインダー・チャンネル・メッセージの送信依頼の行)と `MmmSdk.Db.SqlServer` を参照する。MmmBatch の DB のコードをすべて集める (`ReminderSendStatus` の行・Repository の実装と作成の SQL・送る対象を読む問い合わせ・メッセージの送信依頼の読み出しと状態の更新) |

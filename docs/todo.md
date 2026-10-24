@@ -5,12 +5,16 @@
 ## 作業管理
 
 - 設計は [specs/work-items.md](specs/work-items.md) にある
-- コードマスタ ([specs/work-items.md](specs/work-items.md) の「コードマスタ」): 残りは、コードマスタの管理ツール
-  - 別ツールにする
-  - できることは、選択肢の追加・外す・並べ替えと、DB モードの名前の編集
-  - ローカルモードの名前の編集は、設定ページの「選択肢」にある
+- コードマスタ ([specs/work-items.md](specs/work-items.md) の「コードマスタ」): 残りは、管理ツール `MmmToolAdmin` の「選択肢」での、選択肢の追加・外す・並べ替え ([specs/mmmtooladmin.md](specs/mmmtooladmin.md))
+  - 名前の編集は、MmmToolAdmin にある。ローカルモードの名前の編集は、MmmTool の設定ページの「選択肢」にある。
 - 後で決める: リーダー的な人の更新の権限 (SQL Server の実装のとき)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
+
+## 管理ツール (MmmToolAdmin)
+
+- 管理ツールの `App.xaml` に、MmmTool の `App.xaml` と同じスタイルを書き写している (`SettingsSectionHeaderStyle`・`AppTextBoxStyle`)
+  - 方向: SDK の共有のリソースに移し、MmmTool と管理ツールの両方が読む。SDK の変更になるので、作る前に、ユーザーと決める。
+- 画面の文言 (「ユーザー」「登録用コードを発行」「選択肢」・確認ダイアログ・状態の値)は、ユーザーとの合意が済んでいない。決まったら、`ui-wording` の用語集に足す。
 
 ## リマインダー
 
@@ -154,6 +158,8 @@
   - 登録は `AddNavigationPage` の `canDetach: true` で決める ([specs/tray-and-main.md](specs/tray-and-main.md))
 
 ## ユーザーが用意するもの待ち
+
+- 管理ツール (MmmToolAdmin)のアイコン: いまは MmmBatch のアイコンを仮に使っている (`src/App/MmmToolAdmin/Assets/app.ico`)
 
 - README.md の画像: 画像はユーザーが用意する
   - リンクの中身などがまだ決まっておらず、撮れない

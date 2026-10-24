@@ -1,6 +1,6 @@
 @echo off
-rem Update this clone, then publish. update_and_publish_*.bat call this file with a target.
-rem Usage: update_and_publish.bat [all^|tool^|batch^|web]  (no argument = all)
+rem Update this clone, then publish. The *_update_and_publish_*.bat files call this file with a target.
+rem Usage: 00_update_and_publish.bat [all^|tool^|batch^|web^|admin]  (no argument = all)
 rem Updates this clone (and submodules) to the latest, then publishes the chosen builds.
 rem Runs from anywhere: the repository root is the parent of this folder.
 rem cmd re-reads a running batch file by offset, and git pull may rewrite this file.
@@ -15,7 +15,7 @@ exit /b %errorlevel%
 setlocal
 set "TARGET=%~3"
 if "%TARGET%"=="" set "TARGET=all"
-if /i not "%TARGET%"=="all" if /i not "%TARGET%"=="tool" if /i not "%TARGET%"=="batch" if /i not "%TARGET%"=="web" (
+if /i not "%TARGET%"=="all" if /i not "%TARGET%"=="tool" if /i not "%TARGET%"=="batch" if /i not "%TARGET%"=="web" if /i not "%TARGET%"=="admin" (
     echo Unknown target: %TARGET%
     pause
     exit /b 1
@@ -54,13 +54,24 @@ echo   MmmBatch  : %CD%\src\App\MmmBatch\bin\Release\publish\MmmBatch\
 :after_batch
 if /i "%TARGET%"=="all"   goto :web
 if /i "%TARGET%"=="web"   goto :web
-goto :done
+goto :after_web
 
 :web
 echo [dotnet publish MmmToolWeb]
 dotnet publish .\src\App\MmmToolWeb\Server\MmmToolWeb.Server.csproj -p:PublishProfile=win-x64
 if errorlevel 1 goto :failed
 echo   MmmToolWeb: %CD%\src\App\MmmToolWeb\Server\bin\Release\publish\MmmToolWeb\
+
+:after_web
+if /i "%TARGET%"=="all"   goto :admin
+if /i "%TARGET%"=="admin" goto :admin
+goto :done
+
+:admin
+echo [dotnet publish MmmToolAdmin]
+dotnet publish .\src\App\MmmToolAdmin\MmmToolAdmin.csproj -p:PublishProfile=win-x64
+if errorlevel 1 goto :failed
+echo   MmmToolAdmin: %CD%\src\App\MmmToolAdmin\bin\Release\publish\MmmToolAdmin\
 
 :done
 echo.

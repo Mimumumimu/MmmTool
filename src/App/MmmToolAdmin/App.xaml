@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="MmmToolAdmin.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- 入力欄の空のときの薄い文字は、MmmTool と同じ標準の色に決める。独自のスタイルを付ける TextBox は、AppTextBoxStyle を BasedOn にする -->
+            <Style x:Key="AppTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+                <Setter Property="PlaceholderForeground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+            </Style>
+            <Style TargetType="TextBox" BasedOn="{StaticResource AppTextBoxStyle}" />
+            <!-- 区切りの見出し。MmmTool の設定ページと共有する部品が使う。カードの上に、少し間を空ける -->
+            <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="Margin" Value="1,20,0,4" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

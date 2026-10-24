@@ -61,6 +61,7 @@
 | サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値 (X・Y・Width・Height)。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
 | Web 版通知の送り手の公開鍵 | `WebPush.PublicKey` | MmmBatch の `Data/AppSettings.json` のキー。MmmBatch が起動時に作る。Web 版のサーバーの設定 `Web:PushPublicKey` に写す。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」 |
 | Web 版通知の送り手の連絡先 | `WebPush.Subject` | MmmBatch の `Data/AppSettings.json` のキー。`mailto:` か `https://` で始まる文字列。無ければ `mailto:mmmtool@example.com` |
+| DB の接続の設定 | `Database.Mode`・`Database.Server`・`Database.Name`・`Database.Authentication`・`Database.UserName`・`Database.TrustServerCertificate` | アプリごとの `Data/AppSettings.json` に持つ。MmmToolAdmin も、自分の `Data/AppSettings.json` に持ち、最初の起動で、接続の設定画面で入れる。パスワードは、ここに書かず、資格情報マネージャーに置く |
 | スヌーズ間隔・ウィンドウ位置など | 各機能・SDK が持つキー | |
 
 ## ファイルに書かないもの
@@ -68,6 +69,9 @@
 - Backlog の API キーは、Data フォルダーに書かず、Windows の資格情報マネージャー (汎用資格情報 `MmmTool.Backlog`)に保存する
   - 手で開いて見られる設定ファイルに、秘密を置かないため
   - 詳細は [backlog.md](backlog.md)
+- DB のパスワードは、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmTool.Database`)に保存する
+  - MmmTool と MmmToolAdmin は、同じ名前を使うので、同じ Windows ユーザーなら、どちらで入れたパスワードも、もう一方が使う。片方の接続の設定画面でパスワードを入れ直すと、もう一方も、新しいパスワードで動く。
+  - MmmBatch は `MmmBatch.Database`、MmmToolWeb は `MmmToolWeb.Database` で、アプリごとに分ける。
 - MmmBatch の Web 版通知の鍵の組 (公開鍵と秘密鍵)は、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmBatch.WebPushKeys`)に保存する
   - DB のパスワードと同じ置き場にする。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」
 

@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmTool.CodeMaster;
-using MmmTool.CodeMaster.Core;
 using MmmTool.DayContent.Core;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Main;
@@ -36,17 +35,9 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddSingleton<IDayContentSource, LiveWorkReportDayContentSource>();
 
         // 設定ページの「選択肢」から、進捗度の名前 (数値の後ろの括弧の中)を直せる。保存したら、開いている画面の表記を読み直す
-        services.AddCodeCategoryEditor(provider => new CodeCategoryEditor
-        {
-            FeatureNo = WorkCodes.FeatureNo,
-            CategoryNo = WorkCodes.ProgressCategory,
-            Title = "進捗度の名前",
-            Description = "進捗度の後ろに ( ) で添える名前を変更します",
-            FeatureKey = WorkItemsFeature.Key,
-            Label = entry => $"{entry.NumericValue}%",
-            ValidateName = name => name.Contains('%') || name.Contains('％') ? "名前に % は入れられません。" : null,
-            AfterSavedAsync = () => provider.GetRequiredService<WorkItemService>().RefreshNowAsync(),
-        });
+        services.AddCodeCategoryEditor(provider => WorkCodes.ProgressNameEditor(
+            WorkItemsFeature.Key,
+            () => provider.GetRequiredService<WorkItemService>().RefreshNowAsync()));
 
         services.AddSingleton<IWorkItemDialogService, WorkItemDialogService>();
         // 閉じたダイアログは再表示できないので、開くたびに作る

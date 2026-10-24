@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmToolAdmin.CodeMaster.CodeMasterPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24,16,24,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Margin="0,0,0,12"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="選択肢" />
+
+        <!-- 区分ごとのカード。押すと、その区分の名前の編集ウィンドウが開く -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+            <ContentPresenter x:Name="ContentHost" />
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -65,9 +65,9 @@
     - 理由: VS の「発行」は、発行プロファイルを単体で読んで出力先を決めるので、プロジェクトの `Version`(`Directory.Build.props`)が見えず、`MmmTool_\` になる
     - プロファイルで `Directory.Build.props` を `Import` すると、VS がプロファイルを読めなくなる (一覧から消える)
     - そのため、版はプロジェクトの中 (`PackageDistribution`)で付ける
-- 別の PC で、クローン済みのフォルダを今のブランチの最新にして発行するには、`scripts/update_and_publish.bat` を実行する
-  - MmmTool・MmmBatch・MmmToolWeb の 3 つすべてを発行する
-  - 1 つだけ発行するときは、MmmTool は `update_and_publish_tool.bat`、MmmBatch は `update_and_publish_batch.bat`、MmmToolWeb は `update_and_publish_web.bat` を実行する。3 つとも `update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
+- 別の PC で、クローン済みのフォルダを今のブランチの最新にして発行するには、`scripts/00_update_and_publish.bat` を実行する
+  - MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の 4 つすべてを発行する
+  - 1 つだけ発行するときは、MmmTool は `01_update_and_publish_tool.bat`、MmmToolWeb は `11_update_and_publish_web.bat`、MmmBatch は `21_update_and_publish_batch.bat`、MmmToolAdmin は `29_update_and_publish_admin.bat` を実行する。4 つとも `00_update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
   - MmmToolWeb の出力は `src/App/MmmToolWeb/Server/bin/Release/publish/MmmToolWeb/`
   - リポジトリの根元は、バッチの 1 つ上のフォルダ。どこにクローンしても動く。
   - 順は、`git pull --ff-only` → `git submodule update --init --recursive` → 上の `dotnet publish`。どれかが失敗した時点で止まる。

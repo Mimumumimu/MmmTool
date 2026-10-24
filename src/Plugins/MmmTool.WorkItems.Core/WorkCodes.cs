@@ -63,4 +63,21 @@ public static class WorkCodes
     /// <param name="codeNo">進捗度のコード番号</param>
     /// <returns>%の値。コードが無ければ 0</returns>
     public static int ProgressPercent(CodeBook book, int codeNo) => book.Find(FeatureNo, ProgressCategory, codeNo)?.NumericValue ?? 0;
+
+    /// <summary>進捗度の名前を、画面から編集するための区分を作る</summary>
+    /// <param name="featureKey">機能のキー。機能がオフの間は、編集の入口を出さない。どの機能にも属さないなら null</param>
+    /// <param name="afterSavedAsync">保存したあとに行う処理で、開いている画面の表記の読み直しなど。無ければ null</param>
+    /// <returns>進捗度の名前の編集の区分</returns>
+    /// <remarks>名前に % は入れられない。画面の表記は、数値から % を組み立てるため。MmmTool の設定ページと、管理ツールが、同じ定義を使う。</remarks>
+    public static CodeCategoryEditor ProgressNameEditor(string? featureKey, Func<Task>? afterSavedAsync = null) => new()
+    {
+        FeatureNo = FeatureNo,
+        CategoryNo = ProgressCategory,
+        Title = "進捗度の名前",
+        Description = "進捗度の後ろに ( ) で添える名前を変更します",
+        FeatureKey = featureKey,
+        Label = entry => $"{entry.NumericValue}%",
+        ValidateName = name => name.Contains('%') || name.Contains('％') ? "名前に % は入れられません。" : null,
+        AfterSavedAsync = afterSavedAsync ?? (() => Task.CompletedTask),
+    };
 }

@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MmmToolAdmin</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <!-- 非パッケージ (WindowsPackageType=None)でも、WinUI のリソース (resources.pri)の生成にこの MSIX ツールを使うため、true のままにする -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- ランタイムの Windows App Runtime と .NET は、PC 側にインストールする前提で、MmmTool と同じ。単一ファイルにはしない -->
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする -->
+    <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- アプリのアイコン (EXE に埋め込むほか、ウィンドウのアイコンとして実行時にファイルから読む) -->
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- 配布物のフォルダ名で、置き場所は bin\<構成>\publish\MmmToolAdmin\。説明書と版は持たない -->
+    <DistributionFolderName>MmmToolAdmin</DistributionFolderName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MIT License の本文を、アプリ本体の Assets\Licenses に置く。MmmTool と同じで、同梱ライブラリのライセンス全文は共有の発行の仕組みが作る -->
+    <None Include="..\..\..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <!-- Windows App SDK は全部入りのパッケージを参照し、使わない部品の中身は出力に入れない。MmmTool と同じで、理由は docs/build-and-distribution.md の「決定の理由」にある -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
+    <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" ExcludeAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Plugins\MmmToolAdmin.Users\MmmToolAdmin.Users.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmToolAdmin.CodeMaster\MmmToolAdmin.CodeMaster.csproj" />
+    <ProjectReference Include="..\..\Data\MmmToolAdmin.Data.SqlServer\MmmToolAdmin.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- ビルドの出力と配布物の作り方 (Lib への移動・ライセンス全文・発行の設定)は MmmTool と共通 -->
+  <Import Project="..\..\..\build\AppDistribution.targets" />
+</Project>

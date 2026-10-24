@@ -5,6 +5,7 @@ using MmmBatch.ReminderSending.Core;
 using MmmBatch.Sending;
 using MmmBatch.Sending.Core;
 using MmmSdk.Core.Components.Storage;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.ReminderSending;
 
@@ -28,7 +29,7 @@ public sealed partial class ReminderPlanViewModel : SendViewModelBase
     /// <param name="dialogs">接続の設定の画面を開く</param>
     /// <param name="monitor">毎分の監視</param>
     /// <param name="time">現在時刻の提供元</param>
-    public ReminderPlanViewModel(ReminderSendService service, ISendingDialogService dialogs, BatchMonitor monitor, TimeProvider time)
+    public ReminderPlanViewModel(ReminderSendService service, IConnectionSettingsDialogService dialogs, BatchMonitor monitor, TimeProvider time)
         : base(service, dialogs, monitor, refreshEveryRun: true)
     {
         _service = service;

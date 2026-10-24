@@ -234,6 +234,7 @@ git submodule update --init --recursive
 | --- | --- |
 | `MmmTool.slnx` | MmmTool 本体 |
 | `MmmBatch.slnx` | サーバー用の別アプリ MmmBatch(リマインダーとメッセージの外部送信) |
+| `MmmToolAdmin.slnx` | サーバーモードの管理ツール MmmToolAdmin(ユーザーの一覧と、Web 版の登録用コードの発行) |
 
 ```powershell
 dotnet restore .\MmmTool.slnx
@@ -262,7 +263,7 @@ Visual Studio では、ソリューション エクスプローラーで `MmmToo
 dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
-取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb の3つを発行します。MmmTool だけ・MmmBatch だけ・MmmToolWeb だけを発行するときは、`update_and_publish_tool.bat`・`update_and_publish_batch.bat`・`update_and_publish_web.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
+取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\00_update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の4つを発行します。MmmTool だけ・MmmBatch だけ・MmmToolWeb だけ・MmmToolAdmin だけを発行するときは、`01_update_and_publish_tool.bat`・`21_update_and_publish_batch.bat`・`11_update_and_publish_web.bat`・`29_update_and_publish_admin.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
 
 発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/` ができます。バージョンは `Directory.Build.props` の `Version` で決まります。このフォルダーをそのままコピーして配布します。インストーラーはありません。
 
@@ -309,7 +310,8 @@ git submodule update --remote external/MmmSdk
 | `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
-| `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)と `MmmBatch.Data.SqlServer` |
+| `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行 |
+| `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer` |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 

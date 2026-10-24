@@ -8,7 +8,7 @@
 
     <!-- 編集できる保存先で、出す区分があるときだけ並べる。部品そのものを隠すので、ページの Spacing の場所も取らない -->
     <StackPanel Spacing="4">
-        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="選択肢" />
+        <TextBlock x:Name="HeaderText" Style="{StaticResource SettingsSectionHeaderStyle}" Text="選択肢" />
 
         <ItemsControl ItemsSource="{x:Bind ViewModel.Items}">
             <ItemsControl.ItemsPanel>
