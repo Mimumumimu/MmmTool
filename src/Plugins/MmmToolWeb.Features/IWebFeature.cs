@@ -14,6 +14,15 @@ public interface IWebFeature
     Assembly ClientAssembly { get; }
 
     /// <summary>
+    /// 管理者が、ユーザーごとに利用を決められる機能の機能番号で、<c>CodeFeatures</c> の番号。決められない機能は null。
+    /// </summary>
+    /// <remarks>
+    /// 番号がある機能は、管理者に無効にされたユーザーに対して、API を 404 で断る。ホーム画面と設定の画面にも出さない。
+    /// 断る処理は、機能ごとに書かず、API の入口の <see cref="WebFeatureExtensions.MapWebFeatures"/> が行う。
+    /// </remarks>
+    int? FeatureNo => null;
+
+    /// <summary>
     /// この機能が使うサービスを登録する。
     /// </summary>
     /// <param name="services">登録先。</param>

@@ -1,7 +1,9 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Connection;
+using MmmTool.Data.SqlServer.Users;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
 
@@ -24,9 +26,12 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
     /// <summary>送信済みを表す状態の値。Pending = 1 / Sent = 2 / Failed = 3 (<c>docs/specs/database.md</c> の <c>ReminderSendStatus</c>)</summary>
     private const byte Sent = 2;
 
+    /// <summary>管理者が、今のユーザーのリマインダーを無効にしているかを調べる条件。無効の人には、何も出さない</summary>
+    private static readonly string RemindersDisabled = FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders);
+
     /// <summary>新しい順に読む問い合わせ。送信先ごとの先頭を、<c>CROSS APPLY</c> で索引から読む。<see cref="ReadRow"/> の並び</summary>
-    private const string LatestSql =
-        """
+    private static readonly string LatestSql =
+        $"""
         SELECT TOP (@Count) s.Id, r.Title, r.Note, r.Link, s.SentAt
         FROM dbo.NotificationChannel AS c
         CROSS APPLY
@@ -37,18 +42,18 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
             ORDER BY x.SentAt DESC, x.Id DESC
         ) AS s
         INNER JOIN dbo.Reminder AS r ON r.Id = s.ReminderId
-        WHERE c.UserId = @UserId
+        WHERE c.UserId = @UserId AND NOT {RemindersDisabled}
         ORDER BY s.SentAt DESC, s.Id DESC
         """;
 
     /// <summary>番号を指定して 1 件読む問い合わせ。自分の送信先に届いたものだけ。<see cref="ReadRow"/> の並び</summary>
-    private const string OneSql =
-        """
+    private static readonly string OneSql =
+        $"""
         SELECT s.Id, r.Title, r.Note, r.Link, s.SentAt
         FROM dbo.ReminderSendStatus AS s
         INNER JOIN dbo.NotificationChannel AS c ON c.Id = s.ChannelId AND c.UserId = @UserId
         INNER JOIN dbo.Reminder AS r ON r.Id = s.ReminderId
-        WHERE s.Id = @Id AND s.Status = @Sent
+        WHERE s.Id = @Id AND s.Status = @Sent AND NOT {RemindersDisabled}
         """;
 
     /// <inheritdoc />

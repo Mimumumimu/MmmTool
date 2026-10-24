@@ -22,7 +22,7 @@ internal static class MessageEndpoints
     /// <param name="messages">登録先の <c>/api/messages</c>。</param>
     public static void Map(RouteGroupBuilder messages)
     {
-        messages.MapGet("/form", () => Results.Ok(new MessageFormDto(MessageLimits.BodyMaxLength)));
+        messages.MapGet("/form", LoadFormAsync);
         messages.MapGet("/conversations", StartAsync);
         messages.MapGet("/conversations/{conversationId:int}/messages", LoadMessagesAsync);
         messages.MapGet("/changes", LoadChangesAsync);
@@ -92,6 +92,16 @@ internal static class MessageEndpoints
         => Results.Ok(new DirectDto(await repository.FindDirectConversationAsync(userId, cancellationToken)));
 
     /// <summary>
+    /// 入力欄の決まり (本文の最大の長さ)と、自分が送れる状態かを返す。
+    /// </summary>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="currentUser">今のユーザー。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>本文の最大の長さと、自分が受け取り先を指定しているか。</returns>
+    private static async Task<IResult> LoadFormAsync(IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
+        => Results.Ok(new MessageFormDto(MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken)));
+
+    /// <summary>
     /// 宛先に選べる人を、表示名の前方一致で返す。
     /// </summary>
     /// <param name="q">表示名の先頭の文字。無いときは、全員。</param>
@@ -128,6 +138,7 @@ internal static class MessageEndpoints
         {
             SendMessageOutcome.Sent => Results.Ok(new MessageSentDto(result.ConversationId, result.MessageId)),
             SendMessageOutcome.NoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.NoReceiveTargetMessage)),
+            SendMessageOutcome.SelfNoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.SelfNoReceiveTargetMessage)),
             SendMessageOutcome.ReplyInvalid => Results.BadRequest(new ErrorResponse("返信元のメッセージが見つかりません。")),
             _ => Results.NotFound(new ErrorResponse("会話が見つかりません。")),
         };

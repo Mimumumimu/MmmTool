@@ -1,4 +1,4 @@
--- 版 6: 送信先 NotificationChannel の区分 Kind に、Web 版通知 = 3 を足す。メッセージを会話の形に作り直し、古い MessageSendRequest を削除して、MessageConversation・MessageConversationMember・Message・MessageDelivery と、ユーザーごとの設定 AppUserSetting を作る。設計は docs/specs/database.md と docs/specs/messages.md。
+-- 版 6: 送信先 NotificationChannel の区分 Kind に、Web 版通知 = 3 を足す。メッセージを会話の形に作り直し、古い MessageSendRequest を削除して、MessageConversation・MessageConversationMember・Message・MessageDelivery と、ユーザーごとの設定 AppUserSetting と、管理者が決める設定 AppUserAdminSetting を作る。設計は docs/specs/database.md と docs/specs/messages.md。
 -- 何度流しても壊れない。値 3 を許す検査が既にあるときは、何もしない。リリースまで、この版の変更はこのファイルに集める。DELETE 文は含まない。古い MessageSendRequest は、表ごと削除するので、既存のメッセージの送信依頼は消える。
 -- SQLite には送信先の表もユーザーの表も無いので、この変更は SQL Server だけ。
 -- 使い方: 001_CreateTables.sql と同じ。DB を選んでから、表を作れる権限のあるユーザーで実行する。sqlcmd は -I と -f 65001 を付ける。
@@ -43,6 +43,30 @@ GO
 -- 同じ人・同じ設定が重ならない (削除されていない行の間だけ一意)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo' AND object_id = OBJECT_ID(N'dbo.AppUserSetting'))
 CREATE UNIQUE INDEX UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo ON dbo.AppUserSetting (UserId, FeatureNo, CategoryNo, CodeNo) WHERE IsDeleted = 0;
+GO
+
+-- 管理者がユーザーごとに決める設定。作りは AppUserSetting と同じで、書くのは管理ツール MmmToolAdmin だけ。
+-- 区分 1 が機能の利用で、CodeNo は 1、値は 0 = 無効・1 = 有効・2 = 読み取り専用。行が無い人は有効。外すときは論理削除する
+IF OBJECT_ID(N'dbo.AppUserAdminSetting', N'U') IS NULL
+CREATE TABLE dbo.AppUserAdminSetting
+(
+    Id              int             IDENTITY(1,1) NOT NULL CONSTRAINT PK_AppUserAdminSetting PRIMARY KEY,
+    IsDeleted       bit             NOT NULL CONSTRAINT DF_AppUserAdminSetting_IsDeleted DEFAULT (0),
+    CreatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_AppUserAdminSetting_CreatedAt DEFAULT (SYSDATETIMEOFFSET()),
+    CreatedByUserId int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_CreatedByUserId CHECK (CreatedByUserId >= 0),
+    UpdatedAt       datetimeoffset(3) NOT NULL CONSTRAINT DF_AppUserAdminSetting_UpdatedAt DEFAULT (SYSDATETIMEOFFSET()),
+    UpdatedByUserId int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
+    UserId          int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_UserId CHECK (UserId >= 0),
+    FeatureNo       int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_FeatureNo CHECK (FeatureNo >= 1),
+    CategoryNo      int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_CategoryNo CHECK (CategoryNo >= 1),
+    CodeNo          int             NOT NULL CONSTRAINT CK_AppUserAdminSetting_CodeNo CHECK (CodeNo >= 1),
+    Value           nvarchar(200)   NOT NULL CONSTRAINT DF_AppUserAdminSetting_Value DEFAULT (N'')
+);
+GO
+
+-- 同じ人・同じ設定が重ならない (削除されていない行の間だけ一意)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo' AND object_id = OBJECT_ID(N'dbo.AppUserAdminSetting'))
+CREATE UNIQUE INDEX UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo ON dbo.AppUserAdminSetting (UserId, FeatureNo, CategoryNo, CodeNo) WHERE IsDeleted = 0;
 GO
 
 -- メッセージの会話。Kind は 1 対 1 = 1・グループ = 2。Name はグループの名前で、1 対 1 は空文字。
@@ -125,7 +149,7 @@ CREATE INDEX IX_Message_UpdatedAt ON dbo.Message (UpdatedAt);
 GO
 
 -- 1 通を、1 人に通知する状態。送った人以外の参加者 1 人が 1 行で、自分との会話は自分に 1 行。MmmBatch が送って状態を更新する。
--- Status は、送信待ちと送信中が 1、送信済みが 2、失敗が 3。SentAt の 9999-12-31 は、まだ送っていない。失敗の理由は持たず、MmmBatch のログに残す。
+-- Status は、送信待ちと送信中が 1、送信済みが 2、失敗が 3、送らなかったが 4 (通知を受ける人が、管理者にメッセージを無効にされた)。SentAt の 9999-12-31 は、まだ送っていない。失敗の理由は持たず、MmmBatch のログに残す。
 -- 作成者・更新者は、頼んだときは送った人、MmmBatch が更新するときの更新者は 0
 IF OBJECT_ID(N'dbo.MessageDelivery', N'U') IS NULL
 CREATE TABLE dbo.MessageDelivery
@@ -138,7 +162,7 @@ CREATE TABLE dbo.MessageDelivery
     UpdatedByUserId int             NOT NULL CONSTRAINT CK_MessageDelivery_UpdatedByUserId CHECK (UpdatedByUserId >= 0),
     MessageId       int             NOT NULL CONSTRAINT CK_MessageDelivery_MessageId CHECK (MessageId >= 1),
     UserId          int             NOT NULL CONSTRAINT CK_MessageDelivery_UserId CHECK (UserId >= 0),
-    Status          tinyint         NOT NULL CONSTRAINT DF_MessageDelivery_Status DEFAULT (1) CONSTRAINT CK_MessageDelivery_Status CHECK (Status BETWEEN 1 AND 3),
+    Status          tinyint         NOT NULL CONSTRAINT DF_MessageDelivery_Status DEFAULT (1) CONSTRAINT CK_MessageDelivery_Status CHECK (Status BETWEEN 1 AND 4),
     Attempts        tinyint         NOT NULL CONSTRAINT DF_MessageDelivery_Attempts DEFAULT (0),
     SentAt          datetimeoffset(3) NOT NULL CONSTRAINT DF_MessageDelivery_SentAt DEFAULT ('9999-12-31')
 );

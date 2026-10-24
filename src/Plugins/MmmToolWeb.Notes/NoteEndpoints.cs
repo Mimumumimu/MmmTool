@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MmmTool.DayContent.Core;
 using MmmTool.Notes.Core;
 using MmmTool.Users.Core;
 using MmmToolWeb.Features.Client;
@@ -35,12 +36,15 @@ internal static class NoteEndpoints
     /// </summary>
     /// <param name="day">表示する日。実績の開始日の既定を、この日で決める。</param>
     /// <param name="contents">他の機能の内容を集める処理。</param>
+    /// <param name="currentUser">今のユーザー。</param>
+    /// <param name="access">機能の利用。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>出せる内容の一覧。サーバーに登録された機能の分だけ。</returns>
-    private static async Task<IResult> LoadContentSourcesAsync(DateOnly day, DayContentService contents, CancellationToken cancellationToken)
+    /// <returns>出せる内容の一覧。サーバーに登録された機能の分だけで、管理者に無効にされた機能の分は含まない。</returns>
+    private static async Task<IResult> LoadContentSourcesAsync(
+        DateOnly day, DayContentService contents, CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
     {
         var sources = new List<DayContentSourceDto>();
-        foreach (var source in contents.Sources)
+        foreach (var source in await AllowedSourcesAsync(contents, currentUser, access, cancellationToken))
         {
             var from = await source.GetDefaultFromAsync(day, cancellationToken);
             sources.Add(new DayContentSourceDto(
@@ -53,6 +57,31 @@ internal static class NoteEndpoints
     }
 
     /// <summary>
+    /// ノートの画面に出せる他の機能の内容から、管理者に無効にされた機能の分を除く。
+    /// </summary>
+    /// <param name="contents">他の機能の内容を集める処理。</param>
+    /// <param name="currentUser">今のユーザー。</param>
+    /// <param name="access">機能の利用。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>今のユーザーに出せる内容。機能番号が無い内容は、常に含む。</returns>
+    private static async Task<IReadOnlyList<IDayContentSource>> AllowedSourcesAsync(
+        DayContentService contents, CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
+    {
+        var allowed = new List<IDayContentSource>();
+        foreach (var source in contents.Sources)
+        {
+            if (source.FeatureNo is { } featureNo
+                && await access.GetAsync(currentUser.Id, featureNo, cancellationToken) == FeatureAccess.Disabled)
+            {
+                continue;
+            }
+
+            allowed.Add(source);
+        }
+        return allowed;
+    }
+
+    /// <summary>
     /// 他の機能の内容を、枠にして返す。
     /// </summary>
     /// <param name="key">内容の識別。</param>
@@ -62,13 +91,15 @@ internal static class NoteEndpoints
     /// <param name="on">選んでいる選択肢の識別を、カンマでつないだ文字。無い識別は、選んでいない。</param>
     /// <param name="contents">他の機能の内容を集める処理。</param>
     /// <param name="notes">ノートの読み書き。自分の番号を引く。</param>
+    /// <param name="currentUser">今のユーザー。</param>
+    /// <param name="access">機能の利用。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>枠の一覧。内容の識別が無いときは 404。</returns>
+    /// <returns>枠の一覧。内容の識別が無いとき、または管理者に無効にされた機能の内容のときは 404。</returns>
     private static async Task<IResult> LoadContentAsync(
         string key, DateOnly day, DateOnly from, bool? everyone, string? on, DayContentService contents, NoteService notes,
-        CancellationToken cancellationToken)
+        CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
     {
-        var source = contents.Sources.FirstOrDefault(s => s.Key == key);
+        var source = (await AllowedSourcesAsync(contents, currentUser, access, cancellationToken)).FirstOrDefault(s => s.Key == key);
         if (source is null)
         {
             return Results.NotFound(new ErrorResponse("この内容は、見つかりません。"));

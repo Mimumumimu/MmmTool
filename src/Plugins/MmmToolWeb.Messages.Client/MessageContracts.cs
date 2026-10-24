@@ -82,7 +82,8 @@ public sealed record DirectDto(int ConversationId);
 /// 入力欄を出すのに要る情報。
 /// </summary>
 /// <param name="BodyMaxLength">本文の最大の長さ。</param>
-public sealed record MessageFormDto(int BodyMaxLength);
+/// <param name="SelfCanReceive">自分が、受け取り先を指定しているか。false のとき、入力欄は押せない。</param>
+public sealed record MessageFormDto(int BodyMaxLength, bool SelfCanReceive);
 
 /// <summary>
 /// 受け取り先に選べる送信先 1 件。

@@ -234,7 +234,7 @@ git submodule update --init --recursive
 | --- | --- |
 | `MmmTool.slnx` | MmmTool 本体 |
 | `MmmBatch.slnx` | サーバー用の別アプリ MmmBatch(リマインダーとメッセージの外部送信) |
-| `MmmToolAdmin.slnx` | サーバーモードの管理ツール MmmToolAdmin(ユーザーの一覧と、Web 版の登録用コードの発行) |
+| `MmmToolAdmin.slnx` | サーバーモードの管理ツール MmmToolAdmin(ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用) |
 
 ```powershell
 dotnet restore .\MmmTool.slnx
@@ -310,7 +310,7 @@ git submodule update --remote external/MmmSdk
 | `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
-| `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行 |
+| `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用 |
 | `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer` |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |

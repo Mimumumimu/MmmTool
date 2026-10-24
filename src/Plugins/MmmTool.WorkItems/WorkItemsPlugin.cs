@@ -2,7 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmTool.CodeMaster;
+using MmmTool.CodeMaster.Core;
 using MmmTool.DayContent.Core;
+using MmmTool.Users.Core;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Main;
 using MmmTool.WorkItems.Move;
@@ -23,7 +25,9 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
     /// </remarks>
     public void Register(IServiceCollection services)
     {
-        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName, defaultEnabled: false);
+        // 管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない
+        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName, defaultEnabled: false,
+            availableWhen: provider => provider.IsFeatureAllowed(CodeFeatures.WorkItems));
 
         // 更新してよいかの判定 (今は誰でも更新できる。担当者・リーダーだけに絞る実装は、この行を差し替える)
         services.AddSingleton<IWorkItemEditPolicy, AnyoneCanEdit>();

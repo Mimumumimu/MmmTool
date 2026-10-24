@@ -68,6 +68,9 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var changed = false;
         try
         {
+            // メッセージを無効にされた人への通知は、送る前に止める
+            changed |= await store.SkipDisabledAsync(cancellationToken).ConfigureAwait(false) > 0;
+
             foreach (var target in await store.GetSendableAsync(SendRetryPolicy.MaxAttempts, cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();

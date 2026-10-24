@@ -4,6 +4,7 @@ using MmmBatch.MessageSending.Core;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
+using MmmTool.Data.SqlServer.Users;
 using MmmTool.Messages.Core;
 using MmmTool.NotificationChannels.Core;
 
@@ -48,6 +49,38 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
         => ReadAsync(
             "WHERE d.IsDeleted = 0 ORDER BY d.Id DESC OFFSET 0 ROWS FETCH NEXT @Count ROWS ONLY",
             0, count, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 受ける人のメッセージが無効かの判定は、MmmTool と Web 版が宛先を外すときと同じ条件で、<see cref="FeatureAccessSql"/> にある。
+    /// 状態を変えるメッセージの更新日時も、同じトランザクションで更新する。端末の差分の取得に、状態の変わりが届くため。
+    /// </remarks>
+    public Task<int> SkipDisabledAsync(CancellationToken cancellationToken = default)
+        => SendTableAccess.RunAsync(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            var disabled = FeatureAccessSql.IsDisabled("d.UserId", CodeFeatures.Messages);
+            command.CommandText =
+                $"""
+                SET XACT_ABORT ON;
+                BEGIN TRAN;
+                DECLARE @Rows int;
+                UPDATE m SET UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
+                FROM dbo.Message AS m
+                WHERE m.Id IN (SELECT d.MessageId FROM dbo.MessageDelivery AS d
+                               WHERE d.IsDeleted = 0 AND d.Status IN (@Pending, @Failed) AND {disabled});
+                UPDATE d SET Status = @Skipped, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
+                FROM dbo.MessageDelivery AS d
+                WHERE d.IsDeleted = 0 AND d.Status IN (@Pending, @Failed) AND {disabled};
+                SET @Rows = @@ROWCOUNT;
+                COMMIT TRAN;
+                SELECT @Rows;
+                """;
+            command.Parameters.Add(new SqlParameter("@Pending", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Pending });
+            command.Parameters.Add(new SqlParameter("@Failed", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Failed });
+            command.Parameters.Add(new SqlParameter("@Skipped", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Skipped });
+            return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        }, cancellationToken);
 
     /// <inheritdoc />
     public Task<bool> TryClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken = default)

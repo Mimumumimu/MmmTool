@@ -20,6 +20,10 @@ public interface IDayContentSource
     /// <remarks>機能のオン・オフに合わせる。機能のオン・オフが無いときは null。</remarks>
     string? FeatureKey { get; }
 
+    /// <summary>この内容を出せる機能の機能番号で、<c>CodeFeatures</c> の番号</summary>
+    /// <remarks>サーバーモードで、管理者がその機能を無効にしたユーザーには、この内容を出さない。管理者が決められない機能は null。</remarks>
+    int? FeatureNo => null;
+
     /// <summary>画面に出す、真偽の選択肢 (チェックとして並べる)</summary>
     IReadOnlyList<DayContentOption> Options { get; }
 

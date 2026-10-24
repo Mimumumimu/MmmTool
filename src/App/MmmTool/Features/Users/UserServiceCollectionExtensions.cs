@@ -25,6 +25,9 @@ public static class UserServiceCollectionExtensions
         services.AddSingleton<SignInPrompt>();
         services.AddStartupTask<UserStartup>();
 
+        // 管理者が決めた、機能の利用を読み込む。ログインの次に動かし、各機能の準備より先に済ませる
+        services.AddStartupTask<FeatureAccessStartup>();
+
         // 閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddTransient<SignInWindow>();
         services.AddTransient<SignInViewModel>();

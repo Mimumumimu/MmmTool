@@ -1,4 +1,5 @@
 using System.Reflection;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Messages;
 using MmmTool.Data.SqlServer.Users;
 using MmmTool.Messages.Core;
@@ -20,6 +21,9 @@ public sealed class MessagesWebFeature : IWebFeature
 {
     /// <inheritdoc />
     public Assembly ClientAssembly => typeof(MessagesClient).Assembly;
+
+    /// <inheritdoc />
+    public int? FeatureNo => CodeFeatures.Messages;
 
     /// <inheritdoc />
     public void AddServices(IServiceCollection services)

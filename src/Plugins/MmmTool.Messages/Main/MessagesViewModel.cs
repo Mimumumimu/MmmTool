@@ -96,10 +96,29 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
+    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
     public partial bool PeerCanReceive { get; set; } = true;
 
-    /// <summary>「受け取り先が未設定です」の案内を出すか</summary>
-    public bool IsNoReceiveTargetVisible => IsConversationOpen && !PeerCanReceive;
+    /// <summary>入力欄を押せるか。自分と相手の両方が受け取り先を指定しているとき</summary>
+    public bool IsInputEnabled => SelfCanReceive && PeerCanReceive;
+
+    /// <summary>入力欄が押せるか。自分が受け取り先を指定しているときだけ</summary>
+    /// <remarks>送る人も受け取り先を指定していないと送れない。指定は設定ページで行うので、ページが見えるようになったときに読み直す。</remarks>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
+    [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
+    [NotifyPropertyChangedFor(nameof(IsSelfNoReceiveTargetVisible))]
+    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
+    public partial bool SelfCanReceive { get; set; } = true;
+
+    /// <summary>「受け取り先が未設定です」の案内を出すか。自分が未設定のときは、自分の案内だけを出す</summary>
+    public bool IsNoReceiveTargetVisible => IsConversationOpen && SelfCanReceive && !PeerCanReceive;
+
+    /// <summary>「自分の受け取り先が未設定です」の案内を出すか</summary>
+    public bool IsSelfNoReceiveTargetVisible => IsConversationOpen && !SelfCanReceive;
+
+    /// <summary>自分の受け取り先が未設定のときの案内の文</summary>
+    public static string SelfNoReceiveTargetText => MessageDraft.SelfNoReceiveTargetMessage;
 
     /// <summary>入力した本文</summary>
     [ObservableProperty]
@@ -177,6 +196,31 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     {
         _visible = visible;
         sync.SetViewState(IsConversationOpen ? _conversationId : 0, visible);
+        if (visible && IsConversationOpen)
+        {
+            // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
+            RefreshSelfCanReceiveAsync().Forget();
+        }
+    }
+
+    /// <summary>自分が受け取り先を指定しているかを、DB から読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    /// <remarks>読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。</remarks>
+    private async Task RefreshSelfCanReceiveAsync()
+    {
+        if (sync.UserId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            SelfCanReceive = await repository.CanReceiveAsync(sync.UserId);
+        }
+        catch (DataFileException)
+        {
+            // 読めなかった。送るときに、サーバーが断る
+        }
     }
 
     /// <summary>通知ダイアログのクリックなどから、会話を開く</summary>
@@ -321,6 +365,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         ConversationTitle = title;
         PeerCanReceive = peerCanReceive;
         IsConversationOpen = true;
+        RefreshSelfCanReceiveAsync().Forget();
         IsStale = false;
         Body = "";
         ReplyTo = null;
@@ -505,9 +550,9 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         }
     }
 
-    /// <summary>送れる状態か。相手が受け取り先を指定していて、本文が空白だけでない</summary>
+    /// <summary>送れる状態か。自分と相手が受け取り先を指定していて、本文が空白だけでない</summary>
     /// <returns>送れるとき true</returns>
-    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(PeerCanReceive, Body);
+    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(SelfCanReceive, PeerCanReceive, Body);
 
     /// <summary>メッセージを送る。メッセージと通知の状態の行を DB に書く</summary>
     /// <returns>送る処理の完了を表すタスク</returns>
@@ -525,6 +570,10 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
                 if (result.Outcome == SendMessageOutcome.NoReceiveTarget)
                 {
                     PeerCanReceive = false;
+                }
+                else if (result.Outcome == SendMessageOutcome.SelfNoReceiveTarget)
+                {
+                    SelfCanReceive = false;
                 }
                 return;
             }
@@ -557,6 +606,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     private static string OutcomeText(SendMessageOutcome outcome) => outcome switch
     {
         SendMessageOutcome.NoReceiveTarget => MessageDraft.NoReceiveTargetMessage,
+        SendMessageOutcome.SelfNoReceiveTarget => MessageDraft.SelfNoReceiveTargetMessage,
         SendMessageOutcome.ReplyInvalid => "返信元のメッセージが見つかりません。",
         _ => "会話が見つかりません。",
     };

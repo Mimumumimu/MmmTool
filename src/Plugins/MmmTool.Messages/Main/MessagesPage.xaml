@@ -283,6 +283,13 @@
                     Text="受け取り先が未設定です"
                     Visibility="{x:Bind ViewModel.IsNoReceiveTargetVisible, Mode=OneWay}" />
 
+                <TextBlock
+                    Grid.Row="2"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind local:MessagesViewModel.SelfNoReceiveTargetText}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.IsSelfNoReceiveTargetVisible, Mode=OneWay}" />
+
                 <Grid Grid.Row="3" ColumnSpacing="8" Visibility="{x:Bind ViewModel.HasReplyTo, Mode=OneWay}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -317,7 +324,7 @@
                             Padding="0,1"
                             AcceptsReturn="True"
                             GotFocus="OnJapaneseBoxGotFocus"
-                            IsEnabled="{x:Bind ViewModel.PeerCanReceive, Mode=OneWay}"
+                            IsEnabled="{x:Bind ViewModel.IsInputEnabled, Mode=OneWay}"
                             MaxLength="{x:Bind core:MessageLimits.BodyMaxLength}"
                             PlaceholderText="メッセージ (Ctrl+Enter で送信)"
                             PreviewKeyDown="OnBodyPreviewKeyDown"

@@ -55,6 +55,10 @@
   - 完全削除ができるか (`CanPurge`): JSON は true、DB は false
     - false のとき `PurgeAsync` は `NotSupportedException` を投げ、画面は、完全削除の操作を出さない
 - `ReminderService.GetTargetsAsync` (通知・今日の対象)は、宛先が 0 (全員宛て)か自分のものだけに絞る
+- 管理者がリマインダーを無効にした人 ([mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」)は、DB モードで、次のとおりになる
+  - その人の PC には、リマインダーが何も見えず、通知も出ない。サイドバーのページも出ない。
+  - その人は、保存できない。宛先の一覧にも出ず、宛先にして保存することもできない。
+  - MmmBatch は、送信先の持ち主が無効の人のとき、その送信先へ送らない。有効に戻ったとき、その日の過ぎた時刻の分は、まだ送っていなければ送る。前の日までの分は送り直さない。
 - 一覧 (`GetRemindersAsync`)は、保存先が見せるものを、そのまま返す (DB は、自分が作成したほかの人宛てを含む)
 - 保存先の外での変更 (ほかの PC など)は、`ExternalChanged` で知らせる
   - `ReminderService` が受けて、自分の書き込みと同じ `Changed` として画面・監視に伝える

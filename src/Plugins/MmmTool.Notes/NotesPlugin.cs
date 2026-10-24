@@ -1,9 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Notes.Core;
 using MmmTool.Notes.Edit;
 using MmmTool.Notes.Main;
+using MmmTool.Users.Core;
 
 namespace MmmTool.Notes;
 
@@ -24,7 +26,9 @@ public sealed class NotesPlugin : IFeaturePlugin
         // 他の機能 (作業管理など)が登録した内容を集めて、カードの上に出す。提供する機能の名前は持たない
         services.AddSingleton<DayContentService>();
 
-        services.AddFeature(NotesFeature.Key, NotesFeature.DisplayName);
+        // 管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない
+        services.AddFeature(NotesFeature.Key, NotesFeature.DisplayName,
+            availableWhen: provider => provider.IsFeatureAllowed(CodeFeatures.Notes));
 
         // 今日が実施日のノートを、起動時と日付が変わったときに、通知ダイアログで知らせる
         services.AddSingleton<NoteEventMonitor>();

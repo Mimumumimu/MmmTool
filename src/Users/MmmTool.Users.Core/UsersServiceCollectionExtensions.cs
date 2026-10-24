@@ -20,6 +20,12 @@ public static class UsersServiceCollectionExtensions
         // ユーザーごとの設定は、DB モードだけ。DB の種類ごとの登録が、設定どおりに置き換える
         services.AddSingleton<UnavailableAppUserSettingRepository>();
         services.AddSingleton<IAppUserSettingRepository>(provider => provider.GetRequiredService<UnavailableAppUserSettingRepository>());
+
+        // 管理者が決める設定 (機能の利用)も、DB モードだけ。DB の種類ごとの登録が、設定どおりに置き換える
+        services.AddSingleton<UnavailableAppUserAdminSettingRepository>();
+        services.AddSingleton<IAppUserAdminSettingRepository>(provider => provider.GetRequiredService<UnavailableAppUserAdminSettingRepository>());
+        services.AddSingleton<FeatureAccessService>();
+        services.AddSingleton<FeatureAccessCache>();
         return services;
     }
 }

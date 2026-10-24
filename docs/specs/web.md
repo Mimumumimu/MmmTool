@@ -400,6 +400,22 @@
   - `EnrollmentCodeHash`: 入力された登録用コードから、持ち主を探す。コードが空の行は対象にしない
 - 作成者・更新者は 0。コードを出すのは、ユーザーのログインではなく、サーバーの PC での操作のため
 
+## 機能の利用 (管理者が無効にした機能)
+
+管理者が、ユーザーごとに、機能を無効にできる。決め方は [mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」にある。無効にされた人にとって、その機能は無いものになる。
+
+- 機能番号 (`IWebFeature.FeatureNo`)を持つ機能は、無効にされた人の API の呼び出しを、404 で断る
+  - 断る処理は、`MapWebFeatures` が機能ごとの API の入口に 1 回だけ付ける。機能ごとには書かない。
+  - 要求ごとに、`AppUserAdminSetting` を 1 回読む。行が無い人は有効。
+  - 機能番号を持たない機能 (通知)は、管理者が決められない。
+- ホーム画面の機能の一覧と、設定の画面の節からも外す
+  - 画面は、`GET /api/features/disabled` で、使えない機能の画面側のアセンブリの名前を受け取り、`FeatureAvailability` が `ClientFeature` を絞る。画面側は、機能番号を持たない。
+  - 聞けなかったときは、外さない。API はサーバーが断る。
+  - 無効の機能の画面の道を、アドレスに直接打つと、画面は開く。API が断るので、中身は出ない。
+- ノートの画面に出す作業報告は、作業管理を無効にされた人には出さない (`IDayContentSource.FeatureNo`)
+- 「通知」の画面の一覧に出すリマインダーは、リマインダーを無効にされた人には出さない
+- 無効にされた人を、メッセージとリマインダーの宛先にも出さず、送る処理も断る ([messages.md](messages.md)・[reminders.md](reminders.md))
+
 ## DB の接続
 
 - アプリが使うログインは、専用の `MmmToolWeb` を作る
@@ -438,6 +454,8 @@
     GRANT SELECT, INSERT ON dbo.MessageDelivery TO [MmmToolWeb];
     -- ユーザーごとの設定。メッセージの受け取り先を、読み、足し、更新する。外すときは論理削除なので DELETE は付けない
     GRANT SELECT, INSERT, UPDATE ON dbo.AppUserSetting TO [MmmToolWeb];
+    -- 管理者が決める、機能の利用。読むだけ。書くのは管理ツール
+    GRANT SELECT ON dbo.AppUserAdminSetting TO [MmmToolWeb];
     -- 送信先は、送る先の値 (Value)を除いた列だけ読める。通知を受け取る端末の登録 (区分 Web 版通知)のために、足す・更新するのは付ける
     GRANT INSERT, UPDATE ON dbo.NotificationChannel TO [MmmToolWeb];
     GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];

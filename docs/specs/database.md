@@ -106,6 +106,7 @@
 | `ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
 | `ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
 | `AppUserSetting` | ユーザーごとの設定。人・機能・区分・コード番号ごとに、値を 1 行で持つ縦持ちの表。メッセージの受け取り先から使う ([messages.md](messages.md)の「受け取り先」) |
+| `AppUserAdminSetting` | 管理者がユーザーごとに決める設定。作りは `AppUserSetting` と同じで、管理ツールだけが書く。機能の利用 (無効・有効・読み取り専用)を持つ ([mmmtooladmin.md](mmmtooladmin.md)の「機能の利用」) |
 | `MessageConversation` | メッセージの会話。1 対 1 かグループかの種類と、グループの名前を持つ ([messages.md](messages.md)) |
 | `MessageConversationMember` | 会話に入っている人。1 人が 1 行 |
 | `Message` | 会話の中の 1 通。本文・送った人・返信元を持つ。MmmTool と Web 版が行を足す |
@@ -269,6 +270,33 @@
   - 人ごとの設定を読む問い合わせと、同じ設定が重ならないことを守るため
 - 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQLite にはユーザーの表が無いので、SQL Server だけ。
 
+### `AppUserAdminSetting`(管理者がユーザーごとに決める設定)
+
+管理者が、ユーザーごとに決める設定を、1 行に 1 つの値で持つ縦持ちの表。列・キー・インデックスの作りは `AppUserSetting` と同じで、持ち主だけが違う。
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。設定を外したときに 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者。管理ツールが書くので 0。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。管理ツールが書くので 0。0 以上の検査 |
+| `UserId` | 整数 | `int` | | 設定を持つ人の `AppUser.Id`。業務の列。0 以上の検査。**列の並び: 共通ヘッダーの次、`FeatureNo` の前** |
+| `FeatureNo` | 整数 | `int` | | 機能番号で、`CodeMaster` と同じ台帳 (`CodeFeatures`)の数字。作業管理は 2・メッセージは 3・ノートは 4・リマインダーは 5。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、設定の種類。機能の利用は 1。1 以上の検査 |
+| `CodeNo` | 整数 | `int` | | コード番号 (枝番)で、区分の中の識別子。機能の利用は 1。1 以上の検査 |
+| `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、整数は読むときに直す。直せない値は、未設定として扱う |
+
+- `AppUserSetting` は、ユーザー自身が決める設定。この表は、管理ツール `MmmToolAdmin` だけが書く設定 ([mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」)
+  - ユーザーが書ける表に、管理者が与える許可を置かないため。Web 版のログインは、`AppUserSetting` に書き込める。
+- 削除されていない行は、`(UserId, FeatureNo, CategoryNo, CodeNo)` で 1 行だけ。インデックスは `UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo` で、`IsDeleted = 0` の行だけの一意のインデックス
+- `CategoryNo` の区分は、機能の利用が 1。設定の種類を足すときは、区分を足し、列も表も足さない。
+  - 機能の利用: `FeatureNo` は機能番号、`CodeNo` は 1、`Value` は 0 = 無効・1 = 有効・2 = 読み取り専用。行が無い人は、有効
+- 持ち主が人ではない設定 (全員に共通の設定など)は、この表に入れず、別の表にする。
+- 読む側は、Web 版のサーバー・MmmTool・MmmBatch。Web 版のログイン `MmmToolWeb` には SELECT だけを付ける。付ける前に、表と権限の一覧を出して許可をもらう。
+- SQLite にはユーザーの表が無いので、SQL Server だけに作る。
+
 ### `ReminderSendSetting`(リマインダーの送信設定)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
@@ -401,7 +429,7 @@
 | `UpdatedByUserId` | 整数 | `int` | | 更新者。頼んだときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
 | `MessageId` | 整数 | `int` | | 通知するメッセージの `Message.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どのメッセージを・誰にの順 |
 | `UserId` | 整数 | `int` | | 通知を受ける人の `AppUser.Id`。送った人以外の参加者で、自分との会話は自分。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
-| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 で、1 から 3 の検査 `CK_MessageDelivery_Status`。`ReminderSendStatus` と同じ意味 |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、通知を受ける人が管理者にメッセージを無効にされたため、MmmBatch が送らなかった状態 |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
@@ -825,6 +853,8 @@
     - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
     - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。
     - ユーザーごとの設定の表 `AppUserSetting` と、その索引 `UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
+    - 管理者が決める設定の表 `AppUserAdminSetting` と、その索引 `UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
+    - `MessageDelivery` の状態の検査は、1 から 4 (Skipped = 4 を足した形)で作る。
     - メッセージの 4 つの表 `MessageConversation`・`MessageConversationMember`・`Message`・`MessageDelivery`と、「列」の節に書いた索引。無ければ作る。
     - SQLite には送信先の表もユーザーの表も無いので、SQL Server だけ
   - `005_AddNoteEventDate.sql` は、0.8.0 でリリースした。次の変更を持つ。

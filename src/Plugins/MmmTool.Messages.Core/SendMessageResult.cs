@@ -14,6 +14,9 @@ public enum SendMessageOutcome
 
     /// <summary>返信元が、同じ会話のメッセージではない。何も書かなかった</summary>
     ReplyInvalid = 3,
+
+    /// <summary>送る人が、自分の受け取り先を指定していない。何も書かなかった</summary>
+    SelfNoReceiveTarget = 4,
 }
 
 /// <summary>

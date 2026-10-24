@@ -5,6 +5,7 @@ using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Reminders;
+using MmmTool.Data.SqlServer.Users;
 using MmmTool.Messages.Core;
 using MmmTool.Users.Core;
 
@@ -46,12 +47,17 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         LEFT JOIN dbo.AppUser AS rsu ON rsu.Id = r.SenderUserId
         """;
 
-    /// <summary>その人の受け取り先が有効かを調べる条件。<c>@P</c> の人が、メッセージの受け取り先を指定し、その送信先が削除されていない</summary>
+    /// <summary>管理者がメッセージを無効にした人かを調べる条件。人の番号を表す式は、<c>{0}</c> に入れる</summary>
+    private static readonly string MessagesDisabled = FeatureAccessSql.IsDisabled("{0}", CodeFeatures.Messages);
+
+    /// <summary>その人が、メッセージを受け取れるかを調べる条件。その人が、メッセージの受け取り先を指定し、その送信先が削除されておらず、管理者がメッセージを無効にしていない</summary>
+    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
     private static readonly string ReceiveTargetExists =
         $$"""
-        EXISTS (SELECT 1 FROM dbo.AppUserSetting AS s
+        (EXISTS (SELECT 1 FROM dbo.AppUserSetting AS s
                 INNER JOIN dbo.NotificationChannel AS nc ON nc.Id = TRY_CAST(s.Value AS int) AND nc.IsDeleted = 0
                 WHERE s.UserId = {0} AND s.FeatureNo = {{CodeFeatures.Messages}} AND s.CategoryNo = {{MessageReceiveTarget.Category}} AND s.CodeNo = {{MessageReceiveTarget.Code}} AND s.IsDeleted = 0)
+            AND NOT {{MessagesDisabled}})
         """;
 
     /// <inheritdoc />
@@ -219,6 +225,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         var trimmed = body.Trim();
         return SendTableAccess.RunAsync(database, async connection =>
         {
+            // 管理者がメッセージを無効にした人は、送れない。画面に出ない機能なので、会話が無いものとして扱う
+            if (await IsMessagesDisabledAsync(connection, null, me, cancellationToken).ConfigureAwait(false))
+            {
+                return SendMessageResult.Failed(SendMessageOutcome.NotMember);
+            }
+
+            // 自分の受け取り先を指定していない人は、送れない。返事を受け取れない人が、一方的に送る形にしないため
+            if (!await CanReceiveAsync(connection, null, me, cancellationToken).ConfigureAwait(false))
+            {
+                return SendMessageResult.Failed(SendMessageOutcome.SelfNoReceiveTarget);
+            }
+
             // 新しい 1 対 1 は、相手が受け取り先を指定しているときだけ作る (指定していないとき、空の会話を残さない)
             if (conversationId == 0 && !await CanReceiveAsync(connection, null, peerUserId, cancellationToken).ConfigureAwait(false))
             {
@@ -288,6 +306,19 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                     return SendMessageResult.Failed(SendMessageOutcome.NoReceiveTarget);
                 }
             }
+        }
+        else
+        {
+            // グループは、メッセージを無効にした人には、通知の状態を書かない。ほかの参加者には送る
+            var allowed = new List<int>();
+            foreach (var recipient in recipients)
+            {
+                if (!await IsMessagesDisabledAsync(connection, transaction, recipient, cancellationToken).ConfigureAwait(false))
+                {
+                    allowed.Add(recipient);
+                }
+            }
+            recipients = allowed;
         }
 
         if (replyToMessageId > 0 && !await ReplyExistsAsync(connection, transaction, conversationId, replyToMessageId, cancellationToken).ConfigureAwait(false))
@@ -572,6 +603,21 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = $"SELECT CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@UserId")} THEN 1 ELSE 0 END";
+        command.Parameters.Add(Int("@UserId", userId));
+        return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
+    }
+
+    /// <summary>管理者が、その人のメッセージを無効にしているか調べる</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">使うトランザクション。無ければ null</param>
+    /// <param name="userId">人の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>無効のとき true。設定が無い人は有効なので false</returns>
+    private static async Task<bool> IsMessagesDisabledAsync(SqlConnection connection, SqlTransaction? transaction, int userId, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"SELECT CASE WHEN {string.Format(CultureInfo.InvariantCulture, MessagesDisabled, "@UserId")} THEN 1 ELSE 0 END";
         command.Parameters.Add(Int("@UserId", userId));
         return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
     }

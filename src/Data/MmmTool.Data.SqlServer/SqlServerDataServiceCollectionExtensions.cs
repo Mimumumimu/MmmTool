@@ -75,6 +75,13 @@ public static class SqlServerDataServiceCollectionExtensions
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
                 ? provider.GetRequiredService<SqlServerAppUserSettingRepository>()
                 : provider.GetRequiredService<UnavailableAppUserSettingRepository>());
+
+        // 管理者が決める設定 (機能の利用)も、DB モードだけ
+        services.AddSingleton<SqlServerAppUserAdminSettingRepository>();
+        services.AddSingleton<IAppUserAdminSettingRepository>(provider =>
+            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
+                ? provider.GetRequiredService<SqlServerAppUserAdminSettingRepository>()
+                : provider.GetRequiredService<UnavailableAppUserAdminSettingRepository>());
         return services;
     }
 }

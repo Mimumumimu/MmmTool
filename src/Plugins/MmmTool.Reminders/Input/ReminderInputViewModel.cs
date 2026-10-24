@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Reminders.Core;
 using MmmTool.Users.Core;
 
@@ -24,6 +25,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private readonly ReminderService _reminders;
     /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
     private readonly IAppUserRepository _users;
+    /// <summary>機能の利用 (宛先の選択肢から、リマインダーを無効にされた人を外すために使う)</summary>
+    private readonly FeatureAccessService _access;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
     /// <summary>リマインダーの送信設定の保存先</summary>
@@ -41,15 +44,17 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
+    /// <param name="access">機能の利用</param>
     /// <param name="channelLoader">送信先の選択肢を作る</param>
     /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderInputViewModel(
-        ReminderService reminders, IAppUserRepository users, ReminderChannelLoader channelLoader,
+        ReminderService reminders, IAppUserRepository users, FeatureAccessService access, ReminderChannelLoader channelLoader,
         IReminderSendSettingRepository sendSettings, TimeProvider time)
     {
         _reminders = reminders;
         _users = users;
+        _access = access;
         _channelLoader = channelLoader;
         _sendSettings = sendSettings;
         _time = time;
@@ -209,17 +214,20 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         TargetOptions.Add(new ReminderTargetOption(0, "全員"));
 
         IReadOnlyList<AppUser> users = [];
+        IReadOnlyCollection<int> disabledIds = [];
         try
         {
             users = await _users.GetUsersAsync();
+            disabledIds = await _access.GetDisabledUserIdsAsync(CodeFeatures.Reminders);
         }
         catch (DataFileException ex)
         {
             SaveError.Show(ex.Message);
         }
 
+        // リマインダーを無効にされた人は、宛先に出さない
         var today = DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
-        foreach (var user in users.Where(user => user.Id != selfId && user.IsActiveOn(today)).OrderBy(user => user.DisplayName, StringComparer.CurrentCulture))
+        foreach (var user in users.Where(user => user.Id != selfId && user.IsActiveOn(today) && !disabledIds.Contains(user.Id)).OrderBy(user => user.DisplayName, StringComparer.CurrentCulture))
         {
             TargetOptions.Add(new ReminderTargetOption(user.Id, user.DisplayName));
         }

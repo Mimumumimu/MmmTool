@@ -42,7 +42,11 @@
     </ol>
 
     <div class="composer">
-        @if (!_peerCanReceive)
+        @if (!_selfCanReceive)
+        {
+            <p class="notice" role="status">@SelfNotice</p>
+        }
+        else if (!_peerCanReceive)
         {
             <p class="notice" role="status">@MessageDraftNotice</p>
         }
@@ -54,7 +58,7 @@
             </p>
         }
         <div class="input">
-            <textarea aria-label="メッセージ" rows="2" maxlength="@_bodyMaxLength" disabled="@(!_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
+            <textarea aria-label="メッセージ" rows="2" maxlength="@_bodyMaxLength" disabled="@(!_selfCanReceive || !_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
             <button type="button" class="primary" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
         </div>
     </div>
@@ -63,6 +67,9 @@
 @code {
     /// <summary>相手が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
     private const string MessageDraftNotice = "受け取り先が未設定です";
+
+    /// <summary>自分が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
+    private const string SelfNotice = "自分の受け取り先が未設定です。設定で指定すると送れます";
 
     [Parameter]
     public int ConversationId { get; set; }
@@ -87,6 +94,7 @@
     private bool _sending;
     private bool _hasMore;
     private bool _peerCanReceive = true;
+    private bool _selfCanReceive = true;
     private bool _watchingVisible;
     private int _bodyMaxLength = MessageLimitsBody;
     private string _body = "";
@@ -103,8 +111,8 @@
     /// <summary>本文の最大の長さの既定。サーバーが返す値で置き換える。</summary>
     private const int MessageLimitsBody = 1000;
 
-    /// <summary>送れる状態か。サーバーも同じ決まり (相手の受け取り先があり、本文が空白だけでないこと)で確かめる。</summary>
-    private bool CanSend => !_sending && _peerCanReceive && !string.IsNullOrWhiteSpace(_body);
+    /// <summary>送れる状態か。サーバーも同じ決まり (自分と相手の受け取り先があり、本文が空白だけでないこと)で確かめる。</summary>
+    private bool CanSend => !_sending && _selfCanReceive && _peerCanReceive && !string.IsNullOrWhiteSpace(_body);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -171,10 +179,7 @@
         {
             return;
         }
-        if (form.Succeeded)
-        {
-            _bodyMaxLength = form.Value!.BodyMaxLength;
-        }
+        ApplyForm(form);
         if (ConversationId == 0)
         {
             // まだ会話が無い。相手が受け取り先を指定している人だけが探せるので、送れる。会話は、最初の送信で作る
@@ -384,8 +389,24 @@
         }
     });
 
-    /// <summary>アプリが裏から戻ったときに、差分を読み直す。</summary>
-    private Task LoadOnReturnAsync() => InvokeAsync(async () => await Store.SyncAsync());
+    /// <summary>アプリが裏から戻ったときに、差分と、自分が送れる状態かを読み直す。設定で受け取り先を指定して戻ったときに、送れるようにする。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(async () =>
+    {
+        ApplyForm(await Messages.LoadFormAsync());
+        StateHasChanged();
+        await Store.SyncAsync();
+    });
+
+    /// <summary>入力欄の決まりを取り込む。読めなかったときは、前の値のまま。送るとき、サーバーが同じ決まりで断る。</summary>
+    /// <param name="form">サーバーから読んだ入力欄の決まり。</param>
+    private void ApplyForm(ApiResult<MessageFormDto> form)
+    {
+        if (form.Succeeded)
+        {
+            _bodyMaxLength = form.Value!.BodyMaxLength;
+            _selfCanReceive = form.Value.SelfCanReceive;
+        }
+    }
 
     /// <summary>メッセージを送る。メッセージと通知の状態の行が書かれるだけで、実際に送るのは MmmBatch。</summary>
     private async Task SendAsync()
@@ -410,6 +431,9 @@
         if (!result.Succeeded)
         {
             _error = $"送れませんでした: {result.Message}";
+            // 受け取り先が無いと断られたときは、入力欄を押せなくする (PC 版と同じ)
+            _selfCanReceive &= result.Message != SelfNotice;
+            _peerCanReceive &= result.Message != MessageDraftNotice;
             return;
         }
 

@@ -25,6 +25,13 @@ public interface IMessageSendStore
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(int count, CancellationToken cancellationToken = default);
 
+    /// <summary>通知を受ける人が、管理者にメッセージを無効にされている通知の状態を、送らなかったことにする</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>送らなかったことにした件数。送信待ち・送信中・失敗のものが対象で、送信済みは変えない</returns>
+    /// <remarks>送る前に呼ぶ。有効に戻っても、古い通知は送り直さない。メッセージ本体は消さない。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<int> SkipDisabledAsync(CancellationToken cancellationToken = default);
+
     /// <summary>送る権利を取る。送信中にし、回数を 1 増やす</summary>
     /// <param name="current">読んだ内容。状態と更新日時が、いまの行と同じときだけ更新できる</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

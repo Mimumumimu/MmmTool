@@ -1,4 +1,5 @@
 using System.Reflection;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.NotificationChannels.Core;
 using MmmToolWeb.Features;
@@ -17,6 +18,9 @@ public sealed class RemindersWebFeature : IWebFeature
     /// <inheritdoc />
     /// <remarks>ブラウザ側の画面を持たないので、この機能のアセンブリを返す。<c>@page</c> は無い。</remarks>
     public Assembly ClientAssembly => typeof(RemindersWebFeature).Assembly;
+
+    /// <inheritdoc />
+    public int? FeatureNo => CodeFeatures.Reminders;
 
     /// <inheritdoc />
     public void AddServices(IServiceCollection services)

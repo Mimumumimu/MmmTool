@@ -1,3 +1,4 @@
+using MmmTool.CodeMaster.Core;
 using MmmTool.DayContent.Core;
 
 namespace MmmTool.WorkItems.Core;
@@ -37,6 +38,9 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
 
     /// <inheritdoc />
     public string? FeatureKey => WorkItemsFeatureKey;
+
+    /// <inheritdoc />
+    public int? FeatureNo => CodeFeatures.WorkItems;
 
     /// <inheritdoc />
     public IReadOnlyList<DayContentOption> Options { get; } =

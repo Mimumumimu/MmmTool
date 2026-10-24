@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Messages.Cache;
 using MmmTool.Messages.Core;
 using MmmTool.Messages.Main;
 using MmmTool.NotificationChannels.Core;
+using MmmTool.Users.Core;
 
 namespace MmmTool.Messages;
 
@@ -25,9 +27,10 @@ public sealed class MessagesPlugin : IFeaturePlugin
         // 受け取り先を指定できる設定として登録する。送信先の設定画面の「受け取り先」の節に出る
         services.AddSingleton<IReceiveTargetSetting, MessageReceiveTarget>();
 
-        // サーバーモード (DB モード)のときだけ使える。ローカルモードでは、サイドバー・設定の機能の一覧に出ない
+        // サーバーモード (DB モード)のときだけ使える。ローカルモードでは、サイドバー・設定の機能の一覧に出ない。管理者が無効にしたユーザーにも出ない
         services.AddFeature(MessagesFeature.Key, MessagesFeature.DisplayName,
-            availableWhen: provider => provider.GetRequiredService<IMessageRepository>().IsAvailable);
+            availableWhen: provider => provider.GetRequiredService<IMessageRepository>().IsAvailable
+                && provider.IsFeatureAllowed(CodeFeatures.Messages));
 
         // 端末の控えと、読み続ける部品。起動時の準備でループを始め、新着を通知ダイアログで知らせる
         services.AddSingleton<MessageCacheStore>();

@@ -7,6 +7,10 @@
     xmlns:local="using:MmmToolAdmin.Users">
 
     <Grid Padding="24,16,24,24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -17,6 +21,7 @@
 
         <TextBlock
             Grid.Row="0"
+            Grid.ColumnSpan="2"
             Margin="0,0,0,12"
             Style="{StaticResource TitleTextBlockStyle}"
             Text="ユーザー" />
@@ -24,6 +29,7 @@
         <!-- 選んだ人の登録用コードを出す。使える状態の人を選んだときだけ押せる -->
         <Button
             Grid.Row="1"
+            Grid.ColumnSpan="2"
             Margin="0,0,0,12"
             Command="{x:Bind ViewModel.IssueCodeCommand}"
             Content="登録用コードを発行"
@@ -32,6 +38,7 @@
         <!-- 発行したコード。コードは選んでコピーできる -->
         <InfoBar
             Grid.Row="2"
+            Grid.ColumnSpan="2"
             Margin="0,0,0,12"
             IsOpen="{x:Bind ViewModel.IsIssuedOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.IssuedMessage, Mode=OneWay}"
@@ -85,5 +92,46 @@
                 VerticalAlignment="Top"
                 ViewModel="{x:Bind ViewModel}" />
         </Grid>
+
+        <!-- 選んだ人の、機能の利用。状態を選ぶと、すぐ保存する。欄は常に出して、選ぶたびに一覧の幅が変わらないようにする -->
+        <StackPanel
+            Grid.Row="3"
+            Grid.RowSpan="2"
+            Grid.Column="1"
+            Width="320"
+            Margin="24,0,0,0">
+            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="機能の利用" />
+            <TextBlock
+                Margin="0,4,0,16"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind ViewModel.Selected.DisplayName, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis"
+                Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}" />
+            <TextBlock
+                Margin="0,4,0,16"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="ユーザーを選ぶと、機能の利用を設定できます。"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind ViewModel.HasNoSelection, Mode=OneWay}" />
+            <ItemsControl ItemsSource="{x:Bind ViewModel.FeatureItems}" Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:FeatureAccessItem">
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="120" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="{x:Bind Name}" />
+                            <ComboBox
+                                Grid.Column="1"
+                                Width="120"
+                                DisplayMemberPath="Label"
+                                ItemsSource="{x:Bind Options}"
+                                SelectedItem="{x:Bind Selected, Mode=TwoWay}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
     </Grid>
 </Page>
