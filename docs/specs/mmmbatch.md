@@ -25,7 +25,7 @@
   - サービスにしない (exe を起動している間だけ動く)
   - 画面は、左にサイドバー、右に機能ごとのページを出す 1 枚のウィンドウ (MmmTool と同じ作り)
   - ウィンドウの枠 (タイトルバー・トレイへの退避・DI の組み立て)は、MmmTool の `Shell/` とは別に、MmmBatch が持つ
-  - サイドバーの本体 (`NavigationView` と、ページを作って保つ部品)は、SDK の `MmmSdk.WinUI.Components.Pages` に置き、MmmTool と MmmBatch の両方が使う (同じ部品を、2 つのアプリに写さないため)
+  - サイドバーの本体 (`NavigationView` と、ページを作って保つ部品)は、SDK の `MmmSdk.WinUI.Components.Pages` に置き、MmmTool・MmmBatch・MmmToolAdmin が使う (同じ部品を、複数のアプリに写さないため)
     - バッチ処理が増えたとき、機能のプラグインを足すだけで、サイドバーに項目が増え、ホストは変わらない
   - MmmBatch の機能は、MmmTool と同じく、機能のオン・オフの管理 (`FeatureService`)へ「常にオン」の機能として登録する (オン・オフの画面は持たない)
   - 1 枚の一覧に、機能の違うもの (リマインダーとメッセージ)を混ぜない。機能ごとにページを分ける。
@@ -49,7 +49,7 @@
 | `src/Plugins/MmmBatch.ReminderSending.Core` / `src/Plugins/MmmBatch.ReminderSending` | プラグインは `ReminderSendingPlugin`。リマインダーの送信 (仕事 (毎分)・送る対象・`ReminderSendStatus` の保存先のインターフェース)と、そのページ (「今日」「履歴」) |
 | `src/Plugins/MmmBatch.MessageSending.Core` / `src/Plugins/MmmBatch.MessageSending` | プラグインは `MessageSendingPlugin`。メッセージの送信 (仕事 (1 秒おき)・`IMessageSendStore`)と、そのページ (「最近の依頼」「履歴」) |
 | `src/Data/MmmBatch.Data.SqlServer` | `MmmTool.Data`(リマインダー・チャンネル・メッセージの送信依頼の行)と `MmmSdk.Db.SqlServer` を参照する。MmmBatch の DB のコードをすべて集める (`ReminderSendStatus` の行・Repository の実装と作成の SQL・送る対象を読む問い合わせ・メッセージの送信依頼の読み出しと状態の更新) |
-| `src/Data/MmmTool.Data.SqlServer.WinUI` | MmmTool と MmmBatch で共有する WinUI のライブラリ。DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel) |
+| `src/Data/MmmTool.Data.SqlServer.WinUI` | MmmTool・MmmBatch・MmmToolAdmin で共有する WinUI のライブラリ。DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel) |
 
 - 参照の向きは `MmmBatch → 各機能 (ReminderSending・MessageSending) → MmmBatch.Sending (共通の画面) → MmmBatch.Sending.Core (共通の処理)`
   - `MmmBatch.ReminderSending.Core` は `MmmTool.Reminders.Core`(発動の判定 `ReminderDates.OccursOn` を使う)と `MmmTool.NotificationChannels.Core`(送信先の型)を参照する

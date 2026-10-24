@@ -125,7 +125,7 @@
   - MmmBatch のアイコンは MmmTool と別にする
     - 緑の角丸の四角・白い歯車・紫の再生マークにする
     - タスクトレイとウィンドウで MmmTool と見分けるため
-  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool と MmmBatch の csproj の末尾が読み込む
+  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin の csproj の末尾が読み込む
     - 仕組みは、`Lib` への移動・`deps.json` の書き足し・ライセンス全文の自動生成・Release の強制・配布物のフォルダへの配置・発行の設定
     - アプリごとに違う値は、各 csproj に書く: `DistributionFolderName` (配布物のフォルダ名で、MmmTool は `MmmTool_$(Version)`)・`DistributionDocument` (並べる説明書で、MmmTool だけ)・`LICENSE.txt` の `None` の項目・アイコンなど
     - 最終形にどう近づくか: 配布の仕組みが 1 か所になり、アプリを足しても写さずに済む
