@@ -26,6 +26,12 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <summary>開始日だけ・期限日だけの作業の、印の幅</summary>
     private const double OpenMarkWidth = 7;
 
+    /// <summary>完了日の印 (日の単位の、チェック入りの丸)の直径</summary>
+    private const double CompletedBadgeSize = 14;
+
+    /// <summary>完了日の印 (週・月の単位の縦線)の幅</summary>
+    private const double CompletedTickWidth = 2;
+
     /// <summary>日の備考の印 (日のセルの右上の三角)の一辺</summary>
     private const double NoteMarkSize = 9;
 
@@ -173,6 +179,7 @@ public sealed class ScheduleTimelineCell : Canvas
         AddTodayLine(axis, palette, row.Today);
         AddPlan(axis, palette, row);
         AddActual(axis, palette, row);
+        AddCompleted(axis, palette, row);
         foreach (var child in Children)
         {
             child.IsHitTestVisible = false;
@@ -250,7 +257,7 @@ public sealed class ScheduleTimelineCell : Canvas
     private void AddPlan(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
         var isGroup = row.IsGroup;
-        var plan = isGroup ? palette.GroupPlan : palette.Plan;
+        var plan = isGroup ? palette.GroupPlan : row.CompletedDate is null ? palette.Plan : palette.DonePlan;
 
         if (row.PlanStart is { } start && row.PlanEnd is { } end && start <= end)
         {
@@ -328,6 +335,50 @@ public sealed class ScheduleTimelineCell : Canvas
                 bar.Child = days;
             }
             Children.Add(bar);
+        }
+    }
+
+    /// <summary>完了日の印を、完了日の列の右端に足す (完了した作業だけ)</summary>
+    /// <param name="axis">日付の軸</param>
+    /// <param name="palette">色</param>
+    /// <param name="row">行</param>
+    /// <remarks>
+    /// 日の単位は、チェック入りの丸を、完了日の列と次の列の境目にまたがせて置く。列の中央に置くと、その日の時間の数字を隠すため。
+    /// 週・月の単位は、1 日の幅が狭く、丸が入らないので、同じ右端に細い縦線を置く。
+    /// 予定の棒の右端と見比べると、期限より早く終わったか、遅れて終わったかが、位置で分かる。
+    /// </remarks>
+    private void AddCompleted(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
+    {
+        if (row.CompletedDate is not { } done || done < axis.Start || done > axis.End)
+        {
+            return;
+        }
+
+        var edge = axis.X(done) + axis.DayWidth;
+        if (axis.ShowsHours)
+        {
+            var badge = new Border
+            {
+                Width = CompletedBadgeSize,
+                Height = CompletedBadgeSize,
+                CornerRadius = new CornerRadius(CompletedBadgeSize / 2),
+                Background = palette.DoneMark,
+                Child = new FontIcon
+                {
+                    Glyph = "",
+                    FontSize = 9,
+                    Foreground = palette.DoneMarkText,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+            SetLeft(badge, edge - (CompletedBadgeSize / 2));
+            SetTop(badge, (ScheduleAxisVisual.RowHeight - CompletedBadgeSize) / 2);
+            Children.Add(badge);
+        }
+        else
+        {
+            Children.Add(Bar(edge - CompletedTickWidth, PlanBarTop, CompletedTickWidth, PlanBarHeight, 0, palette.DoneMark));
         }
     }
 

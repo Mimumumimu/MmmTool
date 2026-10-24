@@ -19,7 +19,7 @@ public sealed record ScheduleSnapshot(
     /// <param name="today">今日 (必ず範囲に入れる。今日の線と「今日」ボタンのため)</param>
     /// <returns>軸の最初の日と最後の日</returns>
     /// <remarks>
-    /// 読んだ作業の開始日・期限日・実績の日と今日のうち、いちばん早い日の月初めから、いちばん遅い日の月末まで (余白は足さない)。
+    /// 読んだ作業の開始日・期限日・完了日・実績の日と今日のうち、いちばん早い日の月初めから、いちばん遅い日の月末まで (余白は足さない)。
     /// 日付が 1 つも無いときは、今日の月の月初めから月末まで。日付が「ない」(null)の行は、範囲に入れない。
     /// </remarks>
     public static (DateOnly Start, DateOnly End) Range(IReadOnlyList<WorkNode> roots, IReadOnlyDictionary<WorkKey, IReadOnlyList<ScheduleActualRun>> actuals, DateOnly today)
@@ -40,6 +40,7 @@ public sealed record ScheduleSnapshot(
         {
             Include(node.Summary.StartDate);
             Include(node.Summary.DueDate);
+            Include(node.Summary.CompletedDate);
         }
         foreach (var run in actuals.Values.SelectMany(runs => runs))
         {

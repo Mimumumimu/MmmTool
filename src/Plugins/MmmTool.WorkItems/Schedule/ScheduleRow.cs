@@ -87,7 +87,13 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>予定の棒の最後の日 (期限日。無ければ null)</summary>
     public DateOnly? PlanEnd { get; private set; }
 
-    /// <summary>実績の棒 (連続した日ごと。日付の順)</summary>
+    /// <summary>完了日 (完了の印の位置)</summary>
+    /// <remarks>完了した行だけが持つ。案件・グループは、すべて完了したときに、下の作業の完了日の最大値を持つ。未完了の行は null。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RowTint))]
+    public partial DateOnly? CompletedDate { get; private set; }
+
+    /// <summary>連続した日ごとの、日付順の実績の棒</summary>
     public IReadOnlyList<ScheduleActualRun> Runs { get; private set; } = [];
 
     /// <summary>日付の軸 (棒の位置と、共有の図形)</summary>
@@ -100,8 +106,11 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial int VisualVersion { get; private set; }
 
-    /// <summary>行に重ねる色 (案件は青の半透明。作業管理の表と同じ。ほかは重ねない)</summary>
-    public Windows.UI.Color? RowTint => IsProject ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0) : null;
+    /// <summary>行に重ねる色</summary>
+    /// <remarks>案件は青の半透明、完了した作業は灰色の半透明で、作業管理の表と同じ色。ほかは重ねない。作業管理の表と違い、今日完了した作業にも重ねる。この画面に入力日は無いため。</remarks>
+    public Windows.UI.Color? RowTint => IsProject
+        ? WorkRowTints.Project
+        : IsWork && CompletedDate is not null ? WorkRowTints.Finished : null;
 
     /// <summary>集計の行か (表の背景を、集計の行の色にする)</summary>
     public bool IsSummary => IsGroup;
@@ -135,8 +144,10 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
 
         // 棒は、すべての値を書き換えたあとに、1 回だけ描き直させる (途中の値で描き直さないため。期限切れの枠の付け外しも、ここで見る)
         var overdueDays = IsWork ? summary.OverdueDays(today) : 0;
+        var completedDate = summary.IsFinished ? summary.CompletedDate : null;
         var changed = PlanStart != summary.StartDate
             || PlanEnd != summary.DueDate
+            || CompletedDate != completedDate
             || !ReferenceEquals(Axis, axis)
             || Today != today
             || OverdueDays != overdueDays
@@ -146,6 +157,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
         DayNotes = dayNotes;
         PlanStart = summary.StartDate;
         PlanEnd = summary.DueDate;
+        CompletedDate = completedDate;
         Runs = runs;
         Axis = axis;
         Today = today;

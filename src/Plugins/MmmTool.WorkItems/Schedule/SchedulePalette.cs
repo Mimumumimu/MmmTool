@@ -27,7 +27,10 @@ public sealed class SchedulePalette
         critical: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
         saturday: Color.FromArgb(0xFF, 0x1E, 0x5A, 0xC8),
         sunday: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
-        noteMark: Color.FromArgb(0xFF, 0xC2, 0x6A, 0x00)));
+        noteMark: Color.FromArgb(0xFF, 0xC2, 0x6A, 0x00),
+        donePlan: Color.FromArgb(0xFF, 0x84, 0x97, 0xBA),
+        doneMark: Color.FromArgb(0xFF, 0x1E, 0x8E, 0x4E),
+        doneMarkText: Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)));
 
     /// <summary>ダークの色</summary>
     private static readonly Lazy<SchedulePalette> DarkPalette = new(() => new SchedulePalette(
@@ -44,7 +47,10 @@ public sealed class SchedulePalette
         critical: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
         saturday: Color.FromArgb(0xFF, 0x78, 0xAA, 0xFF),
         sunday: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
-        noteMark: Color.FromArgb(0xFF, 0xFF, 0xC8, 0x57)));
+        noteMark: Color.FromArgb(0xFF, 0xFF, 0xC8, 0x57),
+        donePlan: Color.FromArgb(0xFF, 0x5A, 0x6B, 0x8C),
+        doneMark: Color.FromArgb(0xFF, 0x5F, 0xD1, 0x8B),
+        doneMarkText: Color.FromArgb(0xFF, 0x0B, 0x2A, 0x18)));
 
     /// <summary>テーマに合った色を返す</summary>
     /// <param name="theme">要素の実際のテーマ (<see cref="FrameworkElement.ActualTheme"/>)</param>
@@ -52,8 +58,11 @@ public sealed class SchedulePalette
     public static SchedulePalette For(ElementTheme theme) => theme == ElementTheme.Dark ? DarkPalette.Value : LightPalette.Value;
 
     /// <summary>色の組を作る</summary>
-    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualText, Color critical, Color saturday, Color sunday, Color noteMark)
+    private SchedulePalette(Color saturdayFill, Color sundayFill, Color line, Color today, Color todayText, Color plan, Color groupPlan, Color actual, Color actualEdge, Color actualText, Color critical, Color saturday, Color sunday, Color noteMark, Color donePlan, Color doneMark, Color doneMarkText)
     {
+        DonePlan = new SolidColorBrush(donePlan);
+        DoneMark = new SolidColorBrush(doneMark);
+        DoneMarkText = new SolidColorBrush(doneMarkText);
         NoteMark = new SolidColorBrush(noteMark);
         SaturdayFill = new SolidColorBrush(saturdayFill);
         SundayFill = new SolidColorBrush(sundayFill);
@@ -108,6 +117,15 @@ public sealed class SchedulePalette
 
     /// <summary>見出しの、日曜・祝日の文字</summary>
     public SolidColorBrush Sunday { get; }
+
+    /// <summary>完了した作業の予定の棒 (進行中の青より彩度を落とした青灰色)</summary>
+    public SolidColorBrush DonePlan { get; }
+
+    /// <summary>完了日の印の背景 (実績の棒の緑と形で見分ける)</summary>
+    public SolidColorBrush DoneMark { get; }
+
+    /// <summary>完了日の印の中の、チェックの色</summary>
+    public SolidColorBrush DoneMarkText { get; }
 
     /// <summary>日の備考がある日の印 (棒の青・実績の緑・休みの赤と混ざらない琥珀色)</summary>
     public SolidColorBrush NoteMark { get; }
