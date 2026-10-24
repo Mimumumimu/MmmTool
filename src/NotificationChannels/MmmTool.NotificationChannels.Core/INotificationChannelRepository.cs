@@ -23,6 +23,13 @@ public interface INotificationChannelRepository
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
     Task<IReadOnlyList<NotificationChannel>> GetChannelsAsync(bool includeDeleted, CancellationToken cancellationToken = default);
 
+    /// <summary>自分が登録した、ある種類の送信先の要約を取得する</summary>
+    /// <param name="kind">種類</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>論理削除されていない送信先の番号と登録名で、番号の順。送る先の値は読まない</returns>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlyList<NotificationChannelSummary>> GetSummariesAsync(NotificationChannelKind kind, CancellationToken cancellationToken = default);
+
     /// <summary>送信先を追加する</summary>
     /// <param name="channel">追加する送信先 (<see cref="NotificationChannel.Id"/> は無視する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

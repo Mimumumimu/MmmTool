@@ -1,0 +1,23 @@
+@page "/settings"
+@inject IEnumerable<ClientFeature> Features
+
+<div class="screen">
+    <FeatureHeader Title="設定" />
+
+    <main class="settings">
+        @foreach (var feature in Features.Where(feature => feature.SettingsSection is not null))
+        {
+            <section class="section" aria-labelledby="@SectionId(feature)">
+                <h2 id="@SectionId(feature)">@feature.Title</h2>
+                <DynamicComponent Type="@feature.SettingsSection" />
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    /// <summary>節の見出しの id。見出しと節を結びつける。</summary>
+    /// <param name="feature">機能。</param>
+    /// <returns>機能の名前から作った id。</returns>
+    private static string SectionId(ClientFeature feature) => $"settings-{feature.Route.Trim('/')}";
+}

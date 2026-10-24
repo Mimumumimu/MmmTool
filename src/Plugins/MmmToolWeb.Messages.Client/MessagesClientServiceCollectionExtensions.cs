@@ -19,6 +19,7 @@ public static class MessagesClientServiceCollectionExtensions
     public static IServiceCollection AddMessagesClient(this IServiceCollection services)
     {
         services.AddScoped<MessagesClient>();
-        return services.AddClientFeature(new ClientFeature("メッセージ", IconPath, MessagesPage.Route, typeof(MessagesPage).Assembly));
+        services.AddScoped<MessageStore>();
+        return services.AddClientFeature(new ClientFeature("メッセージ", IconPath, MessagesPage.Route, typeof(MessagesPage).Assembly, typeof(MessageSettingsSection)));
     }
 }

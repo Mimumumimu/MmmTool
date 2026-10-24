@@ -1,6 +1,6 @@
 {
-  "name": "MmmToolWeb",
-  "short_name": "MmmToolWeb",
+  "name": "MmmTool",
+  "short_name": "MmmTool",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

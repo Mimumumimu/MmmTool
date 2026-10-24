@@ -6,10 +6,10 @@ using MmmTool.Users.Core;
 namespace MmmTool.Data.SqlServer.Reminders;
 
 /// <summary>
-/// 送信の表 (<c>dbo.NotificationChannel</c>・<c>dbo.ReminderSendSetting</c>・<c>dbo.MessageSendRequest</c>)を読み書きするときの、共通の決まり。
+/// 送信とメッセージの表 (<c>dbo.NotificationChannel</c>・<c>dbo.ReminderSendSetting</c>・<c>dbo.AppUserSetting</c>・<c>dbo.Message</c> など)を読み書きするときの、共通の決まり。
 /// </summary>
 /// <remarks>
-/// 表は、管理者が <c>001_CreateTables.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
+/// 表は、管理者が <c>001_CreateTables.sql</c> と、リリース後の変更のスクリプトを流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
 /// <see cref="DataFileException"/> にする (画面は、これを InfoBar に出して、送信先の入口を使えないままにする)。
 /// </remarks>
 internal static class SendTableAccess
@@ -19,6 +19,10 @@ internal static class SendTableAccess
 
     /// <summary>重複したキー (一意制約・一意インデックス)のエラー番号</summary>
     public static readonly int[] DuplicateKeyErrors = [2601, 2627];
+
+    /// <summary>まだ送っていない行の <c>SentAt</c> の値。<c>9999-12-31</c> で、docs/specs/database.md の「未送信は 9999-12-31」と同じ</summary>
+    /// <remarks>送った行だけを新しい順に読むとき、この値より前の範囲を、索引で探す。未送信・失敗の行は、降順では先頭に並ぶので、範囲から外す。</remarks>
+    public static readonly DateTimeOffset NotSentAt = new(9999, 12, 31, 0, 0, 0, TimeSpan.Zero);
 
     /// <summary>接続を開いて、送信の表を使う処理を実行する</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
@@ -36,7 +40,7 @@ internal static class SendTableAccess
             }
             catch (SqlException ex) when (ex.Number == InvalidObjectName)
             {
-                throw new DataFileException("送信の表がデータベースにありません。管理者に、001_CreateTables.sql を実行してもらってください。", ex);
+                throw new DataFileException("送信の表がデータベースにありません。管理者に、001_CreateTables.sql と、006_AddWebPushKind.sql を実行してもらってください。", ex);
             }
         }, cancellationToken);
 

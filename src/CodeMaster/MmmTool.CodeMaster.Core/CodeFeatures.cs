@@ -9,4 +9,7 @@ public static class CodeFeatures
 {
     /// <summary>作業管理</summary>
     public const int WorkItems = 2;
+
+    /// <summary>メッセージ。ユーザーごとの設定 (<c>AppUserSetting</c>)の機能番号にも使う</summary>
+    public const int Messages = 3;
 }

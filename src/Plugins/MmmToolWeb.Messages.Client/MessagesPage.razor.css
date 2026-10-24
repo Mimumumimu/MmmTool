@@ -1,4 +1,4 @@
-/* 入力欄が画面の高さいっぱいまで伸びるように、縦に並べる。余った高さは本文が受け持つ */
+/* 人の一覧の画面。上の探す欄と、会話の一覧を縦に並べる */
 .screen {
     box-sizing: border-box;
     display: flex;
@@ -7,18 +7,6 @@
     max-width: 40rem;
     margin: 0 auto;
     padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
-}
-
-.text {
-    min-height: 2.75rem;
-    padding: 0 0.75rem;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-}
-
-.text.strong {
-    font-weight: 600;
 }
 
 .result {
@@ -34,35 +22,11 @@
     color: var(--danger);
 }
 
-.form {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    padding-top: 0.75rem;
+.search {
+    padding: 0.75rem 0;
 }
 
-.field {
-    display: block;
-    margin-bottom: 1rem;
-}
-
-.field.grow {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    margin-bottom: 0;
-}
-
-.field > span {
-    display: block;
-    margin-bottom: 0.25rem;
-    color: var(--muted);
-    font-size: 0.8125rem;
-}
-
-.field input,
-.field select,
-.field textarea {
+.search input {
     box-sizing: border-box;
     display: block;
     width: 100%;
@@ -78,9 +42,68 @@
     font-size: 1rem;
 }
 
-.field textarea {
-    flex: 1;
-    min-height: 12rem;
-    resize: none;
-    line-height: 1.6;
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.list li + li {
+    margin-top: 0.5rem;
+}
+
+.row {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+}
+
+.line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.time {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.preview {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.note {
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.empty {
+    margin: 1.5rem 0;
+    color: var(--muted);
+    text-align: center;
 }

@@ -1,0 +1,247 @@
+@using System.Globalization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject NotificationsClient Notifications
+@inject BrowserClient Browser
+@inject NavigationManager Navigation
+
+<div class="device">
+    @if (_result is not null)
+    {
+        <p class="@(_resultIsError ? "result error" : "result")" role="@(_resultIsError ? "alert" : "status")">@_result</p>
+    }
+
+    @if (_loaded)
+    {
+        <h3>この端末</h3>
+        <p>@StatusText</p>
+
+        <h3>登録済みの端末</h3>
+        @if (_devices.Count == 0)
+        {
+            <p class="muted">登録した端末はありません。</p>
+        }
+        else
+        {
+            <ul class="devices">
+                @foreach (var device in _devices)
+                {
+                    <li>@device.Name</li>
+                }
+            </ul>
+        }
+        <p class="muted">登録した端末は、メッセージの受け取り先に選べます。</p>
+    }
+
+    @if (CanRegister)
+    {
+        @if (IsRegistered)
+        {
+            <button type="button" class="primary" @onclick="UnsubscribeAsync" disabled="@_working">通知を解除</button>
+        }
+        else
+        {
+            <button type="button" class="primary" @onclick="SubscribeAsync" disabled="@_working">通知を受け取る</button>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>この端末が登録した送信先の番号を覚える、この端末の値の名前。通知の画面と同じ。</summary>
+    public const string ChannelIdKey = "notifications.channelId";
+
+    /// <summary>ブラウザの設定や通信で、通知の準備に失敗したときの文。</summary>
+    private const string BrowserFailedMessage = "通知を設定できませんでした。ブラウザの設定を確かめてください。";
+
+    private PushStatus _status = new(PushState.Unsupported, false);
+    private IReadOnlyList<PushDeviceDto> _devices = [];
+    private int _rememberedId;
+    private string? _publicKey;
+    private bool _loaded;
+    private bool _working;
+    private bool _watching;
+    private string? _result;
+    private bool _resultIsError;
+
+    /// <summary>登録や解除の操作を出せる状態か。サーバーに鍵が設定されていないときは出さない。</summary>
+    private bool CanRegister => _loaded && _status.State == PushState.Ready && !string.IsNullOrEmpty(_publicKey);
+
+    /// <summary>この端末が登録済みか。ブラウザが宛先を持ち、覚えている番号の行が、サーバーの一覧にもある。</summary>
+    /// <remarks>ブラウザの宛先だけでは、登録済みとしない。登録に失敗した、PC の送信先の一覧で削除された、のとき、通知が届かないため。</remarks>
+    private bool IsRegistered => _status.Subscribed && _rememberedId > 0 && _devices.Any(device => device.Id == _rememberedId);
+
+    /// <summary>この端末の状態を説明する文。</summary>
+    private string StatusText => _status.State switch
+    {
+        PushState.NeedsHomeScreen => "iPhone で通知を受け取るには、ホーム画面に追加したアプリから開きます。Safari の共有ボタンの「ホーム画面に追加」で追加できます。",
+        PushState.Denied => "この端末では通知が許可されていません。ブラウザの設定で通知を許可してください。",
+        PushState.Ready when string.IsNullOrEmpty(_publicKey) => "サーバーに通知の鍵が設定されていません。",
+        PushState.Ready when IsRegistered => "この端末は通知を受け取ります。",
+        PushState.Ready => "この端末は通知を受け取りません。",
+        _ => "このブラウザでは通知を受け取れません。",
+    };
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_watching)
+        {
+            _watching = true;
+            Browser.BecameVisible += LoadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+    }
+
+    /// <summary>アプリが裏から戻ったときに、状態を読み直す。ブラウザの設定で許可が変わっていることがある。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
+
+    /// <summary>この端末の通知の状態と、サーバーの登録を読む。</summary>
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _status = await Browser.GetPushStatusAsync();
+        }
+        catch (JSException)
+        {
+            // サービスワーカーを登録できないなど。画面は壊さずに、使えない状態として説明する
+            _status = new PushStatus(PushState.Unsupported, false);
+        }
+        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out _rememberedId);
+        var result = await Notifications.LoadAsync();
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        if (result.Succeeded)
+        {
+            _publicKey = result.Value!.PublicKey;
+            _devices = result.Value.Devices;
+        }
+        else
+        {
+            ShowResult($"読み込めませんでした: {result.Message}", isError: true);
+        }
+        _loaded = true;
+        StateHasChanged();
+    }
+
+    /// <summary>通知の許可を求めて、この端末を登録する。</summary>
+    private async Task SubscribeAsync()
+    {
+        // 押した直後は、ボタンが押せない表示に変わる前なので、続けて押された分はここで止める
+        if (_working || !CanRegister)
+        {
+            return;
+        }
+
+        _working = true;
+        _result = null;
+        // iPhone は、押した操作の中でないと許可を求められないので、ほかの待ちより先に宛先を作る
+        PushSubscriptionInfo? subscription;
+        try
+        {
+            subscription = await Browser.SubscribePushAsync(_publicKey!);
+        }
+        catch (JSException)
+        {
+            // 鍵の値が正しくない・ブラウザが宛先を作れないなど
+            _working = false;
+            ShowResult(BrowserFailedMessage, isError: true);
+            await LoadAsync();
+            return;
+        }
+        if (subscription is null)
+        {
+            _working = false;
+            ShowResult("通知が許可されませんでした。", isError: true);
+            await LoadAsync();
+            return;
+        }
+
+        var name = await Browser.GetDeviceNameAsync();
+        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out var rememberedId);
+        var result = await Notifications.RegisterAsync(
+            new PushRegisterRequest(rememberedId, name, subscription.Endpoint, subscription.P256dh, subscription.Auth));
+        _working = false;
+
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            ShowResult($"登録できませんでした: {result.Message}", isError: true);
+            await LoadAsync();
+            return;
+        }
+
+        await Browser.RememberAsync(ChannelIdKey, result.Value!.Id.ToString(CultureInfo.InvariantCulture));
+        ShowResult("この端末を登録しました。", isError: false);
+        await LoadAsync();
+    }
+
+    /// <summary>この端末の宛先を捨てて、登録を解除する。</summary>
+    private async Task UnsubscribeAsync()
+    {
+        if (_working || !CanRegister)
+        {
+            return;
+        }
+
+        _working = true;
+        _result = null;
+        StateHasChanged();
+        try
+        {
+            await Browser.UnsubscribePushAsync();
+        }
+        catch (JSException)
+        {
+            _working = false;
+            ShowResult(BrowserFailedMessage, isError: true);
+            await LoadAsync();
+            return;
+        }
+
+        // 登録した番号を覚えていないときは、サーバーの行が残る。送信先の一覧 (PC 版)から削除できる
+        if (int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out var rememberedId) && rememberedId > 0)
+        {
+            var result = await Notifications.RemoveAsync(new PushRemoveRequest(rememberedId));
+            if (result.Status == ApiFailure.SignedOut)
+            {
+                _working = false;
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+            if (!result.Succeeded && result.Status != ApiFailure.NotFound)
+            {
+                _working = false;
+                ShowResult($"解除できませんでした: {result.Message}", isError: true);
+                await LoadAsync();
+                return;
+            }
+            await Browser.RememberAsync(ChannelIdKey, "0");
+        }
+
+        _working = false;
+        ShowResult("この端末の登録を解除しました。", isError: false);
+        await LoadAsync();
+    }
+
+    private void ShowResult(string message, bool isError)
+    {
+        _result = message;
+        _resultIsError = isError;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Browser.BecameVisible -= LoadOnReturnAsync;
+        return ValueTask.CompletedTask;
+    }
+}

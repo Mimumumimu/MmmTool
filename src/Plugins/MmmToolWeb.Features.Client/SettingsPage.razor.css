@@ -1,0 +1,12 @@
+/* 設定の画面。機能ごとの節を縦に並べる。節と節の間は広くあける */
+.settings {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1rem 0 calc(env(safe-area-inset-bottom) + 1rem);
+}
+
+.section h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.05rem;
+}

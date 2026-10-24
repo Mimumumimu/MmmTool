@@ -1,6 +1,6 @@
 namespace MmmTool.NotificationChannels.Core;
 
-/// <summary>送信先 (ntfy・Discord)の登録 1 件</summary>
+/// <summary>送信先 (ntfy・Discord・Web 版通知)の登録 1 件</summary>
 /// <remarks>
 /// DB モードだけで使う (ローカルモードでは保存しない)。値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る (<c>init</c>)。
 /// <see cref="Value"/> は秘密 (ntfy のトピック名・Discord の Webhook の URL)なので、画面の一覧に出さず、ログにも書かない。
@@ -26,6 +26,6 @@ public sealed record NotificationChannel
     /// <summary>登録名 (画面に出す名前)</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>送る先の値 (ntfy はトピック名、Discord は Webhook の URL)。秘密</summary>
+    /// <summary>送る先の値。ntfy はトピック名、Discord は Webhook の URL、Web 版通知は端末の宛先の JSON。秘密</summary>
     public string Value { get; init; } = "";
 }

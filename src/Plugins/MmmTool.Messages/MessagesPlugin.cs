@@ -1,37 +1,42 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
-using MmmSdk.WinUI.Components.Tray;
+using MmmTool.Messages.Cache;
 using MmmTool.Messages.Core;
 using MmmTool.Messages.Main;
+using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Messages;
 
-/// <summary>メッセージ送信の入口 (ページ・ウィンドウ・トレイメニューを登録する)</summary>
+/// <summary>メッセージの入口。ページ・読み続ける部品・起動時の準備を登録する</summary>
 /// <remarks>
-/// 外部へ送る処理は、MmmTool には無い (決まり)。画面は、送信の依頼を DB に書くだけで、実際に送るのは MmmBatch。
+/// 外部へ送る処理は、MmmTool には無い。画面は、メッセージと通知の状態を DB に書くだけで、実際に送るのは MmmBatch。
+/// トレイのメニューは持たない。会話は、サイドバーのページで開く。
 /// </remarks>
 public sealed class MessagesPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
     public void Register(IServiceCollection services)
     {
-        // 宛先の読み出しと送信依頼の保存 (DB モードだけで使う。ローカルモードは「使えない」保存先。DB に替えるときは、ホストが、登録のあとで置き換える)
-        services.AddSingleton<UnavailableMessageSendRequestRepository>();
-        services.AddSingleton<IMessageSendRequestRepository>(provider => provider.GetRequiredService<UnavailableMessageSendRequestRepository>());
+        // 会話とメッセージの読み書きは、DB モードだけで使う。ローカルモードは「使えない」保存先で、DB に替えるときは、ホストが、登録のあとで置き換える
+        services.AddSingleton<UnavailableMessageRepository>();
+        services.AddSingleton<IMessageRepository>(provider => provider.GetRequiredService<UnavailableMessageRepository>());
 
-        // サーバーモード (DB モード)のときだけ使える。ローカルモードでは、サイドバー・トレイ・設定の機能の一覧に出ない
+        // 受け取り先を指定できる設定として登録する。送信先の設定画面の「受け取り先」の節に出る
+        services.AddSingleton<IReceiveTargetSetting, MessageReceiveTarget>();
+
+        // サーバーモード (DB モード)のときだけ使える。ローカルモードでは、サイドバー・設定の機能の一覧に出ない
         services.AddFeature(MessagesFeature.Key, MessagesFeature.DisplayName,
-            availableWhen: provider => provider.GetRequiredService<IMessageSendRequestRepository>().IsAvailable);
+            availableWhen: provider => provider.GetRequiredService<IMessageRepository>().IsAvailable);
 
-        services.AddSingleton<MessageWindowService>();
-        services.AddTrayMenuSource<MessageTrayMenuSource>(MessagesFeature.Key);
+        // 端末の控えと、読み続ける部品。起動時の準備でループを始め、新着を通知ダイアログで知らせる
+        services.AddSingleton<MessageCacheStore>();
+        services.AddSingleton<MessageSyncService>();
+        services.AddStartupTask<MessagesStartup>(MessagesFeature.Key);
 
-        // 閉じたウィンドウは再表示できないので、開くたびに作る
-        services.AddTransient<MessageSendWindow>();
-        services.AddTransient<MessageSendViewModel>();
+        services.AddTransient<MessagesViewModel>();
 
-        // アイコンは Segoe Fluent Icons の Message (E8BD。吹き出し)
-        services.AddNavigationPage<MessageSendPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key);
+        // アイコンは Segoe Fluent Icons の Message で、コードは E8BD の吹き出し
+        services.AddNavigationPage<MessagesPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key);
     }
 }

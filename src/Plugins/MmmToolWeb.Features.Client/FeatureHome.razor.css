@@ -5,9 +5,32 @@
     padding: calc(env(safe-area-inset-top) + 1rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
-.home h1 {
+/* 上の行。名前は左、設定の歯車は右 (親指で押しやすいよう、押せる範囲を 44 ピクセル以上にする) */
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin: 0 0 1rem;
+}
+
+.home h1 {
+    margin: 0;
     font-size: 1.4rem;
+}
+
+.settings {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+}
+
+.settings svg {
+    width: 1.6rem;
+    height: 1.6rem;
+    fill: var(--muted);
 }
 
 /* 機能のタイル。2 列で、機能が増えたら下へ続く */

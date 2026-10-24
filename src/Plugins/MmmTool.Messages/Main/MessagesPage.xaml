@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmTool.Messages.Main.MessagesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="using:MmmTool.Messages.Core"
+    xmlns:local="using:MmmTool.Messages.Main">
+
+    <Page.Resources>
+        <!-- 受け取ったメッセージ。左に寄せ、カードの色にする -->
+        <DataTemplate x:Key="OtherTemplate" x:DataType="local:ChatMessageItem">
+            <Grid Margin="0,0,0,8" HorizontalAlignment="Left">
+                <Border
+                    MaxWidth="460"
+                    Padding="12,8"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind SenderText}" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind QuoteText}"
+                            TextTrimming="CharacterEllipsis"
+                            Visibility="{x:Bind local:MessagesPage.Visible(HasQuote)}" />
+                        <TextBlock IsTextSelectionEnabled="True" Text="{x:Bind Body}" TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind TimeText}" />
+                            <HyperlinkButton Click="OnReplyClick" Content="返信" Padding="4,0" Tag="{x:Bind}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- 自分が送ったメッセージ。右に寄せ、強調色にする。通知の状態の印は、送信待ちと失敗のときだけ出す -->
+        <DataTemplate x:Key="MineTemplate" x:DataType="local:ChatMessageItem">
+            <Grid Margin="0,0,0,8" HorizontalAlignment="Right">
+                <Border
+                    MaxWidth="460"
+                    Padding="12,8"
+                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                    CornerRadius="8">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="{x:Bind QuoteText}"
+                            TextTrimming="CharacterEllipsis"
+                            Visibility="{x:Bind local:MessagesPage.Visible(HasQuote)}" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind Body}"
+                            TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind TimeText}" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind MarkText}"
+                                Visibility="{x:Bind local:MessagesPage.Visible(HasMark)}" />
+                            <HyperlinkButton
+                                Click="OnReplyClick"
+                                Content="返信"
+                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                                Padding="4,0"
+                                Tag="{x:Bind}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <local:ChatMessageTemplateSelector
+            x:Key="MessageTemplateSelector"
+            MineTemplate="{StaticResource MineTemplate}"
+            OtherTemplate="{StaticResource OtherTemplate}" />
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="メッセージ" />
+
+        <InfoBar
+            Grid.Row="1"
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.IsUnavailableVisible}"
+            Message="メッセージは、サーバーモードで使えます。"
+            Severity="Informational"
+            Visibility="{x:Bind ViewModel.IsUnavailableVisible}" />
+
+        <InfoBar
+            Grid.Row="2"
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            Severity="Error"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+
+        <Grid Grid.Row="3" ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsAvailable}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左: 探す欄と、人の一覧。探す欄に入力があるときは、探した人を出す -->
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBox
+                    GotFocus="OnJapaneseBoxGotFocus"
+                    PlaceholderText="宛先の表示名で探す"
+                    Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                <ListView
+                    Grid.Row="1"
+                    IsItemClickEnabled="True"
+                    ItemClick="OnConversationClick"
+                    ItemsSource="{x:Bind ViewModel.Conversations}"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                    SelectionMode="None"
+                    Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:ConversationItem">
+                            <StackPanel Padding="0,6" Spacing="2">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind TimeText}" />
+                                </Grid>
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="{x:Bind LastText}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind NoteText}"
+                                    Visibility="{x:Bind local:MessagesPage.Visible(HasNote)}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <ListView
+                    Grid.Row="1"
+                    IsItemClickEnabled="True"
+                    ItemClick="OnPersonClick"
+                    ItemsSource="{x:Bind ViewModel.People}"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                    SelectionMode="None"
+                    Visibility="{x:Bind ViewModel.HasSearch, Mode=OneWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:PersonItem">
+                            <TextBlock Padding="0,8" Text="{x:Bind DisplayName}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <TextBlock
+                    Grid.Row="1"
+                    Margin="0,24,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="会話はまだありません。上の欄で、宛先を探してください。"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.IsEmptyNoticeVisible, Mode=OneWay}" />
+
+                <TextBlock
+                    Grid.Row="1"
+                    Margin="0,24,0,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="受け取り先を指定している人が見つかりません。"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.IsPeopleEmptyNoticeVisible, Mode=OneWay}" />
+            </Grid>
+
+            <!-- 右: 会話と入力欄。会話を開いていないときは、案内だけを出す -->
+            <TextBlock
+                Grid.Column="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="会話を選ぶか、宛先を探してください。"
+                Visibility="{x:Bind ViewModel.IsConversationClosed, Mode=OneWay}" />
+
+            <Grid Grid.Column="1" RowSpacing="8" Visibility="{x:Bind ViewModel.IsConversationOpen, Mode=OneWay}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Spacing="2">
+                    <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="{x:Bind ViewModel.ConversationTitle, Mode=OneWay}" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="最新でない可能性があります。"
+                        Visibility="{x:Bind ViewModel.IsStale, Mode=OneWay}" />
+                </StackPanel>
+
+                <ListView
+                    x:Name="MessageList"
+                    Grid.Row="1"
+                    ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                    ItemsSource="{x:Bind ViewModel.Messages}"
+                    Loaded="OnMessageListLoaded"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                    SelectionMode="None">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsStackPanel ItemsUpdatingScrollMode="KeepItemsInView" />
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                </ListView>
+
+                <TextBlock
+                    Grid.Row="2"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="受け取り先が未設定です"
+                    Visibility="{x:Bind ViewModel.IsNoReceiveTargetVisible, Mode=OneWay}" />
+
+                <Grid Grid.Row="3" ColumnSpacing="8" Visibility="{x:Bind ViewModel.HasReplyTo, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="{x:Bind ViewModel.ReplyToText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                    <Button
+                        Grid.Column="1"
+                        Command="{x:Bind ViewModel.CancelReplyCommand}"
+                        Content="返信をやめる" />
+                </Grid>
+
+                <Grid Grid.Row="4" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox
+                        AcceptsReturn="True"
+                        GotFocus="OnJapaneseBoxGotFocus"
+                        IsEnabled="{x:Bind ViewModel.PeerCanReceive, Mode=OneWay}"
+                        MaxHeight="120"
+                        MaxLength="{x:Bind core:MessageLimits.BodyMaxLength}"
+                        PlaceholderText="メッセージ"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
+                        Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        TextWrapping="Wrap" />
+                    <Button
+                        Grid.Column="1"
+                        VerticalAlignment="Bottom"
+                        Command="{x:Bind ViewModel.SendCommand}"
+                        Content="送信"
+                        Style="{StaticResource AccentButtonStyle}" />
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

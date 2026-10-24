@@ -1,0 +1,207 @@
+@attribute [Route(Route)]
+@using System.Globalization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject NotificationsClient Notifications
+@inject BrowserClient Browser
+@inject NavigationManager Navigation
+
+<div class="screen">
+    <FeatureHeader Title="通知" Busy="@_loading" />
+
+    @if (_loaded && !IsRegistered)
+    {
+        <p class="hint" role="status">
+            この端末は通知を受け取りません。
+            <a href="settings">設定で、この端末を登録してください</a>
+        </p>
+    }
+
+    @if (_loaded)
+    {
+        <section class="block">
+            <h2>受け取った通知</h2>
+            @if (_receivedError is not null)
+            {
+                <p class="result error" role="alert">@_receivedError</p>
+            }
+            else if (_received.Count == 0)
+            {
+                <p class="muted">受け取った通知はありません。</p>
+            }
+            else
+            {
+                <ul class="received">
+                    @foreach (var notification in _received)
+                    {
+                        <li class="@ItemClass(notification)">
+                            <div class="meta">
+                                <span class="kind">@notification.KindName</span>
+                                @if (IsUnread(notification))
+                                {
+                                    <span class="unread-mark">未読</span>
+                                }
+                                <span class="time">@notification.ReceivedAtText</span>
+                            </div>
+                            <p class="title">@notification.Title</p>
+                            @if (notification.Body.Length > 0)
+                            {
+                                <p class="body">@notification.Body</p>
+                            }
+                            @if (IsOpenableLink(notification.Link))
+                            {
+                                <a class="link" href="@notification.Link" target="_blank" rel="noopener noreferrer">リンクを開く</a>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    /// <summary>通知の画面の道。</summary>
+    public const string Route = "/notifications";
+
+    /// <summary>この端末が登録した送信先の番号を覚える、この端末の値の名前。設定の画面の「通知」の節と同じ。</summary>
+    private const string ChannelIdKey = NotificationsSettingsSection.ChannelIdKey;
+
+    /// <summary>この端末で、通知の画面で最後に見た通知の時刻を覚える、この端末の値の名前。これより新しい通知を、未読として見せる。</summary>
+    private const string LastOpenedKey = "notifications.lastOpened";
+
+    private PushStatus _status = new(PushState.Unsupported, false);
+    private IReadOnlyList<PushDeviceDto> _devices = [];
+    private IReadOnlyList<ReceivedNotificationDto> _received = [];
+    private int _rememberedId;
+    private DateTimeOffset? _previousOpened;
+    private string? _receivedError;
+    private bool _loaded;
+    private bool _loading;
+    private bool _watching;
+
+    /// <summary>通知を押して開いたときの、その通知の識別子。行き先の登録がある種類は、その画面へ移る。無ければ、一覧で目立たせる。</summary>
+    [SupplyParameterFromQuery(Name = "item")]
+    public string? Item { get; set; }
+
+    /// <summary>この端末が登録済みか。ブラウザが宛先を持ち、覚えている番号の行が、サーバーの一覧にもある。</summary>
+    private bool IsRegistered => _status.Subscribed && _rememberedId > 0 && _devices.Any(device => device.Id == _rememberedId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Item is not null && await TryOpenDestinationAsync(Item))
+        {
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_watching)
+        {
+            _watching = true;
+            Browser.BecameVisible += LoadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+    }
+
+    /// <summary>アプリが裏から戻ったときに、状態と一覧を読み直す。ブラウザの設定で許可が変わっていたり、通知が届いていたりする。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
+
+    /// <summary>通知を押して開いたとき、その種類の行き先があれば、その画面へ移る。</summary>
+    /// <param name="item">通知の識別子。</param>
+    /// <returns>移ったとき true。行き先が無い・分からないときは false。</returns>
+    private async Task<bool> TryOpenDestinationAsync(string item)
+    {
+        var destination = await Notifications.GetDestinationAsync(item);
+        if (destination.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return true;
+        }
+        if (destination.Succeeded && destination.Value!.Path is { Length: > 0 } path && path.StartsWith('/'))
+        {
+            // 履歴に、この入口の画面を残さない。戻ったとき、また移ってしまうため
+            Navigation.NavigateTo(path, replace: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>この端末の通知の状態と、サーバーの登録と、受け取った通知を読む。</summary>
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
+        StateHasChanged();
+        try
+        {
+            _status = await Browser.GetPushStatusAsync();
+        }
+        catch (JSException)
+        {
+            // サービスワーカーを登録できないなど。画面は壊さずに、使えない状態として扱う
+            _status = new PushStatus(PushState.Unsupported, false);
+        }
+        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out _rememberedId);
+        _previousOpened = DateTimeOffset.TryParse(await Browser.GetRememberedAsync(LastOpenedKey), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var opened)
+            ? opened
+            : null;
+        var result = await Notifications.LoadAsync();
+        var received = await Notifications.LoadReceivedAsync(Item);
+        _loading = false;
+        if (result.Status == ApiFailure.SignedOut || received.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+
+        // 端末の登録の確かめと、一覧は、片方が失敗しても、もう片方を使えるようにする
+        if (result.Succeeded)
+        {
+            _devices = result.Value!.Devices;
+        }
+
+        _receivedError = received.Succeeded ? null : $"通知の一覧を読み込めませんでした: {received.Message}";
+        if (received.Succeeded)
+        {
+            // 押して開いた通知は、古くても見えるように、先頭に置く。ほかは新しい順のまま
+            _received = [.. received.Value!.Items.OrderBy(notification => notification.Key == Item ? 0 : 1)];
+        }
+        _loaded = true;
+        StateHasChanged();
+
+        // 見た一覧の中で一番新しい通知の時刻を覚える。次に開いたとき、これより新しい通知が未読になる
+        // 端末の時計を使わないのは、サーバーの時刻とずれても、読み込みのあとに届いた通知を、見ないまま既読にしないため
+        if (received.Succeeded && _received.Count > 0)
+        {
+            var newest = _received.Max(notification => notification.ReceivedAt);
+            if (_previousOpened is not { } previous || newest > previous)
+            {
+                await Browser.RememberAsync(LastOpenedKey, newest.ToString("o", CultureInfo.InvariantCulture));
+            }
+        }
+    }
+
+    /// <summary>前に開いたときより新しく届いた通知か。この端末で一度も開いていないときは、未読にしない。</summary>
+    private bool IsUnread(ReceivedNotificationDto notification) => _previousOpened is { } opened && notification.ReceivedAt > opened;
+
+    /// <summary>通知 1 件の見た目の区分。未読と、押して開いた通知を、見分ける。</summary>
+    private string ItemClass(ReceivedNotificationDto notification)
+        => $"item{(IsUnread(notification) ? " unread" : "")}{(notification.Key == Item ? " selected" : "")}";
+
+    /// <summary>通知のリンクを、押して開ける形か。http と https だけ。パソコンのファイルの場所は、iPhone では開けない。</summary>
+    private static bool IsOpenableLink(string? link)
+        => link is not null
+            && Uri.TryCreate(link, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    public ValueTask DisposeAsync()
+    {
+        Browser.BecameVisible -= LoadOnReturnAsync;
+        return ValueTask.CompletedTask;
+    }
+}

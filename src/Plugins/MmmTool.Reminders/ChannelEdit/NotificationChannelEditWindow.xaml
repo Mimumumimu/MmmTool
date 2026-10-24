@@ -41,7 +41,7 @@
                 DisplayMemberPath="Name"
                 Header="種類"
                 IsEnabled="{x:Bind ViewModel.IsKindEditable, Mode=OneWay}"
-                ItemsSource="{x:Bind ViewModel.KindOptions}"
+                ItemsSource="{x:Bind ViewModel.KindOptions, Mode=OneWay}"
                 SelectedItem="{x:Bind ViewModel.SelectedKind, Mode=TwoWay}" />
 
             <!-- 登録名。エラーの行は場所を空けておく (出たり消えたりで下の欄が動かないように) -->
@@ -59,7 +59,7 @@
                     Text="{x:Bind ViewModel.NameError, Mode=OneWay}" />
             </StackPanel>
 
-            <!-- ntfy と Discord は同じ場所に出す。高さは高いほうに合わせる (切り替えで下の欄が動かないように) -->
+            <!-- ntfy・Discord・Web 版通知は同じ場所に出す。高さは高いものに合わせる (切り替えで下の欄が動かないように) -->
             <Grid MinHeight="140">
                 <!-- ntfy: トピック名は自動で作る -->
                 <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.IsNtfy, Mode=OneWay}">
@@ -102,6 +102,14 @@
                         Text="Discord のチャンネルの設定の「連携サービス」→「ウェブフック」で、URL をコピーします。"
                         TextWrapping="Wrap" />
                 </StackPanel>
+
+                <!-- Web 版通知: 宛先はブラウザが作るので、ここでは名前だけ直せる -->
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="宛先は、Web 版の「通知」の画面で登録したものです。ここでは名前だけ直せます。"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.IsWebPush, Mode=OneWay}" />
             </Grid>
         </StackPanel>
 

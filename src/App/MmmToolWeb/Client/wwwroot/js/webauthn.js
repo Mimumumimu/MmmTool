@@ -1,14 +1,9 @@
 // WebAuthn (パスキー)をブラウザで呼ぶ。サーバーとは Base64URL の文字列でやり取りし、ブラウザには ArrayBuffer で渡す
 
+import { base64UrlToBytes, deviceName as browserDeviceName, isStandalone as browserIsStandalone } from './browser.js';
+
 function fromBase64Url(text) {
-    const base64 = text.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    const binary = atob(padded);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
+    return base64UrlToBytes(text).buffer;
 }
 
 function toBase64Url(buffer) {
@@ -84,10 +79,10 @@ export function isSupported() {
 
 /** ホーム画面のアプリとして開いているか。 */
 export function isStandalone() {
-    return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    return browserIsStandalone();
 }
 
-/** 端末の呼び名。 */
+/** 端末の呼び名。通知の宛先の登録名と同じ決め方にするため、js/browser.js のものを使う。端末に古い画面が残っていても呼ばれるので、名前は消さない。 */
 export function deviceName() {
-    return /iPhone|iPad/.test(navigator.userAgent) ? 'iPhone' : 'ブラウザ';
+    return browserDeviceName();
 }

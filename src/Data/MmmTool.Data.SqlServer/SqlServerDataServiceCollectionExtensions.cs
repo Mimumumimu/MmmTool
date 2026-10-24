@@ -62,12 +62,19 @@ public static class SqlServerDataServiceCollectionExtensions
                 ? provider.GetRequiredService<SqlServerReminderSendSettingRepository>()
                 : provider.GetRequiredService<UnavailableReminderSendSettingRepository>());
 
-        // メッセージの宛先の読み出しと送信依頼の保存も、DB モードだけ (ローカルモードは、機能が登録した「使えない」保存先のまま)
-        services.AddSingleton<SqlServerMessageSendRequestRepository>();
-        services.AddSingleton<IMessageSendRequestRepository>(provider =>
+        // 会話とメッセージの読み書きも、DB モードだけ。ローカルモードは、機能が登録した「使えない」保存先のまま
+        services.AddSingleton<SqlServerMessageRepository>();
+        services.AddSingleton<IMessageRepository>(provider =>
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerMessageSendRequestRepository>()
-                : provider.GetRequiredService<UnavailableMessageSendRequestRepository>());
+                ? provider.GetRequiredService<SqlServerMessageRepository>()
+                : provider.GetRequiredService<UnavailableMessageRepository>());
+
+        // ユーザーごとの設定 (メッセージの受け取り先など)も、DB モードだけ
+        services.AddSingleton<SqlServerAppUserSettingRepository>();
+        services.AddSingleton<IAppUserSettingRepository>(provider =>
+            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
+                ? provider.GetRequiredService<SqlServerAppUserSettingRepository>()
+                : provider.GetRequiredService<UnavailableAppUserSettingRepository>());
         return services;
     }
 }

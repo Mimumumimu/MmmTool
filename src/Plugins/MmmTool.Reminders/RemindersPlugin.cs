@@ -68,6 +68,10 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddTransient<NotificationChannelSettingsViewModel>();
         services.AddSettingsSection<NotificationChannelSettingsControl>(RemindersFeature.Key);
 
+        // 設定ページの「受け取り先」は、サーバーモードだけ出る。受け取り先を指定できる設定として登録された分を並べて、機能の名前は持たない
+        services.AddTransient<ReceiveTargetSettingsViewModel>();
+        services.AddSettingsSection<ReceiveTargetSettingsControl>(RemindersFeature.Key);
+
         // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
         services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);
 

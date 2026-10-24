@@ -8,11 +8,9 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/App/">
+    <Project Path="src/App/MmmToolWeb/Client/MmmToolWeb.Client.csproj" />
     <Project Path="src/App/MmmToolWeb/Server/MmmToolWeb.Server.csproj">
       <Platform Project="x64" />
-    </Project>
-    <Project Path="src/App/MmmToolWeb/Client/MmmToolWeb.Client.csproj">
-      <Platform Solution="*|x64" Project="Any CPU" />
     </Project>
   </Folder>
   <Folder Name="/Auth/">
@@ -26,10 +24,10 @@
     </Project>
   </Folder>
   <Folder Name="/Data/">
-    <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
+    <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+    <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="src/Data/MmmToolWeb.Data.SqlServer/MmmToolWeb.Data.SqlServer.csproj">
@@ -37,25 +35,7 @@
     </Project>
   </Folder>
   <Folder Name="/Plugins/">
-    <Project Path="src/Plugins/MmmToolWeb.Features/MmmToolWeb.Features.csproj">
-      <Platform Project="x64" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.Features.Client/MmmToolWeb.Features.Client.csproj">
-      <Platform Solution="*|x64" Project="Any CPU" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.Messages/MmmToolWeb.Messages.csproj">
-      <Platform Project="x64" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.Messages.Client/MmmToolWeb.Messages.Client.csproj">
-      <Platform Solution="*|x64" Project="Any CPU" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.Notes/MmmToolWeb.Notes.csproj">
-      <Platform Project="x64" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.Notes.Client/MmmToolWeb.Notes.Client.csproj">
-      <Platform Solution="*|x64" Project="Any CPU" />
-    </Project>
-    <Project Path="src/Plugins/MmmToolWeb.WorkItems/MmmToolWeb.WorkItems.csproj">
+    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj">
@@ -64,10 +44,29 @@
     <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj">
+    <Project Path="src/Plugins/MmmTool.WorkItems.Core/MmmTool.WorkItems.Core.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Plugins/MmmTool.WorkItems.Core/MmmTool.WorkItems.Core.csproj">
+    <Project Path="src/Plugins/MmmToolWeb.Features.Client/MmmToolWeb.Features.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Features/MmmToolWeb.Features.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Messages.Client/MmmToolWeb.Messages.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Messages/MmmToolWeb.Messages.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Notes.Client/MmmToolWeb.Notes.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Notes/MmmToolWeb.Notes.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Notifications.Client/MmmToolWeb.Notifications.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Notifications/MmmToolWeb.Notifications.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Reminders/MmmToolWeb.Reminders.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.WorkItems/MmmToolWeb.WorkItems.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
@@ -88,6 +87,7 @@
   </Folder>
   <Folder Name="/MmmSdk/">
     <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
+      <BuildType Project="Release" />
       <Platform Project="x64" />
     </Project>
     <Project Path="external/MmmSdk/MmmSdk.Db.SqlServer/MmmSdk.Db.SqlServer.csproj">

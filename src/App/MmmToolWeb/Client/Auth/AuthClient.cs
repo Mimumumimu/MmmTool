@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Client.Auth;
 
@@ -26,7 +27,8 @@ public sealed record AuthResult(bool Succeeded, string? Message = null)
 /// </summary>
 /// <param name="http">サーバーへの接続。</param>
 /// <param name="browser">ブラウザのパスキーの呼び出し。</param>
-public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
+/// <param name="browserClient">ブラウザの部品。ログインできたとき、端末の控えを捨てるために使う。</param>
+public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserClient browserClient)
 {
     /// <summary>
     /// ログイン中のユーザーを読む。
@@ -62,9 +64,13 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
         }
         using var finish = await http.PostAsJsonAsync(
             "api/auth/enroll/finish", new EnrollFinishRequest(code, ceremony.CeremonyId, credential.Value));
-        return finish.IsSuccessStatusCode
-            ? AuthResult.Success
-            : AuthResult.Fail($"登録を完了できませんでした。エラー番号は {(int)finish.StatusCode} です。");
+        if (!finish.IsSuccessStatusCode)
+        {
+            return AuthResult.Fail($"登録を完了できませんでした。エラー番号は {(int)finish.StatusCode} です。");
+        }
+
+        await ClearCacheAsync();
+        return AuthResult.Success;
     }
 
 #if DEBUG
@@ -76,9 +82,14 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
     public async Task<AuthResult> DevLoginAsync(string loginName)
     {
         using var response = await http.PostAsJsonAsync("api/auth/dev-login", new DevLoginRequest(loginName));
+        if (response.StatusCode == HttpStatusCode.NoContent)
+        {
+            await ClearCacheAsync();
+            return AuthResult.Success;
+        }
+
         return response.StatusCode switch
         {
-            HttpStatusCode.NoContent => AuthResult.Success,
             HttpStatusCode.Unauthorized => AuthResult.Fail("今使えるユーザーが見つかりません。"),
             _ => AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)response.StatusCode} です。"),
         };
@@ -104,8 +115,19 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser)
         }
         using var finish = await http.PostAsJsonAsync(
             "api/auth/login/finish", new LoginFinishRequest(ceremony.CeremonyId, credential.Value));
-        return finish.IsSuccessStatusCode
-            ? AuthResult.Success
-            : AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)finish.StatusCode} です。");
+        if (!finish.IsSuccessStatusCode)
+        {
+            return AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)finish.StatusCode} です。");
+        }
+
+        await ClearCacheAsync();
+        return AuthResult.Success;
     }
+
+    /// <summary>
+    /// ログインできたとき、この端末の控え (メッセージなど)を捨てる。
+    /// </summary>
+    /// <returns>捨てたことを表すタスク。</returns>
+    /// <remarks>共有の端末で、前の人がログアウトせずに終えていても、前の人のメッセージが見えないようにするため。控えは、いつでも作り直せる。</remarks>
+    private Task ClearCacheAsync() => browserClient.ClearCacheAsync();
 }

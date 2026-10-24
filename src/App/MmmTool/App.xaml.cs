@@ -101,7 +101,7 @@ public partial class App : Application
         services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 2);
         services.AddFeaturePlugin<WorkItemsPlugin>(order: 3);
         services.AddFeaturePlugin<RemindersPlugin>(order: 4, trayOrder: 2);
-        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 5, trayOrder: 1);
+        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 5);
         services.AddFeaturePlugin<LinksPlugin>(order: 6, trayOrder: 3);
         services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 7);
         services.AddFeaturePlugin<BacklogPlugin>(order: 8);

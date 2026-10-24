@@ -54,7 +54,7 @@
 - リマインダーと作業管理のデータを、複数の PC・複数の人で共有できます。
 - 作業管理で、作業ごとに担当者を付けて、「自分の担当だけ」に絞れます。
 - リマインダーを、スマホ (ntfy)や Discord にも通知できます。
-- 他のユーザーへ、短いメッセージを送れます。
+- 他のユーザーと、会話の形で、短いメッセージをやり取りできます。
 - ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます。
 
 ## ダウンロード
@@ -149,7 +149,7 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/MmmTool.db` | 作業管理とノートのデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
 | `Data/Reminders.json` | リマインダー本体 |
 | `Data/ReminderStates.json` | リマインダーの対応状態 |
-| `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・メッセージで前回送った宛先・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
+| `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
 
 JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json` に名前を変えて同じフォルダーに退避し、新しく作り直します。退避したファイルは自動では消えないので、必要な内容を戻したら削除してください。
 
@@ -171,6 +171,7 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 - `%TEMP%\MmmTool\session_日時\`: CLI補助で貼り付けた画像など、元がファイルではない添付。タブを閉じるとき・終了時に削除します。ドロップしたファイルはコピーしないので、ここには入りません。
 - WSL の `/tmp/MmmTool/session_日時/`: CLI補助を WSL で使うときに、`%TEMP%` の代わりに使う、貼り付けた画像の置き場所。
 - WSL の `~/.local/share/Trash/`: WSL 版の「会話履歴の削除」で消した履歴の移動先 (Linux のごみ箱)
+- `Cache\MessageCache.db`: メッセージの控え。会話ごとに、新しい順の 200 件までを、ログインした人ごとに分けて持ちます。消しても、次に開いたときに作り直されます。
 - `Cache\WebView2\`: ターミナルの画面 (WebView2)のキャッシュ。消しても、次に開いたときに作り直されます。他の人が書き込めるとキャッシュを書き換えられるおそれがあるので、`Data` フォルダーと同じく、自分だけが書き込めるフォルダーに置いてください。
 - `Data\Logs\`: エラーのログ。自動では消えません。例外のスタックトレースに、ユーザー名を含むパスが入ることがあるので、ログを他の人に渡すときは、中身を確かめてください。
 
@@ -307,7 +308,7 @@ git submodule update --remote external/MmmSdk
 | `src/Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダー (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
 | `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
-| `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
+| `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
 | `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)と `MmmBatch.Data.SqlServer` |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |

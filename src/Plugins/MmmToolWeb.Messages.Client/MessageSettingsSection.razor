@@ -1,0 +1,86 @@
+@inject MessagesClient Messages
+@inject NavigationManager Navigation
+
+<div class="receive">
+    @if (_error is not null)
+    {
+        <p class="result error" role="alert">@_error</p>
+    }
+
+    @if (_loaded && _channels.Count == 0)
+    {
+        <p class="note" role="status">送信先がありません。MmmTool の設定ページの「送信先」で登録してください。</p>
+    }
+
+    <label class="field">
+        <span>受け取り先</span>
+        <select disabled="@(_channels.Count == 0 || _saving)" @onchange="SaveAsync">
+            <option value="0" selected="@(_selected == 0)">指定しない</option>
+            @foreach (var channel in _channels)
+            {
+                <option value="@channel.Id" selected="@(channel.Id == _selected)">@ChannelText(channel)</option>
+            }
+        </select>
+    </label>
+    <p class="note">ほかの人から届いたメッセージの通知を、この送信先で受け取ります。指定しないと、あなたには送れません。</p>
+</div>
+
+@code {
+    private IReadOnlyList<ReceiveChannelDto> _channels = [];
+    private int _selected;
+    private bool _loaded;
+    private bool _saving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Messages.LoadReceiveSettingAsync();
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"受け取り先を読み込めませんでした: {result.Message}";
+            return;
+        }
+
+        _channels = result.Value!.Channels;
+        _selected = result.Value.SelectedChannelId;
+        _loaded = true;
+    }
+
+    /// <summary>選んだ操作の直後に保存する。</summary>
+    /// <param name="args">選んだ内容。</param>
+    private async Task SaveAsync(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value as string, out var channelId))
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        StateHasChanged();
+        var result = await Messages.SaveReceiveChannelAsync(channelId);
+        _saving = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"保存できませんでした: {result.Message}";
+            return;
+        }
+
+        _selected = channelId;
+    }
+
+    /// <summary>選択肢に出す文字を作る。「登録名 (種類)」の形。</summary>
+    /// <param name="channel">送信先。</param>
+    /// <returns>選択肢の文字。</returns>
+    private static string ChannelText(ReceiveChannelDto channel) => $"{channel.Name} ({channel.KindText})";
+}

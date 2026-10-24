@@ -1,73 +1,87 @@
 @attribute [Route(Route)]
 @implements IAsyncDisposable
+@inject MessageStore Store
 @inject MessagesClient Messages
 @inject BrowserClient Browser
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="メッセージ" Busy="@(_loading || _sending)">
-        <button type="button" class="text strong" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
-    </FeatureHeader>
+    <FeatureHeader Title="メッセージ" Busy="@_loading" />
 
-    @if (_result is not null)
+    @if (_error is not null)
     {
-        <p class="@(_resultIsError ? "result error" : "result")" role="@(_resultIsError ? "alert" : "status")">@_result</p>
+        <p class="result error" role="alert">@_error</p>
     }
 
-    @if (_loaded && _recipients.Count == 0)
-    {
-        <p class="result" role="status">送信先がありません。MmmTool の設定ページの「送信先」で登録してください。</p>
-    }
-
-    <div class="form">
-        <label class="field">
-            <span>宛先</span>
-            <select @bind="_channelId" disabled="@(_recipients.Count == 0)">
-                @foreach (var recipient in _recipients)
-                {
-                    <option value="@recipient.ChannelId">@recipient.DisplayName</option>
-                }
-            </select>
-        </label>
-
-        <label class="field">
-            <span>タイトル</span>
-            <input type="text" maxlength="@_titleMaxLength" placeholder="省略できます" autocomplete="off" @bind="_title" @bind:event="oninput" />
-        </label>
-
-        <label class="field grow">
-            <span>本文</span>
-            <textarea @ref="_bodyInput" maxlength="@_bodyMaxLength" @bind="_body" @bind:event="oninput" @onfocus="OnBodyFocusAsync"></textarea>
-        </label>
+    <div class="search">
+        <input type="search" aria-label="宛先を探す" placeholder="宛先の表示名で探す" autocomplete="off" value="@_query" @oninput="OnQueryAsync" />
     </div>
+
+    @if (_query.Length > 0)
+    {
+        <ul class="list" aria-label="探した人">
+            @foreach (var person in _people)
+            {
+                <li>
+                    <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
+                        <span class="name">@person.DisplayName</span>
+                    </button>
+                </li>
+            }
+        </ul>
+        @if (_searched && _people.Count == 0)
+        {
+            <p class="empty">受け取り先を指定している人が見つかりません。</p>
+        }
+    }
+    else
+    {
+        @if (_loaded && Store.Conversations.Count == 0)
+        {
+            <p class="empty">会話はまだありません。上の欄で、宛先を探してください。</p>
+        }
+
+        <ul class="list" aria-label="会話">
+            @foreach (var conversation in Store.Conversations)
+            {
+                <li>
+                    <a class="row" href="@ConversationPath(conversation)">
+                        <span class="line">
+                            <span class="name">@conversation.Name</span>
+                            <span class="time">@conversation.TimeText</span>
+                        </span>
+                        <span class="preview">@conversation.LastText</span>
+                        @if (!conversation.PeerCanReceive)
+                        {
+                            <span class="note">受け取り先が未設定</span>
+                        }
+                    </a>
+                </li>
+            }
+        </ul>
+    }
 </div>
 
 @code {
-    /// <summary>メッセージの画面の道。</summary>
+    /// <summary>メッセージの人の一覧の画面の道。</summary>
     public const string Route = "/messages";
 
-    /// <summary>前回送った宛先を覚える、この端末の値の名前。</summary>
-    private const string LastChannelKey = "messages.lastChannelId";
-
-    private IReadOnlyList<MessageRecipientDto> _recipients = [];
-    private bool _loaded;
-    private bool _loading;
-    private bool _sending;
+    private IAsyncDisposable? _live;
     private bool _watching;
-    private int _channelId;
-    private string _title = "";
-    private string _body = "";
-    private string _signature = "";
-    private int _titleMaxLength = 100;
-    private int _bodyMaxLength = 1000;
-    private string? _result;
-    private bool _resultIsError;
-    private ElementReference _bodyInput;
+    private bool _loading;
+    private bool _loaded;
+    private string? _error;
+    private string _query = "";
+    private int _searchVersion;
+    private bool _searched;
+    private IReadOnlyList<PersonDto> _people = [];
 
-    /// <summary>送れる状態か。サーバーも同じ決まり (署名以外の本文があること)で確かめる。</summary>
-    private bool CanSend => !_sending && _channelId != 0 && !string.IsNullOrWhiteSpace(_body) && _body.Trim() != _signature.Trim();
-
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        Store.ConversationsChanged += OnConversationsChangedAsync;
+        await LoadAsync();
+        _live = await Store.AcquireLiveAsync();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -79,74 +93,77 @@
         }
     }
 
-    /// <summary>アプリが裏から戻ったときに、宛先を読み直す。書きかけの内容は残す。</summary>
+    /// <summary>会話の画面の道を作る。</summary>
+    /// <param name="conversation">会話。</param>
+    /// <returns>会話の画面の道。</returns>
+    private static string ConversationPath(ConversationDto conversation) => $"messages/{conversation.Id}";
+
+    /// <summary>アプリが裏から戻ったときに、読み直す。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
 
-    /// <summary>
-    /// 宛先と署名を読む。選んでいる宛先、なければ前回送った宛先、それも無ければ先頭を選ぶ。
-    /// </summary>
+    /// <summary>人の一覧が変わったとき、画面を直す。</summary>
+    private Task OnConversationsChangedAsync() => InvokeAsync(StateHasChanged);
+
+    /// <summary>人の一覧を読み込む。まず控えから出し、サーバーから読み直す。</summary>
     private async Task LoadAsync()
     {
         _loading = true;
         // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
         StateHasChanged();
-        var result = await Messages.LoadFormAsync();
+        var result = await Store.LoadAsync();
         _loading = false;
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
-        if (!result.Succeeded)
-        {
-            ShowResult($"宛先を読み込めませんでした: {result.Message}", isError: true);
-            StateHasChanged();
-            return;
-        }
 
-        var form = result.Value!;
-        _recipients = form.Recipients;
-        _signature = form.Signature;
-        _titleMaxLength = form.TitleMaxLength;
-        _bodyMaxLength = form.BodyMaxLength;
-
-        // 書きかけの本文は上書きしない
-        if (_body.Length == 0)
-        {
-            _body = _signature;
-        }
-
-        var wanted = _channelId;
-        if (wanted == 0 && int.TryParse(await Browser.GetRememberedAsync(LastChannelKey), out var remembered))
-        {
-            wanted = remembered;
-        }
-        _channelId = _recipients.FirstOrDefault(r => r.ChannelId == wanted)?.ChannelId ?? _recipients.FirstOrDefault()?.ChannelId ?? 0;
         _loaded = true;
+        _error = result.Succeeded ? null : $"会話を読み込めませんでした: {result.Message}";
         StateHasChanged();
     }
 
-    /// <summary>本文が署名だけのとき、カーソルを先頭に置く。署名の後ろから書き始めないため。</summary>
-    private Task OnBodyFocusAsync()
-        => _body == _signature ? Browser.PlaceCaretAtStartAsync(_bodyInput) : Task.CompletedTask;
-
-    /// <summary>送信を依頼する。依頼の行が書かれるだけで、実際に送るのは MmmBatch。</summary>
-    private async Task SendAsync()
+    /// <summary>探す欄に入力があったとき、少し待ってから、人を探す。</summary>
+    /// <param name="args">入力の内容。</param>
+    private async Task OnQueryAsync(ChangeEventArgs args)
     {
-        // 押した直後は、ボタンが押せない表示に変わる前なので、続けて押された分はここで止める (2 通送らないため)
-        if (!CanSend)
+        _query = (args.Value as string ?? "").Trim();
+        var version = ++_searchVersion;
+        if (_query.Length == 0)
+        {
+            _people = [];
+            _searched = false;
+            return;
+        }
+
+        // 入力のたびに探さない。打ち終わりを少し待つ
+        await Task.Delay(300);
+        if (version != _searchVersion)
         {
             return;
         }
 
-        var recipient = _recipients.First(r => r.ChannelId == _channelId);
-        _sending = true;
-        _result = null;
-        // 進行バーを出すため、待つ前に画面へ反映する
-        StateHasChanged();
-        var result = await Messages.SendAsync(new MessageSendRequestDto(_channelId, _title.Trim(), _body.Trim()));
-        _sending = false;
+        var result = await Messages.SearchPeopleAsync(_query);
+        if (version != _searchVersion)
+        {
+            return;
+        }
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
 
+        _people = result.Succeeded ? result.Value! : [];
+        _searched = result.Succeeded;
+        _error = result.Succeeded ? null : $"人を探せませんでした: {result.Message}";
+    }
+
+    /// <summary>探した人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。会話は、最初の送信で作る。</summary>
+    /// <param name="person">選んだ人。</param>
+    private async Task OpenPersonAsync(PersonDto person)
+    {
+        var result = await Messages.FindDirectAsync(person.UserId);
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
@@ -154,30 +171,22 @@
         }
         if (!result.Succeeded)
         {
-            // 選んだあとに送信先が消えたときは、宛先を読み直して選び直してもらう
-            if (result.Status == ApiFailure.NotFound)
-            {
-                await LoadAsync();
-            }
-            ShowResult($"送信を依頼できませんでした: {result.Message}", isError: true);
+            _error = $"会話を開けませんでした: {result.Message}";
             return;
         }
 
-        // タイトルと宛先は残し、本文を署名だけに戻す
-        _body = _signature;
-        ShowResult($"{recipient.DisplayName} に送信を依頼しました", isError: false);
-        await Browser.RememberAsync(LastChannelKey, _channelId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Navigation.NavigateTo(result.Value!.ConversationId > 0
+            ? $"messages/{result.Value.ConversationId}"
+            : $"messages/new/{person.UserId}?name={Uri.EscapeDataString(person.DisplayName)}");
     }
 
-    private void ShowResult(string message, bool isError)
+    public async ValueTask DisposeAsync()
     {
-        _result = message;
-        _resultIsError = isError;
-    }
-
-    public ValueTask DisposeAsync()
-    {
+        Store.ConversationsChanged -= OnConversationsChangedAsync;
         Browser.BecameVisible -= LoadOnReturnAsync;
-        return ValueTask.CompletedTask;
+        if (_live is not null)
+        {
+            await _live.DisposeAsync();
+        }
     }
 }

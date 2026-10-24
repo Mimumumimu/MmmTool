@@ -318,7 +318,7 @@ public sealed class ReminderSendService(
 
         try
         {
-            await notifier.SendAsync(target.Channel, ReminderSendContent.FromReminder(target.Reminder), cancellationToken).ConfigureAwait(false);
+            await notifier.SendAsync(target.Channel, ReminderSendContent.FromReminder(target.Reminder, claimed.Id), cancellationToken).ConfigureAwait(false);
         }
         catch (SendFailedException ex)
         {

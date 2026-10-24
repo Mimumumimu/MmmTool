@@ -16,6 +16,10 @@ public static class UsersServiceCollectionExtensions
         services.AddSingleton<CurrentUser>();
         services.AddSingleton<UserSignInService>();
         services.AddSingleton<UserAccountService>();
+
+        // ユーザーごとの設定は、DB モードだけ。DB の種類ごとの登録が、設定どおりに置き換える
+        services.AddSingleton<UnavailableAppUserSettingRepository>();
+        services.AddSingleton<IAppUserSettingRepository>(provider => provider.GetRequiredService<UnavailableAppUserSettingRepository>());
         return services;
     }
 }
