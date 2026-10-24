@@ -6,7 +6,9 @@
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="メッセージ" Busy="@_loading" />
+    <FeatureHeader Title="メッセージ" Busy="@_loading">
+        <button type="button" class="text" @onclick="MarkAllReadAsync" disabled="@(Store.UnreadMessageIds.Count == 0)">すべて既読にする</button>
+    </FeatureHeader>
 
     @if (_error is not null)
     {
@@ -26,7 +28,13 @@
                 <li>
                     <a class="row" href="@ConversationPath(conversation)">
                         <span class="line">
-                            <span class="name">@conversation.Name</span>
+                            <span class="who">
+                                @if (Store.IsUnread(conversation))
+                                {
+                                    <span class="dot" role="img" aria-label="未読"></span>
+                                }
+                                <span class="@(Store.IsUnread(conversation) ? "name unread" : "name")">@conversation.Name</span>
+                            </span>
                             <span class="time">@conversation.TimeText</span>
                         </span>
                         <span class="preview">@conversation.LastText</span>
@@ -127,6 +135,17 @@
         _loaded = true;
         _error = result.Succeeded ? null : $"会話を読み込めませんでした: {result.Message}";
         StateHasChanged();
+    }
+
+    /// <summary>読んでいないメッセージを、すべて読んだことにする。押したあとは、押せない表示に変わる。</summary>
+    private async Task MarkAllReadAsync()
+    {
+        if (Store.UnreadMessageIds.Count == 0)
+        {
+            return;
+        }
+
+        await Store.MarkAllReadAsync();
     }
 
     /// <summary>宛先を選ぶ画面を開く。宛先に選べる人を、開くたびに読み直す。</summary>

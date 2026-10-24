@@ -10,9 +10,17 @@ const receivedPath = '/notifications';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
-// 配達係から通知が届いたら、必ず 1 つ表示する (表示しない通知を受けると、ブラウザが購読を打ち切ることがあるため)
+// 読んでいない通知の一覧とアイコンの数字を扱う処理で、addUnreadFromPush を使う。画面も同じファイルを読む
+importScripts('/js/badge.js');
+
+// 配達係から通知が届いたら、必ず 1 つ表示する。表示しない通知を受けると、ブラウザが購読を打ち切ることがあるため
+// アプリの画面を前面で見ている間は、一覧に入れない。画面が更新の知らせで取り込んで、数える
 self.addEventListener('push', (event) => {
-    event.waitUntil(self.registration.showNotification(...readNotification(event)));
+    const [title, options] = readNotification(event);
+    event.waitUntil(Promise.all([
+        self.registration.showNotification(title, options),
+        hasVisibleWindow().then((visible) => (visible ? null : addUnreadFromPush(options.data.key))),
+    ]));
 });
 
 // 通知を押したら、通知の識別子があれば、一覧でその通知を開く。無ければ、リンクがあればそれを、無ければアプリを前に出す
@@ -42,6 +50,12 @@ function readNotification(event) {
         options.tag = key;
     }
     return [payload.title || defaultTitle, options];
+}
+
+// 前面で見られているアプリの窓があるか
+async function hasVisibleWindow() {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    return windows.some((client) => client.visibilityState === 'visible');
 }
 
 // 開いているアプリの窓があれば、指定の道へ移して前に出し、無ければ開く

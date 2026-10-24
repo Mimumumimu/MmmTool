@@ -115,6 +115,7 @@
         }
 
         _loadedKey = key;
+        Store.OpenConversationId = ConversationId;
         Store.ConversationsChanged -= OnConversationsChangedAsync;
         Store.ConversationsChanged += OnConversationsChangedAsync;
         Store.MessagesArrived -= OnMessagesArrivedAsync;
@@ -208,6 +209,7 @@
         _messages = [.. cached];
         _scrollToBottom = true;
         StateHasChanged();
+        await Store.MarkReadAsync(_messages);
 
         var result = await Messages.LoadMessagesAsync(ConversationId, 0);
         if (version != _loadVersion)
@@ -232,6 +234,7 @@
 
         MergeNewest(result.Value!);
         await Store.WriteConversationCacheAsync(ConversationId, _messages);
+        await Store.MarkReadAsync(_messages);
 
         // 通知を押して開いたときは、そのメッセージの位置まで読み足す
         while (version == _loadVersion && _highlightId > 0 && _hasMore && _messages.Count > 0 && _highlightId < _messages[0].Id && !_loadingOlder)
@@ -328,6 +331,7 @@
         _hasMore = page.HasMore;
         _keepFromHeight = height;
         StateHasChanged();
+        await Store.MarkReadAsync(page.Messages);
         return true;
     }
 
@@ -366,6 +370,7 @@
             _scrollToBottom = added && nearBottom;
             StateHasChanged();
             await Store.WriteConversationCacheAsync(ConversationId, _messages);
+            await Store.MarkReadAsync(_messages);
         });
     }
 
@@ -472,6 +477,10 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (Store.OpenConversationId == ConversationId)
+        {
+            Store.OpenConversationId = 0;
+        }
         Store.ConversationsChanged -= OnConversationsChangedAsync;
         Store.MessagesArrived -= OnMessagesArrivedAsync;
         Browser.BecameVisible -= LoadOnReturnAsync;

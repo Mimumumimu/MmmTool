@@ -93,11 +93,45 @@
     gap: 0.75rem;
 }
 
+/* 名前の左に未読の点を並べる。名前が長いときは、名前を省略して、点は残す */
+.who {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+/* 読んでいないメッセージがある会話の印。色だけに頼らないよう、名前も太字にする */
+.dot {
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
 .name {
-    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.name.unread {
+    font-weight: 700;
+}
+
+/* 上のバーの右の操作「すべて既読にする」 */
+.text {
+    min-height: 2.75rem;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+}
+
+button.text:disabled {
+    color: var(--disabled);
 }
 
 .time {

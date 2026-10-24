@@ -136,16 +136,66 @@ export function watchVisibility(dotNetRef) {
 }
 
 // 端末の控え。メッセージの会話などを、IndexedDB に置く。サーバーが唯一の正で、控えはいつでも作り直せる。使えなくても、使うのに困らない
-const cacheName = "mmmtoolweb.cache";
+// js/badge.js を読み込んでおく。端末に古い index.html が残っていて、badge.js を読んでいなくても、止まらないようにする
+// 読み込めたかを返す。読み込めないときは、控えと未読の機能だけが働かない
+let badgeLoading = null;
+
+function loadBadge() {
+    if (typeof globalThis.openCacheDb === "function") {
+        return Promise.resolve(true);
+    }
+    badgeLoading ??= new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = "/js/badge.js";
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+    });
+    return badgeLoading;
+}
+
+// 控えの開き方と名前は、js/badge.js の openCacheDb と同じ。サービスワーカーも同じ控えを使う
 const cacheStore = "kv";
 
-function openCache() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(cacheName, 1);
-        request.onupgradeneeded = () => request.result.createObjectStore(cacheStore);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+async function openCache() {
+    if (!(await loadBadge())) {
+        throw new Error("badge.js を読み込めない");
+    }
+    return globalThis.openCacheDb();
+}
+
+// 読んでいない通知は js/badge.js が持つ。種類は kind で、message など。番号は ids
+// 一覧に入っている識別子を、種類:番号 の形で返す
+export async function unreadGet() {
+    return (await loadBadge()) ? globalThis.readUnreadKeys() : [];
+}
+
+// 画面が取り込んだ新着を数える。ids = 数えるものの番号、maxId = 取り込んだ全部の中で一番大きい番号
+export async function unreadAddArrived(kind, ids, maxId) {
+    if (await loadBadge()) {
+        await globalThis.addArrivedUnread(kind, ids, maxId);
+    }
+}
+
+// 種類の基準の番号が無いときだけ、置く
+export async function unreadInit(kind, maxId) {
+    if (await loadBadge()) {
+        await globalThis.initUnreadHigh(kind, maxId);
+    }
+}
+
+// 読んだ通知を、一覧から外す
+export async function unreadRemove(kind, ids) {
+    if (await loadBadge()) {
+        await globalThis.removeUnread(kind, ids);
+    }
+}
+
+// 種類の通知を、全部一覧から外す
+export async function unreadClear(kind) {
+    if (await loadBadge()) {
+        await globalThis.clearUnread(kind);
+    }
 }
 
 // 控えの値を読む。無いとき、読めないときは null

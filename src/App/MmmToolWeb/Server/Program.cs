@@ -182,10 +182,12 @@ app.UseMiddleware<ProbeGuardMiddleware>();
 app.UseMiddleware<DatabaseErrorMiddleware>();
 app.UseBlazorFrameworkFiles();
 // 画面のファイル (js など)は、使うたびに更新の有無を確かめさせる。端末に古い js が残ったまま、新しい画面と組み合わさらないため
-app.UseStaticFiles(new StaticFileOptions
+// 画面の入口 index.html も同じ。「/messages」のような道は、下の MapFallbackToFile が返すので、同じ指定を渡す
+var staticFileOptions = new StaticFileOptions
 {
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
-});
+};
+app.UseStaticFiles(staticFileOptions);
 app.UseMiddleware<AuthAuditMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -197,7 +199,7 @@ app.MapAuthEndpoints();
 app.MapDevAuthEndpoints();
 #endif
 app.MapWebFeatures();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", staticFileOptions);
 
 app.Run();
 return 0;
