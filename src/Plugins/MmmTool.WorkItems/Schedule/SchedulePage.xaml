@@ -158,7 +158,7 @@
             <StackPanel Orientation="Horizontal" Spacing="16">
                 <Button Click="OnTodayClick" Content="今日" />
                 <SelectorBar x:Name="UnitBar" SelectionChanged="OnUnitSelectionChanged">
-                    <SelectorBarItem IsSelected="True" Text="日" />
+                    <SelectorBarItem Text="日" />
                     <SelectorBarItem Text="週" />
                     <SelectorBarItem Text="月" />
                 </SelectorBar>

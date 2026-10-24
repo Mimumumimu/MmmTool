@@ -39,6 +39,10 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         // 作業管理とスケジュールの、起動時の表示の設定 (画面を作るときに読む)
         services.AddSingleton<WorkItemDisplaySettings>();
 
+        // 画面で選んだ状態 (ページを外す・戻す・機能をオフにしてオンに戻すときに、ページが作り直されても引き継ぐため、ページの外で持つ)
+        services.AddSingleton<WorkItemViewState>();
+        services.AddSingleton<ScheduleViewState>();
+
         // 設定ページの「作業管理」 (起動時の表示)
         services.AddTransient<WorkItemSettingsViewModel>();
         services.AddSettingsSection<WorkItemSettingsControl>(WorkItemsFeature.Key);

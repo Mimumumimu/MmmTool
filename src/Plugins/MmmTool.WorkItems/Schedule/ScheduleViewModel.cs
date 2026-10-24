@@ -34,8 +34,12 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, ScheduleRow> _rowByKey = [];
 
-    /// <summary>利用者が閉じた案件・グループ (既定では、すべて開く)</summary>
-    private readonly HashSet<WorkKey> _collapsed = [];
+    /// <summary>画面で選んだ状態 (ページを作り直しても引き継ぐために、ページの外で持つ)</summary>
+    private readonly ScheduleViewState _state;
+
+    /// <summary>利用者が閉じた案件・グループ</summary>
+    /// <remarks>状態クラスと同じ集合。既定では、すべて開く。</remarks>
+    private readonly HashSet<WorkKey> _collapsed;
 
     /// <summary>ページを開いている間か (離れている間は、サービスの変更で表を作り直さない)</summary>
     private bool _active;
@@ -72,13 +76,13 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     public partial bool MineOnly { get; set; }
 
     /// <summary>表示の単位の番号 (<see cref="ScheduleUnit"/> の値と同じ)</summary>
-    /// <remarks>保存しない。起動したときは日で、画面を開き直しても戻さない。</remarks>
+    /// <remarks>保存しない。状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときは日になる。</remarks>
     [ObservableProperty]
-    public partial int UnitIndex { get; set; } = (int)ScheduleUnit.Day;
+    public partial int UnitIndex { get; set; }
 
     /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
     /// <remarks>
-    /// 画面で選んだ値は保存しない。作るときに、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.ScheduleCompleted"/>)を入れる。
+    /// 画面で選んだ値は保存しない。状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときの値は、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.ScheduleCompleted"/>)で決まる。
     /// 作業管理の「過去の完了」とは共有しない。
     /// </remarks>
     [ObservableProperty]
@@ -114,10 +118,12 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <param name="settings">設定ストア</param>
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
-    /// <param name="displaySettings">起動時の表示の設定</param>
-    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker, IBusyCursor busyCursor, WorkItemDisplaySettings displaySettings)
+    /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
+    public ScheduleViewModel(WorkItemService service, ISettingsStore settings, ProjectPickerViewModel projectPicker, IBusyCursor busyCursor, ScheduleViewState state)
     {
         _service = service;
+        _state = state;
+        _collapsed = state.Collapsed;
         _settings = settings;
         _busyCursor = busyCursor;
         ProjectPicker = projectPicker;
@@ -126,7 +132,8 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         service.RefreshFailed += OnServiceRefreshFailed;
         service.MineOnlyChanged += OnServiceMineOnlyChanged;
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
-        CompletedIndex = (int)displaySettings.ScheduleCompleted;
+        UnitIndex = (int)state.Unit;
+        CompletedIndex = (int)state.Completed;
         _initializing = false;
     }
 
@@ -288,6 +295,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     {
         if (!_initializing)
         {
+            if (Enum.IsDefined((ScheduleUnit)value))
+            {
+                _state.Unit = (ScheduleUnit)value;
+            }
             RebuildBusyAsync().Forget();
         }
     }
@@ -298,6 +309,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     {
         if (!_initializing)
         {
+            if (Enum.IsDefined((CompletedDisplay)value))
+            {
+                _state.Completed = (CompletedDisplay)value;
+            }
             RebuildBusyAsync().Forget();
         }
     }

@@ -40,6 +40,8 @@ public sealed class NotesPlugin : IFeaturePlugin
         services.AddTransient<NoteEditWindow>();
         services.AddTransient<NoteEditViewModel>();
 
+        // 画面で選んだ状態 (ページを外す・戻す・機能をオフにしてオンに戻すときに、ページが作り直されても引き継ぐため、ページの外で持つ)
+        services.AddSingleton<NotesViewState>();
         services.AddTransient<NotesViewModel>();
 
         // アイコンは Segoe Fluent Icons の QuickNote (E70B。付箋とペン)

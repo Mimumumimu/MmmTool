@@ -13,12 +13,13 @@ namespace MmmTool.Messages.Main;
 /// </summary>
 /// <param name="repository">会話とメッセージの保存先</param>
 /// <param name="sync">会話とメッセージを読み続ける部品</param>
+/// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
 /// <remarks>
 /// 画面は、左の会話の一覧から会話を開く。新しい相手には、「新しい会話」で宛先に選べる人の一覧を出して選ぶ。やり取りが無い人を選ぶと、空の会話の画面を出す。会話は、最初の送信で作る。
 /// 最初は、端末の控えから出し、続けて DB から最新を読む。新着は、読み続ける部品 (<see cref="MessageSyncService"/>)から受ける。
 /// 外部へ送る処理は、MmmTool には無い。「送信」は、メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
 /// </remarks>
-public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync) : ObservableObject, IDisposable
+public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync, MessagesViewState state) : ObservableObject, IDisposable
 {
     /// <summary>宛先に選べる人を、1 回に読む最大の件数</summary>
     private const int SearchCount = 100;
@@ -186,9 +187,66 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         sync.Synced += OnSynced;
         sync.MessagesArrived -= OnMessagesArrived;
         sync.MessagesArrived += OnMessagesArrived;
+        RestoreAsync().Forget();
         RefreshConversations();
         await sync.SyncAsync().ConfigureAwait(true);
     }
+
+    /// <summary>引き継いだ状態から、開いていた会話・人を選ぶ画面・入力中の本文・返信先を元に戻す</summary>
+    /// <returns>元に戻す処理の完了を表すタスク</returns>
+    /// <remarks>
+    /// ページを作り直したあと (外す・戻す・機能をオフにしてオンに戻す)だけ戻す。すでに開いているページを開き直したときは、何もしない。
+    /// 会話を開く処理 (<see cref="OpenAsync(int, int, string, bool)"/>)は、本文と返信先を空にして、状態クラスにも書くので、先に引き継いだ値を控える。
+    /// 返信先は、会話のメッセージを読み込んだあとに、番号で探して戻す。見つからなければ、返信はなくなる。
+    /// </remarks>
+    private async Task RestoreAsync()
+    {
+        var pickPerson = state.IsPickingPerson && !IsPickingPerson;
+        var open = state.IsConversationOpen && !IsConversationOpen;
+        var body = state.Body;
+        var replyToId = state.ReplyToId;
+
+        var opening = Task.CompletedTask;
+        if (open)
+        {
+            opening = OpenAsync(state.ConversationId, state.DraftPeerUserId, state.ConversationTitle, state.PeerCanReceive);
+            Body = body;
+        }
+        if (pickPerson)
+        {
+            await PickPersonAsync().ConfigureAwait(true);
+        }
+        await opening.ConfigureAwait(true);
+
+        if (open && replyToId > 0)
+        {
+            ReplyTo = Messages.FirstOrDefault(message => message.Id == replyToId);
+        }
+    }
+
+    /// <summary>宛先の人を選ぶ画面にしているかが変わったら、状態クラスに覚える</summary>
+    /// <param name="value">人を選ぶ画面にしているか</param>
+    partial void OnIsPickingPersonChanged(bool value) => state.IsPickingPerson = value;
+
+    /// <summary>会話を開いているかが変わったら、状態クラスに覚える</summary>
+    /// <param name="value">会話を開いているか</param>
+    partial void OnIsConversationOpenChanged(bool value) => state.IsConversationOpen = value;
+
+    /// <summary>開いている会話の名前が変わったら、状態クラスに覚える</summary>
+    /// <param name="value">会話の名前</param>
+    partial void OnConversationTitleChanged(string value) => state.ConversationTitle = value;
+
+    /// <summary>相手が受け取り先を指定しているかが変わったら、状態クラスに覚える</summary>
+    /// <param name="value">指定しているか</param>
+    partial void OnPeerCanReceiveChanged(bool value) => state.PeerCanReceive = value;
+
+    /// <summary>入力中の本文が変わったら、状態クラスに覚える</summary>
+    /// <param name="value">本文</param>
+    partial void OnBodyChanged(string value) => state.Body = value;
+
+    /// <summary>返信の元が変わったら、状態クラスに覚える</summary>
+    /// <param name="value">返信の元のメッセージ (返信でなければ null)</param>
+    partial void OnReplyToChanged(ChatMessageItem? value) => state.ReplyToId = value?.Id ?? 0;
 
     /// <summary>ページが見える・見えないの変化を伝える。読む間隔を決めるために使う</summary>
     /// <param name="visible">ウィンドウが前面にあり、ページが見えているか</param>
@@ -362,6 +420,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         var version = ++_openVersion;
         _conversationId = conversationId;
         _draftPeerUserId = conversationId == 0 ? peerUserId : 0;
+        state.ConversationId = _conversationId;
+        state.DraftPeerUserId = _draftPeerUserId;
         ConversationTitle = title;
         PeerCanReceive = peerCanReceive;
         IsConversationOpen = true;
@@ -586,6 +646,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
                 // 会話ができた。以降は、この会話として読む
                 _conversationId = result.ConversationId;
                 _draftPeerUserId = 0;
+                state.ConversationId = _conversationId;
+                state.DraftPeerUserId = 0;
                 sync.SetViewState(_conversationId, _visible);
             }
             await sync.SyncAsync();

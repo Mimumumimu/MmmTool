@@ -58,6 +58,9 @@ public sealed partial class SchedulePage : Page
         ProjectPickerControl.Attach(ViewModel.ProjectPicker);
         BuildViewFlyout();
 
+        // 引き継いだ単位を選んでおく。XAML は何も選ばずに作り、ここで ViewModel の単位と同じ項目を選ぶので、選択の変更は何もしない
+        UnitBar.SelectedItem = UnitBar.Items[ViewModel.UnitIndex];
+
         // 日付の棒の列は、表示だけで、フォーカスを受けない (幅が表より広く、フォーカスが来ると、左端までスクロールが動くため)。見出しは、軸ごとに作る
         _timelineColumn = new TreeGridColumn
         {

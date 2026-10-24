@@ -37,9 +37,11 @@ public sealed class MessagesPlugin : IFeaturePlugin
         services.AddSingleton<MessageSyncService>();
         services.AddStartupTask<MessagesStartup>(MessagesFeature.Key);
 
+        // 画面で選んだ状態 (ページを外す・戻す・機能をオフにしてオンに戻すときに、ページが作り直されても引き継ぐため、ページの外で持つ)
+        services.AddSingleton<MessagesViewState>();
         services.AddTransient<MessagesViewModel>();
 
         // アイコンは Segoe Fluent Icons の Message で、コードは E8BD の吹き出し。表示されない文字なので、エスケープで書く
-        services.AddNavigationPage<MessagesPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key);
+        services.AddNavigationPage<MessagesPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key, canDetach: true);
     }
 }

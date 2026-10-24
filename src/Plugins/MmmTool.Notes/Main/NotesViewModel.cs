@@ -24,6 +24,7 @@ namespace MmmTool.Notes.Main;
 /// <param name="contents">他の機能の内容 (作業報告など)を集める処理</param>
 /// <param name="settings">この PC の設定の保存先 (他の機能の内容を出すか・選択肢を覚える)</param>
 /// <param name="features">機能のオン・オフ (オフの機能の内容は出さない)</param>
+/// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
 /// <remarks>
 /// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を <see cref="RefreshInterval"/> ごとに読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
 /// 他の機能の内容 (作業報告など)が変わったときは、その機能からの通知で、すぐ読み直す。見えている間だけ購読する。
@@ -31,7 +32,7 @@ namespace MmmTool.Notes.Main;
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
-    DayContentService contents, ISettingsStore settings, IFeatureStatus features) : ObservableObject, IDisposable
+    DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state) : ObservableObject, IDisposable
 {
     /// <summary>ほかの人の更新を読み直す間隔</summary>
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
@@ -72,15 +73,15 @@ public sealed partial class NotesViewModel(
 
     /// <summary>表示する日</summary>
     [ObservableProperty]
-    public partial DateOnly Day { get; set; } = notes.Today;
+    public partial DateOnly Day { get; set; } = state.Day.Resolve(notes.Today);
 
     /// <summary>「タイトルだけ」にするか (false は「全文」)</summary>
     [ObservableProperty]
-    public partial bool IsTitleOnly { get; set; }
+    public partial bool IsTitleOnly { get; set; } = state.IsTitleOnly;
 
     /// <summary>削除したものも表示するか</summary>
     [ObservableProperty]
-    public partial bool ShowDeleted { get; set; }
+    public partial bool ShowDeleted { get; set; } = state.ShowDeleted;
 
     /// <summary>読み込み・操作の失敗</summary>
     public ErrorState Error { get; } = new();
@@ -93,15 +94,27 @@ public sealed partial class NotesViewModel(
 
     /// <summary>日付を変えたら、先頭から表示し直す</summary>
     /// <param name="value">新しい日</param>
-    partial void OnDayChanged(DateOnly value) => ReloadAsync(preserveState: false).Forget();
+    partial void OnDayChanged(DateOnly value)
+    {
+        state.Day.Set(value, notes.Today);
+        ReloadAsync(preserveState: false).Forget();
+    }
 
     /// <summary>表示の切り替えを変えたら、先頭から表示し直す</summary>
     /// <param name="value">新しい値</param>
-    partial void OnIsTitleOnlyChanged(bool value) => ReloadAsync(preserveState: false).Forget();
+    partial void OnIsTitleOnlyChanged(bool value)
+    {
+        state.IsTitleOnly = value;
+        ReloadAsync(preserveState: false).Forget();
+    }
 
     /// <summary>削除したものの表示を変えたら、先頭から表示し直す</summary>
     /// <param name="value">新しい値</param>
-    partial void OnShowDeletedChanged(bool value) => ReloadAsync(preserveState: false).Forget();
+    partial void OnShowDeletedChanged(bool value)
+    {
+        state.ShowDeleted = value;
+        ReloadAsync(preserveState: false).Forget();
+    }
 
     /// <summary>前の日を表示する</summary>
     [RelayCommand]

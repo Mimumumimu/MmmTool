@@ -208,7 +208,7 @@
   - 変えた時点で保存する。保存の読み書きは Core の `WorkItemDisplaySettings`。
   - 保存先は、設定ストアの整数のキー `WorkItems.InitialPastCompleted` と `WorkItems.InitialScheduleCompleted`。PC ごとの設定で、DB モードでも DB には置かない。
   - 既定は、作業管理の「過去の完了」が「グループのみ表示」で、スケジュールの「完了」が「表示」
-  - 反映は次の起動から。画面を作るときに読むだけなので、動いている画面は変わらない。
+  - 反映は次の起動から。画面の状態クラス (`WorkItemViewState`・`ScheduleViewState`)を最初に作るときに読むだけなので、動いている画面は変わらない。
   - 設定ファイルを読めなかったとき (`IsReadOnly`)は、選択欄を無効にする。保存の失敗 (`DataFileException`)は、画面の InfoBar に出す。
 - **送信先** (`src/Plugins/MmmTool.Reminders/Settings/NotificationChannelSettingsControl` ＋ `NotificationChannelSettingsViewModel`)
   - リマインダーの機能の設定の部品 (`ReminderSettingsControl` の次に並ぶ)
