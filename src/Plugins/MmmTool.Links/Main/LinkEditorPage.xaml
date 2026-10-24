@@ -16,7 +16,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid Padding="24,16,24,24" RowSpacing="8">
+    <Grid Padding="24,16,24,24" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />

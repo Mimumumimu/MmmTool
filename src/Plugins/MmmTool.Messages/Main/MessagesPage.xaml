@@ -124,7 +124,8 @@
             OtherTemplate="{StaticResource OtherTemplate}" />
     </Page.Resources>
 
-    <Grid Padding="24,16,24,24" RowSpacing="12">
+    <!-- 行の間隔は付けない。非表示の InfoBar の行にも間隔が付き、見出しの下が他の機能より空くため、下の余白は各部品に付ける -->
+    <Grid Padding="24,16,24,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -132,10 +133,14 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="メッセージ" />
+        <TextBlock
+            Margin="0,0,0,12"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="メッセージ" />
 
         <InfoBar
             Grid.Row="1"
+            Margin="0,0,0,12"
             IsClosable="False"
             IsOpen="{x:Bind ViewModel.IsUnavailableVisible}"
             Message="メッセージは、サーバーモードで使えます。"
@@ -144,6 +149,7 @@
 
         <InfoBar
             Grid.Row="2"
+            Margin="0,0,0,12"
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error"
@@ -163,15 +169,15 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- 上の行は、右の会話の題名の行と同じ高さにして、下の枠の上端をそろえる -->
+                <!-- 上の行は、右の会話の題名の行と同じ高さにして、下の枠の上端をそろえる。ボタンは上に寄せ、見出しとの間を他の機能のボタンと同じにする -->
                 <Button
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Top"
                     Command="{x:Bind ViewModel.PickPersonCommand}"
                     Content="新しい会話"
                     Style="{StaticResource AccentButtonStyle}"
                     Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}" />
                 <Button
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Top"
                     Command="{x:Bind ViewModel.CancelPickPersonCommand}"
                     Content="戻る"
                     Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}" />

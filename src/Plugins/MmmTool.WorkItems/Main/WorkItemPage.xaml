@@ -463,7 +463,6 @@
     <Grid Padding="24,16,24,24" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="0" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -495,7 +494,7 @@
         <!-- エラー (操作のたびに、前の分は消える) -->
         <InfoBar
             Grid.Row="1"
-            Grid.RowSpan="3"
+            Grid.RowSpan="2"
             VerticalAlignment="Top"
             Canvas.ZIndex="10"
             IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
@@ -503,7 +502,7 @@
             Severity="Error" />
 
         <!-- 入力日と、表示の操作。主な操作は表への入力なので、強調色のボタンは置かない -->
-        <Grid Grid.Row="2" ColumnSpacing="8">
+        <Grid Grid.Row="1" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -561,7 +560,7 @@
         </Grid>
 
         <!-- 表。行が無いときは、追加のしかたを案内する (追加のボタンが無いため) -->
-        <Border Grid.Row="3" Padding="1" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="2" Padding="1" Style="{StaticResource CardStyle}">
             <Grid>
                 <sdk:TreeGridView x:Name="TreeGrid" FrozenBackground="{ThemeResource InputRowBackgroundBrush}"
                     SummaryBackground="{ThemeResource GroupRowBackgroundBrush}" />
@@ -579,7 +578,7 @@
         <!-- 日報メモ。作業に結びつかない、入力日の記入で、打ち合わせなどが当たる。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する。入力欄の既定の更新のタイミングと同じ。高さは、行数 (DayNoteLines)から計算して決める (FitDayNoteHeight)。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
         <TextBox
             x:Name="DayNoteBox"
-            Grid.Row="4"
+            Grid.Row="3"
             AcceptsReturn="True"
             AutomationProperties.Name="日報メモ"
             FontFamily="BIZ UDGothic, MS Gothic, Consolas"
