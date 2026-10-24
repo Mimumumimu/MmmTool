@@ -1,12 +1,9 @@
 /* 会話の画面。上のバー、中央にメッセージ、下に入力欄を縦に並べる。メッセージの部分がスクロールし、入力欄は下に貼り付く */
 .screen {
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     height: 100dvh;
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 0 calc(env(safe-area-inset-right) + 1rem) 0 calc(env(safe-area-inset-left) + 1rem);
+    padding-bottom: 0;
 }
 
 .result {

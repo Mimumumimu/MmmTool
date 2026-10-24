@@ -1,12 +1,9 @@
 /* 会話の一覧の画面。右下に「新しい会話」を浮かべるので、一番下の行が隠れないよう、下をあける */
 .screen {
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 5.5rem) calc(env(safe-area-inset-left) + 1rem);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
 }
 
 .result {

@@ -11,15 +11,19 @@
         </a>
     </div>
 
-    <nav class="tiles" aria-label="機能">
-        @foreach (var feature in _available)
-        {
-            <a class="tile" href="@feature.Route">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg>
-                <span>@feature.Title</span>
-            </a>
-        }
-    </nav>
+    @if (_available.Count > 0)
+    {
+        <nav class="features" aria-label="機能">
+            @foreach (var feature in _available)
+            {
+                <a class="row" href="@feature.Route">
+                    <span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg></span>
+                    <span class="name">@feature.Title</span>
+                    <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="@ChevronPath" /></svg>
+                </a>
+            }
+        </nav>
+    }
 
     <button type="button" class="logout" @onclick="Session.LogoutAsync">ログアウト</button>
 </main>
@@ -34,6 +38,9 @@
     /// <summary>使える機能を、サーバーに聞き直して、タイルに出す。</summary>
     /// <returns>読み込みの完了を表すタスク。</returns>
     protected override async Task OnInitializedAsync() => _available = await Availability.FilterAsync(Features);
+
+    /// <summary>行の右端の「›」の形。24 × 24 の枠の SVG の path で、線で描く。</summary>
+    private const string ChevronPath = "M9.5 6l6 6-6 6";
 
     /// <summary>設定の歯車のアイコンの形。24 × 24 の枠の SVG の path。</summary>
     private const string SettingsIconPath =

@@ -1,12 +1,8 @@
 /* 状態の説明を上に、操作のボタンを画面の下に置く (親指が届く位置) */
 .screen {
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
 .result {
