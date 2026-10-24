@@ -40,6 +40,7 @@ public sealed partial class MessagesPage : Page
         ViewModel.Post = action => DispatcherQueue.TryEnqueue(() => action());
         ViewModel.ScrollToEndRequested += ScrollToEnd;
         ViewModel.ScrollToMessageRequested += ScrollToMessage;
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         Loaded += (_, _) =>
         {
@@ -82,11 +83,24 @@ public sealed partial class MessagesPage : Page
     /// <summary>会話の一覧の行を押したら、会話を開く</summary>
     /// <param name="sender">一覧</param>
     /// <param name="e">押した行の情報</param>
+    /// <remarks>開いている行の印は、<see cref="MessagesViewModel.SelectedConversation"/> が決める。開いている行を押したときも、読み直す。</remarks>
     private void OnConversationClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is ConversationItem item)
         {
             ViewModel.OpenAsync(item).Forget();
+        }
+    }
+
+    /// <summary>開いている会話の行が変わったら、その行が見える位置までスクロールする</summary>
+    /// <param name="sender">ViewModel</param>
+    /// <param name="e">変わったプロパティの情報</param>
+    /// <remarks>通知から開いたときなど、行が一覧の見えていない所にあっても、印が見えるようにするため。</remarks>
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MessagesViewModel.SelectedConversation) && ViewModel.SelectedConversation is { } item)
+        {
+            ConversationList.ScrollIntoView(item);
         }
     }
 

@@ -191,13 +191,17 @@
                     BorderThickness="1"
                     CornerRadius="8">
                     <Grid>
+                        <!-- 開いている会話の行を、標準の選択の見た目で示す。会話を開くのは行を押したときだけで、選択の変更では開かない (矢印キーや一覧の並び替えで、会話が切り替わらないため) -->
                         <ListView
+                            x:Name="ConversationList"
                             IsItemClickEnabled="True"
                             ItemClick="OnConversationClick"
                             ItemTemplate="{StaticResource ConversationRowTemplate}"
                             ItemsSource="{x:Bind ViewModel.Conversations}"
                             ScrollViewer.VerticalScrollBarVisibility="Visible"
-                            SelectionMode="None"
+                            SelectedItem="{x:Bind ViewModel.SelectedConversation, Mode=OneWay}"
+                            SelectionMode="Single"
+                            SingleSelectionFollowsFocus="False"
                             Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}" />
 
                         <ListView

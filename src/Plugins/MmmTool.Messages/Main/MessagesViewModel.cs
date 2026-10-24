@@ -37,6 +37,11 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>やり取りのある会話。最後のメッセージが新しい順</summary>
     public ObservableCollection<ConversationItem> Conversations { get; } = [];
 
+    /// <summary>開いている会話の、一覧の行。一覧の選択の印に使う</summary>
+    /// <remarks>会話を開いていないときと、まだ会話が無い空の会話の画面のときは null。</remarks>
+    public ConversationItem? SelectedConversation
+        => IsConversationOpen && _conversationId > 0 ? Conversations.FirstOrDefault(item => item.Id == _conversationId) : null;
+
     /// <summary>宛先に選べる人。人を選ぶ画面のときだけ出す。表示名の順</summary>
     public ObservableCollection<PersonItem> People { get; } = [];
 
@@ -425,6 +430,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         ConversationTitle = title;
         PeerCanReceive = peerCanReceive;
         IsConversationOpen = true;
+        OnPropertyChanged(nameof(SelectedConversation));
         RefreshSelfCanReceiveAsync().Forget();
         IsStale = false;
         Body = "";
@@ -608,6 +614,9 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         {
             PeerCanReceive = open.PeerCanReceive;
         }
+
+        // 行を差し替えたり、新しい会話の行が増えたりしたので、選びの印を付け直す
+        OnPropertyChanged(nameof(SelectedConversation));
     }
 
     /// <summary>送れる状態か。自分と相手が受け取り先を指定していて、本文が空白だけでない</summary>
@@ -648,6 +657,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
                 _draftPeerUserId = 0;
                 state.ConversationId = _conversationId;
                 state.DraftPeerUserId = 0;
+                OnPropertyChanged(nameof(SelectedConversation));
                 sync.SetViewState(_conversationId, _visible);
             }
             await sync.SyncAsync();
