@@ -7,7 +7,7 @@
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="@_title" Busy="@(_loading || _sending)" />
+    <FeatureHeader Title="@_title" Busy="@(_loading || _sending)" BackPath="@MessagesPage.Route" BackText="メッセージ" />
 
     @if (_error is not null)
     {

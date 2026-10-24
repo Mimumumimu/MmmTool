@@ -13,35 +13,14 @@
         <p class="result error" role="alert">@_error</p>
     }
 
-    <div class="search">
-        <input type="search" aria-label="宛先を探す" placeholder="宛先の表示名で探す" autocomplete="off" value="@_query" @oninput="OnQueryAsync" />
-    </div>
-
-    @if (_query.Length > 0)
+    @if (_loaded && Store.Conversations.Count == 0)
     {
-        <ul class="list" aria-label="探した人">
-            @foreach (var person in _people)
-            {
-                <li>
-                    <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
-                        <span class="name">@person.DisplayName</span>
-                    </button>
-                </li>
-            }
-        </ul>
-        @if (_searched && _people.Count == 0)
-        {
-            <p class="empty">受け取り先を指定している人が見つかりません。</p>
-        }
+        <p class="empty">会話はまだありません。「新しい会話」から宛先を選んでください。</p>
     }
-    else
-    {
-        @if (_loaded && Store.Conversations.Count == 0)
-        {
-            <p class="empty">会話はまだありません。上の欄で、宛先を探してください。</p>
-        }
 
-        <ul class="list" aria-label="会話">
+    @if (Store.Conversations.Count > 0)
+    {
+        <ul class="list first" aria-label="会話">
             @foreach (var conversation in Store.Conversations)
             {
                 <li>
@@ -60,10 +39,37 @@
             }
         </ul>
     }
+
+    <button type="button" class="fab" @onclick="PickPersonAsync">新しい会話</button>
 </div>
 
+@if (_picking)
+{
+    <div class="sheet" role="dialog" aria-label="宛先を選ぶ">
+        <div class="screen">
+            <FeatureHeader Title="宛先を選ぶ" Busy="@(!_peopleLoaded)" BackText="キャンセル" BackMark="" OnBack="CancelPick" />
+
+            @if (_peopleLoaded && _people.Count == 0)
+            {
+                <p class="empty">宛先にできる人がいません。</p>
+            }
+
+            <ul class="list first" aria-label="宛先に選べる人">
+                @foreach (var person in _people)
+                {
+                    <li>
+                        <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
+                            <span class="name">@person.DisplayName</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
 @code {
-    /// <summary>メッセージの人の一覧の画面の道。</summary>
+    /// <summary>メッセージの会話の一覧の画面の道。</summary>
     public const string Route = "/messages";
 
     private IAsyncDisposable? _live;
@@ -71,9 +77,9 @@
     private bool _loading;
     private bool _loaded;
     private string? _error;
-    private string _query = "";
-    private int _searchVersion;
-    private bool _searched;
+    private bool _picking;
+    private bool _peopleLoaded;
+    private bool _opening;
     private IReadOnlyList<PersonDto> _people = [];
 
     protected override async Task OnInitializedAsync()
@@ -101,10 +107,10 @@
     /// <summary>アプリが裏から戻ったときに、読み直す。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
 
-    /// <summary>人の一覧が変わったとき、画面を直す。</summary>
+    /// <summary>会話の一覧が変わったとき、画面を直す。</summary>
     private Task OnConversationsChangedAsync() => InvokeAsync(StateHasChanged);
 
-    /// <summary>人の一覧を読み込む。まず控えから出し、サーバーから読み直す。</summary>
+    /// <summary>会話の一覧を読み込む。まず控えから出し、サーバーから読み直す。</summary>
     private async Task LoadAsync()
     {
         _loading = true;
@@ -123,61 +129,77 @@
         StateHasChanged();
     }
 
-    /// <summary>探す欄に入力があったとき、少し待ってから、人を探す。</summary>
-    /// <param name="args">入力の内容。</param>
-    private async Task OnQueryAsync(ChangeEventArgs args)
+    /// <summary>宛先を選ぶ画面を開く。宛先に選べる人を、開くたびに読み直す。</summary>
+    private async Task PickPersonAsync()
     {
-        _query = (args.Value as string ?? "").Trim();
-        var version = ++_searchVersion;
-        if (_query.Length == 0)
-        {
-            _people = [];
-            _searched = false;
-            return;
-        }
+        _picking = true;
+        _peopleLoaded = false;
+        _people = [];
+        StateHasChanged();
 
-        // 入力のたびに探さない。打ち終わりを少し待つ
-        await Task.Delay(300);
-        if (version != _searchVersion)
-        {
-            return;
-        }
-
-        var result = await Messages.SearchPeopleAsync(_query);
-        if (version != _searchVersion)
-        {
-            return;
-        }
+        var result = await Messages.SearchPeopleAsync("");
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!_picking)
+        {
             return;
         }
 
         _people = result.Succeeded ? result.Value! : [];
-        _searched = result.Succeeded;
-        _error = result.Succeeded ? null : $"人を探せませんでした: {result.Message}";
+        _peopleLoaded = result.Succeeded;
+
+        // 成功では、エラーを消さない。会話の読み込みの失敗を、消さないため
+        if (!result.Succeeded)
+        {
+            _error = $"宛先の人を読み込めませんでした: {result.Message}";
+            _picking = false;
+        }
     }
 
-    /// <summary>探した人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。会話は、最初の送信で作る。</summary>
+    /// <summary>宛先を選ぶ画面を閉じる。</summary>
+    private void CancelPick()
+    {
+        _picking = false;
+        _people = [];
+    }
+
+    /// <summary>選んだ人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。会話は、最初の送信で作る。</summary>
     /// <param name="person">選んだ人。</param>
     private async Task OpenPersonAsync(PersonDto person)
     {
-        var result = await Messages.FindDirectAsync(person.UserId);
-        if (result.Status == ApiFailure.SignedOut)
+        // 続けて押されても、2 回開かない
+        if (_opening)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
-            return;
-        }
-        if (!result.Succeeded)
-        {
-            _error = $"会話を開けませんでした: {result.Message}";
             return;
         }
 
-        Navigation.NavigateTo(result.Value!.ConversationId > 0
-            ? $"messages/{result.Value.ConversationId}"
-            : $"messages/new/{person.UserId}?name={Uri.EscapeDataString(person.DisplayName)}");
+        _opening = true;
+        try
+        {
+            var result = await Messages.FindDirectAsync(person.UserId);
+            if (result.Status == ApiFailure.SignedOut)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+            if (!result.Succeeded)
+            {
+                _error = $"会話を開けませんでした: {result.Message}";
+                _picking = false;
+                return;
+            }
+
+            Navigation.NavigateTo(result.Value!.ConversationId > 0
+                ? $"messages/{result.Value.ConversationId}"
+                : $"messages/new/{person.UserId}?name={Uri.EscapeDataString(person.DisplayName)}");
+        }
+        finally
+        {
+            _opening = false;
+        }
     }
 
     public async ValueTask DisposeAsync()

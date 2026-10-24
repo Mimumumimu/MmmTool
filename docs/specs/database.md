@@ -149,7 +149,7 @@
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
 | `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
 
-- メッセージの宛先を、表示名の前方一致で探すため、インデックス `IX_AppUser_DisplayName (DisplayName)` を持つ。業務の列だけで作る。版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。
+- メッセージの宛先に選べる人を、表示名の順に先頭から読むため、インデックス `IX_AppUser_DisplayName (DisplayName)` を持つ。業務の列だけで作る。版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。
 
 ### `Reminder`(リマインダー)
 

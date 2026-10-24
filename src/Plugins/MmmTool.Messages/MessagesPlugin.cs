@@ -36,7 +36,7 @@ public sealed class MessagesPlugin : IFeaturePlugin
 
         services.AddTransient<MessagesViewModel>();
 
-        // アイコンは Segoe Fluent Icons の Message で、コードは E8BD の吹き出し
-        services.AddNavigationPage<MessagesPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key);
+        // アイコンは Segoe Fluent Icons の Message で、コードは E8BD の吹き出し。表示されない文字なので、エスケープで書く
+        services.AddNavigationPage<MessagesPage>(MessagesFeature.DisplayName, "", NavigationArea.Top, MessagesFeature.Key);
     }
 }

@@ -13,8 +13,8 @@ namespace MmmToolWeb.Messages;
 /// </summary>
 internal static class MessageEndpoints
 {
-    /// <summary>人の検索で返す最大の件数</summary>
-    private const int SearchCount = 20;
+    /// <summary>宛先に選べる人を、1 回に返す最大の件数</summary>
+    private const int SearchCount = 100;
 
     /// <summary>
     /// メッセージの API を登録する。
@@ -92,20 +92,15 @@ internal static class MessageEndpoints
         => Results.Ok(new DirectDto(await repository.FindDirectConversationAsync(userId, cancellationToken)));
 
     /// <summary>
-    /// 宛先に、表示名の前方一致で人を探す。
+    /// 宛先に選べる人を、表示名の前方一致で返す。
     /// </summary>
-    /// <param name="q">表示名の先頭の文字。</param>
+    /// <param name="q">表示名の先頭の文字。無いときは、全員。</param>
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>受け取り先を指定している人。</returns>
     private static async Task<IResult> SearchPeopleAsync(string? q, IMessageRepository repository, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(q))
-        {
-            return Results.Ok(Array.Empty<PersonDto>());
-        }
-
-        var people = await repository.SearchPeopleAsync(q, SearchCount, cancellationToken);
+        var people = await repository.SearchPeopleAsync(q ?? "", SearchCount, cancellationToken);
         return Results.Ok(people.Select(person => new PersonDto(person.UserId, person.DisplayName)).ToArray());
     }
 

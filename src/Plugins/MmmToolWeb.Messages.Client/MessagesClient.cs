@@ -59,10 +59,10 @@ public sealed class MessagesClient(HttpClient http)
         => CallAsync(() => http.GetAsync($"{Path}/direct?userId={userId}"), response => Read(response, MessagesJsonContext.Default.DirectDto));
 
     /// <summary>
-    /// 宛先に、表示名の前方一致で人を探す。
+    /// 宛先に選べる人を、表示名の前方一致で読む。
     /// </summary>
-    /// <param name="prefix">表示名の先頭の文字。</param>
-    /// <returns>受け取り先を指定している人。</returns>
+    /// <param name="prefix">表示名の先頭の文字。空文字のときは、全員。</param>
+    /// <returns>受け取り先を指定している人。自分も含む。</returns>
     public Task<ApiResult<PersonDto[]>> SearchPeopleAsync(string prefix)
         => CallAsync(
             () => http.GetAsync($"{Path}/people/search?q={Uri.EscapeDataString(prefix)}"),

@@ -1,9 +1,13 @@
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Utilities;
+using Windows.UI.Core;
+using VirtualKey = Windows.System.VirtualKey;
 
 namespace MmmTool.Messages.Main;
 
@@ -75,7 +79,7 @@ public sealed partial class MessagesPage : Page
     /// <param name="e">イベントの情報</param>
     private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
-    /// <summary>人の一覧の行を押したら、会話を開く</summary>
+    /// <summary>会話の一覧の行を押したら、会話を開く</summary>
     /// <param name="sender">一覧</param>
     /// <param name="e">押した行の情報</param>
     private void OnConversationClick(object sender, ItemClickEventArgs e)
@@ -86,7 +90,7 @@ public sealed partial class MessagesPage : Page
         }
     }
 
-    /// <summary>探した人の行を押したら、その人との会話を開く</summary>
+    /// <summary>宛先の人の行を押したら、その人との会話を開く</summary>
     /// <param name="sender">一覧</param>
     /// <param name="e">押した行の情報</param>
     private void OnPersonClick(object sender, ItemClickEventArgs e)
@@ -94,6 +98,22 @@ public sealed partial class MessagesPage : Page
         if (e.ClickedItem is PersonItem person)
         {
             ViewModel.OpenPersonCommand.Execute(person);
+        }
+    }
+
+    /// <summary>入力欄で Ctrl+Enter が押されたら、送信する。Enter だけなら改行</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">キー入力の情報</param>
+    private void OnBodyPreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Enter
+            && InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down))
+        {
+            e.Handled = true;
+            if (ViewModel.SendCommand.CanExecute(null))
+            {
+                ViewModel.SendCommand.Execute(null);
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-/* 人の一覧の画面。上の探す欄と、会話の一覧を縦に並べる */
+/* 会話の一覧の画面。右下に「新しい会話」を浮かべるので、一番下の行が隠れないよう、下をあける */
 .screen {
     box-sizing: border-box;
     display: flex;
@@ -6,7 +6,7 @@
     min-height: 100dvh;
     max-width: 40rem;
     margin: 0 auto;
-    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
+    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 5.5rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
 .result {
@@ -22,34 +22,51 @@
     color: var(--danger);
 }
 
-.search {
-    padding: 0.75rem 0;
-}
-
-.search input {
-    box-sizing: border-box;
-    display: block;
-    width: 100%;
-    min-height: 2.75rem;
-    margin: 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
-    font-size: 1rem;
-}
-
 .list {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
+/* 上のバーの下に最初に並ぶ一覧。バーとの間をあける */
+.list.first {
+    margin-top: 0.75rem;
+}
+
 .list li + li {
     margin-top: 0.5rem;
+}
+
+/* 主な操作「新しい会話」。右下に浮かべて、親指で押せる位置に置く */
+.fab {
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 1rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    min-width: 2.75rem;
+    min-height: 3.25rem;
+    padding: 0 1.5rem;
+    border: none;
+    border-radius: 1.625rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 0.3);
+}
+
+/* 宛先を選ぶ画面。画面全体を覆う。中は、一覧の画面と同じ幅と余白 (.screen)で、上のバーも同じ部品 (FeatureHeader)を使う */
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* 浮かべたボタンが無いので、下の余白は、ホームバーを避けるだけにする */
+.sheet .screen {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
 }
 
 .row {

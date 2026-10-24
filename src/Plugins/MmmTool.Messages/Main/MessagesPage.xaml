@@ -7,6 +7,38 @@
     xmlns:local="using:MmmTool.Messages.Main">
 
     <Page.Resources>
+        <!-- 会話の一覧の行 -->
+        <DataTemplate x:Key="ConversationRowTemplate" x:DataType="local:ConversationItem">
+            <StackPanel Padding="0,6" Spacing="2">
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Grid.Column="1"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind TimeText}" />
+                </Grid>
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind LastText}"
+                    TextTrimming="CharacterEllipsis" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="{x:Bind NoteText}"
+                    Visibility="{x:Bind local:MessagesPage.Visible(HasNote)}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 宛先に選べる人の行 -->
+        <DataTemplate x:Key="PersonRowTemplate" x:DataType="local:PersonItem">
+            <TextBlock Padding="0,8" Text="{x:Bind DisplayName}" />
+        </DataTemplate>
+
         <!-- 受け取ったメッセージ。左に寄せ、カードの色にする -->
         <DataTemplate x:Key="OtherTemplate" x:DataType="local:ChatMessageItem">
             <Grid Margin="0,0,0,8" HorizontalAlignment="Left">
@@ -120,92 +152,67 @@
         <Grid Grid.Row="3" ColumnSpacing="16" Visibility="{x:Bind ViewModel.IsAvailable}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="*" />
+                <!-- 右は、残りの幅を使い、720 で止める。止まったあとの余りは、右に空ける -->
+                <ColumnDefinition Width="*" MaxWidth="720" />
             </Grid.ColumnDefinitions>
 
-            <!-- 左: 探す欄と、人の一覧。探す欄に入力があるときは、探した人を出す -->
+            <!-- 左: 会話の一覧。「新しい会話」を押すと、宛先に選べる人の一覧に替わる -->
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="48" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <TextBox
-                    GotFocus="OnJapaneseBoxGotFocus"
-                    PlaceholderText="宛先の表示名で探す"
-                    Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <!-- 上の行は、右の会話の題名の行と同じ高さにして、下の枠の上端をそろえる -->
+                <Button
+                    VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.PickPersonCommand}"
+                    Content="新しい会話"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}" />
+                <Button
+                    VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.CancelPickPersonCommand}"
+                    Content="戻る"
+                    Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}" />
 
-                <ListView
+                <!-- 一覧は、線の枠で囲み、中は地の色と違う不透明な色にする (CLI補助のターミナルと同じ) -->
+                <Border
                     Grid.Row="1"
-                    IsItemClickEnabled="True"
-                    ItemClick="OnConversationClick"
-                    ItemsSource="{x:Bind ViewModel.Conversations}"
-                    ScrollViewer.VerticalScrollBarVisibility="Visible"
-                    SelectionMode="None"
-                    Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:ConversationItem">
-                            <StackPanel Padding="0,6" Spacing="2">
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                        Style="{StaticResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind TimeText}" />
-                                </Grid>
-                                <TextBlock
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Text="{x:Bind LastText}"
-                                    TextTrimming="CharacterEllipsis" />
-                                <TextBlock
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Style="{StaticResource CaptionTextBlockStyle}"
-                                    Text="{x:Bind NoteText}"
-                                    Visibility="{x:Bind local:MessagesPage.Visible(HasNote)}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                    Padding="4"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid>
+                        <ListView
+                            IsItemClickEnabled="True"
+                            ItemClick="OnConversationClick"
+                            ItemTemplate="{StaticResource ConversationRowTemplate}"
+                            ItemsSource="{x:Bind ViewModel.Conversations}"
+                            ScrollViewer.VerticalScrollBarVisibility="Visible"
+                            SelectionMode="None"
+                            Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}" />
 
-                <ListView
-                    Grid.Row="1"
-                    IsItemClickEnabled="True"
-                    ItemClick="OnPersonClick"
-                    ItemsSource="{x:Bind ViewModel.People}"
-                    ScrollViewer.VerticalScrollBarVisibility="Visible"
-                    SelectionMode="None"
-                    Visibility="{x:Bind ViewModel.HasSearch, Mode=OneWay}">
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="local:PersonItem">
-                            <TextBlock Padding="0,8" Text="{x:Bind DisplayName}" />
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+                        <ListView
+                            IsItemClickEnabled="True"
+                            ItemClick="OnPersonClick"
+                            ItemTemplate="{StaticResource PersonRowTemplate}"
+                            ItemsSource="{x:Bind ViewModel.People}"
+                            ScrollViewer.VerticalScrollBarVisibility="Visible"
+                            SelectionMode="None"
+                            Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}" />
 
-                <TextBlock
-                    Grid.Row="1"
-                    Margin="0,24,0,0"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Top"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="会話はまだありません。上の欄で、宛先を探してください。"
-                    TextWrapping="Wrap"
-                    Visibility="{x:Bind ViewModel.IsEmptyNoticeVisible, Mode=OneWay}" />
-
-                <TextBlock
-                    Grid.Row="1"
-                    Margin="0,24,0,0"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Top"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Text="受け取り先を指定している人が見つかりません。"
-                    TextWrapping="Wrap"
-                    Visibility="{x:Bind ViewModel.IsPeopleEmptyNoticeVisible, Mode=OneWay}" />
+                        <TextBlock
+                            Margin="16,24,16,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind ViewModel.EmptyNoticeText, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind ViewModel.IsEmptyNoticeVisible, Mode=OneWay}" />
+                    </Grid>
+                </Border>
             </Grid>
 
             <!-- 右: 会話と入力欄。会話を開いていないときは、案内だけを出す -->
@@ -214,20 +221,26 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                Text="会話を選ぶか、宛先を探してください。"
+                Text="会話を選ぶか、「新しい会話」で宛先を選んでください。"
                 Visibility="{x:Bind ViewModel.IsConversationClosed, Mode=OneWay}" />
 
-            <Grid Grid.Column="1" RowSpacing="8" Visibility="{x:Bind ViewModel.IsConversationOpen, Mode=OneWay}">
+            <Grid
+                Grid.Column="1"
+                RowSpacing="8"
+                Visibility="{x:Bind ViewModel.IsConversationOpen, Mode=OneWay}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" MinHeight="48" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel Spacing="2">
-                    <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="{x:Bind ViewModel.ConversationTitle, Mode=OneWay}" />
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock
+                        Style="{StaticResource SubtitleTextBlockStyle}"
+                        Text="{x:Bind ViewModel.ConversationTitle, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Style="{StaticResource CaptionTextBlockStyle}"
@@ -235,20 +248,28 @@
                         Visibility="{x:Bind ViewModel.IsStale, Mode=OneWay}" />
                 </StackPanel>
 
-                <ListView
-                    x:Name="MessageList"
+                <!-- 会話は、線の枠で囲み、中は地の色と違う不透明な色にする -->
+                <Border
                     Grid.Row="1"
-                    ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
-                    ItemsSource="{x:Bind ViewModel.Messages}"
-                    Loaded="OnMessageListLoaded"
-                    ScrollViewer.VerticalScrollBarVisibility="Visible"
-                    SelectionMode="None">
-                    <ListView.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <ItemsStackPanel ItemsUpdatingScrollMode="KeepItemsInView" />
-                        </ItemsPanelTemplate>
-                    </ListView.ItemsPanel>
-                </ListView>
+                    Padding="8,4"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <ListView
+                        x:Name="MessageList"
+                        ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                        ItemsSource="{x:Bind ViewModel.Messages}"
+                        Loaded="OnMessageListLoaded"
+                        ScrollViewer.VerticalScrollBarVisibility="Visible"
+                        SelectionMode="None">
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsStackPanel ItemsUpdatingScrollMode="KeepItemsInView" />
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                    </ListView>
+                </Border>
 
                 <TextBlock
                     Grid.Row="2"
@@ -272,28 +293,49 @@
                         Content="返信をやめる" />
                 </Grid>
 
-                <Grid Grid.Row="4" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox
-                        AcceptsReturn="True"
-                        GotFocus="OnJapaneseBoxGotFocus"
-                        IsEnabled="{x:Bind ViewModel.PeerCanReceive, Mode=OneWay}"
-                        MaxHeight="120"
-                        MaxLength="{x:Bind core:MessageLimits.BodyMaxLength}"
-                        PlaceholderText="メッセージ"
-                        ScrollViewer.VerticalScrollBarVisibility="Visible"
-                        Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        TextWrapping="Wrap" />
-                    <Button
-                        Grid.Column="1"
-                        VerticalAlignment="Bottom"
-                        Command="{x:Bind ViewModel.SendCommand}"
-                        Content="送信"
-                        Style="{StaticResource AccentButtonStyle}" />
-                </Grid>
+                <!-- 送信欄。入力と送信を、CLI補助の送信欄と同じ作りの 1 枚のカードにまとめる。入力欄は 3 行分の高さ固定で、超えた分は欄内でスクロールする -->
+                <Border
+                    Grid.Row="4"
+                    Padding="10"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            Height="64"
+                            Padding="0,1"
+                            AcceptsReturn="True"
+                            GotFocus="OnJapaneseBoxGotFocus"
+                            IsEnabled="{x:Bind ViewModel.PeerCanReceive, Mode=OneWay}"
+                            MaxLength="{x:Bind core:MessageLimits.BodyMaxLength}"
+                            PlaceholderText="メッセージ (Ctrl+Enter で送信)"
+                            PreviewKeyDown="OnBodyPreviewKeyDown"
+                            ScrollViewer.VerticalScrollBarVisibility="Visible"
+                            Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            TextWrapping="Wrap">
+                            <!-- カードの中に溶け込ませる (枠と背景を消す) -->
+                            <TextBox.Resources>
+                                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                            </TextBox.Resources>
+                        </TextBox>
+                        <Button
+                            Grid.Column="1"
+                            VerticalAlignment="Bottom"
+                            Command="{x:Bind ViewModel.SendCommand}"
+                            Content="送信"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </Grid>
+                </Border>
             </Grid>
         </Grid>
     </Grid>

@@ -16,7 +16,7 @@ IF OBJECT_ID(N'dbo.MessageSendRequest', N'U') IS NOT NULL
 DROP TABLE dbo.MessageSendRequest;
 GO
 
--- メッセージの宛先を、表示名の前方一致で探す。業務の列だけで作る
+-- メッセージの宛先に選べる人を、表示名の順に読む。業務の列だけで作る
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AppUser_DisplayName' AND object_id = OBJECT_ID(N'dbo.AppUser'))
 CREATE INDEX IX_AppUser_DisplayName ON dbo.AppUser (DisplayName);
 GO

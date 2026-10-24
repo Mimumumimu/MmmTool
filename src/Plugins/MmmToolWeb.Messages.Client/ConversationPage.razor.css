@@ -27,7 +27,8 @@
     flex: 1;
     min-height: 0;
     margin: 0;
-    padding: 0.75rem 0;
+    /* 左右の余白は、強調の枠が、スクロールの枠に切られない広さにする */
+    padding: 0.75rem 0.25rem;
     overflow-y: auto;
     list-style: none;
     overscroll-behavior: contain;
@@ -67,10 +68,10 @@
     color: var(--accent-text);
 }
 
-/* 通知を押して開いたメッセージの強調 */
+/* 通知を押して開いたメッセージの強調。枠は 1 本で、吹き出しに接して付ける。自分の吹き出しは強調色なので、文字の色にする。離すと、二重の枠に見える */
 .row.highlight .bubble {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    outline: 2px solid var(--text);
+    outline-offset: 0;
 }
 
 .body {
@@ -119,6 +120,11 @@
     font-size: 0.8125rem;
 }
 
+/* 押せる範囲は 44 のままで、見た目の間隔だけ詰める。文字が吹き出しから離れて浮かないよう、上下の余りを打ち消し、右端は吹き出しの端にそろえる */
+.meta .reply {
+    margin: -0.75rem -0.5rem -0.75rem 0;
+}
+
 /* 入力欄。画面の下に貼り付き、ホームバーに隠れないよう、下の余白を取る */
 .composer {
     padding: 0.5rem 0 calc(env(safe-area-inset-bottom) + 0.5rem);
@@ -153,6 +159,7 @@
 .input textarea {
     box-sizing: border-box;
     flex: 1;
+    min-width: 0;
     min-height: 2.75rem;
     max-height: 9rem;
     margin: 0;
@@ -168,7 +175,10 @@
     resize: none;
 }
 
+/* 本体の CSS の button.primary は幅 100% なので、入力欄の横では、中身の幅に戻す。戻さないと、ボタンが伸びて、入力欄が細くなる */
 .input button {
+    flex: none;
+    width: auto;
     min-width: 4rem;
     min-height: 2.75rem;
 }

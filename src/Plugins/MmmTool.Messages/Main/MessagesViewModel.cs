@@ -14,17 +14,14 @@ namespace MmmTool.Messages.Main;
 /// <param name="repository">会話とメッセージの保存先</param>
 /// <param name="sync">会話とメッセージを読み続ける部品</param>
 /// <remarks>
-/// 画面は、人の一覧から会話を開く。やり取りが無い人は、探して選ぶと、空の会話の画面を出す。会話は、最初の送信で作る。
+/// 画面は、左の会話の一覧から会話を開く。新しい相手には、「新しい会話」で宛先に選べる人の一覧を出して選ぶ。やり取りが無い人を選ぶと、空の会話の画面を出す。会話は、最初の送信で作る。
 /// 最初は、端末の控えから出し、続けて DB から最新を読む。新着は、読み続ける部品 (<see cref="MessageSyncService"/>)から受ける。
 /// 外部へ送る処理は、MmmTool には無い。「送信」は、メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
 /// </remarks>
 public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync) : ObservableObject, IDisposable
 {
-    /// <summary>探す欄で、入力が止まってから探すまでの待ち時間</summary>
-    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(300);
-
-    /// <summary>探す人の最大の件数</summary>
-    private const int SearchCount = 20;
+    /// <summary>宛先に選べる人を、1 回に読む最大の件数</summary>
+    private const int SearchCount = 100;
 
     /// <summary>画面の変更を、UI スレッドで行うための入れ物。画面が、UI スレッドのものに替える</summary>
     public Action<Action> Post { get; set; } = action => action();
@@ -36,10 +33,10 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>通知を押して開いたメッセージの位置までスクロールしてほしい。引数はメッセージの番号</summary>
     public event Action<int>? ScrollToMessageRequested;
 
-    /// <summary>人の一覧の行。最後のメッセージが新しい順</summary>
+    /// <summary>やり取りのある会話。最後のメッセージが新しい順</summary>
     public ObservableCollection<ConversationItem> Conversations { get; } = [];
 
-    /// <summary>探した人。探す欄に入力があるときだけ出す</summary>
+    /// <summary>宛先に選べる人。人を選ぶ画面のときだけ出す。表示名の順</summary>
     public ObservableCollection<PersonItem> People { get; } = [];
 
     /// <summary>開いている会話のメッセージ。古いものが先</summary>
@@ -54,32 +51,34 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>DB モードでないことを知らせるか</summary>
     public bool IsUnavailableVisible => !IsAvailable;
 
-    /// <summary>探す欄の文字</summary>
+    /// <summary>宛先の人を選ぶ画面にしているか。「新しい会話」で入り、人を選ぶか「戻る」で出る</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSearch), nameof(IsConversationListVisible), nameof(IsEmptyNoticeVisible), nameof(IsPeopleEmptyNoticeVisible))]
-    public partial string SearchText { get; set; } = "";
+    [NotifyPropertyChangedFor(nameof(IsConversationListVisible), nameof(IsPeopleListVisible), nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
+    public partial bool IsPickingPerson { get; set; }
 
-    /// <summary>探す欄に入力があるか。あるときは、探した人を出し、人の一覧は隠す</summary>
-    public bool HasSearch => SearchText.Trim().Length > 0;
+    /// <summary>会話の一覧を出すか。人を選ぶ画面でないとき</summary>
+    public bool IsConversationListVisible => !IsPickingPerson;
 
-    /// <summary>人の一覧を出すか。探す欄に入力が無いとき</summary>
-    public bool IsConversationListVisible => !HasSearch;
+    /// <summary>人の一覧を出すか。人を選ぶ画面のとき</summary>
+    public bool IsPeopleListVisible => IsPickingPerson;
 
-    /// <summary>探したが、見つからなかったか</summary>
+    /// <summary>会話が 1 つも無いか。読み込みが済んで、1 件も無いとき</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPeopleEmptyNoticeVisible))]
-    public partial bool IsPeopleEmpty { get; set; }
-
-    /// <summary>人の一覧が空か。読み込みが済んで、1 件も無いとき、案内を出す</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEmptyNoticeVisible))]
+    [NotifyPropertyChangedFor(nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
     public partial bool IsConversationsEmpty { get; set; }
 
-    /// <summary>「会話はまだありません」の案内を出すか。人の一覧が空で、探す欄に入力が無いとき</summary>
-    public bool IsEmptyNoticeVisible => IsConversationsEmpty && !HasSearch;
+    /// <summary>宛先に選べる人が 1 人もいないか。読み込みが済んで、1 件も無いとき</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
+    public partial bool IsPeopleEmpty { get; set; }
 
-    /// <summary>「受け取り先を指定している人が見つかりません」の案内を出すか。探して、見つからなかったとき</summary>
-    public bool IsPeopleEmptyNoticeVisible => IsPeopleEmpty && HasSearch;
+    /// <summary>一覧が空のときの案内。空でないときは空文字</summary>
+    public string EmptyNoticeText => IsPickingPerson
+        ? (IsPeopleEmpty ? "宛先にできる人がいません。" : "")
+        : (IsConversationsEmpty ? "会話はまだありません。「新しい会話」から宛先を選んでください。" : "");
+
+    /// <summary>一覧が空のときの案内を出すか</summary>
+    public bool IsEmptyNoticeVisible => EmptyNoticeText.Length > 0;
 
     /// <summary>会話を開いているか。開いていないときは、右に案内を出す</summary>
     [ObservableProperty]
@@ -143,8 +142,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>ウィンドウが前面にあり、ページが見えているか</summary>
     private bool _visible;
 
-    /// <summary>探す欄の、入力のたびに進む番号。古い検索の結果を、使わないために使う</summary>
-    private int _searchVersion;
+    /// <summary>人を選ぶ画面に入るたびに進む番号。古い読み込みの結果を、使わないために使う</summary>
+    private int _pickVersion;
 
     /// <summary>会話を開くたびに進む番号。古い会話の読み込みの結果を、使わないために使う</summary>
     private int _openVersion;
@@ -155,7 +154,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>読み込みの失敗として、いま出しているエラーの文。読み込みの成功で、これだけを消す。出していなければ null</summary>
     private string? _syncErrorText;
 
-    /// <summary>ページを開いたときに呼ぶ。読み込みの通知を受け始め、人の一覧を読む</summary>
+    /// <summary>ページを開いたときに呼ぶ。読み込みの通知を受け始め、会話の一覧を読む</summary>
     /// <returns>始めたことを表すタスク</returns>
     public async Task InitializeAsync()
     {
@@ -202,7 +201,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         return OpenAsync(item.Id, 0, item.Name, item.Source.PeerCanReceive);
     }
 
-    /// <summary>探した人との会話を開く。まだ会話が無いときは、空の会話の画面を出す</summary>
+    /// <summary>選んだ人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。開けたら、会話の一覧へ戻る</summary>
     /// <param name="person">選んだ人</param>
     /// <returns>開く処理の完了を表すタスク</returns>
     [RelayCommand]
@@ -213,7 +212,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             var conversationId = await repository.FindDirectConversationAsync(person.Source.UserId);
             _highlightId = 0;
             await OpenAsync(conversationId, person.Source.UserId, person.DisplayName, peerCanReceive: true);
-            SearchText = "";
+            CancelPickPerson();
         }
         catch (DataFileException ex)
         {
@@ -269,43 +268,24 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <inheritdoc />
     public void Dispose() => Detach();
 
-    /// <summary>探す欄の文字が変わったら、少し待ってから、人を探す</summary>
-    /// <param name="value">新しい文字</param>
-    partial void OnSearchTextChanged(string value)
+    /// <summary>人を選ぶ画面に入る。宛先に選べる人を、開くたびに読み直す</summary>
+    /// <returns>読む処理の完了を表すタスク</returns>
+    [RelayCommand]
+    private async Task PickPersonAsync()
     {
-        var version = ++_searchVersion;
-        if (!HasSearch)
-        {
-            People.Clear();
-            IsPeopleEmpty = false;
-            return;
-        }
-
-        SearchAsync(value.Trim(), version).Forget();
-    }
-
-    /// <summary>人を探して、探した人の一覧に出す</summary>
-    /// <param name="prefix">表示名の先頭の文字</param>
-    /// <param name="version">探す欄の入力の番号。古い検索の結果は、使わない</param>
-    /// <returns>探す処理の完了を表すタスク</returns>
-    private async Task SearchAsync(string prefix, int version)
-    {
-        // 入力のたびに探さない。打ち終わりを少し待つ
-        await Task.Delay(SearchDelay);
-        if (version != _searchVersion)
-        {
-            return;
-        }
+        var version = ++_pickVersion;
+        People.Clear();
+        IsPeopleEmpty = false;
+        IsPickingPerson = true;
 
         try
         {
-            var found = await repository.SearchPeopleAsync(prefix, SearchCount);
-            if (version != _searchVersion)
+            var found = await repository.SearchPeopleAsync("", SearchCount);
+            if (version != _pickVersion)
             {
                 return;
             }
 
-            People.Clear();
             foreach (var person in found)
             {
                 People.Add(new PersonItem(person));
@@ -314,8 +294,17 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         }
         catch (DataFileException ex)
         {
-            Error.Show($"人を探せませんでした: {ex.Message}");
+            Error.Show($"宛先の人を読み込めませんでした: {ex.Message}");
         }
+    }
+
+    /// <summary>人を選ぶ画面から、会話の一覧へ戻る</summary>
+    [RelayCommand]
+    private void CancelPickPerson()
+    {
+        _pickVersion++;
+        IsPickingPerson = false;
+        People.Clear();
     }
 
     /// <summary>会話を開く。控えから出して、続けて DB から最新を読む</summary>

@@ -63,7 +63,10 @@
     align-items: center;
     min-height: 2.75rem;
     padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
     color: var(--accent);
+    font: inherit;
     text-decoration: none;
 }
 

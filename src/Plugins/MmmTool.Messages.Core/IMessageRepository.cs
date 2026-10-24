@@ -55,9 +55,9 @@ public interface IMessageRepository
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<int> FindConversationOfMessageAsync(int messageId, CancellationToken cancellationToken = default);
 
-    /// <summary>宛先に、表示名の前方一致で人を探す</summary>
-    /// <param name="prefix">表示名の先頭の文字</param>
-    /// <param name="count">探す最大の件数</param>
+    /// <summary>宛先に選べる人を、表示名の前方一致で読む</summary>
+    /// <param name="prefix">表示名の先頭の文字。空文字のときは、全員</param>
+    /// <param name="count">読む最大の件数</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>受け取り先を指定している人。自分も含む。表示名の順</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
