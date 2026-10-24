@@ -168,6 +168,15 @@
     - 画面の中身も引き継ぐなら、xterm.js の `addon-serialize` を SDK に足して、外す前に保存し、外した先で復元する。MIT ライセンスで、同梱の一覧にも足す。
   - 直す場所は、`CliSessionView`・`CliAssistPage` と、SDK の `PageDetacher`・`TerminalControl`
   - 登録は `AddNavigationPage` の `canDetach: true` で決める ([specs/tray-and-main.md](specs/tray-and-main.md))
+- メッセージの会話の切り替えで入れた「重ねたフェード」を、アプリ全体の切り替えに広げる。共通の処理にできるかを検討する
+  - 方向: 画面の一部の中身を入れ替えるとき、前の見た目を画像に撮って重ね、下で差し替えてから、薄くしながら新しい中身を濃くする。空の瞬間を見せない。
+  - 仕組みは、メッセージのページ (`MessagesPage.xaml.cs` の `PrepareSwitchAsync`・`CrossFadeAsync`・`FadeAsync`)と、ViewModel の `PrepareSwitchAsync`・`MessagesReplaced` にある。決めたことは [specs/messages.md](specs/messages.md) の「人の一覧」にある。
+  - 検討すること
+    - SDK の `MmmSdk.WinUI` に、部品 (切り替え用のコンテナ、または添付の仕組み)として置けるか
+    - 切り替えが要る画面の候補を洗い出す (別の中身に入れ替わる一覧・詳細・ページ)
+    - 長さと動きの形を共通の値にそろえる。いまは 500 ミリ秒
+    - 「視覚効果を減らす」の設定のとき、動きを止めるか
+    - 画像を撮る方式の限界 (撮れない部品・大きな画面のメモリ)
 
 ## ユーザーが用意するもの待ち
 
