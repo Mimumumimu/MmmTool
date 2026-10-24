@@ -37,7 +37,7 @@
     {
         @if (IsRegistered)
         {
-            <button type="button" class="primary" @onclick="UnsubscribeAsync" disabled="@_working">通知を解除</button>
+            <button type="button" class="primary" @onclick="() => _confirmingUnsubscribe = true" disabled="@_working">通知を解除</button>
         }
         else
         {
@@ -45,6 +45,13 @@
         }
     }
 </div>
+
+@if (_confirmingUnsubscribe)
+{
+    <ConfirmDialog Title="この端末の通知を解除しますか?" ConfirmText="解除"
+                   Message="解除すると、この端末には通知が届かなくなります。リマインダーやメッセージの受け取り先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
+                   OnConfirm="ConfirmUnsubscribeAsync" OnCancel="() => _confirmingUnsubscribe = false" />
+}
 
 @code {
     /// <summary>この端末が登録した送信先の番号を覚える、この端末の値の名前。通知の画面と同じ。</summary>
@@ -59,6 +66,7 @@
     private string? _publicKey;
     private bool _loaded;
     private bool _working;
+    private bool _confirmingUnsubscribe;
     private bool _watching;
     private string? _result;
     private bool _resultIsError;
@@ -183,6 +191,13 @@
         await Browser.RememberAsync(ChannelIdKey, result.Value!.Id.ToString(CultureInfo.InvariantCulture));
         ShowResult("この端末を登録しました。", isError: false);
         await LoadAsync();
+    }
+
+    /// <summary>確認で「解除」が押されたとき、確認を閉じて、解除を行う。</summary>
+    private async Task ConfirmUnsubscribeAsync()
+    {
+        _confirmingUnsubscribe = false;
+        await UnsubscribeAsync();
     }
 
     /// <summary>この端末の宛先を捨てて、登録を解除する。</summary>

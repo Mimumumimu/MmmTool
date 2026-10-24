@@ -2,8 +2,6 @@
 .screen {
     --band-highest: #c62828;
     --band-high: #d97200;
-    --danger-fill: #b3261e;
-    --danger-fill-text: #ffffff;
     /* 実施日。重要度の赤・橙と区別するため、固定の紫にする */
     --event: #6f2da8;
     --event-text: #ffffff;
@@ -13,12 +11,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-    .screen,
-    .dialog {
+    .screen {
         --band-highest: #ef6a62;
         --band-high: #f0a04b;
-        --danger-fill: #f2b8b5;
-        --danger-fill-text: #601410;
         --event: #b58cf0;
         --event-text: #1a1030;
         --event-bg: #3a2d4d;
@@ -304,49 +299,6 @@ details[open] > summary.head::after {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     color: var(--accent-text);
     font-weight: 600;
-}
-
-.dialog-back {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.5);
-}
-
-.dialog {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 22rem;
-    padding: 1.25rem;
-    border-radius: 1rem;
-    background: var(--surface);
-    color: var(--text);
-}
-
-.dialog h2 {
-    margin: 0 0 0.5rem;
-    font-size: 1.05rem;
-}
-
-.dialog-target {
-    margin: 0 0 1rem;
-    color: var(--muted);
-    overflow-wrap: anywhere;
-}
-
-.dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-.danger-fill {
-    border-color: var(--danger-fill);
-    background: var(--danger-fill);
-    color: var(--danger-fill-text);
 }
 
 .visually-hidden {

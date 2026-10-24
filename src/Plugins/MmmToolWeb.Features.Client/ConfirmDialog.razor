@@ -1,0 +1,43 @@
+<div class="dialog-back">
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+        <h2 id="confirm-title">@Title</h2>
+        @if (!string.IsNullOrEmpty(Target))
+        {
+            <p class="dialog-target">@Target</p>
+        }
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <p class="dialog-message">@Message</p>
+        }
+        <div class="dialog-actions">
+            <button type="button" @onclick="OnCancel">キャンセル</button>
+            <button type="button" class="danger-fill" @onclick="OnConfirm">@ConfirmText</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>問い。「〜しますか?」の形で渡す。</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>実行するボタンの名前。操作の名前をそのまま渡す。</summary>
+    [Parameter, EditorRequired]
+    public string ConfirmText { get; set; } = "";
+
+    /// <summary>対象の名前。問いの下に出す。無いときは出さない。</summary>
+    [Parameter]
+    public string? Target { get; set; }
+
+    /// <summary>実行すると何が起きるかの説明。無いときは出さない。</summary>
+    [Parameter]
+    public string? Message { get; set; }
+
+    /// <summary>実行するボタンを押したときの処理。ダイアログを閉じるのは呼び出し側。</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnConfirm { get; set; }
+
+    /// <summary>キャンセルを押したときの処理。ダイアログを閉じるのは呼び出し側。</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnCancel { get; set; }
+}
