@@ -668,7 +668,7 @@
 - 初期値 (作業管理 = 機能番号 2)は、状態 3 件・進捗度 11 件・優先度 3 件
   - 作成用のスクリプトが入れる
   - 中身と使い方は [work-items.md](work-items.md) の「コードマスタ」
-- 名前は、管理ツール MmmToolAdmin の「選択肢」から編集できる。数値・表示順・選択肢の追加と外す操作は、画面から編集しない。詳細は [mmmtooladmin.md](mmmtooladmin.md)
+- 名前は、管理ツール MmmToolAdmin の「共通設定」の「選択肢」から編集できる。数値・表示順・選択肢の追加と外す操作は、画面から編集しない。詳細は [mmmtooladmin.md](mmmtooladmin.md)
   - 直すときは SQL で直す (外すときは `IsDeleted` を 1 にして、`DELETE` はしない)
   - 列の番号を指す側 (`WorkItem` の `PriorityCodeNo` など)に、外部キーは付けない (ほかの表と同じ)
   - 存在する番号かどうかは、アプリが検査する

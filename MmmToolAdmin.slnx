@@ -18,6 +18,11 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/CommonSettings/">
+    <Project Path="src/Plugins/MmmToolAdmin.CommonSettings/MmmToolAdmin.CommonSettings.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/Plugins/CodeMaster/">
     <Project Path="src/Plugins/MmmToolAdmin.CodeMaster/MmmToolAdmin.CodeMaster.csproj">
       <Platform Project="x64" />

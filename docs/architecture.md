@@ -25,7 +25,8 @@
 | `src/App/MmmToolAdmin` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーモードの管理ツールのホストで、別のソリューション `MmmToolAdmin.slnx` にある。いまは機能を持たない雛形で、機能は `AddFeaturePlugin` の 1 行で足す。仕様は [specs/mmmtooladmin.md](specs/mmmtooladmin.md) |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)と、接続の設定画面を開く口 `IConnectionSettingsDialogService`・登録 `AddConnectionSettingsDialog`・DB を読む画面の ViewModel の基底 `DatabaseViewModelBase`・読み込みの失敗の帯 `ConnectionErrorBar` を持ち、MmmTool・MmmBatch・MmmToolAdmin で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
 | `src/Data/MmmToolAdmin.Data.SqlServer` | `net10.0` | MmmToolAdmin の DB の登録の入口 `AddMmmToolAdminSqlServer`。ログインとパスワードの保存名は MmmTool と同じにして、ユーザーと登録用コードの保存先を登録する |
-| `src/Plugins/MmmToolAdmin.CodeMaster` | `net10.0-windows10.0.19041.0` | MmmToolAdmin の機能「選択肢」で、コードマスタの名前を編集できる区分を並べるページを持つ。並べる部品と編集ウィンドウは、`MmmTool.CodeMaster` と共有する。編集できる区分は、プラグインに 1 行ずつ足す |
+| `src/Plugins/MmmToolAdmin.CommonSettings` | `net10.0-windows10.0.19041.0` | MmmToolAdmin の機能「共通設定」で、各機能が登録した設定の部品を並べるページを持つ。個々の部品を知らない |
+| `src/Plugins/MmmToolAdmin.CodeMaster` | `net10.0-windows10.0.19041.0` | 共通設定に並ぶ設定の部品「選択肢」で、コードマスタの名前を編集できる区分を並べる。並べる部品と編集ウィンドウは、`MmmTool.CodeMaster` と共有する。編集できる区分は、プラグインに 1 行ずつ足す |
 | `src/Plugins/MmmToolAdmin.Users` | `net10.0-windows10.0.19041.0` | MmmToolAdmin の機能「ユーザー」で、ユーザーの一覧と、登録用コードの発行のページを持つ |
 | `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmTool には参照させない。MmmBatch が使う DB の実装で、`ReminderSendStatus` と、送る対象を読む問い合わせ、メッセージの通知の状態 `MessageDelivery` の読み出しと更新を持つ |
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)を持ち、Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |

@@ -56,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Plugins\MmmToolAdmin.Users\MmmToolAdmin.Users.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmToolAdmin.CommonSettings\MmmToolAdmin.CommonSettings.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmToolAdmin.CodeMaster\MmmToolAdmin.CodeMaster.csproj" />
     <ProjectReference Include="..\..\Data\MmmToolAdmin.Data.SqlServer\MmmToolAdmin.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />

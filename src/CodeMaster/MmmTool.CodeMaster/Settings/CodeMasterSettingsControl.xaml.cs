@@ -11,14 +11,6 @@ public sealed partial class CodeMasterSettingsControl : UserControl
     /// <summary>部品の ViewModel</summary>
     public CodeMasterSettingsViewModel ViewModel { get; }
 
-    /// <summary>「選択肢」の見出しを出すか</summary>
-    /// <remarks>設定ページでは、区切りの見出しとして出す。ページの見出しが「選択肢」のとき (管理ツール)は、重ねて出さないよう false にする。</remarks>
-    public bool ShowHeader
-    {
-        get => HeaderText.Visibility == Visibility.Visible;
-        set => HeaderText.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
-    }
-
     /// <summary>部品を作る</summary>
     /// <param name="viewModel">部品の ViewModel</param>
     public CodeMasterSettingsControl(CodeMasterSettingsViewModel viewModel)

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.WinUI.Connection;
 using MmmToolAdmin.CodeMaster;
+using MmmToolAdmin.CommonSettings;
 using MmmToolAdmin.Data.SqlServer;
 using MmmToolAdmin.Shell;
 using MmmToolAdmin.Shell.Main;
@@ -90,7 +91,8 @@ public partial class App : Application
 
         // 機能の登録。足すときは、ここに 1 行足すだけで、サイドバーの項目は機能が自分で登録する
         services.AddFeaturePlugin<UsersPlugin>(order: 1);
-        services.AddFeaturePlugin<CodeMasterPlugin>(order: 2);
+        services.AddFeaturePlugin<CommonSettingsPlugin>(order: 2);
+        services.AddFeaturePlugin<CodeMasterPlugin>(order: 3);
 
         services.AddSingleton<MainWindow>();
     }

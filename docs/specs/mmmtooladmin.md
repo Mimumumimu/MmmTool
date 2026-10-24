@@ -22,6 +22,8 @@
 | `src/App/MmmToolAdmin` | ホスト。Host の構築・起動と終了の順序・メインウィンドウ (サイドバーを載せる)を持つ。個々の機能の名前を持たない |
 | `src/Data/MmmToolAdmin.Data.SqlServer` | DB の登録の入口 `AddMmmToolAdminSqlServer`。接続の設定・ユーザー・登録用コードの保存先を登録する |
 | `src/Plugins/MmmToolAdmin.Users` | 機能「ユーザー」。ページ `UsersPage` と ViewModel `UsersViewModel` を持つ |
+| `src/Plugins/MmmToolAdmin.CommonSettings` | 機能「共通設定」。ページ `CommonSettingsPage` を持ち、各機能が登録した区分を並べる |
+| `src/Plugins/MmmToolAdmin.CodeMaster` | 共通設定に並ぶ設定の部品「選択肢」を登録する。ページは持たない |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | MmmTool・MmmBatch と共有する。接続の設定画面・その開き口・DB を読む画面の基底 `DatabaseViewModelBase`・読み込みの失敗の帯 `ConnectionErrorBar` |
 
 - 機能は、`src/Plugins/MmmToolAdmin.<機能>` のプラグインと、`App.ConfigureServices` の `AddFeaturePlugin<<機能>Plugin>(order: n)` の 1 行で足す
@@ -75,13 +77,26 @@
   - メッセージ本体は消さない。有効に戻れば、会話に残っていて、見える。
   - グループの会話の扱いは、グループを作るときに決める。作る前でも、メッセージの保存は、グループでは、無効の人にだけ通知の状態を書かない形にしてある。
 
-## 選択肢
+## 共通設定
+
+- 全員で共通の設定を編集するページ。左のサイドバーの項目名とページの見出しは「共通設定」
+  - 「設定」だけの名前にしない (サイドバーの下の歯車の「設定」が、アプリ自体の設定を指す標準の位置と重なるため)
+  - 「マスター管理」「選択肢」のような、中身の種類の名前にしない (種類の違う設定が増えても、名前が合うようにするため)
+- ページは、見出し付きの設定の部品を縦に並べる。MmmTool の設定ページと同じ形で、部品は SDK の `AddSettingsSection` で登録する。
+  - ページを持つのは `MmmToolAdmin.CommonSettings`。個々の部品を知らない。
+  - 部品は、足す機能のプラグインが 1 行で登録する。サイドバーの項目は増えない。
+  - 部品の並びは、`AddFeaturePlugin` の `order` の順
+- 共通設定の中の部品を、サイドバーの子の項目にしない (部品が増えるたびに、サイドバーが長くなるため)
+
+### 選択肢
+
+共通設定に並ぶ設定の部品の 1 つ。
 
 - コードマスタ (表 `CodeMaster`で、全員で共通)の名前を、サーバーモードで編集する ([work-items.md](work-items.md) の「コードマスタ」)
   - 編集できるのは名前だけ。数値・表示順・選択肢の追加と外す操作は、画面から行わない。
   - 保存先は `SqlServerCodeMasterRepository` で、名前の列だけを書き、更新日時を DB の時計で進める。更新者は 0
   - 保存は、複数の名前を 1 つのトランザクションで行う
-- 並べる部品 `CodeMasterSettingsControl` と編集ウィンドウは、MmmTool の設定ページの「選択肢」と同じものを使う。詳細は [settings.md](settings.md) の「選択肢」。ページの見出しが「選択肢」なので、部品の見出しは出さない。
+- 並べる部品 `CodeMasterSettingsControl` と編集ウィンドウは、MmmTool の設定ページの「選択肢」と同じものを使う。詳細は [settings.md](settings.md) の「選択肢」。見出し「選択肢」も、同じものが出る。
 - 編集できる区分は、プラグイン `MmmToolAdmin.CodeMaster` に 1 行ずつ足す。作業管理の「進捗度の名前」は、`WorkCodes.ProgressNameEditor` を使い、MmmTool の設定ページと同じ定義にする。
 - MmmTool は、DB モードでは、名前を編集しない。保存先は、編集できない `UnavailableCodeMasterRepository` のままにする。DB モードの名前は、管理ツールだけが直す。
 - 管理ツールの `App.xaml` に、共有の部品が使う見出しのスタイル `SettingsSectionHeaderStyle` と、入力欄の標準のスタイルを持つ。MmmTool の `App.xaml` と同じ内容。

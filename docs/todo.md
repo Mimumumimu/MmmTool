@@ -5,7 +5,7 @@
 ## 作業管理
 
 - 設計は [specs/work-items.md](specs/work-items.md) にある
-- コードマスタ ([specs/work-items.md](specs/work-items.md) の「コードマスタ」): 残りは、管理ツール `MmmToolAdmin` の「選択肢」での、選択肢の追加・外す・並べ替え ([specs/mmmtooladmin.md](specs/mmmtooladmin.md))
+- コードマスタ ([specs/work-items.md](specs/work-items.md) の「コードマスタ」): 残りは、管理ツール `MmmToolAdmin` の「共通設定」の「選択肢」での、選択肢の追加・外す・並べ替え ([specs/mmmtooladmin.md](specs/mmmtooladmin.md))
   - 名前の編集は、MmmToolAdmin にある。ローカルモードの名前の編集は、MmmTool の設定ページの「選択肢」にある。
 - 後で決める: リーダー的な人の更新の権限 (SQL Server の実装のとき)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: Backlog との連携 (状態・優先度・進捗度を数値で対応づける)

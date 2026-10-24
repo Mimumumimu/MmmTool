@@ -30,6 +30,10 @@ echo [git submodule update]
 git submodule update --init --recursive
 if errorlevel 1 goto :failed
 
+echo [dotnet build MmmToolAll]
+dotnet build .\MmmToolAll.slnx
+if errorlevel 1 goto :failed
+
 if /i "%TARGET%"=="all"   goto :tool
 if /i "%TARGET%"=="tool"  goto :tool
 goto :after_tool
