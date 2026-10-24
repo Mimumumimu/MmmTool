@@ -1,7 +1,10 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Utilities;
@@ -20,11 +23,20 @@ public sealed partial class MessagesPage : Page
     /// <summary>メッセージの一覧が一番下に近い、と見なす残りの高さ (DIP)</summary>
     private const double NearBottomOffset = 120;
 
+    /// <summary>会話を切り替えるとき、前の会話を薄くしながら、新しい会話を濃くする、重ねたフェードの長さ</summary>
+    private static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>フェードの変え終わりの通知を待つ、時間への上乗せ。通知が来ないときに打ち切る</summary>
+    private static readonly TimeSpan FadeTimeout = TimeSpan.FromMilliseconds(200);
+
     /// <summary>ページが載っている画面。見える・見えないの変化を受けるため。載っていない間は null</summary>
     private XamlRoot? _root;
 
     /// <summary>メッセージの一覧のスクロールの枠。まだ見つけていなければ null</summary>
     private ScrollViewer? _scroller;
+
+    /// <summary>会話を切り替えるたびに進む番号。古い切り替えのフェードの後始末を、使わないために使う</summary>
+    private int _switchVersion;
 
     /// <summary>ページの ViewModel</summary>
     public MessagesViewModel ViewModel { get; }
@@ -40,6 +52,8 @@ public sealed partial class MessagesPage : Page
         ViewModel.Post = action => DispatcherQueue.TryEnqueue(() => action());
         ViewModel.ScrollToEndRequested += ScrollToEnd;
         ViewModel.ScrollToMessageRequested += ScrollToMessage;
+        ViewModel.PrepareSwitchAsync = PrepareSwitchAsync;
+        ViewModel.MessagesReplaced += OnMessagesReplaced;
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         Loaded += (_, _) =>
@@ -83,7 +97,7 @@ public sealed partial class MessagesPage : Page
     /// <summary>会話の一覧の行を押したら、会話を開く</summary>
     /// <param name="sender">一覧</param>
     /// <param name="e">押した行の情報</param>
-    /// <remarks>開いている行の印は、<see cref="MessagesViewModel.SelectedConversation"/> が決める。開いている行を押したときも、読み直す。</remarks>
+    /// <remarks>開いている行の印は、<see cref="MessagesViewModel.SelectedConversation"/> が決める。開いている行を押したときは、何もしない。</remarks>
     private void OnConversationClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is ConversationItem item)
@@ -180,6 +194,92 @@ public sealed partial class MessagesPage : Page
 
         MessageList.ScrollIntoView(ViewModel.Messages[^1]);
     });
+
+    /// <summary>会話の切り替えの準備をする。前の会話の見た目を撮って上に重ね、下の一覧を透明にする</summary>
+    /// <returns>準備の完了を表すタスク</returns>
+    /// <remarks>
+    /// 撮った画像は、フェードが終わるまで残す。切り替えが続けて来たときは、撮り直さず、残っている画像をそのまま使う。
+    /// 一覧がまだ見えていない (幅か高さが 0)ときは、撮らない。
+    /// </remarks>
+    private async Task PrepareSwitchAsync()
+    {
+        var version = ++_switchVersion;
+        if (SwitchSnapshot.Source is null && MessageList.IsLoaded && MessageList.ActualWidth > 0 && MessageList.ActualHeight > 0)
+        {
+            var bitmap = new RenderTargetBitmap();
+            await bitmap.RenderAsync(MessageList);
+            if (version != _switchVersion)
+            {
+                return;
+            }
+            SwitchSnapshot.Source = bitmap;        }
+
+        SetOpacity(SwitchSnapshot, 1f);
+        SetOpacity(MessageList, 0f);
+    }
+
+    /// <summary>部品の濃さを、動きをつけずに、すぐ指定の値にする。動いているフェードは止める</summary>
+    /// <param name="target">濃さを変える部品</param>
+    /// <param name="value">濃さ。0 が透明、1 が不透明</param>
+    private static void SetOpacity(UIElement target, float value)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(target);
+        visual.StopAnimation("Opacity");
+        visual.Opacity = value;
+    }
+
+    /// <summary>部品の濃さを、いまの濃さから指定の濃さまで、少しずつ変える</summary>
+    /// <param name="target">濃さを変える部品</param>
+    /// <param name="to">変えたあとの濃さ。0 が透明、1 が不透明</param>
+    /// <param name="duration">変える時間</param>
+    /// <returns>変え終わったことを表すタスク</returns>
+    /// <remarks>
+    /// 部品の <c>Opacity</c> ではなく、描画の層 (<c>Visual</c>)の濃さを動かす。途中で別のフェードを始めても、いまの濃さから始まる。
+    /// 変え終わりの通知が来ないときのため、時間に少し足した長さで打ち切る。
+    /// </remarks>
+    private static Task FadeAsync(UIElement target, float to, TimeSpan duration)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(target);
+        var compositor = visual.Compositor;
+        var animation = compositor.CreateScalarKeyFrameAnimation();
+        animation.InsertKeyFrame(1f, to);
+        animation.Duration = duration;
+
+        var completion = new TaskCompletionSource();
+        var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+        visual.StartAnimation("Opacity", animation);
+        batch.End();
+        batch.Completed += (_, _) => completion.TrySetResult();
+        return Task.WhenAny(completion.Task, Task.Delay(duration + FadeTimeout));
+    }
+
+    /// <summary>メッセージ欄の中身を差し替えたあと、一番下へ合わせてから、重ねたフェードで切り替える</summary>
+    /// <remarks>配置が終わるのを待ってから、スクロールする。配置の前だと、一番下の行が、まだ作られていないため。</remarks>
+    private void OnMessagesReplaced() => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => CrossFadeAsync().Forget());
+
+    /// <summary>一番下へ合わせ、撮っておいた前の会話を薄くしながら、下の新しい会話を濃くする</summary>
+    /// <returns>フェードの完了を表すタスク</returns>
+    private async Task CrossFadeAsync()
+    {
+        if (ViewModel.Messages.Count > 0)
+        {
+            MessageList.UpdateLayout();
+            MessageList.ScrollIntoView(ViewModel.Messages[^1]);
+            MessageList.UpdateLayout();
+            MessageList.ScrollIntoView(ViewModel.Messages[^1]);
+        }
+
+        var version = _switchVersion;
+        var fadeIn = FadeAsync(MessageList, 1f, FadeDuration);
+        var fadeOut = FadeAsync(SwitchSnapshot, 0f, FadeDuration);
+        await Task.WhenAll(fadeIn, fadeOut);
+
+        // 次の切り替えが始まっていたら、その切り替えが撮った画像を消さない
+        if (version == _switchVersion)
+        {
+            SwitchSnapshot.Source = null;
+        }
+    }
 
     /// <summary>指定のメッセージまでスクロールする。通知を押して開いたとき</summary>
     /// <param name="messageId">メッセージの番号</param>

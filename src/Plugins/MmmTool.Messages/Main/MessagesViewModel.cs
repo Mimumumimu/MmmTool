@@ -34,6 +34,13 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>通知を押して開いたメッセージの位置までスクロールしてほしい。引数はメッセージの番号</summary>
     public event Action<int>? ScrollToMessageRequested;
 
+    /// <summary>会話の切り替えの準備をするタスクを返す入れ物。画面が、前の会話の見た目を撮って重ねるものに替える</summary>
+    /// <remarks>会話を切り替え始めたときに呼ぶ。メッセージの差し替えは、このタスクの完了を待ってから行う。撮る前に差し替えると、前の会話が写らないため。</remarks>
+    public Func<Task> PrepareSwitchAsync { get; set; } = () => Task.CompletedTask;
+
+    /// <summary>メッセージ欄の中身を丸ごと差し替えた直後。画面が、一番下へ合わせてから見えるようにするために受ける</summary>
+    public event Action? MessagesReplaced;
+
     /// <summary>やり取りのある会話。最後のメッセージが新しい順</summary>
     public ObservableCollection<ConversationItem> Conversations { get; } = [];
 
@@ -147,6 +154,10 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendCommand))]
     public partial bool IsSending { get; set; }
+
+    /// <summary>メッセージ欄に、読み込み中の仮の行を出すか。端末の控えが無い会話を、DB から読んでいる間だけ</summary>
+    [ObservableProperty]
+    public partial bool IsSkeletonVisible { get; set; }
 
     /// <summary>最新でない可能性を知らせるか。読み込みに失敗して、端末の控えだけを出しているとき</summary>
     [ObservableProperty]
@@ -300,9 +311,15 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>人の一覧から、会話を開く</summary>
     /// <param name="item">選んだ行</param>
     /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>すでに開いている会話の行を押したときは、何もしない。メッセージの表示と、入力中の本文・返信先を、そのまま残すため。</remarks>
     public Task OpenAsync(ConversationItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
+
+        if (IsConversationOpen && _conversationId == item.Id)
+        {
+            return Task.CompletedTask;
+        }
 
         _highlightId = 0;
         return OpenAsync(item.Id, 0, item.Name, item.Source.PeerCanReceive);
@@ -435,26 +452,32 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         IsStale = false;
         Body = "";
         ReplyTo = null;
-        Messages.Clear();
         _hasMore = false;
         Error.Clear();
         sync.SetViewState(conversationId, _visible);
+        IsSkeletonVisible = false;
+        var preparing = PrepareSwitchAsync();
         if (conversationId == 0)
         {
+            await preparing;
+            if (version == _openVersion)
+            {
+                ReplaceMessages([]);
+            }
             return;
         }
 
-        // まず控えから出す
+        // まず控えから出す。前の会話の見た目を撮り終え、控えも読み終えるまで待ち、1 度に差し替える。空の画面を挟まない
         var cached = await sync.ReadCachedMessagesAsync(conversationId);
+        await preparing;
         if (version != _openVersion)
         {
             return;
         }
-        foreach (var message in cached)
-        {
-            Messages.Add(ToItem(message));
-        }
-        ScrollToEndRequested?.Invoke(false);
+        ReplaceMessages(cached);
+
+        // 控えが無いときだけ、読み終えるまで仮の行を出す
+        IsSkeletonVisible = cached.Count == 0;
 
         try
         {
@@ -464,12 +487,14 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
                 return;
             }
 
+            IsSkeletonVisible = false;
             MergeNewest(newest.Take(MessageSync.PageSize).Reverse().ToList(), newest.Count > MessageSync.PageSize);
             await sync.WriteCachedMessagesAsync(conversationId, [.. Messages.Select(item => item.Source)]);
         }
         catch (DataFileException ex)
         {
             // 読めないときは、控えを、読むだけで出す
+            IsSkeletonVisible = false;
             IsStale = Messages.Count > 0;
             Error.Show($"会話を読み込めませんでした: {ex.Message}");
             return;
@@ -503,28 +528,55 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     {
         if (Messages.Count > 0 && fetched.Count > 0 && fetched[0].Id <= Messages[^1].Id)
         {
-            // 控えと重なる。番号で突き合わせて、取り込む
-            var byId = Messages.ToDictionary(item => item.Id, item => item.Source);
+            // 控えと重なる。番号で突き合わせて、変わった行だけ差し替え、無い行だけ番号の順に挿す (全部を消して並べ直さない)
             foreach (var message in fetched)
             {
-                byId[message.Id] = message;
-            }
-            Messages.Clear();
-            foreach (var message in byId.Values.OrderBy(message => message.Id))
-            {
-                Messages.Add(ToItem(message));
+                UpsertMessage(message);
             }
             _hasMore = pageHasMore || Messages.Count > fetched.Count;
             return;
         }
 
         // 控えと重ならない。間が抜けるので、控えを捨てて、読んだページだけにする
+        ReplaceMessages(fetched);
+        _hasMore = pageHasMore;
+    }
+
+    /// <summary>開いている会話のメッセージを、丸ごと差し替える。差し替えたあと、画面に知らせる</summary>
+    /// <param name="items">差し替え後のメッセージ。古いものが先</param>
+    private void ReplaceMessages(IEnumerable<ChatMessage> items)
+    {
         Messages.Clear();
-        foreach (var message in fetched)
+        foreach (var message in items)
         {
             Messages.Add(ToItem(message));
         }
-        _hasMore = pageHasMore;
+        MessagesReplaced?.Invoke();
+    }
+
+    /// <summary>メッセージを 1 件、番号の順を保って取り込む。あれば、新しいときだけ差し替え、無ければ挿す</summary>
+    /// <param name="message">取り込むメッセージ</param>
+    /// <returns>新しい行を挿したとき true。既にある行の更新や、古くて捨てたときは false</returns>
+    private bool UpsertMessage(ChatMessage message)
+    {
+        var index = 0;
+        while (index < Messages.Count && Messages[index].Id < message.Id)
+        {
+            index++;
+        }
+
+        if (index < Messages.Count && Messages[index].Id == message.Id)
+        {
+            var current = Messages[index].Source;
+            if (message.UpdatedAt >= current.UpdatedAt && !message.Equals(current))
+            {
+                Messages[index] = ToItem(message);
+            }
+            return false;
+        }
+
+        Messages.Insert(index, ToItem(message));
+        return true;
     }
 
     /// <summary>読み込みを 1 回終えたとき、人の一覧とエラーを画面に合わせる</summary>
@@ -567,19 +619,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         var added = false;
         foreach (var message in mine.OrderBy(message => message.Id))
         {
-            var index = Messages.ToList().FindIndex(item => item.Id == message.Id);
-            if (index >= 0)
-            {
-                if (message.UpdatedAt >= Messages[index].Source.UpdatedAt)
-                {
-                    Messages[index] = ToItem(message);
-                }
-            }
-            else
-            {
-                Messages.Add(ToItem(message));
-                added = true;
-            }
+            added |= UpsertMessage(message);
         }
 
         if (added)

@@ -266,19 +266,44 @@
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
-                    <ListView
-                        x:Name="MessageList"
-                        ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
-                        ItemsSource="{x:Bind ViewModel.Messages}"
-                        Loaded="OnMessageListLoaded"
-                        ScrollViewer.VerticalScrollBarVisibility="Visible"
-                        SelectionMode="None">
-                        <ListView.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsStackPanel ItemsUpdatingScrollMode="KeepItemsInView" />
-                            </ItemsPanelTemplate>
-                        </ListView.ItemsPanel>
-                    </ListView>
+                    <Grid>
+                        <!-- 行ごとの出現アニメーションは切る。差し替えのたびに、全部の行が透明から現れて、空に見えるため -->
+                        <ListView
+                            x:Name="MessageList"
+                            ItemTemplateSelector="{StaticResource MessageTemplateSelector}"
+                            ItemsSource="{x:Bind ViewModel.Messages}"
+                            Loaded="OnMessageListLoaded"
+                            ScrollViewer.VerticalScrollBarVisibility="Visible"
+                            SelectionMode="None">
+                            <ListView.ItemContainerTransitions>
+                                <TransitionCollection />
+                            </ListView.ItemContainerTransitions>
+                            <ListView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsStackPanel ItemsUpdatingScrollMode="KeepItemsInView" />
+                                </ItemsPanelTemplate>
+                            </ListView.ItemsPanel>
+                        </ListView>
+
+                        <!-- 会話を切り替えるとき、前の会話の見た目を撮って重ねる画像。下で中身を差し替えながら、薄くして消す -->
+                        <Image
+                            x:Name="SwitchSnapshot"
+                            IsHitTestVisible="False"
+                            Stretch="Fill" />
+
+                        <!-- 端末の控えが無い会話を読んでいる間の仮の行。下から、相手・自分の順に並べる -->
+                        <StackPanel
+                            Margin="16,0,16,16"
+                            VerticalAlignment="Bottom"
+                            IsHitTestVisible="False"
+                            Spacing="12"
+                            Visibility="{x:Bind ViewModel.IsSkeletonVisible, Mode=OneWay}">
+                            <Border Width="260" Height="44" HorizontalAlignment="Left" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}" CornerRadius="8" />
+                            <Border Width="200" Height="32" HorizontalAlignment="Right" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}" CornerRadius="8" />
+                            <Border Width="320" Height="56" HorizontalAlignment="Left" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}" CornerRadius="8" />
+                            <Border Width="180" Height="32" HorizontalAlignment="Right" Background="{ThemeResource SolidBackgroundFillColorTertiaryBrush}" CornerRadius="8" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <TextBlock
