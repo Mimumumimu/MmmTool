@@ -1,4 +1,4 @@
-/* 機能の画面の上のバー。スクロールしても見えるように貼り付け、ホーム画面のアプリで、ノッチに隠れないように安全な余白を取る */
+/* 機能の画面の上のバー。スクロールしても見えるように貼り付け、ホーム画面のアプリで、ノッチに隠れないように安全な余白を取る。上の余白を 1rem にして、iOS が画面の上端に重ねるぼかしから、文字を少し離す */
 .bar {
     position: sticky;
     top: 0;
@@ -7,7 +7,7 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     margin: 0 -1rem;
-    padding: calc(env(safe-area-inset-top) + 0.25rem) 0.5rem 0.25rem 0.5rem;
+    padding: calc(env(safe-area-inset-top) + 1rem) 0.5rem 0.25rem 0.5rem;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
 }

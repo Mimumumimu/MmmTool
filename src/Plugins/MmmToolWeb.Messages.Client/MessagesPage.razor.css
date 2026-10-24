@@ -54,6 +54,13 @@
     box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 0.3);
 }
 
+/* iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (dvh)が画面の高さ (lvh)より縮んだまま戻らないことがある。縮んだ分より下は描かれないので、下へは動かせない。縮んだ分は、すでにホームバーの下に当たるので、余白 (ホームバーの余白と 1rem)から引く。縮んでいなければ、差は 0 */
+@media (display-mode: standalone) {
+    .fab {
+        bottom: max(0px, env(safe-area-inset-bottom) + 1rem - (100lvh - 100dvh));
+    }
+}
+
 /* 宛先を選ぶ画面。画面全体を覆う。中は、一覧の画面と同じ幅と余白 (.screen)で、上のバーも同じ部品 (FeatureHeader)を使う */
 .sheet {
     position: fixed;

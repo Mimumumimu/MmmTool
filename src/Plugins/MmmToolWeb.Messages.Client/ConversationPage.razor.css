@@ -27,8 +27,9 @@
     flex: 1;
     min-height: 0;
     margin: 0;
-    /* 左右の余白は、強調の枠が、スクロールの枠に切られない広さにする */
-    padding: 0.75rem 0.25rem;
+    /* 左右の余白は、強調の枠と、右にはみ出して置く「返信」(.meta .reply の負の余白)が、スクロールの枠に切られず、横スクロールも出ない広さにする */
+    padding: 0.75rem 0.5rem;
+    overflow-x: hidden;
     overflow-y: auto;
     list-style: none;
     overscroll-behavior: contain;
@@ -130,6 +131,13 @@
     padding: 0.5rem 0 calc(env(safe-area-inset-bottom) + 0.5rem);
     border-top: 1px solid var(--border);
     background: var(--bg);
+}
+
+/* iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (dvh)が画面の高さ (lvh)より縮んだまま戻らないことがある。縮んだ分より下は描かれないので、下へは動かせない。縮んだ分は、すでにホームバーの下に当たるので、余白 (ホームバーの余白と 0.5rem)から引く。縮んでいなければ、差は 0 */
+@media (display-mode: standalone) {
+    .composer {
+        padding-bottom: max(0px, env(safe-area-inset-bottom) + 0.5rem - (100lvh - 100dvh));
+    }
 }
 
 .notice {
