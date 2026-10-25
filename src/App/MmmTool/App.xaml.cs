@@ -23,7 +23,6 @@ using MmmTool.Data.SqlServer;
 using MmmTool.Data.SqlServer.Notes;
 using MmmTool.Features.Database;
 using MmmTool.Features.Database.Choice;
-using MmmTool.Features.Debugging;
 using MmmTool.Features.Settings;
 using MmmTool.Features.Users;
 using MmmTool.Links;
@@ -125,7 +124,6 @@ public partial class App : Application
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();
 
-        services.AddDebugging();
         services.AddSettings();
     }
 

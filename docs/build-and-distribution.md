@@ -130,7 +130,6 @@
     - アプリごとに違う値は、各 csproj に書く: `DistributionFolderName` (配布物のフォルダ名で、MmmTool は `MmmTool_$(Version)`)・`DistributionDocument` (並べる説明書で、MmmTool だけ)・`LICENSE.txt` の `None` の項目・アイコンなど
     - 最終形にどう近づくか: 配布の仕組みが 1 か所になり、アプリを足しても写さずに済む
     - SDK ではなくこのリポジトリの `build/` に置くのは、アプリの配布の形がこのリポジトリのアプリに共通の決まりで、SDK の責務ではないため
-- リリースビルドには DEBUG ページ (コード・XAML)を含めない (csproj の条件付き `Remove`)
 - WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Cache`(消しても作り直されるもの)・`Lib`(パッケージの DLL)の 4 つだけにする (仕組みは下の「EXE の横のフォルダと DLL」)
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く

@@ -65,9 +65,7 @@
     - 外したウィンドウから開くダイアログは、最後に操作したウィンドウの上に出る ([dialogs.md](../../external/MmmSdk/docs/dialogs.md))
   - トレイメニューは並び替えに連動しない
   - サイドバーの項目は、各機能が `AddNavigationPage` で登録する ([architecture.md](../architecture.md))
-- DEBUG ビルドだけ、下部に DEBUG カテゴリを置く
-  - 通知ダイアログやリマインダーの画面を、ボタンから開いて確かめるためのもの
-  - リリースビルドには、登録 (`#if DEBUG`)だけでなく、コードと XAML も含めない (`MmmTool.csproj` で `Configuration != Debug` のとき `DebugPage.xaml` などをビルドから外す)
+- 開発用の DEBUG ページは持たない。通知ダイアログやリマインダーの画面は、各機能の画面から開いて確かめる。
 
 ## トレイアイコン・トレイメニュー
 

@@ -12,7 +12,7 @@
 
 | プロジェクト | 対象 | 役割 |
 | --- | --- | --- |
-| `src/App/MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト。メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページ・DEBUG ページを持ち、機能のプラグインを参照して登録する |
+| `src/App/MmmTool` | `net10.0-windows10.0.19041.0`(WinUI 3) | ホスト。メインウィンドウ・サイドバー・トレイ・機能のオン・オフ・設定ページを持ち、機能のプラグインを参照して登録する |
 | `src/App/MmmToolWeb/Server` / `src/App/MmmToolWeb/Client` | `net10.0`(ASP.NET Core) / `net10.0`(Blazor WebAssembly・AnyCPU) | 複数人が iPhone のホーム画面から使う Web 版で、別のソリューション `MmmToolWeb.slnx` にある。`Server` は画面の配信と API を持つ常駐する EXE で、`Client` はブラウザで動く画面。仕様は [specs/web.md](specs/web.md) |
 | `src/Plugins/MmmToolWeb.Features` / `src/Plugins/MmmToolWeb.Features.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | Web 版の、機能の差し込み口。サーバー側の `IWebFeature` と、ブラウザ側の `ClientFeature`・ホーム画面・上のバー。機能は、これを通して足し、本体に機能の名前を書かない。MmmTool は参照しない。仕様は [specs/web.md](specs/web.md) |
 | `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | ノートの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。ノートの読み書きは、MmmTool と同じ `MmmTool.Notes.Core` と `MmmTool.Data.SqlServer` を使う |
@@ -105,7 +105,7 @@ Data/MmmTool.Data/<機能>/               DB の行のクラス (<名前>Row)と
 Data/MmmTool.Data.<種類>/Connection/    その DB への接続を作る処理 SqlServerConnectionFactoryBuilder
                                         (設定とパスワードから SDK の接続の部品を作る)
 Data/MmmTool.Data.<種類>/<機能>/        その DB の Repository の実装 (<種類><名前>Repository)
-App/MmmTool/Features/<機能>/            ホストが持つ機能 Settings / Debugging / Users / Database。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
+App/MmmTool/Features/<機能>/            ホストが持つ機能 Settings / Users / Database。中は上と同じ形 (つなぎ + Main/ + 画面ごとのフォルダ)
                                         Users は DB モードのユーザーの特定と、ログインの画面
                                         Database は保存先 (ローカル / DB)の設定ページの部品と、初回の選択の画面
 App/MmmTool/Shell/                      ホスト側の画面の枠。直下に DI 登録と、アプリ全体で使う型
@@ -118,8 +118,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - 型は、`IFeaturePlugin`・`FeatureInfo`・`IStartupTask`・`IFeatureDisableConfirmation`・`IFeatureStatus`・`NavigationPage`・`SettingsSection`・`IReleasablePage`・`IPageCache`・`AppEnvironment`・`AddFeature` / `AddStartupTask` / `AddNavigationPage` / `AddSettingsSection` / `AddTrayMenuSource`
 - 機能を機能ごとのライブラリに分け、ホストが `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する (必要な機能だけを参照すれば、その機能だけを持つ配布物になるため)
 - 機能がホスト (exe)を参照できないので、入口の型は SDK に置く
-- 設定ページ・DEBUG ページは、全機能の設定を並べる側・開発用なので、ホストに残す (`src/App/MmmTool/Features/`)
-- DEBUG ページはリマインダーのデータを表示するので、リマインダーのライブラリを参照する (リマインダーを外すときは、DEBUG ページも直す)
+- 設定ページは、全機能の設定を並べる側なので、ホストに残す (`src/App/MmmTool/Features/`)
 - サイドバー・トレイ・設定の並びを値 (`order`)で決める (登録の行の順で並べると、画面の並びを直したいときに、起動時の準備の順序まで変わるため)
   - 値は、機能の登録の間だけ `FeatureRegistrationScope` が持ち、サイドバー・設定の部品・機能の一覧・トレイの登録が記録するので、機能ごとに値を渡さなくてよい
   - トレイは、メニューが下から開くので、下 (値が大きい)ほどカーソルに近い
@@ -144,7 +143,6 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - Core には同じ形を当てない (画面が無く、中身は「その機能のデータと処理」の 1 種類だけのため)
   - XAML では、移した画面から、親のフォルダ (機能の直下)に残った型を、`local:` ではなく親の名前空間の xmlns で参照する (例: `MainWindow.xaml` の `pages:NavigationItem`)
 - `Shell/` は特定の機能を参照しない。機能から共通部分への一方向にする。機能固有の画面を開く口は、その機能に置く。
-- DEBUG 用の機能のフォルダ名は `Debugging`(`Debug` にすると `System.Diagnostics.Debug` を隠すため)
 
 ## DI と起動
 
@@ -198,7 +196,6 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - サイドバー: 各機能が `AddNavigationPage<TPage>(表示名, グリフ, 上部/下部)` で登録する (ページは Transient・キーは型名)
   - SDK の `NavigationHostViewModel` が登録から項目を作り、`NavigationHost` が `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る
   - ホストのウィンドウ (MmmTool の `MainWindow`・MmmBatch の `MainWindow`)は、`NavigationHost` を載せるだけ (同じ部品を、2 つのアプリに写さないため)
-  - DEBUG は `AddDebugging()` の中の `#if DEBUG` で、リリースでは登録しない
 - 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ
   - 順は、共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業管理の読み込み
   - `IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)
