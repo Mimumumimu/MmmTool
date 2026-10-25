@@ -849,7 +849,7 @@
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
 - 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`
-  - `006_AddWebPushKind.sql` は、次の変更を持つ。リリースまで、この版の変更は、このファイルに足す。
+  - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
     - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
     - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。
     - ユーザーごとの設定の表 `AppUserSetting` と、その索引 `UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
@@ -877,7 +877,7 @@
     - 作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)
     - コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)
   - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る
-    - 0.8.0 でリリースしたあとの変更は、`002_AddReminderSendStatusChannelIndex.sql` に集める。`ReminderSendStatus` の索引 `IX_ReminderSendStatus_ChannelId_SentAt` を、無ければ作る。リリースまで、この版の変更は、このファイルに足す。
+    - 0.8.0 でリリースしたあとの変更は、`002_AddReminderSendStatusChannelIndex.sql` に集める。`ReminderSendStatus` の索引 `IX_ReminderSendStatus_ChannelId_SentAt` を、無ければ作る。0.9.0 でリリースした。
   - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
   - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
     - 普段は使わない
