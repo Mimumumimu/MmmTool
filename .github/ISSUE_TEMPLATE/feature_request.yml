@@ -1,0 +1,25 @@
+name: 要望
+description: 追加してほしい機能や、変えてほしい動きを伝えます
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: trouble
+    attributes:
+      label: 困っていること
+      description: どんな場面で、何が面倒ですか。
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: こうなってほしい
+      description: 思い付く形があれば書いてください。
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: MmmTool のバージョン
+      placeholder: 0.9.0
+    validations:
+      required: false
