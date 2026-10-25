@@ -265,7 +265,7 @@ public static class WorkReportBuilder
     /// <param name="indent">作業の行の字下げ</param>
     /// <param name="depth">作業の行の字下げの段数</param>
     /// <param name="codes">コードブック</param>
-    /// <param name="showProgress">進捗度 (<c>70% (内部レビュー完了)</c> の形)を添えるか</param>
+    /// <param name="showProgress">進捗度 (<c>70% (レビュー中)</c> の形)を添えるか</param>
     private static void AppendWork(StringBuilder builder, ReportEntry entry, string indent, int depth, CodeBook codes, bool showProgress)
     {
         builder.Append(indent).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
