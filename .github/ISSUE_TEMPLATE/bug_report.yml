@@ -1,0 +1,61 @@
+name: 不具合の報告
+description: 動かない・落ちる・おかしな動きをする、といった不具合を報告します
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 起きたこと
+      description: 何をしたら、どうなりましたか。画面に出た文言があれば、そのまま書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した動き
+      description: 本来は、どうなるはずだと思いましたか。
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現の手順
+      description: 同じことが起きる手順を、順に書いてください。
+      placeholder: |
+        1. 作業管理を開く
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: MmmTool のバージョン
+      description: 配布フォルダの名前 (MmmTool_0.9.0 など)か、README.txt の変更履歴の先頭で分かります。
+      placeholder: 0.9.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows のバージョン
+      placeholder: Windows 11 24H2
+    validations:
+      required: false
+  - type: dropdown
+    id: storage
+    attributes:
+      label: 保存先
+      options:
+        - ローカル
+        - サーバー
+        - 分からない
+    validations:
+      required: false
+  - type: textarea
+    id: log
+    attributes:
+      label: エラーのログ
+      description: アプリが終了したときは、MmmTool.exe と同じフォルダの Data\Logs にあるログを貼ってください。パスワードや個人の情報が入っていないかを確かめてから貼ってください。
+      render: text
+    validations:
+      required: false

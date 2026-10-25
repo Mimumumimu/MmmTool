@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 使い方の質問
+    url: https://github.com/Mimumumimu/MmmTool/discussions
+    about: 使い方の質問や相談は、Discussions で受け付けています。
+  - name: 脆弱性の報告
+    url: https://github.com/Mimumumimu/MmmTool/security/advisories/new
+    about: セキュリティに関わる問題は、公開の Issue ではなく、こちらから非公開で報告してください。
