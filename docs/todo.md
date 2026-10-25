@@ -181,13 +181,3 @@
 ## ユーザーが用意するもの待ち
 
 - 管理ツール (MmmToolAdmin)のアイコン: いまは MmmBatch のアイコンを仮に使っている (`src/App/MmmToolAdmin/Assets/app.ico`)
-
-- README.md の画像: 画像はユーザーが用意する
-  - リンクの中身などがまだ決まっておらず、撮れない
-  - 届いたら `docs/images/` に下の名前で置き、「主な機能」の各機能の見出しの下に添える
-  - 画像の名前:
-    - CLI補助の、冒頭とは別の画像 `cli-assist-demo.gif`
-      - Ctrl+V で画像を添付する場面・会話の圧縮をクリックで送る場面の動く画像
-      - 冒頭には `cli-assist.jpg` を置いている
-    - 作業管理の表に実績を入れている画面 `work-items.png`・リマインダーのメイン画面 `reminders.png`・通知ダイアログ `notification.png`・リンクの編集画面 `links.png`・トレイの「リンク」メニュー `tray-links.png`
-  - README.md の、画像を置く場所には `<!-- TODO(画像): … -->` の印がある。画像を置いたら、印を外して `![説明](docs/images/名前.png)` にする。

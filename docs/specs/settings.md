@@ -53,7 +53,7 @@
   - 「機能」の見出しと説明文 1 行の下に並べる
   - 各行は `SettingsCard`(左に取っ手 ⠿ と機能名、右に操作)
   - オフにできる機能 (`AddFeature` で登録したもの)には `ToggleSwitch`(オン / オフ)を付ける
-    - オフにできる機能は、CLI補助・クリップボード転送・Backlog・作業管理・ツール・メッセージ
+    - オフにできる機能は、CLI補助・ノート・クリップボード転送・Backlog・作業管理・ツール・メッセージ
   - リンク・リマインダー (`AddAlwaysOnFeature` で登録する)は、スイッチなしで並べる
     - `FeatureInfo.CanDisable = false` で、`IsEnabled` は常に true
     - 押せない無効のスイッチを並べると、押せないものが増えて紛らわしいため
@@ -94,7 +94,7 @@
 - 状態は設定ストアの `Feature.<キー>.Enabled`(bool)
   - 保存が無い機能は、登録の既定値 (`AddFeature` の `defaultEnabled`)を使う。省略するとオン。
   - CLI補助・クリップボード転送・Backlog・作業管理が既定でオフ
-  - ツール・メッセージは既定でオン
+  - ノート・ツール・メッセージは既定でオン
     - メッセージはサーバーモードのときだけ一覧に出て、ローカルモードでは、保存された値があっても効かない
     - 詳細は [messages.md](messages.md)
 - CLI補助を、ターミナルが動いている間にオフにするときは、確認ダイアログを出す (`CliAssistDisableConfirmation`)

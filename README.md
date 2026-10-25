@@ -1,65 +1,116 @@
 # MmmTool
 
-**Kiro・Claude Code を、ターミナルで使う人へ。**
-いつも打つコマンドは左に並べてクリックで送り、画像は、いつもの Ctrl+V で添付できます。コマンドやキー操作を覚えなくても使える、常駐の補助ツールです。作業の中で「これがあれば楽なのに」と思ったものを、1 つのアプリに少しずつ足していきます。
+**報告のたびに、前の日は何をしたか思い出して書くのを、やめたい人へ。**
 
-こんなときに使えます。
+その日の実績を、一覧のセルに、そのまま入れておく。  
+報告のときは、ボタンを押して、報告用の文をコピーする。
 
-- 会話の圧縮や再開のコマンドを、毎回打ちたくない。
-- その日の作業の実績を入力するだけで、報告用の文にしたい。
-- 時刻になったら、気づくまで知らせてほしい。
-- よく開く URL・フォルダー・ファイルへ、すぐ行きたい。
+MmmTool は、その流れを作る、Windows 11 のタスクトレイ常駐ツールです。
 
-![CLI補助の画面。左に定型コマンドのツリー、右にターミナル、下に送信欄](docs/images/cli-assist.jpg)
+<img src="docs/images/work-report.png" alt="作業報告のウィンドウ。入れた実績と予定が、報告用の文になって出る" width="560">
 
-普段はタスクトレイにいるだけで、ウィンドウを閉じても常駐し続けます。使わない機能は、設定でオフにできます。
+同じ「毎回の手間」を減らす補助も入っています。
+
+- 通知は、完了にするまで、最前面で繰り返す。
+- 散らかったファイル・フォルダー・URL は、トレイに集める。
+- Kiro・Claude Code のコマンドは、左に並べて、クリックで送る。
+
+Windows 11 (x64)で動きます。  
+MIT ライセンスで公開しています。  
+普段はタスクトレイにいて、ウィンドウを閉じても常駐し続けます。  
+CLI補助・作業管理・クリップボード転送・Backlog は、初期状態ではオフなので、設定の「機能」でオンにします。  
+使わない機能は、リンクとリマインダーを除いて、設定でオフにできます。
 
 ## 主な機能
 
 ### CLI補助
 
-アプリの中でターミナルを動かし、Claude Code・Kiro を使う作業を助けます。会話の圧縮や再開など、いつも打つコマンドは、左に並べて、クリック 1 つで送れます。コマンドは自分で追加できて、ターミナルに直接打つこともできます。画像は Ctrl+V、ファイルはドロップで添付でき、フォルダーごとにタブを開いて並行して動かせます。WSL に入れた CLI も使えます。
+アプリの中でターミナルを動かし、Claude Code・Kiro を使う作業を助けます。  
+会話の圧縮や再開など、いつも打つコマンドは、左に並べて、クリック 1 つで送れます。  
+コマンドは、設定ファイル (`Data/CliCommands.json`)を書き換えて追加でき、ターミナルに直接打つこともできます。  
+画像は Ctrl+V、ファイルはドロップで添付でき、フォルダーごとにタブを開いて並行して動かせます。  
+WSL に入れた CLI も使えます。
 
-<!-- TODO(画像): CLI補助の、冒頭とは別の画像。候補は、Ctrl+V で画像を添付する場面・会話の圧縮をクリックで送る場面の動く画像 cli-assist-demo.gif。docs/todo.md の「ユーザーが用意するもの待ち」を参照 -->
+#### コマンドは、クリックで送る
+
+左のツリーの項目をクリックすると、コマンドが、ターミナルに自動で送られます。  
+下の動く画像では、`claude` で Claude Code を起動して、`/compact` で会話を圧縮しています。  
+どちらも、打っていません。
+
+<img src="docs/images/cli-assist-demo.gif" alt="CLI補助の操作。ツリーの「起動」で Claude Code を始め、「会話要約」をクリックして、コマンドを打たずに送る" width="860">
+
+#### 画像は、Ctrl+V で添付する
+
+コピーした画像は、入力欄で Ctrl+V を押すと、添付されます。  
+CLI ごとに違うキー操作を、覚えなくて済みます。
+
+<img src="docs/images/cli-assist-paste.gif" alt="CLI補助の操作。入力欄で Ctrl+V を押すと、コピーした画像が添付される" width="860">
 
 ### 作業管理
 
-一覧のセルに、実績をそのまま入力できます。登録画面を別に開く必要はありません。案件・区分・作業を木構造で整理して、日ごとの実績と備考を残します。残した実績と予定は、報告用のテキストにしてコピーでき、スケジュールで、日付を横に並べて見られます。Backlog の課題の URL をリンクに登録すれば、1 クリックでそのページを開けます。
+一覧のセルに、実績をそのまま入力できます。  
+登録画面を別に開く必要はありません。  
+案件・グループ・作業を木構造で整理して、日ごとの実績と備考を残します。  
+残した実績と予定は、報告用のテキストにしてコピーでき、スケジュールで、日付を横に並べて見られます。  
+Backlog の課題の URL をリンクに登録すれば、1 クリックでそのページを開けます。
 
-<!-- TODO(画像): 作業管理の表に実績を入れている画面 (work-items.png) -->
+<img src="docs/images/work-items.png" alt="作業管理の画面。案件・グループ・作業の木構造に、日ごとの実績と備考を入れる" width="860">
 
 ### リマインダー
 
-通知を閉じたら終わり、にしません。画面の隅に最前面で出て、点滅して知らせ、完了にするまで繰り返します。入力中のキーは奪いません。忘れがちな人が、やり忘れないための仕組みです。通知の読み上げもできます。
+通知を閉じたら終わり、にしません。  
+画面の隅に最前面で出て、点滅して知らせ、完了にするまで繰り返します。  
+入力中のキーは奪いません。  
+忘れがちな人が、やり忘れないための仕組みです。  
+通知の読み上げもできます。
 
-<!-- TODO(画像): リマインダーのメイン画面 (reminders.png) と、画面の隅に出る通知 (notification.png) -->
+今日の予定は、未対応・スヌーズ・完了に分かれて並びます。  
+完了にしたものは、下の欄にまとまります。
+
+<img src="docs/images/reminders.png" alt="リマインダーのメイン画面。今日の予定が、未対応・スヌーズ・完了に分かれて並ぶ" width="380">
+
+画面の隅に、次のような通知が出ます。  
+完了にするまで、繰り返し出ます。
+
+<img src="docs/images/notification.png" alt="画面の隅に出る通知。件名と備考が出る" width="400">
 
 ### リンク
 
-散らかったファイル・フォルダー・URL・アプリを、タスクトレイに集約します。階層に整理して、メニューからすぐ開けます。
+散らかったファイル・フォルダー・URL・アプリを、タスクトレイに集約します。  
+階層に整理して、メニューからすぐ開けます。
 
-<!-- TODO(画像): リンクの編集画面 (links.png) と、トレイの「リンク」メニュー (tray-links.png) -->
+リンクの一覧は、画面で編集します。  
+項目を選ぶと、右側に、名前とパスが出ます。
+
+<img src="docs/images/links.png" alt="リンクの編集画面。左のツリーで項目を選ぶと、右に名前とパスが出る" width="860">
+
+トレイのアイコンを右クリックすると、階層のメニューから、すぐ開けます。
+
+<img src="docs/images/tray-links.png" alt="トレイのメニュー。リンクの階層が、メニューで開く" width="620">
 
 ### その他の補助ツール
 
-- **クリップボード転送**: ファイルを、リモートデスクトップなどでクリップボードを共有している別の PC へ渡します。送る側はドロップするだけ、受け取る側はボタン 1 つで保存できます。
+- **クリップボード転送**: ファイルを、リモートデスクトップなどでクリップボードを共有している別の PC へ渡します。送る側はファイルをドロップするか「ファイルを選択」を押すだけ、受け取る側はボタン 1 つで保存できます。
 - **Backlog**: Backlog の共有ファイルの一覧を見て、ダウンロードできます。
 - **ツール**: 小さな便利ツールを集めたページです。今は、文字コードになった URL を日本語に戻せます。
 - **ノート**: 期間を決めて書いたノートを、その日になると、1 枚の画面に並べて読めます。連絡事項にも、書き足していく手順にも使えます。
 
 ### サーバー保存なら、こんなこともできます
 
-保存先をローカルからサーバー (SQL Server)に変えると、次のことができます。サーバー側の準備が必要なので、使いたいときは管理者に相談してください。
+保存先をローカルからサーバー (SQL Server)に変えると、次のことができます。  
+サーバー側の準備が必要なので、使いたいときは管理者に相談してください。
 
 - リマインダーと作業管理のデータを、複数の PC・複数の人で共有できます。
 - 作業管理で、作業ごとに担当者を付けて、「自分の担当だけ」に絞れます。
-- リマインダーを、スマホ (ntfy)や Discord にも通知できます。
+- 管理者が通知の送信を用意していれば、リマインダーを、スマホ (ntfy)や Discord、Web 版にも通知できます。
 - 他のユーザーと、会話の形で、短いメッセージをやり取りできます。
 - ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます。
+- iPhone のホーム画面のアプリ (Web 版)から、ノートとメッセージを使えます。リマインダーは、通知の一覧に出ます。ログインはパスキーです。
 
 ## ダウンロード
 
-[Releases](https://github.com/Mimumumimu/MmmTool/releases) から zip をダウンロードして、展開するだけで使えます。インストールは不要です。
+[Releases](https://github.com/Mimumumimu/MmmTool/releases) から zip をダウンロードして、展開するだけで使えます。  
+インストールは不要です。
 
 > [!WARNING]
 > **ダウンロードしたとき、Microsoft Defender が「ウイルスを検出しました」と表示して、zip を削除することがあります。**
@@ -84,7 +135,8 @@
   - CLI補助で、WSL に入れた Claude Code・Kiro を使うときに入れます。
   - 会話履歴の削除の補助スクリプトには、WSL の中に Python 3 が要ります。Ubuntu には標準で入っています。
 
-ランタイムはアプリに同梱していません。.NET と Windows App Runtime は、入っていなければ `MmmTool.exe` を起動したときに案内のダイアログが出るので、そこからダウンロードしてインストールできます。
+ランタイムはアプリに同梱していません。  
+.NET と Windows App Runtime は、入っていなければ `MmmTool.exe` を起動したときに案内のダイアログが出るので、そこからダウンロードしてインストールできます。
 
 ### 導入
 
@@ -99,7 +151,9 @@
 
 ### アンインストール
 
-MmmTool のフォルダーを、丸ごと削除してください。`%TEMP%\MmmTool\` が残っていたら、それも削除してください。Backlog の API キーを登録していたときは、Windows の資格情報マネージャー (「Windows 資格情報」の汎用資格情報 `MmmTool.Backlog`)から、その項目も削除してください。
+MmmTool のフォルダーを、丸ごと削除してください。  
+`%TEMP%\MmmTool\` が残っていたら、それも削除してください。  
+Backlog の API キーを登録していたときは、Windows の資格情報マネージャー (「Windows 資格情報」の汎用資格情報 `MmmTool.Backlog`)から、その項目も削除してください。
 
 ## 使い方
 
@@ -107,11 +161,14 @@ MmmTool のフォルダーを、丸ごと削除してください。`%TEMP%\MmmT
 2. 左のメニューから機能を選びます。初期状態では、CLI補助・作業管理・クリップボード転送・Backlog は出ません。使う機能は、設定の「機能」でオンにします。
 3. ウィンドウを × で閉じてもトレイに残ります。完全に終了するときは、トレイアイコンの右クリックメニューから「終了」を選びます。未保存の編集内容は破棄されます。
 
-機能ごとの使い方は、展開したフォルダーの `操作説明.html` にまとめています。ブラウザーで開いてください。
+機能ごとの使い方は、展開したフォルダーの `操作説明.html` にまとめています。  
+ブラウザーで開いてください。
 
 ### 定型コマンドを自分で書く
 
-CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できます。アプリを終了してから直してください。`shell`(シェルで打つコマンド)と `session`(AI エージェントのセッション内で打つコマンド)の 2 つのツリーがあり、`children` を持つ項目はフォルダー、`command` を持つ項目はクリックで送信するコマンドです。
+CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できます。  
+アプリを終了してから直してください。  
+`shell`(シェルで打つコマンド)と `session`(AI エージェントのセッション内で打つコマンド)の 2 つのツリーがあり、`children` を持つ項目はフォルダー、`command` を持つ項目はクリックで送信するコマンドです。
 
 ```json
 {
@@ -135,9 +192,13 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 
 ## データ保存場所
 
-`MmmTool.exe` と同じフォルダーの `Data` フォルダーに保存します。手で直すときは、アプリを終了してから行ってください。起動中は、メモリ上の内容で上書きされることがあります。
+`MmmTool.exe` と同じフォルダーの `Data` フォルダーに保存します。  
+手で直すときは、アプリを終了してから行ってください。  
+起動中は、メモリ上の内容で上書きされることがあります。
 
-**置き場所の注意:** `Data/CliCommands.json` の定型コマンドは、クリックするとターミナルへ送られて実行されます。`Data` フォルダーを他の人が書き込めるフォルダーに置くと、そのコマンドを書き換えられて、任意のコマンドを実行されるおそれがあります。自分だけが書き込めるフォルダー (ユーザーフォルダーの下など)に置いてください。
+**置き場所の注意:** `Data/CliCommands.json` の定型コマンドは、クリックするとターミナルへ送られて実行されます。  
+`Data` フォルダーを他の人が書き込めるフォルダーに置くと、そのコマンドを書き換えられて、任意のコマンドを実行されるおそれがあります。  
+自分だけが書き込めるフォルダー (ユーザーフォルダーの下など)に置いてください。
 
 | ファイル | 内容 |
 | --- | --- |
@@ -151,11 +212,13 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/ReminderStates.json` | リマインダーの対応状態 |
 | `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
 
-JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json` に名前を変えて同じフォルダーに退避し、新しく作り直します。退避したファイルは自動では消えないので、必要な内容を戻したら削除してください。
+JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json` に名前を変えて同じフォルダーに退避し、新しく作り直します。  
+退避したファイルは自動では消えないので、必要な内容を戻したら削除してください。
 
 ### サーバー保存のとき
 
-設定ページの「保存先」(または、保存先をまだ選んでいない初回の起動で出る「保存先の選択」の画面)で、保存先を「サーバー」にして、接続を入力します。保存先の変更は、アプリの再起動で反映されます。
+設定ページの「保存先」(または、保存先をまだ選んでいない初回の起動で出る「保存先の選択」の画面)で、保存先を「サーバー」にして、接続を入力します。  
+保存先の変更は、アプリの再起動で反映されます。
 
 - リマインダー・作業管理・ノートが、`Data` フォルダーではなく SQL Server に保存されます。ローカルの JSON と SQLite は使いません。
 - 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します。
@@ -175,13 +238,19 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 - `Cache\WebView2\`: ターミナルの画面 (WebView2)のキャッシュ。消しても、次に開いたときに作り直されます。他の人が書き込めるとキャッシュを書き換えられるおそれがあるので、`Data` フォルダーと同じく、自分だけが書き込めるフォルダーに置いてください。
 - `Data\Logs\`: エラーのログ。自動では消えません。例外のスタックトレースに、ユーザー名を含むパスが入ることがあるので、ログを他の人に渡すときは、中身を確かめてください。
 
-`%TEMP%` と WSL の中のファイルのほかは、`Data` と `Cache` の下に作られます。`MmmTool.exe` のフォルダーの外には書きません。ただし Backlog の API キー・サーバーのパスワード・サーバー保存のログイン情報は、`Data` ではなく Windows の資格情報マネージャーに保存します。
+`%TEMP%` と WSL の中のファイルのほかは、`Data` と `Cache` の下に作られます。  
+`MmmTool.exe` のフォルダーの外には書きません。  
+ただし Backlog の API キー・サーバーのパスワード・サーバー保存のログイン情報は、`Data` ではなく Windows の資格情報マネージャーに保存します。
 
 ## ライセンス
 
-このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。記載の製品名・サービス名は、各社の商標または登録商標です。各社とは関係ありません。
+このプロジェクトは [MIT License](./LICENSE.txt) のもとで公開されています。  
+記載の製品名・サービス名は、各社の商標または登録商標です。  
+各社とは関係ありません。
 
-同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています。発行のたびに、配布物に入るパッケージから自動で作ります。リポジトリに直接入れているものは、次のファイルです。
+同梱している外部ライブラリ (NuGet パッケージを含む)のライセンスと通知の全文は、配布物の `Assets\Licenses\THIRD-PARTY-NOTICES.txt` にまとめています。  
+発行のたびに、配布物に入るパッケージから自動で作ります。  
+リポジトリに直接入れているものは、次のファイルです。
 
 - xterm.js(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
 - @xterm/addon-fit(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)
@@ -214,7 +283,8 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 
 ## 取得方法
 
-共有部品 [MmmSdk](https://github.com/Mimumumimu/MmmSdk) を Git サブモジュール (`external/MmmSdk`)として取り込んでいます。clone するときはサブモジュールも一緒に取得してください。
+共有部品 [MmmSdk](https://github.com/Mimumumimu/MmmSdk) を Git サブモジュール (`external/MmmSdk`)として取り込んでいます。  
+clone するときはサブモジュールも一緒に取得してください。
 
 ```powershell
 git clone --recurse-submodules https://github.com/Mimumumimu/MmmTool.git
@@ -228,22 +298,27 @@ git submodule update --init --recursive
 
 ## ビルドと実行
 
-構成は x64 のみです。ソリューションは 2 つあります。
+構成は x64 のみです。  
+ソリューションは 5 つあります。
 
 | ソリューション | 内容 |
 | --- | --- |
 | `MmmTool.slnx` | MmmTool 本体 |
 | `MmmBatch.slnx` | サーバー用の別アプリ MmmBatch(リマインダーとメッセージの外部送信) |
 | `MmmToolAdmin.slnx` | サーバーモードの管理ツール MmmToolAdmin(ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用) |
+| `MmmToolWeb.slnx` | Web 版 MmmToolWeb(iPhone のホーム画面から使う、サーバーと画面) |
+| `MmmToolAll.slnx` | 上の 4 つをまとめたもの。共通のプロジェクトを直したあとの、ビルドの確認用 |
 
 ```powershell
 dotnet restore .\MmmTool.slnx
 dotnet build .\MmmTool.slnx
 ```
 
-`MmmBatch.slnx` も同じ手順です。共通のプロジェクトを直したときは、両方がビルドできることを確かめてください。
+`MmmBatch.slnx` などの、ほかのソリューションも同じ手順です。  
+共通のプロジェクトを直したときは、4 つをまとめた `MmmToolAll.slnx` がビルドできることを確かめてください。
 
-ビルドの共通設定はリポジトリ直下にまとめています。`external/MmmSdk` は、SDK 自身の同名ファイルを使います。
+ビルドの共通設定はリポジトリ直下にまとめています。  
+`external/MmmSdk` は、SDK 自身の同名ファイルを使います。
 
 | ファイル | 内容 |
 | --- | --- |
@@ -251,11 +326,13 @@ dotnet build .\MmmTool.slnx
 | `Directory.Packages.props` | NuGet パッケージのバージョン (中央パッケージ管理。csproj にはバージョンを書きません) |
 | `.editorconfig` | コードスタイル。未使用の using などはビルド時に警告になります |
 
-実行は Visual Studio で `MmmTool.slnx` を開き、`MmmTool` プロジェクト (起動プロファイル「MmmTool」)を F5 で起動します。起動してもウィンドウは出ず、タスクトレイにアイコンが出ます。
+実行は Visual Studio で `MmmTool.slnx` を開き、`MmmTool` プロジェクト (起動プロファイル「MmmTool」)を F5 で起動します。  
+起動してもウィンドウは出ず、タスクトレイにアイコンが出ます。
 
 ### 配布用の発行
 
-Visual Studio では、ソリューション エクスプローラーで `MmmTool` プロジェクトを右クリックし、「発行」を選びます。発行プロファイル `win-x64`(構成は Release | x64)を選んで「発行」を押します。
+Visual Studio では、ソリューション エクスプローラーで `MmmTool` プロジェクトを右クリックし、「発行」を選びます。  
+発行プロファイル `win-x64`(構成は Release | x64)を選んで「発行」を押します。
 
 コマンドで発行すると、Visual Studio と同じ結果になります。
 
@@ -263,9 +340,14 @@ Visual Studio では、ソリューション エクスプローラーで `MmmToo
 dotnet publish .\src\App\MmmTool\MmmTool.csproj -p:PublishProfile=win-x64
 ```
 
-取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\00_update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の4つを発行します。MmmTool だけ・MmmBatch だけ・MmmToolWeb だけ・MmmToolAdmin だけを発行するときは、`01_update_and_publish_tool.bat`・`21_update_and_publish_batch.bat`・`11_update_and_publish_web.bat`・`29_update_and_publish_admin.bat` を実行します。どこにクローンしても動き、途中で失敗するとその時点で止まります。
+取得 (`git pull`・サブモジュールの更新)から発行までを 1 回で行うときは、`scripts\00_update_and_publish.bat` を実行すると、MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の4つを発行します。  
+MmmTool だけ・MmmBatch だけ・MmmToolWeb だけ・MmmToolAdmin だけを発行するときは、`01_update_and_publish_tool.bat`・`21_update_and_publish_batch.bat`・`11_update_and_publish_web.bat`・`29_update_and_publish_admin.bat` を実行します。  
+どこにクローンしても動き、途中で失敗するとその時点で止まります。
 
-発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/` ができます。バージョンは `Directory.Build.props` の `Version` で決まります。このフォルダーをそのままコピーして配布します。インストーラーはありません。
+発行すると、バージョンごとのフォルダー `src/App/MmmTool/bin/Release/publish/MmmTool_<バージョン>/` ができます。  
+バージョンは `Directory.Build.props` の `Version` で決まります。  
+このフォルダーをそのままコピーして配布します。  
+インストーラーはありません。
 
 ```
 MmmTool_<バージョン>\
@@ -285,7 +367,9 @@ MmmTool_<バージョン>\
 
 ## MmmSdk を更新するとき
 
-SDK を直したら、先にサブモジュールの中でコミット・push し、そのあと MmmTool 側で「新しいコミットを指す」変更をコミットします。SDK 側のブランチは、MmmTool 側と同じ種類にします。通常の開発は `develop` です。
+SDK を直したら、先にサブモジュールの中でコミット・push し、そのあと MmmTool 側で「新しいコミットを指す」変更をコミットします。  
+SDK 側のブランチは、MmmTool 側と同じ種類にします。  
+通常の開発は `develop` です。
 
 ```powershell
 cd external/MmmSdk
@@ -307,15 +391,21 @@ git submodule update --remote external/MmmSdk
 | --- | --- |
 | `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Messages`・`Notes`・`Reminders`・`Tools`・`WorkItems` |
 | `src/Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダー (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
-| `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Debugging/`・`Users/`・`Database/`) |
+| `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
 | `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用 |
-| `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer` |
+| `src/App/MmmToolWeb/` と `src/Plugins/MmmToolWeb.*` | Web 版 MmmToolWeb で、ソリューションは `MmmToolWeb.slnx`。サーバー (`Server`)と、ブラウザで動く画面 (Blazor WebAssembly の `Client`)から成り、ノートとメッセージを使え、通知の一覧にリマインダーも出る。ログインはパスキー (`src/Auth/`) |
+| `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer`・`MmmToolWeb.Data.SqlServer` |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
-機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます。`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先です。トレイだけ別の順にするときは `trayOrder: n` も渡します。機能を外すときは、参照と 1 行を削除します。使わない機能を含まない配布物を作れます。詳しくは [docs/architecture.md](docs/architecture.md) にあります。
+機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます。  
+`order` はサイドバー・トレイ・設定の並び順の値で、小さいほど先です。  
+トレイだけ別の順にするときは `trayOrder: n` も渡します。  
+機能を外すときは、参照と 1 行を削除します。  
+使わない機能を含まない配布物を作れます。  
+詳しくは [docs/architecture.md](docs/architecture.md) にあります。
 
 ## ドキュメント
 
@@ -331,4 +421,7 @@ git submodule update --remote external/MmmSdk
 
 ## バージョン
 
-バージョンは `Directory.Build.props` の `Version` で決めます。ファイル・アセンブリのバージョンは、末尾に 0 を足した 4 桁になります。変更履歴は、配布物の説明書の「変更履歴」に書いています。説明書の元は `src/App/MmmTool/Distribution/README.txt` です。
+バージョンは `Directory.Build.props` の `Version` で決めます。  
+ファイル・アセンブリのバージョンは、末尾に 0 を足した 4 桁になります。  
+変更履歴は、配布物の説明書の「変更履歴」に書いています。  
+説明書の元は `src/App/MmmTool/Distribution/README.txt` です。
