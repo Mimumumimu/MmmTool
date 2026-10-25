@@ -9,4 +9,7 @@ public enum NotificationChannelKind
 
     /// <summary>Discord。値は Webhook の URL</summary>
     Discord = 2,
+
+    /// <summary>Web 版通知。値は、ブラウザが作った通知の宛先 (<see cref="WebPushSubscription"/>の JSON)</summary>
+    WebPush = 3,
 }

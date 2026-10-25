@@ -12,11 +12,13 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MmmTool.WorkItems.Core\MmmTool.WorkItems.Core.csproj" />
     <ProjectReference Include="..\..\CodeMaster\MmmTool.CodeMaster\MmmTool.CodeMaster.csproj" />
+    <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
   </ItemGroup>
 

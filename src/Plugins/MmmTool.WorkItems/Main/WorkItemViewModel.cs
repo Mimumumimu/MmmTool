@@ -53,21 +53,25 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>行の識別から、表の行を引く (使い回す)</summary>
     private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
 
-    /// <summary>利用者が閉じた案件・グループ</summary>
-    private readonly HashSet<WorkKey> _collapsed = [];
+    /// <summary>画面で選んだ状態 (ページを作り直しても引き継ぐために、ページの外で持つ)</summary>
+    private readonly WorkItemViewState _state;
 
-    /// <summary>利用者が開いた案件・グループ (既定で畳む、完了したグループを、開いたまま保つため)</summary>
-    private readonly HashSet<WorkKey> _expanded = [];
+    /// <summary>利用者が閉じた案件・グループ (状態クラスと同じ集合)</summary>
+    private readonly HashSet<WorkKey> _collapsed;
+
+    /// <summary>利用者が開いた案件・グループ</summary>
+    /// <remarks>状態クラスと同じ集合。既定で畳む、完了したグループを、開いたまま保つため。</remarks>
+    private readonly HashSet<WorkKey> _expanded;
 
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
 
-    /// <summary>隠す状態のコード番号</summary>
+    /// <summary>隠す状態のコード番号 (状態クラスと同じ集合)</summary>
     /// <remarks>保存しない。空なら、すべての状態を出す。</remarks>
-    private readonly HashSet<int> _hiddenStatuses = [];
+    private readonly HashSet<int> _hiddenStatuses;
 
     /// <summary>追加した直後で、名前を入力中の作業</summary>
-    /// <remarks>状態の絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
+    /// <remarks>絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
     private WorkKey? _addedKey;
 
     /// <summary>選択欄の選択肢 (コードマスタが変わらない間は、同じ一覧を使い回す)</summary>
@@ -136,9 +140,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ。保存しない。既定は「グループのみ表示」)</summary>
+    /// <summary>「過去の完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
+    /// <remarks>画面で選んだ値は保存しない。状態クラス (<see cref="WorkItemViewState"/>)が引き継ぎ、起動したときの値は、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.PastCompleted"/>)で決まる。</remarks>
     [ObservableProperty]
-    public partial int CompletedIndex { get; set; } = (int)CompletedDisplay.GroupsOnly;
+    public partial int CompletedIndex { get; set; }
 
     /// <summary>絞り込みのボタンの文字 (効いている条件があるときは、その数を添える)</summary>
     [ObservableProperty]
@@ -194,10 +199,15 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <param name="projectPicker">表示する案件を選ぶ画面の ViewModel</param>
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="busyCursor">マウスカーソルを処理待ちの形にする口</param>
-    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener, IBusyCursor busyCursor)
+    /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
+    public WorkItemViewModel(WorkItemService service, ISettingsStore settings, IWorkItemDialogService dialogs, IDialogService confirm, ProjectPickerViewModel projectPicker, IPathOpener opener, IBusyCursor busyCursor, WorkItemViewState state)
     {
         _busyCursor = busyCursor;
         _service = service;
+        _state = state;
+        _collapsed = state.Collapsed;
+        _expanded = state.Expanded;
+        _hiddenStatuses = state.HiddenStatuses;
         _settings = settings;
         _dialogs = dialogs;
         _confirm = confirm;
@@ -211,7 +221,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
         // 値の変更で表を作り直す処理が動くので、上の準備のあとに設定する
         MineOnly = settings.Get(WorkItemSettingKeys.MineOnly, false);
-        InputDate = service.Today;
+        CompletedIndex = (int)state.Completed;
+        InputDate = state.InputDate.Resolve(service.Today);
         _initializing = false;
     }
 
@@ -250,9 +261,31 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
                 Error.Show(ex.Message);
             }
             Rebuild();
+            RestoreSelection();
             _synced = _active;
         });
         _service.StartPolling();
+    }
+
+    /// <summary>引き継いだ選択行を、表に戻す</summary>
+    /// <remarks>ページを作り直したあと、まだ選んでいる行が無いときだけ戻す。行が無くなっていたら、何もしない。</remarks>
+    private void RestoreSelection()
+    {
+        if (SelectedRow is null && _state.SelectedKey is { } key && _rowByKey.TryGetValue(key, out var row) && Rows.Contains(row))
+        {
+            SelectedRow = row;
+        }
+    }
+
+    /// <summary>選んでいる行が変わったら、状態クラスに覚える</summary>
+    /// <param name="value">選んだ行 (選んでいなければ null)</param>
+    /// <remarks>ページを作り直しても、同じ行を選ぶため。ページを離れたあと (<see cref="Suspend"/>)に、画面の片付けで選択が外れても、覚えた行を消さないよう、開いている間だけ書く。</remarks>
+    partial void OnSelectedRowChanged(WorkItemRow? value)
+    {
+        if (!_initializing && _active)
+        {
+            _state.SelectedKey = value?.Key;
+        }
     }
 
     /// <summary>ページを離れたときに、他の人の更新の取得を止める</summary>
@@ -336,6 +369,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     {
         if (!_initializing)
         {
+            _state.InputDate.Set(value, _service.Today);
             _addedKey = null;
             ChangeDayAsync(value).Forget();
         }
@@ -441,6 +475,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (Enum.IsDefined((CompletedDisplay)value))
+        {
+            _state.Completed = (CompletedDisplay)value;
+        }
         Rebuild();
     }
 
@@ -476,21 +514,43 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>状態の絞り込みを通る作業か</summary>
-    /// <param name="item">作業</param>
-    /// <returns>残すなら true (隠す状態に入っていない作業と、名前を入力中の追加した作業)</returns>
-    /// <remarks>隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、いつも残る。</remarks>
-    private bool KeepByStatus(WorkItem item)
-        => !_hiddenStatuses.Contains((int)item.Status) || _addedKey == new WorkKey(WorkRowKind.Work, item.Id);
+    /// <summary>開始日がまだ来ていない作業を隠すか</summary>
+    public bool HideNotStarted => _state.HideNotStarted;
 
-    /// <summary>状態の絞り込みを使っていないときは null、使っているときは <see cref="KeepByStatus"/> を返す</summary>
-    private Func<WorkItem, bool>? StatusFilter => _hiddenStatuses.Count == 0 ? null : KeepByStatus;
+    /// <summary>開始日がまだ来ていない作業を隠すかを切り替えて、表を作り直す (保存しない)</summary>
+    /// <param name="hide">隠すなら true</param>
+    public void SetHideNotStarted(bool hide)
+    {
+        if (_state.HideNotStarted == hide)
+        {
+            return;
+        }
+
+        _state.HideNotStarted = hide;
+        _addedKey = null;
+        Rebuild();
+    }
+
+    /// <summary>絞り込みの条件 (状態・開始日)を通る作業か</summary>
+    /// <param name="item">作業</param>
+    /// <returns>残すなら true (すべての条件を通る作業と、名前を入力中の追加した作業)</returns>
+    /// <remarks>
+    /// 隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、状態では隠れない。
+    /// 開始日は入力日と比べ、開始日が空の作業と、開始日が入力日以前の作業は隠れない。
+    /// </remarks>
+    private bool KeepByFilter(WorkItem item)
+        => _addedKey == new WorkKey(WorkRowKind.Work, item.Id)
+        || (!_hiddenStatuses.Contains((int)item.Status)
+            && !(_state.HideNotStarted && item.StartDate is { } start && start > InputDate));
+
+    /// <summary>絞り込みを使っていないときは null、使っているときは <see cref="KeepByFilter"/> を返す</summary>
+    private Func<WorkItem, bool>? ItemFilter => _hiddenStatuses.Count == 0 && !_state.HideNotStarted ? null : KeepByFilter;
 
     /// <summary>絞り込みのボタンの文字を、効いている条件の数に合わせる</summary>
-    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。</remarks>
+    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。開始日の条件は、1 つと数える。</remarks>
     private void UpdateFilterText()
     {
-        var active = _choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0;
+        var active = (_choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0) + (_state.HideNotStarted ? 1 : 0);
         FilterText = active == 0 ? "絞り込み" : $"絞り込み ({active})";
     }
 
@@ -1105,7 +1165,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
         var target = new List<WorkItemRow>();
         var alive = new HashSet<WorkKey>();
-        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter))
+        foreach (var root in _service.BuildTree(InputDate, MineOnly, (CompletedDisplay)CompletedIndex, ItemFilter))
         {
             Visit(root, 0, target, alive);
         }
@@ -1252,7 +1312,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     private bool InsertProjectRows(int projectId)
     {
         if (_rowByKey.ContainsKey(new WorkKey(WorkRowKind.Project, projectId))
-            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex, StatusFilter) is not { } node)
+            || _service.BuildProjectTree(projectId, InputDate, MineOnly, (CompletedDisplay)CompletedIndex, ItemFilter) is not { } node)
         {
             return false;
         }

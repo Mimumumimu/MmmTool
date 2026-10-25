@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
+using MmmTool.CodeMaster.Core;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.BulkInput;
 using MmmTool.Reminders.ChannelEdit;
@@ -10,6 +11,7 @@ using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
 using MmmTool.Reminders.Input;
 using MmmTool.Reminders.List;
+using MmmTool.Users.Core;
 using MmmTool.Reminders.Main;
 using MmmTool.Reminders.Settings;
 
@@ -22,8 +24,9 @@ public sealed class RemindersPlugin : IFeaturePlugin
     /// <remarks>保存先は JSON。設定が DB のときだけ、ホストが、登録のあとで SQL Server の保存先に置き換える (<c>MmmTool.Data.SqlServer</c>)。</remarks>
     public void Register(IServiceCollection services)
     {
-        // オフにできない機能 (設定の「機能」の一覧で、並び順だけ使う)
-        services.AddAlwaysOnFeature(RemindersFeature.Key, RemindersFeature.DisplayName);
+        // オフにできない機能で、設定の「機能」の一覧では、並び順だけ使う。管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない
+        services.AddAlwaysOnFeature(RemindersFeature.Key, RemindersFeature.DisplayName,
+            provider => provider.IsFeatureAllowed(CodeFeatures.Reminders));
 
         // 保存先 (JSON。DB に置き換えるために、実体の型でも取り出せるようにする)
         services.AddSingleton<JsonReminderRepository>();
@@ -44,7 +47,7 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddSingleton<IReminderDialogService, ReminderDialogService>();
         // メイン画面はアプリ内で 1 枚だけ (開いていれば前面に出す)
         services.AddSingleton<ReminderWindowService>();
-        services.AddTrayMenuSource<ReminderTrayMenuSource>();
+        services.AddTrayMenuSource<ReminderTrayMenuSource>(RemindersFeature.Key);
 
         // 閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddTransient<ReminderInputWindow>();
@@ -67,6 +70,10 @@ public sealed class RemindersPlugin : IFeaturePlugin
         // 設定ページの「送信先」 (サーバーモードだけ出る。送信先の一覧画面を開く)
         services.AddTransient<NotificationChannelSettingsViewModel>();
         services.AddSettingsSection<NotificationChannelSettingsControl>(RemindersFeature.Key);
+
+        // 設定ページの「受け取り先」は、サーバーモードだけ出る。受け取り先を指定できる設定として登録された分を並べて、機能の名前は持たない
+        services.AddTransient<ReceiveTargetSettingsViewModel>();
+        services.AddSettingsSection<ReceiveTargetSettingsControl>(RemindersFeature.Key);
 
         // サイドバーの「リマインダー」(一覧。ウィンドウの一覧と中身を共有する)。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
         services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);

@@ -2,8 +2,10 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
+using MmmTool.Data.SqlServer.Users;
 using MmmTool.Reminders.Core;
 using MmmTool.Users.Core;
 
@@ -126,6 +128,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         var row = ReminderRow.FromReminder(reminder with { No = 0 });
         var id = await WriteAsync(async (connection, transaction, userId) =>
         {
+            await EnsureAllowedAsync(connection, transaction, userId, row.TargetUserId, cancellationToken).ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText =
@@ -150,6 +153,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         var row = ReminderRow.FromReminder(reminder);
         return WriteAsync(async (connection, transaction, userId) =>
         {
+            await EnsureAllowedAsync(connection, transaction, userId, row.TargetUserId, cancellationToken).ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
             // 編集できるのは、見える人 (宛先が自分・全員宛て・自分が作成したもの)。削除済みを編集すると、復活する (呼ぶ側が IsDeleted を false にして渡す)
@@ -236,6 +240,34 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             }
             return 0;
         }, cancellationToken);
+    }
+
+    /// <summary>リマインダーを保存してよいか確かめる。管理者が、リマインダーを無効にした人は、保存できず、無効にした人を宛先にもできない</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">使うトランザクション</param>
+    /// <param name="userId">今のユーザーの番号</param>
+    /// <param name="targetUserId">宛先の人の番号。全員宛ては 0</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>確認の完了を表すタスク</returns>
+    /// <exception cref="DataFileException">今のユーザー、または宛先の人が、リマインダーを無効にされている。メッセージは画面に出せる。</exception>
+    private static async Task EnsureAllowedAsync(SqlConnection connection, SqlTransaction transaction, int userId, int targetUserId, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            $"""
+            SELECT CASE WHEN {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)} THEN 1
+                        WHEN @TargetUserId > 0 AND {FeatureAccessSql.IsDisabled("@TargetUserId", CodeFeatures.Reminders)} THEN 2
+                        ELSE 0 END
+            """;
+        AddUserParameter(command, userId);
+        command.Parameters.Add(new SqlParameter("@TargetUserId", SqlDbType.Int) { Value = targetUserId });
+        var denied = (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        if (denied != 0)
+        {
+            var message = denied == 1 ? "リマインダーは、管理者が無効にしているため、保存できません。" : "宛先の人は、リマインダーを使えないため、保存できません。";
+            throw new DataFileException(message, new InvalidOperationException(message));
+        }
     }
 
     /// <summary>読み直しの繰り返しを止める</summary>
@@ -414,11 +446,12 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         var reminders = new List<Reminder>();
         await using (var command = connection.CreateCommand())
         {
+            // 管理者がリマインダーを無効にした人には、何も見えない (通知も出ない)
             command.CommandText =
-                """
+                $"""
                 SELECT Id, IsDeleted, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak
                 FROM dbo.Reminder
-                WHERE TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId
+                WHERE (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId) AND NOT {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)}
                 ORDER BY Id
                 """;
             AddUserParameter(command, userId);

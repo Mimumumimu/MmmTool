@@ -17,6 +17,7 @@
   - `Logs`: エラーのログ
 - EXE の横の `Cache` は、消しても作り直されるデータの置き場 (`AppInfo.CacheDirectory`)
   - `Cache\WebView2`: ターミナルとノートの画面のキャッシュ。アプリの中の WebView2 は、すべて同じ場所を使う。
+  - `Cache\MessageCache.db`: メッセージの端末の控えで、SQLite のファイル。会話ごとに新しい順の 200 件 (仮)までを、ログインした人ごとに分けて持つ。ログアウトとアカウントの変更で、その人の分を消す。詳細は [messages.md](messages.md) の「端末の控えと更新」。
   - `Cache` を `Data` と分けるのは、`Data` を軽く保ち、バックアップや持ち運びの対象にキャッシュを入れないため
   - 消しても作り直されるデータは、種類ごとにフォルダを足さず、`Cache` の下に置く
 - Web 版 (MmmToolWeb)の `Data` に保存するものは [web.md](web.md) の「保存するもの」
@@ -48,6 +49,8 @@
 | 項目 | キー | 値 |
 | --- | --- | --- |
 | 作業管理の列の表示と自分の担当だけ | `WorkItems.HiddenColumns`・`WorkItems.MineOnly` | |
+| 作業管理の「過去の完了」の、起動時の表示 | `WorkItems.InitialPastCompleted` | 0 (表示)・1 (グループのみ表示)・2 (非表示)の整数。無ければ 1 |
+| スケジュールの「完了」の、起動時の表示 | `WorkItems.InitialScheduleCompleted` | 0 (表示)・1 (グループのみ表示)・2 (非表示)の整数。無ければ 0 |
 | 作業報告の「実績に時間を出す」 | `WorkItems.Report.ShowHours` | 真偽。既定は false |
 | 作業報告の「進捗度表示」 | `WorkItems.Report.ShowProgress` | 真偽。既定は true |
 | ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |
@@ -56,9 +59,11 @@
 | まとめて追加で前回選んだ「何分前に通知」 | `Reminder.Bulk.LeadMinutes` | 0・3・5・10・15 のどれか。無ければ 5。詳細は [reminders.md](reminders.md) の「まとめて追加」 |
 | まとめて追加で前回選んだ「通知を読み上げる」 | `Reminder.Bulk.IsSpeak` | 真偽。既定は false |
 | まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
-| メッセージで前回送った宛先の送信先の番号 | `Messages.LastChannelId` | 整数。無ければ 0。詳細は [messages.md](messages.md) |
 | Backlog の連携用パス | `Backlog.Url` | |
 | サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値 (X・Y・Width・Height)。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
+| Web 版通知の送り手の公開鍵 | `WebPush.PublicKey` | MmmBatch の `Data/AppSettings.json` のキー。MmmBatch が起動時に作る。Web 版のサーバーの設定 `Web:PushPublicKey` に写す。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」 |
+| Web 版通知の送り手の連絡先 | `WebPush.Subject` | MmmBatch の `Data/AppSettings.json` のキー。`mailto:` か `https://` で始まる文字列。無ければ `mailto:mmmtool@example.com` |
+| DB の接続の設定 | `Database.Mode`・`Database.Server`・`Database.Name`・`Database.Authentication`・`Database.UserName`・`Database.TrustServerCertificate` | アプリごとの `Data/AppSettings.json` に持つ。MmmToolAdmin も、自分の `Data/AppSettings.json` に持ち、最初の起動で、接続の設定画面で入れる。パスワードは、ここに書かず、資格情報マネージャーに置く |
 | スヌーズ間隔・ウィンドウ位置など | 各機能・SDK が持つキー | |
 
 ## ファイルに書かないもの
@@ -66,6 +71,11 @@
 - Backlog の API キーは、Data フォルダーに書かず、Windows の資格情報マネージャー (汎用資格情報 `MmmTool.Backlog`)に保存する
   - 手で開いて見られる設定ファイルに、秘密を置かないため
   - 詳細は [backlog.md](backlog.md)
+- DB のパスワードは、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmTool.Database`)に保存する
+  - MmmTool と MmmToolAdmin は、同じ名前を使うので、同じ Windows ユーザーなら、どちらで入れたパスワードも、もう一方が使う。片方の接続の設定画面でパスワードを入れ直すと、もう一方も、新しいパスワードで動く。
+  - MmmBatch は `MmmBatch.Database`、MmmToolWeb は `MmmToolWeb.Database` で、アプリごとに分ける。
+- MmmBatch の Web 版通知の鍵の組 (公開鍵と秘密鍵)は、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmBatch.WebPushKeys`)に保存する
+  - DB のパスワードと同じ置き場にする。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」
 
 ## 壊れたファイル (全 JSON 共通)
 

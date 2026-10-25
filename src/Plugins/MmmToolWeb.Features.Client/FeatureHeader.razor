@@ -1,7 +1,14 @@
 @implements IDisposable
 
 <header class="bar">
-    <a class="home" href="@HomePath">‹ ホーム</a>
+    @if (OnBack.HasDelegate)
+    {
+        <button type="button" class="home" @onclick="OnBack">@BackMark@BackText</button>
+    }
+    else
+    {
+        <a class="home" href="@(BackPath ?? HomePath)">@BackMark@BackText</a>
+    }
     <h1>@Title</h1>
     <div class="actions">@ChildContent</div>
     @if (_showProgress)
@@ -25,6 +32,22 @@
     /// <summary>機能の名前。バーの中央に出す。</summary>
     [Parameter, EditorRequired]
     public string Title { get; set; } = "";
+
+    /// <summary>左の戻る操作で移る画面の道。機能の中の奥の画面 (会話など)で、1 つ前の画面に戻すときに渡す。無いときは、ホーム。</summary>
+    [Parameter]
+    public string? BackPath { get; set; }
+
+    /// <summary>左の戻る操作の名前。戻り先の画面の名前を渡す。</summary>
+    [Parameter]
+    public string BackText { get; set; } = "ホーム";
+
+    /// <summary>左の操作を、画面を移さずに、この処理で行う。画面全体を覆う選択の画面で、取りやめに使う。無いときは、道へ移る。</summary>
+    [Parameter]
+    public EventCallback OnBack { get; set; }
+
+    /// <summary>左の操作の名前の前に付ける印。戻る操作は「‹ 」。取りやめには、付けない。</summary>
+    [Parameter]
+    public string BackMark { get; set; } = "‹ ";
 
     /// <summary>読み込み中か。true の間、バーの下に進行バーを出す。</summary>
     [Parameter]

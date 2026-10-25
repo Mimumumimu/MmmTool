@@ -129,7 +129,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS UX_CodeMaster_FeatureNo_CategoryNo_CodeNo ON C
 CREATE INDEX IF NOT EXISTS IX_CodeMaster_FeatureNo_UpdatedAt ON CodeMaster (FeatureNo, UpdatedAt);
 
 -- 初期値 (作業管理 = 機能番号 2)。作成者・更新者は 1 (ローカルのユーザー)。無いコードだけを入れる
--- 区分 1: 状態 (未対応・作業予定・作業中・完了) / 区分 2: 進捗度 (コード番号 1〜11 が 0%〜100%。70・80・90 だけ名前がある) / 区分 3: 優先度
+-- 区分 1: 状態 (未対応・作業予定・作業中・完了) / 区分 2: 進捗度 (コード番号 1〜11 が 0%〜100%。名前は、すべて空) / 区分 3: 優先度
 INSERT INTO CodeMaster (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, FeatureNo, CategoryNo, CodeNo, SortOrder, NumericValue, Name)
 SELECT 0,
        strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours') || '+09:00', 1,
@@ -139,8 +139,8 @@ FROM (
     SELECT 1 AS CategoryNo, 1 AS CodeNo, 0 AS NumericValue, '未対応' AS Name
     UNION ALL SELECT 1, 2, 0, '作業予定' UNION ALL SELECT 1, 3, 0, '作業中' UNION ALL SELECT 1, 4, 0, '完了'
     UNION ALL SELECT 2, 1, 0, '' UNION ALL SELECT 2, 2, 10, '' UNION ALL SELECT 2, 3, 20, '' UNION ALL SELECT 2, 4, 30, '' UNION ALL SELECT 2, 5, 40, ''
-    UNION ALL SELECT 2, 6, 50, '' UNION ALL SELECT 2, 7, 60, '' UNION ALL SELECT 2, 8, 70, '作成完了' UNION ALL SELECT 2, 9, 80, '内部レビュー完了'
-    UNION ALL SELECT 2, 10, 90, '外部レビュー完了' UNION ALL SELECT 2, 11, 100, ''
+    UNION ALL SELECT 2, 6, 50, '' UNION ALL SELECT 2, 7, 60, '' UNION ALL SELECT 2, 8, 70, '' UNION ALL SELECT 2, 9, 80, ''
+    UNION ALL SELECT 2, 10, 90, '' UNION ALL SELECT 2, 11, 100, ''
     UNION ALL SELECT 3, 1, 0, '高' UNION ALL SELECT 3, 2, 0, '中' UNION ALL SELECT 3, 3, 0, '低'
 ) AS v
 WHERE NOT EXISTS (SELECT 1 FROM CodeMaster c WHERE c.FeatureNo = 2 AND c.CategoryNo = v.CategoryNo AND c.CodeNo = v.CodeNo);

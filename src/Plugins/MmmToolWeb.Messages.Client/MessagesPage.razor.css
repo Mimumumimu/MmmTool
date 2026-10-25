@@ -1,24 +1,9 @@
-/* 入力欄が画面の高さいっぱいまで伸びるように、縦に並べる。余った高さは本文が受け持つ */
+/* 会話の一覧の画面。右下に「新しい会話」を浮かべるので、一番下の行が隠れないよう、下をあける */
 .screen {
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
-    max-width: 40rem;
-    margin: 0 auto;
-    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
-}
-
-.text {
-    min-height: 2.75rem;
-    padding: 0 0.75rem;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-}
-
-.text.strong {
-    font-weight: 600;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
 }
 
 .result {
@@ -34,53 +19,146 @@
     color: var(--danger);
 }
 
-.form {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    padding-top: 0.75rem;
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.field {
-    display: block;
-    margin-bottom: 1rem;
+/* 上のバーの下に最初に並ぶ一覧。バーとの間をあける */
+.list.first {
+    margin-top: 0.75rem;
 }
 
-.field.grow {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    margin-bottom: 0;
+.list li + li {
+    margin-top: 0.5rem;
 }
 
-.field > span {
-    display: block;
-    margin-bottom: 0.25rem;
-    color: var(--muted);
-    font-size: 0.8125rem;
+/* 主な操作「新しい会話」。右下に浮かべて、親指で押せる位置に置く */
+.fab {
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 1rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    min-width: 2.75rem;
+    min-height: 3.25rem;
+    padding: 0 1.5rem;
+    border: none;
+    border-radius: 1.625rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    box-shadow: 0 0.125rem 0.5rem rgb(0 0 0 / 0.3);
 }
 
-.field input,
-.field select,
-.field textarea {
+/* iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (dvh)が画面の高さ (lvh)より縮んだまま戻らないことがある。縮んだ分より下は描かれないので、下へは動かせない。縮んだ分は、すでにホームバーの下に当たるので、余白 (ホームバーの余白と 1rem)から引く。縮んでいなければ、差は 0 */
+@media (display-mode: standalone) {
+    .fab {
+        bottom: max(0px, env(safe-area-inset-bottom) + 1rem - (100lvh - 100dvh));
+    }
+}
+
+/* 宛先を選ぶ画面。画面全体を覆う。中は、一覧の画面と同じ幅と余白 (.screen)で、上のバーも同じ部品 (FeatureHeader)を使う */
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* 浮かべたボタンが無いので、下の余白は、ホームバーを避けるだけにする */
+.sheet .screen {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}
+
+.row {
     box-sizing: border-box;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
     width: 100%;
     min-height: 2.75rem;
-    margin: 0;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background: var(--surface);
     color: var(--text);
     font: inherit;
-    /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
-    font-size: 1rem;
+    text-align: left;
+    text-decoration: none;
 }
 
-.field textarea {
-    flex: 1;
-    min-height: 12rem;
-    resize: none;
-    line-height: 1.6;
+.line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+/* 名前の左に未読の点を並べる。名前が長いときは、名前を省略して、点は残す */
+.who {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+/* 読んでいないメッセージがある会話の印。色だけに頼らないよう、名前も太字にする */
+.dot {
+    flex: none;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.name.unread {
+    font-weight: 700;
+}
+
+/* 上のバーの右の操作「すべて既読にする」 */
+.text {
+    min-height: 2.75rem;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+}
+
+button.text:disabled {
+    color: var(--disabled);
+}
+
+.time {
+    flex: none;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.preview {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.note {
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.empty {
+    margin: 1.5rem 0;
+    color: var(--muted);
+    text-align: center;
 }

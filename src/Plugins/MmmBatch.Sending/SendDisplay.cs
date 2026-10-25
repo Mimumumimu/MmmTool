@@ -9,16 +9,11 @@ public static class SendDisplay
     /// <summary>送信先を、種類と登録名にして、画面に出す文字列にする</summary>
     /// <param name="kind">送信先の区分。送信先が無ければ null</param>
     /// <param name="name">送信先の登録名</param>
-    /// <returns>「登録名 (ntfy)」「登録名 (Discord)」の形 (名前を先に、種類を補足として添える)。送信先が無ければ空文字</returns>
-    /// <remarks>送る先の値 (トピック名・Webhook の URL)は秘密なので、出さない。</remarks>
+    /// <returns>名前を先に、種類を補足として添えた「登録名 (ntfy)」の形。送信先が無ければ空文字</returns>
+    /// <remarks>送る先の値 (トピック名・Webhook の URL・通知の宛先)は秘密なので、出さない。</remarks>
     public static string ChannelText(NotificationChannelKind? kind, string name)
     {
-        var kindText = kind switch
-        {
-            NotificationChannelKind.Ntfy => "ntfy",
-            NotificationChannelKind.Discord => "Discord",
-            _ => "",
-        };
+        var kindText = kind is { } value ? NotificationChannelKinds.ToText(value) : "";
         if (name.Length == 0 && kindText.Length == 0)
         {
             return "";
@@ -35,6 +30,12 @@ public static class SendDisplay
     /// <remarks>送る先の値は秘密なので、出さない。</remarks>
     public static string RecipientText(string ownerName, NotificationChannelKind kind, string name)
     {
+        // 登録名が空のとき、送信先が無い (受け取り先を指定していない)ので、ユーザー名だけを出す
+        if (name.Length == 0)
+        {
+            return ownerName;
+        }
+
         var channel = ChannelText(kind, name);
         return ownerName.Length == 0 ? channel : $"{ownerName} - {channel}";
     }

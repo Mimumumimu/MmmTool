@@ -5,7 +5,9 @@
     --text: #1b1d21;
     --muted: #5d6470;
     --accent: #2f6fde;
+    --accent-soft: #d6e3fb;
     --accent-text: #ffffff;
+    --pressed: #e5e8ed;
     --border: #d5d9e0;
     --danger: #b3261e;
     --disabled: #a3a9b4;
@@ -19,7 +21,9 @@
         --text: #eceef2;
         --muted: #a2a9b5;
         --accent: #6c9cf2;
+        --accent-soft: #2a3a5c;
         --accent-text: #10151d;
+        --pressed: #2d323a;
         --border: #343a44;
         --danger: #f2b8b5;
     }
@@ -38,6 +42,14 @@ body {
     max-width: 32rem;
     margin: 0 auto;
     padding: calc(env(safe-area-inset-top) + 1rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
+}
+
+/* 機能の画面の共通の枠。最大幅・中央寄せ・左右の余白は、ここ 1 か所で決める。上のバー (FeatureHeader)が、左右の余白の 1rem ぶん外へ広がる前提。画面ごとの違い (下の余白・縦の並び)だけを、各画面の CSS に書く */
+.screen {
+    box-sizing: border-box;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
 }
 
 /* シートやダイアログ (aria-modal)が開いている間は、裏の画面をスクロールさせない。キーボードを出す操作で、裏の画面が見えたり、横にずれたりするのを防ぐ */
@@ -111,6 +123,18 @@ input[type="date"] {
 
 input[type="date"]::-webkit-date-and-time-value {
     text-align: center;
+}
+
+/* 標準の見た目を外した iPhone の日付入力は、中の文字が枠の上に寄る。入力欄を縦の中央寄せの並びにして、文字の高さも決める */
+input[type="date"] {
+    display: flex;
+    align-items: center;
+    line-height: 1.5;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.5em;
+    margin: 0;
 }
 
 input {

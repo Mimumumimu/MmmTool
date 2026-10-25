@@ -1,0 +1,48 @@
+@page "/settings"
+@inject IEnumerable<ClientFeature> Features
+@inject FeatureAvailability Availability
+
+<div class="screen">
+    <FeatureHeader Title="設定" Busy="_loading" />
+
+    <main class="settings">
+        @foreach (var feature in _available.Where(feature => feature.SettingsSection is not null))
+        {
+            <section class="section" aria-labelledby="@SectionId(feature)">
+                <h2 id="@SectionId(feature)">@feature.Title</h2>
+                <DynamicComponent Type="@feature.SettingsSection" />
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    /// <summary>設定を出す機能。管理者に使えなくされた機能は含まない。読み込むまでは空。</summary>
+    private IReadOnlyList<ClientFeature> _available = [];
+
+    /// <summary>機能を聞いている間 true。バーの下に進行バーを出す。</summary>
+    private bool _loading;
+
+    /// <summary>前に聞いた結果があれば、先に節に出す。開くたびに、空の画面を挟まないため。</summary>
+    protected override void OnInitialized() => _available = Availability.FilterRemembered(Features) ?? [];
+
+    /// <summary>使える機能を、サーバーに聞き直して、節に出す。</summary>
+    /// <returns>読み込みの完了を表すタスク。</returns>
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        try
+        {
+            _available = await Availability.FilterAsync(Features);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>節の見出しの id。見出しと節を結びつける。</summary>
+    /// <param name="feature">機能。</param>
+    /// <returns>機能の名前から作った id。</returns>
+    private static string SectionId(ClientFeature feature) => $"settings-{feature.Route.Trim('/')}";
+}

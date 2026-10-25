@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.Reminders.Settings.ReceiveTargetSettingsControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:MmmTool.Reminders.Settings">
+
+    <!-- サーバーモードのときだけ並べる。部品そのものを、コードビハインドで隠す -->
+    <StackPanel Spacing="4">
+        <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="受け取り先" />
+
+        <InfoBar
+            IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
+            Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
+            Severity="Error"
+            Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
+
+        <ItemsControl ItemsSource="{x:Bind ViewModel.Items}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:ReceiveTargetItem">
+                    <controls:SettingsCard Description="ほかの人から届いた通知を、この送信先で受け取ります。指定しないと、あなたには送れません。" Header="{x:Bind Name}">
+                        <ComboBox
+                            Width="280"
+                            DisplayMemberPath="Text"
+                            ItemsSource="{x:Bind Options}"
+                            SelectedItem="{x:Bind Selected, Mode=TwoWay}" />
+                    </controls:SettingsCard>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

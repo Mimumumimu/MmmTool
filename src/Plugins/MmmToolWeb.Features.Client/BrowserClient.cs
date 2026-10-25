@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
@@ -36,17 +37,6 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
-    /// 入力欄のカーソルを先頭に置く。
-    /// </summary>
-    /// <param name="element">入力欄。</param>
-    /// <returns>置いたことを表すタスク。</returns>
-    public async Task PlaceCaretAtStartAsync(ElementReference element)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("placeCaretAtStart", element);
-    }
-
-    /// <summary>
     /// この端末で覚えている値を返す。
     /// </summary>
     /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>
@@ -71,6 +61,62 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// 端末の呼び名を返す。
+    /// </summary>
+    /// <returns>iPhone と iPad は「iPhone」、それ以外は「ブラウザ」。</returns>
+    public async Task<string> GetDeviceNameAsync()
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<string>("deviceName");
+    }
+
+    /// <summary>
+    /// このブラウザで通知を受け取れる状態かを返す。サービスワーカーも登録しておく。
+    /// </summary>
+    /// <returns>通知の状態。</returns>
+    public async Task<PushStatus> GetPushStatusAsync()
+    {
+        var module = await GetModuleAsync();
+        var result = await module.InvokeAsync<JsonElement>("getPushStatus");
+        var state = result.GetProperty("state").GetString() switch
+        {
+            "ready" => PushState.Ready,
+            "denied" => PushState.Denied,
+            "needs-home-screen" => PushState.NeedsHomeScreen,
+            _ => PushState.Unsupported,
+        };
+        return new PushStatus(state, result.GetProperty("subscribed").GetBoolean());
+    }
+
+    /// <summary>
+    /// 通知の許可を求めて、このブラウザの宛先を作る。
+    /// </summary>
+    /// <param name="publicKey">サーバーが返した、送り手の公開鍵で、base64url の文字列。</param>
+    /// <returns>宛先。許可されなかったときは null。</returns>
+    /// <remarks>押した操作の中で、ほかの待ちより先に呼ぶ。iPhone は、押した直後でないと許可を求められない。</remarks>
+    public async Task<PushSubscriptionInfo?> SubscribePushAsync(string publicKey)
+    {
+        var module = await GetModuleAsync();
+        var result = await module.InvokeAsync<JsonElement>("subscribePush", publicKey);
+        return result.GetProperty("status").GetString() == "granted"
+            ? new PushSubscriptionInfo(
+                result.GetProperty("endpoint").GetString() ?? "",
+                result.GetProperty("p256dh").GetString() ?? "",
+                result.GetProperty("auth").GetString() ?? "")
+            : null;
+    }
+
+    /// <summary>
+    /// このブラウザの宛先を捨てる。無ければ何もしない。
+    /// </summary>
+    /// <returns>捨てたことを表すタスク。</returns>
+    public async Task UnsubscribePushAsync()
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("unsubscribePush");
+    }
+
+    /// <summary>
     /// 前面に戻ったことの通知を始める。
     /// </summary>
     /// <returns>始めたことを表すタスク。</returns>
@@ -83,6 +129,184 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
         var module = await GetModuleAsync();
         _self = DotNetObjectReference.Create(this);
         _subscription = await module.InvokeAsync<IJSObjectReference>("watchVisibility", _self);
+    }
+
+    /// <summary>
+    /// 端末の控えの値を返す。
+    /// </summary>
+    /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>
+    /// <returns>控えの値。無いとき、読めないときは null。</returns>
+    /// <remarks>控えは、ブラウザの IndexedDB に置く。サーバーが唯一の正で、控えはいつでも作り直せる。サーバーには送らない。</remarks>
+    public async Task<string?> CacheGetAsync(string key)
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<string?>("cacheGet", key);
+    }
+
+    /// <summary>
+    /// 端末の控えに値を置く。置けなくても、エラーにしない。
+    /// </summary>
+    /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>
+    /// <param name="value">置く値。</param>
+    /// <returns>置いたことを表すタスク。</returns>
+    public async Task CachePutAsync(string key, string value)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("cachePut", key, value);
+    }
+
+    /// <summary>
+    /// 端末の控えを全部捨てる。ログアウトとアカウントの変更で呼ぶ。
+    /// </summary>
+    /// <returns>捨てたことを表すタスク。</returns>
+    public async Task ClearCacheAsync()
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("cacheClear");
+    }
+
+    /// <summary>
+    /// 読んでいない通知の識別子を返す。
+    /// </summary>
+    /// <returns>種類:番号 の形の識別子。無いとき、読めないときは空。</returns>
+    /// <remarks>一覧は端末の控えに置き、ホーム画面のアイコンの数字は、この件数に合わせる。ログアウトとアカウントの変更で、控えと一緒に消える。</remarks>
+    public async Task<IReadOnlyList<string>> GetUnreadAsync()
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<string[]>("unreadGet");
+    }
+
+    /// <summary>
+    /// 画面が取り込んだ新着を、読んでいない通知に数える。
+    /// </summary>
+    /// <param name="kind">通知の種類。</param>
+    /// <param name="ids">数えるものの番号。</param>
+    /// <param name="maxId">取り込んだ全部の中で、一番大きい番号。自分が送ったものも含む。</param>
+    /// <returns>数えたことを表すタスク。</returns>
+    /// <remarks>基準の番号以下のものは数えない。更新の知らせで同じものが届き直しても、読んだものを未読に戻さないため。</remarks>
+    public async Task AddArrivedUnreadAsync(string kind, IReadOnlyList<int> ids, int maxId)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("unreadAddArrived", kind, ids, maxId);
+    }
+
+    /// <summary>
+    /// 読んでいない通知の基準の番号が無いときだけ、置く。最初の読み込みで呼ぶ。
+    /// </summary>
+    /// <param name="kind">通知の種類。</param>
+    /// <param name="maxId">いま取り込んでいる中で、一番大きい番号。</param>
+    /// <returns>置いたことを表すタスク。</returns>
+    public async Task InitUnreadAsync(string kind, int maxId)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("unreadInit", kind, maxId);
+    }
+
+    /// <summary>
+    /// 読んだ通知を、読んでいない通知から外す。
+    /// </summary>
+    /// <param name="kind">通知の種類。</param>
+    /// <param name="ids">読んだものの番号。</param>
+    /// <returns>外したことを表すタスク。</returns>
+    public async Task RemoveUnreadAsync(string kind, IReadOnlyList<int> ids)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("unreadRemove", kind, ids);
+    }
+
+    /// <summary>
+    /// 種類の通知を、すべて読んだことにする。
+    /// </summary>
+    /// <param name="kind">通知の種類。</param>
+    /// <returns>外したことを表すタスク。</returns>
+    public async Task ClearUnreadAsync(string kind)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("unreadClear", kind);
+    }
+
+    /// <summary>
+    /// サーバーからの更新の知らせ (Server-Sent Events)を受け始める。
+    /// </summary>
+    /// <param name="url">知らせの道。</param>
+    /// <param name="onChanged">「changed」の知らせを受けたときの処理。</param>
+    /// <returns>閉じると、つなぎをやめる購読。</returns>
+    public async Task<IAsyncDisposable> OpenEventsAsync(string url, Func<Task> onChanged)
+    {
+        var module = await GetModuleAsync();
+        var callback = new JsCallback(onChanged);
+        var handle = await module.InvokeAsync<IJSObjectReference>("openEvents", url, callback.Reference);
+        return new JsSubscription(handle, callback);
+    }
+
+    /// <summary>
+    /// 要素が先頭に近づいたことを、受け始める。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <param name="onNearTop">先頭に近づいたときの処理。</param>
+    /// <returns>閉じると、やめる購読。</returns>
+    public async Task<IAsyncDisposable> WatchScrollTopAsync(ElementReference element, Func<Task> onNearTop)
+    {
+        var module = await GetModuleAsync();
+        var callback = new JsCallback(onNearTop);
+        var handle = await module.InvokeAsync<IJSObjectReference>("watchScrollTop", element, callback.Reference);
+        return new JsSubscription(handle, callback);
+    }
+
+    /// <summary>
+    /// 要素の中身の高さを返す。古いメッセージを足す前に測る。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <returns>中身の高さ。</returns>
+    public async Task<double> GetScrollHeightAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<double>("getScrollHeight", element);
+    }
+
+    /// <summary>
+    /// 古いメッセージを上に足したあと、見ていた位置を保つ。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <param name="previousHeight">足す前の中身の高さ。</param>
+    /// <returns>位置を直したことを表すタスク。</returns>
+    public async Task KeepScrollAfterPrependAsync(ElementReference element, double previousHeight)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("keepScrollAfterPrepend", element, previousHeight);
+    }
+
+    /// <summary>
+    /// 要素を、一番下までスクロールする。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <returns>スクロールしたことを表すタスク。</returns>
+    public async Task ScrollToBottomAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("scrollToBottom", element);
+    }
+
+    /// <summary>
+    /// 要素が、ほぼ一番下を見ているかを返す。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <returns>ほぼ一番下を見ているとき true。</returns>
+    public async Task<bool> IsNearBottomAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<bool>("isNearBottom", element);
+    }
+
+    /// <summary>
+    /// id の要素を、画面の中ほどに出す。
+    /// </summary>
+    /// <param name="id">要素の id。</param>
+    /// <returns>スクロールしたことを表すタスク。</returns>
+    public async Task ScrollIntoViewAsync(string id)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("scrollIntoViewById", id);
     }
 
     /// <summary>

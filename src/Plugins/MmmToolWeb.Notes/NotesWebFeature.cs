@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Notes;
 using MmmTool.Notes.Core;
 using MmmToolWeb.Features;
@@ -14,6 +15,9 @@ public sealed class NotesWebFeature : IWebFeature
 {
     /// <inheritdoc />
     public Assembly ClientAssembly => typeof(NotesClient).Assembly;
+
+    /// <inheritdoc />
+    public int? FeatureNo => CodeFeatures.Notes;
 
     /// <inheritdoc />
     public void AddServices(IServiceCollection services)

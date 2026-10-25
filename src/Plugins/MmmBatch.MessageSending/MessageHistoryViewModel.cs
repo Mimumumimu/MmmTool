@@ -1,6 +1,7 @@
 using MmmBatch.MessageSending.Core;
 using MmmBatch.Sending;
 using MmmBatch.Sending.Core;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.MessageSending;
 
@@ -9,5 +10,5 @@ namespace MmmBatch.MessageSending;
 /// <param name="service">メッセージの送信の処理</param>
 /// <param name="dialogs">接続の設定の画面を開く</param>
 /// <param name="monitor">毎分の監視</param>
-public sealed class MessageHistoryViewModel(ISendHistory history, MessageSendService service, ISendingDialogService dialogs, BatchMonitor monitor)
+public sealed class MessageHistoryViewModel(ISendHistory history, MessageSendService service, IConnectionSettingsDialogService dialogs, BatchMonitor monitor)
     : SendHistoryViewModel(MessageSendContent.Source, history, service, dialogs, monitor);

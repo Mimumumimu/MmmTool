@@ -65,9 +65,9 @@
     - 理由: VS の「発行」は、発行プロファイルを単体で読んで出力先を決めるので、プロジェクトの `Version`(`Directory.Build.props`)が見えず、`MmmTool_\` になる
     - プロファイルで `Directory.Build.props` を `Import` すると、VS がプロファイルを読めなくなる (一覧から消える)
     - そのため、版はプロジェクトの中 (`PackageDistribution`)で付ける
-- 別の PC で、クローン済みのフォルダを今のブランチの最新にして発行するには、`scripts/update_and_publish.bat` を実行する
-  - MmmTool・MmmBatch・MmmToolWeb の 3 つすべてを発行する
-  - 1 つだけ発行するときは、MmmTool は `update_and_publish_tool.bat`、MmmBatch は `update_and_publish_batch.bat`、MmmToolWeb は `update_and_publish_web.bat` を実行する。3 つとも `update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
+- 別の PC で、クローン済みのフォルダを今のブランチの最新にして発行するには、`scripts/00_update_and_publish.bat` を実行する
+  - MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の 4 つすべてを発行する
+  - 1 つだけ発行するときは、MmmTool は `01_update_and_publish_tool.bat`、MmmToolWeb は `11_update_and_publish_web.bat`、MmmBatch は `21_update_and_publish_batch.bat`、MmmToolAdmin は `29_update_and_publish_admin.bat` を実行する。4 つとも `00_update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
   - MmmToolWeb の出力は `src/App/MmmToolWeb/Server/bin/Release/publish/MmmToolWeb/`
   - リポジトリの根元は、バッチの 1 つ上のフォルダ。どこにクローンしても動く。
   - 順は、`git pull --ff-only` → `git submodule update --init --recursive` → 上の `dotnet publish`。どれかが失敗した時点で止まる。
@@ -125,12 +125,11 @@
   - MmmBatch のアイコンは MmmTool と別にする
     - 緑の角丸の四角・白い歯車・紫の再生マークにする
     - タスクトレイとウィンドウで MmmTool と見分けるため
-  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool と MmmBatch の csproj の末尾が読み込む
+  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin の csproj の末尾が読み込む
     - 仕組みは、`Lib` への移動・`deps.json` の書き足し・ライセンス全文の自動生成・Release の強制・配布物のフォルダへの配置・発行の設定
     - アプリごとに違う値は、各 csproj に書く: `DistributionFolderName` (配布物のフォルダ名で、MmmTool は `MmmTool_$(Version)`)・`DistributionDocument` (並べる説明書で、MmmTool だけ)・`LICENSE.txt` の `None` の項目・アイコンなど
     - 最終形にどう近づくか: 配布の仕組みが 1 か所になり、アプリを足しても写さずに済む
     - SDK ではなくこのリポジトリの `build/` に置くのは、アプリの配布の形がこのリポジトリのアプリに共通の決まりで、SDK の責務ではないため
-- リリースビルドには DEBUG ページ (コード・XAML)を含めない (csproj の条件付き `Remove`)
 - WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Cache`(消しても作り直されるもの)・`Lib`(パッケージの DLL)の 4 つだけにする (仕組みは下の「EXE の横のフォルダと DLL」)
 - 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く
@@ -144,6 +143,10 @@
 ## 版を上げるとき
 
 - 版を上げるのは、ユーザーが決めたときだけ
+- 版の指示 (「0.9.0 にして」など)を受けたら、手順 1〜6 を最後まで行ってから、コミット・PR に進む
+  - 手順 3 の「変更履歴を整える」は、`Version` と見出しの書き換えとは別の作業なので、必ず行う
+  - 手順 4〜6 を飛ばしたときは、飛ばしたことと理由を報告に書く
+  - 悪い例: `Version` と「未リリース」の見出しだけを書き換え、項目を整理しないまま、PR とリリースへ進む (公開した zip の変更履歴が、溜めた文のままになる)
 - 次の順で行う (毎回同じ手順にして、やり取りを増やさない)
 
 1. **版の番号を決める**: 「未リリース」に溜まった中身から、ビルドの共通設定の規則で決める。決めたら、ユーザーに 1 回だけ確認する。
@@ -169,7 +172,9 @@
      - 開発用の DB は少しずつ作ってきたので、書き漏れがあっても動いてしまい、自分では気づけない
 5. **配布用の文書を最新にする**: `README.txt` (機能一覧・動作環境・置き場所など)と `操作説明.html` が、今の画面と合っているかを確かめる
    - 機能を足したときは、同じ作業で直してあるはず (CLAUDE.md の決まり)なので、版を上げるときは確認だけ
-6. **ビルドと発行で確かめる**: `MmmTool.slnx` と `MmmBatch.slnx` のビルド、発行して `MmmTool_<版>\` の直下に `MmmTool.exe`・`README.txt`・`操作説明.html`・`Lib\`・`Assets\` が揃うこと
+6. **ビルドで確かめる**: `MmmToolAll.slnx` のビルドが通ること
+   - 発行は、Claude が行わない。発行と zip 作りは、手順 8 のとおり、ユーザーが `master` から行う。
+   - 発行物の中身 (`MmmTool_<版>\` の直下に `MmmTool.exe`・`README.txt`・`操作説明.html`・`Lib\`・`Assets\` が揃うこと)は、手順 8 で、ユーザーが作った zip の一覧を読んで確かめる
 7. **コミット・PR・マージ**: CLAUDE.md の決まりに従う (ユーザーが指示したときだけ)
 8. **GitHub Releases に出す**: `master` からの発行 (zip 作り)は、ユーザーが行う。ユーザーが zip の場所を示して「リリースして」と頼んだら、次を行う。
    - この頼みが、タグの作成とリリースの公開の許可になる
@@ -260,7 +265,7 @@
   - アプリが全部入りのパッケージをやめられない理由: CommunityToolkit (`CommunityToolkit.WinUI.Controls.Segmented`)が古い全部入りのパッケージ (1.6)に依存していて、アプリが参照をやめると 1.6 が入ってきてビルドが通らない
     - 全部入り (2.5.1)を参照して版を決め、使わない部品 (`.AI`・`.ML`・`.Search`・`.Widgets`)と、それらだけが使う依存 (`Microsoft.Windows.AI.MachineLearning`・`System.Numerics.Tensors`)を `ExcludeAssets="all"` で外す
     - 全部入りを上げるときは、`Directory.Packages.props` の部品の版も、新しい全部入りの依存に合わせる
-  - 設定ページのカード (`CommunityToolkit.WinUI.Controls.SettingsControls`)も、`Segmented` と同じ版 (8.2.251219)で、同じ依存を持つ。使う csproj (アプリ本体・Reminders・Backlog)に、同じ指定 (全部入りの直接参照と、使わない部品の `ExcludeAssets`)を書く。
+  - 設定ページのカード (`CommunityToolkit.WinUI.Controls.SettingsControls`)も、`Segmented` と同じ版 (8.2.251219)で、同じ依存を持つ。使う csproj (アプリ本体・Reminders・Backlog・WorkItems)に、同じ指定 (全部入りの直接参照と、使わない部品の `ExcludeAssets`)を書く。
   - SDK は CommunityToolkit の WinUI 部品を使わないので、使う部品のパッケージ (`.WinUI`・`.Foundation`・`.InteractiveExperiences`)だけを参照する
     - InteractiveExperiences を明示する理由: WinUI 2.3.9 が求める 2.1.8 は公開されておらず、NuGet が警告 (NU1603)を出して 2.1.9 を選ぶ。全部入り 2.5.1 と同じ 2.1.9 を明示する。
 - `Lib` への移動: `MmmTool.dll` 以外の DLL は `Lib` に置く

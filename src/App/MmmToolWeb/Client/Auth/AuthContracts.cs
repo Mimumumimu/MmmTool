@@ -9,6 +9,14 @@ namespace MmmToolWeb.Client.Auth;
 /// <param name="SignedInAt">ログインした日時。</param>
 public sealed record MeResponse(string Name, DateTimeOffset SignedInAt);
 
+#if DEBUG
+/// <summary>
+/// 開発用のビルド (Debug)だけにある、パスワードなしのログインの要求。
+/// </summary>
+/// <param name="LoginName">ログインする人のログイン名。</param>
+public sealed record DevLoginRequest(string LoginName);
+
+#endif
 /// <summary>
 /// パスキーの登録を始める要求。
 /// </summary>

@@ -7,6 +7,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 - `docs/architecture.md`: 全体構成 (プロジェクト・フォルダ・DI・起動と終了の順序・エラーの扱い・C# の書き方・開発時の注意)と、その決定の理由
 - `docs/build-and-distribution.md`: ビルドの共通設定・配布 (発行・配布物・ライセンス)と、その決定の理由
 - `docs/specs/`: 機能ごとの仕様と実装メモ。機能を変更するときは、先に該当の仕様を読む。
+- `docs/specs/mmmtooladmin.md`: 管理ツール MmmToolAdmin の仕様。管理ツールを変更するときは、先に読む。
 - `docs/todo.md`: 未実装・残りの作業。作業管理・そのうち・ユーザーが用意するもの待ちを載せる。作業を始める前に読み、実装したら消して説明を docs に移す。
 - `external/MmmSdk/docs/`: 共有部品 (SDK)の仕様
 - 決定の理由は、Claude が誤って直したり、捨てた案を再提案したりしそうなものだけを、仕様の該当する行に「〜しない (理由 1 句)」の形で書く
@@ -32,6 +33,7 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 - 各チャットの最初の応答の前に、`/csharp-dotnet` スキルを Skill ツールで読み込み、そのルールに従う
   - WinUI のコード (MmmTool・MmmBatch・`MmmSdk.WinUI`)を触る・答えるチャットでは、`/winui3-mvvm` も読み込む
+  - MmmToolAdmin (`src/App/MmmToolAdmin`・`src/Plugins/MmmToolAdmin.*`)のチャットでも、`/winui3-mvvm` を読み込む。
   - MmmToolWeb (`Server`・`Client`・`src/Plugins/MmmToolWeb.*`)のチャットでは、`/web-app` を読み込み、`/winui3-mvvm` を読み込まない。
   - MmmToolWeb の画面を作る・直すチャットでは、`/mobile-ui` も読み込む。
   - 質問・調査・確認だけの場合も、コードを触らない場合も読み込む
@@ -73,6 +75,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
   - ライト・ダークの両方で読める色にし、外部の通信を使わない
   - `README.md` を直すのは、機能の追加・削除・名前の変更や、起動・導入の手順が変わったときだけ。操作の手順は、README に書かない。
   - 読む人が違うため、README に使い方を詳しく書かない。`README.md` は見に来た人に使いたいと思ってもらう文書、配布用 `README.txt` と `操作説明.html` は受け取った人が使い方を調べる文書。
+- MmmTool の配布用 `README.txt` と `操作説明.html` には、MmmTool の画面で利用者が使う・気づくことだけを書く。
+  - 管理ツール (MmmToolAdmin)など、他のアプリの機能は、そのアプリの文書に書く。
+  - 悪い例: 管理ツールの機能「管理者が、ユーザーごとに機能を無効にする」を、MmmTool の変更履歴と `操作説明.html` に書く。
 - 配布用 `README.txt` に、GitHub のアドレスや、リポジトリを示す案内を書かない (配布物をリポジトリと結びつけないため)
 - 設定や保存データを足したら、報告に「どのファイルの、どのキー (または列)に、何を書くか」を必ず書く
   - 例: `Data/AppSettings.json` の `Speech.VolumePercent`・0〜100 の整数
@@ -85,8 +90,9 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## README.md の書き方
 
-- README の書き方は、GitHub で世間的に普通の形を優先する。考え方と、決めた書き方は、`intro-writing` スキルを読む。
-- 画像がまだ無い所は `<!-- TODO(画像): … -->` と書き、`docs/todo.md` の「ユーザーが用意するもの待ち」に名前を書く
+- README の書き方は、GitHub で世間的に普通の形を優先する。考え方と、決めた書き方は、`promotion` スキルを読む。
+- 画像がまだ無い所は、プレビューで見える引用で「**ここに画像を追加**: `docs/images/名前.png`」と書き、`docs/todo.md` の「ユーザーが用意するもの待ち」に名前を書く。
+  - 見えない HTML コメントにしない。ユーザーが、置き場所をプレビューで探せないため。
 - README から中身を外すときは、`操作説明.html` と `docs/specs/` に同じ事実があるかを確かめ、あれば移さずに消す。無い事実だけ、行き先へ移す。
 - 利用者が設定しない接続先へ通信する機能を足すときは、同じ作業の中で、README.md の「ダウンロード」の節の先頭にある警告 (Microsoft Defender の誤検知の案内)の、「利用者が設定した接続先 (…)以外へは通信しません」の文も直す (警告が嘘になると、利用者が誤検知ではないと疑うため)
   - 悪い例: 決まったアドレスへ更新の確認をする機能を足したのに、警告の「利用者が設定した接続先以外へは通信しません」を直さない
@@ -236,18 +242,20 @@ C# + WinUI 3 のデスクトップアプリ。開発作業を補助する常駐�
 
 ## ビルドの確認
 
-- コードを変えたら、`MmmTool.slnx`・`MmmBatch.slnx`・`MmmToolWeb.slnx` の 3 つが通ることを、作業の区切りの前に 1 回確認する。どれかしか参照しない部分だけの変更でも、3 つとも流す。SDK を変えたときは、`external/MmmSdk/MmmSdk.slnx` も流す。
+- コードを変えたら、全部入りの `MmmToolAll.slnx` が通ることを、作業の区切りの前に 1 回確認する。どれかしか参照しない部分だけの変更でも、`MmmToolAll.slnx` を流す。SDK を変えたときも、SDK のプロジェクトをすべて含むので、同じ 1 つで足りる。
+  - `MmmToolAll.slnx` は、`MmmTool.slnx`・`MmmBatch.slnx`・`MmmToolWeb.slnx`・`MmmToolAdmin.slnx` の 4 つの和集合。ほかの `.slnx` と同じ作りで、VS で開いて、動かしてもよい。
+  - プロジェクトを足す・外すときは、4 つの `.slnx` と同じ作業の中で、`MmmToolAll.slnx` も直す。
   - 複数が参照するもの: `src/Data/`・`src/Users/`・`MmmTool.Reminders.Core`・`MmmTool.Notes.Core`・`external/MmmSdk` など
   - 理由: 1 つだけ通って、ほかが壊れるのを防ぐため。
   - 作業の区切り: 機能・修正がまとまって、コミットする前か、最後の報告の前
   - 区切りの途中は、触っているほうのソリューションだけ流す。途中の報告では、流したソリューションと、流していないほうの名前を書く。
     - 区切りの途中とは、見た目の調整や小さな直しを、何度も繰り返している間
-    - 画面・MmmTool 側の変更なら `MmmTool.slnx`、MmmBatch 側の変更なら `MmmBatch.slnx`、Web 版の変更なら `MmmToolWeb.slnx` を流す。
-    - 書き方の例: 「ビルド: `MmmTool.slnx` のみ。`MmmBatch.slnx` と `MmmToolWeb.slnx` は区切りの前に流す」
-  - コミット・push の前は、3 つを流す。直前に 3 つを通していて、そのあとコードを変えていなければ、流し直さない。
+    - 画面・MmmTool 側の変更なら `MmmTool.slnx`、MmmBatch 側の変更なら `MmmBatch.slnx`、Web 版の変更なら `MmmToolWeb.slnx`、管理ツールの変更なら `MmmToolAdmin.slnx` を流す。
+    - 書き方の例: 「ビルド: `MmmTool.slnx` のみ。`MmmToolAll.slnx` は区切りの前に流す」
+  - コミット・push の前は、`MmmToolAll.slnx` を流す。直前に通していて、そのあとコードを変えていなければ、流し直さない。
   - PR の作成では、流し直さない (コミットのときに通しているため)
-  - PR のマージの前は、`master` を作業ブランチに取り込んで、コードが変わったときだけ、3 つを流す (早送りなど、変わらなければ流さない)
-  - SDK も変えたときは、SDK のコミットの前に、アプリ側の 3 つが通ることを確かめる。
+  - PR のマージの前は、`master` を作業ブランチに取り込んで、コードが変わったときだけ、`MmmToolAll.slnx` を流す (早送りなど、変わらなければ流さない)
+  - SDK も変えたときは、SDK のコミットの前に、アプリ側の `MmmToolAll.slnx` が通ることを確かめる。
   - `dotnet build` を流す前に、`build-check` スキルを Skill ツールで開いて読む。報告の末尾の「ビルド」と「確認リスト」の形も、実行中のアプリで DLL が使用中のときの扱いも、同じスキルに従う。
     - 悪い例: ビルドを流して報告し、スキルを開かないまま、確認リストを付け忘れる
 - ビルドは、VS を開いているだけなら、気にせず `dotnet build` してよい。避けるのは、ビルド先の出力フォルダーの exe が実行中のときだけ。普段使いの `MmmTool_local` (`bin\Release\publish\MmmTool_local`)は、Debug のビルドと衝突しない。

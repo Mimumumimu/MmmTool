@@ -6,21 +6,21 @@ using MmmTool.NotificationChannels.Core;
 namespace MmmBatch.MessageSending.Core;
 
 /// <summary>
-/// MmmTool で依頼されたメッセージ (送信依頼)を、選んだ送信先へ送る (毎分の仕事)。
+/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の受け取り先へ送る。1 秒おきの仕事。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (送信待ち・送信中・失敗で上限に達していない依頼)ごとに、送る権利を取ってから送る。
+/// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (送信待ち・送信中・失敗で上限に達していない通知の状態)ごとに、送る権利を取ってから送る。
 /// 権利は、読んだ内容と同じときだけ更新できる条件つきの更新で取る。取れた (1 行更新できた)ものだけが送る。
 /// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す (決まりは <see cref="SendRetryPolicy"/>)。
 /// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる (取りこぼすより、重複を許す側に倒す)。
 /// </para>
 /// <para>
-/// リマインダーと違い、日付・時刻は見ない。依頼された順に、すぐ送る (毎分の実行で拾うので、依頼から送るまで最大で約 1 分かかる)。
+/// リマインダーと違い、日付・時刻は見ない。書かれた順に、すぐ送る。1 秒おきの実行で拾うので、書いてから送るまで最大で約 1 秒かかる。
 /// 失敗の理由は、DB には残さず、送信のログにだけ残す。
 /// </para>
 /// </remarks>
-/// <param name="store">送信依頼の読み出しと状態の保存先</param>
+/// <param name="store">通知の状態の読み出しと保存先</param>
 /// <param name="notifiers">外部へ送る口 (送信先の区分ごと)</param>
 /// <param name="log">送信のログ (送った 1 回ごとの記録)</param>
 /// <param name="alerts">気づいてほしい失敗の窓口</param>
@@ -29,7 +29,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     : IBatchJob
 {
     /// <summary>送るものがあるかを読む間隔</summary>
-    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
 
     /// <summary>「最近の依頼」に出す最大の件数</summary>
     public const int RecentCount = 100;
@@ -41,7 +41,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     public string Name => "メッセージの送信";
 
     /// <inheritdoc />
-    /// <remarks>依頼をすぐ送るため、数秒おきに読む (依頼から送るまで最大でこの間隔。読むのは状態の索引で絞った行だけで軽い)。</remarks>
+    /// <remarks>メッセージをすぐ送るため、1 秒おきに読む。書いてから送るまで最大でこの間隔で、読むのは状態の索引で絞った行だけで軽い。</remarks>
     public TimeSpan Interval => PollInterval;
 
     /// <inheritdoc />
@@ -68,6 +68,9 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var changed = false;
         try
         {
+            // メッセージを無効にされた人への通知は、送る前に止める
+            changed |= await store.SkipDisabledAsync(cancellationToken).ConfigureAwait(false) > 0;
+
             foreach (var target in await store.GetSendableAsync(SendRetryPolicy.MaxAttempts, cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -135,7 +138,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="current">今の依頼</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>権利を取れたときの、送信中の依頼。送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null</returns>
-    private async Task<MessageSendRequest?> ClaimAsync(MessageSendRequest current, CancellationToken cancellationToken)
+    private async Task<MessageDeliveryItem?> ClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken)
     {
         if (current.Status == MessageSendStatus.Sent || current.Attempts >= SendRetryPolicy.MaxAttempts)
         {
@@ -161,10 +164,14 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="claimed">送る権利を取った、送信中の依頼</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
-    private async Task SendAsync(MessageSendTarget target, MessageSendRequest claimed, CancellationToken cancellationToken)
+    private async Task SendAsync(MessageSendTarget target, MessageDeliveryItem claimed, CancellationToken cancellationToken)
     {
         var error = "";
-        if (target.Channel.IsDeleted)
+        if (target.Channel is null)
+        {
+            error = "受け取り先が指定されていません。";
+        }
+        else if (target.Channel.IsDeleted)
         {
             error = "送信先が削除されています。";
         }
@@ -176,7 +183,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         {
             try
             {
-                await notifier.SendAsync(target.Channel, MessageSendContent.FromMessage(claimed.Title, claimed.Body), cancellationToken).ConfigureAwait(false);
+                await notifier.SendAsync(target.Channel, MessageSendContent.FromMessage(claimed.Body, claimed.MessageId, target.SenderName), cancellationToken).ConfigureAwait(false);
             }
             catch (SendFailedException ex)
             {
@@ -193,7 +200,8 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         await FinishAsync(target, claimed, SendStatus.Failed, error, cancellationToken).ConfigureAwait(false);
         if (claimed.Attempts == 1 || claimed.Attempts >= SendRetryPolicy.MaxAttempts)
         {
-            alerts.Raise($"メッセージ「{MessageSendContent.Summary(claimed.Title, claimed.Body)}」を「{target.Channel.Name}」へ送れませんでした。({error})");
+            var place = target.Channel is null ? target.OwnerName : target.Channel.Name;
+            alerts.Raise($"メッセージ「{MessageSendContent.Summary(claimed.Body)}」を「{place}」へ送れませんでした。({error})");
         }
     }
 
@@ -205,7 +213,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
     /// <remarks>ログを書けなくても、送信そのものは失敗にしない (気づけるよう、通知は出す)。</remarks>
-    private async Task FinishAsync(MessageSendTarget target, MessageSendRequest claimed, SendStatus status, string error, CancellationToken cancellationToken)
+    private async Task FinishAsync(MessageSendTarget target, MessageDeliveryItem claimed, SendStatus status, string error, CancellationToken cancellationToken)
     {
         if (status == SendStatus.Sent)
         {
@@ -220,7 +228,8 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         {
             await log.AppendAsync(
                 new SendLogEntry(
-                    time.GetLocalNow(), claimed.Id, MessageSendContent.DisplayTitle(claimed.Title), target.OwnerName, target.Channel.Id, target.Channel.Kind, target.Channel.Name,
+                    time.GetLocalNow(), claimed.Id, MessageSendContent.DisplayTitle(claimed.Body), target.OwnerName, target.Channel?.Id ?? 0,
+                    target.Channel?.Kind ?? NotificationChannelKind.Ntfy, target.Channel?.Name ?? "",
                     claimed.Attempts, status, error, MessageSendContent.Source, target.SenderName),
                 cancellationToken).ConfigureAwait(false);
         }

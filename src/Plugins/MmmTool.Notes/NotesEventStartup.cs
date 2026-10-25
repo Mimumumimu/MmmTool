@@ -49,7 +49,7 @@ public sealed class NotesEventStartup(
         => notifications.Show(new NotificationSection(
             NotificationSourceKey,
             NotificationOrder,
-            "今日が実施日のノート",
+            "今日実施のノート",
             [.. notes.Select(note => new NotificationItem(note.Title))],
             OnClicked: () => dispatcher.TryEnqueue(
                 // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く

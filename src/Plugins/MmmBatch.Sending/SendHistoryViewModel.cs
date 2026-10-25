@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmBatch.Sending.Core;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.Sending;
 
@@ -28,7 +29,7 @@ public partial class SendHistoryViewModel : SendViewModelBase
     /// <param name="job">この履歴の機能の仕事</param>
     /// <param name="dialogs">接続の設定の画面を開く</param>
     /// <param name="monitor">毎分の監視</param>
-    protected SendHistoryViewModel(string source, ISendHistory history, IBatchJob job, ISendingDialogService dialogs, BatchMonitor monitor)
+    protected SendHistoryViewModel(string source, ISendHistory history, IBatchJob job, IConnectionSettingsDialogService dialogs, BatchMonitor monitor)
         : base(job, dialogs, monitor)
     {
         _source = source;

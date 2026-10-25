@@ -113,7 +113,11 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     {
         if (_uiContext is { } context)
         {
-            context.Post(_ => Category = CommandCategory.Shell, null);
+            context.Post(_ =>
+            {
+                Category = CommandCategory.Shell;
+                IsAwaitingInput = false;
+            }, null);
         }
     }
 
@@ -156,17 +160,29 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>出力に、フォーカスを移す文字列が出たので、ターミナルへのフォーカスの移動を View に頼む</summary>
     /// <remarks>
-    /// 入力欄が空のときだけ頼む。打ちかけの文字が、ターミナルへ入ってしまわないようにするため。
-    /// 画面に出ているかは、View が確かめる。
+    /// 画面に出ているか、入力欄が空かは、View が確かめる。
     /// </remarks>
     public event EventHandler? FocusTriggerMatched;
+
+    /// <summary>画面に出ていない間に、ターミナルで確認が出たか</summary>
+    /// <remarks>
+    /// 選ばれていないタブと、ほかのページを開いている間のタブが対象。タブの帯に印を出す。
+    /// 画面に出たとき (View が読み込まれたとき)に、ターミナルへフォーカスを移して、false に戻す。
+    /// シェルの終了・起動し直し・移る文字列の保存でも false に戻す。確認が、もう出ていない恐れがあるため。
+    /// </remarks>
+    [ObservableProperty]
+    public partial bool IsAwaitingInput { get; set; }
 
     /// <summary>フォーカスを移すよう、View に頼む</summary>
     /// <param name="target">フォーカスを移す先</param>
     public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(this, target);
 
     /// <summary>ターミナルへ移る文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
-    private void OnFocusTriggersChanged() => _focusTriggerWatcher.SetPatterns(_focusTriggerService.Texts);
+    private void OnFocusTriggersChanged()
+    {
+        _focusTriggerWatcher.SetPatterns(_focusTriggerService.Texts);
+        IsAwaitingInput = false;
+    }
 
     /// <summary>フォーカスを移す文字列が出力に出たときの処理</summary>
     /// <param name="sender">イベントの送信元</param>
@@ -176,7 +192,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     {
         _uiContext?.Post(_ =>
         {
-            if (!_disposed && string.IsNullOrEmpty(InputText))
+            if (!_disposed)
             {
                 FocusTriggerMatched?.Invoke(this, EventArgs.Empty);
             }
@@ -184,7 +200,11 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>ターミナルのシェルを起動し直すよう、View に頼む</summary>
-    public void RequestTerminalRestart() => TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
+    public void RequestTerminalRestart()
+    {
+        IsAwaitingInput = false;
+        TerminalRestartRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     #endregion
 

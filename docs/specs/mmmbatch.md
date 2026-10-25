@@ -4,7 +4,7 @@
 
 ## 機能
 
-- 「リマインダーの送信」: リマインダーを時刻になったら外部 (ntfy・Discord)へ一度だけ送る
+- 「リマインダーの送信」: リマインダーを時刻になったら外部 (ntfy・Discord・Web 版通知)へ一度だけ送る
 - 「メッセージの送信」: MmmTool で依頼されたメッセージを送る ([messages.md](messages.md))
 
 ## 位置づけ
@@ -25,7 +25,7 @@
   - サービスにしない (exe を起動している間だけ動く)
   - 画面は、左にサイドバー、右に機能ごとのページを出す 1 枚のウィンドウ (MmmTool と同じ作り)
   - ウィンドウの枠 (タイトルバー・トレイへの退避・DI の組み立て)は、MmmTool の `Shell/` とは別に、MmmBatch が持つ
-  - サイドバーの本体 (`NavigationView` と、ページを作って保つ部品)は、SDK の `MmmSdk.WinUI.Components.Pages` に置き、MmmTool と MmmBatch の両方が使う (同じ部品を、2 つのアプリに写さないため)
+  - サイドバーの本体 (`NavigationView` と、ページを作って保つ部品)は、SDK の `MmmSdk.WinUI.Components.Pages` に置き、MmmTool・MmmBatch・MmmToolAdmin が使う (同じ部品を、複数のアプリに写さないため)
     - バッチ処理が増えたとき、機能のプラグインを足すだけで、サイドバーに項目が増え、ホストは変わらない
   - MmmBatch の機能は、MmmTool と同じく、機能のオン・オフの管理 (`FeatureService`)へ「常にオン」の機能として登録する (オン・オフの画面は持たない)
   - 1 枚の一覧に、機能の違うもの (リマインダーとメッセージ)を混ぜない。機能ごとにページを分ける。
@@ -37,19 +37,19 @@
 - 管理の操作 (パスワードの初期化など)は、バッチと同じ exe に載せない
   - バッチは無人で動き続け、必要最小限の権限だけを持たせたいため
   - 権限が強い機能を、起動しっぱなしの exe に載せない
-  - 管理ツールは、最初の機能が決まってから別のアプリ (`MmmAdmin`)として作る
+  - 管理ツールは、別のアプリ `MmmToolAdmin` にある ([mmmtooladmin.md](mmmtooladmin.md))
 
 ## 全体の形
 
 | 場所 | 中身 |
 | --- | --- |
 | `src/App/MmmBatch` | ホスト。Host の構築・起動と終了の順序・メインウィンドウ (サイドバーを載せる)・DB の接続の設定画面を持つ。個々の機能の名前を持たない (機能のプラグインを `AddFeaturePlugin` で 1 行ずつ登録するだけ) |
-| `src/Plugins/MmmBatch.Sending.Core` | 機能に共通の処理 (UI に依存しない)を持つ: 送る口 `INotifier`・ntfy と Discord の実装・送信のログ (`ISendLog`)・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口 `BatchAlertService`・送り直しの決まり `SendRetryPolicy` (回数の上限と待ち時間を持ち、機能どうしで参照し合わずに、同じ決まりを使うため) |
-| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品 (読み込みの失敗の InfoBar `SendErrorBar`・接続の設定を開く操作を持つ ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`) |
+| `src/Plugins/MmmBatch.Sending.Core` | 機能に共通の処理 (UI に依存しない)を持つ: 送る口 `INotifier`・ntfy と Discord と Web 版通知の実装・送信のログ (`ISendLog`)・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口 `BatchAlertService`・送り直しの決まり `SendRetryPolicy` (回数の上限と待ち時間を持ち、機能どうしで参照し合わずに、同じ決まりを使うため) |
+| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品 (仕事の変更を受けて読み直す ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`)。読み込みの失敗の InfoBar `ConnectionErrorBar` と、接続の設定を開く操作を持つ基底 `DatabaseViewModelBase` は、MmmToolAdmin と共有するので、`MmmTool.Data.SqlServer.WinUI` にある |
 | `src/Plugins/MmmBatch.ReminderSending.Core` / `src/Plugins/MmmBatch.ReminderSending` | プラグインは `ReminderSendingPlugin`。リマインダーの送信 (仕事 (毎分)・送る対象・`ReminderSendStatus` の保存先のインターフェース)と、そのページ (「今日」「履歴」) |
-| `src/Plugins/MmmBatch.MessageSending.Core` / `src/Plugins/MmmBatch.MessageSending` | プラグインは `MessageSendingPlugin`。メッセージの送信 (仕事 (5 秒おき)・`IMessageSendStore`)と、そのページ (「最近の依頼」「履歴」) |
+| `src/Plugins/MmmBatch.MessageSending.Core` / `src/Plugins/MmmBatch.MessageSending` | プラグインは `MessageSendingPlugin`。メッセージの送信 (仕事 (1 秒おき)・`IMessageSendStore`)と、そのページ (「最近の依頼」「履歴」) |
 | `src/Data/MmmBatch.Data.SqlServer` | `MmmTool.Data`(リマインダー・チャンネル・メッセージの送信依頼の行)と `MmmSdk.Db.SqlServer` を参照する。MmmBatch の DB のコードをすべて集める (`ReminderSendStatus` の行・Repository の実装と作成の SQL・送る対象を読む問い合わせ・メッセージの送信依頼の読み出しと状態の更新) |
-| `src/Data/MmmTool.Data.SqlServer.WinUI` | MmmTool と MmmBatch で共有する WinUI のライブラリ。DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel) |
+| `src/Data/MmmTool.Data.SqlServer.WinUI` | MmmTool・MmmBatch・MmmToolAdmin で共有する WinUI のライブラリ。DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel) |
 
 - 参照の向きは `MmmBatch → 各機能 (ReminderSending・MessageSending) → MmmBatch.Sending (共通の画面) → MmmBatch.Sending.Core (共通の処理)`
   - `MmmBatch.ReminderSending.Core` は `MmmTool.Reminders.Core`(発動の判定 `ReminderDates.OccursOn` を使う)と `MmmTool.NotificationChannels.Core`(送信先の型)を参照する
@@ -58,7 +58,7 @@
 - 機能のプラグイン (ReminderSending・MessageSending)どうしは参照しない。共通の部分は `MmmBatch.Sending(.Core)` に置く。MmmTool の機能の画面 (`MmmTool.Reminders` など)は参照しない。Core の型だけを使う。
 - 仕事 (`IBatchJob`)は、次を持つ
   - 名前
-  - 動かす間隔 (`Interval`): リマインダーは毎分、メッセージは 5 秒。0 時からの区切りに合わせて動く。
+  - 動かす間隔 (`Interval`): リマインダーは毎分、メッセージは 1 秒。0 時からの区切りに合わせて動く。
   - `RunAsync(今の日時)`
   - 最後の失敗 (`LastError`): DB の読み書きの失敗
   - 結果が変わったときの通知 (`Changed`)
@@ -117,26 +117,33 @@
 
 ## 送る内容
 
-- 件名・備考・リンクから作る
-  - ntfy: タイトルを「リマインダー」、本文を「件名」(備考があれば「件名 (備考)」)にし、リンクがあれば、通知をタップしたときに開くリンク (`click`)にする
-  - Discord: 本文に「件名 (備考)」と、リンクがあればリンクを入れる
+- 件名・備考・リンクから作る。どの送信先も、同じ決まり
+  - 見出しは、誰から・何からのものか。リマインダーは「リマインダー」。
+  - 本文は中身で、1 行目が「【件名】」、備考があれば次の行。備考が空でも、決まりは同じで、本文が「【件名】」の 1 行になるだけ。
+    - 1 行目の題を【 】で囲むのは、題と本文の境目を、見た目で分かるようにするため。
+    - 見出しに件名を入れないのは、「見出し + from アプリ名」が 1 つの言い方として読めるようにするため。iPhone は、見出しと本文の間に、`from <アプリ名>` の行を入れる。
+  - ntfy: 見出しを `title` に、本文を `message` に入れる。リンクがあれば、通知をタップしたときに開くリンク (`click`)にする
+  - Discord: 見出しを太字の 1 行目にして、そのあとに本文、リンクがあれば次の行にリンクを入れる
+  - Web 版通知: 見出しと本文を、そのまま通知の見出しと本文にする。決まりは、下の「Web 版通知」を見る。
+  - 見出しと本文の作り方は、`MmmTool.NotificationChannels.Core` の `ReminderNotificationText` と `MessageNotificationText` の 1 か所。通知・外部への送信が、同じ形になる。Web 版の「受け取った通知」の一覧は、リマインダーの分を、同じ形で出す。
 - ntfy は、JSON の発行 (サーバーの URL に JSON を POST)で送る
   - タイトルに日本語を使うため、ヘッダーに日本語を入れない
   - サーバーは `https://ntfy.sh` の 1 か所の定数
 - Discord は、Webhook の URL へ JSON を POST する。`429`(送りすぎ)は失敗として扱い、次の分に送り直す。
 - 通信は `HttpClient` を 1 つだけ持つ
   - `SocketsHttpHandler.PooledConnectionLifetime` を設定する
-  - NuGet は足さない
+  - NuGet は、Web 版通知の送信用の `WebPush` だけ
   - タイムアウトは 10 秒
 
 ## メッセージの送信
 
-- MmmTool の画面が書いた送信の依頼 (`MessageSendRequest`)を読んで送る ([database.md](database.md))
+- MmmTool と Web 版の画面が書いた、メッセージの通知の状態 (`MessageDelivery`)を読んで送る。表は [database.md](database.md) にある。
 - 画面の仕様は [messages.md](messages.md)
-- 5 秒おきの仕事として行う (`MessageSendingPlugin` が登録する)
+- 1 秒おきの仕事として行う (`MessageSendingPlugin` が登録する)
   - 日付は見ない (リマインダーのように「今日の分」は無い)
-  - 依頼から送るまで、最大で約 5 秒かかる
-  - メッセージは、依頼したらすぐ届くのが自然なため、リマインダー (分の単位)と間隔を分けた
+  - 依頼から送るまで、最大で約 1 秒かかる
+  - メッセージは、会話の形で、書いたらすぐ届くのが自然なため、リマインダー (分の単位)と間隔を分けた
+  - SQL Server の変更通知 (`SqlDependency`)は使わない。Service Broker の設定が要り、Microsoft が新しい開発には勧めていない仕組みのため。読みは、状態の索引 1 回で足りる。
   - 毎回読むのは、状態の索引で絞った送信待ち・失敗の行だけ
 - 送る対象は、次の 3 つ
   - 状態が送信待ちの行
@@ -144,23 +151,33 @@
   - 送信中のまま 10 分以上たった行
 - 送り直しの考え方は、リマインダーと同じ (「送信の流れ」の 3 と 4)
 - 行を取る条件は、リマインダーと同じ: `UPDATE ... SET Status = Pending, UpdatedAt = 現在 WHERE Id = @Id AND Status = @読んだ状態 AND UpdatedAt = @読んだ更新日時` で、更新できた (1 行)ときだけ送る。MmmBatch を 2 つ動かしても、二重に送らない。
-- 送信先の値 (トピック名・Webhook の URL)は、送る直前に `NotificationChannel` から読む。依頼の行には無い。送信先が削除されているときは、送れないので失敗にする。
-- 内容は、次のとおり
-  - ntfy: タイトルがあれば `title` に入れ、本文を `message` にする
-    - タイトルが無ければ `title` は付けない
-  - Discord: 本文を送り、タイトルがあれば太字の 1 行目にする
+- 送る先は、送る直前に、通知を受ける人 (`MessageDelivery.UserId`)の受け取り先から読む。受け取り先は、`AppUserSetting` の機能番号 3・区分番号 1 の行で、値が送信先の番号。送信先の値 (トピック名・Webhook の URL)は、その番号の `NotificationChannel` から読む。メッセージと通知の状態の行には、送る先を持たない。
+  - 受け取り先が無い・送信先が削除されているときは、送れないので失敗にする
+  - 送る先は、送るたびに読むので、受け取り先を変えたあとの送り直しは、新しい送信先へ届く
+- 通知を受ける人が、管理者にメッセージを無効にされているときは、送らない ([mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」)
+  - 毎回、送る前に、送信待ち・送信中・失敗の行のうち、受ける人が無効のものを `Skipped` (送らなかった)にする。有効に戻っても、古い通知は送り直さない。
+  - 状態を変えるときは、同じトランザクションで `Message.UpdatedAt` も更新する。MmmBatch の画面の「最近の依頼」では、「送らなかった」と出る。送った人の会話の画面では、送信済みと同じに見える。
+  - 「再送」を押すと、無効の人にも送れる。画面から操作した人の判断を、止めないため。
+- 内容は、「送る内容」と同じ決まり。次のとおり
+  - 見出しは、送った人の表示名で、`Message.SenderUserId` の人。分からないときは、ntfy と Discord は見出しを付けず、Web 版通知は「メッセージ」にする。
+  - 本文は、`Message.Body` の本文だけ。タイトルが無いので、1 行目を囲まない。
+  - 送った人の署名「○○より」は、本文に入れない。手で書く署名は書き換えられて、ほかの人の名前で送れてしまうため。システムが知っている送った人を、MmmBatch が付ける。
+  - ntfy: 見出しを `title` に、本文を `message` にする。見出しが無ければ `title` は付けない
+  - Discord: 見出しを太字の 1 行目にして、そのあとに本文
   - リンクは付けない
   - 送り方 (JSON の発行・`429` の扱い・タイムアウト)は「送る内容」と同じ
 - 結果は、成功なら `Sent`・`SentAt`、失敗なら `Failed`・`Attempts` を 1 増やす。失敗の理由は DB に書かず、「送信のログ」に残す。
+  - 状態を変えるときは、同じトランザクションで、`Message.UpdatedAt` も更新する。端末の差分の取得に、状態の変わりが届くため。仕組みは [messages.md](messages.md) の「端末の控えと更新」にある。
 - 気づいてほしい失敗は、リマインダーと同じく、最初の失敗と回数の上限での最後の失敗の 2 回だけ、トレイの通知で知らせる
 - 画面は、「メッセージの送信」のページ (下の「MmmBatch の画面」)に出す
   - リマインダーの画面とは混ぜない
-- 失敗した依頼は、MmmTool の画面には戻らない
-  - 送信済み・失敗を MmmTool の画面に出さない (結果は MmmBatch の画面とログで見る)
+- 失敗した依頼の理由は、MmmTool の画面に戻らない
+  - 会話の画面には、送信待ち・失敗の印だけを出す ([messages.md](messages.md) の「会話」)
+  - 失敗の理由は、MmmBatch の画面とログで見る
 
 ## 送信先 (チャンネル)
 
-- 区分は ntfy と Discord。値は、ntfy ならトピック名、Discord なら Webhook の URL。
+- 区分は ntfy・Discord・Web 版通知。値は、ntfy ならトピック名、Discord なら Webhook の URL、Web 版通知なら端末の宛先の JSON。
 - 名前の付け方
   - `NotificationChannel` は、通知が届く先の登録を表す標準的な言葉
   - `ReminderSendSetting`・`ReminderSendStatus` は、「送る」動きに関わる表なので `Send`
@@ -192,6 +209,40 @@
 - 表が無いとき (MmmTool の `001_CreateTables.sql` などを流していない)は、読んだときの SQL のエラー (208)を、流す手順を伝えるメッセージの失敗にする
   - MmmTool は、入力画面で、送信先の欄を出さずに InfoBar で知らせ、送信先の一覧でも InfoBar で知らせる
   - MmmBatch も、送信の状況の画面の InfoBar で知らせて、送信しない
+
+## Web 版通知
+
+- 送信先の区分 3 は `WebPush`。端末のブラウザが作った宛先へ、Web プッシュで送る。
+  - 登録は、Web 版の「通知」の画面で行う。[web.md](web.md)の「通知 (Web 版)」を見る。
+- 送る実装は `WebPushNotifier` で、`INotifier` を実装する。NuGet の `WebPush` を使い、通信は共通の `HttpClient` を渡す。
+  - 送る直前に、宛先を `WebPushSubscription.IsValid` で確かめる (配達係以外へ向けさせないため)
+  - 通知の中身は、宛先の鍵で暗号化して送る。配達係は中身を読めない。
+- 内容は、見出し・本文・通知の識別子を JSON (`title`・`body`・`key`)にして送る。ブラウザの `sw.js` が読んで表示する。
+  - 見出しと本文は、各機能が `SendMessage.WebPush` に作る。ntfy と Discord と同じ決まりで、「送る内容」と「メッセージの送信」を見る。
+    - リマインダー: 見出しは「リマインダー」、本文は 1 行目が「【件名】」で次の行が備考。識別子は `reminder:<ReminderSendStatus.Id>`
+    - メッセージ: 見出しは送った人、本文はメッセージの本文。識別子は `message:<Message.Id>`
+    - 見出しと本文の組み立ては、Web 版の一覧と同じ `ReminderNotificationText` と `MessageNotificationText` を使う
+  - 識別子は、通知を押したときに、Web 版の「通知」の画面でその通知を開くために使う。Web 版のアドレスは、MmmBatch が作らない。同じ識別子の通知は、端末で 1 つにまとまる。
+  - 識別子の無い通知 (予定のテスト送信)は、見出しと本文だけで、「受け取った通知」の一覧には出ない。リンクがあれば、通知を押すとそのリンクを開く。
+  - 見出しは 100 文字、本文は 700 文字までで、超える分は「…」で切る。配達係の上限 (約 4 KB)に、日本語でも収めるため。
+  - リンクは、識別子があるときは送らない。通知を押して開く画面に、リンクのボタンが出る。
+- 失敗の分け方
+  - 配達係が `404` か `410` を返したときは、宛先が無効になっている。端末が登録を解いたか、アプリを消した場合。「Web 版の「通知」で、登録し直してください」の失敗にする。
+  - `429` は送りすぎ。ほかの送信先と同じく、あとで送り直す。
+  - 宛先は、例外のメッセージにもログにも入れない。
+- 送り手の鍵 (VAPID 鍵)は `WebPushKeyStore` が持つ。配達係に、通知の送り手が同じだと示すための鍵の組。
+  - 起動時に、無ければ作る。`WebPushKeyStartup` が行う。端末の登録には、Web 版のサーバーに公開鍵を設定しておく必要があり、最初の送信より前に要るため。
+  - 鍵の組は、資格情報マネージャーの `MmmBatch.WebPushKeys` に、公開鍵と秘密鍵を 1 つの文字列にして置く。DB のパスワードと同じ置き場で、設定ファイルには置かない。
+    - 1 つの秘密にまとめるのは、片方だけが残って組が食い違うと、全部の端末への送信が配達係に断られ、原因が見えなくなるため。
+    - 保管庫に組が無いときだけ作る。既にあるものを、作り直して上書きしない。
+  - 公開鍵の写しを、`Data/AppSettings.json` の `WebPush.PublicKey` に置く。手で写すための便宜で、送るのには使わない。Web 版のサーバーの設定 `Web:PushPublicKey` に、同じ値を写す。
+    - 設定ファイルを読めていない間は、書かない。読めなかっただけの既存の設定を、空で上書きしないため。
+  - 連絡先は、`Data/AppSettings.json` の `WebPush.Subject` に置く。配達係が困ったときの連絡先で、`mailto:` か `https://` で始まる。未設定のときは `mailto:mmmtool@example.com`。
+  - 鍵を作り直すと、登録済みの宛先に送れなくなる。端末ごとに、登録し直す。作り直す操作は用意しない。
+  - 鍵は MmmBatch ごとに別。端末の宛先は 1 組の公開鍵に結びつくので、Web 版通知を送る MmmBatch は 1 つだけ動かす。
+    - 2 つ動かすと、もう一方の MmmBatch が作った鍵では、登録済みの宛先に送れない。
+    - リマインダーとメッセージの二重送信を防ぐ仕組み (行を取る条件)は、そのまま働く。
+- 配達係へ通信するのは、MmmBatch だけ。MmmTool と Web 版のサーバーは、配達係へ通信しない。
 
 ## DB 専用
 
@@ -236,16 +287,13 @@
       - 「今日」の状態の「送信済み」とは別の言葉
 - **「メッセージの送信」のページ**: タブは「最近の依頼」「履歴」。最初は「最近の依頼」。
   - メッセージには、リマインダーのような「今日の予定」が無いので、日付で絞らない (日付で絞ると、日をまたいだ失敗を、再送できなくなるため)
-  - **最近の依頼**: 依頼を、日付や状態にかかわらず、新しい順 (`MessageSendRequest.Id` の降順)に、最大 100 件
-    - 列は、依頼した時刻・送った人 (表示名)・宛先・件名・状態
-      - 宛先: 「ユーザー名 - 登録名 (ntfy)」「ユーザー名 - 登録名 (Discord)」の形で、MmmTool の宛先と同じ。送る先の値は出さない。
-      - 件名: タイトル (無ければ空欄)
-        - 本文で埋めない (件名が付いていたかを、画面から見分けられるようにするため)
+  - **最近の依頼**: 通知の状態を、日付や状態にかかわらず、新しい順 (`MessageDelivery.Id` の降順)に、最大 100 件
+    - 列は、依頼した時刻・送った人 (表示名)・宛先・本文の 1 行目・状態
+      - 宛先: 通知を受ける人の表示名。送る先の値は出さない。
       - 状態は、リマインダーのページと同じ (失敗の理由は「履歴」で見る)
   - **履歴**: 起動してから、メッセージを送った 1 回ごとの記録を、新しい順に、最大 100 件 (メモリ上)
-    - 列は、時刻 (送った日時)・送った人・宛先・件名・結果
-      - 宛先: 「ユーザー名 - 登録名 (種類)」の形
-      - 件名: 無ければ空欄
+    - 列は、時刻 (送った日時)・送った人・宛先・本文の 1 行目・結果
+      - 宛先: 通知を受ける人の表示名と、送った送信先の「登録名 (種類)」。種類は ntfy・Discord・Web 版通知のどれか。
       - 結果: 成功・失敗 (失敗は理由つき)
 - 両ページの「再送」: 行を右クリックして、「再送」(まだ送ろうとしていないものは「今すぐ送る」)を選ぶと、状態にかかわらず、今すぐ 1 回送る
   - リマインダーでは時刻に、メッセージでは待ち時間に、かかわらず送る
@@ -255,7 +303,7 @@
   - 別の MmmBatch が先に同じものを送り始めていたときは、何もしない
 - 一覧は、送信の状況が変わったときに更新する
   - リマインダーの「今日」は、毎分の実行のあとにも更新する (リマインダー・送信設定の編集を、すぐ反映するため)
-  - メッセージの「最近の依頼」は、実行のたびには更新しない (5 秒おきでは読み込みが多すぎるため)
+  - メッセージの「最近の依頼」は、実行のたびには更新しない (1 秒おきでは読み込みが多すぎるため)
     - 新しい依頼は、仕事が拾って送った結果で更新される
   - どの一覧も、ページを出すたびに読み直す
   - 読み込みや接続の失敗は、そのページの一覧の上の InfoBar で知らせる (一方の機能の表が無いだけで、もう一方のページを読めなくしない)
@@ -294,7 +342,7 @@
   - 1 行 1 件の JSON (JSON Lines)で、メモ帳で読める
   - エラーのログ (`yyyy-MM-dd.log`)とは、名前が重ならない
 - 1 行の中身は、送った日時・リマインダーの番号と件名・送信先の番号・種類・登録名・送信先を登録した人の表示名・何回目か・結果・失敗の理由
-  - メッセージは、リマインダーの番号と件名の代わりに、依頼の番号とタイトルを持つ。タイトルが無ければ空文字。
+  - メッセージは、リマインダーの番号と件名の代わりに、通知の状態の番号と本文の 1 行目を持つ。
   - 行は、どの機能が送ったかの印を持つ (キー `source`)
     - 値は機能が決める文字列で、リマインダーは `Reminder`、メッセージは `Message`
     - 履歴を機能ごとに絞るために使う

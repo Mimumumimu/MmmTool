@@ -9,4 +9,13 @@ public static class CodeFeatures
 {
     /// <summary>作業管理</summary>
     public const int WorkItems = 2;
+
+    /// <summary>メッセージ。ユーザーごとの設定 (<c>AppUserSetting</c>)の機能番号にも使う</summary>
+    public const int Messages = 3;
+
+    /// <summary>ノート。管理者が決める設定 (<c>AppUserAdminSetting</c>)の機能番号に使う</summary>
+    public const int Notes = 4;
+
+    /// <summary>リマインダー。管理者が決める設定 (<c>AppUserAdminSetting</c>)の機能番号に使う</summary>
+    public const int Reminders = 5;
 }

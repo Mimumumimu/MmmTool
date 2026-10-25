@@ -30,6 +30,17 @@
             </label>
             <button type="button" @onclick="EnrollAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_code))">登録</button>
         </section>
+
+#if DEBUG
+        <section class="enroll">
+            <h2>開発用ログイン (Debug のみ)</h2>
+            <label>
+                ログイン名
+                <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" @bind="_devLoginName" @bind:event="oninput" />
+            </label>
+            <button type="button" @onclick="DevLoginAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_devLoginName))">ログイン</button>
+        </section>
+#endif
     }
 
     @if (_message is not null)
@@ -46,6 +57,9 @@
     private string _code = string.Empty;
     private string? _message;
     private MeResponse? _me;
+#if DEBUG
+    private string _devLoginName = string.Empty;
+#endif
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,6 +83,10 @@
 
     private Task EnrollAsync() => RunAsync(() => Auth.EnrollAsync(_code.Trim()));
 
+#if DEBUG
+    private Task DevLoginAsync() => RunAsync(() => Auth.DevLoginAsync(_devLoginName.Trim()));
+
+#endif
     private async Task RunAsync(Func<Task<AuthResult>> action)
     {
         _busy = true;

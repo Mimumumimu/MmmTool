@@ -21,7 +21,8 @@
         </Style>
     </Page.Resources>
 
-    <Grid Padding="24,16,24,24" RowSpacing="12">
+    <!-- 行の間隔は付けない。何も出ていない進行・結果・エラーの行にも間隔が付き、見出しの下が他の機能より空くため、下の余白は各部品に付ける -->
+    <Grid Padding="24,16,24,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -29,24 +30,37 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="Backlog" />
+        <TextBlock
+            Margin="0,0,0,12"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="Backlog" />
 
         <!-- 進行・結果・エラー (操作のたびに、前の分は消える) -->
-        <StackPanel Grid.Row="1" Spacing="8">
-            <ProgressBar IsIndeterminate="True" Visibility="{x:Bind ViewModel.IsProcessing, Mode=OneWay}" />
+        <StackPanel Grid.Row="1">
+            <ProgressBar
+                Margin="0,0,0,12"
+                IsIndeterminate="True"
+                Visibility="{x:Bind ViewModel.IsProcessing, Mode=OneWay}" />
             <InfoBar
+                Margin="0,0,0,12"
                 IsOpen="{x:Bind ViewModel.IsResultOpen, Mode=TwoWay}"
                 Message="{x:Bind ViewModel.ResultMessage, Mode=OneWay}"
                 Severity="Success"
-                Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}" />
+                Title="{x:Bind ViewModel.ResultTitle, Mode=OneWay}"
+                Visibility="{x:Bind ViewModel.IsResultOpen, Mode=OneWay}" />
             <InfoBar
+                Margin="0,0,0,12"
                 IsOpen="{x:Bind ViewModel.Error.IsOpen, Mode=TwoWay}"
                 Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
-                Severity="Error" />
+                Severity="Error"
+                Visibility="{x:Bind ViewModel.Error.IsOpen, Mode=OneWay}" />
         </StackPanel>
 
         <!-- 連携用パスと操作。主な操作は「一覧取得」だけを強調する -->
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+        <Border
+            Grid.Row="2"
+            Margin="0,0,0,12"
+            Style="{StaticResource CardStyle}">
             <StackPanel Spacing="16">
                 <TextBox
                     Header="連携用パス (URL)"

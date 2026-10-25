@@ -12,7 +12,10 @@ namespace MmmTool.Reminders.ChannelEdit;
 /// 送信先の登録画面。送信先 1 件を新規登録・編集して保存する。
 /// </summary>
 /// <remarks>
-/// 種類は、新規のときだけ選べる (編集では変えない)。ntfy は、トピック名を自動で作って見せる (コピー・作り直し)。Discord は、Webhook の URL を貼る (画面では伏せる)。
+/// 種類は、新規のときだけ選べて、編集では変えない。
+/// ntfy は、トピック名を自動で作って見せる。コピーと作り直しもできる。
+/// Discord は、Webhook の URL を貼る。画面では伏せる。
+/// Web 版通知は、Web 版の画面でブラウザが宛先を作るので、ここでは新規に登録できず、登録名だけを直せる。宛先の値は、そのまま保つ。
 /// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class NotificationChannelEditViewModel : ObservableObject
@@ -45,11 +48,7 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
         _channels = channels;
         _dialogs = dialogs;
         _clipboard = clipboard;
-        KindOptions =
-        [
-            new NotificationChannelKindOption(NotificationChannelKind.Ntfy, NotificationChannelKinds.ToText(NotificationChannelKind.Ntfy)),
-            new NotificationChannelKindOption(NotificationChannelKind.Discord, NotificationChannelKinds.ToText(NotificationChannelKind.Discord)),
-        ];
+        KindOptions = CreateOptions(NotificationChannelKind.Ntfy, NotificationChannelKind.Discord);
         SelectedKind = KindOptions[0];
         Load(null);
     }
@@ -63,13 +62,16 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     [ObservableProperty]
     public partial string WindowTitle { get; private set; } = "";
 
-    /// <summary>種類の選択肢 (ntfy・Discord)</summary>
-    public IReadOnlyList<NotificationChannelKindOption> KindOptions { get; }
+    /// <summary>種類の選択肢</summary>
+    /// <remarks>新規は ntfy と Discord。編集は、種類を変えられないので、登録済みの種類だけ。</remarks>
+    [ObservableProperty]
+    public partial IReadOnlyList<NotificationChannelKindOption> KindOptions { get; private set; }
 
     /// <summary>選んでいる種類</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNtfy))]
     [NotifyPropertyChangedFor(nameof(IsDiscord))]
+    [NotifyPropertyChangedFor(nameof(IsWebPush))]
     public partial NotificationChannelKindOption SelectedKind { get; set; }
 
     /// <summary>種類を選べるか (新規のときだけ)</summary>
@@ -81,6 +83,9 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
 
     /// <summary>種類が Discord か</summary>
     public bool IsDiscord => SelectedKind.Kind == NotificationChannelKind.Discord;
+
+    /// <summary>種類が Web 版通知か</summary>
+    public bool IsWebPush => SelectedKind.Kind == NotificationChannelKind.WebPush;
 
     /// <summary>登録名</summary>
     [ObservableProperty]
@@ -111,13 +116,14 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集する送信先。新規なら null</param>
-    /// <remarks>新規は ntfy・登録名は空 (入力欄に例を薄く出す)・トピック名は新しく作ったもの。編集は対象の値を読み込む (種類は変えられない)。</remarks>
+    /// <remarks>新規は ntfy で、登録名は空、トピック名は新しく作ったもの。入力欄には例を薄く出す。編集は対象の値を読み込み、種類は変えられない。</remarks>
     public void Load(NotificationChannel? target)
     {
         _target = target;
         WindowTitle = target is null ? "送信先の登録" : "送信先の編集";
         IsKindEditable = target is null;
-        SelectedKind = target is null ? KindOptions[0] : KindOptions.First(option => option.Kind == target.Kind);
+        KindOptions = target is null ? CreateOptions(NotificationChannelKind.Ntfy, NotificationChannelKind.Discord) : CreateOptions(target.Kind);
+        SelectedKind = KindOptions[0];
         Name = target?.Name ?? "";
         NtfyTopic = target is { Kind: NotificationChannelKind.Ntfy } ? target.Value : NotificationChannelRules.CreateNtfyTopic();
         DiscordUrl = target is { Kind: NotificationChannelKind.Discord } ? target.Value : "";
@@ -149,7 +155,8 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     {
         SaveError.Clear();
         var name = Name.Trim();
-        var value = IsNtfy ? NtfyTopic.Trim() : DiscordUrl.Trim();
+        // Web 版通知の宛先の値は、ここでは作れも直せもしないので、読み込んだ値のまま保つ
+        var value = IsNtfy ? NtfyTopic.Trim() : IsDiscord ? DiscordUrl.Trim() : _target?.Value ?? "";
 
         var valid = true;
         if (name.Length == 0)
@@ -200,6 +207,12 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     /// <summary>保存せずに閉じる</summary>
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, null);
+
+    /// <summary>種類の選択肢を作る</summary>
+    /// <param name="kinds">選択肢にする種類 (並べる順)</param>
+    /// <returns>種類と画面に出す名前の組</returns>
+    private static NotificationChannelKindOption[] CreateOptions(params NotificationChannelKind[] kinds)
+        => [.. kinds.Select(kind => new NotificationChannelKindOption(kind, NotificationChannelKinds.ToText(kind)))];
 
     /// <summary>ntfy のトピック名をクリップボードへコピーする</summary>
     [RelayCommand]

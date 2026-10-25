@@ -1,0 +1,46 @@
+/* 設定の画面の「通知」の節。この端末の状態と、登録済みの端末と、登録・解除の操作を縦に並べる */
+.result {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow-wrap: anywhere;
+}
+
+.result.error {
+    color: var(--danger);
+}
+
+.device h3 {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 400;
+}
+
+.device p {
+    margin: 0 0 0.75rem;
+    overflow-wrap: anywhere;
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+/* 読み取り専用の一覧。枠や背景を付けず、入力欄や押せる行に見えないようにする */
+.devices {
+    margin: 0 0 0.75rem;
+    padding: 0 0 0 1.25rem;
+    list-style: disc;
+}
+
+.devices li {
+    padding: 0.25rem 0;
+    overflow-wrap: anywhere;
+}
+
+.device button {
+    width: 100%;
+}

@@ -8,7 +8,7 @@ namespace MmmToolWeb.Features.Client;
 public static class ClientFeatureServiceCollectionExtensions
 {
     /// <summary>
-    /// 機能の画面が共通で使う部品 (<see cref="BrowserClient"/>・<see cref="SessionClient"/>)を登録する。
+    /// 機能の画面が共通で使う部品 (<see cref="BrowserClient"/>・<see cref="SessionClient"/>・<see cref="FeatureAvailability"/>)を登録する。
     /// </summary>
     /// <param name="services">登録先。</param>
     /// <returns>続けて呼ぶための <paramref name="services"/>。</returns>
@@ -16,6 +16,7 @@ public static class ClientFeatureServiceCollectionExtensions
     {
         services.AddScoped<BrowserClient>();
         services.AddScoped<SessionClient>();
+        services.AddScoped<FeatureAvailability>();
         return services;
     }
 

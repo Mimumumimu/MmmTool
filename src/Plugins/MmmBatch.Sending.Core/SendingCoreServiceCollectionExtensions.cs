@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmBatch.Sending.Core.Notifiers;
+using MmmSdk.Core.Components.Features;
 
 namespace MmmBatch.Sending.Core;
 
@@ -19,7 +20,7 @@ public static class SendingCoreServiceCollectionExtensions
     /// <param name="logDirectory">送信のログを置くフォルダー (<c>Data/Logs</c>)</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// ホストが 1 回だけ呼ぶ。通信の <see cref="HttpClient"/> は、アプリ全体で 1 つ (接続を使い回すため。NuGet は足さない)。
+    /// ホストが 1 回だけ呼ぶ。通信の <see cref="HttpClient"/> は、アプリ全体で 1 つ (接続を使い回すため)。
     /// 毎分動かす仕事は、各機能が <see cref="AddBatchJob{TJob}"/> で登録する。<see cref="BatchMonitor"/> は、登録された仕事を動かす。
     /// </remarks>
     public static IServiceCollection AddSendingCore(this IServiceCollection services, string logDirectory)
@@ -27,6 +28,10 @@ public static class SendingCoreServiceCollectionExtensions
         services.AddSingleton(new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime }) { Timeout = HttpTimeout });
         services.AddSingleton<INotifier, NtfyNotifier>();
         services.AddSingleton<INotifier, DiscordWebhookNotifier>();
+        services.AddSingleton<WebPushKeyStore>();
+        services.AddSingleton<INotifier, WebPushNotifier>();
+        // 端末の登録に要る公開鍵は、最初の送信より前に要るので、起動時に作る
+        services.AddStartupTask<WebPushKeyStartup>();
         // ログのファイルに書きながら、起動してから送った分をメモリにも持つ (画面の「履歴」用。ファイルは読まない)
         services.AddSingleton(new RecentSendLog(new FileSendLog(logDirectory)));
         services.AddSingleton<ISendLog>(provider => provider.GetRequiredService<RecentSendLog>());

@@ -14,6 +14,8 @@ using MmmToolWeb.Data.SqlServer;
 using MmmToolWeb.Features;
 using MmmToolWeb.Messages;
 using MmmToolWeb.Notes;
+using MmmToolWeb.Notifications;
+using MmmToolWeb.Reminders;
 using MmmToolWeb.Server.Auth;
 using MmmToolWeb.Server.Commands;
 using MmmToolWeb.Server.Hosting;
@@ -28,7 +30,10 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = true;
 });
 
-// 外から見えるアドレス (Tailscale Funnel など)。パスキーは、このアドレスに結びついて作られる
+// 応答に「Server: Kestrel」を付けない。サーバーの種類を、探りの相手に教えないため
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
+// 外から見えるアドレスで、Tailscale Funnel などが作る。パスキーは、このアドレスに結びついて作られる
 var publicOrigin = new Uri(builder.Configuration["Web:PublicOrigin"] ?? "http://localhost:5080");
 
 // 設定 (AppSettings.json)と Cookie の暗号化の鍵の置き場は、実行ファイルのフォルダの Data (DB のパスワードは資格情報マネージャー)
@@ -83,7 +88,7 @@ if (OperatingSystem.IsWindows())
 builder.Services.AddFido2(options =>
 {
     options.RPID = publicOrigin.Host;
-    options.RPName = "MmmToolWeb";
+    options.RPName = "MmmTool";
     options.Origins = new HashSet<string> { publicOrigin.GetLeftPart(UriPartial.Authority) };
 });
 
@@ -93,6 +98,8 @@ builder.Services.AddScoped<CurrentUser>();
 // 機能。足すときに、サーバー本体で書くのは、この 1 行だけ
 builder.Services.AddWebFeature<NotesWebFeature>();
 builder.Services.AddWebFeature<MessagesWebFeature>();
+builder.Services.AddWebFeature<NotificationsWebFeature>();
+builder.Services.AddWebFeature<RemindersWebFeature>();
 builder.Services.AddWebFeature<WorkItemsWebFeature>();
 
 builder.Services.AddSingleton<PasskeyCeremonyStore>();
@@ -175,18 +182,24 @@ app.UseMiddleware<ProbeGuardMiddleware>();
 app.UseMiddleware<DatabaseErrorMiddleware>();
 app.UseBlazorFrameworkFiles();
 // 画面のファイル (js など)は、使うたびに更新の有無を確かめさせる。端末に古い js が残ったまま、新しい画面と組み合わさらないため
-app.UseStaticFiles(new StaticFileOptions
+// 画面の入口 index.html も同じ。「/messages」のような道は、下の MapFallbackToFile が返すので、同じ指定を渡す
+var staticFileOptions = new StaticFileOptions
 {
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
-});
+};
+app.UseStaticFiles(staticFileOptions);
 app.UseMiddleware<AuthAuditMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<ActiveUserMiddleware>();
 app.UseAuthorization();
 app.MapAuthEndpoints();
+#if DEBUG
+// 開発用のビルドだけ、ログイン名だけでログインできる口を足す (Release の発行物には入らない)
+app.MapDevAuthEndpoints();
+#endif
 app.MapWebFeatures();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", staticFileOptions);
 
 app.Run();
 return 0;

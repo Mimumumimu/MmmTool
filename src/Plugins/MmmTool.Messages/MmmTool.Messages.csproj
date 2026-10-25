@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
     <ProjectReference Include="..\..\NotificationChannels\MmmTool.NotificationChannels.Core\MmmTool.NotificationChannels.Core.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Db.Sqlite\MmmSdk.Db.Sqlite.csproj" />
   </ItemGroup>
 
 </Project>

@@ -31,6 +31,8 @@ public static class SqlServerWebServiceCollectionExtensions
         services.AddSingleton<SqlServerConnectionFactoryBuilder>();
         services.AddSingleton<SqlServerDatabase>();
         services.AddSingleton<IAppUserRepository, SqlServerAppUserRepository>();
+        services.AddSingleton<IAppUserAdminSettingRepository, SqlServerAppUserAdminSettingRepository>();
+        services.AddSingleton<FeatureAccessService>();
         services.AddSingleton<IAppUserPasskeyRepository, SqlServerAppUserPasskeyRepository>();
         services.AddSingleton<IAppUserWebAuthRepository, SqlServerAppUserWebAuthRepository>();
         return services;

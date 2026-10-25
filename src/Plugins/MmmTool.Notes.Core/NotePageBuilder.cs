@@ -83,7 +83,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         // 実施日の帯は、カードの上端に置く。閉じていても見える
         if (card.IsEventDay)
         {
-            html.Append("<div class=\"event-band\">").Append(card.IsEventToday ? "今日が実施日" : "この日が実施日").Append("</div>\n");
+            html.Append("<div class=\"event-band\">").Append(card.IsEventToday ? "今日実施" : $"{options.Day.ToString("MM/dd", CultureInfo.InvariantCulture)} 実施").Append("</div>\n");
         }
 
         // 操作 (カードの右上)

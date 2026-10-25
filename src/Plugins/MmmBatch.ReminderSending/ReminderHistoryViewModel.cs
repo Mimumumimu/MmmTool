@@ -1,6 +1,7 @@
 using MmmBatch.ReminderSending.Core;
 using MmmBatch.Sending;
 using MmmBatch.Sending.Core;
+using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.ReminderSending;
 
@@ -9,5 +10,5 @@ namespace MmmBatch.ReminderSending;
 /// <param name="service">リマインダーの送信の処理</param>
 /// <param name="dialogs">接続の設定の画面を開く</param>
 /// <param name="monitor">毎分の監視</param>
-public sealed class ReminderHistoryViewModel(ISendHistory history, ReminderSendService service, ISendingDialogService dialogs, BatchMonitor monitor)
+public sealed class ReminderHistoryViewModel(ISendHistory history, ReminderSendService service, IConnectionSettingsDialogService dialogs, BatchMonitor monitor)
     : SendHistoryViewModel(ReminderSendContent.Source, history, service, dialogs, monitor);

@@ -52,6 +52,29 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
+    /// <remarks>送る先の値の列 <c>Value</c> を読まない。値を読めない DB のログインでも呼べるので、Web 版が使う。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyList<NotificationChannelSummary>> GetSummariesAsync(NotificationChannelKind kind, CancellationToken cancellationToken = default)
+    {
+        var userId = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<IReadOnlyList<NotificationChannelSummary>>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Id, Name FROM dbo.NotificationChannel WHERE UserId = @UserId AND Kind = @Kind AND IsDeleted = 0 ORDER BY Id";
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            command.Parameters.Add(new SqlParameter("@Kind", SqlDbType.TinyInt) { Value = (byte)kind });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var summaries = new List<NotificationChannelSummary>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                summaries.Add(new NotificationChannelSummary(reader.GetInt32(0), reader.GetString(1)));
+            }
+            return summaries;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)

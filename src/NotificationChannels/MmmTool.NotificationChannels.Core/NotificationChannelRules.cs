@@ -10,6 +10,11 @@ public static class NotificationChannelRules
     /// <summary>送る先の値の最大の長さ</summary>
     public const int ValueMaxLength = 500;
 
+    /// <summary>Web 版通知の宛先として正しい値か調べる</summary>
+    /// <param name="value">調べる文字列 (<see cref="WebPushSubscription"/> の JSON)</param>
+    /// <returns>読めて、配達係のホストと鍵の長さが正しく、<see cref="ValueMaxLength"/> に収まるなら true</returns>
+    public static bool IsWebPushSubscription(string? value) => WebPushSubscription.FromValue(value) is not null;
+
     /// <summary>ntfy のトピック名の最大の長さ (ntfy の決まり)</summary>
     public const int NtfyTopicMaxLength = 64;
 

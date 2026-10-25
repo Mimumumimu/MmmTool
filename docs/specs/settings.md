@@ -53,7 +53,7 @@
   - 「機能」の見出しと説明文 1 行の下に並べる
   - 各行は `SettingsCard`(左に取っ手 ⠿ と機能名、右に操作)
   - オフにできる機能 (`AddFeature` で登録したもの)には `ToggleSwitch`(オン / オフ)を付ける
-    - オフにできる機能は、CLI補助・クリップボード転送・Backlog・作業管理・ツール・メッセージ
+    - オフにできる機能は、CLI補助・ノート・クリップボード転送・Backlog・作業管理・ツール・メッセージ
   - リンク・リマインダー (`AddAlwaysOnFeature` で登録する)は、スイッチなしで並べる
     - `FeatureInfo.CanDisable = false` で、`IsEnabled` は常に true
     - 押せない無効のスイッチを並べると、押せないものが増えて紛らわしいため
@@ -74,10 +74,10 @@
 - 見出しを「表示・非表示」にしない (オフにすると起動時の読み込みも止まり、動きが伝わらないため)
 - 機能が増えて並びだけ別に整えたくなったら、一覧から分ければ足りる
 - 並びは、利用者が決めた順
-  - 保存が無ければ、登録の並び順の値の順: CLI補助 → ノート → 作業管理 → リマインダー → メッセージ → リンク → クリップボード転送 → Backlog → ツール
+  - 保存が無ければ、登録の並び順の値の順: 作業管理 → ノート → CLI補助 → リマインダー → メッセージ → リンク → クリップボード転送 → Backlog → ツール
   - 反映先は、サイドバーと、設定ページの各機能の部品
   - 「全般」「保存先」「アカウント」「機能」の一覧と「選択肢」は、先頭に固定 (動かせない)
-  - トレイは連動せず、登録の `trayOrder` の順 (メッセージ送信 → リマインダー → リンク → 終了)のまま (ユーザーの決定)
+  - トレイは連動せず、登録の `trayOrder` の順 (リマインダー → リンク → 終了)のまま (ユーザーの決定)
 - 保存は、設定ストアの `Feature.Order`(機能のキーの配列)で、SDK の `FeatureService` が扱う
   - 載っていない機能 (あとから足したもの)は、後ろに登録の順で付く
   - 並びの値は `FeatureService.OrderOf(キー, 登録の値)` が返し、サイドバー (SDK の `NavigationHostViewModel`)と設定ページ (`SettingsPage`)が使う (並べる処理を 1 か所に置くため)
@@ -93,8 +93,8 @@
   - オンにしたときは、その機能の起動時の準備を実行する
 - 状態は設定ストアの `Feature.<キー>.Enabled`(bool)
   - 保存が無い機能は、登録の既定値 (`AddFeature` の `defaultEnabled`)を使う。省略するとオン。
-  - CLI補助・クリップボード転送・Backlog・作業管理が既定でオフ
-  - ツール・メッセージは既定でオン
+  - CLI補助・クリップボード転送・Backlog が既定でオフ
+  - 作業管理・ノート・ツール・メッセージは既定でオン
     - メッセージはサーバーモードのときだけ一覧に出て、ローカルモードでは、保存された値があっても効かない
     - 詳細は [messages.md](messages.md)
 - CLI補助を、ターミナルが動いている間にオフにするときは、確認ダイアログを出す (`CliAssistDisableConfirmation`)
@@ -199,6 +199,17 @@
     - 声と速さは変わらず、Windows の音声の設定に従う
     - 音量を Windows の音声の設定に任せない (ミキサーでも下げられるが、アプリの設定として見えず、試し聞きもできないため)
   - 音量の設定行の位置 (読み上げの声・速さの行の下)・「50%」の表示・試し聞きの文 (「読み上げの音量を確認します。」)は仮
+- **作業管理の起動時の表示** (`src/Plugins/MmmTool.WorkItems/Settings/WorkItemSettingsControl` ＋ `WorkItemSettingsViewModel`)
+  - 作業管理の機能の設定の部品で、`WorkItemsFeature.Key` で登録する。作業管理がオフの間は並べない。
+  - 見出しは「作業管理」で、カードは 2 枚
+    - 「作業管理の過去の完了」と「スケジュールの完了」で、説明は「アプリの起動時の表示。画面で変えた表示は保存しません」
+    - 右に `ComboBox` (固定幅)で「表示」「グループのみ表示」「非表示」を選ぶ。選択肢の並びは、画面の「表示」の入れ物と同じ。
+    - カードの題名に画面の名前を付ける。設定ページでは、「完了」だけだと、どの画面の話か分からないため。
+  - 変えた時点で保存する。保存の読み書きは Core の `WorkItemDisplaySettings`。
+  - 保存先は、設定ストアの整数のキー `WorkItems.InitialPastCompleted` と `WorkItems.InitialScheduleCompleted`。PC ごとの設定で、DB モードでも DB には置かない。
+  - 既定は、作業管理の「過去の完了」が「グループのみ表示」で、スケジュールの「完了」が「表示」
+  - 反映は次の起動から。画面の状態クラス (`WorkItemViewState`・`ScheduleViewState`)を最初に作るときに読むだけなので、動いている画面は変わらない。
+  - 設定ファイルを読めなかったとき (`IsReadOnly`)は、選択欄を無効にする。保存の失敗 (`DataFileException`)は、画面の InfoBar に出す。
 - **送信先** (`src/Plugins/MmmTool.Reminders/Settings/NotificationChannelSettingsControl` ＋ `NotificationChannelSettingsViewModel`)
   - リマインダーの機能の設定の部品 (`ReminderSettingsControl` の次に並ぶ)
   - 見出しは「送信先」で、カードは 1 枚

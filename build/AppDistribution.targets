@@ -1,5 +1,5 @@
 ﻿<!--
-  アプリ (MmmTool・MmmBatch)の、ビルドの出力と配布物の作り方。各アプリの csproj の末尾で読み込む (理由は docs/build-and-distribution.md)。
+  アプリ (MmmTool・MmmBatch・MmmToolAdmin)の、ビルドの出力と配布物の作り方。各アプリの csproj の末尾で読み込む (理由は docs/build-and-distribution.md)。
   読み込む側で決める値:
     DistributionFolderName   配布物のフォルダ名 (bin\<構成>\publish\ の下)
     DistributionDocument     配布物に並べる説明書 (無くてもよい)

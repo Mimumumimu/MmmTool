@@ -23,7 +23,6 @@ using MmmTool.Data.SqlServer;
 using MmmTool.Data.SqlServer.Notes;
 using MmmTool.Features.Database;
 using MmmTool.Features.Database.Choice;
-using MmmTool.Features.Debugging;
 using MmmTool.Features.Settings;
 using MmmTool.Features.Users;
 using MmmTool.Links;
@@ -96,12 +95,12 @@ public partial class App : Application
         services.AddUserSignIn();
 
         // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び (利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちら。トレイメニューは常に order の順)。登録の順は問わない
-        // order の並び: よく使う順 (CLI補助が主な機能。ノート、作業管理と続く。メッセージはリマインダーの下)。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
-        services.AddFeaturePlugin<CliAssistPlugin>(order: 1);
+        // order の並び: 作業管理が主な機能。ノート、CLI補助、リマインダーと続く。メッセージはリマインダーの下。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
+        services.AddFeaturePlugin<WorkItemsPlugin>(order: 1);
         services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 2);
-        services.AddFeaturePlugin<WorkItemsPlugin>(order: 3);
+        services.AddFeaturePlugin<CliAssistPlugin>(order: 3);
         services.AddFeaturePlugin<RemindersPlugin>(order: 4, trayOrder: 2);
-        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 5, trayOrder: 1);
+        services.AddFeaturePlugin<MmmTool.Messages.MessagesPlugin>(order: 5);
         services.AddFeaturePlugin<LinksPlugin>(order: 6, trayOrder: 3);
         services.AddFeaturePlugin<ClipboardTransferPlugin>(order: 7);
         services.AddFeaturePlugin<BacklogPlugin>(order: 8);
@@ -125,7 +124,6 @@ public partial class App : Application
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();
 
-        services.AddDebugging();
         services.AddSettings();
     }
 

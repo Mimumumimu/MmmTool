@@ -421,7 +421,7 @@ public sealed partial class WorkItemPage : Page
         ViewButton.Flyout = flyout;
     }
 
-    /// <summary>「絞り込み」のボタンに、絞り込みの条件 (状態)を並べた入れ物を付ける</summary>
+    /// <summary>「絞り込み」のボタンに、絞り込みの条件 (状態・開始日)を並べた入れ物を付ける</summary>
     /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。条件が増えたときは、見出し付きの部を足す。チェックはコードマスタの状態から、開くたびに作る。</remarks>
     private void BuildFilterFlyout()
     {
@@ -443,6 +443,16 @@ public sealed partial class WorkItemPage : Page
                 check.Click += (_, _) => ViewModel.SetStatusShown(codeNo, check.IsChecked == true);
                 panel.Children.Add(check);
             }
+
+            panel.Children.Add(new TextBlock { Text = "開始日", Margin = new Thickness(0, 12, 0, 4), Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            var hideNotStarted = new CheckBox
+            {
+                Content = "開始日がまだ来ていない作業を隠す",
+                IsChecked = ViewModel.HideNotStarted,
+                MinWidth = 0,
+            };
+            hideNotStarted.Click += (_, _) => ViewModel.SetHideNotStarted(hideNotStarted.IsChecked == true);
+            panel.Children.Add(hideNotStarted);
         };
         FilterButton.Flyout = flyout;
     }

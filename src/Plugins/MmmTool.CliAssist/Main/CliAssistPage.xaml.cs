@@ -148,17 +148,22 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     private void AddTab(CliSessionViewModel session)
     {
         var view = new CliSessionView { ViewModel = session, WebView2Directory = _webView2Directory };
-        var header = new TextBlock { Text = session.Title, TextTrimming = TextTrimming.CharacterEllipsis };
+        var header = new SessionTabHeader();
+        header.SetTitle(session.Title);
+        header.SetAwaiting(session.IsAwaitingInput);
         var item = new TabViewItem { Header = header, Tag = session };
         ToolTipService.SetToolTip(item, session.WorkingDirectory);
 
-        // タブ名 (フォルダ名)と、ツールチップ (パス全体)を、セッションに合わせる
+        // タブ名 (フォルダ名)・確認待ちの印・ツールチップ (パス全体)を、セッションに合わせる
         PropertyChangedEventHandler onSessionChanged = (_, e) =>
         {
             switch (e.PropertyName)
             {
                 case nameof(CliSessionViewModel.Title):
-                    header.Text = session.Title;
+                    header.SetTitle(session.Title);
+                    break;
+                case nameof(CliSessionViewModel.IsAwaitingInput):
+                    header.SetAwaiting(session.IsAwaitingInput);
                     break;
                 case nameof(CliSessionViewModel.WorkingDirectory):
                     ToolTipService.SetToolTip(item, session.WorkingDirectory);

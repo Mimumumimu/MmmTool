@@ -13,7 +13,8 @@ namespace MmmTool.WorkItems.ViewOptions;
 public sealed class CompletedDisplaySection : StackPanel
 {
     /// <summary>選択肢の名前 (<see cref="CompletedDisplay"/> の値の順)</summary>
-    private static readonly string[] Names = ["表示", "グループのみ表示", "非表示"];
+    /// <remarks>設定ページの選択欄も、この並びを使う。</remarks>
+    public static IReadOnlyList<string> Names { get; } = ["表示", "グループのみ表示", "非表示"];
 
     /// <summary>ラジオ</summary>
     private readonly RadioButtons _radios = new();

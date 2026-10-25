@@ -14,6 +14,8 @@
     <ProjectReference Include="..\Client\MmmToolWeb.Client.csproj" GlobalPropertiesToRemove="PublishProfile" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Features\MmmToolWeb.Features.csproj" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Messages\MmmToolWeb.Messages.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notifications\MmmToolWeb.Notifications.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Reminders\MmmToolWeb.Reminders.csproj" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notes\MmmToolWeb.Notes.csproj" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.WorkItems\MmmToolWeb.WorkItems.csproj" />
     <ProjectReference Include="..\..\..\Auth\MmmToolWeb.Auth.Core\MmmToolWeb.Auth.Core.csproj" />

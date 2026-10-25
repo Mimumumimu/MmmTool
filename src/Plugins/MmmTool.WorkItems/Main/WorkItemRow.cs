@@ -34,10 +34,10 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     public bool IsProject { get; } = key.Kind == WorkRowKind.Project;
 
     /// <summary>行に重ねる色 (案件は青の半透明。触れない作業は灰色の半透明。ほかは重ねない)</summary>
-    /// <remarks>灰色は、中間の灰色 (#808080)の約 22%。ライトでは白い背景が少し暗く、ダークでは暗い背景が少し明るくなり、どちらも背景に対して約 1.3 倍の差で、終わった行と分かる。</remarks>
+    /// <remarks>色の値は、スケジュールの表と共通の <see cref="WorkRowTints"/> が持つ。</remarks>
     public Windows.UI.Color? RowTint => IsProject
-        ? Windows.UI.Color.FromArgb(0x2E, 0x4D, 0x8F, 0xE0)
-        : IsLocked ? Windows.UI.Color.FromArgb(0x38, 0x80, 0x80, 0x80) : null;
+        ? WorkRowTints.Project
+        : IsLocked ? WorkRowTints.Finished : null;
 
     /// <summary>案件の中のグループか</summary>
     public bool IsSubGroup { get; } = key.Kind == WorkRowKind.Group;

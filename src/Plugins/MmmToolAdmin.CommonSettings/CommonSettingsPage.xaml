@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MmmToolAdmin.CommonSettings.CommonSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24,16,0,0" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="共通設定" />
+
+        <!-- 項目が画面に収まらないときは縦にスクロールする。スクロールバーが右端に来るよう、右の余白はスクロールの外側の中身に付ける -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Visible">
+            <StackPanel Padding="0,0,24,24">
+                <!-- 各機能が登録した設定の部品を、並び順の値の順に縦に並べる。部品はコードビハインドで足す。各部品が、自分の見出しとカードを持つ -->
+                <StackPanel x:Name="SectionsPanel" Spacing="4" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -9,9 +9,19 @@ namespace MmmToolWeb.Messages.Client;
 /// </summary>
 /// <remarks>
 /// ブラウザの発行では、使っていない型が削られるので、型を書いて調べる方式 (リフレクション)に頼らない。
+/// 端末の控えに残す JSON も、この設定で読み書きする。
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
-[JsonSerializable(typeof(MessageFormResponse))]
-[JsonSerializable(typeof(MessageSendRequestDto))]
+[JsonSerializable(typeof(MessageSyncDto))]
+[JsonSerializable(typeof(MessagePageDto))]
+[JsonSerializable(typeof(MessageSendDto))]
+[JsonSerializable(typeof(MessageSentDto))]
+[JsonSerializable(typeof(PersonDto[]))]
+[JsonSerializable(typeof(DirectDto))]
+[JsonSerializable(typeof(MessageFormDto))]
+[JsonSerializable(typeof(ReceiveSettingDto))]
+[JsonSerializable(typeof(ReceiveChannelRequest))]
+[JsonSerializable(typeof(MessageCacheState))]
+[JsonSerializable(typeof(ConversationCacheState))]
 [JsonSerializable(typeof(ErrorResponse))]
 public sealed partial class MessagesJsonContext : JsonSerializerContext;

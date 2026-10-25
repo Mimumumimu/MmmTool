@@ -1,0 +1,204 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/App/">
+    <Project Path="src/App/MmmTool/MmmTool.csproj">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+    <Project Path="src/App/MmmBatch/MmmBatch.csproj">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+    <Project Path="src/App/MmmToolAdmin/MmmToolAdmin.csproj">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+    <Project Path="src/App/MmmToolWeb/Client/MmmToolWeb.Client.csproj" />
+    <Project Path="src/App/MmmToolWeb/Server/MmmToolWeb.Server.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/MmmTool/">
+    <Project Path="src/Plugins/MmmTool.Backlog.Core/MmmTool.Backlog.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Backlog/MmmTool.Backlog.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.CliAssist.Core/MmmTool.CliAssist.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.CliAssist/MmmTool.CliAssist.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.ClipboardTransfer.Core/MmmTool.ClipboardTransfer.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.ClipboardTransfer/MmmTool.ClipboardTransfer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Links.Core/MmmTool.Links.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Links/MmmTool.Links.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Reminders/MmmTool.Reminders.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.WorkItems.Core/MmmTool.WorkItems.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.WorkItems/MmmTool.WorkItems.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Tools.Core/MmmTool.Tools.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Tools/MmmTool.Tools.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Messages/MmmTool.Messages.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmTool.Notes/MmmTool.Notes.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/MmmBatch/">
+    <Project Path="src/Plugins/MmmBatch.Sending.Core/MmmBatch.Sending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.Sending/MmmBatch.Sending.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.ReminderSending.Core/MmmBatch.ReminderSending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.ReminderSending/MmmBatch.ReminderSending.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.MessageSending.Core/MmmBatch.MessageSending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.MessageSending/MmmBatch.MessageSending.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/MmmToolAdmin/">
+    <Project Path="src/Plugins/MmmToolAdmin.Users/MmmToolAdmin.Users.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolAdmin.CommonSettings/MmmToolAdmin.CommonSettings.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolAdmin.CodeMaster/MmmToolAdmin.CodeMaster.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Plugins/MmmToolWeb/">
+    <Project Path="src/Plugins/MmmToolWeb.Features.Client/MmmToolWeb.Features.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Features/MmmToolWeb.Features.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Messages.Client/MmmToolWeb.Messages.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Messages/MmmToolWeb.Messages.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Notes.Client/MmmToolWeb.Notes.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Notes/MmmToolWeb.Notes.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Notifications.Client/MmmToolWeb.Notifications.Client.csproj" />
+    <Project Path="src/Plugins/MmmToolWeb.Notifications/MmmToolWeb.Notifications.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Reminders/MmmToolWeb.Reminders.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmToolWeb.WorkItems/MmmToolWeb.WorkItems.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Auth/">
+    <Project Path="src/Auth/MmmToolWeb.Auth.Core/MmmToolWeb.Auth.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/CodeMaster/">
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster/MmmTool.CodeMaster.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/DayContent/">
+    <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/NotificationChannels/">
+    <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Users/">
+    <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/Data/">
+    <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.Sqlite/MmmTool.Data.Sqlite.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.SqlServer.WinUI/MmmTool.Data.SqlServer.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmBatch.Data.SqlServer/MmmBatch.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmToolAdmin.Data.SqlServer/MmmToolAdmin.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmToolWeb.Data.SqlServer/MmmToolWeb.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/MmmSdk/">
+    <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.Db.Sqlite/MmmSdk.Db.Sqlite.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.Db.SqlServer/MmmSdk.Db.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.WinUI/MmmSdk.WinUI.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

@@ -1,6 +1,8 @@
 using MmmBatch.ReminderSending.Core;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
+using MmmTool.Data.SqlServer.Users;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
@@ -20,15 +22,16 @@ public sealed class SqlServerReminderSendTargetSource(SqlServerDatabase database
         => SendTableAccess.RunAsync<IReadOnlyList<ReminderSendTarget>>(database, async connection =>
         {
             await using var command = connection.CreateCommand();
+            // 送信先の持ち主が、管理者にリマインダーを無効にされているときは、その送信先へ送らない
             command.CommandText =
-                """
+                $"""
                 SELECT r.Id, r.IsDeleted, r.AuthorUserId, r.TargetUserId, r.Date, r.Time, r.Weekdays, r.Title, r.Note, r.Link, r.IsSpeak,
                        c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value, s.UpdatedAt, ISNULL(u.DisplayName, N'')
                 FROM dbo.ReminderSendSetting AS s
                 INNER JOIN dbo.Reminder AS r ON r.Id = s.ReminderId AND r.IsDeleted = 0
                 INNER JOIN dbo.NotificationChannel AS c ON c.Id = s.ChannelId AND c.IsDeleted = 0
                 LEFT JOIN dbo.AppUser AS u ON u.Id = c.UserId
-                WHERE s.IsDeleted = 0
+                WHERE s.IsDeleted = 0 AND NOT {FeatureAccessSql.IsDisabled("c.UserId", CodeFeatures.Reminders)}
                 ORDER BY r.Id
                 """;
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

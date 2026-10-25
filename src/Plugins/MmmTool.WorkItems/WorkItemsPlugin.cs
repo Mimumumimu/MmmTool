@@ -4,6 +4,7 @@ using MmmSdk.WinUI.Components.Pages;
 using MmmTool.CodeMaster;
 using MmmTool.CodeMaster.Core;
 using MmmTool.DayContent.Core;
+using MmmTool.Users.Core;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Main;
 using MmmTool.WorkItems.Move;
@@ -11,6 +12,7 @@ using MmmTool.WorkItems.ProjectManager;
 using MmmTool.WorkItems.ProjectPicker;
 using MmmTool.WorkItems.Report;
 using MmmTool.WorkItems.Schedule;
+using MmmTool.WorkItems.Settings;
 
 namespace MmmTool.WorkItems;
 
@@ -24,7 +26,9 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
     /// </remarks>
     public void Register(IServiceCollection services)
     {
-        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName, defaultEnabled: false);
+        // 管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない
+        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName,
+            availableWhen: provider => provider.IsFeatureAllowed(CodeFeatures.WorkItems));
 
         // 更新してよいかの判定 (今は誰でも更新できる。担当者・リーダーだけに絞る実装は、この行を差し替える)
         services.AddSingleton<IWorkItemEditPolicy, AnyoneCanEdit>();
@@ -32,21 +36,24 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         // 最後に読み込み・保存した内容と、変更の通知 (Changed)を、ページ・起動時の読み込みで共有するため、アプリ全体で 1 つ
         services.AddSingleton<WorkItemService>();
 
+        // 作業管理とスケジュールの、起動時の表示の設定 (画面を作るときに読む)
+        services.AddSingleton<WorkItemDisplaySettings>();
+
+        // 画面で選んだ状態 (ページを外す・戻す・機能をオフにしてオンに戻すときに、ページが作り直されても引き継ぐため、ページの外で持つ)
+        services.AddSingleton<WorkItemViewState>();
+        services.AddSingleton<ScheduleViewState>();
+
+        // 設定ページの「作業管理」 (起動時の表示)
+        services.AddTransient<WorkItemSettingsViewModel>();
+        services.AddSettingsSection<WorkItemSettingsControl>(WorkItemsFeature.Key);
+
         // ノートの画面に、作業報告を出す。ノートは、契約 IDayContentSource だけを知る。作業管理の変更は、ノートへ知らせる
         services.AddSingleton<IDayContentSource, LiveWorkReportDayContentSource>();
 
         // 設定ページの「選択肢」から、進捗度の名前 (数値の後ろの括弧の中)を直せる。保存したら、開いている画面の表記を読み直す
-        services.AddCodeCategoryEditor(provider => new CodeCategoryEditor
-        {
-            FeatureNo = WorkCodes.FeatureNo,
-            CategoryNo = WorkCodes.ProgressCategory,
-            Title = "進捗度の名前",
-            Description = "進捗度の後ろに ( ) で添える名前を変更します",
-            FeatureKey = WorkItemsFeature.Key,
-            Label = entry => $"{entry.NumericValue}%",
-            ValidateName = name => name.Contains('%') || name.Contains('％') ? "名前に % は入れられません。" : null,
-            AfterSavedAsync = () => provider.GetRequiredService<WorkItemService>().RefreshNowAsync(),
-        });
+        services.AddCodeCategoryEditor(provider => WorkCodes.ProgressNameEditor(
+            WorkItemsFeature.Key,
+            () => provider.GetRequiredService<WorkItemService>().RefreshNowAsync()));
 
         services.AddSingleton<IWorkItemDialogService, WorkItemDialogService>();
         // 閉じたダイアログは再表示できないので、開くたびに作る

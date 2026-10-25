@@ -4,7 +4,8 @@
 
 ## 概要
 
-- 使える機能はノート・メッセージ・リマインダー
+- 使える機能はノート・メッセージ・通知・リマインダー
+- 機能ごとの設定は、設定の画面 (ホーム画面の右上の歯車)に集める
 - ログインはパスキーだけ
 - サーバーは 1 台の PC で動かし、Tailscale Funnel で公開する
 - 残りの作業は [todo.md](../todo.md) の「Web 版」
@@ -18,10 +19,12 @@
 | `src/Auth/MmmToolWeb.Auth.Core` | パスキーの登録・ログインの手続き (`PasskeyService`)・途中の状態の置き場 (`PasskeyCeremonyStore`)・パスキーの型と保存先の口。画面に依存しない |
 | `src/Data/MmmToolWeb.Data.SqlServer` | SQL Server だけの、認証用の表の保存。`MmmBatch.Data.SqlServer` と同じ作りで、`MmmTool.Data.SqlServer` を参照する |
 | `src/Plugins/MmmToolWeb.Features` | サーバー側の、機能の差し込み口 `IWebFeature` (サービスの登録・API の登録・画面のアセンブリ)と、足す 1 行 `AddWebFeature`・API を `/api` の下にまとめてログイン必須にする `MapWebFeatures` |
-| `src/Plugins/MmmToolWeb.Features.Client` | ブラウザ側の、機能の差し込み口 `ClientFeature` (名前・アイコン・最初の画面の道・アセンブリ)と、機能に共通の部品。ホーム画面 `/home`・上のバー `FeatureHeader`・ブラウザの今日と前面への復帰と端末への記憶 `BrowserClient`・API の呼び出しと失敗の分類 `ApiCaller`・ログアウト `SessionClient`。Client と同じく AnyCPU |
+| `src/Plugins/MmmToolWeb.Features.Client` | ブラウザ側の、機能の差し込み口 `ClientFeature` (名前・アイコン・最初の画面の道・アセンブリ)と、機能に共通の部品。ホーム画面 `/home`・設定の画面 `/settings` と機能が節を足す差し込み口・上のバー `FeatureHeader`・ブラウザの今日と前面への復帰と端末への記憶 `BrowserClient`・API の呼び出しと失敗の分類 `ApiCaller`・ログアウト `SessionClient`。Client と同じく AnyCPU |
 | `src/Plugins/MmmToolWeb.WorkItems` | 作業管理の Web 版。画面と API は持たず、ノートの画面に出す作業報告の提供元を登録するだけ ([notes-sources.md](notes-sources.md)) |
 | `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | ノートの Web 版。サーバー側の API (`NoteService` と `SqlServerNoteRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
-| `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | メッセージの Web 版。サーバー側の API (`SqlServerMessageSendRequestRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
+| `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | メッセージの Web 版。サーバー側の API (`MmmTool.Data.SqlServer` のメッセージの Repository を再利用)と、通知を押したときの行き先の登録と、ブラウザ側の画面・API の型。画面側は AnyCPU |
+| `src/Plugins/MmmToolWeb.Notifications` / `src/Plugins/MmmToolWeb.Notifications.Client` | 受け取った通知の一覧と、設定の画面の「通知」の節 (通知を受け取る端末の登録)。サーバー側の API (`SqlServerNotificationChannelRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
+| `src/Plugins/MmmToolWeb.Reminders` | リマインダーの Web 版。画面と API は持たず、「通知」の一覧に出す、リマインダーの提供元を登録するだけ。リマインダーの Web 画面は、このプロジェクトに足す |
 
 - 発行すると、Client の出力が Server の出力の中にコピーされ、1 つのフォルダになる (`dotnet publish` で `Server` を発行する。`Server` が `Client` を参照しているため、向きは Client から Server)
   - フォルダ直下 (`MmmToolWeb.Server.exe` と DLL): サーバーの PC で動く部分
@@ -84,8 +87,7 @@
 | `POST /api/auth/login/start` | パスキーでのログインを始める |
 | `POST /api/auth/login/finish` | ログインを完了する。失敗は 401 |
 | `POST /api/auth/logout` | ログイン状態を捨てる (204) |
-| `GET /api/messages/form` | メッセージの入力欄に要る情報を返す。宛先の一覧・署名・タイトルと本文の上限で、宛先は送信先の番号と表示名だけ。送る先の値は含めない |
-| `POST /api/messages` | 依頼の行を書いて、送信を依頼する。成功は 204、入力が正しくなければ 400、選んだ宛先が無ければ 404 |
+| `/api/messages/...` | メッセージの API。経路と内容は [メッセージ (Web 版)](#メッセージ-web-版) の「API」を見る |
 
 - 登録・ログインの口は、DB の設定が足りない・接続できないとき 503 を返す
 - ログインの完了と登録の完了は、その人が今は使えない状態 (削除済み・使える期間の外)なら 401
@@ -94,13 +96,25 @@
 
 ## ホーム画面と機能の切り替え
 
-- 機能の一覧は、ホーム画面 (`/home`)のタイルで出す。タイルは、機能を登録した順に、2 列で並び、増えたら下へ続く。
-  - タイルは、機能の名前とアイコン (`ClientFeature` の `Title`・`IconPath`)
-  - ホーム画面には、「ログアウト」も置く
+- 機能の一覧は、ホーム画面 (`/home`)の 1 つの枠に、1 機能 1 行で出す。行は、機能を登録した順に縦に並び、増えたら下へ続く。
+  - 行は、左にアイコン、中に機能の名前、右に「›」を置く。アイコンと名前は、`ClientFeature` の `IconPath` と `Title`。行の全体が押せる範囲。
+  - アイコンの背景は、`app.css` の `--accent-soft`。機能ごとに色を変えない。
+  - 押している間の行の背景は、`app.css` の `--pressed`。機能が 0 件のときは、枠ごと出さない。
+  - 機能を、2 列のタイルで並べない (機能の数が奇数のとき、最後の段に穴が開き、機能が増えるほど目立つため)
+  - ホーム画面には、「ログアウト」と、設定の画面を開く歯車も置く ([設定 (Web 版)](#設定-web-版))
+    - 「ログアウト」は、機能の一覧とは別の枠にして、文字を `--danger` にする。機能と同じ重さに見せない。
 - アプリを開いたとき (`/`)
   - ログインしていなければ、ログイン画面
   - ログイン済みなら、いつもホーム画面を開く。最後に開いていた機能を覚えて開くことはしない。ユーザーが決めた。
 - 機能の画面の上のバー (`FeatureHeader`)の左に「ホーム」を置き、ホーム画面へ戻る。中央が機能の名前で、右が機能ごとの操作。
+  - 機能の中の奥の画面は、左を 1 つ前の画面に替える。戻り先の画面の名前を出す。メッセージの会話の画面は、「メッセージ」を出して会話の一覧へ戻る。ホームへは、一覧の画面から戻る。
+  - 機能の画面の幅・中央寄せ・左右の余白は、`app.css` の `.screen` で決める。各画面の CSS には、下の余白や縦の並びのような、その画面だけの違いを書く。幅を各画面に写さない。設定の画面が、幅の指定を持たず、横に伸びたため。
+  - 戻り先は、ブラウザの戻るに頼らずに、道で決める。ホーム画面のアプリには、ブラウザの戻るボタンが無いため。
+  - 上の余白は、ホーム画面のアプリの上端の安全な余白に 1rem を足す。0.75rem 以下に戻さない (iOS 26 が画面の上端に重ねるぼかしで、文字の上の縁がぼやける)
+    - ぼかしは、固定にする・時計の帯の高さの箱を足す・背景の色を変える・スクロールの作りを変える、のどれでも消えなかった。消えたのは、文字を下げたときだけ。
+    - 文字の上の縁が、時計の帯の下から約 1.6rem 下がると、くっきりする。ボタンの高さ (2.75rem)の中で文字が縦の中央に置かれるので、余白 1rem で足りる。
+    - ノートの編集の上のバー (`NoteEditSheet`)も、同じ 1rem にそろえる。
+  - 縮んだ高さの下端の扱いは、「メッセージ」の節に書く
 - 機能が端末に覚える値は、ブラウザの `localStorage` に、`BrowserClient` の `GetRememberedAsync`・`RememberAsync` で置く
   - 名前は、`mmmtoolweb.` に続けて、機能の名前から始める
   - 端末ごとの使い勝手の記憶なので、サーバーには保存しない
@@ -146,33 +160,189 @@
 
 ## メッセージ (Web 版)
 
-- メッセージの Web 版は、MmmTool と同じ `SqlServerMessageSendRequestRepository` を使い、メッセージの決まりは [messages.md](messages.md) と同じ
-  - Web 版のサーバーは、`MessageSendRequest` の行を書くだけで、外部へ送らない。実際に送るのは MmmBatch ([mmmbatch.md](mmmbatch.md))
-- 画面は、上のバーの右の「送信」、宛先の選択、タイトル、本文の順
-  - 宛先は、iPhone 標準の選択。表示は `ユーザー名 - 登録名 (ntfy)` / `(Discord)`。
-  - 本文は、余った高さまで伸びる。最初の入力は、改行 2 つと「ユーザーの表示名 + より」の署名で、送れたあとは、本文を署名だけに戻し、宛先とタイトルは残す
-  - 本文が署名だけの間は、本文をタップしたとき、カーソルを先頭に置く (署名の後ろから書き始めないため)
-  - 他の人が送信先を足したり削除したりした分は、アプリを開いたときと、裏から前面に戻ったときに読み直す。書きかけの本文・タイトル・選んだ宛先は残す
+- メッセージの Web 版は、MmmTool と同じ保存先 (`MmmTool.Data.SqlServer` のメッセージの Repository)を使い、決まりは [messages.md](messages.md) と同じ
+  - Web 版のサーバーは、`Message` と `MessageDelivery` の行を書くだけで、外部へ送らない。実際に送るのは MmmBatch ([mmmbatch.md](mmmbatch.md))
+- 画面は 2 つで、`/messages` の人の一覧と、`/messages/<会話の番号>` の会話。作りは MmmTool と同じで、[messages.md](messages.md) の「画面」と「会話の読み方」を見る。
+  - 人の一覧は、上のバーの下に、やり取りのある会話を最後のメッセージが新しい順に並べる。会話を押すと、会話の画面に移る。
+  - 一覧の右下に「新しい会話」を浮かべる。押すと、画面全体が宛先を選ぶ画面になり、宛先に選べる人が並ぶ。人を押すと、その人との会話の画面に移る。上のバー (`FeatureHeader`)の左の「キャンセル」で閉じる。読み込みの間は、進行バーを出す。決まりは、[messages.md](messages.md) の「人の一覧」を見る。
+  - 会話の画面は、上のバーに会話の名前と、会話の一覧へ戻る「メッセージ」、中央に会話、下に入力欄 (本文・送信)を置く。
+    - 受け取ったメッセージは左、自分が送ったメッセージは右に寄せる。送信待ちと失敗の印は、自分のメッセージに付ける。
+    - 最初は最新の 50 件を出す。上へスクロールして先頭に近づいたら、さらに古い 50 件を読み足す。読み足しても、見ていた位置は動かさない。
+    - 近づいたことの検知は、`browser.js` に関数を足し、`BrowserClient` を通す。機能ごとの JavaScript は足さない。
+    - 入力欄の本文は、余った高さまで伸びる。最初の入力は空で、送れたあとは、本文を空に戻す。
+    - キーボードが開いたとき、入力欄が隠れない。会話の下端は、入力欄の上に合わせる。
+    - iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (`dvh`)が画面の高さ (`lvh`)より約 59pt 縮んだまま戻らないことがある。iOS の不具合で、縮んだ分より下は描かれない。
+      - 新しい会話ボタンと入力欄の下の余白は、`display-mode: standalone` のときだけ、余白から縮んだ分 (`100lvh - 100dvh`)を引く。引いた結果が 0 以下なら 0 にする。縮んでいなければ、差は 0 で、通常の位置。
+      - 縮んだ分より下へ、画面の高さに合わせて伸ばす作りにしない。縮んだ分より下は描かれず、入力欄が切れるため。
+    - メッセージの並び (`.thread`)は、左右の余白を 0.5rem にし、`overflow-x: hidden` にする。「返信」が右へはみ出して置かれるので、足りないと横スクロールが出る。
+  - 送った人の署名「○○より」は、本文に入れない。送った人は、通知の見出しに出る。[messages.md](messages.md) の「画面」を見る。
+  - 他の人のメッセージは、会話を開いている間、自動で出る。開いたとき・人を切り替えたとき・裏から前面に戻ったときにも読み直す。書きかけの本文は残す
   - 「送信」は、押した直後にもう一度押されても、2 通送らない
-  - 結果は、画面の上に帯で出す。成功は「`<宛先>` に送信を依頼しました」、失敗は理由。
-  - 宛先が 1 件も無いときは、「送信先がありません。MmmTool の設定ページの「送信先」で登録してください。」を出す。登録の画面は、Web 版に作らない。
-  - タイトルと本文の上限は、`MessageLimits` と同じで、サーバーが返す値を入力欄に使う。
-- 前回送った宛先は、端末のブラウザの `localStorage` の `mmmtoolweb.messages.lastChannelId` に、送信先の番号で覚える
-  - 端末ごと、ブラウザごとの記憶で、サーバーには保存しない
-  - 初期の選択は、選んでいるもの、なければ前回の宛先、それも無ければ先頭 (MmmTool と同じ)
-- 署名の組み立てと「送れる状態」の判定は、`MmmTool.Messages.Core` の `MessageDraft`。MmmTool の画面とサーバーが使う。画面 (ブラウザ)の「送信」を押せる条件は、同じ決まりを画面側にも持つ。ブラウザの発行物に `MmmTool.Messages.Core` を入れないため。サーバーも同じ決まりで確かめ、守れなければ 400 を返す。
+  - 失敗は、画面の上に帯で出す。成功の帯は出さない。会話の末尾に、送信待ちの印つきで現れるため。
+  - 受け取り先が未設定の人との会話は、入力欄を押せず、「受け取り先が未設定です」と出す。
+  - 本文の上限は、`MessageLimits` と同じで、サーバーが返す値を入力欄に使う。
+- 端末の控えと更新は、[messages.md](messages.md) の「端末の控えと更新」と同じ作り
+  - 控えは、ブラウザの IndexedDB に置く。`BrowserClient` と `browser.js` を通し、関数は足すだけにする。
+  - 控えは、ログインした人ごとに分け、ログアウトとアカウントの変更で、`SessionClient` が消す。
+  - 新しいメッセージの知らせは、`GET /api/messages/events` を Server-Sent Events で受ける。サーバーが、数秒おき (3 秒 仮)に、`Message (UpdatedAt)` の索引で、更新された会話の番号だけを調べ、その会話を開いている端末に知らせる。知らせを受けた端末は、差分の取得を呼ぶ。切れたときは、つなぎ直す。
+- API
+  - `GET /api/messages/conversations`: 自分の会話の一覧。会話の番号・名前 (1 対 1 は相手の表示名)・最後のメッセージの 1 行目・時刻・相手の受け取り先の有無。
+  - `GET /api/messages/people/search?q=<表示名>`: 宛先に選べる、受け取り先を指定している人。人の番号と表示名を返す。`q` が空のときは、100 人までの全員。画面は、`q` を空にして呼ぶ。
+  - `GET /api/messages/direct?userId=<人の番号>`: その人との 1 対 1 の会話の番号を返す。無ければ「無い」と返し、作らない。
+  - `GET /api/messages/conversations/<会話の番号>/messages?before=<メッセージの番号>`: 会話の 50 件。`before` を付けると、その番号より小さい行を返す。参加者でなければ 404。
+  - `GET /api/messages/changes?since=<基準の時刻>`: 差分の取得。基準より後に更新された、自分宛のメッセージ・自分が送ったメッセージ・自分が新しく入った会話を返す。取り方は [messages.md](messages.md) の「端末の控えと更新」にある。新しい基準の時刻も返す。
+  - `POST /api/messages`: 送信。会話の番号 (まだ会話が無いときは、相手の人の番号)・本文・返信元の番号 (無ければ 0)を JSON の本文で受け、`Message` と `MessageDelivery` の行を書く。相手の人の番号で受けたときは、鍵のもとで 1 対 1 の会話を探し、無ければ作る。成功は 200 で、書いた会話とメッセージの番号を返す。入力が正しくなければ 400、参加者でなければ 404。
+  - `GET /api/messages/form`: 本文の上限を返す。
+  - `GET /api/messages/events`: 会話の更新の知らせで、Server-Sent Events の流れ。ほかの API と同じく、ログインが必要。
+    - 接続は、1 つの端末で 1 本。会話を開いたときにつなぎ、閉じたときに切る。
+    - 切れたときは、つなぎ直す前に `GET /api/auth/me` を呼ぶ。401 なら、ログインの画面へ移る。Server-Sent Events は、状態の番号を読めず、ログインが切れても、つなぎ直し続けるため。
+  - 日時は、サーバーの時計で、表示の文字にして返す。
+- 「送れる状態」の判定は、`MmmTool.Messages.Core` の `MessageDraft`。MmmTool の画面とサーバーが使う。画面 (ブラウザ)の「送信」を押せる条件は、同じ決まりを画面側にも持つ。ブラウザの発行物に `MmmTool.Messages.Core` を入れないため。サーバーも同じ決まりで確かめ、守れなければ 400 を返す。
+- 文言は仮 (人の一覧・印・設定の節・案内の文)
 - 次は、Web 版に持ち込まない
   - 入力欄を開いたときの日本語入力のオン (iPhone の入力は、端末が切り替える)
   - トレイのメニューと、ウィンドウの位置・大きさの復元 (Web 版に無い)
-  - 宛先の値の表示 (秘密のため、MmmTool でも出さない)
+  - 送信先の値の表示 (秘密のため、MmmTool でも出さない)
+- 受け取り先の指定は、設定の画面の「メッセージ」の節で行う。[設定 (Web 版)](#設定-web-版) を見る。
+
+## 通知 (Web 版)
+
+- スマホや PC のブラウザへ、Web プッシュで通知を届ける。Web 版でできるのは、端末の登録と解除だけ。
+  - 通知を送るのは MmmBatch。[mmmbatch.md](mmmbatch.md)の「Web 版通知」を見る。
+  - Web 版のサーバーは、外部へ送る処理を持たない。端末の宛先を、送信先の表 `NotificationChannel` の行に書くだけ。
+- 端末の宛先は、`NotificationChannel` の区分 `Kind = 3` の行になる。表は足さない。
+  - 区分 3 の名前は `WebPush` で、画面に出す名前は「Web 版通知」
+  - `UserId` は登録した人
+  - `Name` は端末の呼び名。`BrowserClient.GetDeviceNameAsync` の値で、iPhone と iPad は「iPhone」、それ以外は「ブラウザ」
+  - `Value` は宛先の JSON (`WebPushSubscription`)で、`{"endpoint":"…","p256dh":"…","auth":"…"}` の形
+    - 宛先を知っている人は、その端末へ通知を送れるので、秘密
+    - 画面の一覧に出さず、Web 版の DB のログインにも読ませない
+  - 同じ名前の端末が並んでも、見分けなくてよい。ユーザーが決めた。
+- 画面は 2 か所
+  - ホームの行「通知」 (`/notifications`)は、受け取った通知の一覧だけを出す
+    - 機能が増えても同じ形で並ぶため、ホーム画面の共通の部分に、通知の部品を足さない。
+    - この端末が通知を受け取れる状態でないときは、一覧の上に「設定で、この端末を登録してください」と、設定の画面へ移る操作を出す
+  - 端末の登録と解除は、設定の画面の「通知」の節で行う ([設定 (Web 版)](#設定-web-版))
+    - 内容は、上から、この端末の状態の説明・登録済みの端末の一覧・画面の下の主な操作 (「通知を受け取る」か「通知を解除」)
+    - 「通知を解除」は、確認のダイアログを出す。解除すると行が別の番号で作り直されるため、リマインダーやメッセージの受け取り先に選んでいた場合は、選び直しになる。
+    - 確認のダイアログは、`MmmToolWeb.Features.Client` の `ConfirmDialog`。ノートの削除と共通。
+  - 端末の状態は 5 つ: 登録できる・登録済み・許可が拒否されている・iPhone でホーム画面に追加していない・このブラウザでは使えない
+  - 登録済みと見なすのは、ブラウザが宛先を持っていて、覚えている番号の行が、サーバーの一覧にもあるとき。ブラウザの宛先だけでは、登録済みにしない。登録に失敗した端末や、行が削除された端末が、受け取れると表示されないため。
+  - ブラウザの JavaScript が失敗したとき (宛先を作れない・サービスワーカーを登録できないなど)は、画面を壊さず、メッセージを出す
+  - サーバーに公開鍵が設定されていない (`Web:PushPublicKey` が空)ときは、操作を出さず、その旨を説明する
+- 登録の流れ
+  1. 「通知を受け取る」を押す。押した操作の中で、最初に、ブラウザの許可を求めて宛先を作る。呼ぶのは `subscribePush`。
+     - iPhone は、押した直後でないと許可を求められないため、サーバーへの問い合わせを先に待たない。
+  2. 宛先を `POST /api/notifications/subscriptions` で送る。
+     - この端末が覚えている行の番号があれば、その行を更新し、無ければ追加する。
+     - 番号は、`localStorage` の `mmmtoolweb.notifications.channelId` に置く。
+     - 更新した行が MmmTool の送信先の一覧で削除されていたときは、削除を戻す。登録し直す操作で、受け取りたい意思があるため。戻さないと、行の更新が成功しても、通知が届かない。
+  3. 返った番号を覚える。
+- 解除は、ブラウザの宛先を捨て、覚えている番号の行を論理削除する。`POST /api/notifications/subscriptions/remove` を呼ぶ。
+  - 番号を覚えていない端末の行は残る。MmmTool の送信先の一覧から削除する。
+- API
+  - `GET /api/notifications/settings`: 送り手の公開鍵と、自分が登録した端末。端末は番号と名前だけ。
+  - `GET /api/notifications/destination?item=<識別子>`: 通知を押したときに開く画面の道。種類ごとの行き先の登録に聞く。登録が無い種類・開けないときは、道が null。
+  - 登録の API は、自分の `Kind = 3` の行だけを書き換える。ほかの種類・ほかの人の行は、番号を偽られても変わらない。
+  - 登録の API は、宛先を `WebPushSubscription.IsValid` で確かめる。https で、配達係のホストだけで、鍵の長さが正しいこと。
+    - サーバーが送る先は、登録した人が決められるため、配達係の外へ向けさせない。
+    - `Value` が `NotificationChannelRules.ValueMaxLength` (500 文字)を超えるときは、保存せずに 400 とわけを返す。
+- 送り手の公開鍵は、サーバーの設定 `Web:PushPublicKey` に置く。起動の引数か設定ファイルで渡す。
+  - 値は MmmBatch が作った公開鍵で、[mmmbatch.md](mmmbatch.md)の「Web 版通知」を見る。
+- 受け取りは、サービスワーカー `wwwroot/sw.js` が行う。届いたら必ず通知を 1 つ出し、押されたら、リンクがあれば開き、無ければアプリを前に出す。
+  - 登録は、`browser.js` の `getPushStatus` (画面を開いたとき)と `subscribePush` が行う。機能ごとの JavaScript は足さない。
+  - ブラウザの守り (`Content-Security-Policy`)の `script-src 'self'` が、サービスワーカーにも効くので、守りの指定は変えない。
+- ホーム画面のアイコンの数字 (バッジ)は、この端末で読んでいない通知の件数を出す。
+  - 読んでいない通知の一覧を、端末の控え (IndexedDB の `mmmtoolweb.cache`)の `unread` に持つ。ログアウトとアカウントの変更で、控えと一緒に消える。
+    - 中身は `{ keys: ["message:123", ...], high: { message: 130 } }`。`keys` は通知の識別子で、数字はこの件数。`high` は、種類ごとに取り込んだ一番大きい番号。
+    - 処理は `wwwroot/js/badge.js` にあり、サービスワーカー (`importScripts`)と画面 (`index.html`)の両方が読む。数える種類は `countedKinds` で、いまは `message`。リマインダーなど、ほかの種類の通知は数えない。
+  - 一覧に入れる場面は 2 つ。
+    - 通知が届いたとき、サービスワーカーが入れる。アプリの画面を前面で見ている間は入れない。
+    - 画面がメッセージの新着を取り込んだとき、番号が `high` より大きく、自分が受け取るメッセージで、開いている会話のものでもなければ入れる。自分が受け取るのは、他の人が送ったものと、自分との会話のもの。自分との会話は、送ったメッセージが自分にも届くため。
+    - `high` 以下の番号は入れない。更新の知らせで同じメッセージが届き直しても、読んだものを未読に戻さないため。
+    - 最初の読み込みでは、いまあるメッセージを入れず、`high` だけを置く。控えが無い端末で、昔のメッセージを未読にしないため。
+  - 一覧から外す場面は 3 つ。
+    - 会話の画面に出したメッセージは、読んだことにする。
+    - 人の一覧の「すべて既読にする」で、メッセージの分をすべて外す。
+    - ログアウトとアカウントの変更で、控えごと消える。
+  - 一覧が変わるたびに、`setAppBadge` で件数を出す。0 になったら `clearAppBadge` で消す。画面を開いたときも、件数に合わせる。
+  - DB に既読を持たない。端末ごとの数で、パソコンで読んでも、iPhone の数字と印は、iPhone でその会話を開くか「すべて既読にする」を押すまで変わらない。iPhone は、届くたびに通知を出す決まりで、数字だけを黙って直せないため。
+  - 期限を付けない。読んでいない分は、会話を開くか「すべて既読にする」まで残る。
+  - バッジを出せない環境 (iOS 16.4 より前・通知を許可していない)では、数字だけが出ない。
+- ホーム画面のアプリの名前は「MmmTool」で、通知の「from MmmTool」の行に出る
+  - 名前は `manifest.webmanifest` の `name` と `short_name`、`index.html` の `apple-mobile-web-app-title` と `<title>`、パスキーの表示名 `RPName` に置く。
+  - 名前を変えても、変えてはいけないもの: パスキーの識別子 `RPID` (全員のパスキーが使えなくなる)と、Cookie の暗号化の鍵のアプリ名 `SetApplicationName` (全員のログインが切れる)
+  - 名前を変えたときは、ホーム画面のアイコンを削除して追加し直す。入れ物が新しくなるので、ログインし直し、「通知を受け取る」を押し直す。
+  - 通知の見出しと本文の間に、`from <アプリ名>` の行が入る。iPhone が付ける行で、位置も、消すことも、サイトからは決められない。
+    - 「見出し + from MmmTool」が 1 つの言い方として読めるよう、見出しは「誰から・何から」にする。メッセージは送った人、リマインダーは「リマインダー」。本文は中身で、リマインダーは 1 行目が「【件名】」。
+    - ntfy と Discord も、同じ決まりにそろえている。[mmmbatch.md](mmmbatch.md) の「送る内容」を見る。
+- 受け取った通知の一覧
+  - 自分が使用者の送信先 (種類を問わない)に届いた、送信済みのリマインダーの通知を、新しい順に最大 50 件並べる。端末ごとではなく、サーバーの記録から作るので、どの端末でも同じ一覧になる。
+    - メッセージの通知は、この一覧に出さない。メッセージは、メッセージの画面の会話で見返すため。
+    - 通知の記録は、端末に写さない。直近の 50 件を開くたびに読む一覧で、さかのぼって読み足す履歴を持たないため。
+  - 一覧の元は、種類ごとの提供元 `IReceivedNotificationSource` (`MmmTool.NotificationChannels.Core`)が登録する。「通知」の機能は、メッセージやリマインダーの名前を持たない。種類を足すときは、その種類が提供元を登録するだけ。
+    - リマインダー: `ReminderSendStatus` の、自分の送信先に届いた送信済みの行と、`Reminder`。見出しは「リマインダー」、本文は 1 行目が「【件名】」で次の行が備考、リンクはリマインダーのリンク。`MmmToolWeb.Reminders` が登録する。
+    - 読むのは、送信済みの行だけ。条件は、送信先の使用者 (`NotificationChannel.UserId`)で、共通ヘッダーの列を使わない。
+    - 索引は `IX_ReminderSendStatus_ChannelId_SentAt`。[database.md](database.md) を見る。表は掃除されず増え続けるため、送信先で絞り、新しい順に先頭から読む。
+  - 通知の識別子は「種類:番号」の形。
+    - 種類は、提供元のキーで、`message` か `reminder`
+    - 番号は、元の行の番号で、`message` は `Message.Id`、`reminder` は `ReminderSendStatus.Id`。一覧に出るのは `reminder` だけ。
+  - 日時の表示は、サーバーの時計で作る。今日なら「HH:mm」、それ以外は「M/d HH:mm」。
+  - 削除したリマインダーの、過去の通知も、一覧に残る。受け取った記録だから。
+  - 通知を押して開いた通知は、一覧の先頭に置いて強調する。ほかは新しい順のまま。
+  - 一覧を読み込めなかったときは、一覧の場所に理由を出す。
+  - リンクは、`http` か `https` のときだけ、画面の中の「リンクを開く」にする。iPhone の通知には、ボタンを付けられないため。パソコンのファイルの場所は、iPhone で開けないので、出さない。
+- 通知を押したときの動き
+  - 通知は、識別子を持つ。`sw.js` が、`/notifications?item=<識別子>` を開く。開いているアプリがあれば、その窓をこの道へ移して前に出す。
+  - 行き先は、種類ごとの「行き先の登録」が答える。一覧の提供元とは別の登録で、「通知」の入口が、識別子の種類の登録に聞いて、その画面へ移る。
+    - メッセージの登録は、その通知のメッセージの会話 (`/messages/<会話の番号>?item=<メッセージの番号>`)を答える。会話は、そのメッセージの位置まで読み、そのメッセージを強調して出す。参加者でないときは、通知の一覧を開く。
+    - 登録が無い種類 (リマインダー)は、通知の一覧を開く
+    - 「通知」の機能は、メッセージの名前を持たない。行き先の登録を足すのは、メッセージの機能の `MmmToolWeb.Messages`。
+  - 一覧を開いたときは、押した通知を強調して出す。一覧に入らないほど古い通知は、1 件だけ加えて出す。
+  - 同じ識別子の通知は、端末で 1 つにまとまる。通知の `tag` に識別子を入れる。送信の送り直しで、同じ通知が重ならない。
+  - MmmBatch は、Web 版のアドレスを作らない。識別子だけを送り、行き先は Web 版が決める。
+- 未読は、端末ごとに数える
+  - この端末で「通知」の画面を開いて見た通知のうち、一番新しい通知の時刻を、`localStorage` の `mmmtoolweb.notifications.lastOpened` に、往復の形式 (例: `2026-10-23T23:30:01.0640000+09:00`)で覚える。これより新しい通知に、「未読」の文字と、左の線を付ける。
+    - 端末の時計ではなく、通知の時刻を覚える。サーバーの時刻と端末の時計がずれても、読み込みのあとに届いた通知を、見ないまま既読にしないため。
+    - 一覧が空のときは、覚えている値を変えない。
+  - この端末で一度も開いていないときは、どれも未読にしない。
+  - 端末をまたいだ「読んだ」の共有は、しない。置き場の表が、既存に無いため。
+  - アイコンの数字 (バッジ)は、iPhone で出るかを実機で確かめてから、足す。[../todo.md](../todo.md) を見る。
+- 次は、Web 版に作らない
+  - テスト送信のボタン。メッセージの画面で自分を探して自分に送れば、同じ経路で確かめられる。受け取り先を Web 版通知にしておく。
+  - 他の人の端末の登録・削除
+
+## 設定 (Web 版)
+
+- 機能ごとの設定を 1 か所に集める画面で、道は `/settings`。ホーム画面の右上の歯車から開く。機能の一覧には混ぜない。
+- 節は、機能が登録する。ホーム画面と設定の画面は、機能の名前を持たない。
+  - 画面側の差し込み口 `ClientFeature` に、設定の節 (見出しと部品)を足せる
+  - 節は、機能の登録順に並べる
+- 節は、次の 2 つ
+  - 「メッセージ」: 受け取り先の指定
+  - 「通知」: 端末の登録と解除。内容は [通知 (Web 版)](#通知-web-版) の「画面」と「登録の流れ」。
+- 「メッセージ」の節は、自分が使用者の送信先を、名前と種類 (ntfy・Discord・Web 版通知)で並べ、1 つ選ばせる
+  - 送信先の値は出さない (秘密のため)
+  - 「指定しない」も選べる
+  - 選んだ操作の直後に保存する。失敗は、画面の上に帯で出す。
+  - 送信先が 1 件も無いときは、「送信先がありません。MmmTool の設定ページの「送信先」で登録してください。」を出す。送信先の登録の画面は、Web 版に作らない。
+  - 保存は、ユーザーごとの設定 `AppUserSetting` の 1 行 ([messages.md](messages.md) の「受け取り先」)
+  - API は、メッセージの機能が持つ
+    - `GET /api/messages/receive-channel`: 自分が使用者の送信先 (番号・名前・種類)と、選んでいる送信先の番号
+    - `PUT /api/messages/receive-channel`: 送信先の番号を JSON の本文で受けて保存する。自分が使用者でない送信先の番号は、400 とわけを返す。
+- 画面を開いたとき・裏から前面に戻ったときに、読み直す
 
 ## ブラウザの守り
 
 - すべての応答に `Content-Security-Policy` を付ける: 自分のサイトのファイルと自分への通信だけを許し、スクリプトは自分のサイトのものと WebAssembly だけ、インラインのスクリプト・外の画像・ほかのサイトの枠の中への表示を許さない
   - ほかの人が書いた本文を出すので、整形が万一破られても、本文の中のスクリプトが動かないための 2 重目の備え
   - 画面の部品に、インラインの `style` 属性を書かない。許さない指定のため。色や大きさは、CSS のファイルに書く。
-- 画面のファイルには `Cache-Control: no-cache` を付ける。端末に古い `browser.js` が残ったまま、新しい画面と組み合わさって動かなくならないため。毎回の確認は、更新が無ければ中身を送り直さない。
-- 状態を変える API (ノートの保存・削除・復元、メッセージの送信依頼)は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。
+- すべての応答に `X-Robots-Tag: noindex, nofollow, noarchive` を付け、`wwwroot/robots.txt` で全部の道を断る (`Disallow: /`)
+  - サイトを、検索で見つけられにくくするため。守りではなく、アドレスを知っていれば、画面のファイルは開ける。守りの中心は、ログインと、API が `401` で断ること。
+  - `robots.txt` が無いと、検索のロボットの要求が `404` になり、探りに数えられるので、ファイルを置く
+- 応答に `Server: Kestrel` を付けない。設定は `AddServerHeader = false`。サーバーの種類を、探りの相手に教えないため。
+- 画面のファイルと、画面の入口の `index.html` には `Cache-Control: no-cache` を付ける。「/messages」のような道は `MapFallbackToFile` が `index.html` を返すので、同じ指定を渡す。端末に古い `browser.js` が残ったまま、新しい画面と組み合わさって動かなくならないため。毎回の確認は、更新が無ければ中身を送り直さない。
+- 状態を変える API (ノートの保存・削除・復元、メッセージの送信依頼、通知の端末の登録と解除)は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。
 - API (`/api`)は、呼ぶたびに、ログインしている人が今も使える状態かを DB で確かめる
   - 削除された人・使える期間が終わった人は、ログインの Cookie が残っていても、ログインしていない扱い (401)
   - 確かめた人が、要求ごとの今のユーザー (`CurrentUser`)になり、ノートの読み書きを、その人に見えるものに絞る
@@ -237,6 +407,22 @@
   - `EnrollmentCodeHash`: 入力された登録用コードから、持ち主を探す。コードが空の行は対象にしない
 - 作成者・更新者は 0。コードを出すのは、ユーザーのログインではなく、サーバーの PC での操作のため
 
+## 機能の利用 (管理者が無効にした機能)
+
+管理者が、ユーザーごとに、機能を無効にできる。決め方は [mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」にある。無効にされた人にとって、その機能は無いものになる。
+
+- 機能番号 (`IWebFeature.FeatureNo`)を持つ機能は、無効にされた人の API の呼び出しを、404 で断る
+  - 断る処理は、`MapWebFeatures` が機能ごとの API の入口に 1 回だけ付ける。機能ごとには書かない。
+  - 要求ごとに、`AppUserAdminSetting` を 1 回読む。行が無い人は有効。
+  - 機能番号を持たない機能 (通知)は、管理者が決められない。
+- ホーム画面の機能の一覧と、設定の画面の節からも外す
+  - 画面は、`GET /api/features/disabled` で、使えない機能の画面側のアセンブリの名前を受け取り、`FeatureAvailability` が `ClientFeature` を絞る。画面側は、機能番号を持たない。
+  - 聞けなかったときは、外さない。API はサーバーが断る。
+  - 無効の機能の画面の道を、アドレスに直接打つと、画面は開く。API が断るので、中身は出ない。
+- ノートの画面に出す作業報告は、作業管理を無効にされた人には出さない (`IDayContentSource.FeatureNo`)
+- 「通知」の画面の一覧に出すリマインダーは、リマインダーを無効にされた人には出さない
+- 無効にされた人を、メッセージとリマインダーの宛先にも出さず、送る処理も断る ([messages.md](messages.md)・[reminders.md](reminders.md))
+
 ## DB の接続
 
 - アプリが使うログインは、専用の `MmmToolWeb` を作る
@@ -267,10 +453,22 @@
     GRANT SELECT ON dbo.WorkRecord TO [MmmToolWeb];
     GRANT SELECT ON dbo.WorkDayNote TO [MmmToolWeb];
     GRANT SELECT ON dbo.CodeMaster TO [MmmToolWeb];
-    -- メッセージの送信依頼は、行を足すだけ。状態を変えるのは MmmBatch
-    GRANT INSERT ON dbo.MessageSendRequest TO [MmmToolWeb];
-    -- 送信先は、宛先の一覧を作るために、送る先の値 (Value)を除いた列だけ読める
-    GRANT SELECT (Id, IsDeleted, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];
+    -- メッセージの会話と参加者は、足し、更新する。1 対 1 の会話を作る処理が、鍵で順番に処理する
+    GRANT SELECT, INSERT, UPDATE ON dbo.MessageConversation TO [MmmToolWeb];
+    GRANT SELECT, INSERT, UPDATE ON dbo.MessageConversationMember TO [MmmToolWeb];
+    -- メッセージと通知の状態は、行を足し、読むだけ。通知の状態を変えるのは MmmBatch
+    GRANT SELECT, INSERT ON dbo.Message TO [MmmToolWeb];
+    GRANT SELECT, INSERT ON dbo.MessageDelivery TO [MmmToolWeb];
+    -- ユーザーごとの設定。メッセージの受け取り先を、読み、足し、更新する。外すときは論理削除なので DELETE は付けない
+    GRANT SELECT, INSERT, UPDATE ON dbo.AppUserSetting TO [MmmToolWeb];
+    -- 管理者が決める、機能の利用。読むだけ。書くのは管理ツール
+    GRANT SELECT ON dbo.AppUserAdminSetting TO [MmmToolWeb];
+    -- 送信先は、送る先の値 (Value)を除いた列だけ読める。通知を受け取る端末の登録 (区分 Web 版通知)のために、足す・更新するのは付ける
+    GRANT INSERT, UPDATE ON dbo.NotificationChannel TO [MmmToolWeb];
+    GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];
+    -- 通知の画面の一覧が、自分の送信先に届いたリマインダーの通知を読む。読む列だけを許す。列の許可は行を絞れないので、自分の送信先の分だけという条件は、コードで守る
+    GRANT SELECT (Id, ReminderId, ChannelId, Date, Status, SentAt) ON dbo.ReminderSendStatus TO [MmmToolWeb];
+    GRANT SELECT (Id, AuthorUserId, TargetUserId, Date, Time, Title, Note, Link) ON dbo.Reminder TO [MmmToolWeb];
     -- AppUser の列のうち、PasswordHash 以外を列挙して付ける
     GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, LoginName, DisplayName, ValidFrom, ValidTo) ON dbo.AppUser TO [MmmToolWeb];
     ```
@@ -283,8 +481,18 @@
 
 - 起動は `.\MmmToolWeb.Server.exe --urls http://localhost:5080 --Web:PublicOrigin=<公開アドレス>`
   - `Web:PublicOrigin` は、外から見えるアドレスで、パスキーの検証に使う (既定は `http://localhost:5080`)
+- `Web:PublicOrigin` と `Web:PushPublicKey` は、起動の引数のほかに、`MmmToolWeb.Server.exe` と同じフォルダーの `appsettings.json` でも渡せる
+  - 引数が優先される
+  - 一度ファイルに書けば、以後の起動で引数を付けなくてよい。発行の出力に `appsettings.json` は入らないので、出力をコピーして入れ替えても、消えない。
 - 公開は `tailscale funnel 5080`。サーバーは `localhost` だけで待ち受け、外へ出すのは Funnel だけにする。
 - 起動と停止は手動 (サービスやスタートアップにしない)
+- 開発中は、発行せずに、VS の F5 か `dotnet run --project src\App\MmmToolWeb\Server` で動かす (`Properties/launchSettings.json` の `http://localhost:5080`)
+  - 初回だけ、`bin\Debug\net10.0` の実行ファイルで `setup-db` を流して、DB の接続を保存する (`Data` は実行ファイルのフォルダにあるため)
+  - 開発用ログイン: Debug ビルドで、環境が `Development` のときだけ、ログイン画面 (`/`)に「開発用ログイン (Debug のみ)」の欄が出る。ログイン名を手で入れて押すと、パスワードなしでその人としてログインする (`POST /api/auth/dev-login`)
+    - 省くのはパスキーの確認だけ。ログイン状態の Cookie は本物を発行し、そのあとの今のユーザーの決め方は本番と同じ
+    - サーバーの口 (`DevAuthEndpoints`)・画面の欄 (`Home.razor`)・呼び出し (`AuthClient.DevLoginAsync`)・要求の型 (`DevLoginRequest`)は、すべて `#if DEBUG` で囲むので、Release で発行した物には入らない
+    - Funnel も同じ PC の `localhost` から転送してくるので、「`localhost` からの要求だけ」を条件にしない。代わりに、Funnel が付ける `X-Forwarded-For` か `X-Original-For` (`UseForwardedHeaders` が前者を後者へ移す)がある要求を 404 で断る。Debug ビルドを公開したままにしても、外からは使えない
+    - 自動ログイン (ログイン名を設定で決めておく形)は作らない (設定の置き場が 2 つになるため)
 - 配る形は、`dotnet publish` の出力 (フレームワーク依存)
   - 動かす PC に ASP.NET Core Runtime 10 が要る
 
@@ -349,5 +557,5 @@
 | `Data/Logs/access-*.txt` | アクセスログ。内容は「ログ」を見る |
 | `Data/Logs/server-yyyy-MM-dd.log` | 警告以上のログと、守りに関わる出来事。内容は「ログ」を見る |
 | `Data/Logs/rejected-clients.txt` | 断った接続元の一覧。内容は「探りの遮断」を見る |
-| ブラウザの `localStorage` の `mmmtoolweb.messages.lastChannelId` | 端末で前回メッセージを送った宛先の、送信先の番号の文字。サーバーには送らない |
+| ブラウザの IndexedDB の `mmmtoolweb.cache` の表 `kv` | メッセージの端末の控え。キーは、人の一覧が `messages.list`、会話ごとが `messages.c.<会話の番号>`。会話ごとに新しい順の 200 件 (仮)までを、ログインした人ごとに分けて持つ。ログアウトとアカウントの変更で消す。サーバーには送らない。詳細は [messages.md](messages.md) の「端末の控えと更新」 |
 | `Data/Keys` | Cookie の暗号化の鍵。ASP.NET Core の Data Protection が作り、Windows のユーザーに結びつけて暗号化する。アプリ名を `MmmToolWeb` に固定する。発行先を替えるときは、`Data` を持ち越し、同じ Windows ユーザーで動かせば、ログインは切れない |

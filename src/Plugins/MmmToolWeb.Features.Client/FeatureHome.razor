@@ -1,19 +1,48 @@
 @page "/home"
 @inject IEnumerable<ClientFeature> Features
+@inject FeatureAvailability Availability
 @inject SessionClient Session
 
 <main class="home">
-    <h1>ホーム</h1>
+    <div class="top">
+        <h1>ホーム</h1>
+        <a class="settings" href="settings" aria-label="設定">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="@SettingsIconPath" /></svg>
+        </a>
+    </div>
 
-    <nav class="tiles" aria-label="機能">
-        @foreach (var feature in Features)
-        {
-            <a class="tile" href="@feature.Route">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg>
-                <span>@feature.Title</span>
-            </a>
-        }
-    </nav>
+    @if (_available.Count > 0)
+    {
+        <nav class="features" aria-label="機能">
+            @foreach (var feature in _available)
+            {
+                <a class="row" href="@feature.Route">
+                    <span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg></span>
+                    <span class="name">@feature.Title</span>
+                    <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="@ChevronPath" /></svg>
+                </a>
+            }
+        </nav>
+    }
 
     <button type="button" class="logout" @onclick="Session.LogoutAsync">ログアウト</button>
 </main>
+
+@code {
+    /// <summary>ホームに出す機能。管理者に使えなくされた機能は含まない。読み込むまでは空。</summary>
+    private IReadOnlyList<ClientFeature> _available = [];
+
+    /// <summary>前に聞いた結果があれば、先にタイルに出す。開くたびに、空のタイルを挟まないため。</summary>
+    protected override void OnInitialized() => _available = Availability.FilterRemembered(Features) ?? [];
+
+    /// <summary>使える機能を、サーバーに聞き直して、タイルに出す。</summary>
+    /// <returns>読み込みの完了を表すタスク。</returns>
+    protected override async Task OnInitializedAsync() => _available = await Availability.FilterAsync(Features);
+
+    /// <summary>行の右端の「›」の形。24 × 24 の枠の SVG の path で、線で描く。</summary>
+    private const string ChevronPath = "M9.5 6l6 6-6 6";
+
+    /// <summary>設定の歯車のアイコンの形。24 × 24 の枠の SVG の path。</summary>
+    private const string SettingsIconPath =
+        "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z";
+}

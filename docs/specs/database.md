@@ -87,10 +87,10 @@
   - ほかの表の番号を持つ列 (`ReminderId`・`UserId`・作成者・更新者・宛先)に存在しない番号が入らないようにするのは、アプリの責任
 - インデックスは主キーと一意制約と、ユーザーのログイン名の一意インデックス (削除されていない行の間だけ一意)だけ
   - これはリマインダー関係の表の話 (検索の条件が、主キーと、ほかの表の番号を持つ列だけのため)
-  - **作業管理の表・`Note`・`MessageSendRequest` は例外**で、読み方ごとのインデックスを持つ
+  - **作業管理の表・`Note`・メッセージの表は例外**で、読み方ごとのインデックスを持つ
     - 作業管理は、全員の分の読み込み・日付での絞り込み・差分の取得
     - `Note` は、表示する日に有効な行を、日付の範囲で探す
-    - `MessageSendRequest` は、状態での絞り込み
+    - メッセージの表 (`MessageConversation`・`MessageConversationMember`・`Message`・`MessageDelivery`)は、会話と参加者での絞り込み・通知の状態での絞り込み・差分の取得
   - 差分の取得に使う更新日時のインデックスは、論理削除も差分で届くよう、削除された行も含める (列は [work-items.md](work-items.md) の「表」)
   - 件数が増え続ける表なので、インデックスが無いと、読むたびに表全体を走査する
     - 測定では、差分の確認が、インデックスが無いと 674 ミリ秒、あると 0.1 ミリ秒だった
@@ -102,10 +102,15 @@
 | `AppUser` | ユーザー。1 行が 1 人 (ログイン名とパスワードで特定する) |
 | `Reminder` | リマインダー。作成者と宛先を持つ |
 | `ReminderState` | リマインダーの対応状態で、完了・スヌーズ。人ごと・日ごと |
-| `NotificationChannel` | 送信先 (ntfy・Discord)の登録。1 行が 1 つの送信先 |
+| `NotificationChannel` | 送信先 (ntfy・Discord・Web 版通知)の登録。1 行が 1 つの送信先 |
 | `ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
 | `ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
-| `MessageSendRequest` | メッセージの送信依頼。MmmTool が行を足し、MmmBatch が送って状況を更新する ([messages.md](messages.md)) |
+| `AppUserSetting` | ユーザーごとの設定。人・機能・区分・コード番号ごとに、値を 1 行で持つ縦持ちの表。メッセージの受け取り先から使う ([messages.md](messages.md)の「受け取り先」) |
+| `AppUserAdminSetting` | 管理者がユーザーごとに決める設定。作りは `AppUserSetting` と同じで、管理ツールだけが書く。機能の利用 (無効・有効・読み取り専用)を持つ ([mmmtooladmin.md](mmmtooladmin.md)の「機能の利用」) |
+| `MessageConversation` | メッセージの会話。1 対 1 かグループかの種類と、グループの名前を持つ ([messages.md](messages.md)) |
+| `MessageConversationMember` | 会話に入っている人。1 人が 1 行 |
+| `Message` | 会話の中の 1 通。本文・送った人・返信元を持つ。MmmTool と Web 版が行を足す |
+| `MessageDelivery` | 1 通を、1 人に通知する状態。MmmTool と Web 版が送信待ちで足し、MmmBatch が送って状態を更新する |
 | `WorkProject` | 作業管理の案件マスター ([work-items.md](work-items.md)) |
 | `WorkGroup` | 作業管理のグループ |
 | `WorkItem` | 作業管理の作業 |
@@ -114,7 +119,9 @@
 | `Note` | ノート。期間 (開始日・終了日)・タイトル・本文・重要度・公開範囲を持つ ([notes.md](notes.md)) |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組で、全員で共通。作業管理の状態・進捗度・優先度から使う ([work-items.md](work-items.md)の「コードマスタ」) |
 
-- `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageSendRequest` の 4 つは、外部への送信のための表で、DB モードだけで使う ([mmmbatch.md](mmmbatch.md))
+- `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageDelivery` の 4 つは、外部への送信のための表で、DB モードだけで使う ([mmmbatch.md](mmmbatch.md))
+- `MessageConversation`・`MessageConversationMember`・`Message` も、DB モードだけで使う。ローカルモードにはユーザーの特定が無く、会話の相手がいないため。
+- `AppUserSetting` は、送信のための表ではなく、ユーザーごとの設定の汎用の表。ユーザーの特定があるのは DB モードだけなので、SQL Server だけに作り、SQLite と JSON には作らない。
   - ローカルモードの JSON には、送信の項目を持たない
 - 作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ
   - 列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)
@@ -142,6 +149,8 @@
 | `PasswordHash` | 文字列 (200) | `varchar(200)` | 空文字 | 空文字は、管理者の再設定のあとの「新しく決める」状態。パスワードのハッシュで、形は `pbkdf2-sha256$<回数>$<ソルト>$<ハッシュ>` (ソルト・ハッシュは Base64) |
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
 | `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
+
+- メッセージの宛先に選べる人を、表示名の順に先頭から読むため、インデックス `IX_AppUser_DisplayName (DisplayName)` を持つ。業務の列だけで作る。版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。
 
 ### `Reminder`(リマインダー)
 
@@ -220,13 +229,73 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `UserId` | 整数 | `int` | | 使用者の `AppUser.Id` で、この送信先を使う人。作ったときに、登録した人 (作成者の列と同じ人)を入れ、0 以上の検査をする。一覧・選択・更新・削除の条件に使う業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り。**列の並び: 共通ヘッダーの次、`Kind` の前**で、誰の送信先かを、区分・名前・値より前に置く。作成スクリプトはこの並びで作る |
-| `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 (1 か 2 の検査) |
-| `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名 (画面に出す名前) |
-| `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL。秘密なので、画面の一覧には出さない |
+| `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 / Web 版通知 = 3 で、1 から 3 のどれかの検査 `CK_NotificationChannel_Kind` を付ける。Web 版通知は、版 6 の更新用スクリプトで足した |
+| `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名で、画面に出す名前。Web 版通知は、端末の呼び名 |
+| `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL、Web 版通知は端末の宛先の JSON で `{"endpoint":…,"p256dh":…,"auth":…}` の形。秘密なので、画面の一覧には出さない |
 
 - 選べるのは、自分が使用者のものだけ (`UserId` が自分で、今は、自分で登録した送信先だけが、自分の使用者になる)
+- Web 版通知の行は、Web 版の「通知」の画面で、端末のブラウザが宛先を作ったときに足す ([web.md](web.md)の「通知 (Web 版)」)
+  - MmmTool の送信先の編集では、新規に登録できず、登録名だけを直せる。宛先の値は、そのまま保つ。
+  - `Value` が 500 文字を超える宛先は、登録できない。登録の API が 400 とわけを返す。
 - インデックスは、業務の列だけで作る: `IX_NotificationChannel_UserId (UserId)`(自分の送信先の一覧)
   - 削除済みの行も含めて持つ (「削除済みを表示」のため)
+
+### `AppUserSetting`(ユーザーごとの設定)
+
+ユーザーごとの設定を、1 行に 1 つの値で持つ縦持ちの表。`CodeMaster` と同じ三段のキーを持つ。
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。設定を外したときに 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者の `AppUser.Id` で、設定した人。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者の `AppUser.Id`。0 以上の検査 |
+| `UserId` | 整数 | `int` | | 設定を持つ人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は条件に使わない。0 以上の検査。**列の並び: 共通ヘッダーの次、`FeatureNo` の前** |
+| `FeatureNo` | 整数 | `int` | | 機能番号で、`CodeMaster` と同じ台帳 (`CodeFeatures`)の数字。メッセージは 3。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、設定の種類。メッセージは 1 = 受け取り先。1 以上の検査 |
+| `CodeNo` | 整数 | `int` | | コード番号 (枝番)で、区分の中の識別子。値が 1 つだけの設定は 1。複数の値を持つ設定は、値ごとに 1 行で、別の番号にする。1 以上の検査 |
+| `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、整数は読むときに直す。直せない値は、未設定として扱う |
+
+- 削除されていない行は、`(UserId, FeatureNo, CategoryNo, CodeNo)` で 1 行だけ
+  - 値を変えるときは、同じ行の `Value` を直す
+  - 設定を外すときは、`IsDeleted` を 1 にする。外したあとに設定し直すときは、その行の削除を戻して `Value` を直す。
+- 設定の種類ごとに列や表を足さず、行で持つ。設定が増えても、列が増えないため。
+- 複数の値は、カンマでつないだ文字列にせず、枝番を分けた行にする (1 つだけ足す・外す操作を、行の追加と論理削除で行うため)
+- `FeatureNo` と `CategoryNo` の一覧は、列の検査にしない。機能が決める数字で、機能を足すたびに表を直さないため。
+- 値が指す先 (送信先の番号など)が存在することは、アプリが検査する (外部キーは付けない)
+- 値を数字として比べる・集計する問い合わせは、数字に直せない値を除いて行う。直せない値を比べて、問い合わせが止まらないようにするため。
+- インデックスは、業務の列だけで作る: `UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo (UserId, FeatureNo, CategoryNo, CodeNo)`。`IsDeleted = 0` の行だけの一意のインデックス
+  - 人ごとの設定を読む問い合わせと、同じ設定が重ならないことを守るため
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQLite にはユーザーの表が無いので、SQL Server だけ。
+
+### `AppUserAdminSetting`(管理者がユーザーごとに決める設定)
+
+管理者が、ユーザーごとに決める設定を、1 行に 1 つの値で持つ縦持ちの表。列・キー・インデックスの作りは `AppUserSetting` と同じで、持ち主だけが違う。
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。設定を外したときに 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者。管理ツールが書くので 0。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。管理ツールが書くので 0。0 以上の検査 |
+| `UserId` | 整数 | `int` | | 設定を持つ人の `AppUser.Id`。業務の列。0 以上の検査。**列の並び: 共通ヘッダーの次、`FeatureNo` の前** |
+| `FeatureNo` | 整数 | `int` | | 機能番号で、`CodeMaster` と同じ台帳 (`CodeFeatures`)の数字。作業管理は 2・メッセージは 3・ノートは 4・リマインダーは 5。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、設定の種類。機能の利用は 1。1 以上の検査 |
+| `CodeNo` | 整数 | `int` | | コード番号 (枝番)で、区分の中の識別子。機能の利用は 1。1 以上の検査 |
+| `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、整数は読むときに直す。直せない値は、未設定として扱う |
+
+- `AppUserSetting` は、ユーザー自身が決める設定。この表は、管理ツール `MmmToolAdmin` だけが書く設定 ([mmmtooladmin.md](mmmtooladmin.md) の「機能の利用」)
+  - ユーザーが書ける表に、管理者が与える許可を置かないため。Web 版のログインは、`AppUserSetting` に書き込める。
+- 削除されていない行は、`(UserId, FeatureNo, CategoryNo, CodeNo)` で 1 行だけ。インデックスは `UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo` で、`IsDeleted = 0` の行だけの一意のインデックス
+- `CategoryNo` の区分は、機能の利用が 1。設定の種類を足すときは、区分を足し、列も表も足さない。
+  - 機能の利用: `FeatureNo` は機能番号、`CodeNo` は 1、`Value` は 0 = 無効・1 = 有効・2 = 読み取り専用。行が無い人は、有効
+- 持ち主が人ではない設定 (全員に共通の設定など)は、この表に入れず、別の表にする。
+- 読む側は、Web 版のサーバー・MmmTool・MmmBatch。Web 版のログイン `MmmToolWeb` には SELECT だけを付ける。付ける前に、表と権限の一覧を出して許可をもらう。
+- SQLite にはユーザーの表が無いので、SQL Server だけに作る。
 
 ### `ReminderSendSetting`(リマインダーの送信設定)
 
@@ -273,39 +342,108 @@
   - 経過の記録は、状態を持つ表の役割ではないため
 - `(ReminderId, ChannelId, Date)` を一意にする (`UQ_ReminderSendStatus_Key`)
   - 送る前に `Pending` の行を作り、作れた (一意制約に当たらなかった)ものだけが送る
+- インデックス `IX_ReminderSendStatus_ChannelId_SentAt (ChannelId, SentAt DESC)` を、業務の列だけで作る
+  - Web 版の「受け取った通知」の一覧が、自分の送信先に届いたリマインダーを、送った日時の新しい順に読むため
+  - この表は掃除されず増え続けるので、送信先で絞り、新しい順に先頭から読めるようにする
+  - 版 2 の更新用スクリプト `002_AddReminderSendStatusChannelIndex.sql` (MmmBatch の `Sql/`)で足す
 - ログではなく状態で、「送ったか」の判断に使う
   - 画面の「今日」(今日の送信予定)は、この表から読む
   - 送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログに残す ([mmmbatch.md](mmmbatch.md)の「送信のログ」)
   - 画面の「履歴」はそちらから出す
   - この表は再送で同じ行を更新するので、経過が残らないため (ユーザーの決定)
 
-### `MessageSendRequest`(メッセージの送信依頼)
+### `MessageConversation`(会話)
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ほかの表からは `ConversationId` で指す |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、会話を作った人。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
+| `Kind` | 整数 (小) | `tinyint` | | 種類。1 対 1 = 1 / グループ = 2 で、1 から 2 の検査 `CK_MessageConversation_Kind` |
+| `Name` | 文字列 (50) | `nvarchar(50)` | 空文字 | 会話の名前。グループの名前で、1 対 1 は空文字 |
+
+- 1 対 1 の会話の重なりとは、同じ 2 人の組に、会話が 2 つできること。これは、DB の索引では防がない。会話を作る処理が、2 人の組ごとの鍵 (`sp_getapplock`)で順番に処理し、`MessageConversationMember` から探して防ぐ ([messages.md](messages.md) の「1 対 1 の会話の作り方」)。
+  - グループは、メンバーが同じで名前の違う会話を、いくつでも作れる
+- 最後のメッセージの番号の列は持たない。人の一覧は、会話ごとに最新の 1 通を `Message` から読んで求める。メッセージを送るたびに、会話の行を更新しなくて済むため。
+- インデックスは、主キーだけ。参加者での引きは、`MessageConversationMember` の索引が受け持つ。
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQLite にはユーザーの表が無いので、SQL Server だけ。
+
+### `MessageConversationMember`(会話の参加者)
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。グループを抜けるときに 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、参加させた人。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
+| `ConversationId` | 整数 | `int` | | 会話の `MessageConversation.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どの会話に・誰がの順 |
+| `UserId` | 整数 | `int` | | 参加している人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
+
+- 1 つの会話に、同じ人は 1 行だけで、削除されていない行の間で一意。自分との会話は、自分 1 人の 1 行。
+- インデックスは、業務の列と更新日時で作る
+  - `UX_MessageConversationMember_ConversationId_UserId (ConversationId, UserId)`。`IsDeleted = 0` の行だけの一意のインデックス。同じ人が二重に入らないため。
+  - `IX_MessageConversationMember_UserId_ConversationId (UserId, ConversationId)`。自分の会話の一覧と、2 人の 1 対 1 の会話を探すため。
+  - `IX_MessageConversationMember_UserId_UpdatedAt (UserId, UpdatedAt)`。自分が新しく入った会話を、差分で知るため。削除された行も含める。
+- 会話・人の存在は、アプリが検査する (外部キーは付けない)
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
+
+### `Message`(メッセージ)
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。返信元は `ReplyToMessageId` で指す |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時で、送った日時。画面に時刻として出すだけで、条件や索引には使わない |
+| `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、送った人と同じ。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。通知の状態が変わるたびに、MmmBatch が、DB の時計で同じトランザクションの中で書く。差分の取得の基準になる |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。送ったときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
+| `ConversationId` | 整数 | `int` | | 会話の `MessageConversation.Id`。**列の並び: 共通ヘッダーの次、`SenderUserId` の前**で、どの会話に・誰がの順 |
+| `SenderUserId` | 整数 | `int` | | 送った人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
+| `ReplyToMessageId` | 整数 | `int` | 0 | 返信元の `Message.Id`。返信でなければ 0 で、NULL の代わりの値。同じ会話のメッセージだけを指す。0 以上の検査 |
+| `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
+
+- タイトルの列を持たない。会話の形では、件名を付けないため。
+- 送る先の送信先 (`ChannelId`)の列を持たない。受け取る人の受け取り先は、MmmBatch が送るときに `AppUserSetting` から読むため。
+- 一意制約は付けない (1 回の送信の操作が 1 通で、同じ内容を続けて送っても別の行)
+- インデックスは、業務の列と更新日時で作る
+  - `IX_Message_ConversationId_Id (ConversationId, Id DESC)`。会話の 50 件を、`Id` で区切って読むため。人の一覧で、会話ごとの最新の 1 通を読むためにも使う。
+  - `IX_Message_SenderUserId_UpdatedAt (SenderUserId, UpdatedAt)`。自分が送ったメッセージで、基準より後に更新されたものを、差分で読むため。送った人の画面の通知の状態の印が、ここで届く。
+  - `IX_Message_UpdatedAt (UpdatedAt)`。Web 版のサーバーが、数秒おきに、更新された会話の番号だけを調べるため。仕組みは [messages.md](messages.md) の「端末の控えと更新」にある。
+- 会話・送った人・返信元の存在は、アプリが検査する (外部キーは付けない)
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
+
+### `MessageDelivery`(メッセージの通知の状態)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列) |
-| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (依頼した日時で、画面の「今日」に時刻として出すだけで、条件には使わない) |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (通知を頼んだ日時) |
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、送った人と同じ。0 以上の検査 |
-| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。MmmBatch が状況を変えるたびに、DB の時計で書く |
-| `UpdatedByUserId` | 整数 | `int` | | 更新者。依頼したときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
-| `SenderUserId` | 整数 | `int` | | 送った人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査。**列の並び: 共通ヘッダーの次、`ChannelId` の前**で、誰が・誰にの順 |
-| `ChannelId` | 整数 | `int` | | 送る先の `NotificationChannel.Id`。送信先の値は持たない |
-| `Title` | 文字列 (100) | `nvarchar(100)` | 空文字 | タイトル。空文字は「タイトルなし」。画面の上限 (`MessageLimits`)と同じ長さ |
-| `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
-| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 で、1 から 3 の検査。`ReminderSendStatus` と同じ意味 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。MmmBatch が状態を変えるたびに、DB の時計で書く |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者。頼んだときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
+| `MessageId` | 整数 | `int` | | 通知するメッセージの `Message.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どのメッセージを・誰にの順 |
+| `UserId` | 整数 | `int` | | 通知を受ける人の `AppUser.Id`。送った人以外の参加者で、自分との会話は自分。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、通知を受ける人が管理者にメッセージを無効にされたため、MmmBatch が送らなかった状態 |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
-- 行を足すのは MmmTool (送信待ちで足す)
+- 行を足すのは MmmTool と Web 版で、送信待ちで足す。同じトランザクションで、`Message` の行も足す。
   - 送信の流れ・送り直し・行を取る条件は [mmmbatch.md](mmmbatch.md) の「メッセージの送信」
   - 失敗の理由の列は持たない (`ReminderSendStatus` と同じ)
-- 一意制約は付けない (1 回の送信の操作が 1 行で、同じ内容を続けて送っても別の行)
-- インデックスは、業務の列だけで作る: `IX_MessageSendRequest_Status (Status)`
-  - MmmBatch が 5 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため
-  - 件数が増え続ける表で、送信済みの大量の行を、読むたびに走査しないため
+- 状態を変えるのは MmmBatch。変えるときは、同じトランザクションで、`Message.UpdatedAt` も更新する。
+- インデックスは、業務の列だけで作る
+  - `UX_MessageDelivery_MessageId_UserId (MessageId, UserId)`。一意のインデックス。同じ人に、同じメッセージの通知が二重に書かれないため。
+  - `IX_MessageDelivery_Status (Status)`。MmmBatch が 1 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため。送信済みの大量の行を、読むたびに走査しないため。
+  - `IX_MessageDelivery_UserId_UpdatedAt (UserId, UpdatedAt)`。自分宛のメッセージの新着と、通知の状態の変わりを、会話の数に関係なく、索引 1 回で差分に読むため。
   - MmmBatch の画面の「最近の依頼」は、主キー (`Id`)の降順で、先頭から決まった件数を読むので、索引は要らない
-- 送った人・送る先の存在は、アプリが検査する (外部キーは付けない)
+- メッセージ・人の存在は、アプリが検査する (外部キーは付けない)
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
 
 ### 作業管理の表 (5 つ)
 
@@ -520,7 +658,7 @@
 | `CodeNo` | 整数 | `int` | | コード番号。区分の中の識別子。利用する行は、この番号を保存する。一度使った番号は、同じ意味のまま変えない。1 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 表示順。小さいほど先。0 以上の検査 |
 | `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数で、進捗度の % など。要らないコードは 0 |
-| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる (例: 「作成完了」) |
+| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる (例: 「レビュー中」)。初期値は、進捗度の名前をすべて空にする |
 
 - `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`)
   - 論理削除された行も含めて
@@ -530,7 +668,7 @@
 - 初期値 (作業管理 = 機能番号 2)は、状態 3 件・進捗度 11 件・優先度 3 件
   - 作成用のスクリプトが入れる
   - 中身と使い方は [work-items.md](work-items.md) の「コードマスタ」
-- 画面からは編集しない
+- 名前は、管理ツール MmmToolAdmin の「共通設定」の「選択肢」から編集できる。数値・表示順・選択肢の追加と外す操作は、画面から編集しない。詳細は [mmmtooladmin.md](mmmtooladmin.md)
   - 直すときは SQL で直す (外すときは `IsDeleted` を 1 にして、`DELETE` はしない)
   - 列の番号を指す側 (`WorkItem` の `PriorityCodeNo` など)に、外部キーは付けない (ほかの表と同じ)
   - 存在する番号かどうかは、アプリが検査する
@@ -710,8 +848,16 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`
-  - `005_AddNoteEventDate.sql` は、次の変更を持つ。リリースまで、この版の変更は、このファイルに足す。
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`
+  - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
+    - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
+    - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。
+    - ユーザーごとの設定の表 `AppUserSetting` と、その索引 `UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
+    - 管理者が決める設定の表 `AppUserAdminSetting` と、その索引 `UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
+    - `MessageDelivery` の状態の検査は、1 から 4 (Skipped = 4 を足した形)で作る。
+    - メッセージの 4 つの表 `MessageConversation`・`MessageConversationMember`・`Message`・`MessageDelivery`と、「列」の節に書いた索引。無ければ作る。
+    - SQLite には送信先の表もユーザーの表も無いので、SQL Server だけ
+  - `005_AddNoteEventDate.sql` は、0.8.0 でリリースした。次の変更を持つ。
     - `WorkItem` の列 `ReportExcluded` (`bit`)を、`ReportExclusion` (`tinyint`)に変える
       - 列の名前と型は、その場で変えるので、位置は変わらない
       - 既定値の制約を外してから型を変え、`DF_WorkItem_ReportExclusion` と、値の検査 `CK_WorkItem_ReportExclusion` を付ける
@@ -731,6 +877,7 @@
     - 作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)
     - コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)
   - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る
+    - 0.8.0 でリリースしたあとの変更は、`002_AddReminderSendStatusChannelIndex.sql` に集める。`ReminderSendStatus` の索引 `IX_ReminderSendStatus_ChannelId_SentAt` を、無ければ作る。0.9.0 でリリースした。
   - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
   - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
     - 普段は使わない

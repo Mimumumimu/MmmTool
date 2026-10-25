@@ -1,4 +1,5 @@
 using System.Reflection;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.WorkItems;
 using MmmTool.DayContent.Core;
 using MmmTool.WorkItems.Core;
@@ -18,6 +19,9 @@ public sealed class WorkItemsWebFeature : IWebFeature
     /// <inheritdoc />
     /// <remarks>ブラウザ側の画面を持たないので、この機能のアセンブリを返す。<c>@page</c> は無い。</remarks>
     public Assembly ClientAssembly => typeof(WorkItemsWebFeature).Assembly;
+
+    /// <inheritdoc />
+    public int? FeatureNo => CodeFeatures.WorkItems;
 
     /// <inheritdoc />
     public void AddServices(IServiceCollection services)

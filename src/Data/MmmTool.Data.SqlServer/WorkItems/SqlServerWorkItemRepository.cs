@@ -2,7 +2,7 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
-using MmmTool.Data.CodeMaster;
+using MmmTool.Data.SqlServer.CodeMaster;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.WorkItems;
 using MmmTool.Users.Core;
@@ -128,7 +128,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExclusion <> @exclAll)", r => records.Add(ReadRecord(r).ToWorkRecord())),
-                    ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())),
+                    ($"SELECT {CodeMasterRowReader.Columns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(CodeMasterRowReader.Read(r).ToEntry())),
                     ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Date = @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
                 ],
                 parameters,
@@ -209,7 +209,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.UpdatedAt >= @since AND {ProjectFilter("g", "ProjectId", exclude: true)}", r => groups.Add(ReadGroup(r).ToWorkGroup())),
                     ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.UpdatedAt >= @since AND {ProjectFilter("i", "ProjectId", exclude: true)}", r => items.Add(ReadItem(r).ToWorkItem())),
                     ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.UpdatedAt >= @since {(allRecordDates ? "" : "AND r.Date = @date")} AND {ProjectFilter("r", "ProjectId", exclude: true)}", r => records.Add(ReadRecord(r).ToWorkRecord())),
-                    ($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(ReadCode(r).ToEntry())),
+                    ($"SELECT {CodeMasterRowReader.Columns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature AND c.UpdatedAt >= @since", r => codes.Add(CodeMasterRowReader.Read(r).ToEntry())),
                 ],
                 parameters,
                 cancellationToken).ConfigureAwait(false);
@@ -665,7 +665,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         };
         if (withMaster)
         {
-            queries.Add(($"SELECT {Header("c")}, {CodeColumns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(ReadCode(r).ToEntry())));
+            queries.Add(($"SELECT {CodeMasterRowReader.Columns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(CodeMasterRowReader.Read(r).ToEntry())));
         }
 
         await QueryBatchAsync(connection, null, [.. queries], parameters, cancellationToken).ConfigureAwait(false);
@@ -691,12 +691,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <returns>列の並び (6 列)</returns>
     private static string Header(string alias)
         => $"{alias}.Id, {alias}.IsDeleted, {alias}.CreatedAt, {alias}.CreatedByUserId, {alias}.UpdatedAt, {alias}.UpdatedByUserId";
-
-    /// <summary>コードマスタの中身の列の並び</summary>
-    /// <param name="alias">表の別名</param>
-    /// <returns>列の並び (6 列)</returns>
-    private static string CodeColumns(string alias)
-        => $"{alias}.FeatureNo, {alias}.CategoryNo, {alias}.CodeNo, {alias}.SortOrder, {alias}.NumericValue, {alias}.Name";
 
     /// <summary>作業の中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
@@ -800,25 +794,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         UserId = r.GetInt32(6),
         Date = DateOnly.FromDateTime(r.GetDateTime(7)),
         Note = r.GetString(8),
-    };
-
-    /// <summary>コードマスタの行を読む</summary>
-    /// <param name="r">読み取り中の結果</param>
-    /// <returns>行</returns>
-    private static CodeMasterRow ReadCode(SqlDataReader r) => new()
-    {
-        Id = r.GetInt32(0),
-        IsDeleted = r.GetBoolean(1),
-        CreatedAt = r.GetDateTimeOffset(2),
-        CreatedByUserId = r.GetInt32(3),
-        UpdatedAt = r.GetDateTimeOffset(4),
-        UpdatedByUserId = r.GetInt32(5),
-        FeatureNo = r.GetInt32(6),
-        CategoryNo = r.GetInt32(7),
-        CodeNo = r.GetInt32(8),
-        SortOrder = r.GetInt32(9),
-        NumericValue = r.GetInt32(10),
-        Name = r.GetString(11),
     };
 
     /// <summary>検索語の中の、<c>LIKE</c> の特別な文字を、そのままの文字として扱うようにする</summary>

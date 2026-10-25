@@ -1,0 +1,53 @@
+/* 取り返しにくい操作の確認。実行するボタンは赤系にして、普通の強調色と区別する。ライトとダークの両方の値を持つ */
+.dialog-back {
+    --danger-fill: #b3261e;
+    --danger-fill-text: #ffffff;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+    .dialog-back {
+        --danger-fill: #f2b8b5;
+        --danger-fill-text: #601410;
+    }
+}
+
+.dialog {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 22rem;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.dialog h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+}
+
+.dialog-target,
+.dialog-message {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.danger-fill {
+    border-color: var(--danger-fill);
+    background: var(--danger-fill);
+    color: var(--danger-fill-text);
+}

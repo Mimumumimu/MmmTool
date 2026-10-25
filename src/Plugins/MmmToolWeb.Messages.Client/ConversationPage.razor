@@ -1,0 +1,520 @@
+@page "/messages/{ConversationId:int}"
+@page "/messages/new/{PeerUserId:int}"
+@implements IAsyncDisposable
+@inject MessageStore Store
+@inject MessagesClient Messages
+@inject BrowserClient Browser
+@inject NavigationManager Navigation
+
+<div class="screen">
+    <FeatureHeader Title="@_title" Busy="@(_loading || _sending)" BackPath="@MessagesPage.Route" BackText="メッセージ" />
+
+    @if (_error is not null)
+    {
+        <p class="result error" role="alert">@_error</p>
+    }
+
+    <ol class="thread" aria-label="会話" @ref="_thread">
+        @if (_loadingOlder)
+        {
+            <li class="older">読み込み中…</li>
+        }
+        @foreach (var message in _messages)
+        {
+            <li id="@ElementId(message)" class="@RowClass(message)">
+                <div class="bubble">
+                    @if (message.ReplyToMessageId > 0 && message.ReplyToText is not null)
+                    {
+                        <p class="quote"><span class="quote-name">@message.ReplyToSenderName</span>@message.ReplyToText</p>
+                    }
+                    <p class="body">@message.Body</p>
+                </div>
+                <div class="meta">
+                    <span>@message.TimeText</span>
+                    @if (MarkText(message) is { Length: > 0 } mark)
+                    {
+                        <span class="mark">@mark</span>
+                    }
+                    <button type="button" class="reply" @onclick="() => StartReply(message)">返信</button>
+                </div>
+            </li>
+        }
+    </ol>
+
+    <div class="composer">
+        @if (!_selfCanReceive)
+        {
+            <p class="notice" role="status">@SelfNotice</p>
+        }
+        else if (!_peerCanReceive)
+        {
+            <p class="notice" role="status">@MessageDraftNotice</p>
+        }
+        @if (_replyTo is not null)
+        {
+            <p class="reply-to">
+                <span><span class="quote-name">@_replyTo.SenderName</span>@FirstLine(_replyTo.Body)</span>
+                <button type="button" class="cancel" aria-label="返信をやめる" @onclick="CancelReply">✕</button>
+            </p>
+        }
+        <div class="input">
+            <textarea aria-label="メッセージ" rows="2" maxlength="@_bodyMaxLength" disabled="@(!_selfCanReceive || !_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
+            <button type="button" class="primary" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>相手が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
+    private const string MessageDraftNotice = "受け取り先が未設定です";
+
+    /// <summary>自分が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
+    private const string SelfNotice = "自分の受け取り先が未設定です。設定で指定すると送れます";
+
+    [Parameter]
+    public int ConversationId { get; set; }
+
+    [Parameter]
+    public int PeerUserId { get; set; }
+
+    /// <summary>通知を押して開いたときの、通知の識別子。そのメッセージの位置まで出して、強調する。</summary>
+    [SupplyParameterFromQuery]
+    public string? Item { get; set; }
+
+    /// <summary>まだ会話が無いときの、相手の表示名。</summary>
+    [SupplyParameterFromQuery]
+    public string? Name { get; set; }
+
+    private ElementReference _thread;
+    private List<MessageDto> _messages = [];
+    private string _title = "メッセージ";
+    private string _loadedKey = "";
+    private bool _loading;
+    private bool _loadingOlder;
+    private bool _sending;
+    private bool _hasMore;
+    private bool _peerCanReceive = true;
+    private bool _selfCanReceive = true;
+    private bool _watchingVisible;
+    private int _bodyMaxLength = MessageLimitsBody;
+    private string _body = "";
+    private MessageDto? _replyTo;
+    private string? _error;
+    private bool _scrollToBottom;
+    private string? _scrollToId;
+    private double _keepFromHeight = -1;
+    private int _highlightId;
+    private int _loadVersion;
+    private IAsyncDisposable? _live;
+    private IAsyncDisposable? _topWatch;
+
+    /// <summary>本文の最大の長さの既定。サーバーが返す値で置き換える。</summary>
+    private const int MessageLimitsBody = 1000;
+
+    /// <summary>送れる状態か。サーバーも同じ決まり (自分と相手の受け取り先があり、本文が空白だけでないこと)で確かめる。</summary>
+    private bool CanSend => !_sending && _selfCanReceive && _peerCanReceive && !string.IsNullOrWhiteSpace(_body);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{ConversationId}/{PeerUserId}";
+        if (key == _loadedKey)
+        {
+            return;
+        }
+
+        _loadedKey = key;
+        Store.OpenConversationId = ConversationId;
+        Store.ConversationsChanged -= OnConversationsChangedAsync;
+        Store.ConversationsChanged += OnConversationsChangedAsync;
+        Store.MessagesArrived -= OnMessagesArrivedAsync;
+        Store.MessagesArrived += OnMessagesArrivedAsync;
+        await LoadAsync();
+        _live ??= await Store.AcquireLiveAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _topWatch = await Browser.WatchScrollTopAsync(_thread, () => InvokeAsync(LoadOlderAsync));
+        }
+        if (!_watchingVisible)
+        {
+            _watchingVisible = true;
+            Browser.BecameVisible += LoadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+
+        if (_keepFromHeight >= 0)
+        {
+            var from = _keepFromHeight;
+            _keepFromHeight = -1;
+            await Browser.KeepScrollAfterPrependAsync(_thread, from);
+        }
+        else if (_scrollToId is { } id)
+        {
+            _scrollToId = null;
+            _scrollToBottom = false;
+            await Browser.ScrollIntoViewAsync(id);
+        }
+        else if (_scrollToBottom)
+        {
+            _scrollToBottom = false;
+            await Browser.ScrollToBottomAsync(_thread);
+        }
+    }
+
+    /// <summary>会話を開いたとき、控えから出して、サーバーから最新を読む。</summary>
+    private async Task LoadAsync()
+    {
+        _messages = [];
+        _hasMore = false;
+        _error = null;
+        _highlightId = TryParseItem(Item);
+
+        // 会話を続けて開いたとき、古い会話の読み込みの結果が、新しい会話の表示と控えを上書きしないよう、読み込みごとに番号を進める
+        var version = ++_loadVersion;
+        var form = await Messages.LoadFormAsync();
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        ApplyForm(form);
+        if (ConversationId == 0)
+        {
+            // まだ会話が無い。相手が受け取り先を指定している人だけが探せるので、送れる。会話は、最初の送信で作る
+            _title = string.IsNullOrWhiteSpace(Name) ? "新しい会話" : Name;
+            _peerCanReceive = true;
+            return;
+        }
+
+        _loading = true;
+        StateHasChanged();
+        if (Store.NextBase is null)
+        {
+            var started = await Store.LoadAsync();
+            if (started.Status == ApiFailure.SignedOut)
+            {
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
+        }
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        ApplySummary();
+
+        // まず控えから出す
+        var cached = await Store.ReadConversationCacheAsync(ConversationId);
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        _messages = [.. cached];
+        _scrollToBottom = true;
+        StateHasChanged();
+        await Store.MarkReadAsync(_messages);
+
+        var result = await Messages.LoadMessagesAsync(ConversationId, 0);
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        _loading = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            // 通信できないときは、控えを、読むだけで出す
+            _error = result.Status == ApiFailure.Unavailable && _messages.Count > 0
+                ? "最新でない可能性があります。"
+                : $"会話を読み込めませんでした: {result.Message}";
+            StateHasChanged();
+            return;
+        }
+
+        MergeNewest(result.Value!);
+        await Store.WriteConversationCacheAsync(ConversationId, _messages);
+        await Store.MarkReadAsync(_messages);
+
+        // 通知を押して開いたときは、そのメッセージの位置まで読み足す
+        while (version == _loadVersion && _highlightId > 0 && _hasMore && _messages.Count > 0 && _highlightId < _messages[0].Id && !_loadingOlder)
+        {
+            if (!await LoadOlderCoreAsync())
+            {
+                break;
+            }
+        }
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        _scrollToId = _highlightId > 0 && _messages.Any(message => message.Id == _highlightId) ? ElementIdOf(_highlightId) : null;
+        _scrollToBottom = _scrollToId is null;
+        StateHasChanged();
+    }
+
+    /// <summary>人の一覧から、この会話の名前と、相手の受け取り先の有無を取り込む。</summary>
+    private void ApplySummary()
+    {
+        if (Store.Conversations.FirstOrDefault(conversation => conversation.Id == ConversationId) is { } conversation)
+        {
+            _title = conversation.Name;
+            _peerCanReceive = conversation.PeerCanReceive;
+        }
+    }
+
+    /// <summary>
+    /// サーバーから読んだ最新の 1 ページを、控えと合わせる。控えは、新しいほうから切れ目なく持つ。
+    /// </summary>
+    /// <param name="page">サーバーから読んだ最新のページ。</param>
+    private void MergeNewest(MessagePageDto page)
+    {
+        var fetched = page.Messages;
+        if (_messages.Count > 0 && fetched.Count > 0 && fetched[0].Id <= _messages[^1].Id)
+        {
+            // 控えと重なる。番号で突き合わせて、取り込む
+            var byId = _messages.ToDictionary(message => message.Id);
+            foreach (var message in fetched)
+            {
+                byId[message.Id] = message;
+            }
+            _messages = [.. byId.Values.OrderBy(message => message.Id)];
+            _hasMore = page.HasMore || _messages.Count > fetched.Count;
+            return;
+        }
+
+        // 控えと重ならない。間が抜けるので、控えを捨てて、読んだページだけにする
+        _messages = [.. fetched];
+        _hasMore = page.HasMore;
+    }
+
+    /// <summary>先頭に近づいたとき、さらに古い 50 件を読み足す。</summary>
+    private async Task LoadOlderAsync()
+    {
+        if (!_hasMore || _loadingOlder || _messages.Count == 0)
+        {
+            return;
+        }
+
+        await LoadOlderCoreAsync();
+    }
+
+    /// <summary>古い 1 ページを読んで、上に足す。見ていた位置は動かさない。足した分は、保存しない。</summary>
+    /// <returns>読めたとき true。</returns>
+    private async Task<bool> LoadOlderCoreAsync()
+    {
+        _loadingOlder = true;
+        StateHasChanged();
+        var version = _loadVersion;
+        var height = await Browser.GetScrollHeightAsync(_thread);
+        var result = await Messages.LoadMessagesAsync(ConversationId, _messages[0].Id);
+        _loadingOlder = false;
+        if (version != _loadVersion)
+        {
+            // 読んでいる間に、別の会話を開いた。結果は使わない
+            return false;
+        }
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return false;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"古いメッセージを読み込めませんでした: {result.Message}";
+            StateHasChanged();
+            return false;
+        }
+
+        var page = result.Value!;
+        _messages = [.. page.Messages, .. _messages];
+        _hasMore = page.HasMore;
+        _keepFromHeight = height;
+        StateHasChanged();
+        await Store.MarkReadAsync(page.Messages);
+        return true;
+    }
+
+    /// <summary>更新の知らせで、届いたメッセージのうち、この会話の分を取り込む。</summary>
+    /// <param name="arrived">届いた、または更新されたメッセージ。</param>
+    private async Task OnMessagesArrivedAsync(IReadOnlyList<MessageDto> arrived)
+    {
+        var mine = arrived.Where(message => message.ConversationId == ConversationId && ConversationId > 0).ToList();
+        if (mine.Count == 0)
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            var nearBottom = await Browser.IsNearBottomAsync(_thread);
+            var byId = _messages.ToDictionary(message => message.Id);
+            var added = false;
+            foreach (var message in mine)
+            {
+                if (byId.TryGetValue(message.Id, out var existing))
+                {
+                    if (message.UpdatedAt >= existing.UpdatedAt)
+                    {
+                        byId[message.Id] = message;
+                    }
+                }
+                else
+                {
+                    byId[message.Id] = message;
+                    added = true;
+                }
+            }
+
+            _messages = [.. byId.Values.OrderBy(message => message.Id)];
+            _scrollToBottom = added && nearBottom;
+            StateHasChanged();
+            await Store.WriteConversationCacheAsync(ConversationId, _messages);
+            await Store.MarkReadAsync(_messages);
+        });
+    }
+
+    /// <summary>人の一覧が変わったとき、相手の受け取り先の有無を取り込む。</summary>
+    private Task OnConversationsChangedAsync() => InvokeAsync(() =>
+    {
+        if (ConversationId > 0)
+        {
+            ApplySummary();
+            StateHasChanged();
+        }
+    });
+
+    /// <summary>アプリが裏から戻ったときに、差分と、自分が送れる状態かを読み直す。設定で受け取り先を指定して戻ったときに、送れるようにする。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(async () =>
+    {
+        ApplyForm(await Messages.LoadFormAsync());
+        StateHasChanged();
+        await Store.SyncAsync();
+    });
+
+    /// <summary>入力欄の決まりを取り込む。読めなかったときは、前の値のまま。送るとき、サーバーが同じ決まりで断る。</summary>
+    /// <param name="form">サーバーから読んだ入力欄の決まり。</param>
+    private void ApplyForm(ApiResult<MessageFormDto> form)
+    {
+        if (form.Succeeded)
+        {
+            _bodyMaxLength = form.Value!.BodyMaxLength;
+            _selfCanReceive = form.Value.SelfCanReceive;
+        }
+    }
+
+    /// <summary>メッセージを送る。メッセージと通知の状態の行が書かれるだけで、実際に送るのは MmmBatch。</summary>
+    private async Task SendAsync()
+    {
+        // 押した直後は、ボタンが押せない表示に変わる前なので、続けて押された分はここで止める (2 通送らないため)
+        if (!CanSend)
+        {
+            return;
+        }
+
+        _sending = true;
+        _error = null;
+        // 進行バーを出すため、待つ前に画面へ反映する
+        StateHasChanged();
+        var result = await Messages.SendAsync(new MessageSendDto(ConversationId, ConversationId > 0 ? 0 : PeerUserId, _body.Trim(), _replyTo?.Id ?? 0));
+        _sending = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"送れませんでした: {result.Message}";
+            // 受け取り先が無いと断られたときは、入力欄を押せなくする (PC 版と同じ)
+            _selfCanReceive &= result.Message != SelfNotice;
+            _peerCanReceive &= result.Message != MessageDraftNotice;
+            return;
+        }
+
+        _body = "";
+        _replyTo = null;
+        if (ConversationId == 0)
+        {
+            // 会話ができた。履歴に戻ったとき、空の会話の画面が残らないよう、置き換えて移る
+            Navigation.NavigateTo($"messages/{result.Value!.ConversationId}", replace: true);
+            return;
+        }
+
+        // 送ったメッセージを、すぐ取り込む
+        _scrollToBottom = true;
+        await Store.SyncAsync();
+    }
+
+    /// <summary>返信を始める。</summary>
+    /// <param name="message">返信元のメッセージ。</param>
+    private void StartReply(MessageDto message) => _replyTo = message;
+
+    /// <summary>返信をやめる。</summary>
+    private void CancelReply() => _replyTo = null;
+
+    /// <summary>メッセージの要素の id を作る。通知を押して開いたとき、その位置まで出すため。</summary>
+    /// <param name="message">メッセージ。</param>
+    /// <returns>要素の id。</returns>
+    private static string ElementId(MessageDto message) => ElementIdOf(message.Id);
+
+    /// <summary>メッセージの番号から、要素の id を作る。</summary>
+    /// <param name="id">メッセージの番号。</param>
+    /// <returns>要素の id。</returns>
+    private static string ElementIdOf(int id) => $"m{id}";
+
+    /// <summary>メッセージの行の class を作る。自分は右、相手は左。通知を押して開いたメッセージは強調する。</summary>
+    /// <param name="message">メッセージ。</param>
+    /// <returns>class の値。</returns>
+    private string RowClass(MessageDto message)
+        => (message.IsMine ? "row mine" : "row") + (message.Id == _highlightId ? " highlight" : "");
+
+    /// <summary>自分が送ったメッセージに付ける、通知の状態の印を作る。送信済みには付けない。</summary>
+    /// <param name="message">メッセージ。</param>
+    /// <returns>印の文字。無ければ空文字。</returns>
+    private static string MarkText(MessageDto message) => message.DeliveryStatus switch
+    {
+        1 => "送信待ち",
+        3 => "失敗",
+        _ => "",
+    };
+
+    /// <summary>本文の 1 行目を取る。</summary>
+    /// <param name="text">本文。</param>
+    /// <returns>最初の改行より前の文字。</returns>
+    private static string FirstLine(string text)
+    {
+        var end = text.AsSpan().IndexOfAny('\r', '\n');
+        return end < 0 ? text : text[..end];
+    }
+
+    /// <summary>通知の識別子「message:番号」から、メッセージの番号を取る。</summary>
+    /// <param name="item">通知の識別子。</param>
+    /// <returns>メッセージの番号。取れないときは 0。</returns>
+    private static int TryParseItem(string? item)
+        => item is not null && item.StartsWith("message:", StringComparison.Ordinal) && int.TryParse(item.AsSpan("message:".Length), out var id) ? id : 0;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Store.OpenConversationId == ConversationId)
+        {
+            Store.OpenConversationId = 0;
+        }
+        Store.ConversationsChanged -= OnConversationsChangedAsync;
+        Store.MessagesArrived -= OnMessagesArrivedAsync;
+        Browser.BecameVisible -= LoadOnReturnAsync;
+        if (_topWatch is not null)
+        {
+            await _topWatch.DisposeAsync();
+        }
+        if (_live is not null)
+        {
+            await _live.DisposeAsync();
+        }
+    }
+}
