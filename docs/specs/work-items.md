@@ -1023,7 +1023,7 @@
   - `MmmTool.Data.SqlServer` に SQL Server の実装
   - SDK の `MmmSdk.Db.Sqlite` に、ファイルの場所・開く・版の更新・壊れたファイルの扱いを置く ([database.md](database.md))
 - `MmmTool.WorkItems`
-  - `WorkItemsPlugin`: 入口で、機能のキー `WorkItems`・既定でオフ・サイドバーの並び順 2 (CLI補助の次)
+  - `WorkItemsPlugin`: 入口で、機能のキー `WorkItems`・既定でオン・サイドバーの並び順 1 (先頭)
   - `WorkItemStartup`: 起動時の読み込み
   - `Main/`: ページ・ViewModel・表の行
   - `Move/`: 移動先を選ぶダイアログ

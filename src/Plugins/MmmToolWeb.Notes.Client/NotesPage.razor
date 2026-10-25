@@ -91,7 +91,7 @@
             <article class="@CardClass(note)" @key="note.Id">
                 @if (note.IsEventDay)
                 {
-                    <div class="event-band">@(note.IsEventToday ? "今日が実施日" : "この日が実施日")</div>
+                    <div class="event-band">@(note.IsEventToday ? "今日実施" : $"{_day:MM/dd} 実施")</div>
                 }
                 @if (note.Priority >= 4)
                 {

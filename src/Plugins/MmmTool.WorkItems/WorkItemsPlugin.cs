@@ -27,7 +27,7 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
     public void Register(IServiceCollection services)
     {
         // 管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない
-        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName, defaultEnabled: false,
+        services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName,
             availableWhen: provider => provider.IsFeatureAllowed(CodeFeatures.WorkItems));
 
         // 更新してよいかの判定 (今は誰でも更新できる。担当者・リーダーだけに絞る実装は、この行を差し替える)

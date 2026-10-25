@@ -156,7 +156,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる
   - 値は、CLI補助 1 → ノート 2 → 作業管理 3 → リマインダー 4 → メッセージ 5 → リンク 6 → クリップボード転送 7 → Backlog 8 → ツール 9
   - サイドバーの項目・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ
-  - トレイメニューの項目だけは、別の値 `trayOrder` の順に並ぶ。上から メッセージ → リマインダー → リンク → 終了で、同じ値は登録順。
+  - トレイメニューの項目だけは、別の値 `trayOrder` の順に並ぶ。上から リマインダー → リンク → 終了で、同じ値は登録順。
   - 起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → 作業管理)に実行する
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)
 - サイドバーのページも、ページごとのスコープから解決する (SDK の `PageProvider`)
@@ -186,7 +186,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
 - 機能のオン・オフ: オフにできる機能は、CLI補助・ノート・作業管理・メッセージ・クリップボード転送・Backlog・ツール
   - `<機能>Plugin.Register` の中で `AddFeature(キー, 表示名, defaultEnabled)` を登録する
-  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog・作業管理はオフ、ノート・メッセージ・ツールはオン。
+  - `defaultEnabled` は、保存が無い初回起動のオン・オフ。既定はオン。CLI補助・クリップボード転送・Backlog はオフ、作業管理・ノート・メッセージ・ツールはオン。
   - メッセージは、`availableWhen` で、サーバーモード (DB モード)のときだけ、一覧に出る
   - ページ・起動時の準備・トレイメニュー・設定の部品の登録に、同じキーを渡す
     - キーは、`AddNavigationPage` / `AddStartupTask` / `AddTrayMenuSource` / `AddSettingsSection` の最後の引数
