@@ -515,6 +515,8 @@
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
 | `ReportExclusion` | 0〜2 の整数 | `tinyint` | 0 | 作業報告のどの部分から外すか。0 は外さない、1 は予定にだけ出さず、実績には、ほかの作業と同じ条件で出す、2 は実績にも予定にも出さない。値は `WorkReportExclusion` で、外す範囲が増えるときは、値を足す。ノートの「全員」の人の一覧も、同じ範囲で外す。定例の会議など、報告に書かない作業に付ける。検査 `CK_WorkItem_ReportExclusion` (0・1・2 のどれか)を、SQL Server にも付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列で、0.7.0 は `ReportExcluded` (`bit`)の名前で足した。SQL Server は、更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、`005_AddNoteEventDate.sql` が、名前と型をその場で変えるので、位置は変わらない。SQLite は、`Sql/schema.sql` との点検が新しい列を足し、列の置き換え (`SqliteMigrations.ColumnReplacements`)が、古い列 (`ReportExcluded` か `PlanExcluded`)の値を移して、古い列を落とす。SQLite は列の位置を決められず、新しい列は末尾に付く |
+| `AutoHours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | 自動入力の時間。0 は自動入力しない。0 より大きいと、作業管理のページを開いたとき、システムの今日の記録が無ければ、この時間を入れる。0 以上 24 以下の検査。位置は、行の属性として `ReportExclusion` の次で、状態の前。SQLite は列の位置を決められず、新しい列は末尾に付く |
+| `AutoWeekdays` | 整数 (小) | `tinyint` | 0 | 自動入力する曜日。月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数で、`Reminder.Weekdays` と同じ。0 と 127 は、どちらも毎日。0 から 127 の検査。位置は `AutoHours` の次 |
 | `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 2・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 2・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
@@ -524,6 +526,7 @@
   - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
   - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
   - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、更新用スクリプトの `004` で足した
+  - `IX_WorkItem_AssigneeUserId_AutoHours (AssigneeUserId)`: 自動入力の設定がある自分の作業を探す。削除されていなくて、`AutoHours > 0` の行だけ。大半の作業は設定が無いので、索引が小さく済む。更新用スクリプトの `007` で足した
 
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 
@@ -848,7 +851,10 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`
+  - `007_AddWorkItemAutoEntry.sql` は、未リリースの版の変更を集めたファイルで、リリースまで同じファイルを直す。次の変更を持つ。
+    - `WorkItem` の列 `AutoHours` (`decimal(4,2)`)と `AutoWeekdays` (`tinyint`)を、既定値の制約と値の検査つきで足す。SQLite は、`Sql/schema.sql` との点検が足す。
+    - 索引 `IX_WorkItem_AssigneeUserId_AutoHours` を足す。
   - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
     - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
     - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。
@@ -944,9 +950,9 @@
 | 日付 | `date` | `TEXT` (`2026-10-11`。ない日は `9999-12-31`。作業の開始日だけ `0001-01-01`) |
 | 文字列 (n) | `nvarchar(n)` | `TEXT` (長さは `CHECK`) |
 | 長い文字列 (上限なし) | `nvarchar(max)` | `TEXT` |
-| 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |
+| 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` と `AutoHours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |
 
-- **時間は実数で持つ** (`WorkRecord.Hours`・`WorkItem.PlannedHours`・`ActualTotalHours`)
+- **時間は実数で持つ** (`WorkRecord.Hours`・`WorkItem.PlannedHours`・`ActualTotalHours`・`AutoHours`)
   - SQL Server の `decimal` は小数の足し算に誤差が出ない
   - SQLite の `REAL` は浮動小数なので、合計を書くたびに `ROUND(SUM(…), 2)` で小数 2 桁に丸める (誤差は 0.005 よりずっと小さいので、丸めれば積み上がらない)
   - 集計し直すスクリプトの `SUM` も同じく丸める

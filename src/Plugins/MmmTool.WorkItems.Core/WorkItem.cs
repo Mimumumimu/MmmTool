@@ -1,3 +1,5 @@
+using MmmSdk.Core.Components.DaysOfWeek;
+
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>作業 (入力する行。子を持たない。保存するデータ。保存先に依存しない)</summary>
@@ -28,6 +30,14 @@ public sealed record WorkItem
     /// <summary>作業報告のどの部分から外すか</summary>
     /// <remarks>定例の会議など、報告に書かない作業に付ける。<see cref="WorkReportExclusion.Plan"/> は予定だけを外し、実績には、工数を記入した日や完了にした日があれば出す。</remarks>
     public WorkReportExclusion ReportExclusion { get; init; }
+
+    /// <summary>自動入力の時間</summary>
+    /// <remarks>0 は自動入力しない。0 より大きいと、その時間を、システムの今日の記録に入れる。</remarks>
+    public double AutoHours { get; init; }
+
+    /// <summary>自動入力する曜日</summary>
+    /// <remarks>1 つも選んでいないときと、7 つ全部のときは、毎日。判定は <see cref="WeekdaySet.IsEveryday"/>。</remarks>
+    public Weekdays AutoWeekdays { get; init; }
 
     /// <summary>備考 (作業ごとの共通の備考。永続)</summary>
     public string Note { get; init; } = "";

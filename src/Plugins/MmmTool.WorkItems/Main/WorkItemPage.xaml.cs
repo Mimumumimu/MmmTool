@@ -6,9 +6,11 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Controls;
 using MmmSdk.WinUI.Utilities;
+using MmmTool.WorkItems.AutoEntry;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.ViewOptions;
 using Windows.System;
@@ -316,7 +318,7 @@ public sealed partial class WorkItemPage : Page
 
             var width = column.Key switch
             {
-                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.ShowsReportExclusionMark ? ReportExclusionMarkWidth : 0)).DefaultIfEmpty(0).Max()),
+                "Name" => Math.Max(HeaderWidth(column), rows.Select(r => 4 + (r.Level * TreeGrid.IndentWidth) + 22 + TextWidth(r.Name, WorkItemOptions.NameWeight(r.IsGroup, r.Level), r.IsProject ? WorkItemOptions.ProjectFontSize : 14) + 40 + (r.MarkCount * MarkWidth) + (r.MarkCount > 0 ? MarksMargin : 0)).DefaultIfEmpty(0).Max()),
                 "Assignee" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.AssigneeText)) + 24),
                 "Priority" => Math.Max(HeaderWidth(column), WidestWidth(rows.Select(r => r.PriorityText)) + 24),
                 "Start" or "Due" => Math.Max(HeaderWidth(column), TextWidth("2026/10/10", Microsoft.UI.Text.FontWeights.Normal) + 52),
@@ -344,9 +346,13 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
     private const double NoteMaxWidth = 320;
 
-    /// <summary>名前のセルに出す、作業報告から外す印の幅</summary>
-    /// <remarks>アイコンの大きさ 14 に、文字との間の余白を足した値。予定に含めない印も、実績・予定に含めない印も、同じ大きさ。</remarks>
-    private const double ReportExclusionMarkWidth = 24;
+    /// <summary>名前のセルの右端に並ぶ印 1 つの幅 (自動入力の印と、作業報告から外す印)</summary>
+    /// <remarks>アイコンの大きさ 14 に、印どうしの間隔 6 を足した値。どの印も同じ大きさ。</remarks>
+    private const double MarkWidth = 20;
+
+    /// <summary>名前のセルの右端に印が並ぶときの、文字との間の余白</summary>
+    /// <remarks>印の右の余白 6 から、最後の印の間隔 6 を引いた分に、文字との間の 4 を足した値。</remarks>
+    private const double MarksMargin = 4;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
@@ -709,6 +715,30 @@ public sealed partial class WorkItemPage : Page
         DispatcherQueue.TryEnqueue(() => flyout.ShowAt(target));
     }
 
+    /// <summary>自動入力の入力枠を、指定の場所の下に出す</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="target">入力枠を出す場所の要素 (名前のセル)</param>
+    /// <remarks>「保存」か、時間の欄の Enter で保存する。外側を押したときと Esc は、保存しない。「クリア」は、設定を空に戻す。</remarks>
+    private void ShowAutoEntryEditor(WorkItemRow row, FrameworkElement target)
+    {
+        var editor = new AutoEntryEditor();
+        editor.Load(row.AutoHours, row.AutoWeekdays);
+        var flyout = new Flyout { Content = editor, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft };
+        editor.SaveRequested += (_, setting) =>
+        {
+            flyout.Hide();
+            ViewModel.SetAutoEntryAsync(row, setting.Hours, setting.Weekdays).Forget();
+        };
+        editor.ClearRequested += (_, _) =>
+        {
+            flyout.Hide();
+            ViewModel.SetAutoEntryAsync(row, 0, Weekdays.None).Forget();
+        };
+        flyout.Opened += (_, _) => editor.FocusHours();
+        // メニューの項目を押した処理の途中で別の入れ物を開くと、そのクリックの続きとして扱われて閉じるので、処理が済んでから開く
+        DispatcherQueue.TryEnqueue(() => flyout.ShowAt(target));
+    }
+
     /// <summary>備考の入力欄を開くとき、今の備考を入れる</summary>
     /// <param name="sender">開く入れ物</param>
     /// <param name="e">イベントの情報</param>
@@ -815,10 +845,16 @@ public sealed partial class WorkItemPage : Page
             }
         }
 
-        // 定例の会議など、報告しない作業に付ける。作った直後に 1 回切り替える使い方なので、サブメニューに置く (印は名前のセルに出す)
+        // 自動入力の設定の入力枠は、名前のセルの下に出す。続けて、定例の会議など、報告しない作業に付ける印を、サブメニューに置く (印は名前のセルに出す)
         if (row.IsWork)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
+            var nameCell = TreeGrid.FindCell(row, "Name");
+            AddItem(menu, "自動入力…", () =>
+            {
+                ShowAutoEntryEditor(row, nameCell!);
+                return Task.CompletedTask;
+            }, nameCell is not null && !row.IsLocked);
             AddReportExclusionMenu(menu, row);
         }
 

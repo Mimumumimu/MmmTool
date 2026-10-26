@@ -28,7 +28,9 @@
 - `Weekdays` は `[Flags]` (月 = 1 … 日 = 64)
 - `ReminderStatus` は None = 0 / Done = 1 / Snooze = 2
 - Weekdays と ReminderStatus は、JSON には数値で入る
-- 変換は `ReminderDates`(`DateOnly` / `TimeOnly` / `DayOfWeek` との相互変換、`ToJapanese` で「月火水」、`DescribeWeekdays` で画面に出す曜日の文字列＝曜日が 1 つも無ければ「毎日」)
+- 変換は `ReminderDates`(`DateOnly` / `TimeOnly` / `DayOfWeek` との相互変換、`ToJapanese` で「月火水」、`DescribeWeekdays` で画面に出す曜日の文字列＝曜日が 1 つも無いときと、7 つ全部のときは「毎日」)
+  - `Weekdays`・変換と表記の `WeekdaySet`・曜日の選択欄 `WeekdayPicker` は、作業管理の自動入力 ([work-items.md](work-items.md) の「自動入力」)と共有するので、SDK の `DaysOfWeek` に置く
+  - 曜日の選択欄は、土を青、日を赤の文字にする (スケジュールの日付と同じ色)
 - 発動の判定は `ReminderDates.OccursOn(Reminder, DateOnly)`
   - 発動日が今日、または曜日指定で今日の曜日を含む
   - 曜日が 1 つも無い曜日指定は毎日
@@ -317,7 +319,8 @@
     - 件名の横のメモのアイコンは出さない (備考の列があり、重複するため)
   - 日付は `yyyy/MM/dd` か「－」
   - 曜日は「月火水」。日付指定の曜日は「－」。
-  - 曜日を選んでいない曜日指定は「毎日」 (日付・曜日とも「－」だと区別できないため)
+  - 曜日を選んでいない曜日指定と、7 つ全部を選んだ曜日指定は「毎日」 (日付・曜日とも「－」だと区別できないため)
+    - 同じ意味は同じ見え方にする
   - 並びは 日付 → 時刻 → 番号 (曜日指定は `NoDate` なので後ろ)
   - 削除済みは不透明度 0.5 + 取り消し線
 - 行のダブルタップで編集

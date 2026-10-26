@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.CodeMaster.Core;
@@ -58,7 +59,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         _channelLoader = channelLoader;
         _sendSettings = sendSettings;
         _time = time;
-        WeekdayOptions = [.. ReminderDates.WeekdayNames.Select(weekday => new WeekdayOption(weekday.Flag, weekday.Name))];
         Load(null);
     }
 
@@ -95,8 +95,9 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial DateTimeOffset? Date { get; set; }
 
-    /// <summary>曜日の選択肢 (月〜日)</summary>
-    public IReadOnlyList<WeekdayOption> WeekdayOptions { get; }
+    /// <summary>選んでいる曜日 (曜日指定のとき)</summary>
+    [ObservableProperty]
+    public partial Weekdays SelectedWeekdays { get; set; }
 
     /// <summary>発動時刻の時 (0〜23)</summary>
     [ObservableProperty]
@@ -261,7 +262,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         {
             IsDateSpecified = false;
             Date = today;
-            SetWeekdays(Weekdays.None);
+            SelectedWeekdays = Weekdays.None;
             (Hour, Minute) = (now.Hour, now.Minute);
         }
         else
@@ -269,7 +270,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             var date = ReminderDates.ToDate(target.Date);
             IsDateSpecified = !ReminderDates.IsWeekdaySpecified(target.Date);
             Date = date is { } value ? new DateTimeOffset(value.ToDateTime(TimeOnly.MinValue), now.Offset) : today;
-            SetWeekdays(IsDateSpecified ? Weekdays.None : target.Weekdays);
+            SelectedWeekdays = IsDateSpecified ? Weekdays.None : target.Weekdays;
             var time = ReminderDates.ToTime(target.Time) ?? TimeOnly.MinValue;
             (Hour, Minute) = (time.Hour, time.Minute);
         }
@@ -313,7 +314,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         {
             Title = title,
             Date = IsDateSpecified && Date is { } date ? ReminderDates.ToDateValue(date.DateTime) : ReminderDates.NoDate,
-            Weekdays = IsDateSpecified ? Weekdays.None : GetWeekdays(),
+            Weekdays = IsDateSpecified ? Weekdays.None : SelectedWeekdays,
             Time = ReminderDates.ToTimeValue(new TimeOnly(Math.Clamp(Hour, 0, 23), Math.Clamp(Minute, 0, 59))),
             Note = string.IsNullOrWhiteSpace(Note) ? null : Note,
             Link = string.IsNullOrWhiteSpace(Link) ? null : Link.Trim(),
@@ -346,19 +347,4 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>保存せずに閉じる</summary>
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, null);
-
-    /// <summary>曜日の選択肢を、曜日フラグに合わせる</summary>
-    /// <param name="weekdays">反映する曜日フラグ</param>
-    private void SetWeekdays(Weekdays weekdays)
-    {
-        foreach (var option in WeekdayOptions)
-        {
-            option.IsChecked = (weekdays & option.Flag) != 0;
-        }
-    }
-
-    /// <summary>選ばれている曜日を曜日フラグにする</summary>
-    /// <returns>選ばれている曜日の曜日フラグ</returns>
-    private Weekdays GetWeekdays()
-        => WeekdayOptions.Where(option => option.IsChecked).Aggregate(Weekdays.None, (all, option) => all | option.Flag);
 }

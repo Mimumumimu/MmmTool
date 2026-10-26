@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
@@ -255,6 +256,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
                     Error.Show(recovery);
                 }
                 await RefreshMasterAsync();
+                // 行が無いときだけ、設定のある作業に、システムの今日の記録を入れる。失敗しても、上の読み込みの結果は使えるよう、最後に行う
+                await _service.AddAutoEntriesAsync();
             }
             catch (DataFileException ex)
             {
@@ -940,6 +943,65 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         await UpdateItemAsync(row, item => item with { ReportExclusion = exclusion });
     }
 
+    /// <summary>作業の自動入力の設定を変える</summary>
+    /// <param name="row">行 (作業)</param>
+    /// <param name="hours">自動入力の時間 (0 以下は、設定をクリアする)</param>
+    /// <param name="weekdays">自動入力する曜日 (クリアするときは無視する)</param>
+    /// <returns>変更の完了を表すタスク</returns>
+    /// <remarks>
+    /// 今と同じ値、触れない行、作業ではない行では、何も書かない。
+    /// 保存できたら、すぐに今日の分の自動入力を確かめる。設定したのに、その場で入らない、を避けるため。
+    /// </remarks>
+    public async Task SetAutoEntryAsync(WorkItemRow row, double hours, Weekdays weekdays)
+    {
+        if (!row.IsWork || row.IsLocked)
+        {
+            return;
+        }
+
+        var (newHours, newWeekdays) = hours > 0 ? (Math.Round(hours, 2), weekdays) : (0d, Weekdays.None);
+        if (newHours == row.AutoHours && newWeekdays == row.AutoWeekdays)
+        {
+            return;
+        }
+
+        await UpdateItemAsync(row, item => item with { AutoHours = newHours, AutoWeekdays = newWeekdays });
+        if (_service.GetItem(row.Id) is not { } saved || saved.AutoHours != newHours || saved.AutoWeekdays != newWeekdays)
+        {
+            return;
+        }
+
+        try
+        {
+            await _service.AddAutoEntriesAsync();
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
+    }
+
+    /// <summary>入力された文字を、自動入力の時間にする</summary>
+    /// <param name="text">入力された文字 (空は、0 として扱う)</param>
+    /// <param name="hours">時間</param>
+    /// <returns>0 以上 24 以下の数として読めたとき true</returns>
+    public static bool TryParseAutoHours(string text, out double hours)
+    {
+        hours = 0;
+        text = text.Trim();
+        if (text.Length == 0)
+        {
+            return true;
+        }
+        if (!TryParseHours(text, out var parsed) || parsed is not { } value || value < 0 || value > WorkItemLimits.DailyHoursMax)
+        {
+            return false;
+        }
+
+        hours = value;
+        return true;
+    }
+
     /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>
     /// <param name="row">行</param>
     /// <returns>開く処理の完了を表すタスク</returns>
@@ -1132,6 +1194,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         try
         {
             await _service.SetDayAsync(day);
+            // 入力日をシステムの今日に合わせたときも、今日の分の自動入力を確かめる
+            if (day == _service.Today)
+            {
+                await _service.AddAutoEntriesAsync();
+            }
         }
         catch (DataFileException ex)
         {
@@ -1194,7 +1261,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>入力日の実績の合計を、サービスの内容から作り直す</summary>
     /// <remarks>表の行ではなく記録から数えるので、「過去の完了」で隠した作業も数える。「自分の担当だけ」には従う。</remarks>
-    private void UpdateDayTotals() => DayTotalText = $"実績合計 {WorkItemRow.FormatHours(_service.BuildDayTotal(MineOnly))} 時間";
+    private void UpdateDayTotals()
+    {
+        var total = _service.BuildDayTotal(MineOnly);
+        DayTotalText = $"実績合計 {WorkItemRow.FormatHours(total)} 時間 ({WorkItemRow.FormatHoursAndMinutes(total)})";
+    }
 
     /// <summary>日付を、曜日つきの表示にする</summary>
     /// <param name="date">日付</param>

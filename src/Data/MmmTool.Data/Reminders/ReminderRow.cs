@@ -1,5 +1,5 @@
 using MmmTool.Reminders.Core;
-using WeekdayFlags = MmmTool.Reminders.Core.Weekdays;
+using WeekdayFlags = MmmSdk.Core.Components.DaysOfWeek.Weekdays;
 
 namespace MmmTool.Data.Reminders;
 

@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:MmmSdk.WinUI.Controls"
     xmlns:core="using:MmmTool.Reminders.Core"
+    xmlns:daysofweek="using:MmmSdk.WinUI.Components.DaysOfWeek"
     xmlns:local="using:MmmTool.Reminders.Input"
     xmlns:reminders="using:MmmTool.Reminders"
     Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}">
@@ -71,21 +72,7 @@
                         VerticalAlignment="Top"
                         Spacing="6"
                         Visibility="{x:Bind ViewModel.IsWeekdaySpecified, Mode=OneWay}">
-                        <ItemsControl ItemsSource="{x:Bind ViewModel.WeekdayOptions}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="6" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:WeekdayOption">
-                                    <ToggleButton
-                                        Width="44"
-                                        Content="{x:Bind Label}"
-                                        IsChecked="{x:Bind IsChecked, Mode=TwoWay}" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <daysofweek:WeekdayPicker Value="{x:Bind ViewModel.SelectedWeekdays, Mode=TwoWay}" />
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"

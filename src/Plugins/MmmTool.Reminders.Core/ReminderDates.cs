@@ -1,27 +1,15 @@
-using System.Text;
+using MmmSdk.Core.Components.DaysOfWeek;
 
 namespace MmmTool.Reminders.Core;
 
 /// <summary>
-/// リマインダーの日付・時刻・曜日の変換。
+/// リマインダーの日付・時刻の変換と、発動日の判定。
 /// </summary>
-/// <remarks>日付は yyyyMMdd、時刻は HHmm の整数で保存する。</remarks>
+/// <remarks>日付は yyyyMMdd、時刻は HHmm の整数で保存する。曜日の変換と表記は SDK の <see cref="WeekdaySet"/>。</remarks>
 public static class ReminderDates
 {
     /// <summary>日付なし (曜日指定)を表す特殊値</summary>
     public const int NoDate = 99999999;
-
-    /// <summary>曜日フラグと表示名を、月曜から順に並べたもの (日本語の表記順)</summary>
-    public static IReadOnlyList<(Weekdays Flag, string Name)> WeekdayNames { get; } =
-    [
-        (Weekdays.Monday, "月"),
-        (Weekdays.Tuesday, "火"),
-        (Weekdays.Wednesday, "水"),
-        (Weekdays.Thursday, "木"),
-        (Weekdays.Friday, "金"),
-        (Weekdays.Saturday, "土"),
-        (Weekdays.Sunday, "日"),
-    ];
 
     /// <summary>曜日指定 (日付なし)か</summary>
     /// <param name="date">発動日 (yyyyMMdd の整数)</param>
@@ -79,62 +67,15 @@ public static class ReminderDates
         return new TimeOnly(hour, minute);
     }
 
-    /// <summary>曜日を曜日フラグにする</summary>
-    /// <param name="dayOfWeek">曜日</param>
-    /// <returns>対応する曜日フラグ</returns>
-    public static Weekdays ToWeekdays(DayOfWeek dayOfWeek) => dayOfWeek switch
-    {
-        DayOfWeek.Monday => Weekdays.Monday,
-        DayOfWeek.Tuesday => Weekdays.Tuesday,
-        DayOfWeek.Wednesday => Weekdays.Wednesday,
-        DayOfWeek.Thursday => Weekdays.Thursday,
-        DayOfWeek.Friday => Weekdays.Friday,
-        DayOfWeek.Saturday => Weekdays.Saturday,
-        DayOfWeek.Sunday => Weekdays.Sunday,
-        _ => Weekdays.None,
-    };
-
-    /// <summary>曜日フラグに指定の曜日が含まれるか</summary>
-    /// <param name="weekdays">曜日フラグ</param>
-    /// <param name="dayOfWeek">調べる曜日</param>
-    /// <returns>含まれていれば true</returns>
-    public static bool Contains(Weekdays weekdays, DayOfWeek dayOfWeek) => (weekdays & ToWeekdays(dayOfWeek)) != 0;
-
-    /// <summary>曜日指定のリマインダーが、指定の曜日に発動するか</summary>
-    /// <param name="weekdays">リマインダーの曜日指定</param>
-    /// <param name="dayOfWeek">調べる曜日</param>
-    /// <returns>発動するなら true</returns>
-    /// <remarks>曜日を 1 つも選んでいない (<see cref="Weekdays.None"/>)ときは毎日発動する。</remarks>
-    public static bool OccursOn(Weekdays weekdays, DayOfWeek dayOfWeek) => weekdays == Weekdays.None || Contains(weekdays, dayOfWeek);
-
     /// <summary>リマインダーが指定の日に発動するか</summary>
     /// <param name="reminder">リマインダー</param>
     /// <param name="date">調べる日</param>
     /// <returns>発動するなら true</returns>
-    /// <remarks>発動日がその日、または曜日指定でその日の曜日を含む (曜日を 1 つも選んでいなければ毎日)。</remarks>
+    /// <remarks>
+    /// 発動日がその日、または曜日指定でその日の曜日を含む。
+    /// 曜日を 1 つも選んでいないときと、7 つ全部のときは毎日。判定は <see cref="WeekdaySet.OccursOn"/>。
+    /// </remarks>
     public static bool OccursOn(Reminder reminder, DateOnly date)
         => reminder.Date == ToDateValue(date)
-            || (IsWeekdaySpecified(reminder.Date) && OccursOn(reminder.Weekdays, date.DayOfWeek));
-
-    /// <summary>曜日フラグを「月火水」のような日本語の文字列にする</summary>
-    /// <param name="weekdays">曜日フラグ</param>
-    /// <returns>月曜から順に並べた文字列。指定なしなら空文字</returns>
-    public static string ToJapanese(Weekdays weekdays)
-    {
-        var builder = new StringBuilder();
-        foreach (var (flag, name) in WeekdayNames)
-        {
-            if ((weekdays & flag) != 0)
-            {
-                builder.Append(name);
-            }
-        }
-        return builder.ToString();
-    }
-
-    /// <summary>曜日指定を、画面に出す文字列にする</summary>
-    /// <param name="weekdays">曜日フラグ</param>
-    /// <returns>「月火水」のような文字列。曜日を 1 つも選んでいなければ「毎日」</returns>
-    /// <remarks>日付指定のリマインダーには使わない (呼び出し側で <see cref="IsWeekdaySpecified"/> を確かめる)。</remarks>
-    public static string DescribeWeekdays(Weekdays weekdays) => weekdays == Weekdays.None ? "毎日" : ToJapanese(weekdays);
+            || (IsWeekdaySpecified(reminder.Date) && WeekdaySet.OccursOn(reminder.Weekdays, date.DayOfWeek));
 }

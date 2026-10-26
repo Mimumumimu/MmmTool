@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using MmmSdk.WinUI.Components.DaysOfWeek;
 using Windows.UI;
 
 namespace MmmTool.WorkItems.Schedule;
@@ -25,8 +26,8 @@ public sealed class SchedulePalette
         actualEdge: Color.FromArgb(0xFF, 0x16, 0x7D, 0x46),
         actualText: Color.FromArgb(0xFF, 0x04, 0x3A, 0x1E),
         critical: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
-        saturday: Color.FromArgb(0xFF, 0x1E, 0x5A, 0xC8),
-        sunday: Color.FromArgb(0xFF, 0xC4, 0x2B, 0x1C),
+        saturday: WeekdayColors.Saturday(ElementTheme.Light),
+        sunday: WeekdayColors.Sunday(ElementTheme.Light),
         noteMark: Color.FromArgb(0xFF, 0xC2, 0x6A, 0x00),
         donePlan: Color.FromArgb(0xFF, 0x84, 0x97, 0xBA),
         doneMark: Color.FromArgb(0xFF, 0x1E, 0x8E, 0x4E),
@@ -45,8 +46,8 @@ public sealed class SchedulePalette
         actualEdge: Color.FromArgb(0xFF, 0x2A, 0x70, 0x50),
         actualText: Color.FromArgb(0xFF, 0xD6, 0xF2, 0xE2),
         critical: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
-        saturday: Color.FromArgb(0xFF, 0x78, 0xAA, 0xFF),
-        sunday: Color.FromArgb(0xFF, 0xFF, 0x99, 0xA4),
+        saturday: WeekdayColors.Saturday(ElementTheme.Dark),
+        sunday: WeekdayColors.Sunday(ElementTheme.Dark),
         noteMark: Color.FromArgb(0xFF, 0xFF, 0xC8, 0x57),
         donePlan: Color.FromArgb(0xFF, 0x5A, 0x6B, 0x8C),
         doneMark: Color.FromArgb(0xFF, 0x5F, 0xD1, 0x8B),
