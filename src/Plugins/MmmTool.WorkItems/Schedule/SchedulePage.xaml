@@ -105,6 +105,22 @@
                 </StackPanel>
             </DataTemplate>
 
+            <!-- 工数は、作業管理の表の実績 (累計)と同じ値。数字なので右に寄せる。案件・グループは計算値の色 -->
+            <DataTemplate x:Key="TotalHoursCell" x:DataType="local:ScheduleRow">
+                <Grid>
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind TotalHoursText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind TotalHoursText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
             <!-- 日付の棒 (行ごとに描く) -->
             <DataTemplate x:Key="TimelineCell" x:DataType="local:ScheduleRow">
                 <local:ScheduleTimelineCell Row="{x:Bind}" />

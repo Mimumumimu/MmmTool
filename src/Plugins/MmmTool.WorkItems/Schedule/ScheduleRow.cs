@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.WorkItems.Core;
+using MmmTool.WorkItems.Main;
 
 namespace MmmTool.WorkItems.Schedule;
 
@@ -68,6 +69,11 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>進捗度の文字 (例: <c>45%</c>。無ければ空)</summary>
     [ObservableProperty]
     public partial string ProgressText { get; private set; } = "";
+
+    /// <summary>実績の時間の合計の文字 (例: <c>12.5</c>)</summary>
+    /// <remarks>作業管理の表の「実績 (累計)」と同じ値で、実績が無ければ空。案件・グループは、下の作業の合計。</remarks>
+    [ObservableProperty]
+    public partial string TotalHoursText { get; private set; } = "";
 
     /// <summary>期限を過ぎた日数 (作業だけ。今日で判定。過ぎていなければ 0)</summary>
     [ObservableProperty]
@@ -141,6 +147,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
 
         var summary = node.Summary;
         ProgressText = summary.Progress is { } percent ? $"{percent}%" : "";
+        TotalHoursText = WorkItemRow.FormatHours(summary.ActualTotal > 0 ? summary.ActualTotal : null);
 
         // 棒は、すべての値を書き換えたあとに、1 回だけ描き直させる (途中の値で描き直さないため。期限切れの枠の付け外しも、ここで見る)
         var overdueDays = IsWork ? summary.OverdueDays(today) : 0;

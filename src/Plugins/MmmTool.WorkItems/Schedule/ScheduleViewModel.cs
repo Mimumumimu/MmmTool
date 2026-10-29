@@ -113,6 +113,9 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>行の塊 (案件 1 つぶん)を、差し込んだ・抜いた (表に、行の一覧を付け直させるため)</summary>
     public event EventHandler? RowsBlockChanged;
 
+    /// <summary>行の一覧を作り直した。値だけが変わったときも含み、列の幅を直すきっかけにする</summary>
+    public event EventHandler? Rebuilt;
+
     /// <summary>ViewModel を作る</summary>
     /// <param name="service">作業管理の読み書き</param>
     /// <param name="settings">設定ストア</param>
@@ -352,6 +355,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
 
         UpdateEmptyState();
+        Rebuilt?.Invoke(this, EventArgs.Empty);
         if (axisChanged)
         {
             AxisChanged?.Invoke(this, EventArgs.Empty);

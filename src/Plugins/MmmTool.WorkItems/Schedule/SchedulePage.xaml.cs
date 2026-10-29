@@ -11,7 +11,7 @@ namespace MmmTool.WorkItems.Schedule;
 
 /// <summary>スケジュールのページ (作業の予定と実績を、日付を横に並べて見る。サイドバーでは作業管理の子)</summary>
 /// <remarks>
-/// 表 (<see cref="TreeGridView"/>)の左に、名前・担当・進捗を固定して置き、右の 1 つの広い列に、日付の棒を行ごとに描く (<see cref="ScheduleTimelineCell"/>)。
+/// 表 <see cref="TreeGridView"/> の左に、名前・担当・工数・進捗を固定して置き、右の 1 つの広い列に、<see cref="ScheduleTimelineCell"/> で日付の棒を行ごとに描く。
 /// 日付の軸が変わったとき (範囲・単位)は、広い列の幅と見出しを作り直す。単位を変えたときは、見ている範囲の中央の日付を保つ。
 /// </remarks>
 public sealed partial class SchedulePage : Page
@@ -21,6 +21,15 @@ public sealed partial class SchedulePage : Page
 
     /// <summary>日付の棒を出す、広い列</summary>
     private readonly TreeGridColumn _timelineColumn;
+
+    /// <summary>実績 (時間の合計)の列</summary>
+    private readonly TreeGridColumn _hoursColumn;
+
+    /// <summary>実績の列の幅の下限 (見出しの文字と余白が収まる幅)</summary>
+    private const double HoursColumnMinWidth = 64;
+
+    /// <summary>文字の幅の測定に使う部品</summary>
+    private readonly TextBlock _measurer = new();
 
     /// <summary>単位を変えたときに、見ている範囲の中央に保つ日付 (軸が作り直されたら、その日付へ動かす)</summary>
     private DateOnly? _anchor;
@@ -71,8 +80,10 @@ public sealed partial class SchedulePage : Page
             CellTemplate = (DataTemplate)Resources["TimelineCell"],
             HeaderFactory = BuildTimelineHeader,
         };
+        _hoursColumn = Column("TotalHours", "実績", HoursColumnMinWidth, "TotalHoursCell");
         TimelineGrid.Columns.Add(Column("Name", "名前", 260, "NameCell", tree: true));
         TimelineGrid.Columns.Add(Column("Assignee", "担当", 96, "AssigneeCell", visible: ViewModel.HasAssignees));
+        TimelineGrid.Columns.Add(_hoursColumn);
         TimelineGrid.Columns.Add(Column("Progress", "進捗", 96, "ProgressCell"));
         TimelineGrid.Columns.Add(_timelineColumn);
         TimelineGrid.HeaderHeight = ScheduleHeader.Height;
@@ -83,7 +94,12 @@ public sealed partial class SchedulePage : Page
         ViewModel.AxisChanged += OnAxisChanged;
 
         // 案件 1 つぶんの行の塊を差し込む・抜いたあとは、表に行を付け直させる (見える範囲に、行が作り直されないことがあるため)
-        ViewModel.RowsBlockChanged += (_, _) => TimelineGrid.RebindRows();
+        ViewModel.RowsBlockChanged += (_, _) =>
+        {
+            FitHoursColumn();
+            TimelineGrid.RebindRows();
+        };
+        ViewModel.Rebuilt += (_, _) => FitHoursColumn();
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ScheduleViewModel.IsLoading))
@@ -144,6 +160,29 @@ public sealed partial class SchedulePage : Page
             IsVisible = visible,
             CellTemplate = (DataTemplate)Resources[templateKey],
         };
+
+    /// <summary>実績の列の幅を、見出しと、いちばん長い数字に合わせる</summary>
+    /// <remarks>数字の幅はそろっているので、文字数がいちばん多い行だけを測る。幅が変わったときだけ、表に列を付け直させる。</remarks>
+    private void FitHoursColumn()
+    {
+        var longest = ViewModel.Rows.MaxBy(row => row.TotalHoursText.Length)?.TotalHoursText ?? "";
+        var width = Math.Ceiling(Math.Max(HoursColumnMinWidth, TextWidth(longest) + 24));
+        if (Math.Abs(_hoursColumn.Width - width) >= 1)
+        {
+            _hoursColumn.Width = width;
+            TimelineGrid.RefreshColumns();
+        }
+    }
+
+    /// <summary>文字を表示したときの幅を測る</summary>
+    /// <param name="text">文字</param>
+    /// <returns>幅</returns>
+    private double TextWidth(string text)
+    {
+        _measurer.Text = text;
+        _measurer.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+        return _measurer.DesiredSize.Width;
+    }
 
     /// <summary>日付の棒の列の見出しを作る</summary>
     /// <returns>見出しの部品 (軸がまだ無いときは、空)</returns>
