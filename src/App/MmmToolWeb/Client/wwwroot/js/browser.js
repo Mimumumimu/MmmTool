@@ -45,21 +45,21 @@ export function isStandalone() {
 }
 
 // 通知の状態。unsupported = この環境では使えない / needs-home-screen = iPhone でホーム画面に追加していない / denied = 許可が拒否されている / ready = 登録できる
-// subscribed は、このブラウザが今、宛先を持っているか。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
+// subscribed は、このブラウザが今、宛先を持っているか。endpoint は、その宛先の URL で、持っていないときは null。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
 export async function getPushStatus() {
     const isIos = /iPhone|iPad/.test(navigator.userAgent);
     if (isIos && !isStandalone()) {
-        return { state: "needs-home-screen", subscribed: false };
+        return { state: "needs-home-screen", subscribed: false, endpoint: null };
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-        return { state: "unsupported", subscribed: false };
+        return { state: "unsupported", subscribed: false, endpoint: null };
     }
     if (Notification.permission === "denied") {
-        return { state: "denied", subscribed: false };
+        return { state: "denied", subscribed: false, endpoint: null };
     }
     const registration = await registerWorker();
     const subscription = await registration.pushManager.getSubscription();
-    return { state: "ready", subscribed: subscription !== null };
+    return { state: "ready", subscribed: subscription !== null, endpoint: subscription?.endpoint ?? null };
 }
 
 // 通知の許可を求めて、このブラウザの宛先を作る。押した操作の中で、最初に呼ぶ (iPhone は、押した直後でないと許可を求められない)

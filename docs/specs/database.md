@@ -855,6 +855,7 @@
   - `007_AddWorkItemAutoEntry.sql` は、未リリースの版の変更を集めたファイルで、リリースまで同じファイルを直す。次の変更を持つ。
     - `WorkItem` の列 `AutoHours` (`decimal(4,2)`)と `AutoWeekdays` (`tinyint`)を、既定値の制約と値の検査つきで足す。SQLite は、`Sql/schema.sql` との点検が足す。
     - 索引 `IX_WorkItem_AssigneeUserId_AutoHours` を足す。
+    - ストアドプロシージャ `dbo.FindWebPushChannel (@UserId, @Endpoint)` を足す。Web 版通知の宛先 (`Value` の JSON の `endpoint`)から、自分の `Kind = 3` の行の `Id` と `IsDeleted` を返す。Web 版の DB のログインは `Value` を読めないので、表と同じ持ち主 (`dbo`)の権限で動くプロシージャに探させる。`Value` は返さない。SQL Server だけで、SQLite には送信先の表が無い。
   - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
     - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
     - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。

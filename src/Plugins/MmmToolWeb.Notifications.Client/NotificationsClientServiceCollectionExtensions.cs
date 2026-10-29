@@ -19,6 +19,7 @@ public static class NotificationsClientServiceCollectionExtensions
     public static IServiceCollection AddNotificationsClient(this IServiceCollection services)
     {
         services.AddScoped<NotificationsClient>();
+        services.AddScoped<PushRegistration>();
         return services.AddClientFeature(
             new ClientFeature("通知", IconPath, NotificationsPage.Route, typeof(NotificationsPage).Assembly, typeof(NotificationsSettingsSection)));
     }

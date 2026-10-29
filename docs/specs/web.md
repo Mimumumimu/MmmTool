@@ -227,22 +227,27 @@
     - 「通知を解除」は、確認のダイアログを出す。解除すると行が別の番号で作り直されるため、リマインダーやメッセージの受け取り先に選んでいた場合は、選び直しになる。
     - 確認のダイアログは、`MmmToolWeb.Features.Client` の `ConfirmDialog`。ノートの削除と共通。
   - 端末の状態は 5 つ: 登録できる・登録済み・許可が拒否されている・iPhone でホーム画面に追加していない・このブラウザでは使えない
-  - 登録済みと見なすのは、ブラウザが宛先を持っていて、覚えている番号の行が、サーバーの一覧にもあるとき。ブラウザの宛先だけでは、登録済みにしない。登録に失敗した端末や、行が削除された端末が、受け取れると表示されないため。
+  - 登録済みと見なすのは、ブラウザが宛先を持っていて、サーバーにその端末の行があるとき。ブラウザの宛先だけでは、登録済みにしない。登録に失敗した端末や、行が削除された端末が、受け取れると表示されないため。
+    - 判定は `PushRegistration.FindRegisteredIdAsync` の 1 か所で、通知の画面と設定の節が使う。
+    - 覚えている番号 (`localStorage`)の行が、サーバーの一覧にあれば、その番号。無い・古いときは、ブラウザの宛先を `POST /api/notifications/subscriptions/lookup` で送って、行を探し、見つかった番号を覚え直す。
+    - 番号の記憶に頼らないのは、iPhone が、ホーム画面のアプリの保存領域を消すことがあるため。宛先が生きたまま、番号だけ失うと、通知が届くのに「受け取りません」と出る。
   - ブラウザの JavaScript が失敗したとき (宛先を作れない・サービスワーカーを登録できないなど)は、画面を壊さず、メッセージを出す
   - サーバーに公開鍵が設定されていない (`Web:PushPublicKey` が空)ときは、操作を出さず、その旨を説明する
 - 登録の流れ
   1. 「通知を受け取る」を押す。押した操作の中で、最初に、ブラウザの許可を求めて宛先を作る。呼ぶのは `subscribePush`。
      - iPhone は、押した直後でないと許可を求められないため、サーバーへの問い合わせを先に待たない。
   2. 宛先を `POST /api/notifications/subscriptions` で送る。
-     - この端末が覚えている行の番号があれば、その行を更新し、無ければ追加する。
+     - 先に、`FindWebPushAsync` で同じ宛先の行を探して、あれば、その行を更新する。覚えている番号が、削除済みの別の行を指していても、同じ宛先の行が 2 つ使用中にならず、通知が二重に届かないため。
+     - 同じ宛先の行が無く、この端末が覚えている番号があるときは、その行を更新する。送り手の鍵が替わって宛先が変わっても、同じ行を使い、受け取り先の選択が残るため。
+     - どちらも無いときは追加する。
      - 番号は、`localStorage` の `mmmtoolweb.notifications.channelId` に置く。
      - 更新した行が MmmTool の送信先の一覧で削除されていたときは、削除を戻す。登録し直す操作で、受け取りたい意思があるため。戻さないと、行の更新が成功しても、通知が届かない。
   3. 返った番号を覚える。
-- 解除は、ブラウザの宛先を捨て、覚えている番号の行を論理削除する。`POST /api/notifications/subscriptions/remove` を呼ぶ。
-  - 番号を覚えていない端末の行は残る。MmmTool の送信先の一覧から削除する。
+- 解除は、ブラウザの宛先を捨て、登録済みの番号 (記憶か、宛先の探し直しで見つけたもの)の行を論理削除する。`POST /api/notifications/subscriptions/remove` を呼ぶ。
 - API
   - `GET /api/notifications/settings`: 送り手の公開鍵と、自分が登録した端末。端末は番号と名前だけ。
   - `GET /api/notifications/destination?item=<識別子>`: 通知を押したときに開く画面の道。種類ごとの行き先の登録に聞く。登録が無い種類・開けないときは、道が null。
+  - `POST /api/notifications/subscriptions/lookup`: ブラウザの宛先を本文で受け取り、自分の、削除されていない行の番号を返す。無いときは 0。宛先は秘密なので、URL の道に載せない。ストアドプロシージャ `dbo.FindWebPushChannel` に探させる。詳細は [database.md](database.md) を見る。
   - 登録の API は、自分の `Kind = 3` の行だけを書き換える。ほかの種類・ほかの人の行は、番号を偽られても変わらない。
   - 登録の API は、宛先を `WebPushSubscription.IsValid` で確かめる。https で、配達係のホストだけで、鍵の長さが正しいこと。
     - サーバーが送る先は、登録した人が決められるため、配達係の外へ向けさせない。
@@ -466,6 +471,8 @@
     -- 送信先は、送る先の値 (Value)を除いた列だけ読める。通知を受け取る端末の登録 (区分 Web 版通知)のために、足す・更新するのは付ける
     GRANT INSERT, UPDATE ON dbo.NotificationChannel TO [MmmToolWeb];
     GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];
+    -- 端末の宛先から、自分の送信先の行を探す。Value を読めないログインのために、表の持ち主の権限で動くプロシージャに探させる。プロシージャは更新用スクリプト 007 が作る
+    GRANT EXECUTE ON dbo.FindWebPushChannel TO [MmmToolWeb];
     -- 通知の画面の一覧が、自分の送信先に届いたリマインダーの通知を読む。読む列だけを許す。列の許可は行を絞れないので、自分の送信先の分だけという条件は、コードで守る
     GRANT SELECT (Id, ReminderId, ChannelId, Date, Status, SentAt) ON dbo.ReminderSendStatus TO [MmmToolWeb];
     GRANT SELECT (Id, AuthorUserId, TargetUserId, Date, Time, Title, Note, Link) ON dbo.Reminder TO [MmmToolWeb];

@@ -55,6 +55,16 @@ public sealed class NotificationsClient(HttpClient http)
             async response => await response.Content.ReadFromJsonAsync(NotificationsJsonContext.Default.PushRegisterResponse));
 
     /// <summary>
+    /// この端末の宛先が、自分の登録済みの行かを、サーバーに聞く。
+    /// </summary>
+    /// <param name="request">調べる宛先。</param>
+    /// <returns>登録済みの送信先の番号。無いときは 0。</returns>
+    public Task<ApiResult<PushLookupResponse>> LookupAsync(PushLookupRequest request)
+        => CallAsync(
+            () => http.PostAsJsonAsync($"{Path}/subscriptions/lookup", request, NotificationsJsonContext.Default.PushLookupRequest),
+            async response => await response.Content.ReadFromJsonAsync(NotificationsJsonContext.Default.PushLookupResponse));
+
+    /// <summary>
     /// この端末の登録を解除する。
     /// </summary>
     /// <param name="request">解除する送信先。</param>

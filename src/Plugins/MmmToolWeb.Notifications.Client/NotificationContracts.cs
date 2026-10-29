@@ -32,6 +32,18 @@ public sealed record PushRegisterRequest(int Id, string Name, string Endpoint, s
 public sealed record PushRegisterResponse(int Id);
 
 /// <summary>
+/// この端末の宛先が、自分の登録済みの行かを調べる要求。
+/// </summary>
+/// <param name="Endpoint">配達係の宛先の URL。</param>
+public sealed record PushLookupRequest(string Endpoint);
+
+/// <summary>
+/// 宛先の照会の結果。
+/// </summary>
+/// <param name="Id">登録済みの送信先の番号。登録が無い・削除されているときは 0。</param>
+public sealed record PushLookupResponse(int Id);
+
+/// <summary>
 /// 受け取った通知 1 件。
 /// </summary>
 /// <param name="Key">通知の識別子。「種類:番号」の形で、通知を押したときに、この通知を開くために使う。</param>

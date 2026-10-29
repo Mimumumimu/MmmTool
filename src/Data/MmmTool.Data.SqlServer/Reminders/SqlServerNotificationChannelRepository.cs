@@ -75,6 +75,31 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 送る先の値の列 <c>Value</c> を読めない DB のログインでも呼べるよう、ストアドプロシージャ <c>dbo.FindWebPushChannel</c> に探させる。
+    /// プロシージャは表の持ち主 (<c>dbo</c>)の権限で動くので、呼ぶ側に <c>Value</c> の権限は要らない。返すのは番号と削除済みかだけ。
+    /// </remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<NotificationChannelMatch?> FindWebPushAsync(string endpoint, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        var userId = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<NotificationChannelMatch?>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandType = CommandType.StoredProcedure;
+            command.CommandText = "dbo.FindWebPushChannel";
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            command.Parameters.Add(new SqlParameter("@Endpoint", SqlDbType.NVarChar, NotificationChannelRules.ValueMaxLength) { Value = endpoint });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+                ? new NotificationChannelMatch(reader.GetInt32(0), reader.GetBoolean(1))
+                : null;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)

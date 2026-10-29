@@ -14,6 +14,8 @@ namespace MmmToolWeb.Notifications.Client;
 [JsonSerializable(typeof(PushSettingsResponse))]
 [JsonSerializable(typeof(PushRegisterRequest))]
 [JsonSerializable(typeof(PushRegisterResponse))]
+[JsonSerializable(typeof(PushLookupRequest))]
+[JsonSerializable(typeof(PushLookupResponse))]
 [JsonSerializable(typeof(PushRemoveRequest))]
 [JsonSerializable(typeof(ReceivedListResponse))]
 [JsonSerializable(typeof(DestinationResponse))]

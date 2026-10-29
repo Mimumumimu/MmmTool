@@ -30,6 +30,14 @@ public interface INotificationChannelRepository
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<NotificationChannelSummary>> GetSummariesAsync(NotificationChannelKind kind, CancellationToken cancellationToken = default);
 
+    /// <summary>自分が登録した Web 版通知の送信先を、端末の宛先 (配達係の URL)から探す</summary>
+    /// <param name="endpoint">端末の宛先の URL</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>見つけた行。複数あるときは、削除されていない行を先にして、番号の大きい方。無ければ null。送る先の値は読まない</returns>
+    /// <remarks>端末が登録の番号を覚えていなくても、どの行かを知るために使う。比べるのは宛先の URL だけで、鍵が替わっていても見つかる。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<NotificationChannelMatch?> FindWebPushAsync(string endpoint, CancellationToken cancellationToken = default);
+
     /// <summary>送信先を追加する</summary>
     /// <param name="channel">追加する送信先 (<see cref="NotificationChannel.Id"/> は無視する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

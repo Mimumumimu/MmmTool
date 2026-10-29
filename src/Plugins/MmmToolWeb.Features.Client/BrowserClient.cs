@@ -85,7 +85,8 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
             "needs-home-screen" => PushState.NeedsHomeScreen,
             _ => PushState.Unsupported,
         };
-        return new PushStatus(state, result.GetProperty("subscribed").GetBoolean());
+        var endpoint = result.TryGetProperty("endpoint", out var endpointValue) ? endpointValue.GetString() : null;
+        return new PushStatus(state, result.GetProperty("subscribed").GetBoolean(), endpoint);
     }
 
     /// <summary>

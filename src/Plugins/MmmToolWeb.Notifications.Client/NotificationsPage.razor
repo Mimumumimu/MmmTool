@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject NotificationsClient Notifications
+@inject PushRegistration Registration
 @inject BrowserClient Browser
 @inject NavigationManager Navigation
 
@@ -64,16 +65,13 @@
     /// <summary>通知の画面の道。</summary>
     public const string Route = "/notifications";
 
-    /// <summary>この端末が登録した送信先の番号を覚える、この端末の値の名前。設定の画面の「通知」の節と同じ。</summary>
-    private const string ChannelIdKey = NotificationsSettingsSection.ChannelIdKey;
-
     /// <summary>この端末で、通知の画面で最後に見た通知の時刻を覚える、この端末の値の名前。これより新しい通知を、未読として見せる。</summary>
     private const string LastOpenedKey = "notifications.lastOpened";
 
     private PushStatus _status = new(PushState.Unsupported, false);
     private IReadOnlyList<PushDeviceDto> _devices = [];
     private IReadOnlyList<ReceivedNotificationDto> _received = [];
-    private int _rememberedId;
+    private int _registeredId;
     private DateTimeOffset? _previousOpened;
     private string? _receivedError;
     private bool _loaded;
@@ -84,8 +82,8 @@
     [SupplyParameterFromQuery(Name = "item")]
     public string? Item { get; set; }
 
-    /// <summary>この端末が登録済みか。ブラウザが宛先を持ち、覚えている番号の行が、サーバーの一覧にもある。</summary>
-    private bool IsRegistered => _status.Subscribed && _rememberedId > 0 && _devices.Any(device => device.Id == _rememberedId);
+    /// <summary>この端末が登録済みか。判定は <see cref="PushRegistration"/> で、設定の画面の「通知」の節と同じ。</summary>
+    private bool IsRegistered => _registeredId > 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -146,7 +144,6 @@
             // サービスワーカーを登録できないなど。画面は壊さずに、使えない状態として扱う
             _status = new PushStatus(PushState.Unsupported, false);
         }
-        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out _rememberedId);
         _previousOpened = DateTimeOffset.TryParse(await Browser.GetRememberedAsync(LastOpenedKey), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var opened)
             ? opened
             : null;
@@ -165,6 +162,7 @@
             _devices = result.Value!.Devices;
         }
 
+        _registeredId = await Registration.FindRegisteredIdAsync(_status, _devices);
         _receivedError = received.Succeeded ? null : $"通知の一覧を読み込めませんでした: {received.Message}";
         if (received.Succeeded)
         {

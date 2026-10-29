@@ -27,6 +27,7 @@ internal static class NotificationEndpoints
         notifications.MapGet("/received", LoadReceivedAsync);
         notifications.MapGet("/destination", LoadDestinationAsync);
         notifications.MapPost("/subscriptions", RegisterAsync);
+        notifications.MapPost("/subscriptions/lookup", LookupAsync);
         notifications.MapPost("/subscriptions/remove", RemoveAsync);
     }
 
@@ -178,6 +179,15 @@ internal static class NotificationEndpoints
         }
 
         var channel = new NotificationChannel { Kind = NotificationChannelKind.WebPush, Name = name, Value = value };
+        // 同じ宛先の行を先に探す。覚えていた番号が古く、削除済みの別の行を指していると、その行を戻して、同じ宛先の行が 2 つ使用中になり、通知が二重に届くため
+        if (await channels.FindWebPushAsync(subscription.Endpoint, cancellationToken) is { } existing
+            && await channels.UpdateAsync(channel with { Id = existing.Id }, cancellationToken))
+        {
+            await channels.SetDeletedAsync(existing.Id, isDeleted: false, cancellationToken);
+            return Results.Ok(new PushRegisterResponse(existing.Id));
+        }
+
+        // 同じ宛先の行が無いときは、覚えていた番号の行を更新する。送り手の鍵が替わって宛先が変わっても、同じ行を使えて、受け取り先の選択が残る
         if (request.Id > 0 && await channels.UpdateAsync(channel with { Id = request.Id }, cancellationToken))
         {
             // MmmTool の送信先の一覧で削除された行でも、更新は成功する。登録し直す操作なので、削除を戻す。戻さないと、届かない
@@ -185,9 +195,31 @@ internal static class NotificationEndpoints
             return Results.Ok(new PushRegisterResponse(request.Id));
         }
 
-        // 覚えていた番号が、削除された・自分の行ではなかったときは、新しく追加する
         var added = await channels.AddAsync(channel, cancellationToken);
         return Results.Ok(new PushRegisterResponse(added.Id));
+    }
+
+    /// <summary>
+    /// 端末の宛先が、自分の登録済みの行かを調べる。
+    /// </summary>
+    /// <param name="request">調べる宛先。</param>
+    /// <param name="channels">送信先の保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>削除されていない行が見つかれば、その番号。無い・削除済みのときは、番号が 0。宛先の形が正しくないときは 400。</returns>
+    /// <remarks>
+    /// 宛先は秘密なので、URL の道には載せず、本文で受ける。道は、ログに残るため。
+    /// 返すのは番号だけで、宛先や鍵は返さない。端末が登録の番号の記憶を失っても、登録済みかを正しく出すために使う。
+    /// </remarks>
+    private static async Task<IResult> LookupAsync(
+        PushLookupRequest request, INotificationChannelRepository channels, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Endpoint) || request.Endpoint.Length > NotificationChannelRules.ValueMaxLength)
+        {
+            return Results.BadRequest(new ErrorResponse("この端末の通知の宛先を受け付けられませんでした。"));
+        }
+
+        var found = await channels.FindWebPushAsync(request.Endpoint, cancellationToken);
+        return Results.Ok(new PushLookupResponse(found is { IsDeleted: false } ? found.Id : 0));
     }
 
     /// <summary>
