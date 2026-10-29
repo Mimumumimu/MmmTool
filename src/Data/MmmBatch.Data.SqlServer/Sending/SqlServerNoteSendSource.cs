@@ -28,14 +28,8 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
         => new SqlServerNoteChangeReader(database).ReadAsync(since, today, cancellationToken);
 
     /// <inheritdoc />
-    public Task<string> GetUserNameAsync(int userId, CancellationToken cancellationToken = default)
-        => SendTableAccess.RunAsync(database, async connection =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT DisplayName FROM dbo.AppUser WHERE Id = @Id";
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = userId });
-            return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string ?? "";
-        }, cancellationToken);
+    public Task<bool> IsNoticeTargetAsync(int noteId, DateOnly today, CancellationToken cancellationToken = default)
+        => new SqlServerNoteChangeReader(database).IsNoticeTargetAsync(noteId, today, cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<NoteRecipient>> GetRecipientsAsync(int afterUserId, int excludeUserId, int count, CancellationToken cancellationToken = default)

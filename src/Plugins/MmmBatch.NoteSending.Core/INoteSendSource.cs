@@ -16,12 +16,13 @@ public interface INoteSendSource
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default);
 
-    /// <summary>ノートを更新した人の表示名を読む</summary>
-    /// <param name="userId">更新した人 (<c>AppUser.Id</c>)</param>
+    /// <summary>ノートが、いまも通知の対象か確かめる</summary>
+    /// <param name="noteId">ノートの番号</param>
+    /// <param name="today">今日。終了日がこの日以降かを見る</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>表示名。引けなかったときは空文字</returns>
+    /// <returns>削除されておらず、公開範囲が「全員」で、終了日が今日以降なら true。送る予定に入れたあとで変わったノートを、送る直前に外すために使う</returns>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    Task<string> GetUserNameAsync(int userId, CancellationToken cancellationToken = default);
+    Task<bool> IsNoticeTargetAsync(int noteId, DateOnly today, CancellationToken cancellationToken = default);
 
     /// <summary>通知する相手を、人の番号の順に、指定の人数まで読む</summary>
     /// <param name="afterUserId">この番号より後の人を読む。最初は 0</param>

@@ -10,7 +10,6 @@ namespace MmmTool.Notes.Core;
 /// 他の人が作成・更新したノートを、アプリが動いている間、一定の間隔で探して、知らせる。PC の通知ダイアログ用。
 /// </summary>
 /// <param name="notes">ノートの保存先</param>
-/// <param name="users">ユーザーの保存先 (更新した人の名前を引く)</param>
 /// <param name="settings">ユーザーごとの設定の保存先 (自分の「ノートの通知を受け取る」を読む)</param>
 /// <param name="time">現在時刻の取得元</param>
 /// <remarks>
@@ -25,7 +24,7 @@ namespace MmmTool.Notes.Core;
 /// 知らせる処理 (<c>notify</c>)は、スレッドプールのスレッドから呼ぶ。画面を触るときは、UI スレッドに切り替える。
 /// </para>
 /// </remarks>
-public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserRepository users, IAppUserSettingRepository settings, TimeProvider time) : IDisposable
+public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepository settings, TimeProvider time) : IDisposable
 {
     /// <summary>読む間隔</summary>
     public static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
@@ -120,29 +119,23 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserRepository 
             }
 
             var read = await notes.GetChangesAsync(cursor - Overlap, today, cancellationToken).ConfigureAwait(false);
-            _cursor = read.ServerNow > cursor ? read.ServerNow : cursor;
-
             var me = notes.CurrentUserId;
             var fresh = read.Changes
                 .Where(change => change.UpdatedAt > _floor && change.EditorUserId != me && !IsSeen(change))
                 .ToList();
+
+            // DB を読む処理を、すべて終えてから、基準と「知らせ済み」を進める。途中で読めなかったときは進めず、次の周期で、同じ更新をもう一度読む
+            var isOn = fresh.Count == 0 || await IsOnAsync(cancellationToken).ConfigureAwait(false);
+            _cursor = read.ServerNow > cursor ? read.ServerNow : cursor;
             foreach (var change in read.Changes)
             {
                 _seen[change.Id] = change.UpdatedAt;
             }
             Prune(_cursor.Value);
 
-            if (fresh.Count == 0 || !await IsOnAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return null;
-            }
-
-            var names = (await users.GetUsersByIdsAsync([.. fresh.Select(change => change.EditorUserId).Distinct()], cancellationToken).ConfigureAwait(false))
-                .ToDictionary(user => user.Id, user => user.DisplayName);
-            return [.. fresh.Select(change => new NoteNotice(
-                change,
-                names.GetValueOrDefault(change.EditorUserId, ""),
-                IsCreated: change.CreatedAt > cursor))];
+            return fresh.Count == 0 || !isOn
+                ? null
+                : [.. fresh.Select(change => new NoteNotice(change, change.EditorName, IsCreated: change.CreatedAt > cursor))];
         }
         catch (Exception ex) when (ex is DataFileException or InvalidOperationException)
         {

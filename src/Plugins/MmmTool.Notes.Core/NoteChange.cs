@@ -10,7 +10,9 @@ namespace MmmTool.Notes.Core;
 /// <param name="UpdatedAt">更新日時。読み始める基準になる</param>
 /// <param name="StartDate">開始日。通知を押したときに開く日を決める</param>
 /// <param name="EndDate">終了日。終わりがなければ <see cref="DateOnly.MaxValue"/></param>
-public sealed record NoteChange(int Id, string Title, int EditorUserId, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateOnly StartDate, DateOnly EndDate)
+/// <param name="EditorName">更新した人の表示名。読み出しが、ノートと一緒に 1 回で結合して取る。引けなかったときと、取らない読み出しは空文字</param>
+public sealed record NoteChange(
+    int Id, string Title, int EditorUserId, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, DateOnly StartDate, DateOnly EndDate, string EditorName = "")
 {
     /// <summary>通知を押したときに開く日を決める</summary>
     /// <param name="today">今日</param>
