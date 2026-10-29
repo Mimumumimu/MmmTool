@@ -1,5 +1,7 @@
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Components.Hosting;
@@ -28,8 +30,19 @@ public sealed partial class ReminderMainWindow : Window
     /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 320;
 
+    /// <summary>備考のアイコン (メモ)</summary>
+    private const string NoteGlyph = "";
+    /// <summary>コピーしたことを知らせるアイコン (チェック)</summary>
+    private const string CheckGlyph = "";
+    /// <summary>チェックを出しておく時間</summary>
+    private static readonly TimeSpan CopiedDisplayTime = TimeSpan.FromSeconds(1.5);
+
     /// <summary>ウィンドウの位置と大きさの保存・復元</summary>
     private readonly IWindowPositionService _positions;
+    /// <summary>備考のコピーのチェックを、元のアイコンに戻すまで数えるタイマー</summary>
+    private readonly DispatcherQueueTimer _copiedTimer;
+    /// <summary>いまチェックを出している備考のアイコン。出していなければ null</summary>
+    private FontIcon? _copiedIcon;
 
     /// <summary>ウィンドウの ViewModel</summary>
     public ReminderMainViewModel ViewModel { get; }
@@ -45,7 +58,18 @@ public sealed partial class ReminderMainWindow : Window
         InitializeComponent();
 
         this.UseCustomTitleBar(TitleBarArea, environment.IconPath);
-        Closed += (_, _) => ViewModel.Dispose();
+
+        _copiedTimer = DispatcherQueue.CreateTimer();
+        _copiedTimer.Interval = CopiedDisplayTime;
+        _copiedTimer.IsRepeating = false;
+        _copiedTimer.Tick += OnCopiedTimerTick;
+
+        Closed += (_, _) =>
+        {
+            _copiedTimer.Stop();
+            _copiedTimer.Tick -= OnCopiedTimerTick;
+            ViewModel.Dispose();
+        };
     }
 
     /// <summary>読み込んでから、前回の位置と大きさで表示する</summary>
@@ -94,6 +118,41 @@ public sealed partial class ReminderMainWindow : Window
         }
     }
 
+    /// <summary>備考のアイコンを押したら、備考の全文をコピーして、アイコンを一瞬チェックにする</summary>
+    /// <param name="sender">イベントの送信元 (備考のボタン)</param>
+    /// <param name="e">イベントの情報</param>
+    private void OnCopyNoteClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.CopyNoteCommand.Execute(ItemOf(sender));
+
+        if (((Button)sender).Content is not FontIcon icon)
+        {
+            return;
+        }
+
+        // 続けて押されたときは、前のチェックを戻してから、時間を数え直す
+        ResetCopiedIcon();
+        icon.Glyph = CheckGlyph;
+        _copiedIcon = icon;
+        _copiedTimer.Stop();
+        _copiedTimer.Start();
+    }
+
+    /// <summary>チェックの時間が過ぎたら、アイコンを元のメモに戻す</summary>
+    /// <param name="sender">タイマー</param>
+    /// <param name="args">イベントの情報</param>
+    private void OnCopiedTimerTick(DispatcherQueueTimer sender, object args) => ResetCopiedIcon();
+
+    /// <summary>チェックを出している備考のアイコンを、元のメモに戻す</summary>
+    private void ResetCopiedIcon()
+    {
+        if (_copiedIcon is { } icon)
+        {
+            icon.Glyph = NoteGlyph;
+            _copiedIcon = null;
+        }
+    }
+
     /// <summary>メニュー「リンクを開く」</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
@@ -115,8 +174,8 @@ public sealed partial class ReminderMainWindow : Window
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>押された要素の行</summary>
-    /// <param name="sender">メニュー項目</param>
-    /// <returns>メニュー項目の行</returns>
-    /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は Tag に入れてある。</remarks>
+    /// <param name="sender">メニュー項目か、備考のボタン</param>
+    /// <returns>押された要素の行</returns>
+    /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は、メニュー項目も備考のボタンも Tag に入れてある。</remarks>
     private static ReminderTodayItem ItemOf(object sender) => (ReminderTodayItem)((FrameworkElement)sender).Tag;
 }

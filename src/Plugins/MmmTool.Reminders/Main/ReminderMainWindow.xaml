@@ -107,16 +107,24 @@
                             TextTrimming="CharacterEllipsis"
                             TextWrapping="NoWrap" />
                     </controls:LinkArea>
-                    <!-- 備考があるときだけ出すメモのアイコン。カーソルを合わせると備考を表示する。件名のリンクを押す範囲の外に置く -->
-                    <FontIcon
+                    <!-- 備考があるときだけ出すメモのアイコン。カーソルを合わせると備考を表示し、押すと備考の全文をコピーして、アイコンが一瞬チェックになる。件名のリンクを押す範囲の外に置く -->
+                    <Button
                         Grid.Column="3"
-                        Margin="0,0,10,0"
+                        Margin="0,0,6,0"
+                        Padding="6"
                         VerticalAlignment="Center"
-                        FontSize="14"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Glyph="&#xE70B;"
+                        AutomationProperties.Name="備考をコピー"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnCopyNoteClick"
+                        Tag="{x:Bind}"
                         ToolTipService.ToolTip="{x:Bind Note, Mode=OneWay}"
-                        Visibility="{x:Bind HasNote, Mode=OneWay}" />
+                        Visibility="{x:Bind HasNote, Mode=OneWay}">
+                        <FontIcon
+                            FontSize="14"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xE70B;" />
+                    </Button>
                     <toolkit:Segmented
                         Grid.Column="4"
                         Margin="0,0,8,0"
