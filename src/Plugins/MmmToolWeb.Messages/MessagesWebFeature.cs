@@ -1,10 +1,8 @@
 using System.Reflection;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Messages;
-using MmmTool.Data.SqlServer.Users;
 using MmmTool.Messages.Core;
 using MmmTool.NotificationChannels.Core;
-using MmmTool.Users.Core;
 using MmmToolWeb.Features;
 using MmmToolWeb.Messages.Client;
 
@@ -30,7 +28,9 @@ public sealed class MessagesWebFeature : IWebFeature
     {
         // 保存先は、要求ごとに作る。今のユーザーが、要求ごとに違うため
         services.AddScoped<IMessageRepository, SqlServerMessageRepository>();
-        services.AddScoped<IAppUserSettingRepository, SqlServerAppUserSettingRepository>();
+
+        // 「通知を受け取る」のオン・オフとして登録する。設定の画面は「通知」の機能が持つ
+        services.AddSingleton<INotificationFeatureSetting, MessageNotificationSetting>();
 
         // 更新を、会話を開いている端末に知らせる。DB を調べるのも、知らせる口も、アプリで 1 つ
         services.AddSingleton<SqlServerMessageChangeReader>();

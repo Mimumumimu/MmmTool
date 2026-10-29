@@ -6,12 +6,23 @@
     <FeatureHeader Title="設定" Busy="_loading" />
 
     <main class="settings">
-        @foreach (var feature in _available.Where(feature => feature.SettingsSection is not null))
+        @foreach (var feature in _available)
         {
-            <section class="section" aria-labelledby="@SectionId(feature)">
-                <h2 id="@SectionId(feature)">@feature.Title</h2>
-                <DynamicComponent Type="@feature.SettingsSection" />
-            </section>
+            @if (feature.SettingsSection is not null)
+            {
+                <section class="section" aria-labelledby="@SectionId(feature)">
+                    <h2 id="@SectionId(feature)">@feature.Title</h2>
+                    <DynamicComponent Type="@feature.SettingsSection" />
+                </section>
+            }
+
+            @foreach (var more in feature.MoreSettingsSections ?? [])
+            {
+                <section class="section" aria-labelledby="@SectionId(feature, more)">
+                    <h2 id="@SectionId(feature, more)">@more.Title</h2>
+                    <DynamicComponent Type="@more.Component" />
+                </section>
+            }
         }
     </main>
 </div>
@@ -45,4 +56,10 @@
     /// <param name="feature">機能。</param>
     /// <returns>機能の名前から作った id。</returns>
     private static string SectionId(ClientFeature feature) => $"settings-{feature.Route.Trim('/')}";
+
+    /// <summary>機能に足した節の見出しの id。機能の節と重ならないよう、部品の型の名前を付ける。</summary>
+    /// <param name="feature">機能。</param>
+    /// <param name="more">足した節。</param>
+    /// <returns>機能の道と部品の型の名前から作った id。</returns>
+    private static string SectionId(ClientFeature feature, ClientSettingsSection more) => $"{SectionId(feature)}-{more.Component.Name}";
 }

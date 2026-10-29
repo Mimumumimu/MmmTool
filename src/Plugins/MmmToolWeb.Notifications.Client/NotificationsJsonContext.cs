@@ -19,5 +19,9 @@ namespace MmmToolWeb.Notifications.Client;
 [JsonSerializable(typeof(PushRemoveRequest))]
 [JsonSerializable(typeof(ReceivedListResponse))]
 [JsonSerializable(typeof(DestinationResponse))]
+[JsonSerializable(typeof(ReceiveSettingDto))]
+[JsonSerializable(typeof(ReceiveChannelRequest))]
+[JsonSerializable(typeof(NotificationFeatureDto[]))]
+[JsonSerializable(typeof(NotificationFeatureRequest))]
 [JsonSerializable(typeof(ErrorResponse))]
 public sealed partial class NotificationsJsonContext : JsonSerializerContext;

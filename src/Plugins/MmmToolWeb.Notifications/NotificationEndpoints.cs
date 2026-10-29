@@ -29,6 +29,7 @@ internal static class NotificationEndpoints
         notifications.MapPost("/subscriptions", RegisterAsync);
         notifications.MapPost("/subscriptions/lookup", LookupAsync);
         notifications.MapPost("/subscriptions/remove", RemoveAsync);
+        ReceiveSettingEndpoints.Map(notifications);
     }
 
     /// <summary>

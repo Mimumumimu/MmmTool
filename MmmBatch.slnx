@@ -37,6 +37,14 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/Plugins/NoteSending/">
+    <Project Path="src/Plugins/MmmBatch.NoteSending.Core/MmmBatch.NoteSending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.NoteSending/MmmBatch.NoteSending.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
   <Folder Name="/Plugins/Reminders/">
     <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
       <Platform Project="x64" />

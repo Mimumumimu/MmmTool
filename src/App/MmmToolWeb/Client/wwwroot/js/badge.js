@@ -10,7 +10,8 @@ const cacheStoreName = 'kv';
 const unreadKey = 'unread';
 
 // 数える種類。識別子の「種類:番号」の種類。数えない種類の通知は、数字に入れない
-const countedKinds = ['message'];
+// note は、通知が届いたときだけ数える。画面からは入れない。ノートのページを開いたときに、全部外す
+const countedKinds = ['message', 'note'];
 
 // 端末の控えを開く。画面の js/browser.js も、これを使う
 function openCacheDb() {

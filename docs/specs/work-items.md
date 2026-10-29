@@ -488,7 +488,7 @@
 - 列: 機能番号 (`FeatureNo`)・区分番号 (`CategoryNo`)・コード番号 (`CodeNo`)・表示順 (`SortOrder`)・数値 (`NumericValue`)・名前 (`Name`で、100 文字まで)
   - (`FeatureNo`, `CategoryNo`, `CodeNo`) で 1 件が決まる
 - **機能番号**は、機能の名前や並びが変わっても変えない数字 (文字のキーにすると、名前を直すときに、コードと DB の両方を直すことになるため)
-  - 台帳は `MmmTool.CodeMaster.Core` の `CodeFeatures` (作業管理は 2 で、ほかの機能は、使うときに足す)
+  - 台帳は `MmmTool.CodeMaster.Core` の `CodeFeatures` で、作業管理は 1。番号の付け方は [database.md](database.md) の `AppUserSetting` に書いてある。
   - 区分番号とコード番号の割り当ては、その機能の Core が決める (作業管理は `WorkCodes`)
 - 作業管理の区分は、1 = 状態、2 = 進捗度、3 = 優先度
 - 初期値は次のとおり (作成スクリプトが入れ、作成者・更新者は、SQL Server が 0、SQLite が 1)

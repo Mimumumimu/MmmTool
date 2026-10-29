@@ -10,8 +10,17 @@ namespace MmmToolWeb.Features.Client;
 /// <param name="Route">この機能の最初の画面の道。</param>
 /// <param name="Assembly">この機能の画面 (<c>@page</c>)を持つアセンブリ。ルーターに足す。</param>
 /// <param name="SettingsSection">設定の画面に出す、この機能の節の部品の型。設定を持たない機能は null。</param>
+/// <param name="MoreSettingsSections">設定の画面に出す、この機能の節をさらに足すときの、見出しと部品の型。<paramref name="SettingsSection"/> の後ろに並ぶ。足さなければ null。</param>
 /// <remarks>
 /// 登録した順に、ホーム画面のタイルと、設定の画面の節が並ぶ。
 /// 設定の画面は、機能の名前を持たず、登録された節を並べるだけ。
 /// </remarks>
-public sealed record ClientFeature(string Title, string IconPath, string Route, Assembly Assembly, Type? SettingsSection = null);
+public sealed record ClientFeature(
+    string Title, string IconPath, string Route, Assembly Assembly, Type? SettingsSection = null, IReadOnlyList<ClientSettingsSection>? MoreSettingsSections = null);
+
+/// <summary>
+/// 設定の画面に出す節 1 つ。機能の名前の節とは別に、見出しを持つ。
+/// </summary>
+/// <param name="Title">節の見出し。</param>
+/// <param name="Component">節の部品の型。</param>
+public sealed record ClientSettingsSection(string Title, Type Component);

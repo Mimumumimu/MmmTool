@@ -29,6 +29,16 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     public int CurrentUserId => LocalUserId;
 
     /// <inheritdoc />
+    /// <remarks>ローカルモードは、通知が無いので、常に null を返す。</remarks>
+    public Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default)
+        => Task.FromResult<NoteChange?>(null);
+
+    /// <inheritdoc />
+    /// <remarks>ローカルモードは、ほかの人の更新が無いので、常に空を返す。</remarks>
+    public Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default)
+        => Task.FromResult(new NoteChanges(time.GetUtcNow(), []));
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
         => RunAsync<IReadOnlyList<Note>>(
             async connection => [.. (await SqliteQueries.QueryAsync(

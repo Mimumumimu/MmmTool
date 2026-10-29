@@ -75,6 +75,9 @@
 - DB のパスワードは、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmTool.Database`)に保存する
   - MmmTool と MmmToolAdmin は、同じ名前を使うので、同じ Windows ユーザーなら、どちらで入れたパスワードも、もう一方が使う。片方の接続の設定画面でパスワードを入れ直すと、もう一方も、新しいパスワードで動く。
   - MmmBatch は `MmmBatch.Database`、MmmToolWeb は `MmmToolWeb.Database` で、アプリごとに分ける。
+- 通知の受け取り先と、機能ごとの「通知を受け取る」のオン・オフは、Data フォルダーに書かず、SQL Server のユーザーごとの設定 `AppUserSetting` に保存する
+  - 人ごとの設定で、どの PC・どの端末でも同じ内容を使うため。サーバーモードだけで、ローカルモードには無い。
+  - 詳細は [notification-settings.md](notification-settings.md)
 - MmmBatch の Web 版通知の鍵の組 (公開鍵と秘密鍵)は、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmBatch.WebPushKeys`)に保存する
   - DB のパスワードと同じ置き場にする。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」
 

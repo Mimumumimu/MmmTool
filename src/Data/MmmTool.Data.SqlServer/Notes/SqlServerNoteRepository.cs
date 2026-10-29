@@ -95,6 +95,37 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var userId = RequireUserId();
+        return RunAsync<NoteChange?>(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT Id, Title, UpdatedByUserId, CreatedAt, UpdatedAt, StartDate, EndDate
+                FROM dbo.Note
+                WHERE Id = @Id AND IsDeleted = 0 AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                """;
+            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+                ? new NoteChange(
+                    reader.GetInt32(0), reader.GetString(1), reader.GetInt32(2), reader.GetDateTimeOffset(3), reader.GetDateTimeOffset(4),
+                    DateOnly.FromDateTime(reader.GetDateTime(5)), DateOnly.FromDateTime(reader.GetDateTime(6)))
+                : null;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>ユーザーには依らない。読み方は、MmmBatch と共通の <see cref="SqlServerNoteChangeReader"/> に持つ。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default)
+        => new SqlServerNoteChangeReader(database).ReadAsync(since, today, cancellationToken);
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)

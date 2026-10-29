@@ -85,24 +85,3 @@ public sealed record DirectDto(int ConversationId);
 /// <param name="SelfCanReceive">自分が、受け取り先を指定しているか。false のとき、入力欄は押せない。</param>
 public sealed record MessageFormDto(int BodyMaxLength, bool SelfCanReceive);
 
-/// <summary>
-/// 受け取り先に選べる送信先 1 件。
-/// </summary>
-/// <param name="Id">送信先の番号。</param>
-/// <param name="Name">登録名。</param>
-/// <param name="KindText">種類の名前。ntfy・Discord・Web 版通知のどれか。</param>
-/// <remarks>送る先の値であるトピック名や Webhook の URL は、秘密なので持たない。</remarks>
-public sealed record ReceiveChannelDto(int Id, string Name, string KindText);
-
-/// <summary>
-/// 受け取り先の設定。
-/// </summary>
-/// <param name="Channels">自分が使用者の送信先。</param>
-/// <param name="SelectedChannelId">選んでいる送信先の番号。指定していないときは 0。</param>
-public sealed record ReceiveSettingDto(IReadOnlyList<ReceiveChannelDto> Channels, int SelectedChannelId);
-
-/// <summary>
-/// 受け取り先を指定する要求。
-/// </summary>
-/// <param name="ChannelId">指定する送信先の番号。指定を外すときは 0。</param>
-public sealed record ReceiveChannelRequest(int ChannelId);

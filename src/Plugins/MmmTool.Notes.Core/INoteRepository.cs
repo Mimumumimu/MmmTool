@@ -31,6 +31,21 @@ public interface INoteRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
     Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default);
 
+    /// <summary>基準の時刻の後に更新されたノートを取得する (他の人の作成・更新の通知の元)</summary>
+    /// <param name="since">この時刻より後に更新されたものを読む。null のときは、ノートを読まず、基準にするデータベースサーバーの時刻だけを返す</param>
+    /// <param name="today">今日。終了日がこの日以降のノートだけを読む</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>削除されておらず、公開範囲が「全員」で、終了日が今日以降のノート。ローカルモードは、ほかの人の更新が無いので、常に空</returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default);
+
+    /// <summary>番号を指定して、ノートの要約を取得する (通知を押したときに、開く日を決める)</summary>
+    /// <param name="id">ノートの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>削除されていなくて、見えるノートの要約。見えない・存在しない・削除済みのときは null。ローカルモードは、通知が無いので、常に null</returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default);
+
     /// <summary>ノートを追加する</summary>
     /// <param name="input">入力内容 (<see cref="NoteInput.Validate"/> を通ったもの)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

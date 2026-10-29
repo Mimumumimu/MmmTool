@@ -172,6 +172,9 @@ CREATE INDEX IF NOT EXISTS IX_Note_EndDate_StartDate ON Note (EndDate, StartDate
 -- 実際の今日が実施日のノートを探す (未設定の行を走査しない)
 CREATE INDEX IF NOT EXISTS IX_Note_EventDate ON Note (EventDate);
 
+-- 前回読んだ時刻の後に更新されたノートを探す。他の人の作成・更新の通知に使う。SQL Server と同じ名前・同じ列。論理削除された行も含める
+CREATE INDEX IF NOT EXISTS IX_Note_UpdatedAt ON Note (UpdatedAt);
+
 -- ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId ON WorkItem (StatusCodeNo, CompletedDate, AssigneeUserId) WHERE IsDeleted = 0;
 

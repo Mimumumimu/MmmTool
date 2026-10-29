@@ -7,6 +7,7 @@ using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.Data.SqlServer.Users;
 using MmmTool.Messages.Core;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Messages;
@@ -56,7 +57,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         $$"""
         (EXISTS (SELECT 1 FROM dbo.AppUserSetting AS s
                 INNER JOIN dbo.NotificationChannel AS nc ON nc.Id = TRY_CAST(s.Value AS int) AND nc.IsDeleted = 0
-                WHERE s.UserId = {0} AND s.FeatureNo = {{CodeFeatures.Messages}} AND s.CategoryNo = {{MessageReceiveTarget.Category}} AND s.CodeNo = {{MessageReceiveTarget.Code}} AND s.IsDeleted = 0)
+                WHERE s.UserId = {0} AND s.FeatureNo = {{ReceiveTarget.FeatureNo}} AND s.CategoryNo = {{ReceiveTarget.CategoryNo}} AND s.CodeNo = {{ReceiveTarget.CodeNo}} AND s.IsDeleted = 0)
             AND NOT {{MessagesDisabled}})
         """;
 

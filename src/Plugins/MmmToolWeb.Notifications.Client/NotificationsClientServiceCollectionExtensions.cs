@@ -21,6 +21,15 @@ public static class NotificationsClientServiceCollectionExtensions
         services.AddScoped<NotificationsClient>();
         services.AddScoped<PushRegistration>();
         return services.AddClientFeature(
-            new ClientFeature("通知", IconPath, NotificationsPage.Route, typeof(NotificationsPage).Assembly, typeof(NotificationsSettingsSection)));
+            new ClientFeature(
+                "通知",
+                IconPath,
+                NotificationsPage.Route,
+                typeof(NotificationsPage).Assembly,
+                typeof(NotificationsSettingsSection),
+                [
+                    new ClientSettingsSection("受け取り先", typeof(ReceiveTargetSettingsSection)),
+                    new ClientSettingsSection("通知を受け取る機能", typeof(NotificationFeaturesSettingsSection)),
+                ]));
     }
 }

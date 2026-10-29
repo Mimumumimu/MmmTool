@@ -1,0 +1,65 @@
+@inject NotificationsClient Notifications
+@inject NavigationManager Navigation
+
+<div class="features">
+    @if (_error is not null)
+    {
+        <p class="result error" role="alert">@_error</p>
+    }
+
+    @foreach (var feature in _features)
+    {
+        <label class="option">
+            <input type="checkbox" role="switch" checked="@feature.IsOn" disabled="@_saving"
+                   @onchange="e => SaveAsync(feature, (bool)e.Value!)" />
+            <span>@feature.Name</span>
+        </label>
+    }
+</div>
+
+@code {
+    private NotificationFeatureDto[] _features = [];
+    private bool _saving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Notifications.LoadFeaturesAsync();
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"通知を受け取る機能を読み込めませんでした: {result.Message}";
+            return;
+        }
+
+        _features = result.Value!;
+    }
+
+    /// <summary>切り替えた操作の直後に保存する。保存できなかったときは、保存済みの値に戻す。</summary>
+    /// <param name="feature">切り替えた機能。</param>
+    /// <param name="isOn">切り替えたあとの値。</param>
+    private async Task SaveAsync(NotificationFeatureDto feature, bool isOn)
+    {
+        _saving = true;
+        _error = null;
+        StateHasChanged();
+        var result = await Notifications.SaveFeatureAsync(feature.FeatureNo, isOn);
+        _saving = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"保存できませんでした: {result.Message}";
+            return;
+        }
+
+        _features = [.. _features.Select(item => item.FeatureNo == feature.FeatureNo ? item with { IsOn = isOn } : item)];
+    }
+}

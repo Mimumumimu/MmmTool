@@ -1,4 +1,4 @@
-@inject MessagesClient Messages
+@inject NotificationsClient Notifications
 @inject NavigationManager Navigation
 
 <div class="receive">
@@ -22,7 +22,7 @@
             }
         </select>
     </label>
-    <p class="note">ほかの人から届いたメッセージの通知を、この送信先で受け取ります。指定しないと、あなたには送れません。</p>
+    <p class="note">ほかの人から届いた通知を、この送信先で受け取ります。指定しないと、メッセージは送れません。</p>
 </div>
 
 @code {
@@ -34,7 +34,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Messages.LoadReceiveSettingAsync();
+        var result = await Notifications.LoadReceiveSettingAsync();
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
@@ -63,7 +63,7 @@
         _saving = true;
         _error = null;
         StateHasChanged();
-        var result = await Messages.SaveReceiveChannelAsync(channelId);
+        var result = await Notifications.SaveReceiveChannelAsync(channelId);
         _saving = false;
         if (result.Status == ApiFailure.SignedOut)
         {

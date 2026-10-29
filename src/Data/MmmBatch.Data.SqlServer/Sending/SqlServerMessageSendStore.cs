@@ -30,8 +30,8 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
                c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value, ISNULL(ru.DisplayName, N''), ISNULL(su.DisplayName, N'')
         FROM dbo.MessageDelivery AS d
         INNER JOIN dbo.Message AS m ON m.Id = d.MessageId
-        LEFT JOIN dbo.AppUserSetting AS s ON s.UserId = d.UserId AND s.FeatureNo = {{CodeFeatures.Messages}} AND s.CategoryNo = {{MessageReceiveTarget.Category}}
-            AND s.CodeNo = {{MessageReceiveTarget.Code}} AND s.IsDeleted = 0
+        LEFT JOIN dbo.AppUserSetting AS s ON s.UserId = d.UserId AND s.FeatureNo = {{ReceiveTarget.FeatureNo}} AND s.CategoryNo = {{ReceiveTarget.CategoryNo}}
+            AND s.CodeNo = {{ReceiveTarget.CodeNo}} AND s.IsDeleted = 0
         LEFT JOIN dbo.NotificationChannel AS c ON c.Id = TRY_CAST(s.Value AS int)
         LEFT JOIN dbo.AppUser AS ru ON ru.Id = d.UserId
         LEFT JOIN dbo.AppUser AS su ON su.Id = m.SenderUserId
@@ -59,7 +59,14 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
         => SendTableAccess.RunAsync(database, async connection =>
         {
             await using var command = connection.CreateCommand();
-            var disabled = FeatureAccessSql.IsDisabled("d.UserId", CodeFeatures.Messages);
+            // 管理者が無効にした人と、自分で「メッセージの通知を受け取る」をオフにした人 (既定はオンなので、値 0 の行がある人だけ)
+            var disabled =
+                $"""
+                ({FeatureAccessSql.IsDisabled("d.UserId", CodeFeatures.Messages)}
+                    OR EXISTS (SELECT 1 FROM dbo.AppUserSetting AS ns
+                               WHERE ns.UserId = d.UserId AND ns.FeatureNo = {CodeFeatures.Messages} AND ns.CategoryNo = {NotificationFeatureSettings.CategoryNo}
+                                   AND ns.CodeNo = {NotificationFeatureSettings.CodeNo} AND ns.Value = N'{NotificationFeatureSettings.Off}' AND ns.IsDeleted = 0))
+                """;
             command.CommandText =
                 $"""
                 SET XACT_ABORT ON;

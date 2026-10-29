@@ -53,6 +53,7 @@
 - 仕様は [specs/notes.md](specs/notes.md) にあり、表は [specs/database.md](specs/database.md) の `Note` にある
 - そのうち (方向だけ): 実施日の iPhone への通知
   - 外部送信なので、MmmBatch の機能として作る
+  - 他の人の作成・更新の通知とは別。その仕様は [specs/notes.md](specs/notes.md) の「他の人の作成・更新の通知」にある。
 
 ## Web 版 (MmmToolWeb)
 

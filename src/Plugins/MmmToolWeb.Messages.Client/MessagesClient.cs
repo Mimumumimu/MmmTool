@@ -79,23 +79,6 @@ public sealed class MessagesClient(HttpClient http)
             response => Read(response, MessagesJsonContext.Default.MessageSentDto));
 
     /// <summary>
-    /// 受け取り先の設定を読む。
-    /// </summary>
-    /// <returns>自分が使用者の送信先と、選んでいる送信先の番号。</returns>
-    public Task<ApiResult<ReceiveSettingDto>> LoadReceiveSettingAsync()
-        => CallAsync(() => http.GetAsync($"{Path}/receive-channel"), response => Read(response, MessagesJsonContext.Default.ReceiveSettingDto));
-
-    /// <summary>
-    /// 受け取り先を指定する。
-    /// </summary>
-    /// <param name="channelId">指定する送信先の番号。指定を外すときは 0。</param>
-    /// <returns>保存の結果。</returns>
-    public Task<ApiResult<bool>> SaveReceiveChannelAsync(int channelId)
-        => CallAsync(
-            () => http.PutAsJsonAsync($"{Path}/receive-channel", new ReceiveChannelRequest(channelId), MessagesJsonContext.Default.ReceiveChannelRequest),
-            _ => Task.FromResult(true));
-
-    /// <summary>
     /// 成功の応答から、中身を読む。
     /// </summary>
     /// <typeparam name="T">中身の型。</typeparam>

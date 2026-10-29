@@ -45,6 +45,45 @@ public sealed class NotificationsClient(HttpClient http)
             async response => await response.Content.ReadFromJsonAsync(NotificationsJsonContext.Default.DestinationResponse));
 
     /// <summary>
+    /// 受け取り先の設定を読む。
+    /// </summary>
+    /// <returns>自分が使用者の送信先と、選んでいる送信先の番号。</returns>
+    public Task<ApiResult<ReceiveSettingDto>> LoadReceiveSettingAsync()
+        => CallAsync(
+            () => http.GetAsync($"{Path}/receive-channel"),
+            async response => await response.Content.ReadFromJsonAsync(NotificationsJsonContext.Default.ReceiveSettingDto));
+
+    /// <summary>
+    /// 受け取り先を指定する。
+    /// </summary>
+    /// <param name="channelId">指定する送信先の番号。指定を外すときは 0。</param>
+    /// <returns>保存の結果。</returns>
+    public Task<ApiResult<bool>> SaveReceiveChannelAsync(int channelId)
+        => CallAsync(
+            () => http.PutAsJsonAsync($"{Path}/receive-channel", new ReceiveChannelRequest(channelId), NotificationsJsonContext.Default.ReceiveChannelRequest),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// 「通知を受け取る」のオン・オフを持つ機能と、自分の設定を読む。
+    /// </summary>
+    /// <returns>機能ごとのオン・オフ。管理者が無効にした機能は含まない。</returns>
+    public Task<ApiResult<NotificationFeatureDto[]>> LoadFeaturesAsync()
+        => CallAsync(
+            () => http.GetAsync($"{Path}/features"),
+            async response => await response.Content.ReadFromJsonAsync(NotificationsJsonContext.Default.NotificationFeatureDtoArray));
+
+    /// <summary>
+    /// 機能の「通知を受け取る」のオン・オフを保存する。
+    /// </summary>
+    /// <param name="featureNo">機能番号。</param>
+    /// <param name="isOn">オンにするなら true。</param>
+    /// <returns>保存の結果。</returns>
+    public Task<ApiResult<bool>> SaveFeatureAsync(int featureNo, bool isOn)
+        => CallAsync(
+            () => http.PutAsJsonAsync($"{Path}/features", new NotificationFeatureRequest(featureNo, isOn), NotificationsJsonContext.Default.NotificationFeatureRequest),
+            _ => Task.FromResult(true));
+
+    /// <summary>
     /// この端末の宛先を登録する。
     /// </summary>
     /// <param name="request">登録する内容。</param>
