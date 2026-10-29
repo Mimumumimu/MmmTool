@@ -22,13 +22,17 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     private readonly string _webView2Directory;
     /// <summary>ターミナルをつないでよいか (定型コマンドの読み込みが済んだか)</summary>
     private bool _terminalsConnectable;
+    /// <summary>サイドバーの項目に、知らせの印を出す口</summary>
+    private readonly INavigationService _navigation;
 
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
     /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
-    public CliAssistPage(CliAssistViewModel viewModel, AppEnvironment environment)
+    /// <param name="navigation">サイドバーの項目に、知らせの印を出す口</param>
+    public CliAssistPage(CliAssistViewModel viewModel, AppEnvironment environment, INavigationService navigation)
     {
         ViewModel = viewModel;
+        _navigation = navigation;
         InitializeComponent();
 
         _webView2Directory = environment.WebView2Directory;
@@ -36,6 +40,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         {
             AddTab(session);
         }
+        UpdateNavigationBadge();
         ViewModel.Sessions.CollectionChanged += OnSessionsChanged;
         SessionTabs.SelectedItem = _tabs[ViewModel.SelectedSession].Item;
         ShowSelectedSession();
@@ -72,7 +77,13 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         {
             tab.View.Release();
         }
+        _navigation.SetBadge<CliAssistPage>(false);
     }
+
+    /// <summary>サイドバーの「CLI補助」の項目に、知らせの印を出す・消す</summary>
+    /// <remarks>どれかのタブが確認を待っている間だけ出す。ほかのページを見ていて、タブの黄色が目に入らないときのため。</remarks>
+    private void UpdateNavigationBadge()
+        => _navigation.SetBadge<CliAssistPage>(ViewModel.Sessions.Any(session => session.IsAwaitingInput));
 
     /// <summary>読み込み時の処理 (ViewModel の初期化・ターミナルの接続)</summary>
     /// <param name="sender">イベントの送信元</param>
@@ -97,7 +108,8 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <param name="Item">タブ</param>
     /// <param name="View">タブの中の画面 (ターミナルと送信欄)</param>
     /// <param name="OnSessionChanged">セッションの変更を受けるハンドラ (タブを取り除くときに外す)</param>
-    private sealed record SessionTab(TabViewItem Item, CliSessionView View, PropertyChangedEventHandler OnSessionChanged);
+    /// <param name="Highlight">確認が出たときの、タブの黄色の強調 (タブを取り除くときに後始末する)</param>
+    private sealed record SessionTab(TabViewItem Item, CliSessionView View, PropertyChangedEventHandler OnSessionChanged, AwaitingTabHighlight Highlight);
 
     /// <summary>選ばれているセッションの画面を、タブの下の枠に入れる</summary>
     /// <remarks>
@@ -148,22 +160,33 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     private void AddTab(CliSessionViewModel session)
     {
         var view = new CliSessionView { ViewModel = session, WebView2Directory = _webView2Directory };
-        var header = new SessionTabHeader();
-        header.SetTitle(session.Title);
-        header.SetAwaiting(session.IsAwaitingInput);
-        var item = new TabViewItem { Header = header, Tag = session };
+        var item = new TabViewItem { Header = session.Title, Tag = session };
+        var highlight = new AwaitingTabHighlight(item, Resources);
         ToolTipService.SetToolTip(item, session.WorkingDirectory);
 
-        // タブ名 (フォルダ名)・確認待ちの印・ツールチップ (パス全体)を、セッションに合わせる
+        // 確認が出たままのタブは、画面に出てから黄色にする (色は、画面に出たあとのテーマで決まるため)
+        if (session.IsAwaitingInput)
+        {
+            RoutedEventHandler? onItemLoaded = null;
+            onItemLoaded = (_, _) =>
+            {
+                item.Loaded -= onItemLoaded;
+                highlight.Set(session.IsAwaitingInput);
+            };
+            item.Loaded += onItemLoaded;
+        }
+
+        // タブ名 (フォルダ名)・確認が出たことを知らせるタブの黄色・ツールチップ (パス全体)を、セッションに合わせる
         PropertyChangedEventHandler onSessionChanged = (_, e) =>
         {
             switch (e.PropertyName)
             {
                 case nameof(CliSessionViewModel.Title):
-                    header.SetTitle(session.Title);
+                    item.Header = session.Title;
                     break;
                 case nameof(CliSessionViewModel.IsAwaitingInput):
-                    header.SetAwaiting(session.IsAwaitingInput);
+                    highlight.Set(session.IsAwaitingInput);
+                    UpdateNavigationBadge();
                     break;
                 case nameof(CliSessionViewModel.WorkingDirectory):
                     ToolTipService.SetToolTip(item, session.WorkingDirectory);
@@ -172,7 +195,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         };
         session.PropertyChanged += onSessionChanged;
 
-        _tabs[session] = new SessionTab(item, view, onSessionChanged);
+        _tabs[session] = new SessionTab(item, view, onSessionChanged, highlight);
         SessionTabs.TabItems.Add(item);
         if (_terminalsConnectable)
         {
@@ -194,12 +217,14 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         }
 
         session.PropertyChanged -= tab.OnSessionChanged;
+        tab.Highlight.Detach();
         if (SessionHost.Child == tab.View)
         {
             SessionHost.Child = null;
         }
         tab.View.Release();
         SessionTabs.TabItems.Remove(tab.Item);
+        UpdateNavigationBadge();
     }
 
     /// <summary>タブが選ばれたら、ViewModel に反映する</summary>

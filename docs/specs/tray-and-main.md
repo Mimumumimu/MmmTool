@@ -65,6 +65,8 @@
     - 1 つの機能のページは、同時に 1 か所にしか出さない。
     - 並べ方は、利用者が Windows のスナップなどで決める。アプリは分割表示・並びの保存を持たない。
     - 外したウィンドウから開くダイアログは、最後に操作したウィンドウの上に出る ([dialogs.md](../../external/MmmSdk/docs/dialogs.md))
+  - サイドバーの項目の右端に、知らせの丸 (バッジ)を出せる。各機能が `INavigationService.SetBadge` で出し入れする。選んでいる項目と、別のウィンドウに外している項目には出さない。詳細は [architecture.md](../../external/MmmSdk/docs/architecture.md)
+    - 使っているのは CLI補助だけ ([cli-assist.md](cli-assist.md))
   - トレイメニューは並び替えに連動しない
   - サイドバーの項目は、各機能が `AddNavigationPage` で登録する ([architecture.md](../architecture.md))
 - 開発用の DEBUG ページは持たない。通知ダイアログやリマインダーの画面は、各機能の画面から開いて確かめる。

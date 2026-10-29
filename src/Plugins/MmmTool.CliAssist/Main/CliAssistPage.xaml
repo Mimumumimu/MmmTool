@@ -6,6 +6,27 @@
     xmlns:local="using:MmmTool.CliAssist.Main"
     Loaded="OnLoaded">
 
+    <Page.Resources>
+        <!--
+            選んでいないタブで確認が出たときの、タブの背景。AwaitingTabHighlight が使う。OS のアクセント色に連動させない固定の黄色。
+            Color は明滅のあとに残る色、FlashColor は明滅の山の色。文字は標準の色のまま。
+            文字とのコントラスト比は、ライトの Color が約 13 倍、FlashColor が約 10 倍。
+            ダークの Color は約 6 倍、FlashColor は約 2.5 倍。ダークの山は一瞬だけなので許す。
+        -->
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SessionAwaitingTabColor">#FFE066</Color>
+                    <Color x:Key="SessionAwaitingTabFlashColor">#FFB300</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SessionAwaitingTabColor">#6B5700</Color>
+                    <Color x:Key="SessionAwaitingTabFlashColor">#C79A00</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
     <Grid Padding="12" ColumnSpacing="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="280" />
