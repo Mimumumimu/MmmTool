@@ -864,7 +864,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
                     Reject(row, "日付は、2026/10/10 の形で入力してください。");
                     return;
                 }
-                await UpdateItemAsync(row, item => column == "Start" ? item with { StartDate = date } : item with { DueDate = date });
+                // 開始日を期限日より後にしたら期限日を、期限日を開始日より前にしたら開始日を、入れた日に合わせる
+                await UpdateItemAsync(row, item => column == "Start"
+                    ? item with { StartDate = date, DueDate = date is { } s && item.DueDate is { } d && s > d ? s : item.DueDate }
+                    : item with { DueDate = date, StartDate = date is { } d2 && item.StartDate is { } s2 && s2 > d2 ? d2 : item.StartDate });
                 break;
             case "Planned":
                 if (!TryParseHours(text, out var planned))
