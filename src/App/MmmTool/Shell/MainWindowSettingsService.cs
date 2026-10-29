@@ -18,6 +18,16 @@ public sealed class MainWindowSettingsService(ISettingsStore settings)
     /// <summary>起動時にメイン画面を開くか (無ければ開かない。トレイアイコンだけ出す)</summary>
     public bool OpenOnStartup => settings.Get(OpenOnStartupKey, false);
 
+    /// <summary>× ボタンを押したときの動きの設定キー</summary>
+    private const string CloseButtonActionKey = "Shell.CloseButtonAction";
+
+    /// <summary>× ボタンを押したときの動き (無い・読めない値のときはトレイに残る)</summary>
+    public CloseButtonAction CloseButtonAction =>
+        Enum.TryParse<CloseButtonAction>(settings.Get(CloseButtonActionKey, nameof(CloseButtonAction.Tray)), out var action)
+        && Enum.IsDefined(action)
+            ? action
+            : CloseButtonAction.Tray;
+
     /// <summary>設定を保存できない状態か (設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている)</summary>
     public bool IsReadOnly => settings.IsReadOnly;
 
@@ -25,4 +35,9 @@ public sealed class MainWindowSettingsService(ISettingsStore settings)
     /// <param name="value">開くなら true</param>
     /// <returns>保存したら true。設定を保存できない状態 (<see cref="IsReadOnly"/>)で保存しなかったら false</returns>
     public Task<bool> SetOpenOnStartupAsync(bool value) => settings.SetAsync(OpenOnStartupKey, value);
+
+    /// <summary>× ボタンを押したときの動きを保存する</summary>
+    /// <param name="value">動き</param>
+    /// <returns>保存したら true。設定を保存できない状態 (<see cref="IsReadOnly"/>)で保存しなかったら false</returns>
+    public Task<bool> SetCloseButtonActionAsync(CloseButtonAction value) => settings.SetAsync(CloseButtonActionKey, value.ToString());
 }

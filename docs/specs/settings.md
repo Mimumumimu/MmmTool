@@ -148,8 +148,17 @@
   - 設定ファイルを読めなかったとき (`IsReadOnly`)は、スイッチを無効にする。保存の失敗 (`DataFileException`)は、画面の InfoBar に出す。
   - 反映は次の起動から
     - 起動の動きは [tray-and-main.md](tray-and-main.md)
+- **×ボタンを押したとき** (`MainWindowSettingsControl` ＋ `MainWindowSettingsViewModel`)
+  - 「全般」の 2 つ目の項目で、固定幅の `ComboBox`。選択肢は「トレイに残る」(既定)と「終了する」。説明文は付けない (選択肢の名前で結果が分かるため)
+  - 選択肢を `ToggleSwitch` にしない (オンが終了かトレイかが、見出しを読まないと分からないため)
+  - 変えた時点で保存し、すぐ効く。再起動は要らない。
+  - 保存は `MainWindowSettingsService` 経由で、設定ストアの `Shell.CloseButtonAction`(文字列 `Tray` / `Exit`)に書く。無ければ `Tray`。値の型は `Shell/CloseButtonAction`。
+    - 真偽値にしない (選択肢が増えても、値の意味が変わらないようにするため)
+  - 「終了する」のとき、× と Alt+F4 は `AppExitService` 経由で、トレイメニューの「終了」と同じ処理を頼む。未保存の編集は、確認せずに破棄する。
+  - 設定ファイルを読めなかったとき・保存の失敗の扱いは、「起動時にメイン画面を開く」と同じ
+  - 動きは [tray-and-main.md](tray-and-main.md) に書く
 - **音声機器を起こしておく** (`MainWindowSettingsControl` ＋ `MainWindowSettingsViewModel`)
-  - 「全般」の 2 つ目の項目
+  - 「全般」の 3 つ目の項目
   - 光デジタル出力など、無音が続くと信号を止める機器で、読み上げの頭が切れるときに、オンにする
   - オンの間、無音の出力を流し続ける (SDK の `IAudioKeepAlive`)
     - 仕組みは SDK の `docs/audio.md`

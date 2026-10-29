@@ -30,6 +30,14 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool OpenOnStartup { get; set; }
 
+    /// <summary>× ボタンの動きの選択肢の名前 (<see cref="CloseButtonAction"/> の値の順)</summary>
+    public IReadOnlyList<string> CloseButtonActionNames { get; } = ["トレイに残る", "終了する"];
+
+    /// <summary>選んでいる × ボタンの動きの位置 (<see cref="CloseButtonActionNames"/> の添字)</summary>
+    /// <remarks>変わったら即保存する。</remarks>
+    [ObservableProperty]
+    public partial int CloseButtonActionIndex { get; set; }
+
     /// <summary>音声機器を眠らせないよう、無音を流し続けるか</summary>
     /// <remarks>変わったら即保存し、すぐに始める・止める。</remarks>
     [ObservableProperty]
@@ -44,6 +52,7 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
         _audioSettings = audioSettings;
         _isInitializing = true;
         OpenOnStartup = settings.OpenOnStartup;
+        CloseButtonActionIndex = (int)settings.CloseButtonAction;
         KeepAudioDeviceAwake = audioSettings.IsEnabled;
         _isInitializing = false;
         IsEditable = !settings.IsReadOnly;
@@ -58,6 +67,18 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
             return;
         }
         SaveAsync(value).Forget();
+    }
+
+    /// <summary>選びが変わったら保存する</summary>
+    /// <param name="value">変更後の位置</param>
+    /// <remarks>選択を外した (-1)ときは保存しない。</remarks>
+    partial void OnCloseButtonActionIndexChanged(int value)
+    {
+        if (_isInitializing || !Enum.IsDefined((CloseButtonAction)value))
+        {
+            return;
+        }
+        SaveCloseButtonActionAsync((CloseButtonAction)value).Forget();
     }
 
     /// <summary>値が変わったら保存し、無音の出力を始める・止める</summary>
@@ -83,6 +104,29 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
         try
         {
             if (await _settings.SetOpenOnStartupAsync(value))
+            {
+                Error.Clear();
+            }
+            else
+            {
+                Error.Show("設定を読み込めなかったため、変更を保存できませんでした。");
+            }
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show(ex.Message);
+        }
+    }
+
+    /// <summary>× ボタンを押したときの動きを保存する</summary>
+    /// <param name="value">保存する値</param>
+    /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ。</remarks>
+    private async Task SaveCloseButtonActionAsync(CloseButtonAction value)
+    {
+        try
+        {
+            if (await _settings.SetCloseButtonActionAsync(value))
             {
                 Error.Clear();
             }

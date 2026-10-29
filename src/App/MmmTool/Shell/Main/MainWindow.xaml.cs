@@ -20,8 +20,12 @@ public sealed partial class MainWindow : Window
     /// <summary>ウィンドウを作る</summary>
     /// <param name="navigation">サイドバーと、選んだ項目のページ</param>
     /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
-    public MainWindow(NavigationHost navigation, IWindowPositionService positions)
+    /// <param name="settings">× ボタンを押したときの動きの設定</param>
+    /// <param name="exit">アプリの終了を頼む口</param>
+    public MainWindow(NavigationHost navigation, IWindowPositionService positions, MainWindowSettingsService settings, AppExitService exit)
     {
+        _settings = settings;
+        _exit = exit;
         InitializeComponent();
         ContentHost.Child = navigation;
         HistoryButtons.Bind(navigation.ViewModel);
@@ -39,14 +43,36 @@ public sealed partial class MainWindow : Window
     /// <remarks>閉じる要求が「本当の終了」か「トレイへの退避」かを見分ける。</remarks>
     private bool _isExiting;
 
-    /// <summary>×ボタン・Alt+F4 では終了せず、トレイへ退避する</summary>
+    /// <summary>× ボタンを押したときの動きの設定</summary>
+    private readonly MainWindowSettingsService _settings;
+
+    /// <summary>アプリの終了を頼む口</summary>
+    private readonly AppExitService _exit;
+
+    /// <summary>× ボタンから、終了を頼み済みか</summary>
+    private bool _exitRequested;
+
+    /// <summary>×ボタン・Alt+F4 で、設定に従ってトレイへ退避するか終了する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じる要求の情報</param>
-    /// <remarks>非表示にするだけで、アプリは動き続ける。</remarks>
+    /// <remarks>
+    /// トレイへの退避は、非表示にするだけで、アプリは動き続ける。
+    /// 終了は、ここでは閉じず、トレイの「終了」と同じ処理 (<see cref="AppExitService"/>)に任せる。各機能の後始末より先にウィンドウが閉じないようにするため。
+    /// </remarks>
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_isExiting) return;
         args.Cancel = true;
+        if (_settings.CloseButtonAction == CloseButtonAction.Exit)
+        {
+            // 終了を頼み済みなら、後始末の途中で閉じないよう、取り消すだけにする (連打で二重に頼まない)
+            if (!_exitRequested)
+            {
+                _exitRequested = true;
+                _exit.RequestExit();
+            }
+            return;
+        }
         sender.Hide();
     }
 
