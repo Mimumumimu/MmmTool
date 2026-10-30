@@ -255,6 +255,17 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// 全画面のシートを、キーボードを除いた見える範囲に合わせ始める。キーボードを閉じたあとの、画面のずれも戻す。
+    /// </summary>
+    /// <returns>閉じると、やめる購読。</returns>
+    public async Task<IAsyncDisposable> WatchSheetViewportAsync()
+    {
+        var module = await GetModuleAsync();
+        var handle = await module.InvokeAsync<IJSObjectReference>("watchSheetViewport");
+        return new JsSubscription(handle);
+    }
+
+    /// <summary>
     /// 要素の中身の高さを返す。古いメッセージを足す前に測る。
     /// </summary>
     /// <param name="element">スクロールする要素。</param>

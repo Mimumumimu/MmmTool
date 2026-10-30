@@ -318,6 +318,67 @@ export function isNearBottom(element) {
     return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
 }
 
+// 全画面のシートが開いている間、シートを見えている範囲 (キーボードを除いた範囲)の上端と高さに合わせ、画面のずれを戻す。dispose でやめる
+// iPhone は、キーボードを出すとき、入力欄が見えるように画面全体を動かし、閉じても戻さない端末がある。シートが開いている間は、裏の画面をスクロールさせない (css/app.css)ので、動いた分は、開いたときの位置に戻してよい
+// 開いたときの位置は、裏の画面 (ノートの一覧など)のスクロール位置なので、0 ではなく、その位置へ戻す
+// シートの css は、--sheet-top と --sheet-height を使う
+const editableSelector = 'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea, select, [contenteditable="true"]';
+const keyboardSettleDelays = [0, 150, 400, 800];
+
+export function watchSheetViewport() {
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    const openedX = window.scrollX;
+    const openedY = window.scrollY;
+    const timers = new Set();
+
+    const fit = () => {
+        if (viewport) {
+            root.style.setProperty("--sheet-top", `${viewport.offsetTop}px`);
+            root.style.setProperty("--sheet-height", `${viewport.height}px`);
+        }
+    };
+    // 入力欄を触っている間は、キーボードが出ているので、iPhone の動きと取り合わない
+    const restore = () => {
+        if (document.activeElement?.matches(editableSelector)) {
+            return;
+        }
+        if (window.scrollX !== openedX || window.scrollY !== openedY) {
+            window.scrollTo(openedX, openedY);
+        }
+        fit();
+    };
+    // キーボードを閉じる動きは、入力欄を離れたあとも続くので、時間をおいて何度か確かめる
+    const settle = () => {
+        fit();
+        for (const delay of keyboardSettleDelays) {
+            const timer = setTimeout(() => {
+                timers.delete(timer);
+                restore();
+            }, delay);
+            timers.add(timer);
+        }
+    };
+
+    fit();
+    viewport?.addEventListener("resize", settle);
+    viewport?.addEventListener("scroll", fit);
+    document.addEventListener("focusin", settle);
+    document.addEventListener("focusout", settle);
+    return {
+        dispose() {
+            viewport?.removeEventListener("resize", settle);
+            viewport?.removeEventListener("scroll", fit);
+            document.removeEventListener("focusin", settle);
+            document.removeEventListener("focusout", settle);
+            timers.forEach(clearTimeout);
+            timers.clear();
+            root.style.removeProperty("--sheet-top");
+            root.style.removeProperty("--sheet-height");
+        },
+    };
+}
+
 // id の要素を、画面の中ほどに出す。通知を押して開いたメッセージの位置まで、スクロールするため
 export function scrollIntoViewById(id) {
     document.getElementById(id)?.scrollIntoView({ block: "center" });
