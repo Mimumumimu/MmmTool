@@ -169,6 +169,10 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>空の会話の画面の、1 対 1 の相手の番号。会話があるときは 0</summary>
     private int _draftPeerUserId;
 
+    /// <summary>開いた会話の、相手が受け取れるかを、DB から読み直したか。読み直したあとは、控えの要約の値で上書きしない</summary>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、控えの要約は古いままになるため。</remarks>
+    private bool _peerChecked;
+
     /// <summary>これより古いメッセージが、まだあるか</summary>
     private bool _hasMore;
 
@@ -274,6 +278,44 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         {
             // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
             RefreshSelfCanReceiveAsync().Forget();
+            RefreshPeerCanReceiveAsync().Forget();
+        }
+    }
+
+    /// <summary>開いている 1 対 1 の会話の相手が、受け取り先を指定しているかを、DB から読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    /// <remarks>
+    /// 読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。
+    /// 会話が一覧の要約にまだ無いとき (通知から開いた直後など)は、読まない。要約が入ったときに、<see cref="RefreshConversations"/> がもう一度呼ぶ。
+    /// </remarks>
+    private async Task RefreshPeerCanReceiveAsync()
+    {
+        var version = _openVersion;
+        var conversationId = _conversationId;
+        var peerUserId = conversationId > 0
+            ? sync.Conversations.FirstOrDefault(conversation => conversation.Id == conversationId)?.PeerUserId ?? 0
+            : _draftPeerUserId;
+        if (peerUserId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var canReceive = await repository.CanReceiveAsync(peerUserId);
+            if (version == _openVersion)
+            {
+                _peerChecked = true;
+                PeerCanReceive = canReceive;
+                if (conversationId > 0)
+                {
+                    await sync.UpdatePeerCanReceiveAsync(conversationId, canReceive);
+                }
+            }
+        }
+        catch (DataFileException)
+        {
+            // 読めなかった。送るときに、サーバーが断る
         }
     }
 
@@ -449,6 +491,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         IsConversationOpen = true;
         OnPropertyChanged(nameof(SelectedConversation));
         RefreshSelfCanReceiveAsync().Forget();
+        _peerChecked = false;
+        RefreshPeerCanReceiveAsync().Forget();
         IsStale = false;
         Body = "";
         ReplyTo = null;
@@ -650,9 +694,11 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         }
 
         IsConversationsEmpty = Conversations.Count == 0;
-        if (IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } open)
+        if (!_peerChecked && IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } open)
         {
+            // 要約の値は古いことがある。今の値を DB から読み直す
             PeerCanReceive = open.PeerCanReceive;
+            RefreshPeerCanReceiveAsync().Forget();
         }
 
         // 行を差し替えたり、新しい会話の行が増えたりしたので、選びの印を付け直す

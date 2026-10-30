@@ -16,11 +16,13 @@ public sealed class MessagesClient(HttpClient http)
     private const string NotFoundMessage = "会話が見つかりません。";
 
     /// <summary>
-    /// 入力欄を出すのに要る情報 (本文の上限)を読む。
+    /// 入力欄を出すのに要る情報 (本文の上限と、自分と相手が受け取れるか)を読む。
     /// </summary>
+    /// <param name="conversationId">開いている会話の番号。まだ会話が無いときは 0。</param>
+    /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。</param>
     /// <returns>入力欄の情報。</returns>
-    public Task<ApiResult<MessageFormDto>> LoadFormAsync()
-        => CallAsync(() => http.GetAsync($"{Path}/form"), response => Read(response, MessagesJsonContext.Default.MessageFormDto));
+    public Task<ApiResult<MessageFormDto>> LoadFormAsync(int conversationId, int peerUserId)
+        => CallAsync(() => http.GetAsync($"{Path}/form?conversationId={conversationId}&peerUserId={peerUserId}"), response => Read(response, MessagesJsonContext.Default.MessageFormDto));
 
     /// <summary>
     /// 自分の会話の一覧を、最初に読み込む。

@@ -62,6 +62,25 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     public bool IsUnread(ConversationDto conversation) => UnreadMessageIds.Contains(conversation.LastMessageId);
 
     /// <summary>
+    /// サーバーから読み直した、相手が受け取れるかを、会話の要約と控えへ反映する。
+    /// </summary>
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="peerCanReceive">相手が受け取り先を指定しているか。</param>
+    /// <returns>反映したことを表すタスク。要約に無い会話と、値が同じときは、何もしない。</returns>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、要約は古いままになるため。</remarks>
+    public async Task UpdatePeerCanReceiveAsync(int conversationId, bool peerCanReceive)
+    {
+        if (Conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { } current || current.PeerCanReceive == peerCanReceive)
+        {
+            return;
+        }
+
+        Conversations = [.. Conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
+        await WriteListCacheAsync();
+        await RaiseConversationsChangedAsync();
+    }
+
+    /// <summary>
     /// 画面に出したメッセージを、読んだことにする。
     /// </summary>
     /// <param name="shown">画面に出したメッセージ。</param>

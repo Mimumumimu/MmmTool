@@ -106,6 +106,36 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         }
     }
 
+    /// <summary>DB から読み直した、相手が受け取れるかを、会話の要約と端末の控えへ反映する</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="peerCanReceive">相手が受け取り先を指定しているか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>反映の完了を表すタスク。要約に無い会話と、値が同じときは、何もしない</returns>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、要約は古いままになるため。</remarks>
+    public async Task UpdatePeerCanReceiveAsync(int conversationId, bool peerCanReceive, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { } current || current.PeerCanReceive == peerCanReceive)
+            {
+                return;
+            }
+
+            _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
+            if (_nextBase is { } known)
+            {
+                await cache.WriteListAsync(new CachedConversationList(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Synced?.Invoke();
+    }
+
     /// <summary>いま開いている会話の番号。通知ダイアログに、前面で見ている会話の新着を出さないために使う</summary>
     /// <returns>前面で見ている会話の番号。前面でなければ 0</returns>
     public int GetFrontConversationId() => _inFront ? _openConversationId : 0;

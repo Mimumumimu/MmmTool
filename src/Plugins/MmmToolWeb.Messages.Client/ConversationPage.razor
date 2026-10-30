@@ -94,6 +94,7 @@
     private bool _sending;
     private bool _hasMore;
     private bool _peerCanReceive = true;
+    private bool _peerChecked;
     private bool _selfCanReceive = true;
     private bool _watchingVisible;
     private int _bodyMaxLength = MessageLimitsBody;
@@ -171,20 +172,21 @@
         _hasMore = false;
         _error = null;
         _highlightId = TryParseItem(Item);
+        _peerChecked = false;
+        _peerCanReceive = true;
 
         // 会話を続けて開いたとき、古い会話の読み込みの結果が、新しい会話の表示と控えを上書きしないよう、読み込みごとに番号を進める
         var version = ++_loadVersion;
-        var form = await Messages.LoadFormAsync();
+        var form = await Messages.LoadFormAsync(ConversationId, PeerUserId);
         if (version != _loadVersion)
         {
             return;
         }
-        ApplyForm(form);
+        await ApplyFormAsync(form);
         if (ConversationId == 0)
         {
-            // まだ会話が無い。相手が受け取り先を指定している人だけが探せるので、送れる。会話は、最初の送信で作る
+            // まだ会話が無い。会話は、最初の送信で作る
             _title = string.IsNullOrWhiteSpace(Name) ? "新しい会話" : Name;
-            _peerCanReceive = true;
             return;
         }
 
@@ -204,7 +206,6 @@
             return;
         }
         ApplySummary();
-
         // まず控えから出す
         var cached = await Store.ReadConversationCacheAsync(ConversationId);
         if (version != _loadVersion)
@@ -264,10 +265,13 @@
         if (Store.Conversations.FirstOrDefault(conversation => conversation.Id == ConversationId) is { } conversation)
         {
             _title = conversation.Name;
-            _peerCanReceive = conversation.PeerCanReceive;
+            if (!_peerChecked)
+            {
+                // 一覧の控えの値は、相手が受け取り先を変えても古いまま。サーバーから読み直したあとは、使わない
+                _peerCanReceive = conversation.PeerCanReceive;
+            }
         }
     }
-
     /// <summary>
     /// サーバーから読んだ最新の 1 ページを、控えと合わせる。控えは、新しいほうから切れ目なく持つ。
     /// </summary>
@@ -392,19 +396,30 @@
     /// <summary>アプリが裏から戻ったときに、差分と、自分が送れる状態かを読み直す。設定で受け取り先を指定して戻ったときに、送れるようにする。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(async () =>
     {
-        ApplyForm(await Messages.LoadFormAsync());
+        await ApplyFormAsync(await Messages.LoadFormAsync(ConversationId, PeerUserId));
         StateHasChanged();
         await Store.SyncAsync();
     });
 
     /// <summary>入力欄の決まりを取り込む。読めなかったときは、前の値のまま。送るとき、サーバーが同じ決まりで断る。</summary>
     /// <param name="form">サーバーから読んだ入力欄の決まり。</param>
-    private void ApplyForm(ApiResult<MessageFormDto> form)
+    /// <returns>取り込みの完了を表すタスク。</returns>
+    /// <remarks>相手の状態は、人の一覧の要約と控えにも反映する。一覧の行の注記を、今の値に合わせるため。</remarks>
+    private async Task ApplyFormAsync(ApiResult<MessageFormDto> form)
     {
         if (form.Succeeded)
         {
             _bodyMaxLength = form.Value!.BodyMaxLength;
             _selfCanReceive = form.Value.SelfCanReceive;
+            if (ConversationId > 0 || PeerUserId > 0)
+            {
+                _peerChecked = true;
+                _peerCanReceive = form.Value.PeerCanReceive;
+                if (ConversationId > 0)
+                {
+                    await Store.UpdatePeerCanReceiveAsync(ConversationId, _peerCanReceive);
+                }
+            }
         }
     }
 

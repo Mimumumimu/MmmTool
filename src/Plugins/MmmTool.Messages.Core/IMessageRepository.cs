@@ -70,6 +70,13 @@ public interface IMessageRepository
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<bool> CanReceiveAsync(int userId, CancellationToken cancellationToken = default);
 
+    /// <summary>自分が入っている会話の、1 対 1 の相手が、受け取り先を指定しているか調べる</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>相手が受け取れるとき true。グループは、相手が 1 人に決まらないので true。自分が入っていない会話・無い会話は null。自分との会話は、自分の状態</returns>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default);
+
     /// <summary>メッセージを送る</summary>
     /// <param name="conversationId">会話の番号。まだ会話が無いときは 0</param>
     /// <param name="peerUserId">会話の番号が 0 のとき、1 対 1 の相手の番号。自分の番号なら、自分に送る</param>

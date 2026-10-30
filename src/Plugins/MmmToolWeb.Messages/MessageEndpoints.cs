@@ -88,14 +88,34 @@ internal static class MessageEndpoints
         => Results.Ok(new DirectDto(await repository.FindDirectConversationAsync(userId, cancellationToken)));
 
     /// <summary>
-    /// 入力欄の決まり (本文の最大の長さ)と、自分が送れる状態かを返す。
+    /// 入力欄の決まり (本文の最大の長さ)と、自分と相手が送れる状態かを返す。
     /// </summary>
+    /// <param name="conversationId">開いている会話の番号。サーバーが、会話の参加者であることを確かめて、相手を見つける。省略か 0 のときは、使わない。</param>
+    /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。会話の番号があるときは、使わない。</param>
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="currentUser">今のユーザー。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>本文の最大の長さと、自分が受け取り先を指定しているか。</returns>
-    private static async Task<IResult> LoadFormAsync(IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
-        => Results.Ok(new MessageFormDto(MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken)));
+    /// <returns>本文の最大の長さと、自分と相手が受け取り先を指定しているか。自分が入っていない会話は 404。</returns>
+    /// <remarks>相手の状態は、会話の要約の控えが古くなるので、要るたびに DB から読む。</remarks>
+    private static async Task<IResult> LoadFormAsync(
+        int? conversationId, int? peerUserId, IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
+    {
+        bool peerCanReceive;
+        if (conversationId is > 0)
+        {
+            if (await repository.CanPeerReceiveAsync(conversationId.Value, cancellationToken) is not { } canReceive)
+            {
+                return Results.NotFound(new ErrorResponse("会話が見つかりません。"));
+            }
+            peerCanReceive = canReceive;
+        }
+        else
+        {
+            peerCanReceive = peerUserId is not > 0 || await repository.CanReceiveAsync(peerUserId.Value, cancellationToken);
+        }
+
+        return Results.Ok(new MessageFormDto(MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken), peerCanReceive));
+    }
 
     /// <summary>
     /// 宛先に選べる人を、表示名の前方一致で返す。

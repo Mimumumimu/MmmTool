@@ -209,6 +209,33 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
+    public Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default)
+    {
+        var me = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<bool?>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                $"""
+                SELECT c.Kind, CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
+                FROM dbo.MessageConversation AS c
+                INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
+                OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
+                             WHERE mm.ConversationId = c.Id AND mm.UserId <> @Me AND mm.IsDeleted = 0 ORDER BY mm.Id) AS peer
+                WHERE c.Id = @ConversationId AND c.IsDeleted = 0
+                """;
+            command.Parameters.Add(Int("@Me", me));
+            command.Parameters.Add(Int("@ConversationId", conversationId));
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return null;
+            }
+            return reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1;
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">本文が空か長すぎる・会話の番号と相手の番号の指定が正しくない。</exception>
     public Task<SendMessageResult> SendAsync(int conversationId, int peerUserId, string body, int replyToMessageId, CancellationToken cancellationToken = default)
     {
