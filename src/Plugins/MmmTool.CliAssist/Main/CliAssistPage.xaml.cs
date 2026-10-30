@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.Core.Components.Hosting;
@@ -24,6 +25,9 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     private bool _terminalsConnectable;
     /// <summary>サイドバーの項目に、知らせの印を出す口</summary>
     private readonly INavigationService _navigation;
+    /// <summary>このページが載っているウィンドウ (タスクバーを点滅させる先)</summary>
+    /// <remarks>ほかのページを開いている間は、ページが画面から外れて <c>XamlRoot</c> が無くなるので、載ったときに覚えておく。ページを別ウィンドウに外したときは、載り直したときに更新する。</remarks>
+    private AppWindow? _hostWindow;
 
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
@@ -73,10 +77,12 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <remarks>機能をオフにしたとき。ターミナルのコントロールからセッションを外す。シェル (とその中の CLI)は、このあとのスコープの破棄で終了する。</remarks>
     public void Release()
     {
-        foreach (var tab in _tabs.Values)
+        foreach (var (session, tab) in _tabs)
         {
+            session.FocusTriggerMatched -= OnFocusTriggerMatched;
             tab.View.Release();
         }
+        _hostWindow = null;
         _navigation.SetBadge<CliAssistPage>(false);
     }
 
@@ -94,6 +100,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// </remarks>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _hostWindow = AppWindow.GetFromWindowId(XamlRoot.ContentIslandEnvironment.AppWindowId);
         await ViewModel.InitializeAsync();
         _terminalsConnectable = true;
         foreach (var tab in _tabs.Values)
@@ -194,6 +201,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
             }
         };
         session.PropertyChanged += onSessionChanged;
+        session.FocusTriggerMatched += OnFocusTriggerMatched;
 
         _tabs[session] = new SessionTab(item, view, onSessionChanged, highlight);
         SessionTabs.TabItems.Add(item);
@@ -202,6 +210,16 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
             view.ConnectTerminal();
         }
     }
+
+    /// <summary>通知する文字列が出たら、ウィンドウが見えていて前面にないときだけ、タスクバーのボタンを点滅させる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか (点滅には関係しない)</param>
+    /// <remarks>
+    /// 選んでいないタブ・ほかのページを開いている間に出た文字列でも点滅させる。ウィンドウが後ろにあると、タブの黄色もサイドバーの丸も目に入らないため。
+    /// 最小化・トレイへの退避中は点滅させない。アプリが前面にあるときも、画面で気づけるので点滅させない。
+    /// 判定は <see cref="WindowExtensions.FlashTaskbarIfInactive"/> が行う。
+    /// </remarks>
+    private void OnFocusTriggerMatched(object? sender, bool moveToTerminal) => _hostWindow?.FlashTaskbarIfInactive();
 
     /// <summary>セッションのタブを取り除く</summary>
     /// <param name="session">取り除くセッション</param>
@@ -217,6 +235,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         }
 
         session.PropertyChanged -= tab.OnSessionChanged;
+        session.FocusTriggerMatched -= OnFocusTriggerMatched;
         tab.Highlight.Detach();
         if (SessionHost.Child == tab.View)
         {
