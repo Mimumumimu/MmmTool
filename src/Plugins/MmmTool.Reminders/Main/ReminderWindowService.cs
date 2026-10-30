@@ -36,7 +36,9 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
         _opening = OpenAsync();
         try
         {
-            return await _opening;
+            var created = await _opening;
+            WriteTrace($"閉じていた画面を新しく開いた: クリックから {Stopwatch.GetElapsedTime(_clickedAt).TotalMilliseconds:F0}ms");
+            return created;
         }
         catch
         {
@@ -86,7 +88,11 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
     private long _clickedAt;
 
     /// <summary>TEMP(計測): 通知のクリックを受けた時刻を控える</summary>
-    public void MarkClicked() => _clickedAt = Stopwatch.GetTimestamp();
+    public void MarkClicked()
+    {
+        _clickedAt = Stopwatch.GetTimestamp();
+        WriteTrace($"通知のクリックを受けた (画面は{(_opening is null ? "閉じている" : "開いている")})");
+    }
 
     /// <summary>TEMP(計測): 前面化の結果を <c>Data/Logs/foreground-yyyy-MM-dd.log</c> に追記する</summary>
     /// <param name="message">書く内容</param>
