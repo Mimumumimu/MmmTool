@@ -19,6 +19,6 @@ public static class NotesClientServiceCollectionExtensions
     public static IServiceCollection AddNotesClient(this IServiceCollection services)
     {
         services.AddScoped<NotesClient>();
-        return services.AddClientFeature(new ClientFeature("ノート", IconPath, NotesPage.Route, typeof(NotesPage).Assembly));
+        return services.AddClientFeature(new ClientFeature("ノート", IconPath, NotesPage.Route, typeof(NotesPage).Assembly, UnreadKind: NotesPage.NoteNoticeKind));
     }
 }

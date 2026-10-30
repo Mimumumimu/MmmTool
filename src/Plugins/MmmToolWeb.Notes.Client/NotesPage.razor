@@ -192,7 +192,7 @@
     public string? OpenDate { get; set; }
 
     /// <summary>通知の識別子の種類。ノートの通知の数を、このページを開いたときに外す。</summary>
-    private const string NoteNoticeKind = "note";
+    internal const string NoteNoticeKind = "note";
 
     protected override async Task OnInitializedAsync()
     {

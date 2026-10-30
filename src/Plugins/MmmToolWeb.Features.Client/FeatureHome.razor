@@ -2,6 +2,8 @@
 @inject IEnumerable<ClientFeature> Features
 @inject FeatureAvailability Availability
 @inject SessionClient Session
+@inject BrowserClient Browser
+@implements IDisposable
 
 <main class="home">
     <div class="top">
@@ -19,6 +21,10 @@
                 <a class="row" href="@feature.Route">
                     <span class="badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@feature.IconPath" /></svg></span>
                     <span class="name">@feature.Title</span>
+                    @if (UnreadCount(feature) is > 0 and var unread)
+                    {
+                        <span class="count" role="img" aria-label="未読 @unread 件">@(unread > MaxShownCount ? $"{MaxShownCount}+" : unread.ToString())</span>
+                    }
                     <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="@ChevronPath" /></svg>
                 </a>
             }
@@ -37,7 +43,43 @@
 
     /// <summary>使える機能を、サーバーに聞き直して、タイルに出す。</summary>
     /// <returns>読み込みの完了を表すタスク。</returns>
-    protected override async Task OnInitializedAsync() => _available = await Availability.FilterAsync(Features);
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUnreadAsync();
+        StateHasChanged();
+        _available = await Availability.FilterAsync(Features);
+    }
+
+    /// <summary>画面を出した最初だけ、前面への復帰を見張り始める。</summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Browser.BecameVisible += LoadUnreadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+    }
+
+    /// <summary>端末が覚えている、読んでいない通知の識別子「種類:番号」。</summary>
+    private IReadOnlyList<string> _unreadKeys = [];
+
+    /// <summary>行に出す数の上限。これを超えたら「99+」のように出す。</summary>
+    private const int MaxShownCount = 99;
+
+    /// <summary>機能の、読んでいない通知の数。数を出さない機能は 0。</summary>
+    private int UnreadCount(ClientFeature feature)
+        => feature.UnreadKind is { } kind ? _unreadKeys.Count(key => key.StartsWith(kind + ":", StringComparison.Ordinal)) : 0;
+
+    private async Task LoadUnreadAsync() => _unreadKeys = await Browser.GetUnreadAsync();
+
+    /// <summary>アプリが裏から戻ったときに、数を読み直す。</summary>
+    private Task LoadUnreadOnReturnAsync() => InvokeAsync(async () =>
+    {
+        await LoadUnreadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Browser.BecameVisible -= LoadUnreadOnReturnAsync;
 
     /// <summary>行の右端の「›」の形。24 × 24 の枠の SVG の path で、線で描く。</summary>
     private const string ChevronPath = "M9.5 6l6 6-6 6";

@@ -101,6 +101,21 @@
     font-size: 1rem;
 }
 
+/* 読んでいない通知の数。名前と「›」の間に、強調色の横長の丸で出す。表示だけで、押せるのは行全体 */
+.count {
+    flex: none;
+    box-sizing: border-box;
+    min-width: 1.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    text-align: center;
+}
+
 .chevron {
     flex: none;
     width: 1.5rem;

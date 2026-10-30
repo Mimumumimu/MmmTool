@@ -19,7 +19,7 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     private const string ListCacheKey = "messages.list";
 
     /// <summary>読んでいない通知の種類。通知の識別子「message:番号」の、頭の部分。</summary>
-    private const string MessageKind = "message";
+    internal const string MessageKind = "message";
 
     /// <summary>更新の知らせの道。</summary>
     private const string EventsPath = "/api/messages/events";
