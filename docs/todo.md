@@ -130,6 +130,18 @@
   - 調べ終わったら、管理者の PowerShell で `cd "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"` → `Remove-Item MmmTool.exe` で設定を消し、`D:\CrashDumps` のダンプを手で消す
   - 原因が分かって直したら、この項目ごと消す
 
+- 通知をクリックしても、開いたままのリマインダーの画面が、他のウィンドウの後ろに残ることがある
+  - 症状の出る端末と出ない端末がある。同じ端末でも、前面になるときと、ならないときがある。DB モード。
+  - 原因の見立て: `BringToFront` の `SetForegroundWindow` が Windows に断られている。通知ウィンドウはフォーカスを奪わない作りで、クリックから前面化までに、Low 優先度の待ちが 2 回入る。
+  - 調べるために、前面化の結果を `Data/Logs/foreground-yyyy-MM-dd.log` に書く計測を入れてある。
+    - 計測のコード: `WindowExtensions.BringToFrontTraced`・`ReminderWindowService.WriteTrace`・`ReminderWindowService.MarkClicked`
+    - コメントに `TEMP(計測)` と書いてある。
+  - 症状の出る端末で、リマインダーの画面を開いたまま通知をクリックして、ログを見る。
+    - `SetForegroundWindow=False`: 前面化の権利が無い。待ちを挟む前の、クリックの処理の中で前面化する作りにする。保険として、Windows App SDK 2.1.9 にある `AppWindow.MoveInZOrderAtTop` を使う。
+    - `SetForegroundWindow=True` なのに後ろに残る: 前面化のあとに、通知を閉じる `CloseAfterClick` か作り直しの `Present` が、前面を奪っている。順序を見直す。
+  - 直したら、計測のコードとログを消し、`BringToFront` に戻す。`NativeMethods.txt` の `GetWindowThreadProcessId` も、使わなければ消す。
+  - 閉じている画面を新しく開く経路は `Activate()` だけで `BringToFront` を通らない。docs/specs/reminders.md の「前面に出すのは SDK の `BringToFront`」と食い違うので、直すときにそろえる。
+
 ## そのうち (方向だけ)
 
 - `scripts/publish - ショートカット.lnk` を、リポジトリに入れるか、`.gitignore` に足すかを決める
