@@ -164,6 +164,11 @@
 
 ## メッセージ (Web 版)
 
+- 本文の URL は、サーバーが SDK の `TextLinkFinder` で見つけ、位置と開く URL を `Links` に入れて返す。画面は、本文をその位置で区切り、リンクは `<a target="_blank" rel="noopener noreferrer">` で出す。
+  - HTML を作って返さず、位置だけ返す。画面が文字として出すので、本文の文字が HTML として働かない。
+  - 画面は、`Links` の URL が `http` か `https` かをもう一度確かめる。端末の控えに残った値も通るため。
+  - 端末の控えに残っている古いメッセージは `Links` が無く、本文をそのまま出す。
+
 - メッセージの Web 版は、MmmTool と同じ保存先 (`MmmTool.Data.SqlServer` のメッセージの Repository)を使い、決まりは [messages.md](messages.md) と同じ
   - Web 版のサーバーは、`Message` と `MessageDelivery` の行を書くだけで、外部へ送らない。実際に送るのは MmmBatch ([mmmbatch.md](mmmbatch.md))
 - 画面は 2 つで、`/messages` の人の一覧と、`/messages/<会話の番号>` の会話。作りは MmmTool と同じで、[messages.md](messages.md) の「画面」と「会話の読み方」を見る。

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using MmmSdk.Core.Components.TextLinks;
 
 namespace MmmTool.Notes.Core;
 
@@ -40,11 +41,6 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         + @"|(?<other></?[A-Za-z][^<>]*>)",
         RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex TagRegex();
-
-    /// <summary>本文の中の URL (<c>http://</c>・<c>https://</c>で始まり、URL に使える半角の文字が続くところまで)</summary>
-    /// <returns>正規表現</returns>
-    [GeneratedRegex(@"(?<![A-Za-z0-9])https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+", RegexOptions.IgnoreCase)]
-    private static partial Regex UrlRegex();
 
     /// <summary>箇条書きのタグのすぐ前の改行 (タグの前後の改行で、空きが出ないように)</summary>
     /// <returns>正規表現</returns>
@@ -216,65 +212,21 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         }
 
         var position = 0;
-        foreach (Match match in UrlRegex().Matches(segment))
+        foreach (var link in TextLinkFinder.Find(segment))
         {
-            var url = TrimUrl(match.Value);
-            if (match.Index < position || !NoteLinks.TryNormalizeHref(url, out var href))
+            // 表示ページの仮想ホストを指す URL は、カードの操作になりすませるので、リンクにしない
+            if (NoteLinks.IsPageUri(link.Href))
             {
                 continue;
             }
 
-            AppendEscaped(segment[position..match.Index], output);
-            output.Append("<a href=\"").Append(EscapeAttribute(NoteLinks.ToPageHref(href))).Append("\">");
-            AppendEscaped(url, output);
+            AppendEscaped(segment[position..link.Start], output);
+            output.Append("<a href=\"").Append(EscapeAttribute(link.Href)).Append("\">");
+            AppendEscaped(segment.Substring(link.Start, link.Length), output);
             output.Append("</a>");
-            position = match.Index + url.Length;
+            position = link.Start + link.Length;
         }
         AppendEscaped(segment[position..], output);
-    }
-
-    /// <summary>URL の終わりの、文の区切りの文字を取り除く</summary>
-    /// <param name="value">URL の候補</param>
-    /// <returns>終わりの <c>.</c> <c>,</c> <c>)</c> などを除いた URL</returns>
-    /// <remarks><c>)</c> と <c>]</c> は、対応する開きが URL の中に無いときだけ除く (「…/wiki/日本_(国)」の閉じ括弧は、URL に含める)。</remarks>
-    private static string TrimUrl(string value)
-    {
-        var end = value.Length;
-        while (end > 0)
-        {
-            var last = value[end - 1];
-            var removable = last switch
-            {
-                '.' or ',' or ';' or ':' or '!' or '?' or '\'' => true,
-                ')' => Count(value, end, '(') < Count(value, end, ')'),
-                ']' => Count(value, end, '[') < Count(value, end, ']'),
-                _ => false,
-            };
-            if (!removable)
-            {
-                break;
-            }
-            end--;
-        }
-        return value[..end];
-    }
-
-    /// <summary>文字列の先頭から指定の長さまでに、ある文字が何個あるか数える</summary>
-    /// <param name="value">文字列</param>
-    /// <param name="length">数える長さ</param>
-    /// <param name="target">数える文字</param>
-    /// <returns>個数</returns>
-    private static int Count(string value, int length, char target)
-    {
-        var count = 0;
-        for (var i = 0; i < length; i++)
-        {
-            if (value[i] == target)
-            {
-                count++;
-            }
-        }
-        return count;
     }
 
     /// <summary>文字を、HTML の文字に直して出力に出す (改行は <c>&lt;br&gt;</c> にする)</summary>

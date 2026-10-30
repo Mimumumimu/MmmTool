@@ -16,9 +16,18 @@ namespace MmmToolWeb.Messages.Client;
 /// <param name="TimeText">送った日時の表示の文字。サーバーの時計で作る。</param>
 /// <param name="DeliveryStatus">自分が送ったメッセージの、通知の状態。送信待ちは 1、送信済みは 2、失敗は 3。自分が送ったのでなければ 0。</param>
 /// <param name="UpdatedAt">最後に更新した日時。同じメッセージが何度届いても、結果が変わらないように、突き合わせに使う。</param>
+/// <param name="Links">本文の中の、リンクにする URL。サーバーが見つける。端末の控えに残っている古いメッセージは null で、本文をそのまま出す。</param>
 public sealed record MessageDto(
     int Id, int ConversationId, int SenderUserId, string SenderName, bool IsMine, int ReplyToMessageId, string? ReplyToSenderName, string? ReplyToText,
-    string Body, DateTimeOffset CreatedAt, string TimeText, int DeliveryStatus, DateTimeOffset UpdatedAt);
+    string Body, DateTimeOffset CreatedAt, string TimeText, int DeliveryStatus, DateTimeOffset UpdatedAt, IReadOnlyList<MessageLinkDto>? Links = null);
+
+/// <summary>
+/// 本文の中の、リンクにする URL 1 つ。
+/// </summary>
+/// <param name="Start">本文の中での始まりの位置。</param>
+/// <param name="Length">画面に出す文字の長さ。</param>
+/// <param name="Href">開く URL。<c>http</c> か <c>https</c> の絶対 URL。</param>
+public sealed record MessageLinkDto(int Start, int Length, string Href);
 
 /// <summary>
 /// 人の一覧に出す、会話 1 つの要約。

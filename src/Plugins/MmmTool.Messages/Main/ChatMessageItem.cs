@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using MmmTool.Messages.Core;
 
 namespace MmmTool.Messages.Main;
@@ -7,9 +8,13 @@ namespace MmmTool.Messages.Main;
 /// </summary>
 /// <param name="source">メッセージ</param>
 /// <param name="isMine">自分が送ったメッセージか</param>
+/// <param name="openLinkCommand">本文のリンクを押したときのコマンド。引数は、開く URL の文字列</param>
 /// <remarks>受け取ったメッセージは左、自分が送ったメッセージは右に寄せる。向きと、出す・出さないは、画面が、この値から決める。</remarks>
-public sealed class ChatMessageItem(ChatMessage source, bool isMine)
+public sealed class ChatMessageItem(ChatMessage source, bool isMine, ICommand openLinkCommand)
 {
+    /// <summary>本文のリンクを押したときのコマンド。引数は、開く URL の文字列</summary>
+    public ICommand OpenLinkCommand { get; } = openLinkCommand;
+
     /// <summary>元のメッセージ</summary>
     public ChatMessage Source { get; } = source;
 

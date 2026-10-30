@@ -1,4 +1,5 @@
 using System.Globalization;
+using MmmSdk.Core.Components.TextLinks;
 using MmmTool.Messages.Core;
 using MmmTool.Users.Core;
 using MmmToolWeb.Features.Client;
@@ -207,7 +208,8 @@ internal static class MessageEndpoints
         => new(
             message.Id, message.ConversationId, message.SenderUserId, message.SenderName, message.SenderUserId == userId, message.ReplyToMessageId,
             message.ReplyToSenderName, message.ReplyToText, message.Body, message.CreatedAt, FormatTime(message.CreatedAt, now),
-            message.DeliveryStatus is { } status ? (int)status : 0, message.UpdatedAt);
+            message.DeliveryStatus is { } status ? (int)status : 0, message.UpdatedAt,
+            [.. TextLinkFinder.Find(message.Body).Select(link => new MessageLinkDto(link.Start, link.Length, link.Href))]);
 
     /// <summary>
     /// 日時を、表示の文字にする。サーバーの時計で作る。ブラウザ上の .NET は、端末のタイムゾーンを知らないため。

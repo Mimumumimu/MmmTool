@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:core="using:MmmTool.Messages.Core"
+    xmlns:links="using:MmmSdk.WinUI.Components.TextLinks"
     xmlns:local="using:MmmTool.Messages.Main">
 
     <Page.Resources>
@@ -60,7 +61,11 @@
                             Text="{x:Bind QuoteText}"
                             TextTrimming="CharacterEllipsis"
                             Visibility="{x:Bind local:MessagesPage.Visible(HasQuote)}" />
-                        <TextBlock IsTextSelectionEnabled="True" Text="{x:Bind Body}" TextWrapping="Wrap" />
+                        <TextBlock
+                            IsTextSelectionEnabled="True"
+                            TextWrapping="Wrap"
+                            links:LinkedText.LinkCommand="{x:Bind OpenLinkCommand}"
+                            links:LinkedText.Text="{x:Bind Body}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock
                                 VerticalAlignment="Center"
@@ -92,8 +97,10 @@
                         <TextBlock
                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                             IsTextSelectionEnabled="True"
-                            Text="{x:Bind Body}"
-                            TextWrapping="Wrap" />
+                            TextWrapping="Wrap"
+                            links:LinkedText.LinkCommand="{x:Bind OpenLinkCommand}"
+                            links:LinkedText.LinkForeground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            links:LinkedText.Text="{x:Bind Body}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock
                                 VerticalAlignment="Center"

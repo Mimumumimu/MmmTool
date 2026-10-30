@@ -77,6 +77,16 @@
     white-space: pre-wrap;
 }
 
+/* 本文の URL。下線でリンクと分かるようにする。自分の吹き出しは強調色の地なので、リンクの色も文字の色にする */
+.body a {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.row.mine .body a {
+    color: inherit;
+}
+
 .quote {
     margin: 0 0 0.375rem;
     padding-left: 0.5rem;

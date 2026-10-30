@@ -27,7 +27,19 @@
                     {
                         <p class="quote"><span class="quote-name">@message.ReplyToSenderName</span>@message.ReplyToText</p>
                     }
-                    <p class="body">@message.Body</p>
+                    <p class="body">
+                        @foreach (var part in BodyParts(message))
+                        {
+                            if (part.Href is null)
+                            {
+                                @part.Text
+                            }
+                            else
+                            {
+                                <a href="@part.Href" target="_blank" rel="noopener noreferrer">@part.Text</a>
+                            }
+                        }
+                    </p>
                 </div>
                 <div class="meta">
                     <span>@message.TimeText</span>
@@ -498,6 +510,39 @@
         3 => "失敗",
         _ => "",
     };
+
+    /// <summary>本文を、文字とリンクに分ける。サーバーが見つけた位置を使い、<c>http</c> か <c>https</c> 以外は、リンクにしない。</summary>
+    /// <param name="message">メッセージ。</param>
+    /// <returns>本文の順に並べた、文字の部分とリンクの部分。リンクの部分だけが、開く URL を持つ。</returns>
+    private static IEnumerable<(string Text, string? Href)> BodyParts(MessageDto message)
+    {
+        var body = message.Body;
+        var position = 0;
+        foreach (var link in message.Links ?? [])
+        {
+            if (link.Start < position || link.Length <= 0 || link.Start + link.Length > body.Length || !IsWebLink(link.Href))
+            {
+                continue;
+            }
+
+            if (link.Start > position)
+            {
+                yield return (body[position..link.Start], null);
+            }
+            yield return (body.Substring(link.Start, link.Length), link.Href);
+            position = link.Start + link.Length;
+        }
+        if (position < body.Length)
+        {
+            yield return (body[position..], null);
+        }
+    }
+
+    /// <summary>開いてよいリンク先か。端末の控えを経由した値なので、画面でも確かめる。</summary>
+    /// <param name="href">リンク先。</param>
+    /// <returns><c>http</c> か <c>https</c> の絶対 URL なら true。</returns>
+    private static bool IsWebLink(string href)
+        => Uri.TryCreate(href, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
 
     /// <summary>本文の 1 行目を取る。</summary>
     /// <param name="text">本文。</param>

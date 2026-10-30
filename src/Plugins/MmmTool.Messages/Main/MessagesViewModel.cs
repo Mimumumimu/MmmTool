@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Errors;
@@ -14,12 +15,13 @@ namespace MmmTool.Messages.Main;
 /// <param name="repository">会話とメッセージの保存先</param>
 /// <param name="sync">会話とメッセージを読み続ける部品</param>
 /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
+/// <param name="opener">本文のリンク先を開く処理</param>
 /// <remarks>
 /// 画面は、左の会話の一覧から会話を開く。新しい相手には、「新しい会話」で宛先に選べる人の一覧を出して選ぶ。やり取りが無い人を選ぶと、空の会話の画面を出す。会話は、最初の送信で作る。
 /// 最初は、端末の控えから出し、続けて DB から最新を読む。新着は、読み続ける部品 (<see cref="MessageSyncService"/>)から受ける。
 /// 外部へ送る処理は、MmmTool には無い。「送信」は、メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
 /// </remarks>
-public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync, MessagesViewState state) : ObservableObject, IDisposable
+public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync, MessagesViewState state, IPathOpener opener) : ObservableObject, IDisposable
 {
     /// <summary>宛先に選べる人を、1 回に読む最大の件数</summary>
     private const int SearchCount = 100;
@@ -394,6 +396,23 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>返信をやめる</summary>
     [RelayCommand]
     private void CancelReply() => ReplyTo = null;
+
+    /// <summary>本文のリンクを、既定のブラウザで開く</summary>
+    /// <param name="href">開く URL。本文から見つけた <c>http</c> か <c>https</c></param>
+    /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>開けなかったときは、失敗を表示する。</remarks>
+    [RelayCommand]
+    private async Task OpenLinkAsync(string href)
+    {
+        try
+        {
+            await opener.OpenAsync(href);
+        }
+        catch (PathOpenException ex)
+        {
+            Error.Show($"リンクを開けませんでした: {ex.Message}");
+        }
+    }
 
     /// <summary>古いメッセージを、50 件読み足す。画面が、先頭に近づいたときに呼ぶ</summary>
     /// <returns>読み足しの完了を表すタスク</returns>
@@ -772,7 +791,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>メッセージを、画面の行にする</summary>
     /// <param name="message">メッセージ</param>
     /// <returns>画面の行。自分が送ったメッセージかは、読み込んだ人の番号で決める</returns>
-    private ChatMessageItem ToItem(ChatMessage message) => new(message, message.SenderUserId == sync.UserId);
+    private ChatMessageItem ToItem(ChatMessage message) => new(message, message.SenderUserId == sync.UserId, OpenLinkCommand);
 
     /// <summary>本文の 1 行目を取る</summary>
     /// <param name="text">本文</param>
