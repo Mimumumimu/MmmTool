@@ -192,7 +192,7 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/CliCommands.json` | CLI補助の定型コマンド。無ければ既定の内容で作成 |
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・履歴・開いているタブと選んでいるタブ |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文とグループ。編集画面で保存したときに作成 |
-| `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たらターミナルへフォーカスを移す文字列。編集画面で保存したときに作成 |
+| `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たら知らせる文字列と、ターミナルへフォーカスも移すか。編集画面で保存したときに作成 |
 | `Data/Links.json` | リンクの構成。無ければ空で作成 |
 | `Data/MmmTool.db` | 作業管理とノートのデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
 | `Data/Reminders.json` | リマインダー本体 |

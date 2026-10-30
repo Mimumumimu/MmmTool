@@ -31,7 +31,7 @@ public sealed class CliAssistPlugin : IFeaturePlugin
 
         // よく使う文 (手で書いても、編集画面で書いてもよいファイル)
         services.AddSingleton<ICliQuickMessageRepository, JsonCliQuickMessageRepository>();
-        // ターミナルへ移る文字列 (編集画面で書いても、手で書いてもよいファイル)
+        // 通知する文字列 (編集画面で書いても、手で書いてもよいファイル)
         services.AddSingleton<ICliFocusTriggerRepository, JsonCliFocusTriggerRepository>();
 
         services.AddSingleton<CliSettingsService>();

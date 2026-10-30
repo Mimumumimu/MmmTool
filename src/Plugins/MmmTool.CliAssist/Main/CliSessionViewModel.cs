@@ -36,10 +36,13 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private readonly CliQuickMessageService _quickMessageService;
     /// <summary>よく使う文の編集ダイアログ</summary>
     private readonly IQuickMessageDialogService _quickMessageDialog;
-    /// <summary>ターミナルへ移る文字列</summary>
+    /// <summary>通知する文字列</summary>
     private readonly CliFocusTriggerService _focusTriggerService;
-    /// <summary>ターミナルの出力から、ターミナルへ移る文字列を見つける</summary>
-    private readonly TerminalOutputWatcher _focusTriggerWatcher;
+    /// <summary>ターミナルの出力から、「ターミナルへ移る」がオンの通知する文字列を見つける</summary>
+    /// <remarks>オフの文字列と別の見張りにする。見張りは最初に見つけた 1 つで止まるので、同じ見張りに混ぜると、オフの文字列が先に出たとき、オンの確認を逃すため。</remarks>
+    private readonly TerminalOutputWatcher _moveWatcher;
+    /// <summary>ターミナルの出力から、「ターミナルへ移る」がオフの通知する文字列を見つける</summary>
+    private readonly TerminalOutputWatcher _notifyWatcher;
     /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
     private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
@@ -54,7 +57,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="timeProvider">現在時刻の提供元</param>
     /// <param name="quickMessages">よく使う文</param>
     /// <param name="quickMessageDialog">よく使う文の編集ダイアログ</param>
-    /// <param name="focusTriggers">フォーカスを移す文字列</param>
+    /// <param name="focusTriggers">通知する文字列</param>
     public CliSessionViewModel(
         ITerminalSession terminal,
         [FromKeyedServices(CliEnvironment.Windows)] AttachmentStore windowsAttachmentStore,
@@ -87,9 +90,11 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         Terminal.Exited += OnShellExited;
 
         _focusTriggerService = focusTriggers;
-        _focusTriggerWatcher = new TerminalOutputWatcher(terminal);
-        _focusTriggerWatcher.SetPatterns(focusTriggers.Texts);
-        _focusTriggerWatcher.Matched += OnFocusTriggerMatched;
+        _moveWatcher = new TerminalOutputWatcher(terminal);
+        _notifyWatcher = new TerminalOutputWatcher(terminal);
+        SetWatcherPatterns();
+        _moveWatcher.Matched += OnMoveTriggerMatched;
+        _notifyWatcher.Matched += OnNotifyTriggerMatched;
         // 編集画面で保存したら、全タブの見張りの文字列を差し替える
         _focusTriggerService.Changed += OnFocusTriggersChanged;
 
@@ -158,17 +163,22 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <remarks>起動し直すには端末の大きさが要り、それは画面 (ターミナルのコントロール)が持っているため。</remarks>
     public event EventHandler? TerminalRestartRequested;
 
-    /// <summary>出力に、フォーカスを移す文字列が出たので、ターミナルへのフォーカスの移動を View に頼む</summary>
+    /// <summary>出力に、通知する文字列が出たので、View に知らせる</summary>
     /// <remarks>
+    /// 引数は、その文字列で、ターミナルへフォーカスも移すか。
     /// 画面に出ているか、入力欄が空かは、View が確かめる。
     /// </remarks>
-    public event EventHandler? FocusTriggerMatched;
+    public event EventHandler<bool>? FocusTriggerMatched;
+
+    /// <summary>画面に出ていない間に出た確認で、画面に出たときにターミナルへフォーカスも移すか</summary>
+    /// <remarks><see cref="IsAwaitingInput"/> が true のときだけ意味を持つ。</remarks>
+    public bool AwaitingMovesToTerminal { get; set; }
 
     /// <summary>画面に出ていない間に、ターミナルで確認が出たか</summary>
     /// <remarks>
     /// 選ばれていないタブと、ほかのページを開いている間のタブが対象。タブの帯に印を出す。
     /// 画面に出たとき (View が読み込まれたとき)に、ターミナルへフォーカスを移して、false に戻す。
-    /// シェルの終了・起動し直し・移る文字列の保存でも false に戻す。確認が、もう出ていない恐れがあるため。
+    /// シェルの終了・起動し直し・通知する文字列の保存でも false に戻す。確認が、もう出ていない恐れがあるため。
     /// </remarks>
     [ObservableProperty]
     public partial bool IsAwaitingInput { get; set; }
@@ -177,24 +187,42 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="target">フォーカスを移す先</param>
     public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(this, target);
 
-    /// <summary>ターミナルへ移る文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
+    /// <summary>通知する文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
     private void OnFocusTriggersChanged()
     {
-        _focusTriggerWatcher.SetPatterns(_focusTriggerService.Texts);
+        SetWatcherPatterns();
         IsAwaitingInput = false;
     }
 
-    /// <summary>フォーカスを移す文字列が出力に出たときの処理</summary>
+    /// <summary>2 つの見張りに、通知する文字列を振り分けて渡す</summary>
+    /// <remarks>同じ文字列が、オンとオフの両方にあるときは、両方の見張りが見つける。オンの見張りが移すので、移すほうが勝つ。</remarks>
+    private void SetWatcherPatterns()
+    {
+        var triggers = _focusTriggerService.Triggers;
+        _moveWatcher.SetPatterns(triggers.Where(trigger => trigger.MoveToTerminal).Select(trigger => trigger.Text!));
+        _notifyWatcher.SetPatterns(triggers.Where(trigger => !trigger.MoveToTerminal).Select(trigger => trigger.Text!));
+    }
+
+    /// <summary>「ターミナルへ移る」がオンの文字列が出力に出たときの処理</summary>
     /// <param name="sender">イベントの送信元</param>
-    /// <param name="text">見つかった文字列</param>
+    /// <param name="text">見つかった文字列 (空白を除いたもの)</param>
+    private void OnMoveTriggerMatched(object? sender, string text) => NotifyMatched(moveToTerminal: true);
+
+    /// <summary>「ターミナルへ移る」がオフの文字列が出力に出たときの処理</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="text">見つかった文字列 (空白を除いたもの)</param>
+    private void OnNotifyTriggerMatched(object? sender, string text) => NotifyMatched(moveToTerminal: false);
+
+    /// <summary>通知する文字列が出たことを View に頼む</summary>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか</param>
     /// <remarks>出力はスレッドプールから届くので、UI スレッドへ移して頼む。</remarks>
-    private void OnFocusTriggerMatched(object? sender, string text)
+    private void NotifyMatched(bool moveToTerminal)
     {
         _uiContext?.Post(_ =>
         {
             if (!_disposed)
             {
-                FocusTriggerMatched?.Invoke(this, EventArgs.Empty);
+                FocusTriggerMatched?.Invoke(this, moveToTerminal);
             }
         }, null);
     }
@@ -559,8 +587,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         _quickMessageService.Changed -= OnQuickMessagesChanged;
         Terminal.Exited -= OnShellExited;
         _focusTriggerService.Changed -= OnFocusTriggersChanged;
-        _focusTriggerWatcher.Matched -= OnFocusTriggerMatched;
-        _focusTriggerWatcher.Dispose();
+        _moveWatcher.Matched -= OnMoveTriggerMatched;
+        _moveWatcher.Dispose();
+        _notifyWatcher.Matched -= OnNotifyTriggerMatched;
+        _notifyWatcher.Dispose();
         Terminal.Dispose();
         _windowsAttachmentStore.Dispose();
         _wslAttachmentStore.Dispose();

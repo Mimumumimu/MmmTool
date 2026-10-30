@@ -68,8 +68,8 @@
                         <FontIcon FontSize="14" Glyph="&#xE712;" />
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <!-- ターミナルに特定の文字列が出たとき、ターミナルへフォーカスを移す文字列の編集 -->
-                                <MenuFlyoutItem Command="{x:Bind ViewModel.EditFocusTriggersCommand}" Text="ターミナルへ移る文字列…">
+                                <!-- ターミナルに特定の文字列が出たとき、知らせる文字列の編集 -->
+                                <MenuFlyoutItem Command="{x:Bind ViewModel.EditFocusTriggersCommand}" Text="通知する文字列…">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xE70F;" />
                                     </MenuFlyoutItem.Icon>

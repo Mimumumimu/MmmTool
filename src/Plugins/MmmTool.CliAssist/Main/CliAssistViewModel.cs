@@ -25,7 +25,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private readonly CliSettingsService _settings;
     /// <summary>よく使う文</summary>
     private readonly CliQuickMessageService _quickMessages;
-    /// <summary>フォーカスを移す文字列</summary>
+    /// <summary>通知する文字列</summary>
     private readonly CliFocusTriggerService _focusTriggers;
     /// <summary>セッションを作る</summary>
     private readonly CliSessionFactory _sessionFactory;
@@ -33,7 +33,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private readonly IWorkingDirectoryDialogService _workingDirectoryDialog;
     /// <summary>初期設定ダイアログ</summary>
     private readonly ICliSetupDialogService _setupDialog;
-    /// <summary>ターミナルへ移る文字列の編集ダイアログ</summary>
+    /// <summary>通知する文字列の編集ダイアログ</summary>
     private readonly IFocusTriggerDialogService _focusTriggerDialog;
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _dialogs;
@@ -49,11 +49,11 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <param name="commandRepository">定型コマンドの保存先</param>
     /// <param name="settings">CLI補助の利用状態</param>
     /// <param name="quickMessages">よく使う文</param>
-    /// <param name="focusTriggers">フォーカスを移す文字列</param>
+    /// <param name="focusTriggers">通知する文字列</param>
     /// <param name="sessionFactory">セッションを作る</param>
     /// <param name="workingDirectoryDialog">作業ディレクトリ変更ダイアログを開く</param>
     /// <param name="setupDialog">初期設定ダイアログを開く</param>
-    /// <param name="focusTriggerDialog">ターミナルへ移る文字列の編集ダイアログを開く</param>
+    /// <param name="focusTriggerDialog">通知する文字列の編集ダイアログを開く</param>
     /// <param name="dialogs">確認ダイアログ</param>
     public CliAssistViewModel(
         ICliCommandRepository commandRepository,
@@ -321,7 +321,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         RebuildCommandItems();
     }
 
-    /// <summary>ターミナルへ移る文字列の編集ダイアログを開く</summary>
+    /// <summary>通知する文字列の編集ダイアログを開く</summary>
     /// <returns>ダイアログが閉じるまでの完了を表すタスク</returns>
     /// <remarks>読み込みに失敗しているときは、読めなかったファイルを上書きしないよう、開かずに理由を InfoBar で知らせる。</remarks>
     [RelayCommand]
@@ -329,7 +329,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     {
         if (!_focusTriggers.CanEdit)
         {
-            SelectedSession.Error.Show(_focusTriggers.LoadError ?? "ターミナルへ移る文字列を読み込めなかったため、編集できません。");
+            SelectedSession.Error.Show(_focusTriggers.LoadError ?? "通知する文字列を読み込めなかったため、編集できません。");
             return;
         }
         await _focusTriggerDialog.ShowAsync();
