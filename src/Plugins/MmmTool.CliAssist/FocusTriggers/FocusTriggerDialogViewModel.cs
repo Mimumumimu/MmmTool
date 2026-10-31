@@ -7,8 +7,8 @@ using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.FocusTriggers;
 
-/// <summary>ターミナルへ移る文字列の編集ダイアログの ViewModel</summary>
-/// <param name="focusTriggers">ターミナルへ移る文字列</param>
+/// <summary>通知する文字列の編集ダイアログの ViewModel</summary>
+/// <param name="focusTriggers">通知する文字列</param>
 public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService focusTriggers) : ObservableObject
 {
     /// <summary>編集中の一覧 (保存するまで、サービスには反映しない)</summary>
@@ -28,9 +28,11 @@ public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService f
     public void Initialize()
     {
         Items.Clear();
-        foreach (var text in focusTriggers.Texts)
+        foreach (var trigger in focusTriggers.Triggers)
         {
-            Items.Add(CreateItem(text));
+            var item = CreateItem(trigger.Text!);
+            item.MoveToTerminal = trigger.MoveToTerminal;
+            Items.Add(item);
         }
         OnPropertyChanged(nameof(HasNoItems));
         Error.Clear();
@@ -59,7 +61,7 @@ public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService f
 
         try
         {
-            await focusTriggers.SaveAsync(Items.Select(item => new CliFocusTrigger { Text = item.Text }));
+            await focusTriggers.SaveAsync(Items.Select(item => new CliFocusTrigger { Text = item.Text, MoveToTerminal = item.MoveToTerminal }));
         }
         catch (DataFileException ex)
         {

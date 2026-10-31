@@ -1,3 +1,4 @@
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.Data.WorkItems;
@@ -77,6 +78,13 @@ public sealed record WorkItemRow
     /// <summary>実績の累計 (記録を保存するたびに、保存先が計算し直して書く)</summary>
     public decimal ActualTotalHours { get; init; }
 
+    /// <summary>自動入力の時間 (0 は自動入力しない)</summary>
+    public decimal AutoHours { get; init; }
+
+    /// <summary>自動入力する曜日</summary>
+    /// <remarks>月 = 1 から日 = 64 の足し算の数。0 と 127 は、どちらも毎日。</remarks>
+    public byte AutoWeekdays { get; init; }
+
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="item">作業</param>
     /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
@@ -95,6 +103,10 @@ public sealed record WorkItemRow
         if (!Enum.IsDefined(item.ReportExclusion))
         {
             throw new ArgumentException("作業の報告から外す範囲の値が正しくありません。", nameof(item));
+        }
+        if ((int)item.AutoWeekdays is < 0 or > (int)Weekdays.All)
+        {
+            throw new ArgumentException($"自動入力の曜日 {(int)item.AutoWeekdays} は、0 から 127 の範囲ではありません。", nameof(item));
         }
         return new WorkItemRow
         {
@@ -116,6 +128,8 @@ public sealed record WorkItemRow
             PlannedHours = item.PlannedHours is { } planned ? WorkRowValues.FromHours(planned, "予定時間", WorkItemLimits.PlannedHoursMax) : 0,
             CompletedDate = WorkRowValues.FromDate(item.CompletedDate, "完了日"),
             ActualTotalHours = WorkRowValues.FromHours(item.ActualTotalHours, "実績の累計", 9_999_999_999),
+            AutoHours = WorkRowValues.FromHours(item.AutoHours, "自動入力の時間", WorkItemLimits.DailyHoursMax),
+            AutoWeekdays = (byte)item.AutoWeekdays,
         };
     }
 
@@ -140,6 +154,8 @@ public sealed record WorkItemRow
         PlannedHours = PlannedHours > 0 ? WorkRowValues.ToHours(PlannedHours) : null,
         CompletedDate = WorkRowValues.ToDate(CompletedDate),
         ActualTotalHours = WorkRowValues.ToHours(ActualTotalHours),
+        AutoHours = WorkRowValues.ToHours(AutoHours),
+        AutoWeekdays = (Weekdays)AutoWeekdays,
         IsDeleted = IsDeleted,
         UpdatedAt = UpdatedAt,
     };

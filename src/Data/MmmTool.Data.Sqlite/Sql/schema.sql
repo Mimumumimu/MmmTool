@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS WorkGroup
 
 -- 作業。GroupId の 0 は案件の直下。日付のない日は、開始日が 0001-01-01、期限日が 9999-12-31、完了日の 9999-12-31 は未完了
 -- ReportExclusion は、作業報告のどの部分から外すか。0 は外さない、1 は予定から外して実績には出す、2 は実績と予定の両方から外す
+-- AutoHours は、毎日決まった工数を自動で入れる設定の時間で、0 は自動入力しない
+-- AutoWeekdays は入れる曜日で、月 = 1 から日 = 64 の足し算の数。0 と 127 は、どちらも毎日
 CREATE TABLE IF NOT EXISTS WorkItem
 (
     Id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +60,9 @@ CREATE TABLE IF NOT EXISTS WorkItem
     ActualTotalHours REAL    NOT NULL DEFAULT 0 CHECK (ActualTotalHours >= 0),
     Link             TEXT    NOT NULL DEFAULT '' CHECK (length(Link) <= 2000),
     ReportExclusion  INTEGER NOT NULL DEFAULT 0 CHECK (ReportExclusion IN (0, 1, 2)),
-    StatusCodeNo     INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
+    AutoHours        REAL    NOT NULL DEFAULT 0 CHECK (AutoHours >= 0 AND AutoHours <= 24),
+    AutoWeekdays     INTEGER NOT NULL DEFAULT 0 CHECK (AutoWeekdays BETWEEN 0 AND 127),
+    StatusCodeNo    INTEGER NOT NULL DEFAULT 1 CHECK (StatusCodeNo >= 1),
     ProgressCodeNo   INTEGER NOT NULL DEFAULT 1 CHECK (ProgressCodeNo >= 1),
     Note             TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)
 );
@@ -168,11 +172,17 @@ CREATE INDEX IF NOT EXISTS IX_Note_EndDate_StartDate ON Note (EndDate, StartDate
 -- 実際の今日が実施日のノートを探す (未設定の行を走査しない)
 CREATE INDEX IF NOT EXISTS IX_Note_EventDate ON Note (EventDate);
 
+-- 前回読んだ時刻の後に更新されたノートを探す。他の人の作成・更新の通知に使う。SQL Server と同じ名前・同じ列。論理削除された行も含める
+CREATE INDEX IF NOT EXISTS IX_Note_UpdatedAt ON Note (UpdatedAt);
+
 -- ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId ON WorkItem (StatusCodeNo, CompletedDate, AssigneeUserId) WHERE IsDeleted = 0;
 
 -- ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkRecord_Date_WorkItemId ON WorkRecord (Date, WorkItemId) WHERE IsDeleted = 0;
+
+-- 自動入力の設定がある作業を、担当者から探す。大半の作業は設定が無いので、設定のある作業だけを入れる
+CREATE INDEX IF NOT EXISTS IX_WorkItem_AssigneeUserId_AutoHours ON WorkItem (AssigneeUserId) WHERE IsDeleted = 0 AND AutoHours > 0;
 
 -- ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkDayNote_Date_UserId ON WorkDayNote (Date, UserId) WHERE IsDeleted = 0;

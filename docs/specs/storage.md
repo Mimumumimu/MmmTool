@@ -37,7 +37,7 @@
 | `Data/CliCommands.json` | CLI補助の定型コマンドと、動かす環境 (`environment`: `windows` / `wsl`) | ローカル専用。ID なしの入れ子 JSON。無ければ、初期設定ダイアログ (使うツール・環境)を出してから既定を生成 |
 | `Data/CliSettings.json` | CLI補助の最後の作業ディレクトリ・ディレクトリ履歴 (20 件)・開いているタブと選んでいるタブ (次回の起動で戻す) | ローカル専用 |
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (文は `label` 省略可・`text`、グループは `label`・`items`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
-| `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たらターミナルへフォーカスを移す文字列 (`text`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何もせず、編集画面で保存したときに作る |
+| `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たら知らせる文字列 (`text`)と、ターミナルへフォーカスも移すか (`moveToTerminal`・真偽値・項目が無ければ `true`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何もせず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
 | `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・日報メモ (自分の分で、表 `WorkDayNote` の `UserId`・`Date`・`Note`)・コードマスタ (状態・進捗度・優先度の選択肢)・ノート (表 `Note` の期間・実施日 `EventDate`・タイトル・本文・重要度) | SQLite で、ローカルモードの保存先。DB モードでは SQL Server に保存するので使わない。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`・`CodeMaster`・`Note` の 7 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す。詳細は [work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」・ノートは [notes.md](notes.md) |
 | `Data/Reminders.json` | リマインダー | ローカルモードの保存先で、ID あり。DB モードでは使わない (SQL Server に保存する) |
@@ -56,6 +56,7 @@
 | ノートに作業報告の枠を出すか | `Notes.Sources.WorkReport.Enabled` | 真偽。既定は false。詳細は [notes-sources.md](notes-sources.md) |
 | 表示しない案件 | `WorkItems.HiddenProjects` | 案件の番号をカンマでつないだ文字列で、例は `1,5,7`。無ければ全部表示 |
 | 読み上げの音量 | `Speech.VolumePercent` | 0〜100 の整数 |
+| メインウィンドウの × ボタンの動き | `Shell.CloseButtonAction` | `"Tray"` (トレイに残る)・`"Exit"` (終了する)の文字列。無ければ・読めない値なら `"Tray"`。詳細は [settings.md](settings.md) |
 | まとめて追加で前回選んだ「何分前に通知」 | `Reminder.Bulk.LeadMinutes` | 0・3・5・10・15 のどれか。無ければ 5。詳細は [reminders.md](reminders.md) の「まとめて追加」 |
 | まとめて追加で前回選んだ「通知を読み上げる」 | `Reminder.Bulk.IsSpeak` | 真偽。既定は false |
 | まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
@@ -74,6 +75,9 @@
 - DB のパスワードは、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmTool.Database`)に保存する
   - MmmTool と MmmToolAdmin は、同じ名前を使うので、同じ Windows ユーザーなら、どちらで入れたパスワードも、もう一方が使う。片方の接続の設定画面でパスワードを入れ直すと、もう一方も、新しいパスワードで動く。
   - MmmBatch は `MmmBatch.Database`、MmmToolWeb は `MmmToolWeb.Database` で、アプリごとに分ける。
+- 通知の受け取り先と、機能ごとの「通知を受け取る」のオン・オフは、Data フォルダーに書かず、SQL Server のユーザーごとの設定 `AppUserSetting` に保存する
+  - 人ごとの設定で、どの PC・どの端末でも同じ内容を使うため。サーバーモードだけで、ローカルモードには無い。
+  - 詳細は [notification-settings.md](notification-settings.md)
 - MmmBatch の Web 版通知の鍵の組 (公開鍵と秘密鍵)は、Data フォルダーに書かず、資格情報マネージャー (汎用資格情報 `MmmBatch.WebPushKeys`)に保存する
   - DB のパスワードと同じ置き場にする。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」
 

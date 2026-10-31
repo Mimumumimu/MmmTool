@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Core\MmmSdk.Core.csproj" />
+    <ProjectReference Include="..\..\NotificationChannels\MmmTool.NotificationChannels.Core\MmmTool.NotificationChannels.Core.csproj" />
+    <ProjectReference Include="..\MmmBatch.Sending.Core\MmmBatch.Sending.Core.csproj" />
+    <ProjectReference Include="..\MmmTool.Notes.Core\MmmTool.Notes.Core.csproj" />
+  </ItemGroup>
+
+</Project>

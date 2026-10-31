@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Notes;
 using MmmTool.Notes.Core;
+using MmmTool.NotificationChannels.Core;
 using MmmToolWeb.Features;
 using MmmToolWeb.Notes.Client;
 
@@ -33,6 +34,10 @@ public sealed class NotesWebFeature : IWebFeature
 
         // 他の機能が登録した内容 (作業報告など)を集める。提供する機能の名前は持たない
         services.AddScoped<DayContentService>();
+
+        // ノートの通知を押したときに、そのノートが有効な日で、ノートのページを開く。「通知を受け取る」のオン・オフとしても登録する
+        services.AddScoped<INotificationDestination, NoteNotificationDestination>();
+        services.AddSingleton<INotificationFeatureSetting, NoteNotificationSetting>();
 
         services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Insert(0, NotesJsonContext.Default));
     }

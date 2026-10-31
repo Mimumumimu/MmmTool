@@ -25,8 +25,8 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
     /// <summary>知らせ済みの印を残す時間。戻して読む時間より長くする</summary>
     private static readonly TimeSpan RememberTime = MessageSync.Lookback + TimeSpan.FromSeconds(20);
 
-    /// <summary>知らせ済みの、メッセージの番号と更新日時と、知らせた相手。古いものから捨てる</summary>
-    private readonly Dictionary<(int MessageId, DateTimeOffset UpdatedAt, int UserId), DateTimeOffset> _seen = [];
+    /// <summary>知らせ済みの、更新された行の種類と番号と更新日時と、知らせた相手。古いものから捨てる</summary>
+    private readonly Dictionary<(bool IsReadPosition, int RowId, DateTimeOffset UpdatedAt, int UserId), DateTimeOffset> _seen = [];
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -73,7 +73,7 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
         var users = new HashSet<int>();
         foreach (var change in changes)
         {
-            if (_seen.TryAdd((change.MessageId, change.UpdatedAt, change.UserId), now))
+            if (_seen.TryAdd((change.IsReadPosition, change.RowId, change.UpdatedAt, change.UserId), now))
             {
                 users.Add(change.UserId);
             }

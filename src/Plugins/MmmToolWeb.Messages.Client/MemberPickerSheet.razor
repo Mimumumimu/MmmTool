@@ -1,0 +1,110 @@
+@* 複数の人を選ぶシート。新しいグループの名前と参加者を決める、または開いているグループへ人を追加する。 *@
+<SheetFrame Label="@Title">
+    <FeatureHeader Title="@Title" Busy="@Busy" BackText="キャンセル" BackMark="" OnBack="OnCancel">
+        <button type="button" class="text strong" @onclick="ConfirmAsync" disabled="@(!CanConfirm || Busy)">@ConfirmText</button>
+    </FeatureHeader>
+
+    @if (ShowName)
+    {
+        <label class="field" for="group-name">グループ名</label>
+        <input id="group-name" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
+    }
+
+    <p class="count">参加者 @SelectedCount 人</p>
+    <p class="limit">自分を含めて @MaxMembers 人までです</p>
+    @if (Reason.Length > 0)
+    {
+        <p class="reason" role="status">@Reason</p>
+    }
+
+    @if (People.Count == 0)
+    {
+        <p class="empty">宛先にできる人がいません。</p>
+    }
+
+    <ul class="list" aria-label="参加者に選べる人">
+        @foreach (var person in People)
+        {
+            <li>
+                <label class="row">
+                    <input type="checkbox" checked="@_selected.Contains(person.UserId)" @onchange="e => Toggle(person.UserId, e.Value is true)" />
+                    <span>@person.DisplayName</span>
+                </label>
+            </li>
+        }
+    </ul>
+</SheetFrame>
+
+@code {
+    private readonly HashSet<int> _selected = [];
+    private string _name = "";
+
+    /// <summary>シートの題名と、読み上げの名前。</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>上のバーの右の確定ボタンの文字。</summary>
+    [Parameter, EditorRequired]
+    public string ConfirmText { get; set; } = "";
+
+    /// <summary>グループの名前の入力欄を出すか。新しいグループのとき true。</summary>
+    [Parameter]
+    public bool ShowName { get; set; }
+
+    /// <summary>選べる人。自分と、すでに入っている人は含めない。</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PersonDto> People { get; set; } = [];
+
+    /// <summary>グループの名前の最大の長さ。</summary>
+    [Parameter]
+    public int NameMaxLength { get; set; } = 50;
+
+    /// <summary>グループの参加者の最大の人数。自分を含む。</summary>
+    [Parameter]
+    public int MaxMembers { get; set; } = 50;
+
+    /// <summary>すでに入っている人数。自分を含む。新しいグループは 1。</summary>
+    [Parameter]
+    public int ExistingCount { get; set; } = 1;
+
+    /// <summary>確定の処理を待っている間か。true の間、確定を押せず、進行バーを出す。</summary>
+    [Parameter]
+    public bool Busy { get; set; }
+
+    /// <summary>取りやめたとき。</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>確定したとき。名前と、選んだ人の番号を渡す。</summary>
+    [Parameter]
+    public EventCallback<MemberPick> OnConfirm { get; set; }
+
+    private int SelectedCount => _selected.Count;
+
+    private bool NameIsValid => !ShowName || (_name.Trim().Length > 0 && _name.Trim().Length <= NameMaxLength);
+
+    private bool CountIsValid => SelectedCount >= 1 && ExistingCount + SelectedCount <= MaxMembers;
+
+    private bool CanConfirm => NameIsValid && CountIsValid;
+
+    /// <summary>確定を押せない理由。押せるときは空文字。</summary>
+    private string Reason
+        => !NameIsValid ? "グループ名を入れてください"
+        : SelectedCount == 0 ? "参加者を選んでください"
+        : ExistingCount + SelectedCount > MaxMembers ? $"自分を含めて {MaxMembers} 人までです"
+        : "";
+
+    private void Toggle(int userId, bool selected)
+    {
+        if (selected)
+        {
+            _selected.Add(userId);
+        }
+        else
+        {
+            _selected.Remove(userId);
+        }
+    }
+
+    private Task ConfirmAsync() => CanConfirm ? OnConfirm.InvokeAsync(new MemberPick(_name.Trim(), [.. _selected])) : Task.CompletedTask;
+}

@@ -8,6 +8,7 @@
     <ProjectReference Include="..\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmBatch.ReminderSending.Core\MmmBatch.ReminderSending.Core.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmBatch.MessageSending.Core\MmmBatch.MessageSending.Core.csproj" />
+    <ProjectReference Include="..\..\Plugins\MmmBatch.NoteSending.Core\MmmBatch.NoteSending.Core.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmBatch.Sending.Core\MmmBatch.Sending.Core.csproj" />
   </ItemGroup>
 

@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Paths;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
+using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.Messages.Core;
 
@@ -14,12 +16,16 @@ namespace MmmTool.Messages.Main;
 /// <param name="repository">会話とメッセージの保存先</param>
 /// <param name="sync">会話とメッセージを読み続ける部品</param>
 /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
+/// <param name="opener">本文のリンク先を開く処理</param>
+/// <param name="dialogs">確認ダイアログを開く口。グループを抜けるときの確認に使う</param>
 /// <remarks>
 /// 画面は、左の会話の一覧から会話を開く。新しい相手には、「新しい会話」で宛先に選べる人の一覧を出して選ぶ。やり取りが無い人を選ぶと、空の会話の画面を出す。会話は、最初の送信で作る。
+/// 新しいグループは、宛先の一覧の先頭の「新しいグループ」から、名前と参加者を選んで、空のグループの画面を出す。会話は、1 対 1 と同じく、最初の送信で作る。
 /// 最初は、端末の控えから出し、続けて DB から最新を読む。新着は、読み続ける部品 (<see cref="MessageSyncService"/>)から受ける。
 /// 外部へ送る処理は、MmmTool には無い。「送信」は、メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
 /// </remarks>
-public sealed partial class MessagesViewModel(IMessageRepository repository, MessageSyncService sync, MessagesViewState state) : ObservableObject, IDisposable
+public sealed partial class MessagesViewModel(
+    IMessageRepository repository, MessageSyncService sync, MessagesViewState state, IPathOpener opener, IDialogService dialogs) : ObservableObject, IDisposable
 {
     /// <summary>宛先に選べる人を、1 回に読む最大の件数</summary>
     private const int SearchCount = 100;
@@ -66,14 +72,63 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
 
     /// <summary>宛先の人を選ぶ画面にしているか。「新しい会話」で入り、人を選ぶか「戻る」で出る</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsConversationListVisible), nameof(IsPeopleListVisible), nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
+    [NotifyPropertyChangedFor(nameof(IsConversationListVisible), nameof(IsPeopleListVisible), nameof(IsBackVisible), nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
     public partial bool IsPickingPerson { get; set; }
 
+    /// <summary>複数の人を選ぶ画面にしているか。「新しいグループ」と「人を追加」で入り、「戻る」か確定で出る</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(
+        nameof(IsConversationListVisible), nameof(IsMemberSelectVisible), nameof(IsBackVisible), nameof(EmptyNoticeText), nameof(IsEmptyNoticeVisible))]
+    public partial bool IsSelectingMembers { get; set; }
+
+    /// <summary>複数の人を選ぶ画面が、新しいグループの名前を決める画面か。false のときは、開いているグループへ人を追加する画面</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MemberSelectTitle), nameof(MemberConfirmText))]
+    public partial bool IsNamingGroup { get; set; }
+
+    /// <summary>新しいグループの名前の入力</summary>
+    [ObservableProperty]
+    public partial string GroupNameInput { get; set; } = "";
+
+    /// <summary>複数の人を選ぶ画面の題名</summary>
+    public string MemberSelectTitle => IsNamingGroup ? "新しいグループ" : "人を追加";
+
+    /// <summary>複数の人を選ぶ画面の確定ボタンの文字。新しいグループは、会話をまだ作らないので「次へ」</summary>
+    public string MemberConfirmText => IsNamingGroup ? "次へ" : "追加";
+
+    /// <summary>選んでいる人数の文字</summary>
+    public string SelectedMembersText => $"参加者 {People.Count(person => person.IsSelected)} 人";
+
+    /// <summary>人数の上限の注意書き</summary>
+    public static string MemberLimitText => $"自分を含めて {MessageLimits.GroupMaxMembers} 人までです";
+
     /// <summary>会話の一覧を出すか。人を選ぶ画面でないとき</summary>
-    public bool IsConversationListVisible => !IsPickingPerson;
+    public bool IsConversationListVisible => !IsPickingPerson && !IsSelectingMembers;
 
     /// <summary>人の一覧を出すか。人を選ぶ画面のとき</summary>
     public bool IsPeopleListVisible => IsPickingPerson;
+
+    /// <summary>複数の人を選ぶ画面を出すか</summary>
+    public bool IsMemberSelectVisible => IsSelectingMembers;
+
+    /// <summary>左の上の「戻る」を出すか。人を選ぶ画面か、複数の人を選ぶ画面のとき</summary>
+    public bool IsBackVisible => IsPickingPerson || IsSelectingMembers;
+
+    /// <summary>開いている会話が、作ってあるグループか。会話の上の「参加者」を出すかに使う</summary>
+    [ObservableProperty]
+    public partial bool IsGroupOpen { get; set; }
+
+    /// <summary>開いているグループの参加者の名前。自分が先頭</summary>
+    public ObservableCollection<string> Participants { get; } = [];
+
+    /// <summary>参加者の画面の見出し</summary>
+    [ObservableProperty]
+    public partial string ParticipantsHeaderText { get; set; } = "";
+
+    /// <summary>グループの名前の変更の入力</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RenameGroupCommand))]
+    public partial string RenameInput { get; set; } = "";
 
     /// <summary>会話が 1 つも無いか。読み込みが済んで、1 件も無いとき</summary>
     [ObservableProperty]
@@ -86,7 +141,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     public partial bool IsPeopleEmpty { get; set; }
 
     /// <summary>一覧が空のときの案内。空でないときは空文字</summary>
-    public string EmptyNoticeText => IsPickingPerson
+    public string EmptyNoticeText => IsPickingPerson || IsSelectingMembers
         ? (IsPeopleEmpty ? "宛先にできる人がいません。" : "")
         : (IsConversationsEmpty ? "会話はまだありません。「新しい会話」から宛先を選んでください。" : "");
 
@@ -169,6 +224,19 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>空の会話の画面の、1 対 1 の相手の番号。会話があるときは 0</summary>
     private int _draftPeerUserId;
 
+    /// <summary>空のグループの画面の、グループの名前。会話があるときと、グループでないときは空文字</summary>
+    private string _draftGroupName = "";
+
+    /// <summary>空のグループの画面の、参加者の番号。自分は含めない</summary>
+    private IReadOnlyList<int> _draftGroupMemberIds = [];
+
+    /// <summary>人を追加する画面で、すでに入っている人数。自分を含む。上限を超える追加を、押せなくするために使う</summary>
+    private int _existingMemberCount;
+
+    /// <summary>開いた会話の、相手が受け取れるかを、DB から読み直したか。読み直したあとは、控えの要約の値で上書きしない</summary>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、控えの要約は古いままになるため。</remarks>
+    private bool _peerChecked;
+
     /// <summary>これより古いメッセージが、まだあるか</summary>
     private bool _hasMore;
 
@@ -203,6 +271,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         sync.Synced += OnSynced;
         sync.MessagesArrived -= OnMessagesArrived;
         sync.MessagesArrived += OnMessagesArrived;
+        sync.ConversationLeft -= OnConversationLeft;
+        sync.ConversationLeft += OnConversationLeft;
         RestoreAsync().Forget();
         RefreshConversations();
         await sync.SyncAsync().ConfigureAwait(true);
@@ -212,7 +282,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <returns>元に戻す処理の完了を表すタスク</returns>
     /// <remarks>
     /// ページを作り直したあと (外す・戻す・機能をオフにしてオンに戻す)だけ戻す。すでに開いているページを開き直したときは、何もしない。
-    /// 会話を開く処理 (<see cref="OpenAsync(int, int, string, bool)"/>)は、本文と返信先を空にして、状態クラスにも書くので、先に引き継いだ値を控える。
+    /// 会話を開く処理 (<see cref="OpenAsync(int, int, string, bool, string, IReadOnlyList{int})"/>)は、本文と返信先を空にして、状態クラスにも書くので、先に引き継いだ値を控える。
     /// 返信先は、会話のメッセージを読み込んだあとに、番号で探して戻す。見つからなければ、返信はなくなる。
     /// </remarks>
     private async Task RestoreAsync()
@@ -225,7 +295,8 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         var opening = Task.CompletedTask;
         if (open)
         {
-            opening = OpenAsync(state.ConversationId, state.DraftPeerUserId, state.ConversationTitle, state.PeerCanReceive);
+            opening = OpenAsync(
+                state.ConversationId, state.DraftPeerUserId, state.ConversationTitle, state.PeerCanReceive, state.DraftGroupName, state.DraftGroupMemberIds);
             Body = body;
         }
         if (pickPerson)
@@ -250,7 +321,15 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
 
     /// <summary>開いている会話の名前が変わったら、状態クラスに覚える</summary>
     /// <param name="value">会話の名前</param>
-    partial void OnConversationTitleChanged(string value) => state.ConversationTitle = value;
+    partial void OnConversationTitleChanged(string value)
+    {
+        state.ConversationTitle = value;
+        RenameInput = value;
+    }
+
+    /// <summary>新しいグループの名前の入力が変わったら、「次へ」を押せるかを直す</summary>
+    /// <param name="value">入力した名前</param>
+    partial void OnGroupNameInputChanged(string value) => ConfirmMembersCommand.NotifyCanExecuteChanged();
 
     /// <summary>相手が受け取り先を指定しているかが変わったら、状態クラスに覚える</summary>
     /// <param name="value">指定しているか</param>
@@ -274,6 +353,47 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         {
             // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
             RefreshSelfCanReceiveAsync().Forget();
+            RefreshPeerCanReceiveAsync().Forget();
+
+            // ウィンドウが隠れている間に届いて、画面に出ていたメッセージを、前面に戻ったここで読んだことにする
+            ReportRead();
+        }
+    }
+
+    /// <summary>開いている 1 対 1 の会話の相手が、受け取り先を指定しているかを、DB から読み直す</summary>
+    /// <returns>読み直しの完了を表すタスク</returns>
+    /// <remarks>
+    /// 読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。
+    /// 会話が一覧の要約にまだ無いとき (通知から開いた直後など)は、読まない。要約が入ったときに、<see cref="RefreshConversations"/> がもう一度呼ぶ。
+    /// </remarks>
+    private async Task RefreshPeerCanReceiveAsync()
+    {
+        var version = _openVersion;
+        var conversationId = _conversationId;
+        var peerUserId = conversationId > 0
+            ? sync.Conversations.FirstOrDefault(conversation => conversation.Id == conversationId)?.PeerUserId ?? 0
+            : _draftPeerUserId;
+        if (peerUserId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var canReceive = await repository.CanReceiveAsync(peerUserId);
+            if (version == _openVersion)
+            {
+                _peerChecked = true;
+                PeerCanReceive = canReceive;
+                if (conversationId > 0)
+                {
+                    await sync.UpdatePeerCanReceiveAsync(conversationId, canReceive);
+                }
+            }
+        }
+        catch (DataFileException)
+        {
+            // 読めなかった。送るときに、サーバーが断る
         }
     }
 
@@ -353,6 +473,23 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     [RelayCommand]
     private void CancelReply() => ReplyTo = null;
 
+    /// <summary>本文のリンクを、既定のブラウザで開く</summary>
+    /// <param name="href">開く URL。本文から見つけた <c>http</c> か <c>https</c></param>
+    /// <returns>開く処理の完了を表すタスク</returns>
+    /// <remarks>開けなかったときは、失敗を表示する。</remarks>
+    [RelayCommand]
+    private async Task OpenLinkAsync(string href)
+    {
+        try
+        {
+            await opener.OpenAsync(href);
+        }
+        catch (PathOpenException ex)
+        {
+            Error.Show($"リンクを開けませんでした: {ex.Message}");
+        }
+    }
+
     /// <summary>古いメッセージを、50 件読み足す。画面が、先頭に近づいたときに呼ぶ</summary>
     /// <returns>読み足しの完了を表すタスク</returns>
     public async Task LoadOlderAsync()
@@ -387,6 +524,39 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     {
         sync.Synced -= OnSynced;
         sync.MessagesArrived -= OnMessagesArrived;
+        sync.ConversationLeft -= OnConversationLeft;
+    }
+
+    /// <summary>別の端末でグループを抜けたことが届いたとき、開いていた会話を閉じる</summary>
+    /// <param name="conversationId">抜けた会話の番号</param>
+    private void OnConversationLeft(int conversationId) => Post(() =>
+    {
+        if (IsConversationOpen && _conversationId == conversationId)
+        {
+            CloseConversation();
+        }
+    });
+
+    /// <summary>開いている会話を閉じて、右の案内に戻す</summary>
+    private void CloseConversation()
+    {
+        _openVersion++;
+        _conversationId = 0;
+        _draftPeerUserId = 0;
+        _draftGroupName = "";
+        _draftGroupMemberIds = [];
+        state.ConversationId = 0;
+        state.DraftPeerUserId = 0;
+        state.DraftGroupName = "";
+        state.DraftGroupMemberIds = [];
+        UpdateGroupFlags();
+        IsConversationOpen = false;
+        IsSkeletonVisible = false;
+        Body = "";
+        ReplyTo = null;
+        ReplaceMessages([]);
+        sync.SetViewState(0, _visible);
+        OnPropertyChanged(nameof(SelectedConversation));
     }
 
     /// <inheritdoc />
@@ -422,13 +592,221 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         }
     }
 
-    /// <summary>人を選ぶ画面から、会話の一覧へ戻る</summary>
+    /// <summary>人を選ぶ画面と、複数の人を選ぶ画面から、会話の一覧へ戻る</summary>
     [RelayCommand]
     private void CancelPickPerson()
     {
         _pickVersion++;
         IsPickingPerson = false;
+        IsSelectingMembers = false;
+        GroupNameInput = "";
         People.Clear();
+        OnPropertyChanged(nameof(SelectedMembersText));
+    }
+
+    /// <summary>新しいグループを作る画面に入る。名前と、参加者を複数選ぶ</summary>
+    /// <returns>人の一覧を読む処理の完了を表すタスク</returns>
+    [RelayCommand]
+    private Task StartGroupAsync()
+    {
+        IsNamingGroup = true;
+        GroupNameInput = "";
+        return LoadMemberCandidatesAsync([]);
+    }
+
+    /// <summary>開いているグループへ人を追加する画面に入る。すでに入っている人は除く</summary>
+    /// <returns>人の一覧を読む処理の完了を表すタスク</returns>
+    [RelayCommand]
+    private Task StartAddMembersAsync()
+    {
+        if (sync.Conversations.FirstOrDefault(conversation => conversation.Id == _conversationId) is not { Kind: ConversationKind.Group } summary)
+        {
+            return Task.CompletedTask;
+        }
+
+        IsNamingGroup = false;
+        _existingMemberCount = summary.Readers.Count + 1;
+        return LoadMemberCandidatesAsync([.. summary.Readers.Select(reader => reader.UserId)]);
+    }
+
+    /// <summary>複数の人を選ぶ画面に入り、選べる人を読む。開くたびに読み直す</summary>
+    /// <param name="excludeIds">一覧に出さない人の番号。自分は、いつも出さない</param>
+    /// <returns>読む処理の完了を表すタスク</returns>
+    private async Task LoadMemberCandidatesAsync(IReadOnlyCollection<int> excludeIds)
+    {
+        var version = ++_pickVersion;
+        People.Clear();
+        IsPeopleEmpty = false;
+        IsPickingPerson = false;
+        IsSelectingMembers = true;
+        OnPropertyChanged(nameof(SelectedMembersText));
+        ConfirmMembersCommand.NotifyCanExecuteChanged();
+
+        try
+        {
+            var found = await repository.SearchPeopleAsync("", SearchCount);
+            if (version != _pickVersion)
+            {
+                return;
+            }
+
+            foreach (var person in found.Where(person => person.UserId != sync.UserId && !excludeIds.Contains(person.UserId)))
+            {
+                var item = new PersonItem(person);
+                item.PropertyChanged += OnCandidatePropertyChanged;
+                People.Add(item);
+            }
+            IsPeopleEmpty = People.Count == 0;
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show($"宛先の人を読み込めませんでした: {ex.Message}");
+        }
+    }
+
+    /// <summary>選べる人のチェックが変わったら、人数と確定ボタンを直す</summary>
+    /// <param name="sender">チェックが変わった人</param>
+    /// <param name="e">変わったプロパティの情報</param>
+    private void OnCandidatePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(PersonItem.IsSelected))
+        {
+            OnPropertyChanged(nameof(SelectedMembersText));
+            ConfirmMembersCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    /// <summary>複数の人を選ぶ画面の確定ボタンを押せるか</summary>
+    /// <returns>
+    /// 新しいグループは、名前が使え、参加者が 1 人以上で自分を含めて上限以内のとき true。
+    /// 人の追加は、1 人以上で、すでに入っている人と合わせて上限以内のとき true
+    /// </returns>
+    private bool CanConfirmMembers()
+    {
+        var count = People.Count(person => person.IsSelected);
+        return IsNamingGroup
+            ? MessageDraft.IsValidGroupName(GroupNameInput) && MessageDraft.IsValidGroupMemberCount(count)
+            : count >= 1 && _existingMemberCount + count <= MessageLimits.GroupMaxMembers;
+    }
+
+    /// <summary>複数の人を選ぶ画面を確定する。新しいグループは空のグループの画面を開き、人の追加はグループへ追加する</summary>
+    /// <returns>確定の処理の完了を表すタスク</returns>
+    /// <remarks>新しいグループは、会話をまだ作らない。最初の送信で作る。メッセージの無い会話を、DB に残さないため。</remarks>
+    [RelayCommand(CanExecute = nameof(CanConfirmMembers))]
+    private async Task ConfirmMembersAsync()
+    {
+        var ids = People.Where(person => person.IsSelected).Select(person => person.Source.UserId).ToList();
+        if (IsNamingGroup)
+        {
+            var name = GroupNameInput.Trim();
+            _highlightId = 0;
+            CancelPickPerson();
+            await OpenAsync(0, 0, name, peerCanReceive: true, name, ids);
+            return;
+        }
+
+        try
+        {
+            var outcome = await repository.AddMembersAsync(_conversationId, ids);
+            if (outcome == GroupChangeOutcome.Done)
+            {
+                CancelPickPerson();
+                await sync.SyncAsync();
+                return;
+            }
+            Error.Show($"追加できませんでした: {GroupChangeText(outcome)}");
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show($"追加できませんでした: {ex.Message}");
+        }
+    }
+
+    /// <summary>グループの名前を変えられるか</summary>
+    /// <returns>作ってあるグループを開いていて、新しい名前が使え、今の名前と違うとき true</returns>
+    private bool CanRenameGroup() => IsGroupOpen && MessageDraft.IsValidGroupName(RenameInput) && RenameInput.Trim() != ConversationTitle;
+
+    /// <summary>グループの名前を変える。ほかの参加者には、システムメッセージで届く</summary>
+    /// <returns>変える処理の完了を表すタスク</returns>
+    [RelayCommand(CanExecute = nameof(CanRenameGroup))]
+    private async Task RenameGroupAsync()
+    {
+        try
+        {
+            var outcome = await repository.RenameGroupAsync(_conversationId, RenameInput);
+            if (outcome == GroupChangeOutcome.Done)
+            {
+                await sync.SyncAsync();
+                return;
+            }
+            Error.Show($"名前を変えられませんでした: {GroupChangeText(outcome)}");
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show($"名前を変えられませんでした: {ex.Message}");
+        }
+    }
+
+    /// <summary>グループを抜ける。確認のあと、自分の参加を外す</summary>
+    /// <returns>抜ける処理の完了を表すタスク</returns>
+    /// <remarks>他の人を外す操作は無い。抜けたあとは、会話を読めず、もう一度入るには、参加者に追加してもらう。</remarks>
+    [RelayCommand]
+    private async Task LeaveGroupAsync()
+    {
+        if (!IsGroupOpen
+            || !await dialogs.ConfirmAsync(
+                "グループを抜けますか？",
+                "抜けると、このグループのメッセージを読めなくなります。もう一度入るには、参加者に追加してもらう必要があります。",
+                "抜ける",
+                "キャンセル"))
+        {
+            return;
+        }
+
+        try
+        {
+            var outcome = await repository.LeaveGroupAsync(_conversationId);
+            if (outcome == GroupChangeOutcome.Done)
+            {
+                CloseConversation();
+                await sync.SyncAsync();
+                return;
+            }
+            Error.Show($"グループを抜けられませんでした: {GroupChangeText(outcome)}");
+        }
+        catch (DataFileException ex)
+        {
+            Error.Show($"グループを抜けられませんでした: {ex.Message}");
+        }
+    }
+
+    /// <summary>グループの変更が失敗した理由を、画面に出す文にする</summary>
+    /// <param name="outcome">結果の区分</param>
+    /// <returns>理由の文</returns>
+    private static string GroupChangeText(GroupChangeOutcome outcome) => outcome switch
+    {
+        GroupChangeOutcome.Invalid => "名前か人数が正しくありません。",
+        GroupChangeOutcome.NotGroup => "グループではない会話です。",
+        _ => "会話が見つかりません。",
+    };
+
+    /// <summary>開いている会話が、作ってあるグループかを調べ、参加者の一覧と名前の変更の入力を合わせる</summary>
+    private void UpdateGroupFlags()
+    {
+        var summary = _conversationId > 0 ? sync.Conversations.FirstOrDefault(conversation => conversation.Id == _conversationId) : null;
+        IsGroupOpen = summary is { Kind: ConversationKind.Group };
+
+        List<string> names = summary is { Kind: ConversationKind.Group } group ? ["自分", .. group.Readers.Select(reader => reader.DisplayName)] : [];
+        if (!Participants.SequenceEqual(names))
+        {
+            Participants.Clear();
+            foreach (var name in names)
+            {
+                Participants.Add(name);
+            }
+        }
+        ParticipantsHeaderText = names.Count == 0 ? "" : $"参加者 {names.Count} 人";
+        RenameGroupCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>会話を開く。控えから出して、続けて DB から最新を読む</summary>
@@ -436,19 +814,29 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <param name="peerUserId">会話の番号が 0 のとき、1 対 1 の相手の番号</param>
     /// <param name="title">会話の名前</param>
     /// <param name="peerCanReceive">相手が受け取り先を指定しているか</param>
+    /// <param name="groupName">会話の番号が 0 のとき、新しいグループの名前。グループでなければ空文字</param>
+    /// <param name="groupMemberIds">会話の番号が 0 のとき、新しいグループの参加者の番号。自分は含めない</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    private async Task OpenAsync(int conversationId, int peerUserId, string title, bool peerCanReceive)
+    private async Task OpenAsync(
+        int conversationId, int peerUserId, string title, bool peerCanReceive, string groupName = "", IReadOnlyList<int>? groupMemberIds = null)
     {
         var version = ++_openVersion;
         _conversationId = conversationId;
         _draftPeerUserId = conversationId == 0 ? peerUserId : 0;
+        _draftGroupName = conversationId == 0 ? groupName : "";
+        _draftGroupMemberIds = conversationId == 0 ? groupMemberIds ?? [] : [];
         state.ConversationId = _conversationId;
         state.DraftPeerUserId = _draftPeerUserId;
+        state.DraftGroupName = _draftGroupName;
+        state.DraftGroupMemberIds = [.. _draftGroupMemberIds];
+        UpdateGroupFlags();
         ConversationTitle = title;
         PeerCanReceive = peerCanReceive;
         IsConversationOpen = true;
         OnPropertyChanged(nameof(SelectedConversation));
         RefreshSelfCanReceiveAsync().Forget();
+        _peerChecked = false;
+        RefreshPeerCanReceiveAsync().Forget();
         IsStale = false;
         Body = "";
         ReplyTo = null;
@@ -490,6 +878,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             IsSkeletonVisible = false;
             MergeNewest(newest.Take(MessageSync.PageSize).Reverse().ToList(), newest.Count > MessageSync.PageSize);
             await sync.WriteCachedMessagesAsync(conversationId, [.. Messages.Select(item => item.Source)]);
+            ReportRead();
         }
         catch (DataFileException ex)
         {
@@ -583,6 +972,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     private void OnSynced() => Post(() =>
     {
         RefreshConversations();
+        RefreshReadMarks();
 
         // 読み込みの失敗だけを出し入れする。送れなかった・探せなかった、などのエラーを、読み込みの成功で消さない
         var text = sync.LastError is { } error ? $"読み込めませんでした: {error}" : null;
@@ -627,6 +1017,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             ScrollToEndRequested?.Invoke(true);
         }
         sync.WriteCachedMessagesAsync(_conversationId, [.. Messages.Select(item => item.Source)]).Forget();
+        ReportRead();
     });
 
     /// <summary>人の一覧を、読み続ける部品が持つ要約に合わせる。変わった行だけ差し替える</summary>
@@ -637,11 +1028,11 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         {
             if (i >= Conversations.Count)
             {
-                Conversations.Add(new ConversationItem(summaries[i]));
+                Conversations.Add(new ConversationItem(summaries[i], sync.UserId));
             }
             else if (!Conversations[i].Source.Equals(summaries[i]))
             {
-                Conversations[i] = new ConversationItem(summaries[i]);
+                Conversations[i] = new ConversationItem(summaries[i], sync.UserId);
             }
         }
         while (Conversations.Count > summaries.Count)
@@ -650,10 +1041,20 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         }
 
         IsConversationsEmpty = Conversations.Count == 0;
-        if (IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } open)
+        if (!_peerChecked && IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } open)
         {
+            // 要約の値は古いことがある。今の値を DB から読み直す
             PeerCanReceive = open.PeerCanReceive;
+            RefreshPeerCanReceiveAsync().Forget();
         }
+
+        if (IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } current
+            && current.Name != ConversationTitle)
+        {
+            // 別の参加者が、グループの名前を変えた
+            ConversationTitle = current.Name;
+        }
+        UpdateGroupFlags();
 
         // 行を差し替えたり、新しい会話の行が増えたりしたので、選びの印を付け直す
         OnPropertyChanged(nameof(SelectedConversation));
@@ -672,7 +1073,10 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         IsSending = true;
         try
         {
-            var result = await repository.SendAsync(_conversationId, _conversationId > 0 ? 0 : _draftPeerUserId, Body, ReplyTo?.Id ?? 0);
+            var target = _conversationId > 0 ? MessageTarget.Existing(_conversationId)
+                : _draftGroupName.Length > 0 ? MessageTarget.NewGroup(_draftGroupName, _draftGroupMemberIds)
+                : MessageTarget.Direct(_draftPeerUserId);
+            var result = await repository.SendAsync(target, Body, ReplyTo?.Id ?? 0);
             if (result.Outcome != SendMessageOutcome.Sent)
             {
                 Error.Show($"送れませんでした: {OutcomeText(result.Outcome)}");
@@ -695,8 +1099,12 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
                 // 会話ができた。以降は、この会話として読む
                 _conversationId = result.ConversationId;
                 _draftPeerUserId = 0;
+                _draftGroupName = "";
+                _draftGroupMemberIds = [];
                 state.ConversationId = _conversationId;
                 state.DraftPeerUserId = 0;
+                state.DraftGroupName = "";
+                state.DraftGroupMemberIds = [];
                 OnPropertyChanged(nameof(SelectedConversation));
                 sync.SetViewState(_conversationId, _visible);
             }
@@ -720,13 +1128,79 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
         SendMessageOutcome.NoReceiveTarget => MessageDraft.NoReceiveTargetMessage,
         SendMessageOutcome.SelfNoReceiveTarget => MessageDraft.SelfNoReceiveTargetMessage,
         SendMessageOutcome.ReplyInvalid => "返信元のメッセージが見つかりません。",
+        SendMessageOutcome.GroupInvalid => "グループの名前か参加者が正しくありません。",
         _ => "会話が見つかりません。",
     };
 
     /// <summary>メッセージを、画面の行にする</summary>
     /// <param name="message">メッセージ</param>
     /// <returns>画面の行。自分が送ったメッセージかは、読み込んだ人の番号で決める</returns>
-    private ChatMessageItem ToItem(ChatMessage message) => new(message, message.SenderUserId == sync.UserId);
+    private ChatMessageItem ToItem(ChatMessage message)
+    {
+        var (readText, readerNames) = ReadInfoOf(message);
+        return new ChatMessageItem(message, message.SenderUserId == sync.UserId, OpenLinkCommand, readText, ShowSenderOf(message), readerNames);
+    }
+
+    /// <summary>送った人の名前を、吹き出しの上に出すか</summary>
+    /// <param name="message">メッセージ</param>
+    /// <returns>グループで、他の人が送ったメッセージのとき true。会話の要約がまだ無いときは false</returns>
+    private bool ShowSenderOf(ChatMessage message)
+        => !message.IsSystem && message.SenderUserId != sync.UserId
+        && sync.Conversations.FirstOrDefault(conversation => conversation.Id == message.ConversationId) is { Kind: ConversationKind.Group };
+
+    /// <summary>自分が送ったメッセージに付ける、相手が読んだことを表す文字と、読んだ人の名前を作る</summary>
+    /// <param name="message">メッセージ</param>
+    /// <returns>
+    /// 文字は、1 対 1 は「既読」、グループは「既読 N」。N は読んだ人数で、送った人を含めない。
+    /// 名前は、グループで読んだ人がいるときだけ、1 行に 1 人。読まれていない・自分が送ったのでない・システムメッセージ・会話の要約がまだ無いときは、どちらも空文字
+    /// </returns>
+    /// <remarks>読んだとは、参加者の読んだ位置が、メッセージの番号以上のこと。</remarks>
+    private (string Text, string Names) ReadInfoOf(ChatMessage message)
+    {
+        if (message.SenderUserId != sync.UserId || message.IsSystem
+            || sync.Conversations.FirstOrDefault(conversation => conversation.Id == message.ConversationId) is not { } summary)
+        {
+            return ("", "");
+        }
+
+        var readers = summary.Readers.Where(reader => reader.UserId != message.SenderUserId && reader.LastReadMessageId >= message.Id).ToList();
+        if (readers.Count == 0)
+        {
+            return ("", "");
+        }
+
+        return summary.Kind == ConversationKind.Direct
+            ? ("既読", "")
+            : ($"既読 {readers.Count}", string.Join('\n', readers.Select(reader => reader.DisplayName)));
+    }
+
+    /// <summary>開いている会話のメッセージの「既読」と送った人の名前を、読み続ける部品が持つ要約に合わせる。変わった行だけ差し替える</summary>
+    private void RefreshReadMarks()
+    {
+        for (var i = 0; i < Messages.Count; i++)
+        {
+            var (readText, readerNames) = ReadInfoOf(Messages[i].Source);
+            if (Messages[i].ReadText != readText || Messages[i].ReaderNames != readerNames || Messages[i].HasSender != ShowSenderOf(Messages[i].Source))
+            {
+                Messages[i] = ToItem(Messages[i].Source);
+            }
+        }
+    }
+
+    /// <summary>開いている会話の、一番新しいメッセージまで読んだことを、DB に書く</summary>
+    /// <remarks>
+    /// 会話を開いていて、ウィンドウが前面に見えているときだけ書く。裏に回っている間や、通知ダイアログに出しただけでは、読んだことにしない。
+    /// 書けなかったときは、次の機会にもう一度書く。
+    /// </remarks>
+    private void ReportRead()
+    {
+        if (!_visible || !IsConversationOpen || _conversationId == 0 || Messages.Count == 0)
+        {
+            return;
+        }
+
+        sync.MarkReadAsync(_conversationId, Messages[^1].Id).Forget();
+    }
 
     /// <summary>本文の 1 行目を取る</summary>
     /// <param name="text">本文</param>

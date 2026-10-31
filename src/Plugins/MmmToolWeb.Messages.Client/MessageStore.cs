@@ -19,7 +19,7 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     private const string ListCacheKey = "messages.list";
 
     /// <summary>読んでいない通知の種類。通知の識別子「message:番号」の、頭の部分。</summary>
-    private const string MessageKind = "message";
+    internal const string MessageKind = "message";
 
     /// <summary>更新の知らせの道。</summary>
     private const string EventsPath = "/api/messages/events";
@@ -39,56 +39,93 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     /// <summary>自分の番号。まだ読んでいなければ 0。</summary>
     public int UserId { get; private set; }
 
+    /// <summary>作る途中のグループ。名前と参加者を決めてから、最初の送信までの間だけ持つ。無ければ null。</summary>
+    /// <remarks>会話は、最初の送信で作る。ページを読み直すと消えるので、空のグループの画面は、一覧へ戻る。</remarks>
+    public PendingGroup? PendingGroup { get; set; }
+
     /// <summary>次の差分の取得に送る基準の日時。まだ読んでいなければ null。</summary>
     public DateTimeOffset? NextBase { get; private set; }
 
     /// <summary>会話の要約。最後のメッセージが新しい順。</summary>
     public IReadOnlyList<ConversationDto> Conversations { get; private set; } = [];
 
-    /// <summary>読んでいないメッセージの番号。端末ごとに持つ。会話の行の印と、ホーム画面のアイコンの数字の元。</summary>
-    public IReadOnlySet<int> UnreadMessageIds { get; private set; } = new HashSet<int>();
-
-    /// <summary>いま開いている会話の番号。開いていなければ 0。開いている会話の新着は、読んでいないものに数えない。</summary>
+    /// <summary>いま開いている会話の番号。開いていなければ 0。</summary>
     public int OpenConversationId { get; set; }
 
     /// <summary>会話の要約が変わった。</summary>
     public event Func<Task>? ConversationsChanged;
 
+    /// <summary>自分が会話を抜けたことが届いた。引数は会話の番号。開いている画面が、一覧へ戻るために受ける。</summary>
+    public event Func<int, Task>? ConversationLeft;
+
+    /// <summary>端末から書いた、会話ごとの読んだ位置の最大。同じ位置を何度も書かないため。</summary>
+    private readonly Dictionary<int, int> _reportedRead = [];
+
     /// <summary>
     /// 会話に、読んでいないメッセージがあるか。
     /// </summary>
     /// <param name="conversation">会話の要約。</param>
-    /// <returns>最後のメッセージが読んでいないとき true。会話を開くと、画面に出たメッセージが読んだことになるので、最後のメッセージで決める。</returns>
-    public bool IsUnread(ConversationDto conversation) => UnreadMessageIds.Contains(conversation.LastMessageId);
+    /// <returns>サーバーが数えた、読んでいないメッセージの数が 1 以上のとき true。読んだ位置は DB にあるので、端末ごとの状態は持たない。</returns>
+    public bool IsUnread(ConversationDto conversation) => conversation.UnreadCount > 0;
 
     /// <summary>
-    /// 画面に出したメッセージを、読んだことにする。
+    /// サーバーから読み直した、相手が受け取れるかを、会話の要約と控えへ反映する。
     /// </summary>
-    /// <param name="shown">画面に出したメッセージ。</param>
-    /// <returns>読んだことにしたことを表すタスク。</returns>
-    public async Task MarkReadAsync(IEnumerable<MessageDto> shown)
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="peerCanReceive">相手が受け取り先を指定しているか。</param>
+    /// <returns>反映したことを表すタスク。要約に無い会話と、値が同じときは、何もしない。</returns>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、要約は古いままになるため。</remarks>
+    public async Task UpdatePeerCanReceiveAsync(int conversationId, bool peerCanReceive)
     {
-        var ids = shown.Where(message => UnreadMessageIds.Contains(message.Id)).Select(message => message.Id).ToList();
-        if (ids.Count == 0)
+        if (Conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { } current || current.PeerCanReceive == peerCanReceive)
         {
             return;
         }
 
-        await browser.RemoveUnreadAsync(MessageKind, ids);
-        await RefreshUnreadAsync();
+        Conversations = [.. Conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
+        await WriteListCacheAsync();
         await RaiseConversationsChangedAsync();
     }
 
     /// <summary>
-    /// 読んでいないメッセージを、すべて読んだことにする。
+    /// 画面に出したメッセージを、読んだことにする。読んだ位置を DB に書く。
     /// </summary>
-    /// <returns>読んだことにしたことを表すタスク。</returns>
-    public async Task MarkAllReadAsync()
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="shown">画面に出したメッセージ。</param>
+    /// <returns>書いたことを表すタスク。画面が前面に見えていないとき、読んだ位置がすでに同じか大きいとき、書けなかったときは、何も変えない。</returns>
+    /// <remarks>
+    /// 読んだ位置は、相手の画面に「既読」を出す元で、自分の未読の数の元でもある。
+    /// 画面が裏に回っている間に届いたメッセージは、前面に戻ってから、読んだことになる。
+    /// </remarks>
+    public async Task MarkReadAsync(int conversationId, IEnumerable<MessageDto> shown)
     {
-        await browser.ClearUnreadAsync(MessageKind);
-        await RefreshUnreadAsync();
-        await RaiseConversationsChangedAsync();
+        var newest = shown.Select(message => message.Id).DefaultIfEmpty(0).Max();
+        if (conversationId <= 0 || newest <= 0 || newest <= _reportedRead.GetValueOrDefault(conversationId) || !await browser.IsVisibleAsync())
+        {
+            return;
+        }
+
+        var result = await client.MarkReadAsync(conversationId, newest);
+        if (!result.Succeeded)
+        {
+            return;
+        }
+
+        _reportedRead[conversationId] = newest;
+        if (Conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is { } current && current.UnreadCount > 0 && newest >= current.LastMessageId)
+        {
+            Conversations = [.. Conversations.Select(conversation => conversation.Id == conversationId ? conversation with { UnreadCount = 0 } : conversation)];
+            await WriteListCacheAsync();
+            await ShowBadgeAsync();
+            await RaiseConversationsChangedAsync();
+        }
     }
+
+    /// <summary>
+    /// 読んでいないメッセージの合計を、ホーム画面のアイコンの数字に反映する。
+    /// </summary>
+    /// <returns>反映したことを表すタスク。</returns>
+    private Task ShowBadgeAsync() => browser.SetServerUnreadAsync(MessageKind, Conversations.Sum(conversation => conversation.UnreadCount));
 
     /// <summary>メッセージが届いた、または更新された。会話の画面が、開いている会話の分を取り込む。</summary>
     public event Func<IReadOnlyList<MessageDto>, Task>? MessagesArrived;
@@ -99,16 +136,24 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     /// <returns>サーバーから読んだ結果。控えだけで終わったときは、サーバーの失敗。</returns>
     public async Task<ApiResult<bool>> LoadAsync()
     {
+        await RestoreAsync();
+        return await SyncAsync();
+    }
+
+    /// <summary>
+    /// 人の一覧を、端末の控えだけから戻す。サーバーとは通信しない。
+    /// </summary>
+    /// <returns>戻したことを表すタスク。すでに読み込み済み、または控えが無いときは、何もしない。</returns>
+    /// <remarks>会話を直接開いたとき、サーバーの応答を待たずに、会話の控えを読むため。控えは持ち主の番号と突き合わせるので、先に自分の番号が要る。</remarks>
+    public async Task RestoreAsync()
+    {
         if (NextBase is null && await ReadListCacheAsync() is { } cached)
         {
             UserId = cached.UserId;
             NextBase = cached.NextBase;
             Conversations = cached.Conversations;
-            await RefreshUnreadAsync();
             await RaiseConversationsChangedAsync();
         }
-
-        return await SyncAsync();
     }
 
     /// <summary>
@@ -134,6 +179,7 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
                 UserId = 0;
                 NextBase = null;
                 Conversations = [];
+                _reportedRead.Clear();
                 result = await client.LoadStartAsync();
                 if (!result.Succeeded)
                 {
@@ -145,11 +191,26 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
 
             UserId = sync.UserId;
             var isStart = NextBase is null;
+            IReadOnlyList<ConversationDto> previous = isStart ? [] : Conversations;
             NextBase = sync.NextBase;
             Conversations = isStart ? sync.Conversations : Merge(Conversations, sync.Conversations);
+            foreach (var leftId in sync.LeftConversationIds)
+            {
+                // 別の端末で抜けたグループ。一覧と控えから消す。入り直したときに、古い控えと読み直した分の間に、抜けが出ないようにする
+                Conversations = [.. Conversations.Where(conversation => conversation.Id != leftId)];
+                await WriteConversationCacheAsync(leftId, []);
+            }
             await WriteListCacheAsync();
-            await TrackUnreadAsync(isStart, sync.Messages);
+            await ShowBadgeAsync();
             await RaiseConversationsChangedAsync();
+            foreach (var leftId in sync.LeftConversationIds)
+            {
+                if (ConversationLeft is { } left)
+                {
+                    await left(leftId);
+                }
+            }
+            await MergeIntoConversationCachesAsync(sync.Messages, previous);
             if (sync.Messages.Count > 0 && MessagesArrived is { } arrived)
             {
                 await arrived(sync.Messages);
@@ -212,6 +273,48 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
         return browser.CachePutAsync(ConversationCachePrefix + conversationId, JsonSerializer.Serialize(state, MessagesJsonContext.Default.ConversationCacheState));
     }
 
+    /// <summary>
+    /// 差分で届いたメッセージを、すでに控えのある会話の控えへ足す。
+    /// </summary>
+    /// <param name="messages">差分で届いた、または更新されたメッセージ。</param>
+    /// <param name="previous">今回の差分を取り込む前の、会話の要約。</param>
+    /// <returns>書いたことを表すタスク。</returns>
+    /// <remarks>
+    /// 会話の画面を開く前に、控えを最新にしておくため。差分は、前回の基準より後の変更を、すべて返す。
+    /// 足すのは、控えの最後のメッセージが、前回の要約の最後のメッセージと同じ会話だけ。前回の時点で、控えが最新だった証拠が、これしかないため。
+    /// 違う会話 (控えの無い会話・前回以降に取りこぼした会話)は、足すと途中が抜けるので書かず、開いたときに、サーバーから読み直す。
+    /// 控えの先頭より古い番号のメッセージは、足さない。控えは、新しいほうから切れ目なく持つため。
+    /// 開いている会話は、会話の画面が、届いたメッセージを持つので、ここでは書かない。
+    /// 同じメッセージが何度届いても、番号と更新日時で突き合わせるので、結果は変わらない。
+    /// </remarks>
+    private async Task MergeIntoConversationCachesAsync(IReadOnlyList<MessageDto> messages, IReadOnlyList<ConversationDto> previous)
+    {
+        foreach (var group in messages.GroupBy(message => message.ConversationId))
+        {
+            if (group.Key == OpenConversationId || previous.FirstOrDefault(conversation => conversation.Id == group.Key) is not { } before)
+            {
+                continue;
+            }
+
+            var cached = await ReadConversationCacheAsync(group.Key);
+            if (cached.Count == 0 || cached[^1].Id != before.LastMessageId)
+            {
+                continue;
+            }
+
+            var oldest = cached[0].Id;
+            var byId = cached.ToDictionary(message => message.Id);
+            foreach (var message in group.Where(message => message.Id >= oldest))
+            {
+                if (!byId.TryGetValue(message.Id, out var existing) || message.UpdatedAt >= existing.UpdatedAt)
+                {
+                    byId[message.Id] = message;
+                }
+            }
+            await WriteConversationCacheAsync(group.Key, [.. byId.Values.OrderBy(message => message.Id)]);
+        }
+    }
+
     /// <summary>端末の控えに残す、会話ごとのメッセージの件数。仮。</summary>
     public const int CacheLimit = 200;
 
@@ -239,57 +342,6 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     }
 
     /// <summary>
-    /// 取り込んだ新着を、読んでいないメッセージに数え、一覧を読み直す。
-    /// </summary>
-    /// <param name="isStart">最初の読み込みか。最初は、いまあるメッセージを数えず、基準の番号だけを置く。</param>
-    /// <param name="messages">取り込んだメッセージ。</param>
-    /// <returns>数えたことを表すタスク。</returns>
-    /// <remarks>自分が受け取っていないメッセージと、いま開いている会話のメッセージは、数えない。基準の番号は、数えないものも含めて進める。</remarks>
-    private async Task TrackUnreadAsync(bool isStart, IReadOnlyList<MessageDto> messages)
-    {
-        if (isStart)
-        {
-            await browser.InitUnreadAsync(MessageKind, Conversations.Count == 0 ? 0 : Conversations.Max(conversation => conversation.LastMessageId));
-        }
-        if (messages.Count > 0)
-        {
-            var incoming = messages
-                .Where(message => IsReceived(message) && message.ConversationId != OpenConversationId)
-                .Select(message => message.Id)
-                .ToList();
-            await browser.AddArrivedUnreadAsync(MessageKind, incoming, messages.Max(message => message.Id));
-        }
-        await RefreshUnreadAsync();
-    }
-
-    /// <summary>
-    /// 自分が受け取るメッセージか。
-    /// </summary>
-    /// <param name="message">メッセージ。</param>
-    /// <returns>他の人が送ったメッセージ、または自分との会話のメッセージのとき true。自分との会話は、送ったメッセージが自分にも届くため。</returns>
-    private bool IsReceived(MessageDto message)
-        => !message.IsMine
-        || Conversations.Any(conversation => conversation.Id == message.ConversationId && conversation.IsDirect && conversation.PeerUserId == UserId);
-
-    /// <summary>
-    /// 読んでいないメッセージの番号を、端末の控えから読み直す。
-    /// </summary>
-    /// <returns>読み直したことを表すタスク。</returns>
-    private async Task RefreshUnreadAsync()
-    {
-        const string prefix = MessageKind + ":";
-        var ids = new HashSet<int>();
-        foreach (var key in await browser.GetUnreadAsync())
-        {
-            if (key.StartsWith(prefix, StringComparison.Ordinal) && int.TryParse(key.AsSpan(prefix.Length), out var id))
-            {
-                ids.Add(id);
-            }
-        }
-        UnreadMessageIds = ids;
-    }
-
-    /// <summary>
     /// 人の一覧の変わりを知らせる。
     /// </summary>
     /// <returns>知らせ終えたことを表すタスク。</returns>
@@ -309,7 +361,8 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
 
         try
         {
-            return JsonSerializer.Deserialize(text, MessagesJsonContext.Default.MessageCacheState);
+            var state = JsonSerializer.Deserialize(text, MessagesJsonContext.Default.MessageCacheState);
+            return state is { Version: MessageCacheState.CurrentVersion } ? state : null;
         }
         catch (JsonException)
         {
@@ -324,7 +377,7 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     private Task WriteListCacheAsync()
         => browser.CachePutAsync(
             ListCacheKey,
-            JsonSerializer.Serialize(new MessageCacheState(UserId, NextBase ?? DateTimeOffset.MinValue, Conversations), MessagesJsonContext.Default.MessageCacheState));
+            JsonSerializer.Serialize(MessageCacheState.Create(UserId, NextBase ?? DateTimeOffset.MinValue, Conversations), MessagesJsonContext.Default.MessageCacheState));
 
     /// <summary>
     /// 会話の要約を、番号で突き合わせて取り込み、最後のメッセージが新しい順に並べる。

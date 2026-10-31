@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="MmmTool.WorkItems.AutoEntry.AutoEntryEditor"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:daysofweek="using:MmmSdk.WinUI.Components.DaysOfWeek">
+
+    <!-- 自動入力の時間と曜日を設定する入力枠 (作業の行の右クリックから、名前のセルの下に開くフライアウトの中身) -->
+    <StackPanel Spacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock VerticalAlignment="Center" Text="時間 (H)" />
+            <TextBox
+                x:Name="HoursBox"
+                Width="80"
+                InputScope="Number"
+                IsSpellCheckEnabled="False"
+                KeyDown="OnHoursKeyDown"
+                MaxLength="5"
+                TextChanged="OnHoursChanged" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <daysofweek:WeekdayPicker x:Name="WeekdayPicker" />
+            <StackPanel>
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="曜日を選ばない場合は毎日入ります。" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Text="祝日は入りません。" />
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock
+            x:Name="ErrorText"
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            Visibility="Collapsed" />
+
+        <Grid>
+            <Button
+                x:Name="ClearButton"
+                HorizontalAlignment="Left"
+                Click="OnClearClick"
+                Content="クリア" />
+            <Button
+                x:Name="SaveButton"
+                HorizontalAlignment="Right"
+                Click="OnSaveClick"
+                Content="保存"
+                Style="{StaticResource AccentButtonStyle}" />
+        </Grid>
+    </StackPanel>
+</UserControl>

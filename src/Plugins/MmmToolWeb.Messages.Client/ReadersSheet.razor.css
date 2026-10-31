@@ -1,0 +1,45 @@
+/* 裏の画面を暗くして、押すと閉じる */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgb(0 0 0 / 0.5);
+}
+
+/* 下から出るシート。ホームバーに隠れないよう、下の余白を取る */
+.panel {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 40rem;
+    max-height: 70dvh;
+    overflow-y: auto;
+    padding: 1rem calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
+    border-radius: 1rem 1rem 0 0;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.panel h2 {
+    margin: 0 0 0.5rem;
+}
+
+.names {
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+}
+
+.names li {
+    min-height: 2.75rem;
+    box-sizing: border-box;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid var(--border);
+    overflow-wrap: anywhere;
+}
+
+.panel button {
+    width: 100%;
+}

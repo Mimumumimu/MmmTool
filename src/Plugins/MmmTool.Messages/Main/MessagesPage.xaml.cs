@@ -23,11 +23,23 @@ public sealed partial class MessagesPage : Page
     /// <summary>メッセージの一覧が一番下に近い、と見なす残りの高さ (DIP)</summary>
     private const double NearBottomOffset = 120;
 
-    /// <summary>会話を切り替えるとき、前の会話を薄くしながら、新しい会話を濃くする、重ねたフェードの長さ</summary>
-    private static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(500);
+    /// <summary>会話を切り替えるとき、前の会話が消える長さ。入ってくるものより短く、始めも終わりもなめらかに消す</summary>
+    private static readonly TimeSpan FadeOutDuration = TimeSpan.FromMilliseconds(260);
+
+    /// <summary>会話を切り替えるとき、新しい会話が現れ始めるまでの遅れ。前の会話が薄くなってから、現れ始める</summary>
+    private static readonly TimeSpan FadeInDelay = TimeSpan.FromMilliseconds(60);
+
+    /// <summary>会話を切り替えるとき、新しい会話が現れる長さ。入ってくるものは長めに、減速して止まる</summary>
+    private static readonly TimeSpan FadeInDuration = TimeSpan.FromMilliseconds(360);
+
+    /// <summary>新しい会話が現れるとき、下から浮かび上がる距離 (DIP)</summary>
+    private const float FadeInRise = 10f;
 
     /// <summary>フェードの変え終わりの通知を待つ、時間への上乗せ。通知が来ないときに打ち切る</summary>
     private static readonly TimeSpan FadeTimeout = TimeSpan.FromMilliseconds(200);
+
+    /// <summary>OS の設定で、画面の動きが切られているかを知るための設定</summary>
+    private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
 
     /// <summary>ページが載っている画面。見える・見えないの変化を受けるため。載っていない間は null</summary>
     private XamlRoot? _root;
@@ -80,6 +92,11 @@ public sealed partial class MessagesPage : Page
     /// <returns>出すなら Visible、出さないなら Collapsed</returns>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>会話の行の名前の太さを、読んでいないかから決める</summary>
+    /// <param name="unread">読んでいないメッセージがあるか</param>
+    /// <returns>読んでいないときは太字、読んだときは通常の見出しの太さ</returns>
+    public static Windows.UI.Text.FontWeight NameWeight(bool unread) => unread ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.SemiBold;
+
     /// <summary>ページが載っているウィンドウの表示の状態が変わったら、読む間隔を直す</summary>
     /// <param name="sender">ウィンドウの内容の画面 (<c>XamlRoot</c>)</param>
     /// <param name="args">変更の情報</param>
@@ -128,6 +145,12 @@ public sealed partial class MessagesPage : Page
             ViewModel.OpenPersonCommand.Execute(person);
         }
     }
+
+    /// <summary>参加者の画面の「人を追加」「グループを抜ける」を押したら、画面を閉じる</summary>
+    /// <param name="sender">押したボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>操作は、ボタンのコマンドが行う。ここでは、次の画面や確認ダイアログの邪魔にならないよう、閉じるだけ。</remarks>
+    private void OnParticipantsActionClick(object sender, RoutedEventArgs e) => ParticipantsButton.Flyout?.Hide();
 
     /// <summary>入力欄で Ctrl+Enter が押されたら、送信する。Enter だけなら改行</summary>
     /// <param name="sender">イベントの送信元</param>
@@ -216,6 +239,18 @@ public sealed partial class MessagesPage : Page
 
         SetOpacity(SwitchSnapshot, 1f);
         SetOpacity(MessageList, 0f);
+        SetRise(MessageList, FadeInRise);
+    }
+
+    /// <summary>部品の縦の位置のずれを、動きをつけずに、すぐ指定の値にする。動いているものは止める</summary>
+    /// <param name="target">位置をずらす部品</param>
+    /// <param name="offset">元の位置からの下へのずれ。単位は DIP で、0 が元の位置</param>
+    private static void SetRise(UIElement target, float offset)
+    {
+        ElementCompositionPreview.SetIsTranslationEnabled(target, true);
+        var visual = ElementCompositionPreview.GetElementVisual(target);
+        visual.StopAnimation("Translation.Y");
+        visual.Properties.InsertVector3("Translation", new System.Numerics.Vector3(0f, offset, 0f));
     }
 
     /// <summary>部品の濃さを、動きをつけずに、すぐ指定の値にする。動いているフェードは止める</summary>
@@ -232,26 +267,50 @@ public sealed partial class MessagesPage : Page
     /// <param name="target">濃さを変える部品</param>
     /// <param name="to">変えたあとの濃さ。0 が透明、1 が不透明</param>
     /// <param name="duration">変える時間</param>
+    /// <param name="delay">変え始めるまでの遅れ</param>
+    /// <param name="easing">変わり方の曲線。(x1, y1, x2, y2)の 3 次ベジェ</param>
+    /// <param name="rise">指定すると、同じ時間・同じ曲線で、この距離だけ下にずれた位置から元の位置へ浮かび上がらせる (DIP)</param>
     /// <returns>変え終わったことを表すタスク</returns>
     /// <remarks>
     /// 部品の <c>Opacity</c> ではなく、描画の層 (<c>Visual</c>)の濃さを動かす。途中で別のフェードを始めても、いまの濃さから始まる。
-    /// 変え終わりの通知が来ないときのため、時間に少し足した長さで打ち切る。
+    /// 変え終わりの通知が来ないときのため、遅れと時間に少し足した長さで打ち切る。
     /// </remarks>
-    private static Task FadeAsync(UIElement target, float to, TimeSpan duration)
+    private static Task FadeAsync(UIElement target, float to, TimeSpan duration, TimeSpan delay, System.Numerics.Vector4 easing, float? rise = null)
     {
         var visual = ElementCompositionPreview.GetElementVisual(target);
         var compositor = visual.Compositor;
+        var curve = compositor.CreateCubicBezierEasingFunction(
+            new System.Numerics.Vector2(easing.X, easing.Y),
+            new System.Numerics.Vector2(easing.Z, easing.W));
+
         var animation = compositor.CreateScalarKeyFrameAnimation();
-        animation.InsertKeyFrame(1f, to);
+        animation.InsertKeyFrame(1f, to, curve);
         animation.Duration = duration;
+        animation.DelayTime = delay;
 
         var completion = new TaskCompletionSource();
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
         visual.StartAnimation("Opacity", animation);
+        if (rise is not null)
+        {
+            var slide = compositor.CreateScalarKeyFrameAnimation();
+            slide.InsertKeyFrame(0f, rise.Value);
+            slide.InsertKeyFrame(1f, 0f, curve);
+            slide.Duration = duration;
+            slide.DelayTime = delay;
+            ElementCompositionPreview.SetIsTranslationEnabled(target, true);
+            visual.StartAnimation("Translation.Y", slide);
+        }
         batch.End();
         batch.Completed += (_, _) => completion.TrySetResult();
-        return Task.WhenAny(completion.Task, Task.Delay(duration + FadeTimeout));
+        return Task.WhenAny(completion.Task, Task.Delay(delay + duration + FadeTimeout));
     }
+
+    /// <summary>出ていくものの曲線。始めはゆっくり動き出し、終わりもゆっくり止まる。加速だけだと、終わりで急に消える</summary>
+    private static readonly System.Numerics.Vector4 FadeOutEasing = new(0.33f, 0f, 0.67f, 1f);
+
+    /// <summary>入ってくるものの曲線。始めは速く、止まる手前で減速する (Fluent の減速)</summary>
+    private static readonly System.Numerics.Vector4 DecelerateEasing = new(0.1f, 0.9f, 0.2f, 1f);
 
     /// <summary>メッセージ欄の中身を差し替えたあと、一番下へ合わせてから、重ねたフェードで切り替える</summary>
     /// <remarks>配置が終わるのを待ってから、スクロールする。配置の前だと、一番下の行が、まだ作られていないため。</remarks>
@@ -270,9 +329,19 @@ public sealed partial class MessagesPage : Page
         }
 
         var version = _switchVersion;
-        var fadeIn = FadeAsync(MessageList, 1f, FadeDuration);
-        var fadeOut = FadeAsync(SwitchSnapshot, 0f, FadeDuration);
-        await Task.WhenAll(fadeIn, fadeOut);
+        if (_uiSettings.AnimationsEnabled)
+        {
+            var fadeIn = FadeAsync(MessageList, 1f, FadeInDuration, FadeInDelay, DecelerateEasing, FadeInRise);
+            var fadeOut = FadeAsync(SwitchSnapshot, 0f, FadeOutDuration, TimeSpan.Zero, FadeOutEasing);
+            await Task.WhenAll(fadeIn, fadeOut);
+        }
+        else
+        {
+            // OS の設定で画面の動きが切られているときは、動きをつけず、すぐ切り替える
+            SetOpacity(MessageList, 1f);
+            SetRise(MessageList, 0f);
+            SetOpacity(SwitchSnapshot, 0f);
+        }
 
         // 次の切り替えが始まっていたら、その切り替えが撮った画像を消さない
         if (version == _switchVersion)

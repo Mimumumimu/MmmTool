@@ -2,6 +2,7 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject NotificationsClient Notifications
+@inject PushRegistration Registration
 @inject BrowserClient Browser
 @inject NavigationManager Navigation
 
@@ -54,15 +55,12 @@
 }
 
 @code {
-    /// <summary>この端末が登録した送信先の番号を覚える、この端末の値の名前。通知の画面と同じ。</summary>
-    public const string ChannelIdKey = "notifications.channelId";
-
     /// <summary>ブラウザの設定や通信で、通知の準備に失敗したときの文。</summary>
     private const string BrowserFailedMessage = "通知を設定できませんでした。ブラウザの設定を確かめてください。";
 
     private PushStatus _status = new(PushState.Unsupported, false);
     private IReadOnlyList<PushDeviceDto> _devices = [];
-    private int _rememberedId;
+    private int _registeredId;
     private string? _publicKey;
     private bool _loaded;
     private bool _working;
@@ -74,9 +72,8 @@
     /// <summary>登録や解除の操作を出せる状態か。サーバーに鍵が設定されていないときは出さない。</summary>
     private bool CanRegister => _loaded && _status.State == PushState.Ready && !string.IsNullOrEmpty(_publicKey);
 
-    /// <summary>この端末が登録済みか。ブラウザが宛先を持ち、覚えている番号の行が、サーバーの一覧にもある。</summary>
-    /// <remarks>ブラウザの宛先だけでは、登録済みとしない。登録に失敗した、PC の送信先の一覧で削除された、のとき、通知が届かないため。</remarks>
-    private bool IsRegistered => _status.Subscribed && _rememberedId > 0 && _devices.Any(device => device.Id == _rememberedId);
+    /// <summary>この端末が登録済みか。判定は <see cref="PushRegistration"/> で、通知の画面と同じ。</summary>
+    private bool IsRegistered => _registeredId > 0;
 
     /// <summary>この端末の状態を説明する文。</summary>
     private string StatusText => _status.State switch
@@ -116,7 +113,6 @@
             // サービスワーカーを登録できないなど。画面は壊さずに、使えない状態として説明する
             _status = new PushStatus(PushState.Unsupported, false);
         }
-        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out _rememberedId);
         var result = await Notifications.LoadAsync();
         if (result.Status == ApiFailure.SignedOut)
         {
@@ -128,6 +124,7 @@
         {
             _publicKey = result.Value!.PublicKey;
             _devices = result.Value.Devices;
+            _registeredId = await Registration.FindRegisteredIdAsync(_status, _devices);
         }
         else
         {
@@ -171,7 +168,7 @@
         }
 
         var name = await Browser.GetDeviceNameAsync();
-        int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out var rememberedId);
+        int.TryParse(await Browser.GetRememberedAsync(PushRegistration.ChannelIdKey), out var rememberedId);
         var result = await Notifications.RegisterAsync(
             new PushRegisterRequest(rememberedId, name, subscription.Endpoint, subscription.P256dh, subscription.Auth));
         _working = false;
@@ -188,7 +185,7 @@
             return;
         }
 
-        await Browser.RememberAsync(ChannelIdKey, result.Value!.Id.ToString(CultureInfo.InvariantCulture));
+        await Browser.RememberAsync(PushRegistration.ChannelIdKey, result.Value!.Id.ToString(CultureInfo.InvariantCulture));
         ShowResult("この端末を登録しました。", isError: false);
         await LoadAsync();
     }
@@ -223,10 +220,10 @@
             return;
         }
 
-        // 登録した番号を覚えていないときは、サーバーの行が残る。送信先の一覧 (PC 版)から削除できる
-        if (int.TryParse(await Browser.GetRememberedAsync(ChannelIdKey), out var rememberedId) && rememberedId > 0)
+        // 登録済みの番号は、読み込んだときに、記憶か宛先で見つけている。登録済みでない端末には、解除の操作が出ない
+        if (_registeredId > 0)
         {
-            var result = await Notifications.RemoveAsync(new PushRemoveRequest(rememberedId));
+            var result = await Notifications.RemoveAsync(new PushRemoveRequest(_registeredId));
             if (result.Status == ApiFailure.SignedOut)
             {
                 _working = false;
@@ -240,7 +237,7 @@
                 await LoadAsync();
                 return;
             }
-            await Browser.RememberAsync(ChannelIdKey, "0");
+            await Browser.RememberAsync(PushRegistration.ChannelIdKey, "0");
         }
 
         _working = false;

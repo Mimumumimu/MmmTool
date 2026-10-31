@@ -45,21 +45,21 @@ export function isStandalone() {
 }
 
 // 通知の状態。unsupported = この環境では使えない / needs-home-screen = iPhone でホーム画面に追加していない / denied = 許可が拒否されている / ready = 登録できる
-// subscribed は、このブラウザが今、宛先を持っているか。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
+// subscribed は、このブラウザが今、宛先を持っているか。endpoint は、その宛先の URL で、持っていないときは null。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
 export async function getPushStatus() {
     const isIos = /iPhone|iPad/.test(navigator.userAgent);
     if (isIos && !isStandalone()) {
-        return { state: "needs-home-screen", subscribed: false };
+        return { state: "needs-home-screen", subscribed: false, endpoint: null };
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-        return { state: "unsupported", subscribed: false };
+        return { state: "unsupported", subscribed: false, endpoint: null };
     }
     if (Notification.permission === "denied") {
-        return { state: "denied", subscribed: false };
+        return { state: "denied", subscribed: false, endpoint: null };
     }
     const registration = await registerWorker();
     const subscription = await registration.pushManager.getSubscription();
-    return { state: "ready", subscribed: subscription !== null };
+    return { state: "ready", subscribed: subscription !== null, endpoint: subscription?.endpoint ?? null };
 }
 
 // 通知の許可を求めて、このブラウザの宛先を作る。押した操作の中で、最初に呼ぶ (iPhone は、押した直後でないと許可を求められない)
@@ -118,6 +118,11 @@ function sameKey(current, wanted) {
 // 入力欄のカーソルを先頭に置く。いまの画面は使わない。端末に残っている古い画面が呼ぶので、消さない。タップで置かれる位置を、置き直すため、1 拍おく
 export function placeCaretAtStart(element) {
     setTimeout(() => element.setSelectionRange(0, 0), 0);
+}
+
+// 画面がいま前面に見えているか。読んだ位置を相手に見せてよいかの判定に使う
+export function isVisible() {
+    return document.visibilityState === "visible";
 }
 
 // アプリが裏から前面に戻ったときに、.NET の NotifyVisible を呼ぶ。dispose で購読をやめる
@@ -188,6 +193,13 @@ export async function unreadInit(kind, maxId) {
 export async function unreadRemove(kind, ids) {
     if (await loadBadge()) {
         await globalThis.removeUnread(kind, ids);
+    }
+}
+
+// サーバーが数える種類 (メッセージ)の件数を置いて、アイコンの数字を直す
+export async function unreadSetServer(kind, count) {
+    if (await loadBadge()) {
+        await globalThis.setServerUnread(kind, count);
     }
 }
 
@@ -316,6 +328,67 @@ export function scrollToBottom(element) {
 // 要素が、ほぼ一番下を見ているか。新着が届いたとき、見ている位置を動かさないかを決める
 export function isNearBottom(element) {
     return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+}
+
+// 全画面のシートが開いている間、シートを見えている範囲 (キーボードを除いた範囲)の上端と高さに合わせ、画面のずれを戻す。dispose でやめる
+// iPhone は、キーボードを出すとき、入力欄が見えるように画面全体を動かし、閉じても戻さない端末がある。シートが開いている間は、裏の画面をスクロールさせない (css/app.css)ので、動いた分は、開いたときの位置に戻してよい
+// 開いたときの位置は、裏の画面 (ノートの一覧など)のスクロール位置なので、0 ではなく、その位置へ戻す
+// シートの css は、--sheet-top と --sheet-height を使う
+const editableSelector = 'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea, select, [contenteditable="true"]';
+const keyboardSettleDelays = [0, 150, 400, 800];
+
+export function watchSheetViewport() {
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    const openedX = window.scrollX;
+    const openedY = window.scrollY;
+    const timers = new Set();
+
+    const fit = () => {
+        if (viewport) {
+            root.style.setProperty("--sheet-top", `${viewport.offsetTop}px`);
+            root.style.setProperty("--sheet-height", `${viewport.height}px`);
+        }
+    };
+    // 入力欄を触っている間は、キーボードが出ているので、iPhone の動きと取り合わない
+    const restore = () => {
+        if (document.activeElement?.matches(editableSelector)) {
+            return;
+        }
+        if (window.scrollX !== openedX || window.scrollY !== openedY) {
+            window.scrollTo(openedX, openedY);
+        }
+        fit();
+    };
+    // キーボードを閉じる動きは、入力欄を離れたあとも続くので、時間をおいて何度か確かめる
+    const settle = () => {
+        fit();
+        for (const delay of keyboardSettleDelays) {
+            const timer = setTimeout(() => {
+                timers.delete(timer);
+                restore();
+            }, delay);
+            timers.add(timer);
+        }
+    };
+
+    fit();
+    viewport?.addEventListener("resize", settle);
+    viewport?.addEventListener("scroll", fit);
+    document.addEventListener("focusin", settle);
+    document.addEventListener("focusout", settle);
+    return {
+        dispose() {
+            viewport?.removeEventListener("resize", settle);
+            viewport?.removeEventListener("scroll", fit);
+            document.removeEventListener("focusin", settle);
+            document.removeEventListener("focusout", settle);
+            timers.forEach(clearTimeout);
+            timers.clear();
+            root.style.removeProperty("--sheet-top");
+            root.style.removeProperty("--sheet-height");
+        },
+    };
 }
 
 // id の要素を、画面の中ほどに出す。通知を押して開いたメッセージの位置まで、スクロールするため

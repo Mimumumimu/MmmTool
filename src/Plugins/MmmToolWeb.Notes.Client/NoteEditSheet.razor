@@ -1,5 +1,7 @@
 @inject NotesClient Notes
 @inject NavigationManager Navigation
+@inject BrowserClient Browser
+@implements IAsyncDisposable
 
 <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
     <header class="sheet-bar">
@@ -119,6 +121,11 @@
     private bool _saving;
     private string? _error;
 
+    /// <summary>キーボードを除いた見える範囲にシートを合わせる購読。</summary>
+    private IAsyncDisposable? _viewport;
+
+    private bool _disposed;
+
     /// <summary>実施日が原因で、開始日・終了日を動かしたことの知らせ。</summary>
     private string? _info;
 
@@ -146,6 +153,31 @@
         else
         {
             _start = DefaultStart;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var viewport = await Browser.WatchSheetViewportAsync();
+        if (_disposed)
+        {
+            await viewport.DisposeAsync();
+            return;
+        }
+        _viewport = viewport;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_viewport is not null)
+        {
+            await _viewport.DisposeAsync();
         }
     }
 

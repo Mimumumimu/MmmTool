@@ -1,3 +1,5 @@
+using MmmSdk.Core.Components.DaysOfWeek;
+using MmmSdk.Core.Components.Holidays;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
@@ -80,6 +82,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>定期的な差分の取得の間隔を待つタイマー (手動で取得したとき、数え直す)</summary>
     private readonly RestartableTimer _pollTimer = new(PollInterval);
+
+    /// <summary>自動入力を試し終えた (作業の番号, 日付)</summary>
+    /// <remarks>同じ日に、同じ作業へ何度も問い合わせないため。日付が替わると捨てる。設定を変えた作業の分は、すぐ外す。</remarks>
+    private readonly HashSet<(int WorkItemId, DateOnly Date)> _autoHandled = [];
+
+    /// <summary>自動入力を最後に行った日 (まだ行っていなければ、既定の値)</summary>
+    /// <remarks>ページを開いたまま日付が替わったことを、定期的な取得のときに知るために使う。</remarks>
+    private DateOnly _autoDate;
 
     /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
     public event EventHandler<WorkChangedEventArgs>? Changed;
@@ -872,6 +882,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 Name = updated.Name.Trim(),
                 Link = updated.Link.Trim(),
                 ReportExclusion = updated.ReportExclusion,
+                AutoHours = Math.Round(updated.AutoHours, 2),
+                AutoWeekdays = updated.AutoWeekdays,
                 Note = updated.Note,
                 Priority = updated.Priority,
                 StartDate = updated.StartDate,
@@ -900,6 +912,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
             await repository.UpdateItemAsync(current, candidate);
             _items[candidate.Id] = candidate;
+            if (candidate.AutoHours != current.AutoHours || candidate.AutoWeekdays != current.AutoWeekdays)
+            {
+                // 設定を変えたので、今日の分を、もう一度確かめられるようにする
+                _autoHandled.RemoveWhere(handled => handled.WorkItemId == candidate.Id);
+            }
             OnChangedLater();
             return null;
         }
@@ -1138,6 +1155,86 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
+    /// <summary>自動入力: 設定のある自分の作業に、システムの今日の記録を、行が無いときだけ入れる</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>入れた記録の数</returns>
+    /// <remarks>
+    /// 入れる条件は、作業の自動入力の設定 (時間が 0 より大きい・曜日に今日が含まれる)と、開始日から期限日の間であること、祝日ではないこと。
+    /// 完了した作業と、担当が自分でない作業には入れない。過去の日と未来の日には入れない。
+    /// 画面に読み込んだ作業ではなく、保存先から読むので、表示しない案件の作業にも入る。
+    /// 論理削除された記録の行も「ある」と数えるので、0 にして消した日は戻さない。入れる操作は <see cref="IWorkItemRepository.AddRecordIfAbsentAsync"/>。
+    /// 同じ日に同じ作業へ何度も問い合わせないよう、試し終えた作業は覚える。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みまたは保存に失敗した。</exception>
+    public async Task<int> AddAutoEntriesAsync(CancellationToken cancellationToken = default)
+    {
+        if (UserId == 0)
+        {
+            return 0;
+        }
+
+        var today = Today;
+        var added = 0;
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            _autoDate = today;
+            _autoHandled.RemoveWhere(handled => handled.Date != today);
+            foreach (var item in await repository.LoadAutoEntryItemsAsync(cancellationToken))
+            {
+                if (!IsAutoEntryDue(item, today) || _autoHandled.Contains((item.Id, today)))
+                {
+                    continue;
+                }
+
+                var record = new WorkRecord { ProjectId = item.ProjectId, WorkItemId = item.Id, Date = today, Hours = Math.Round(item.AutoHours, 2) };
+                var result = await repository.AddRecordIfAbsentAsync(record, cancellationToken);
+                _autoHandled.Add((item.Id, today));
+                if (result?.Record is not { } saved)
+                {
+                    continue;
+                }
+
+                added++;
+                if (today == _day)
+                {
+                    _dayRecords.RemoveAll(r => r.WorkItemId == item.Id && r.Date == today);
+                    _dayRecords.Add(saved);
+                }
+                if (_holdsScheduleRecords)
+                {
+                    ApplyScheduleRecord(saved);
+                }
+                if (_items.TryGetValue(item.Id, out var loaded))
+                {
+                    _items[item.Id] = loaded with { ActualTotalHours = result.ActualTotalHours };
+                }
+            }
+
+            if (added > 0)
+            {
+                OnChangedLater();
+            }
+        }
+        finally
+        {
+            _lock.Release();
+            FlushChanged();
+        }
+        return added;
+    }
+
+    /// <summary>作業が、その日の自動入力の対象か</summary>
+    /// <param name="item">作業</param>
+    /// <param name="date">日付 (システムの今日)</param>
+    /// <returns>時間が 0 より大きく、開始日から期限日の間で、曜日が合い、祝日ではなければ true</returns>
+    private static bool IsAutoEntryDue(WorkItem item, DateOnly date)
+        => item.AutoHours > 0
+            && (item.StartDate is not { } start || start <= date)
+            && (item.DueDate is not { } due || date <= due)
+            && WeekdaySet.OccursOn(item.AutoWeekdays, date.DayOfWeek)
+            && !JapaneseHolidays.IsHoliday(date);
+
     /// <summary>行を、兄弟の中で上または下へ動かせるか</summary>
     /// <param name="key">行の識別 (グループまたは作業)</param>
     /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
@@ -1193,11 +1290,33 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             while (await _pollTimer.WaitForNextTickAsync(cancellationToken))
             {
                 await TryRefreshAsync(cancellationToken);
+                await TryAddAutoEntriesOnNewDayAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
         {
             // 止められた
+        }
+    }
+
+    /// <summary>ページを開いたまま日付が替わったとき、自動入力を行う (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>確認の完了を表すタスク</returns>
+    /// <remarks>一度も自動入力を行っていないとき (作業管理のページを開いていないとき)は、何もしない。ページを開かない日は休みとして扱うため。</remarks>
+    private async Task TryAddAutoEntriesOnNewDayAsync(CancellationToken cancellationToken)
+    {
+        if (_autoDate == default || _autoDate == Today)
+        {
+            return;
+        }
+
+        try
+        {
+            await AddAutoEntriesAsync(cancellationToken);
+        }
+        catch (DataFileException ex)
+        {
+            RefreshFailed?.Invoke(this, ex.Message);
         }
     }
 
@@ -1552,6 +1671,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         if (item.PlannedHours is { } planned && (double.IsNaN(planned) || planned < 0 || planned > WorkItemLimits.PlannedHoursMax))
         {
             return $"予定時間は 0 以上 {WorkItemLimits.PlannedHoursMax:0} 以下で入力してください。";
+        }
+        if (double.IsNaN(item.AutoHours) || item.AutoHours < 0 || item.AutoHours > WorkItemLimits.DailyHoursMax)
+        {
+            return $"自動入力の時間は 0 以上 {WorkItemLimits.DailyHoursMax:0} 以下で入力してください。";
+        }
+        if ((int)item.AutoWeekdays is < 0 or > (int)Weekdays.All)
+        {
+            return "自動入力の曜日が正しくありません。";
         }
         if (codes.Find(WorkCodes.FeatureNo, WorkCodes.ProgressCategory, item.ProgressCodeNo) is null)
         {

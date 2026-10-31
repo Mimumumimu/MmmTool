@@ -17,6 +17,26 @@ public enum SendMessageOutcome
 
     /// <summary>送る人が、自分の受け取り先を指定していない。何も書かなかった</summary>
     SelfNoReceiveTarget = 4,
+
+    /// <summary>新しいグループの名前か参加者が正しくない。何も書かなかった</summary>
+    /// <remarks>名前が空か長すぎる・自分のほかに参加者がいない・参加者が自分を含めて 50 人を超える・参加者に使えない人がいる。</remarks>
+    GroupInvalid = 5,
+}
+
+/// <summary>グループの参加者や名前を変えようとした結果の区分</summary>
+public enum GroupChangeOutcome
+{
+    /// <summary>変えた。システムメッセージを書いた</summary>
+    Done = 0,
+
+    /// <summary>自分が参加していない会話、または会話が無い。何も書かなかった</summary>
+    NotMember = 1,
+
+    /// <summary>グループではない 1 対 1 の会話。何も書かなかった</summary>
+    NotGroup = 2,
+
+    /// <summary>名前が正しくない・人数が 50 人を超える・追加する人に使えない人がいる。何も書かなかった</summary>
+    Invalid = 3,
 }
 
 /// <summary>

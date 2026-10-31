@@ -55,14 +55,16 @@
                 SelectionMode="Single">
                 <ListView.ItemContainerStyle>
                     <Style BasedOn="{StaticResource DefaultListViewItemStyle}" TargetType="ListViewItem">
-                        <Setter Property="Padding" Value="12,0" />
+                        <!-- 右クリックが行の端でも効くよう、余白は行の中身の Grid が持つ -->
+                        <Setter Property="Padding" Value="0" />
                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="VerticalContentAlignment" Value="Stretch" />
                     </Style>
                 </ListView.ItemContainerStyle>
                 <ListView.ItemTemplate>
                     <DataTemplate x:DataType="local:MessageRecentItemViewModel">
                         <!-- 行全体で右クリックを受けるため、背景を透明で塗る -->
-                        <Grid Background="Transparent">
+                        <Grid Padding="12,0" Background="Transparent">
                             <Grid.ContextFlyout>
                                 <MenuFlyout>
                                     <MenuFlyoutItem

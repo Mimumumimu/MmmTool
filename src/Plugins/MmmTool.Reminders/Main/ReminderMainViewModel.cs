@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Paths;
+using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.Reminders.Core;
 
@@ -23,6 +24,8 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     private readonly IPathOpener _opener;
     /// <summary>確認ダイアログ</summary>
     private readonly IDialogService _confirmDialogs;
+    /// <summary>クリップボード</summary>
+    private readonly IClipboardService _clipboard;
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
@@ -30,15 +33,17 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <param name="dialogs">入力・一覧画面を開く</param>
     /// <param name="confirmDialogs">確認ダイアログを開く</param>
     /// <param name="opener">リンクを開く処理</param>
+    /// <param name="clipboard">クリップボード</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderMainViewModel(
-        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, TimeProvider time)
+        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, IClipboardService clipboard, TimeProvider time)
         : base(reminders, time)
     {
         _monitor = monitor;
         _dialogs = dialogs;
         _confirmDialogs = confirmDialogs;
         _opener = opener;
+        _clipboard = clipboard;
     }
 
     /// <summary>未対応 (未・スヌーズ)の行</summary>
@@ -98,6 +103,11 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
             ShowOperationError(ex.Message);
         }
     }
+
+    /// <summary>備考の全文をクリップボードにコピーする</summary>
+    /// <param name="item">備考をコピーする行</param>
+    [RelayCommand]
+    private void CopyNote(ReminderTodayItem item) => _clipboard.SetText(item.Note);
 
     /// <summary>編集 (入力画面を開く)</summary>
     /// <param name="item">編集する行</param>

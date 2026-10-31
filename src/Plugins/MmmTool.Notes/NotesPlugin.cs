@@ -5,6 +5,7 @@ using MmmTool.CodeMaster.Core;
 using MmmTool.Notes.Core;
 using MmmTool.Notes.Edit;
 using MmmTool.Notes.Main;
+using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
 
 namespace MmmTool.Notes;
@@ -33,6 +34,13 @@ public sealed class NotesPlugin : IFeaturePlugin
         // 今日が実施日のノートを、起動時と日付が変わったときに、通知ダイアログで知らせる
         services.AddSingleton<NoteEventMonitor>();
         services.AddStartupTask<NotesEventStartup>(NotesFeature.Key);
+
+        // 他の人の作成・更新を、アプリが動いている間、読み続けて、通知ダイアログで知らせる。サーバーモードだけで、ローカルモードでは読まない
+        services.AddSingleton<NoteChangeMonitor>();
+        services.AddStartupTask<NoteChangeStartup>(NotesFeature.Key);
+
+        // 「通知を受け取る」のオン・オフとして登録する。設定の画面の「通知を受け取る機能」の節に出る
+        services.AddSingleton<INotificationFeatureSetting, NoteNotificationSetting>();
 
         services.AddSingleton<INoteDialogService, NoteDialogService>();
 

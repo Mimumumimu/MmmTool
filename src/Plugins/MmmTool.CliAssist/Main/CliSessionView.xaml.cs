@@ -49,9 +49,9 @@ public sealed partial class CliSessionView : UserControl
         }
     }
 
-    /// <summary>フォーカスを移す文字列が出力に出たら、ターミナルへフォーカスを移す</summary>
+    /// <summary>通知する文字列が出力に出たら、知らせて、「ターミナルへ移る」がオンの文字列なら、ターミナルへフォーカスを移す</summary>
     /// <param name="sender">イベントの送信元</param>
-    /// <param name="e">イベントの情報</param>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか</param>
     /// <remarks>
     /// 画面に出ているとき、つまり選ばれているタブで、CLI補助のページを開いていて、ウィンドウが見えているときだけ移す。
     /// 選ばれていないタブの画面と、ほかのページを開いている間の画面は、画面の木から外れていて、読み込まれた状態ではない。
@@ -61,13 +61,15 @@ public sealed partial class CliSessionView : UserControl
     /// ダイアログを開いている間も、移さない。入力欄に打っている途中で、後ろのターミナルへフォーカスが移ると、打った文字が CLI に入ってしまうため。
     /// 出ていないタブやページを、勝手に切り替えて見せることはしない。ウィンドウも前面に出さない。
     /// </remarks>
-    private void OnFocusTriggerMatched(object? sender, EventArgs e)
+    private void OnFocusTriggerMatched(object? sender, bool moveToTerminal)
     {
         if (!IsLoaded)
         {
+            // 待っている間に、移さない文字列が続けて出ても、移す文字列の分を取り消さない
+            ViewModel.AwaitingMovesToTerminal = moveToTerminal || (ViewModel.IsAwaitingInput && ViewModel.AwaitingMovesToTerminal);
             ViewModel.IsAwaitingInput = true;
         }
-        else if (string.IsNullOrEmpty(ViewModel.InputText) && CanMoveFocusToTerminal())
+        else if (moveToTerminal && string.IsNullOrEmpty(ViewModel.InputText) && CanMoveFocusToTerminal())
         {
             TerminalView.FocusTerminal();
         }
@@ -138,7 +140,7 @@ public sealed partial class CliSessionView : UserControl
     /// <remarks>
     /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスは、ターミナルではなく入力欄に置く。
     /// ターミナル (WebView2)にフォーカスがあると、Alt+矢印のページ移動が効かないため。
-    /// ただし、画面に出ていない間に確認が出ていたときは、入力欄が空で、ダイアログを開いていなければ、ターミナルへ移す。
+    /// ただし、画面に出ていない間に確認が出ていて、その文字列の「ターミナルへ移る」がオンのときは、入力欄が空で、ダイアログを開いていなければ、ターミナルへ移す。
     /// 入力欄へのフォーカスのあとに移すため、移すのは次の処理に回す。
     /// </remarks>
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -150,7 +152,7 @@ public sealed partial class CliSessionView : UserControl
         if (ViewModel.IsAwaitingInput)
         {
             ViewModel.IsAwaitingInput = false;
-            if (string.IsNullOrEmpty(ViewModel.InputText))
+            if (ViewModel.AwaitingMovesToTerminal && string.IsNullOrEmpty(ViewModel.InputText))
             {
                 DispatcherQueue.TryEnqueue(() =>
                 {

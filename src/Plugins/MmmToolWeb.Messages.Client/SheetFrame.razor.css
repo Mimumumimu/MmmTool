@@ -1,0 +1,17 @@
+/* 画面全体を覆うシートの枠。中は、機能の画面と同じ幅と余白 (.screen)で、上のバーも同じ部品 (FeatureHeader)を使う */
+.sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* 浮かべたボタンが無いので、下の余白は、ホームバーを避けるだけにする */
+.screen {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+}

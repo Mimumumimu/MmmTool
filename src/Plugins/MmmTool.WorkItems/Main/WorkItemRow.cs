@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Main;
@@ -91,6 +92,27 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
     /// <summary>作業報告から外す印を、名前のセルに出すか (どちらの印でも)</summary>
     public bool ShowsReportExclusionMark => ShowsPlanExclusionMark || ShowsFullExclusionMark;
+
+    /// <summary>自動入力の時間</summary>
+    /// <remarks>作業だけが持つ。0 は自動入力しない。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsAutoEntryMark), nameof(AutoEntryText))]
+    public partial double AutoHours { get; private set; }
+
+    /// <summary>自動入力する曜日 (作業だけが持つ)</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoEntryText))]
+    public partial Weekdays AutoWeekdays { get; private set; }
+
+    /// <summary>自動入力の印を、名前のセルに出すか</summary>
+    public bool ShowsAutoEntryMark => IsWork && AutoHours > 0;
+
+    /// <summary>自動入力の印のツールチップ</summary>
+    /// <remarks>「自動入力: 月火水木金 0.5 時間」の形。曜日を選んでいないときと 7 つ全部のときは、曜日を「毎日」にする。</remarks>
+    public string AutoEntryText => $"自動入力: {WeekdaySet.Describe(AutoWeekdays)} {FormatHours(AutoHours)} 時間";
+
+    /// <summary>名前のセルの右端に出す印の数 (自動入力と、作業報告から外す印)</summary>
+    public int MarkCount => (ShowsAutoEntryMark ? 1 : 0) + (ShowsReportExclusionMark ? 1 : 0);
 
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]
@@ -249,6 +271,8 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
         if (item is not null)
         {
             ReportExclusion = item.ReportExclusion;
+            AutoHours = item.AutoHours;
+            AutoWeekdays = item.AutoWeekdays;
             AssigneeUserId = item.AssigneeUserId;
             AssigneeText = assigneeText;
             PriorityIndex = WorkChoices.IndexOf(choices.Priorities, (int)item.Priority);
@@ -296,6 +320,15 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <param name="hours">時間 (無ければ null)</param>
     /// <returns>小数 2 桁までの数字。無ければ空</returns>
     internal static string FormatHours(double? hours) => hours?.ToString("0.##") ?? "";
+
+    /// <summary>時間を、時間と分の表示にする</summary>
+    /// <param name="hours">時間</param>
+    /// <returns>分に丸めた「10 時間 15 分」の形</returns>
+    internal static string FormatHoursAndMinutes(double hours)
+    {
+        var totalMinutes = (int)Math.Round(hours * 60, MidpointRounding.AwayFromZero);
+        return $"{totalMinutes / 60} 時間 {totalMinutes % 60} 分";
+    }
 
     /// <summary>文章の先頭の 1 行を返す</summary>
     /// <param name="text">文章 (改行を含んでよい)</param>

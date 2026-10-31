@@ -16,11 +16,13 @@ public sealed class MessagesClient(HttpClient http)
     private const string NotFoundMessage = "会話が見つかりません。";
 
     /// <summary>
-    /// 入力欄を出すのに要る情報 (本文の上限)を読む。
+    /// 入力欄を出すのに要る情報 (本文の上限と、自分と相手が受け取れるか)を読む。
     /// </summary>
+    /// <param name="conversationId">開いている会話の番号。まだ会話が無いときは 0。</param>
+    /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。</param>
     /// <returns>入力欄の情報。</returns>
-    public Task<ApiResult<MessageFormDto>> LoadFormAsync()
-        => CallAsync(() => http.GetAsync($"{Path}/form"), response => Read(response, MessagesJsonContext.Default.MessageFormDto));
+    public Task<ApiResult<MessageFormDto>> LoadFormAsync(int conversationId, int peerUserId)
+        => CallAsync(() => http.GetAsync($"{Path}/form?conversationId={conversationId}&peerUserId={peerUserId}"), response => Read(response, MessagesJsonContext.Default.MessageFormDto));
 
     /// <summary>
     /// 自分の会話の一覧を、最初に読み込む。
@@ -79,21 +81,54 @@ public sealed class MessagesClient(HttpClient http)
             response => Read(response, MessagesJsonContext.Default.MessageSentDto));
 
     /// <summary>
-    /// 受け取り先の設定を読む。
+    /// グループに人を追加する。
     /// </summary>
-    /// <returns>自分が使用者の送信先と、選んでいる送信先の番号。</returns>
-    public Task<ApiResult<ReceiveSettingDto>> LoadReceiveSettingAsync()
-        => CallAsync(() => http.GetAsync($"{Path}/receive-channel"), response => Read(response, MessagesJsonContext.Default.ReceiveSettingDto));
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="userIds">追加する人の番号。</param>
+    /// <returns>追加できたとき、成功。</returns>
+    public Task<ApiResult<bool>> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds)
+        => CallAsync<bool>(
+            () => http.PostAsJsonAsync($"{Path}/conversations/{conversationId}/members", new GroupMembersAddDto(userIds), MessagesJsonContext.Default.GroupMembersAddDto),
+            _ => Task.FromResult(true));
 
     /// <summary>
-    /// 受け取り先を指定する。
+    /// グループの名前を変える。
     /// </summary>
-    /// <param name="channelId">指定する送信先の番号。指定を外すときは 0。</param>
-    /// <returns>保存の結果。</returns>
-    public Task<ApiResult<bool>> SaveReceiveChannelAsync(int channelId)
-        => CallAsync(
-            () => http.PutAsJsonAsync($"{Path}/receive-channel", new ReceiveChannelRequest(channelId), MessagesJsonContext.Default.ReceiveChannelRequest),
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="name">新しい名前。</param>
+    /// <returns>変えられたとき、成功。</returns>
+    public Task<ApiResult<bool>> RenameGroupAsync(int conversationId, string name)
+        => CallAsync<bool>(
+            () => http.PutAsJsonAsync($"{Path}/conversations/{conversationId}/name", new GroupRenameDto(name), MessagesJsonContext.Default.GroupRenameDto),
             _ => Task.FromResult(true));
+
+    /// <summary>
+    /// グループを抜ける。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <returns>抜けられたとき、成功。</returns>
+    public Task<ApiResult<bool>> LeaveGroupAsync(int conversationId)
+        => CallAsync<bool>(
+            () => http.PostAsJsonAsync($"{Path}/conversations/{conversationId}/leave", new GroupLeaveDto(), MessagesJsonContext.Default.GroupLeaveDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// 会話の、自分が読んだ位置を書く。相手の画面に「既読」が出る元になる。
+    /// </summary>
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="messageId">読んだ最後のメッセージの番号。</param>
+    /// <returns>書けた、または読んだ位置がすでにその番号以上だったとき、成功。</returns>
+    public Task<ApiResult<bool>> MarkReadAsync(int conversationId, int messageId)
+        => CallAsync<bool>(
+            () => http.PutAsJsonAsync($"{Path}/conversations/{conversationId}/read", new MessageReadDto(messageId), MessagesJsonContext.Default.MessageReadDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// 読んでいないメッセージの、全部の会話の合計を読む。
+    /// </summary>
+    /// <returns>読んでいないメッセージの数。</returns>
+    public Task<ApiResult<UnreadCountDto>> LoadUnreadCountAsync()
+        => CallAsync(() => http.GetAsync($"{Path}/unread-count"), response => Read(response, MessagesJsonContext.Default.UnreadCountDto));
 
     /// <summary>
     /// 成功の応答から、中身を読む。

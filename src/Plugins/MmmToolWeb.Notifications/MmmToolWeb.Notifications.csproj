@@ -21,6 +21,7 @@
     <ProjectReference Include="..\MmmToolWeb.Notifications.Client\MmmToolWeb.Notifications.Client.csproj" />
     <ProjectReference Include="..\..\NotificationChannels\MmmTool.NotificationChannels.Core\MmmTool.NotificationChannels.Core.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
   </ItemGroup>
 
 </Project>

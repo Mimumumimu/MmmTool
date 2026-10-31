@@ -132,6 +132,10 @@ public sealed partial class NotesViewModel(
     /// <remarks>通知のクリックから、ページを開いたあとに呼ぶ。すでに今日を表示しているときは、何もしない。</remarks>
     public void ShowToday() => Day = notes.Today;
 
+    /// <summary>指定の日を表示する (他の人の作成・更新の通知から開くとき、そのノートが有効な日にする)</summary>
+    /// <param name="day">表示する日</param>
+    public void ShowDay(DateOnly day) => Day = day;
+
     /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
     public bool CanRefresh => notes.IsShared;
 

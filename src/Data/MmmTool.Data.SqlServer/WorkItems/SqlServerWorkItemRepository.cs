@@ -179,6 +179,19 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             },
             cancellationToken);
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkItem>> LoadAutoEntryItemsAsync(CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<WorkItem>>(
+            connection => QueryAsync(
+                connection,
+                null,
+                // 担当が自分で、完了していなくて、自動入力の時間がある作業。表示しない案件も含む。索引は 007_AddWorkItemAutoEntry.sql の IX_WorkItem_AssigneeUserId_AutoHours
+                $"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId = @me AND i.AutoHours > 0 AND i.StatusCodeNo <> @closed AND i.ProjectId IN (SELECT p.Id FROM dbo.WorkProject p WHERE p.IsDeleted = 0)",
+                [("@me", UserId), ("@closed", (int)WorkItemStatus.Closed)],
+                reader => ReadItem(reader).ToWorkItem(),
+                cancellationToken),
+            cancellationToken);
+
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
     /// <returns>条件の SQL。パラメーター <c>@me</c>・<c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> を使う</returns>
@@ -334,14 +347,15 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 transaction,
                 """
                 INSERT INTO dbo.WorkItem (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                          PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExclusion, StatusCodeNo, ProgressCodeNo, Note)
+                                          PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExclusion, StatusCodeNo, ProgressCodeNo, Note, AutoHours, AutoWeekdays)
                 OUTPUT INSERTED.Id, INSERTED.CreatedAt, INSERTED.UpdatedAt
-                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExclusion, @status, @progress, @note)
+                VALUES (0, @user, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExclusion, @status, @progress, @note, @autoHours, @autoWeekdays)
                 """,
                 [
                     ("@user", user), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
                     ("@name", row.Name), ("@note", row.Note), ("@reportExclusion", row.ReportExclusion), ("@assignee", row.AssigneeUserId), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
                     ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
+                    ("@autoHours", row.AutoHours), ("@autoWeekdays", row.AutoWeekdays),
                 ]);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -378,6 +392,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
+        changes.Add("AutoHours", b.AutoHours, a.AutoHours);
+        changes.Add("AutoWeekdays", b.AutoWeekdays, a.AutoWeekdays);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
     }
 
@@ -417,6 +433,18 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <inheritdoc />
     public async Task<WorkRecordResult> SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default)
+        => (await WriteRecordAsync(record, onlyIfAbsent: false, cancellationToken).ConfigureAwait(false))!;
+
+    /// <inheritdoc />
+    public Task<WorkRecordResult?> AddRecordIfAbsentAsync(WorkRecord record, CancellationToken cancellationToken = default)
+        => WriteRecordAsync(record, onlyIfAbsent: true, cancellationToken);
+
+    /// <summary>日ごとの記録を書き、その作業の累計を計算し直す</summary>
+    /// <param name="record">書く記録</param>
+    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書いた記録と累計。何も書かなかったときは null</returns>
+    private async Task<WorkRecordResult?> WriteRecordAsync(WorkRecord record, bool onlyIfAbsent, CancellationToken cancellationToken)
     {
         var user = RequireUser();
         var row = WorkRecordRow.FromWorkRecord(record);
@@ -443,6 +471,12 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 [("@item", row.WorkItemId), ("@date", row.Date)],
                 reader => (Id: reader.GetInt64(0), IsDeleted: reader.GetBoolean(1)),
                 cancellationToken).ConfigureAwait(false)).Cast<(long Id, bool IsDeleted)?>().FirstOrDefault();
+
+            // 行があれば、論理削除された行も含めて、何も書かない (手で 0 にした日を戻さない)
+            if (onlyIfAbsent && existing is not null)
+            {
+                return;
+            }
 
             if (record.IsEmpty)
             {
@@ -500,7 +534,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 cancellationToken).ConfigureAwait(false)).FirstOrDefault();
             result = new WorkRecordResult(saved, total);
         }, cancellationToken).ConfigureAwait(false);
-        return result!;
+        return result;
     }
 
     /// <inheritdoc />
@@ -696,7 +730,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (16 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExclusion, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExclusion, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note, {alias}.AutoHours, {alias}.AutoWeekdays";
 
     /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
     /// <param name="r">読み取り中の結果</param>
@@ -760,6 +794,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         StatusCodeNo = r.GetInt32(19),
         ProgressCodeNo = r.GetInt32(20),
         Note = r.GetString(21),
+        AutoHours = r.GetDecimal(22),
+        AutoWeekdays = r.GetByte(23),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

@@ -4,6 +4,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using MmmBatch.Data.SqlServer;
 using MmmBatch.MessageSending;
+using MmmBatch.NoteSending;
 using MmmBatch.ReminderSending;
 using MmmBatch.Sending.Core;
 using MmmBatch.Shell;
@@ -104,6 +105,7 @@ public partial class App : Application
         // 機能 (バッチ処理)。足すときは、ここに 1 行足すだけ (サイドバーの項目・毎分の仕事・通知は、機能が自分で登録する)
         services.AddFeaturePlugin<ReminderSendingPlugin>(order: 1);
         services.AddFeaturePlugin<MessageSendingPlugin>(order: 2);
+        services.AddFeaturePlugin<NoteSendingPlugin>(order: 3);
 
         services.AddSingleton<MainWindow>();
     }

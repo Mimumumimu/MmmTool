@@ -104,38 +104,52 @@
                         Style="{StaticResource ValueTextStyle}"
                         Text="{x:Bind Name, Mode=OneWay}"
                         Visibility="{x:Bind IsWork}" />
-                    <!-- 作業報告から外す作業の印。予定だけを外すときはカレンダーに斜線、実績と予定の両方を外すときは「隠す」。大きさと色は同じにする。名前の列の幅は、印がある行の分だけ広げて測る -->
-                    <Grid
-                        Width="14"
-                        Height="14"
+                    <!--
+                        名前のセルの右端の印。左から、自動入力と、作業報告から外す印を並べる。出ない印は、場所を取らない。
+                        作業報告から外す印は、予定だけを外すときはカレンダーに斜線、実績と予定の両方を外すときは「隠す」。大きさと色は、どの印も同じにする。
+                        名前の列の幅は、印がある行の分だけ広げて測る
+                    -->
+                    <StackPanel
                         Margin="0,0,6,0"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
-                        ToolTipService.ToolTip="予定に含めない"
-                        Visibility="{x:Bind ShowsPlanExclusionMark, Mode=OneWay}">
+                        Orientation="Horizontal"
+                        Spacing="6">
                         <FontIcon
                             VerticalAlignment="Center"
                             FontSize="14"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="&#xE787;" />
-                        <!-- 「隠す」と同じ向きの斜線 (左上から右下) -->
-                        <Line
-                            Stroke="{ThemeResource TextFillColorSecondaryBrush}"
-                            StrokeThickness="1.5"
-                            X1="0.5"
-                            X2="13.5"
-                            Y1="0.5"
-                            Y2="13.5" />
-                    </Grid>
-                    <FontIcon
-                        Margin="0,0,6,0"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Glyph="&#xED1A;"
-                        ToolTipService.ToolTip="実績・予定に含めない"
-                        Visibility="{x:Bind ShowsFullExclusionMark, Mode=OneWay}" />
+                            Glyph="&#xE8EE;"
+                            ToolTipService.ToolTip="{x:Bind AutoEntryText, Mode=OneWay}"
+                            Visibility="{x:Bind ShowsAutoEntryMark, Mode=OneWay}" />
+                        <Grid
+                            Width="14"
+                            Height="14"
+                            VerticalAlignment="Center"
+                            ToolTipService.ToolTip="予定に含めない"
+                            Visibility="{x:Bind ShowsPlanExclusionMark, Mode=OneWay}">
+                            <FontIcon
+                                VerticalAlignment="Center"
+                                FontSize="14"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Glyph="&#xE787;" />
+                            <!-- 「隠す」と同じ向きの斜線 (左上から右下) -->
+                            <Line
+                                Stroke="{ThemeResource TextFillColorSecondaryBrush}"
+                                StrokeThickness="1.5"
+                                X1="0.5"
+                                X2="13.5"
+                                Y1="0.5"
+                                Y2="13.5" />
+                        </Grid>
+                        <FontIcon
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Glyph="&#xED1A;"
+                            ToolTipService.ToolTip="実績・予定に含めない"
+                            Visibility="{x:Bind ShowsFullExclusionMark, Mode=OneWay}" />
+                    </StackPanel>
                     <TextBlock
                         FontSize="{x:Bind local:WorkItemOptions.ProjectFontSize}"
                         FontWeight="Bold"

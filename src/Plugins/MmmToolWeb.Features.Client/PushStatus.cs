@@ -23,7 +23,8 @@ public enum PushState
 /// </summary>
 /// <param name="State">受け取れるかの区分。</param>
 /// <param name="Subscribed">このブラウザが、今、宛先を持っているか。</param>
-public sealed record PushStatus(PushState State, bool Subscribed);
+/// <param name="Endpoint">このブラウザが持っている宛先の URL。持っていないときは null。サーバーの登録の行を、宛先で探すために使う。</param>
+public sealed record PushStatus(PushState State, bool Subscribed, string? Endpoint = null);
 
 /// <summary>
 /// ブラウザが作った通知の宛先。

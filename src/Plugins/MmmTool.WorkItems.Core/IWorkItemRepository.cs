@@ -217,4 +217,22 @@ public interface IWorkItemRepository
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkRecordResult> SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>自動入力の記録を、同じ作業・日付の行が無いときだけ入れ、その作業の実績の累計を計算し直す</summary>
+    /// <param name="record">入れる記録</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>入れた記録と、計算し直した累計。行があって何も入れなかったときは null</returns>
+    /// <remarks>
+    /// 論理削除された行も「ある」と数えるので、0 にして消した日は戻さない。別の PC が先に入れた行も書き換えない。
+    /// 作業の行のロックと累計の足し直しは <see cref="SetRecordAsync"/> と同じ。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    Task<WorkRecordResult?> AddRecordIfAbsentAsync(WorkRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>自動入力の設定がある、自分の作業を読む</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>担当が自分で、完了していなくて、自動入力の時間が 0 より大きい作業</returns>
+    /// <remarks>表示しない案件の作業も含む。画面に読み込んだ作業には頼らない。削除された案件の作業は除く。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<IReadOnlyList<WorkItem>> LoadAutoEntryItemsAsync(CancellationToken cancellationToken = default);
 }

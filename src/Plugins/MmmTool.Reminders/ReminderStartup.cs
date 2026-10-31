@@ -39,9 +39,13 @@ public sealed class ReminderStartup(
             (title, items, speechText) => dispatcher.TryEnqueue(
                 () =>
                 {
-                    notifications.Show(new NotificationSection(NotificationSourceKey, NotificationOrder, title, items, OnClicked: () => dispatcher.TryEnqueue(
-                        // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く
-                        DispatcherQueuePriority.Low, async () => await reminderWindows.ShowFromNotificationAsync())));
+                    notifications.Show(new NotificationSection(NotificationSourceKey, NotificationOrder, title, items, OnClicked: () =>
+                    {
+                        reminderWindows.MarkClicked(); // TEMP(計測)
+                        dispatcher.TryEnqueue(
+                            // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く
+                            DispatcherQueuePriority.Low, async () => await reminderWindows.ShowFromNotificationAsync());
+                    }));
                     if (speechText is not null)
                     {
                         speech.SpeakAsync(speechText).Forget();

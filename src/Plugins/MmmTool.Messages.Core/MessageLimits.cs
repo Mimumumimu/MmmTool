@@ -9,4 +9,10 @@ public static class MessageLimits
 {
     /// <summary>本文の最大の長さ</summary>
     public const int BodyMaxLength = 1000;
+
+    /// <summary>グループの名前の最大の長さ。<c>MessageConversation.Name</c> の列の長さと同じ</summary>
+    public const int GroupNameMaxLength = 50;
+
+    /// <summary>グループの参加者の最大の人数。自分を含む</summary>
+    public const int GroupMaxMembers = 50;
 }

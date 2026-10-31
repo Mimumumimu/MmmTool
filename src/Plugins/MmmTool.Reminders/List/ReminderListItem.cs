@@ -1,3 +1,4 @@
+using MmmSdk.Core.Components.DaysOfWeek;
 using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.List;
@@ -17,9 +18,10 @@ public sealed class ReminderListItem(Reminder source, bool canPurge)
     /// <summary>日付 (日付指定は yyyy/MM/dd、曜日指定は「－」)</summary>
     public string DateText { get; } = ReminderDates.ToDate(source.Date) is { } date ? date.ToString("yyyy/MM/dd") : None;
 
-    /// <summary>曜日 (「月火水」形式。曜日を選んでいない曜日指定は「毎日」、日付指定は「－」)</summary>
+    /// <summary>曜日の表示</summary>
+    /// <remarks>「月火水」の形。曜日を選んでいない曜日指定と 7 つ全部は「毎日」で、日付指定は「－」。</remarks>
     public string WeekdayText { get; } = ReminderDates.IsWeekdaySpecified(source.Date)
-        ? ReminderDates.DescribeWeekdays(source.Weekdays)
+        ? WeekdaySet.Describe(source.Weekdays)
         : None;
 
     /// <summary>時刻 (HH:mm)</summary>

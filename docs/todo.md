@@ -5,8 +5,10 @@
 ## 作業管理
 
 - 設計は [specs/work-items.md](specs/work-items.md) にある
-- コードマスタ ([specs/work-items.md](specs/work-items.md) の「コードマスタ」): 残りは、管理ツール `MmmToolAdmin` の「共通設定」の「選択肢」での、選択肢の追加・外す・並べ替え ([specs/mmmtooladmin.md](specs/mmmtooladmin.md))
-  - 名前の編集は、MmmToolAdmin にある。ローカルモードの名前の編集は、MmmTool の設定ページの「選択肢」にある。
+- コードマスタの選択肢の追加・外す・並べ替えを作る ([specs/work-items.md](specs/work-items.md) の「コードマスタ」)
+  - ローカルモードは、MmmTool の設定ページの「選択肢」で行う。
+  - サーバーモードは、管理ツール MmmToolAdmin の「共通設定」の「選択肢」で行う。MmmTool は、サーバーモードでは、選択肢を編集しない。管理ツールの仕様は [specs/mmmtooladmin.md](specs/mmmtooladmin.md) を見る。
+  - 名前の編集は、実装済み。
 - 後で決める: リーダー的な人の更新の権限 (SQL Server の実装のとき)・リマインダーを SQLite に移すか (実データがあり、移行が要る)
 - 方向だけ決めている後回し: Backlog との連携 (状態・優先度・進捗度を数値で対応づける)
 
@@ -14,8 +16,6 @@
 
 - 管理ツールの `App.xaml` に、MmmTool の `App.xaml` と同じスタイルを書き写している (`SettingsSectionHeaderStyle`・`AppTextBoxStyle`)
   - 方向: SDK の共有のリソースに移し、MmmTool と管理ツールの両方が読む。SDK の変更になるので、作る前に、ユーザーと決める。
-- 画面の文言 (「ユーザー」「登録用コードを発行」「選択肢」・確認ダイアログ・状態の値)は、ユーザーとの合意が済んでいない。決まったら、`ui-wording` の用語集に足す。
-  - 機能の利用で足した文言も、同じく未合意: 「機能の利用」・選択肢の「有効」「無効」・MmmBatch の「送らなかった」
 - ユーザーごとの機能の「読み取り専用」(有効・無効・読み取り専用の 3 つ目の状態)
   - 保存する値は、最初から 3 つ (無効・有効・読み取り専用)で持つ。管理ツールでは、強制を作るまで選ばせない。
   - 作る内容: 機能ごとに、PC 版の画面の入力・保存・削除の操作を止める。Web 版は、機能ごとの API の入口で、読む要求 (GET)以外を断る。
@@ -36,23 +36,15 @@
 
 ## メッセージ
 
-- グループの作成・参加者の画面を作る。表は、グループに対応していて、[specs/database.md](specs/database.md) にある。グループでの送った人の印の決め方は、作るときに案にして決める。
-- Funnel の先で、Server-Sent Events が途切れず流れるかを、動かして確かめる。
-- 実際に使って、残すかを決める。決まったら、この項目を消して、仕様に移す。
-  - 宛先の表示名で探す欄。前方一致で、検索に自分も出る
-  - メッセージを送れたときに、成功の帯を出さないこと
-  - 通知の画面の、「設定で、この端末を登録してください」の案内
-  - 設定の「受け取り先」の「指定しない」の選択と、選んだ直後の保存
-  - メッセージごとの「返信」のボタン。iPhone では、長押しなど、別の出し方にするか
-  - 新しい文言すべて。人の一覧・検索・印・設定の節・案内の文
+- グループに後から入った人が、入る前のメッセージを読めるかを決める。読める範囲を絞るときは、参加者の行に「ここから読める」メッセージの番号の列を足す。決まりは [specs/messages.md](specs/messages.md) の「グループ」にある。
 - 差分の取得で、長く使っていない端末の基準が古すぎるときは、最初から読み直す形にするかを決める。
-  - 配布用 `README.txt` と `操作説明.html` は、実装のときに直す。トレイのメニュー「メッセージ送信」と「前回送った宛先を覚える」の記述が、なくなるため。
 
 ## ノート
 
 - 仕様は [specs/notes.md](specs/notes.md) にあり、表は [specs/database.md](specs/database.md) の `Note` にある
 - そのうち (方向だけ): 実施日の iPhone への通知
   - 外部送信なので、MmmBatch の機能として作る
+  - 他の人の作成・更新の通知とは別。その仕様は [specs/notes.md](specs/notes.md) の「他の人の作成・更新の通知」にある。
 
 ## Web 版 (MmmToolWeb)
 
@@ -82,10 +74,6 @@
     - 「今日」と「すべて」の切り替え: 画面の上に 2 つの切り替えを置き、開いたときは「今日」にする。
     - 「通知を読み上げる」: iPhone の入力には出さない。編集しても、入っている値は変えない。新規はオフで保存する。
     - 「送信先」: 選べるようにする。自分が登録した ntfy・Discord・Web 版通知を選べば、同じ経路で通知される。
-- Web 版通知で、ホーム画面のアイコンの数字 (バッジ)に、未読の数を出す
-  - iPhone で出るか、サービスワーカーから更新できるかを、実機で確かめてから足す。
-  - 未読は、端末ごとに「最後に開いた時刻」で数える。[specs/web.md](specs/web.md) の「通知 (Web 版)」を見る。
-  - 同じ項目の通知が、`tag` で置き換わるか、通知に時刻が出るかも、同じ実機の確認で見る。
 - 通知から、リマインダーの「完了」や「スヌーズ」を押せるようにする
   - リマインダーの Web 画面を作るときに、受け取った通知の画面のリマインダーに足す。
 - Web 版通知の公開鍵を、MmmBatch の画面で見られて、コピーできるようにする
@@ -94,7 +82,7 @@
   - 端末の記憶が消えると、登録の行が残る。この行の削除は、MmmTool の送信先の一覧で行う。
 - 独自ドメインへ替えるとき: パスキーは、アドレスに結びつくため、全員が登録し直す
 - 画面側の共通の CSS を 1 か所にまとめる
-  - 文字のボタン (`.text`)・入力欄 (`.field`)・メッセージ (`.message`)などが、`NotesPage.razor.css`・`NoteEditSheet.razor.css`・`MessagesPage.razor.css` に、同じ内容で書き写されている。
+  - 文字のボタン (`.text`)・メッセージ (`.message`)などが、`NotesPage.razor.css` と `NoteEditSheet.razor.css` に、同じ内容で書き写されている。
   - 方向: `MmmToolWeb.Features.Client` に共通の CSS か部品を置き、機能の画面は、それを使う。
 - 画面側から `.Core` の判定を使えるようにする
   - メッセージの「送信」を押せる条件が、画面側 (`MessagesPage.razor`)と `MessageDraft.CanSend` の 2 か所にある。
@@ -108,9 +96,6 @@
 - `browser.js` の `getLastFeature`・`setLastFeature` を消す
   - 起動時はいつもホーム画面を開くようにしたので、最後に開いた機能を覚える処理は、画面側から外した。関数だけが、端末に残る古い画面のために残っている。
   - 方向: 古い画面が端末に残らなくなったことを、利用者に確かめてから、消す。`MapStaticAssets` に替えれば、古い画面が残る場面が無くなる。
-- 日付の入力欄の標準の見た目を外した (`app.css` の `appearance: none`)ことの影響を、iPhone 以外のブラウザでも見る
-  - 対象: ノートの編集の開始日・終了日と、ノート一覧の上の日付の選択
-  - 見ること: 高さ・文字の中央寄せ・タップで日付の選択が開くこと
 
 ## 不具合の調査
 
@@ -129,10 +114,23 @@
   - 調べ終わったら、管理者の PowerShell で `cd "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"` → `Remove-Item MmmTool.exe` で設定を消し、`D:\CrashDumps` のダンプを手で消す
   - 原因が分かって直したら、この項目ごと消す
 
+- 通知をクリックしても、開いたままのリマインダーの画面が、他のウィンドウの後ろに残ることがある
+  - 症状の出る端末と出ない端末がある。同じ端末でも、前面になるときと、ならないときがある。DB モード。
+  - 原因の見立て: `BringToFront` の `SetForegroundWindow` が Windows に断られている。通知ウィンドウはフォーカスを奪わない作りで、クリックから前面化までに、Low 優先度の待ちが 2 回入る。
+  - 調べるために、前面化の結果を `Data/Logs/foreground-yyyy-MM-dd.log` に書く計測を入れてある。
+    - 計測のコード: `WindowExtensions.BringToFrontTraced`・`ReminderWindowService.WriteTrace`・`ReminderWindowService.MarkClicked`
+    - コメントに `TEMP(計測)` と書いてある。
+  - 症状の出る端末で、リマインダーの画面を開いたまま通知をクリックして、ログを見る。
+    - `SetForegroundWindow=False`: 前面化の権利が無い。待ちを挟む前の、クリックの処理の中で前面化する作りにする。保険として、Windows App SDK 2.1.9 にある `AppWindow.MoveInZOrderAtTop` を使う。
+    - `SetForegroundWindow=True` なのに後ろに残る: 前面化のあとに、通知を閉じる `CloseAfterClick` か作り直しの `Present` が、前面を奪っている。順序を見直す。
+  - 直したら、計測のコードとログを消し、`BringToFront` に戻す。`NativeMethods.txt` の `GetWindowThreadProcessId` も、使わなければ消す。
+  - 閉じている画面を新しく開く経路は `Activate()` だけで `BringToFront` を通らない。docs/specs/reminders.md の「前面に出すのは SDK の `BringToFront`」と食い違うので、直すときにそろえる。
+
 ## そのうち (方向だけ)
 
-- `scripts/publish - ショートカット.lnk` を、リポジトリに入れるか、`.gitignore` に足すかを決める
-  - 手元の発行用のショートカットで、場所がこの PC のものを指す。コミットには入れていない。
+- `scripts/` の発行用のショートカット (`9001_tool_publish`・`9011_web_publish`・`9021_batch_publish`・`9029_admin_publish`)を、リポジトリに入れるか、`.gitignore` に足すかを決める
+  - 場所がこの PC のものを指す。コミットには入れていない。`.gitignore` に規則は無い。
+  - 方向: `.gitignore` に足す。
 
 - ノートの Web 版の本文の入力に、書式のボタンの列を足す
   - 入力欄の上に、太字・斜体・下線・取消線・色・リンクのボタンを並べる

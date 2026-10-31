@@ -187,9 +187,19 @@
     private static string CardClass(NoteDto note)
         => $"card p{note.Priority}{(note.IsEventDay ? " event" : "")}{(note.IsDeleted ? " deleted" : "")}";
 
+    /// <summary>通知を押して開いたときの、表示する日。「yyyy-MM-dd」の形。形が正しくないとき、無いときは、今日。</summary>
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? OpenDate { get; set; }
+
+    /// <summary>通知の識別子の種類。ノートの通知の数を、このページを開いたときに外す。</summary>
+    internal const string NoteNoticeKind = "note";
+
     protected override async Task OnInitializedAsync()
     {
-        _day = await Browser.GetTodayAsync();
+        _day = DateOnly.TryParseExact(OpenDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var opened)
+            ? opened
+            : await Browser.GetTodayAsync();
+        await Browser.ClearUnreadAsync(NoteNoticeKind);
         await LoadAsync();
     }
 

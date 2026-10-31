@@ -167,6 +167,19 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             },
             cancellationToken);
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<WorkItem>> LoadAutoEntryItemsAsync(CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<WorkItem>>(
+            connection => QueryAsync(
+                connection,
+                null,
+                // 担当が自分で、完了していなくて、自動入力の時間がある作業。表示しない案件も含む。索引は IX_WorkItem_AssigneeUserId_AutoHours
+                $"SELECT {Header("i")}, {ItemColumns("i")} FROM WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId = @me AND i.AutoHours > 0 AND i.StatusCodeNo <> @closed AND i.ProjectId IN (SELECT p.Id FROM WorkProject p WHERE p.IsDeleted = 0)",
+                [("@me", UserId), ("@closed", (int)WorkItemStatus.Closed)],
+                reader => ReadItem(reader).ToWorkItem(),
+                cancellationToken),
+            cancellationToken);
+
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
     /// <returns>条件の SQL。パラメーター <c>@me</c>・<c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> を使う</returns>
@@ -338,13 +351,14 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 transaction,
                 """
                 INSERT INTO WorkItem (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, ProjectId, GroupId, SortOrder, Name, AssigneeUserId,
-                                      PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExclusion, StatusCodeNo, ProgressCodeNo, Note)
-                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExclusion, @status, @progress, @note)
+                                      PriorityCodeNo, StartDate, DueDate, CompletedDate, PlannedHours, ActualTotalHours, ReportExclusion, StatusCodeNo, ProgressCodeNo, Note, AutoHours, AutoWeekdays)
+                VALUES (0, @now, @user, @now, @user, @project, @group, @order, @name, @assignee, @priority, @start, @due, @completed, @planned, 0, @reportExclusion, @status, @progress, @note, @autoHours, @autoWeekdays)
                 """,
                 [
                     ("@now", now), ("@user", LocalUserId), ("@project", row.ProjectId), ("@group", row.GroupId), ("@order", row.SortOrder),
                     ("@name", row.Name), ("@reportExclusion", (int)row.ReportExclusion), ("@assignee", row.AssigneeUserId), ("@note", row.Note), ("@priority", row.PriorityCodeNo), ("@start", row.StartDate), ("@due", row.DueDate),
                     ("@status", row.StatusCodeNo), ("@progress", row.ProgressCodeNo), ("@planned", row.PlannedHours), ("@completed", row.CompletedDate),
+                    ("@autoHours", row.AutoHours), ("@autoWeekdays", (int)row.AutoWeekdays),
                 ],
                 cancellationToken);
             var id = Convert.ToInt32(await ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken));
@@ -381,6 +395,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         changes.Add("StatusCodeNo", b.StatusCodeNo, a.StatusCodeNo);
         changes.Add("ProgressCodeNo", b.ProgressCodeNo, a.ProgressCodeNo);
         changes.Add("Note", b.Note, a.Note);
+        changes.Add("AutoHours", b.AutoHours, a.AutoHours);
+        changes.Add("AutoWeekdays", (int)b.AutoWeekdays, (int)a.AutoWeekdays);
         return UpdateColumnsAsync("WorkItem", a.Id, changes, cancellationToken);
     }
 
@@ -422,6 +438,18 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
 
     /// <inheritdoc />
     public async Task<WorkRecordResult> SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default)
+        => (await WriteRecordAsync(record, onlyIfAbsent: false, cancellationToken))!;
+
+    /// <inheritdoc />
+    public Task<WorkRecordResult?> AddRecordIfAbsentAsync(WorkRecord record, CancellationToken cancellationToken = default)
+        => WriteRecordAsync(record, onlyIfAbsent: true, cancellationToken);
+
+    /// <summary>日ごとの記録を書き、その作業の累計を計算し直す</summary>
+    /// <param name="record">書く記録</param>
+    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書いた記録と累計。何も書かなかったときは null</returns>
+    private async Task<WorkRecordResult?> WriteRecordAsync(WorkRecord record, bool onlyIfAbsent, CancellationToken cancellationToken)
     {
         var row = WorkRecordRow.FromWorkRecord(record);
         var now = Now;
@@ -443,6 +471,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 [("@item", row.WorkItemId), ("@date", row.Date)],
                 reader => (Id: reader.GetInt64(0), IsDeleted: reader.GetInt64(1) != 0),
                 cancellationToken)).Cast<(long Id, bool IsDeleted)?>().FirstOrDefault();
+
+            // 行があれば、論理削除された行も含めて、何も書かない (手で 0 にした日を戻さない)
+            if (onlyIfAbsent && existing is not null)
+            {
+                return;
+            }
 
             if (record.IsEmpty)
             {
@@ -500,7 +534,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
                 cancellationToken)).FirstOrDefault();
             result = new WorkRecordResult(saved, total);
         }, cancellationToken);
-        return result!;
+        return result;
     }
 
     /// <inheritdoc />
@@ -660,7 +694,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (16 列)</returns>
     private static string ItemColumns(string alias)
-        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExclusion, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note";
+        => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExclusion, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note, {alias}.AutoHours, {alias}.AutoWeekdays";
 
     /// <summary>コードマスタの中身の列の並び</summary>
     /// <param name="alias">表の別名</param>
@@ -730,6 +764,8 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         StatusCodeNo = r.GetInt32(19),
         ProgressCodeNo = r.GetInt32(20),
         Note = r.GetString(21),
+        AutoHours = SqliteValues.ToHours(r.GetDouble(22)),
+        AutoWeekdays = (byte)r.GetInt64(23),
     };
 
     /// <summary>日ごとの記録の行を読む</summary>

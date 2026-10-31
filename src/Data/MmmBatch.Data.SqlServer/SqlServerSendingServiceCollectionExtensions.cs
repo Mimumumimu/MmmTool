@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmBatch.Data.SqlServer.Sending;
 using MmmBatch.MessageSending.Core;
+using MmmBatch.NoteSending.Core;
 using MmmBatch.ReminderSending.Core;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.Connection;
@@ -30,6 +31,7 @@ public static class SqlServerSendingServiceCollectionExtensions
         services.AddSingleton<IReminderSendTargetSource, SqlServerReminderSendTargetSource>();
         services.AddSingleton<IReminderSendStatusRepository, SqlServerReminderSendStatusRepository>();
         services.AddSingleton<IMessageSendStore, SqlServerMessageSendStore>();
+        services.AddSingleton<INoteSendSource, SqlServerNoteSendSource>();
         return services;
     }
 }

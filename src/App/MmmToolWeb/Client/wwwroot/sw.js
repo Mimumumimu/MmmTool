@@ -10,16 +10,16 @@ const receivedPath = '/notifications';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
-// 読んでいない通知の一覧とアイコンの数字を扱う処理で、addUnreadFromPush を使う。画面も同じファイルを読む
+// 読んでいない通知の一覧とアイコンの数字を扱う処理で、updateBadgeFromPush を使う。画面も同じファイルを読む
 importScripts('/js/badge.js');
 
 // 配達係から通知が届いたら、必ず 1 つ表示する。表示しない通知を受けると、ブラウザが購読を打ち切ることがあるため
-// アプリの画面を前面で見ている間は、一覧に入れない。画面が更新の知らせで取り込んで、数える
+// アプリの画面を前面で見ている間は、数字を直さない。画面が更新の知らせで取り込んで、数える
 self.addEventListener('push', (event) => {
     const [title, options] = readNotification(event);
     event.waitUntil(Promise.all([
         self.registration.showNotification(title, options),
-        hasVisibleWindow().then((visible) => (visible ? null : addUnreadFromPush(options.data.key))),
+        hasVisibleWindow().then((visible) => (visible ? null : updateBadgeFromPush(options.data.key))),
     ]));
 });
 

@@ -19,18 +19,23 @@ public static class MessageSendContent
     /// <param name="body">本文</param>
     /// <param name="messageId">メッセージの番号 <c>Message.Id</c>。Web 版が、通知を押したときに開く会話を探す</param>
     /// <param name="senderName">送った人の表示名。分からなければ空文字</param>
+    /// <param name="groupName">グループの会話の名前。1 対 1 は空文字</param>
     /// <returns>
     /// 送る内容。リンクは付けない。どの送信先でも、見出しは送った人で、本文はメッセージの本文だけ。
+    /// グループの会話の見出しは、「グループ名 / 送った人」にする。
     /// Discord では、見出しが太字の 1 行目になる。送った人が分からないときは、ntfy と Discord は見出しを付けず、Web 版通知は「メッセージ」にする。
     /// </returns>
-    public static SendMessage FromMessage(string body, int messageId, string senderName)
+    public static SendMessage FromMessage(string body, int messageId, string senderName, string groupName)
     {
         ArgumentNullException.ThrowIfNull(body);
         ArgumentNullException.ThrowIfNull(senderName);
+        ArgumentNullException.ThrowIfNull(groupName);
 
         var sender = senderName.Trim();
-        var webPush = new WebPushContent(MessageNotificationText.Heading(sender), body, $"{ItemKind}:{messageId}");
-        return new SendMessage(sender.Length == 0 ? null : sender, body, null, TitleInContent: true, WebPush: webPush);
+        var group = groupName.Trim();
+        var heading = group.Length == 0 ? sender : sender.Length == 0 ? group : $"{group} / {sender}";
+        var webPush = new WebPushContent(MessageNotificationText.Heading(heading), body, $"{ItemKind}:{messageId}");
+        return new SendMessage(heading.Length == 0 ? null : heading, body, null, TitleInContent: true, WebPush: webPush);
     }
 
     /// <summary>画面の「本文」列と、送信のログに出す、本文の 1 行目を取る</summary>

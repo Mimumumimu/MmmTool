@@ -40,8 +40,33 @@ public sealed class UnavailableMessageRepository : IMessageRepository
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
-    public Task<SendMessageResult> SendAsync(int conversationId, int peerUserId, string body, int replyToMessageId, CancellationToken cancellationToken = default)
+    public Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default)
         => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<GroupChangeOutcome> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds, CancellationToken cancellationToken = default)
+        => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<GroupChangeOutcome> RenameGroupAsync(int conversationId, string name, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<GroupChangeOutcome> LeaveGroupAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <summary>使えないときの例外を作る</summary>
     /// <returns>使えないことを表す例外</returns>

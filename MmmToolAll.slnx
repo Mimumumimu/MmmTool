@@ -100,6 +100,12 @@
     <Project Path="src/Plugins/MmmBatch.MessageSending/MmmBatch.MessageSending.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/Plugins/MmmBatch.NoteSending.Core/MmmBatch.NoteSending.Core.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Plugins/MmmBatch.NoteSending/MmmBatch.NoteSending.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/Plugins/MmmToolAdmin/">
     <Project Path="src/Plugins/MmmToolAdmin.Users/MmmToolAdmin.Users.csproj">

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using MmmSdk.Core.Components.DaysOfWeek;
 
 namespace MmmTool.Reminders.Core;
 
@@ -25,7 +26,7 @@ public sealed record Reminder
     public int Time { get; init; }
 
     /// <summary>曜日指定</summary>
-    /// <remarks>日付指定のときは <see cref="Weekdays.None"/>。曜日指定で <see cref="Weekdays.None"/> なら毎日。</remarks>
+    /// <remarks>日付指定のときは <see cref="Weekdays.None"/>。曜日指定で <see cref="Weekdays.None"/> か 7 つ全部なら毎日。</remarks>
     public Weekdays Weekdays { get; init; }
 
     /// <summary>件名</summary>

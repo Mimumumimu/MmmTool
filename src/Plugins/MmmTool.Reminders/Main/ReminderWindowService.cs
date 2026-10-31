@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Utilities;
@@ -26,14 +27,18 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
         if (_opening is { } opening)
         {
             var opened = await opening;
-            opened.BringToFront();
+            // TEMP(計測): 原因が決まったら BringToFront() に戻す
+            var trace = opened.BringToFrontTraced();
+            WriteTrace($"開いている画面を前面に: クリックから {Stopwatch.GetElapsedTime(_clickedAt).TotalMilliseconds:F0}ms / {trace}");
             return opened;
         }
 
         _opening = OpenAsync();
         try
         {
-            return await _opening;
+            var created = await _opening;
+            WriteTrace($"閉じていた画面を新しく開いた: クリックから {Stopwatch.GetElapsedTime(_clickedAt).TotalMilliseconds:F0}ms");
+            return created;
         }
         catch
         {
@@ -77,6 +82,33 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
             throw;
         }
         return window;
+    }
+
+    /// <summary>TEMP(計測): 通知のクリックを受けた時刻 (<see cref="Stopwatch.GetTimestamp"/>)</summary>
+    private long _clickedAt;
+
+    /// <summary>TEMP(計測): 通知のクリックを受けた時刻を控える</summary>
+    public void MarkClicked()
+    {
+        _clickedAt = Stopwatch.GetTimestamp();
+        WriteTrace($"通知のクリックを受けた (画面は{(_opening is null ? "閉じている" : "開いている")})");
+    }
+
+    /// <summary>TEMP(計測): 前面化の結果を <c>Data/Logs/foreground-yyyy-MM-dd.log</c> に追記する</summary>
+    /// <param name="message">書く内容</param>
+    private static void WriteTrace(string message)
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "Data", "Logs");
+        var now = DateTimeOffset.Now;
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.AppendAllText(Path.Combine(directory, $"foreground-{now:yyyy-MM-dd}.log"), $"[{now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 計測のログなので、書けなくても画面を開く処理は止めない
+        }
     }
 
     /// <summary>通知から開く</summary>

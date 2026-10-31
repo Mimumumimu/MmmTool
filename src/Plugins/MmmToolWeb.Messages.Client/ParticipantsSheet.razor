@@ -1,0 +1,183 @@
+@* グループの参加者のシート。名前の変更・参加者の一覧・人の追加・グループを抜ける。他の人を外す操作は無い。 *@
+@inject MessagesClient Messages
+@inject NavigationManager Navigation
+
+@if (_picking)
+{
+    <MemberPickerSheet Title="人を追加" ConfirmText="追加" People="_people" NameMaxLength="NameMaxLength" MaxMembers="MaxMembers"
+                       ExistingCount="@(Readers.Count + 1)" Busy="_busy" OnCancel="CancelPick" OnConfirm="AddAsync" />
+}
+else
+{
+    <SheetFrame Label="参加者">
+        <FeatureHeader Title="参加者" Busy="_busy" BackText="閉じる" BackMark="" OnBack="OnClose" />
+
+        @if (_error is not null)
+        {
+            <p class="result error" role="alert">@_error</p>
+        }
+
+        <label class="field" for="group-rename">グループ名</label>
+        <div class="rename">
+            <input id="group-rename" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
+            <button type="button" @onclick="RenameAsync" disabled="@(!CanRename || _busy)">保存</button>
+        </div>
+
+        <h2>参加者 @(Readers.Count + 1) 人</h2>
+        <ul class="list" aria-label="参加者">
+            <li class="member">自分</li>
+            @foreach (var reader in Readers)
+            {
+                <li class="member">@reader.DisplayName</li>
+            }
+        </ul>
+
+        <button type="button" class="action" @onclick="StartAddAsync" disabled="@_busy">人を追加</button>
+        <button type="button" class="action danger" @onclick="AskLeave" disabled="@_busy">グループを抜ける</button>
+    </SheetFrame>
+
+    @if (_confirmLeave)
+    {
+        <div class="backdrop">
+            <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="leave-title">
+                <h2 id="leave-title">グループを抜けますか？</h2>
+                <p>抜けると、このグループのメッセージを読めなくなります。もう一度入るには、参加者に追加してもらう必要があります。</p>
+                <div class="buttons">
+                    <button type="button" @onclick="CancelLeave">キャンセル</button>
+                    <button type="button" class="danger-fill" @onclick="LeaveAsync">抜ける</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private string _name = "";
+    private string _loadedName = "\0";
+    private bool _picking;
+    private bool _confirmLeave;
+    private bool _busy;
+    private string? _error;
+    private IReadOnlyList<PersonDto> _people = [];
+
+    /// <summary>グループの会話の番号。</summary>
+    [Parameter, EditorRequired]
+    public int ConversationId { get; set; }
+
+    /// <summary>グループの今の名前。</summary>
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = "";
+
+    /// <summary>自分以外の参加者。名前と読んだ位置。</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ReadPositionDto> Readers { get; set; } = [];
+
+    /// <summary>自分の番号。人を追加する一覧から除く。</summary>
+    [Parameter]
+    public int SelfUserId { get; set; }
+
+    /// <summary>グループの名前の最大の長さ。</summary>
+    [Parameter]
+    public int NameMaxLength { get; set; } = 50;
+
+    /// <summary>グループの参加者の最大の人数。自分を含む。</summary>
+    [Parameter]
+    public int MaxMembers { get; set; } = 50;
+
+    /// <summary>閉じたとき。</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>名前の変更か人の追加ができたとき。呼び出し側が、差分を読み直す。</summary>
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    /// <summary>グループを抜けたとき。呼び出し側が、会話の一覧へ戻る。</summary>
+    [Parameter]
+    public EventCallback OnLeft { get; set; }
+
+    private bool CanRename => _name.Trim().Length > 0 && _name.Trim().Length <= NameMaxLength && _name.Trim() != Name;
+
+    protected override void OnParametersSet()
+    {
+        if (_loadedName != Name)
+        {
+            _loadedName = Name;
+            _name = Name;
+        }
+    }
+
+    private async Task RenameAsync()
+    {
+        if (!CanRename)
+        {
+            return;
+        }
+
+        await RunAsync(() => Messages.RenameGroupAsync(ConversationId, _name.Trim()), "名前を変えられませんでした", OnChanged);
+    }
+
+    private async Task StartAddAsync()
+    {
+        _busy = true;
+        _error = null;
+        var result = await Messages.SearchPeopleAsync("");
+        _busy = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"宛先の人を読み込めませんでした: {result.Message}";
+            return;
+        }
+
+        var existing = Readers.Select(reader => reader.UserId).ToHashSet();
+        _people = [.. result.Value!.Where(person => person.UserId != SelfUserId && !existing.Contains(person.UserId))];
+        _picking = true;
+    }
+
+    private void CancelPick() => _picking = false;
+
+    private async Task AddAsync(MemberPick pick)
+    {
+        await RunAsync(() => Messages.AddMembersAsync(ConversationId, pick.UserIds), "追加できませんでした", OnChanged);
+        _picking = false;
+    }
+
+    private void AskLeave() => _confirmLeave = true;
+
+    private void CancelLeave() => _confirmLeave = false;
+
+    private async Task LeaveAsync()
+    {
+        _confirmLeave = false;
+        await RunAsync(() => Messages.LeaveGroupAsync(ConversationId), "グループを抜けられませんでした", OnLeft);
+    }
+
+    /// <summary>グループの変更を送り、成功したら、呼び出し側へ知らせる。失敗は、理由をこの画面に出す。</summary>
+    /// <param name="send">変更を送る処理。</param>
+    /// <param name="failureText">失敗の見出し。</param>
+    /// <param name="onSucceeded">成功したときに呼ぶ処理。</param>
+    private async Task RunAsync(Func<Task<ApiResult<bool>>> send, string failureText, EventCallback onSucceeded)
+    {
+        _busy = true;
+        _error = null;
+        var result = await send();
+        _busy = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            _error = $"{failureText}: {result.Message}";
+            return;
+        }
+
+        await onSucceeded.InvokeAsync();
+    }
+}

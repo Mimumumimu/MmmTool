@@ -1,0 +1,30 @@
+/* 設定の画面の「通知を受け取る機能」の節。機能ごとのオン・オフを縦に並べる */
+.result {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow-wrap: anywhere;
+}
+
+.result.error {
+    color: var(--danger);
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+.option input {
+    display: inline-block;
+    flex: none;
+    width: 1.5rem;
+    min-height: 0;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+}

@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Reminders;
 
@@ -19,17 +20,25 @@ internal sealed class UserSettingTable
     public const int ValueMaxLength = 200;
 
     /// <summary>ユーザー自身が決める設定の表</summary>
-    public static readonly UserSettingTable AppUserSetting = new("AppUserSetting");
+    public static readonly UserSettingTable AppUserSetting = new("AppUserSetting", CodeFeatures.Common);
 
     /// <summary>管理者がユーザーごとに決める設定の表</summary>
-    public static readonly UserSettingTable AppUserAdminSetting = new("AppUserAdminSetting");
+    public static readonly UserSettingTable AppUserAdminSetting = new("AppUserAdminSetting", CodeFeatures.Common + 1);
 
     /// <summary>表の名前</summary>
     private readonly string _table;
 
+    /// <summary>この表で使える一番小さい機能番号。共通の <see cref="CodeFeatures.Common"/> を使うのは、ユーザー自身が決める設定だけ</summary>
+    private readonly int _minFeatureNo;
+
     /// <summary>表の名前から作る</summary>
     /// <param name="table">表の名前。定数だけを渡す (SQL に埋め込むため)</param>
-    private UserSettingTable(string table) => _table = table;
+    /// <param name="minFeatureNo">この表で使える一番小さい機能番号</param>
+    private UserSettingTable(string table, int minFeatureNo)
+    {
+        _table = table;
+        _minFeatureNo = minFeatureNo;
+    }
 
     /// <summary>設定の値を読む</summary>
     /// <param name="database">SQL Server への入口</param>
@@ -122,11 +131,11 @@ internal sealed class UserSettingTable
     /// <param name="value">値</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="ArgumentException">番号が 1 未満・値が長すぎる。</exception>
+    /// <exception cref="ArgumentException">番号が小さすぎる・値が長すぎる。</exception>
     public Task SetAsync(SqlServerDatabase database, int userId, int actorUserId, int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(value);
-        if (featureNo < 1 || categoryNo < 1 || codeNo < 1)
+        if (featureNo < _minFeatureNo || categoryNo < 1 || codeNo < 1)
         {
             throw new ArgumentException($"設定の番号が正しくありません: {featureNo}・{categoryNo}・{codeNo}。");
         }

@@ -4,7 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MmmTool.CliAssist.FocusTriggers"
-    Title="ターミナルへ移る文字列の編集"
+    Title="通知する文字列の編集"
     CloseButtonText="キャンセル"
     DefaultButton="Primary"
     PrimaryButtonText="保存"
@@ -21,7 +21,7 @@
 
         <TextBlock
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Text="ターミナルにこの文字列が出たとき、ターミナルへフォーカスを移します。空白と大文字小文字は区別しません。"
+            Text="ターミナルにこの文字列が出たとき、タブとサイドバーで知らせます。空白と大文字小文字は区別しません。"
             TextWrapping="Wrap" />
 
         <!-- 項目の数が変わっても、ダイアログの大きさは変えない。高さを固定した枠の中でスクロールする -->
@@ -43,13 +43,21 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox
-                                    AutomationProperties.Name="ターミナルへ移る文字列"
+                                    AutomationProperties.Name="通知する文字列"
                                     PlaceholderText="例: Do you want to proceed?"
                                     Text="{x:Bind Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <Button
+                                <!-- 既定でオン。オフの文字列は、タブとサイドバーで知らせるだけで、フォーカスは移さない -->
+                                <CheckBox
                                     Grid.Column="1"
+                                    MinWidth="0"
+                                    VerticalAlignment="Center"
+                                    Content="ターミナルへ移る"
+                                    IsChecked="{x:Bind MoveToTerminal, Mode=TwoWay}" />
+                                <Button
+                                    Grid.Column="2"
                                     Command="{x:Bind RemoveCommand}"
                                     Content="削除" />
                             </Grid>

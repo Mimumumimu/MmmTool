@@ -5,7 +5,7 @@ using MmmSdk.WinUI.Utilities;
 
 namespace MmmTool.CliAssist.FocusTriggers;
 
-/// <summary>ターミナルへ移る文字列の編集ダイアログ</summary>
+/// <summary>通知する文字列の編集ダイアログ</summary>
 public sealed partial class FocusTriggerDialog : ContentDialog, ICliEditDialog
 {
     /// <summary>ダイアログの ViewModel</summary>

@@ -35,6 +35,9 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>通知ダイアログに出した、他の人のメッセージの番号。同じメッセージを、続けて出さない</summary>
     private readonly HashSet<int> _notified = [];
 
+    /// <summary>この PC から DB に書いた、会話ごとの読んだ位置の最大。同じ位置を何度も書かないため</summary>
+    private readonly Dictionary<int, int> _reportedRead = [];
+
     /// <summary>ループを止めるための取り消し</summary>
     private CancellationTokenSource? _cancellation;
 
@@ -71,8 +74,11 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>メッセージが届いた、または更新された。任意のスレッドから発火する</summary>
     public event Action<IReadOnlyList<ChatMessage>>? MessagesArrived;
 
-    /// <summary>他の人から届いた新着。起動してから届いたもので、まだ通知していないものだけ。任意のスレッドから発火する</summary>
+    /// <summary>他の人から届いた新着。起動してから届いたもので、まだ通知していないものだけ。システムメッセージは含まない。任意のスレッドから発火する</summary>
     public event Action<IReadOnlyList<ChatMessage>>? NewMessagesFromOthers;
+
+    /// <summary>自分が会話を抜けたことが届いた。引数は会話の番号。任意のスレッドから発火する</summary>
+    public event Action<int>? ConversationLeft;
 
     /// <summary>読み続けるループを始める</summary>
     /// <param name="isEnabled">機能がオンか。オフの間は読まない</param>
@@ -104,6 +110,87 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         {
             _wake.Release();
         }
+    }
+
+    /// <summary>DB から読み直した、相手が受け取れるかを、会話の要約と端末の控えへ反映する</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="peerCanReceive">相手が受け取り先を指定しているか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>反映の完了を表すタスク。要約に無い会話と、値が同じときは、何もしない</returns>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、要約は古いままになるため。</remarks>
+    public async Task UpdatePeerCanReceiveAsync(int conversationId, bool peerCanReceive, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { } current || current.PeerCanReceive == peerCanReceive)
+            {
+                return;
+            }
+
+            _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
+            if (_nextBase is { } known)
+            {
+                await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Synced?.Invoke();
+    }
+
+    /// <summary>会話の、自分が読んだ位置を DB に書き、会話の要約と端末の控えへ反映する</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="messageId">画面に出ている、一番新しいメッセージの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書く処理の完了を表すタスク。すでに同じか大きい位置を書いたとき、読めないときは、何もしない</returns>
+    /// <remarks>
+    /// 相手の画面に「既読」が出る元で、自分の未読の数の元でもある。呼ぶ側は、会話を開いていて、ウィンドウが前面に見えているときだけ呼ぶ。
+    /// 書けなかったとき (<see cref="DataFileException"/>)は、次に呼ばれたときにもう一度書く。画面には出さない。
+    /// </remarks>
+    public async Task MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default)
+    {
+        if (conversationId <= 0 || messageId <= 0 || messageId <= _reportedRead.GetValueOrDefault(conversationId) || !repository.IsAvailable || !currentUser.IsIdentified)
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            MarkReadOutcome outcome;
+            try
+            {
+                outcome = await repository.MarkReadAsync(conversationId, messageId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (DataFileException)
+            {
+                return;
+            }
+
+            _reportedRead[conversationId] = messageId;
+            if (outcome is MarkReadOutcome.NotMember or MarkReadOutcome.MessageInvalid
+                || _conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { UnreadCount: > 0 } current
+                || messageId < current.LastMessageId)
+            {
+                return;
+            }
+
+            _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { UnreadCount = 0 } : conversation)];
+            if (_nextBase is { } known)
+            {
+                await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Synced?.Invoke();
     }
 
     /// <summary>いま開いている会話の番号。通知ダイアログに、前面で見ている会話の新着を出さないために使う</summary>
@@ -231,20 +318,23 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _sessionStart = null;
             _conversations = [];
             _notified.Clear();
+            _reportedRead.Clear();
         }
 
         if (_nextBase is null && await cache.ReadListAsync(me, cancellationToken).ConfigureAwait(false) is { } cached)
         {
-            // 最初に、控えから出す。続けて、差分を読む
+            // 最初に、控えから出す。続けて、差分を読む。古い形の控えは、読み込みの時点で捨てられている
             _nextBase = cached.NextBase;
             _conversations = cached.Conversations;
             Synced?.Invoke();
         }
 
         MessageSyncResult result;
+        IReadOnlyList<ConversationSummary> previous = [];
         if (_nextBase is { } known)
         {
             result = await repository.GetChangesAsync(MessageSync.SinceOf(known), cancellationToken).ConfigureAwait(false);
+            previous = _conversations;
             _conversations = Merge(_conversations, result.Conversations);
         }
         else
@@ -253,9 +343,23 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _conversations = result.Conversations;
         }
 
+        // 抜けた会話は、一覧と控えから消す。入り直したときに、古い控えと読み直した分の間に、抜けが出ないようにする
+        foreach (var leftId in result.LeftConversationIds)
+        {
+            _conversations = [.. _conversations.Where(conversation => conversation.Id != leftId)];
+            await cache.WriteMessagesAsync(me, leftId, [], cancellationToken).ConfigureAwait(false);
+        }
+
         _nextBase = result.NextBase;
         _sessionStart ??= result.NextBase;
-        await cache.WriteListAsync(new CachedConversationList(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
+        await cache.WriteListAsync(CachedConversationList.Create(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
+
+        foreach (var leftId in result.LeftConversationIds)
+        {
+            ConversationLeft?.Invoke(leftId);
+        }
+
+        await MergeIntoMessageCachesAsync(me, result.Messages, previous, cancellationToken).ConfigureAwait(false);
 
         if (result.Messages.Count > 0)
         {
@@ -263,11 +367,54 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
 
             // 起動してから届いた、他の人のメッセージだけを、新着として知らせる。閉じている間に届いた分は、出さない
             var start = _sessionStart.Value;
-            var fresh = result.Messages.Where(message => message.SenderUserId != me && message.CreatedAt >= start && _notified.Add(message.Id)).ToList();
+            var fresh = result.Messages.Where(message => message.SenderUserId != me && !message.IsSystem && message.CreatedAt >= start && _notified.Add(message.Id)).ToList();
             if (fresh.Count > 0)
             {
                 NewMessagesFromOthers?.Invoke(fresh);
             }
+        }
+    }
+
+    /// <summary>差分で届いたメッセージを、会話の控えへ足す</summary>
+    /// <param name="me">自分の番号</param>
+    /// <param name="messages">差分で届いた、または更新されたメッセージ</param>
+    /// <param name="previous">今回の差分を取り込む前の、会話の要約</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書いたことを表すタスク</returns>
+    /// <remarks>
+    /// 会話を開く前に、控えを最新にしておくため。差分は、前回の基準より後の変更を、すべて返す。
+    /// 足すのは、控えの最後のメッセージが、前回の要約の最後のメッセージと同じ会話だけ。前回の時点で、控えが最新だった証拠が、これしかないため。
+    /// 違う会話 (控えの無い会話・前回以降に取りこぼした会話)は、足すと途中が抜けるので書かず、開いたときに、DB から読み直す。
+    /// 控えの先頭より古い番号のメッセージは、足さない。控えは、新しいほうから切れ目なく持つため。
+    /// 開いている会話は、画面が、届いたメッセージを持つので、ここでは書かない。
+    /// 同じメッセージが何度届いても、番号と更新日時で突き合わせるので、結果は変わらない。
+    /// </remarks>
+    private async Task MergeIntoMessageCachesAsync(
+        int me, IReadOnlyList<ChatMessage> messages, IReadOnlyList<ConversationSummary> previous, CancellationToken cancellationToken)
+    {
+        foreach (var group in messages.GroupBy(message => message.ConversationId))
+        {
+            if (group.Key == _openConversationId || previous.FirstOrDefault(conversation => conversation.Id == group.Key) is not { } before)
+            {
+                continue;
+            }
+
+            var cached = await cache.ReadMessagesAsync(me, group.Key, cancellationToken).ConfigureAwait(false);
+            if (cached.Count == 0 || cached[^1].Id != before.LastMessageId)
+            {
+                continue;
+            }
+
+            var oldest = cached[0].Id;
+            var byId = cached.ToDictionary(message => message.Id);
+            foreach (var message in group.Where(message => message.Id >= oldest))
+            {
+                if (!byId.TryGetValue(message.Id, out var existing) || message.UpdatedAt >= existing.UpdatedAt)
+                {
+                    byId[message.Id] = message;
+                }
+            }
+            await cache.WriteMessagesAsync(me, group.Key, [.. byId.Values.OrderBy(message => message.Id)], cancellationToken).ConfigureAwait(false);
         }
     }
 

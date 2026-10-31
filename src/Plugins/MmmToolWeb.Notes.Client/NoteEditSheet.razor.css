@@ -1,7 +1,11 @@
 /* 画面全体を覆う入力のシート。ホーム画面のアプリで、ノッチとホームバーに隠れないように、安全な余白を取る */
 .sheet {
     position: fixed;
-    inset: 0;
+    /* 上端と高さは、js/keyboard.js が、キーボードを除いた見える範囲に合わせる。値が無いときは、画面いっぱい */
+    top: var(--sheet-top, 0);
+    left: 0;
+    right: 0;
+    height: var(--sheet-height, 100%);
     z-index: 20;
     display: flex;
     flex-direction: column;

@@ -24,8 +24,8 @@ public sealed class MessagesPlugin : IFeaturePlugin
         services.AddSingleton<UnavailableMessageRepository>();
         services.AddSingleton<IMessageRepository>(provider => provider.GetRequiredService<UnavailableMessageRepository>());
 
-        // 受け取り先を指定できる設定として登録する。送信先の設定画面の「受け取り先」の節に出る
-        services.AddSingleton<IReceiveTargetSetting, MessageReceiveTarget>();
+        // 「通知を受け取る」のオン・オフとして登録する。設定の画面の「通知を受け取る機能」の節に出る
+        services.AddSingleton<INotificationFeatureSetting, MessageNotificationSetting>();
 
         // サーバーモード (DB モード)のときだけ使える。ローカルモードでは、サイドバー・設定の機能の一覧に出ない。管理者が無効にしたユーザーにも出ない
         services.AddFeature(MessagesFeature.Key, MessagesFeature.DisplayName,

@@ -23,6 +23,15 @@
                 OnContent="オン" />
         </controls:SettingsCard>
 
+        <!-- 選択肢の並びは CloseButtonAction の値の順 -->
+        <controls:SettingsCard Header="×ボタンを押したとき">
+            <ComboBox
+                Width="176"
+                IsEnabled="{x:Bind ViewModel.IsEditable}"
+                ItemsSource="{x:Bind ViewModel.CloseButtonActionNames}"
+                SelectedIndex="{x:Bind ViewModel.CloseButtonActionIndex, Mode=TwoWay}" />
+        </controls:SettingsCard>
+
         <controls:SettingsCard
             Description="無音を流し続けて、音声機器が休止するのを防ぎます。通知の読み上げの頭が切れるときに、オンにします。"
             Header="音声機器を起こしておく">
