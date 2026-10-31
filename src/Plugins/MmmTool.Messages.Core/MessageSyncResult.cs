@@ -6,5 +6,7 @@ namespace MmmTool.Messages.Core;
 /// <param name="Messages">変更のあったメッセージ。最初の読み込みでは空</param>
 /// <param name="Conversations">変更のあった会話の要約。最初の読み込みでは、自分の会話すべて</param>
 /// <param name="NextBase">次の差分の取得の基準にする日時。DB の時計で、読み始めたときの日時</param>
+/// <param name="LeftConversationIds">自分が抜けた会話の番号。別の端末で抜けたグループを、この端末の控えと一覧から消すための知らせ。最初の読み込みでは空</param>
 /// <remarks>端末は、次の差分を、<see cref="NextBase"/> から <see cref="MessageSync.Lookback"/> だけ戻した日時より後で取る。</remarks>
-public sealed record MessageSyncResult(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<ConversationSummary> Conversations, DateTimeOffset NextBase);
+public sealed record MessageSyncResult(
+    IReadOnlyList<ChatMessage> Messages, IReadOnlyList<ConversationSummary> Conversations, DateTimeOffset NextBase, IReadOnlyList<int> LeftConversationIds);

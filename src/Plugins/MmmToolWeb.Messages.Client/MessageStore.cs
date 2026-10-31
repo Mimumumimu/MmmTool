@@ -39,6 +39,10 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     /// <summary>自分の番号。まだ読んでいなければ 0。</summary>
     public int UserId { get; private set; }
 
+    /// <summary>作る途中のグループ。名前と参加者を決めてから、最初の送信までの間だけ持つ。無ければ null。</summary>
+    /// <remarks>会話は、最初の送信で作る。ページを読み直すと消えるので、空のグループの画面は、一覧へ戻る。</remarks>
+    public PendingGroup? PendingGroup { get; set; }
+
     /// <summary>次の差分の取得に送る基準の日時。まだ読んでいなければ null。</summary>
     public DateTimeOffset? NextBase { get; private set; }
 
@@ -50,6 +54,9 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
 
     /// <summary>会話の要約が変わった。</summary>
     public event Func<Task>? ConversationsChanged;
+
+    /// <summary>自分が会話を抜けたことが届いた。引数は会話の番号。開いている画面が、一覧へ戻るために受ける。</summary>
+    public event Func<int, Task>? ConversationLeft;
 
     /// <summary>端末から書いた、会話ごとの読んだ位置の最大。同じ位置を何度も書かないため。</summary>
     private readonly Dictionary<int, int> _reportedRead = [];
@@ -177,9 +184,22 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
             var isStart = NextBase is null;
             NextBase = sync.NextBase;
             Conversations = isStart ? sync.Conversations : Merge(Conversations, sync.Conversations);
+            foreach (var leftId in sync.LeftConversationIds)
+            {
+                // 別の端末で抜けたグループ。一覧と控えから消す。入り直したときに、古い控えと読み直した分の間に、抜けが出ないようにする
+                Conversations = [.. Conversations.Where(conversation => conversation.Id != leftId)];
+                await WriteConversationCacheAsync(leftId, []);
+            }
             await WriteListCacheAsync();
             await ShowBadgeAsync();
             await RaiseConversationsChangedAsync();
+            foreach (var leftId in sync.LeftConversationIds)
+            {
+                if (ConversationLeft is { } left)
+                {
+                    await left(leftId);
+                }
+            }
             if (sync.Messages.Count > 0 && MessagesArrived is { } arrived)
             {
                 await arrived(sync.Messages);

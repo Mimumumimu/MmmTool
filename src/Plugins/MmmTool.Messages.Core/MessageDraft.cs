@@ -21,6 +21,23 @@ public static class MessageDraft
     public static bool CanSend(bool selfCanReceive, bool peerCanReceive, string body)
         => selfCanReceive && peerCanReceive && !string.IsNullOrWhiteSpace(body);
 
+    /// <summary>グループの名前が、使える長さか調べる</summary>
+    /// <param name="name">名前。前後の空白を取る前の文字</param>
+    /// <returns>前後の空白を取った名前が、空でなく、上限以内のとき true</returns>
+    public static bool IsValidGroupName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var trimmed = name.Trim();
+        return trimmed.Length > 0 && trimmed.Length <= MessageLimits.GroupNameMaxLength;
+    }
+
+    /// <summary>新しいグループに、参加者として選べる人数か調べる</summary>
+    /// <param name="otherMemberCount">自分のほかの参加者の人数</param>
+    /// <returns>1 人以上で、自分を含めて上限以内のとき true</returns>
+    public static bool IsValidGroupMemberCount(int otherMemberCount)
+        => otherMemberCount >= 1 && otherMemberCount + 1 <= MessageLimits.GroupMaxMembers;
+
     /// <summary>本文が、送れる長さか調べる</summary>
     /// <param name="body">本文。前後の空白を取る前の文字</param>
     /// <returns>前後の空白を取った本文が、空でなく、上限以内のとき true</returns>

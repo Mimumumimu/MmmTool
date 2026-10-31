@@ -1,0 +1,15 @@
+<div class="sheet" role="dialog" aria-modal="true" aria-label="@Label">
+    <div class="screen">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>シートの名前。読み上げに使う。</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>シートの中身。上のバー (<c>FeatureHeader</c>)から並べる。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

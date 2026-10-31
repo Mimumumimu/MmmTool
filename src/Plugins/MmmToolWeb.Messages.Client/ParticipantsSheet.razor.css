@@ -1,0 +1,114 @@
+.result {
+    margin: 0.75rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow-wrap: anywhere;
+}
+
+.result.error {
+    color: var(--danger);
+}
+
+.field {
+    display: block;
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+/* 名前の入力と保存を横に並べる。本体の CSS の input は下に余白を持つので、並びの高さをそろえるため、余白を外す */
+.rename {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rename input {
+    flex: 1;
+    min-width: 0;
+    margin: 0.25rem 0;
+}
+
+.rename button {
+    flex: none;
+}
+
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.list li + li {
+    margin-top: 0.5rem;
+}
+
+.member {
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow-wrap: anywhere;
+}
+
+.action {
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* 取り返しにくい操作は、文字を危険の色にする */
+.action.danger {
+    color: var(--danger);
+}
+
+/* 抜ける確認。裏の画面を暗くして、中央に出す */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / 0.5);
+}
+
+.confirm {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 24rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.confirm h2 {
+    margin: 0 0 0.5rem;
+}
+
+.confirm p {
+    margin: 0 0 1rem;
+}
+
+.buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.buttons button {
+    flex: 1;
+}
+
+/* 実行するボタンは、危険の色の地にして、通常の強調色と区別する */
+.buttons .danger-fill {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--accent-text);
+}

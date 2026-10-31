@@ -112,8 +112,48 @@
     font-size: 0.75rem;
 }
 
-.mark {
-    color: var(--danger);
+/* システムメッセージは、人の追加・抜けた・名前の変更。吹き出しにせず、中央に小さな薄い文字で出す */
+.system {
+    margin: 0 0 0.75rem;
+    padding: 0 1rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.system p {
+    margin: 0;
+}
+
+/* グループで、他の人の吹き出しの上に出す、送った人の名前 */
+.sender {
+    margin: 0 0 0.125rem 0.75rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+/* 上のバーの右のボタン。文字のボタンで、強調色にする */
+.text {
+    min-width: 2.75rem;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+}
+
+/* グループの「既読 N」。押すと、読んだ人の名前の一覧を出す。押せる範囲は 44 のままで、見た目の間隔だけ詰める */
+.read {
+    min-width: 2.75rem;
+    margin: -0.75rem -0.25rem;
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.75rem;
+    text-decoration: underline;
 }
 
 .reply,

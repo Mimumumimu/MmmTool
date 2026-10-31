@@ -28,6 +28,9 @@ internal static class MessageEndpoints
         messages.MapGet("/direct", FindDirectAsync);
         messages.MapGet("/people/search", SearchPeopleAsync);
         messages.MapPost("/", SendAsync);
+        messages.MapPost("/conversations/{conversationId:int}/members", AddMembersAsync);
+        messages.MapPut("/conversations/{conversationId:int}/name", RenameGroupAsync);
+        messages.MapPost("/conversations/{conversationId:int}/leave", LeaveGroupAsync);
         messages.MapPut("/conversations/{conversationId:int}/read", MarkReadAsync);
         messages.MapGet("/unread-count", UnreadCountAsync);
         messages.MapGet("/events", Events);
@@ -117,7 +120,9 @@ internal static class MessageEndpoints
             peerCanReceive = peerUserId is not > 0 || await repository.CanReceiveAsync(peerUserId.Value, cancellationToken);
         }
 
-        return Results.Ok(new MessageFormDto(MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken), peerCanReceive));
+        return Results.Ok(new MessageFormDto(
+            MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken), peerCanReceive,
+            MessageLimits.GroupNameMaxLength, MessageLimits.GroupMaxMembers));
     }
 
     /// <summary>
@@ -147,21 +152,85 @@ internal static class MessageEndpoints
         {
             return Results.BadRequest(new ErrorResponse($"本文は、空でない {MessageLimits.BodyMaxLength} 文字までです。"));
         }
-        if ((request.ConversationId > 0) == (request.PeerUserId > 0) || request.ReplyToMessageId < 0)
+        var groupMembers = request.GroupMemberIds ?? [];
+        var isNewGroup = !string.IsNullOrWhiteSpace(request.GroupName);
+        if (new[] { request.ConversationId > 0, request.PeerUserId > 0, isNewGroup }.Count(chosen => chosen) != 1
+            || request.ReplyToMessageId < 0 || (!isNewGroup && groupMembers.Count > 0))
         {
             return Results.BadRequest(new ErrorResponse("送り先が正しくありません。"));
         }
 
-        var result = await repository.SendAsync(request.ConversationId, request.PeerUserId, request.Body, request.ReplyToMessageId, cancellationToken);
+        var target = request.ConversationId > 0 ? MessageTarget.Existing(request.ConversationId)
+            : request.PeerUserId > 0 ? MessageTarget.Direct(request.PeerUserId)
+            : MessageTarget.NewGroup(request.GroupName, groupMembers);
+        var result = await repository.SendAsync(target, request.Body, request.ReplyToMessageId, cancellationToken);
         return result.Outcome switch
         {
             SendMessageOutcome.Sent => Results.Ok(new MessageSentDto(result.ConversationId, result.MessageId)),
             SendMessageOutcome.NoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.NoReceiveTargetMessage)),
             SendMessageOutcome.SelfNoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.SelfNoReceiveTargetMessage)),
             SendMessageOutcome.ReplyInvalid => Results.BadRequest(new ErrorResponse("返信元のメッセージが見つかりません。")),
+            SendMessageOutcome.GroupInvalid => Results.BadRequest(new ErrorResponse("グループの名前か参加者が正しくありません。")),
             _ => Results.NotFound(new ErrorResponse("会話が見つかりません。")),
         };
     }
+
+    /// <summary>
+    /// グループに人を追加する。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="request">追加する人の番号。</param>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>追加できたときは 204。入力が正しくないときは 400。参加者でないときは 404。</returns>
+    /// <remarks>状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。</remarks>
+    private static async Task<IResult> AddMembersAsync(int conversationId, GroupMembersAddDto request, IMessageRepository repository, CancellationToken cancellationToken)
+    {
+        if (request.UserIds is not { Count: > 0 } || request.UserIds.Any(userId => userId < 1))
+        {
+            return Results.BadRequest(new ErrorResponse("追加する人が正しくありません。"));
+        }
+
+        return ToResult(await repository.AddMembersAsync(conversationId, request.UserIds, cancellationToken), "追加する人が正しくありません。");
+    }
+
+    /// <summary>
+    /// グループの名前を変える。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="request">新しい名前。</param>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>変えられたときは 204。名前が正しくないときは 400。参加者でないときは 404。</returns>
+    /// <remarks>状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。</remarks>
+    private static async Task<IResult> RenameGroupAsync(int conversationId, GroupRenameDto request, IMessageRepository repository, CancellationToken cancellationToken)
+        => ToResult(await repository.RenameGroupAsync(conversationId, request.Name ?? "", cancellationToken), "グループの名前が正しくありません。");
+
+    /// <summary>
+    /// グループを抜ける。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="request">抜ける要求。中身は無いが、JSON の本文を要る形にする。</param>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>抜けられたときは 204。1 対 1 は 400。参加者でないときは 404。</returns>
+    /// <remarks>状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。</remarks>
+    private static async Task<IResult> LeaveGroupAsync(int conversationId, GroupLeaveDto request, IMessageRepository repository, CancellationToken cancellationToken)
+        => ToResult(await repository.LeaveGroupAsync(conversationId, cancellationToken), "グループではない会話は抜けられません。");
+
+    /// <summary>
+    /// グループの変更の結果を、応答にする。
+    /// </summary>
+    /// <param name="outcome">結果の区分。</param>
+    /// <param name="invalidMessage">入力が正しくないときの理由。</param>
+    /// <returns>変えられたときは 204、グループでないか入力が正しくないときは 400、参加者でないときは 404。</returns>
+    private static IResult ToResult(GroupChangeOutcome outcome, string invalidMessage)
+        => outcome switch
+        {
+            GroupChangeOutcome.Done => Results.NoContent(),
+            GroupChangeOutcome.NotGroup or GroupChangeOutcome.Invalid => Results.BadRequest(new ErrorResponse(invalidMessage)),
+            _ => Results.NotFound(new ErrorResponse("会話が見つかりません。")),
+        };
 
     /// <summary>
     /// 会話の、自分が読んだ位置を書く。相手の画面に「既読」が出る元になる。
@@ -218,7 +287,8 @@ internal static class MessageEndpoints
         return new MessageSyncDto(
             userId, sync.NextBase,
             [.. sync.Conversations.Select(conversation => ToDto(conversation, now))],
-            [.. sync.Messages.Select(message => ToDto(message, userId, now))]);
+            [.. sync.Messages.Select(message => ToDto(message, userId, now))],
+            sync.LeftConversationIds);
     }
 
     /// <summary>
@@ -231,7 +301,8 @@ internal static class MessageEndpoints
         => new(
             conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerCanReceive,
             conversation.LastMessageId, conversation.LastText, FormatTime(conversation.LastAt, now), conversation.UnreadCount,
-            [.. conversation.Readers.Select(reader => new ReadPositionDto(reader.UserId, reader.LastReadMessageId))]);
+            [.. conversation.Readers.Select(reader => new ReadPositionDto(reader.UserId, reader.LastReadMessageId, reader.DisplayName))],
+            conversation.LastSenderUserId, conversation.LastSenderName);
 
     /// <summary>
     /// メッセージを、API の型にする。
@@ -244,7 +315,7 @@ internal static class MessageEndpoints
         => new(
             message.Id, message.ConversationId, message.SenderUserId, message.SenderName, message.SenderUserId == userId, message.ReplyToMessageId,
             message.ReplyToSenderName, message.ReplyToText, message.Body, message.CreatedAt, FormatTime(message.CreatedAt, now),
-            message.DeliveryStatus is { } status ? (int)status : 0, message.UpdatedAt,
+            message.UpdatedAt,
             [.. TextLinkFinder.Find(message.Body).Select(link => new MessageLinkDto(link.Start, link.Length, link.Href))]);
 
     /// <summary>

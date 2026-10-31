@@ -1,0 +1,23 @@
+@* 「既読 N」を押したときに出す、読んだ人の名前の一覧。下から出るシート。 *@
+<div class="backdrop" @onclick="OnClose">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="readers-title" @onclick:stopPropagation="true">
+        <h2 id="readers-title">既読</h2>
+        <ul class="names" aria-label="読んだ人">
+            @foreach (var name in Names)
+            {
+                <li>@name</li>
+            }
+        </ul>
+        <button type="button" @onclick="OnClose">閉じる</button>
+    </div>
+</div>
+
+@code {
+    /// <summary>読んだ人の名前。</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> Names { get; set; } = [];
+
+    /// <summary>閉じたとき。</summary>
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+}

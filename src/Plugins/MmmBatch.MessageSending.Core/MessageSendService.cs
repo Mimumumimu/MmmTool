@@ -183,7 +183,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         {
             try
             {
-                await notifier.SendAsync(target.Channel, MessageSendContent.FromMessage(claimed.Body, claimed.MessageId, target.SenderName), cancellationToken).ConfigureAwait(false);
+                await notifier.SendAsync(target.Channel, MessageSendContent.FromMessage(claimed.Body, claimed.MessageId, target.SenderName, target.GroupName), cancellationToken).ConfigureAwait(false);
             }
             catch (SendFailedException ex)
             {

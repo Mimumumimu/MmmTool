@@ -146,6 +146,12 @@ public sealed partial class MessagesPage : Page
         }
     }
 
+    /// <summary>参加者の画面の「人を追加」「グループを抜ける」を押したら、画面を閉じる</summary>
+    /// <param name="sender">押したボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>操作は、ボタンのコマンドが行う。ここでは、次の画面や確認ダイアログの邪魔にならないよう、閉じるだけ。</remarks>
+    private void OnParticipantsActionClick(object sender, RoutedEventArgs e) => ParticipantsButton.Flyout?.Hide();
+
     /// <summary>入力欄で Ctrl+Enter が押されたら、送信する。Enter だけなら改行</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キー入力の情報</param>

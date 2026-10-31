@@ -1,0 +1,75 @@
+/* 上のバーの右の確定。文字のボタンで、強調色の太字にする */
+.text {
+    min-width: 2.75rem;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+}
+
+.text.strong {
+    font-weight: 600;
+}
+
+.field {
+    display: block;
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.count {
+    margin: 0.75rem 0 0;
+}
+
+.limit {
+    margin: 0.125rem 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.reason {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.empty {
+    margin: 1.5rem 0;
+    color: var(--muted);
+    text-align: center;
+}
+
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.list li + li {
+    margin-top: 0.5rem;
+}
+
+/* 行の全体を押せる範囲にして、チェックを押しやすくする */
+.row {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+/* 本体の CSS の input は幅 100% の入力欄の見た目なので、チェックでは、押せる大きさに戻す */
+.row input {
+    flex: none;
+    width: 1.5rem;
+    min-height: 0;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+}

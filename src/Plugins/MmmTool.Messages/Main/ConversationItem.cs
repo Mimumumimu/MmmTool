@@ -6,8 +6,9 @@ namespace MmmTool.Messages.Main;
 /// 人の一覧の 1 行。画面に出す文字。
 /// </summary>
 /// <param name="source">会話の要約</param>
+/// <param name="myUserId">自分の番号。自分が送った最後のメッセージの名前を「自分」にするために使う</param>
 /// <remarks>送る先の値は持たない。秘密のため。</remarks>
-public sealed class ConversationItem(ConversationSummary source)
+public sealed class ConversationItem(ConversationSummary source, int myUserId)
 {
     /// <summary>元の会話の要約。読み直したときに、変わった行だけ差し替えるための比較にも使う</summary>
     public ConversationSummary Source { get; } = source;
@@ -18,8 +19,10 @@ public sealed class ConversationItem(ConversationSummary source)
     /// <summary>会話の名前。1 対 1 は相手の表示名、グループは会話の名前</summary>
     public string Name { get; } = source.Name;
 
-    /// <summary>最後のメッセージの 1 行目</summary>
-    public string LastText { get; } = source.LastText;
+    /// <summary>最後のメッセージの 1 行目。グループは「送った人の名前: 本文」で、システムメッセージは本文だけ</summary>
+    public string LastText { get; } = source.Kind == ConversationKind.Group && source.LastSenderUserId > 0
+        ? $"{(source.LastSenderUserId == myUserId ? "自分" : source.LastSenderName)}: {source.LastText}"
+        : source.LastText;
 
     /// <summary>最後のメッセージの日時。今日なら「HH:mm」、それ以外は「M/d HH:mm」</summary>
     public string TimeText { get; } = MessageTimeText.Format(source.LastAt);

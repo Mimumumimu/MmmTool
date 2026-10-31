@@ -35,7 +35,7 @@
                             </span>
                             <span class="time">@conversation.TimeText</span>
                         </span>
-                        <span class="preview">@conversation.LastText</span>
+                        <span class="preview">@PreviewText(conversation)</span>
                         @if (!conversation.PeerCanReceive)
                         {
                             <span class="note">受け取り先が未設定</span>
@@ -49,29 +49,40 @@
     <button type="button" class="fab" @onclick="PickPersonAsync">新しい会話</button>
 </div>
 
-@if (_picking)
+@if (_creatingGroup)
 {
-    <div class="sheet" role="dialog" aria-label="宛先を選ぶ">
-        <div class="screen">
-            <FeatureHeader Title="宛先を選ぶ" Busy="@(!_peopleLoaded)" BackText="キャンセル" BackMark="" OnBack="CancelPick" />
+    <MemberPickerSheet Title="新しいグループ" ConfirmText="次へ" ShowName="true" People="GroupCandidates" NameMaxLength="_groupNameMax" MaxMembers="_groupMaxMembers"
+                       OnCancel="CancelPick" OnConfirm="StartGroup" />
+}
+else if (_picking)
+{
+    <SheetFrame Label="宛先を選ぶ">
+        <FeatureHeader Title="宛先を選ぶ" Busy="@(!_peopleLoaded)" BackText="キャンセル" BackMark="" OnBack="CancelPick" />
 
-            @if (_peopleLoaded && _people.Count == 0)
+        @if (_peopleLoaded && _people.Count == 0)
+        {
+            <p class="empty">宛先にできる人がいません。</p>
+        }
+
+        <ul class="list first" aria-label="宛先に選べる人">
+            @if (_peopleLoaded)
             {
-                <p class="empty">宛先にできる人がいません。</p>
+                <li>
+                    <button type="button" class="row" @onclick="BeginGroup">
+                        <span class="name">新しいグループ</span>
+                    </button>
+                </li>
             }
-
-            <ul class="list first" aria-label="宛先に選べる人">
-                @foreach (var person in _people)
-                {
-                    <li>
-                        <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
-                            <span class="name">@person.DisplayName</span>
-                        </button>
-                    </li>
-                }
-            </ul>
-        </div>
-    </div>
+            @foreach (var person in _people)
+            {
+                <li>
+                    <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
+                        <span class="name">@person.DisplayName</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </SheetFrame>
 }
 
 @code {
@@ -86,7 +97,13 @@
     private bool _picking;
     private bool _peopleLoaded;
     private bool _opening;
+    private bool _creatingGroup;
+    private int _groupNameMax = 50;
+    private int _groupMaxMembers = 50;
     private IReadOnlyList<PersonDto> _people = [];
+
+    /// <summary>新しいグループの参加者に選べる人。自分は含めない。</summary>
+    private IReadOnlyList<PersonDto> GroupCandidates => [.. _people.Where(person => person.UserId != Store.UserId)];
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,6 +126,20 @@
     /// <param name="conversation">会話。</param>
     /// <returns>会話の画面の道。</returns>
     private static string ConversationPath(ConversationDto conversation) => $"messages/{conversation.Id}";
+
+    /// <summary>一覧の行に出す、最後のメッセージの文字を作る。</summary>
+    /// <param name="conversation">会話。</param>
+    /// <returns>グループは「送った人の名前: 本文の 1 行目」で、自分が送ったものは名前を「自分」にする。システムメッセージと 1 対 1 は、本文の 1 行目だけ。</returns>
+    private string PreviewText(ConversationDto conversation)
+    {
+        if (conversation.IsDirect || conversation.LastSenderUserId <= 0)
+        {
+            return conversation.LastText;
+        }
+
+        var sender = conversation.LastSenderUserId == Store.UserId ? "自分" : conversation.LastSenderName;
+        return $"{sender}: {conversation.LastText}";
+    }
 
     /// <summary>アプリが裏から戻ったときに、読み直す。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
@@ -165,11 +196,33 @@
         }
     }
 
-    /// <summary>宛先を選ぶ画面を閉じる。</summary>
+    /// <summary>宛先を選ぶ画面と、新しいグループを作る画面を閉じる。</summary>
     private void CancelPick()
     {
         _picking = false;
+        _creatingGroup = false;
         _people = [];
+    }
+
+    /// <summary>新しいグループを作る画面に進む。名前の上限と人数の上限は、サーバーが返す値を使う。</summary>
+    private async Task BeginGroup()
+    {
+        var form = await Messages.LoadFormAsync(0, 0);
+        if (form.Succeeded)
+        {
+            _groupNameMax = form.Value!.GroupNameMaxLength;
+            _groupMaxMembers = form.Value.GroupMaxMembers;
+        }
+        _creatingGroup = true;
+    }
+
+    /// <summary>名前と参加者が決まったら、空のグループの会話の画面を出す。会話は、最初の送信で作る。</summary>
+    /// <param name="pick">グループの名前と、選んだ人の番号。</param>
+    private void StartGroup(MemberPick pick)
+    {
+        Store.PendingGroup = new PendingGroup(pick.Name, pick.UserIds);
+        CancelPick();
+        Navigation.NavigateTo(ConversationPage.NewGroupRoute);
     }
 
     /// <summary>選んだ人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。会話は、最初の送信で作る。</summary>

@@ -74,8 +74,11 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>メッセージが届いた、または更新された。任意のスレッドから発火する</summary>
     public event Action<IReadOnlyList<ChatMessage>>? MessagesArrived;
 
-    /// <summary>他の人から届いた新着。起動してから届いたもので、まだ通知していないものだけ。任意のスレッドから発火する</summary>
+    /// <summary>他の人から届いた新着。起動してから届いたもので、まだ通知していないものだけ。システムメッセージは含まない。任意のスレッドから発火する</summary>
     public event Action<IReadOnlyList<ChatMessage>>? NewMessagesFromOthers;
+
+    /// <summary>自分が会話を抜けたことが届いた。引数は会話の番号。任意のスレッドから発火する</summary>
+    public event Action<int>? ConversationLeft;
 
     /// <summary>読み続けるループを始める</summary>
     /// <param name="isEnabled">機能がオンか。オフの間は読まない</param>
@@ -338,9 +341,21 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _conversations = result.Conversations;
         }
 
+        // 抜けた会話は、一覧と控えから消す。入り直したときに、古い控えと読み直した分の間に、抜けが出ないようにする
+        foreach (var leftId in result.LeftConversationIds)
+        {
+            _conversations = [.. _conversations.Where(conversation => conversation.Id != leftId)];
+            await cache.WriteMessagesAsync(me, leftId, [], cancellationToken).ConfigureAwait(false);
+        }
+
         _nextBase = result.NextBase;
         _sessionStart ??= result.NextBase;
         await cache.WriteListAsync(CachedConversationList.Create(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
+
+        foreach (var leftId in result.LeftConversationIds)
+        {
+            ConversationLeft?.Invoke(leftId);
+        }
 
         if (result.Messages.Count > 0)
         {
@@ -348,7 +363,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
 
             // 起動してから届いた、他の人のメッセージだけを、新着として知らせる。閉じている間に届いた分は、出さない
             var start = _sessionStart.Value;
-            var fresh = result.Messages.Where(message => message.SenderUserId != me && message.CreatedAt >= start && _notified.Add(message.Id)).ToList();
+            var fresh = result.Messages.Where(message => message.SenderUserId != me && !message.IsSystem && message.CreatedAt >= start && _notified.Add(message.Id)).ToList();
             if (fresh.Count > 0)
             {
                 NewMessagesFromOthers?.Invoke(fresh);

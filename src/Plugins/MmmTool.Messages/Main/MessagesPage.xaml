@@ -58,6 +58,11 @@
             <TextBlock Padding="0,8" Text="{x:Bind DisplayName}" />
         </DataTemplate>
 
+        <!-- 複数の人を選ぶ画面の行。チェックで選ぶ -->
+        <DataTemplate x:Key="MemberRowTemplate" x:DataType="local:PersonItem">
+            <CheckBox Content="{x:Bind DisplayName}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+        </DataTemplate>
+
         <!-- 受け取ったメッセージ。左に寄せ、カードの色にする -->
         <DataTemplate x:Key="OtherTemplate" x:DataType="local:ChatMessageItem">
             <Grid Margin="0,0,0,8" HorizontalAlignment="Left">
@@ -72,7 +77,8 @@
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="{x:Bind SenderText}" />
+                            Text="{x:Bind SenderText}"
+                            Visibility="{x:Bind local:MessagesPage.Visible(HasSender)}" />
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Style="{StaticResource CaptionTextBlockStyle}"
@@ -97,7 +103,19 @@
             </Grid>
         </DataTemplate>
 
-        <!-- 自分が送ったメッセージ。右に寄せ、強調色にする。相手が読んだら「既読」を出し、通知の状態の印は、送信待ちと失敗のときだけ出す -->
+        <!-- システムメッセージは、人の追加・抜けた・名前の変更。吹き出しにせず、中央に小さな薄い文字で出す -->
+        <DataTemplate x:Key="SystemTemplate" x:DataType="local:ChatMessageItem">
+            <TextBlock
+                Margin="16,0,16,8"
+                HorizontalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind Body}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+        </DataTemplate>
+
+        <!-- 自分が送ったメッセージ。右に寄せ、強調色にする。相手が読んだら「既読」を出す -->
         <DataTemplate x:Key="MineTemplate" x:DataType="local:ChatMessageItem">
             <Grid Margin="0,0,0,8" HorizontalAlignment="Right">
                 <Border
@@ -130,13 +148,25 @@
                                 Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="{x:Bind ReadText}"
-                                Visibility="{x:Bind local:MessagesPage.Visible(HasReadText)}" />
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                                Style="{StaticResource CaptionTextBlockStyle}"
-                                Text="{x:Bind MarkText}"
-                                Visibility="{x:Bind local:MessagesPage.Visible(HasMark)}" />
+                                Visibility="{x:Bind local:MessagesPage.Visible(HasPlainReadText)}" />
+                            <!-- グループの「既読 N」。押すと、読んだ人の名前の一覧を出す -->
+                            <Button
+                                Content="{x:Bind ReadText}"
+                                Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
+                                Padding="4,0"
+                                Style="{StaticResource TextBlockButtonStyle}"
+                                Visibility="{x:Bind local:MessagesPage.Visible(HasReaderNames)}">
+                                <Button.Flyout>
+                                    <Flyout>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="既読" />
+                                            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Visible">
+                                                <TextBlock Text="{x:Bind ReaderNames}" />
+                                            </ScrollViewer>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <HyperlinkButton
                                 Click="OnReplyClick"
                                 Content="返信"
@@ -152,7 +182,8 @@
         <local:ChatMessageTemplateSelector
             x:Key="MessageTemplateSelector"
             MineTemplate="{StaticResource MineTemplate}"
-            OtherTemplate="{StaticResource OtherTemplate}" />
+            OtherTemplate="{StaticResource OtherTemplate}"
+            SystemTemplate="{StaticResource SystemTemplate}" />
     </Page.Resources>
 
     <!-- 行の間隔は付けない。非表示の InfoBar の行にも間隔が付き、見出しの下が他の機能より空くため、下の余白は各部品に付ける -->
@@ -211,7 +242,7 @@
                     VerticalAlignment="Top"
                     Command="{x:Bind ViewModel.CancelPickPersonCommand}"
                     Content="戻る"
-                    Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}" />
+                    Visibility="{x:Bind ViewModel.IsBackVisible, Mode=OneWay}" />
 
                 <!-- 一覧は、線の枠で囲み、中は地の色と違う不透明な色にする (CLI補助のターミナルと同じ) -->
                 <Border
@@ -235,14 +266,68 @@
                             SingleSelectionFollowsFocus="False"
                             Visibility="{x:Bind ViewModel.IsConversationListVisible, Mode=OneWay}" />
 
-                        <ListView
-                            IsItemClickEnabled="True"
-                            ItemClick="OnPersonClick"
-                            ItemTemplate="{StaticResource PersonRowTemplate}"
-                            ItemsSource="{x:Bind ViewModel.People}"
-                            ScrollViewer.VerticalScrollBarVisibility="Visible"
-                            SelectionMode="None"
-                            Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}" />
+                        <!-- 宛先に選べる人の一覧。先頭に「新しいグループ」を置く -->
+                        <Grid RowSpacing="4" Visibility="{x:Bind ViewModel.IsPeopleListVisible, Mode=OneWay}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Button
+                                Margin="4,4,4,0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Command="{x:Bind ViewModel.StartGroupCommand}"
+                                Content="新しいグループ" />
+                            <ListView
+                                Grid.Row="1"
+                                IsItemClickEnabled="True"
+                                ItemClick="OnPersonClick"
+                                ItemTemplate="{StaticResource PersonRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.People}"
+                                ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                SelectionMode="None" />
+                        </Grid>
+
+                        <!-- 複数の人を選ぶ画面。新しいグループの名前と参加者を決める、または開いているグループへ人を追加する -->
+                        <Grid
+                            Padding="8"
+                            RowSpacing="8"
+                            Visibility="{x:Bind ViewModel.IsMemberSelectVisible, Mode=OneWay}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="{x:Bind ViewModel.MemberSelectTitle, Mode=OneWay}" />
+                            <TextBox
+                                Grid.Row="1"
+                                GotFocus="OnJapaneseBoxGotFocus"
+                                Header="グループ名"
+                                MaxLength="{x:Bind core:MessageLimits.GroupNameMaxLength}"
+                                Text="{x:Bind ViewModel.GroupNameInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                Visibility="{x:Bind ViewModel.IsNamingGroup, Mode=OneWay}" />
+                            <StackPanel Grid.Row="2" Spacing="2">
+                                <TextBlock Text="{x:Bind ViewModel.SelectedMembersText, Mode=OneWay}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind local:MessagesViewModel.MemberLimitText}" />
+                            </StackPanel>
+                            <ListView
+                                Grid.Row="3"
+                                ItemTemplate="{StaticResource MemberRowTemplate}"
+                                ItemsSource="{x:Bind ViewModel.People}"
+                                ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                SelectionMode="None" />
+                            <Button
+                                Grid.Row="4"
+                                HorizontalAlignment="Stretch"
+                                Command="{x:Bind ViewModel.ConfirmMembersCommand}"
+                                Content="{x:Bind ViewModel.MemberConfirmText, Mode=OneWay}"
+                                Style="{StaticResource AccentButtonStyle}" />
+                        </Grid>
 
                         <TextBlock
                             Margin="16,24,16,0"
@@ -277,17 +362,75 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel VerticalAlignment="Center" Spacing="2">
-                    <TextBlock
-                        Style="{StaticResource SubtitleTextBlockStyle}"
-                        Text="{x:Bind ViewModel.ConversationTitle, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Style="{StaticResource CaptionTextBlockStyle}"
-                        Text="最新でない可能性があります。"
-                        Visibility="{x:Bind ViewModel.IsStale, Mode=OneWay}" />
-                </StackPanel>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <TextBlock
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="{x:Bind ViewModel.ConversationTitle, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Text="最新でない可能性があります。"
+                            Visibility="{x:Bind ViewModel.IsStale, Mode=OneWay}" />
+                    </StackPanel>
+
+                    <!-- グループの参加者。押すと、名前の変更・参加者の一覧・人の追加・グループを抜ける、を開く -->
+                    <Button
+                        x:Name="ParticipantsButton"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Content="参加者"
+                        Visibility="{x:Bind ViewModel.IsGroupOpen, Mode=OneWay}">
+                        <Button.Flyout>
+                            <Flyout>
+                                <StackPanel Width="300" Spacing="12">
+                                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind ViewModel.ParticipantsHeaderText, Mode=OneWay}" />
+                                    <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Visible">
+                                        <ItemsControl ItemsSource="{x:Bind ViewModel.Participants}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <TextBlock Padding="0,2" Text="{x:Bind}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox
+                                            GotFocus="OnJapaneseBoxGotFocus"
+                                            Header="グループ名"
+                                            MaxLength="{x:Bind core:MessageLimits.GroupNameMaxLength}"
+                                            Text="{x:Bind ViewModel.RenameInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Button
+                                            Grid.Column="1"
+                                            VerticalAlignment="Bottom"
+                                            Command="{x:Bind ViewModel.RenameGroupCommand}"
+                                            Content="保存" />
+                                    </Grid>
+                                    <Button
+                                        HorizontalAlignment="Stretch"
+                                        Click="OnParticipantsActionClick"
+                                        Command="{x:Bind ViewModel.StartAddMembersCommand}"
+                                        Content="人を追加" />
+                                    <Button
+                                        HorizontalAlignment="Stretch"
+                                        Click="OnParticipantsActionClick"
+                                        Command="{x:Bind ViewModel.LeaveGroupCommand}"
+                                        Content="グループを抜ける"
+                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Grid>
 
                 <!-- 会話は、線の枠で囲み、中は地の色と違う不透明な色にする -->
                 <Border

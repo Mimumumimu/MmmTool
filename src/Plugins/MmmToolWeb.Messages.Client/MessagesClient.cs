@@ -81,6 +81,38 @@ public sealed class MessagesClient(HttpClient http)
             response => Read(response, MessagesJsonContext.Default.MessageSentDto));
 
     /// <summary>
+    /// グループに人を追加する。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="userIds">追加する人の番号。</param>
+    /// <returns>追加できたとき、成功。</returns>
+    public Task<ApiResult<bool>> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds)
+        => CallAsync<bool>(
+            () => http.PostAsJsonAsync($"{Path}/conversations/{conversationId}/members", new GroupMembersAddDto(userIds), MessagesJsonContext.Default.GroupMembersAddDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// グループの名前を変える。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <param name="name">新しい名前。</param>
+    /// <returns>変えられたとき、成功。</returns>
+    public Task<ApiResult<bool>> RenameGroupAsync(int conversationId, string name)
+        => CallAsync<bool>(
+            () => http.PutAsJsonAsync($"{Path}/conversations/{conversationId}/name", new GroupRenameDto(name), MessagesJsonContext.Default.GroupRenameDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// グループを抜ける。
+    /// </summary>
+    /// <param name="conversationId">グループの番号。</param>
+    /// <returns>抜けられたとき、成功。</returns>
+    public Task<ApiResult<bool>> LeaveGroupAsync(int conversationId)
+        => CallAsync<bool>(
+            () => http.PostAsJsonAsync($"{Path}/conversations/{conversationId}/leave", new GroupLeaveDto(), MessagesJsonContext.Default.GroupLeaveDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
     /// 会話の、自分が読んだ位置を書く。相手の画面に「既読」が出る元になる。
     /// </summary>
     /// <param name="conversationId">会話の番号。</param>

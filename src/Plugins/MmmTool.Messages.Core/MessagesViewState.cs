@@ -19,6 +19,12 @@ public sealed class MessagesViewState
     /// <summary>空の会話の画面の、1 対 1 の相手の番号 (会話があるときは 0)</summary>
     public int DraftPeerUserId { get; set; }
 
+    /// <summary>空のグループの画面の、グループの名前 (会話があるときと、グループでないときは空文字)</summary>
+    public string DraftGroupName { get; set; } = "";
+
+    /// <summary>空のグループの画面の、参加者の番号。自分は含めない (会話があるときと、グループでないときは空)</summary>
+    public List<int> DraftGroupMemberIds { get; set; } = [];
+
     /// <summary>開いている会話の名前</summary>
     public string ConversationTitle { get; set; } = "";
 

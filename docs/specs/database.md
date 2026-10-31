@@ -414,10 +414,10 @@
 | `IsDeleted` | 真偽 | `bit` | 0 | 論理削除 |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時で、送った日時。画面に時刻として出すだけで、条件や索引には使わない |
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、送った人と同じ。0 以上の検査 |
-| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。通知の状態が変わるたびに、MmmBatch が、DB の時計で同じトランザクションの中で書く。差分の取得の基準になる |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時。差分の取得の基準になる。MmmBatch は更新しない |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者。送ったときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
 | `ConversationId` | 整数 | `int` | | 会話の `MessageConversation.Id`。**列の並び: 共通ヘッダーの次、`SenderUserId` の前**で、どの会話に・誰がの順 |
-| `SenderUserId` | 整数 | `int` | | 送った人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
+| `SenderUserId` | 整数 | `int` | | 送った人の `AppUser.Id`。0 はシステムメッセージで、[messages.md](messages.md) の「システムメッセージ」を見る。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
 | `ReplyToMessageId` | 整数 | `int` | 0 | 返信元の `Message.Id`。返信でなければ 0 で、NULL の代わりの値。同じ会話のメッセージだけを指す。0 以上の検査 |
 | `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
 
@@ -426,7 +426,7 @@
 - 一意制約は付けない (1 回の送信の操作が 1 通で、同じ内容を続けて送っても別の行)
 - インデックスは、業務の列と更新日時で作る
   - `IX_Message_ConversationId_Id (ConversationId, Id DESC)`。会話の 50 件を、`Id` で区切って読むため。人の一覧で、会話ごとの最新の 1 通を読むためにも使う。
-  - `IX_Message_SenderUserId_UpdatedAt (SenderUserId, UpdatedAt)`。自分が送ったメッセージで、基準より後に更新されたものを、差分で読むため。送った人の画面の通知の状態の印が、ここで届く。
+  - `IX_Message_SenderUserId_UpdatedAt (SenderUserId, UpdatedAt)`。自分が送ったメッセージで、基準より後に更新されたものを、差分で読むため。別の端末で送ったメッセージが、ここで届く。
   - `IX_Message_UpdatedAt (UpdatedAt)`。Web 版のサーバーが、数秒おきに、更新された会話の番号だけを調べるため。仕組みは [messages.md](messages.md) の「端末の控えと更新」にある。
 - 会話・送った人・返信元の存在は、アプリが検査する (外部キーは付けない)
 - 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
@@ -443,14 +443,14 @@
 | `UpdatedByUserId` | 整数 | `int` | | 更新者。頼んだときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
 | `MessageId` | 整数 | `int` | | 通知するメッセージの `Message.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どのメッセージを・誰にの順 |
 | `UserId` | 整数 | `int` | | 通知を受ける人の `AppUser.Id`。送った人以外の参加者で、自分との会話は自分。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
-| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、通知を受ける人が管理者にメッセージを無効にされたため、MmmBatch が送らなかった状態 |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、送らなかった状態。通知を受ける人が管理者にメッセージを無効にされたとき、MmmBatch が書く。通知を受ける人がグループを抜けたとき、その人宛の送信待ちと失敗の行を、MmmTool と Web 版が書く (このとき `UpdatedByUserId` は抜けた人) |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 
 - 行を足すのは MmmTool と Web 版で、送信待ちで足す。同じトランザクションで、`Message` の行も足す。
   - 送信の流れ・送り直し・行を取る条件は [mmmbatch.md](mmmbatch.md) の「メッセージの送信」
   - 失敗の理由の列は持たない (`ReminderSendStatus` と同じ)
-- 状態を変えるのは MmmBatch。変えるときは、同じトランザクションで、`Message.UpdatedAt` も更新する。
+- 状態を変えるのは MmmBatch。`Message.UpdatedAt` は更新しない。ただし、グループを抜けた人の送信待ちの通知は、MmmTool と Web 版が「送らなかった」にする。決まりは [messages.md](messages.md) の「グループ」を見る。
 - インデックスは、業務の列だけで作る
   - `UX_MessageDelivery_MessageId_UserId (MessageId, UserId)`。一意のインデックス。同じ人に、同じメッセージの通知が二重に書かれないため。
   - `IX_MessageDelivery_Status (Status)`。MmmBatch が 1 秒おきに読む、送信待ち・失敗の行を、`Status` で絞って探すため。送信済みの大量の行を、読むたびに走査しないため。

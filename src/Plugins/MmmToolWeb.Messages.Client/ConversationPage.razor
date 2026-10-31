@@ -1,5 +1,6 @@
 @page "/messages/{ConversationId:int}"
 @page "/messages/new/{PeerUserId:int}"
+@page "/messages/new-group"
 @implements IAsyncDisposable
 @inject MessageStore Store
 @inject MessagesClient Messages
@@ -7,7 +8,12 @@
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="@_title" Busy="@(_loading || _sending)" BackPath="@MessagesPage.Route" BackText="メッセージ" />
+    <FeatureHeader Title="@_title" Busy="@(_loading || _sending)" BackPath="@MessagesPage.Route" BackText="メッセージ">
+        @if (!_isDirect && ConversationId > 0)
+        {
+            <button type="button" class="text" @onclick="OpenParticipants">参加者</button>
+        }
+    </FeatureHeader>
 
     @if (_error is not null)
     {
@@ -21,7 +27,16 @@
         }
         @foreach (var message in _messages)
         {
+            if (message.IsSystem)
+            {
+                <li id="@ElementId(message)" class="system"><p>@message.Body</p></li>
+                continue;
+            }
             <li id="@ElementId(message)" class="@RowClass(message)">
+                @if (!_isDirect && !message.IsMine)
+                {
+                    <span class="sender">@message.SenderName</span>
+                }
                 <div class="bubble">
                     @if (message.ReplyToMessageId > 0 && message.ReplyToText is not null)
                     {
@@ -45,11 +60,14 @@
                     <span>@message.TimeText</span>
                     @if (ReadText(message) is { Length: > 0 } read)
                     {
-                        <span>@read</span>
-                    }
-                    else if (MarkText(message) is { Length: > 0 } mark)
-                    {
-                        <span class="mark">@mark</span>
+                        @if (_isDirect)
+                        {
+                            <span>@read</span>
+                        }
+                        else
+                        {
+                            <button type="button" class="read" @onclick="() => ShowReaders(message)">@read</button>
+                        }
                     }
                     <button type="button" class="reply" @onclick="() => StartReply(message)">返信</button>
                 </div>
@@ -80,7 +98,22 @@
     </div>
 </div>
 
+@if (_showParticipants)
+{
+    <ParticipantsSheet ConversationId="ConversationId" Name="@_title" Readers="_readers" SelfUserId="Store.UserId"
+                       NameMaxLength="_groupNameMax" MaxMembers="_groupMaxMembers"
+                       OnClose="CloseParticipants" OnChanged="OnParticipantsChangedAsync" OnLeft="OnLeftAsync" />
+}
+
+@if (_readerNames is not null)
+{
+    <ReadersSheet Names="_readerNames" OnClose="CloseReaders" />
+}
+
 @code {
+    /// <summary>作る途中のグループの、空の会話の画面の道。</summary>
+    public const string NewGroupRoute = "messages/new-group";
+
     /// <summary>相手が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
     private const string MessageDraftNotice = "受け取り先が未設定です";
 
@@ -114,6 +147,11 @@
     private bool _selfCanReceive = true;
     private bool _isDirect = true;
     private IReadOnlyList<ReadPositionDto> _readers = [];
+    private bool _showParticipants;
+    private IReadOnlyList<string>? _readerNames;
+    private int _groupNameMax = 50;
+    private int _groupMaxMembers = 50;
+    private PendingGroup? _pendingGroup;
     private bool _watchingVisible;
     private int _bodyMaxLength = MessageLimitsBody;
     private string _body = "";
@@ -141,12 +179,23 @@
             return;
         }
 
+        // ページを読み直したなどで、作る途中のグループが無いのに、空のグループの画面が開かれた。一覧へ戻る
+        if (ConversationId == 0 && PeerUserId == 0 && Store.PendingGroup is null)
+        {
+            Navigation.NavigateTo(MessagesPage.Route, replace: true);
+            return;
+        }
+
         _loadedKey = key;
+        _pendingGroup = ConversationId == 0 && PeerUserId == 0 ? Store.PendingGroup : null;
+        _isDirect = _pendingGroup is null;
         Store.OpenConversationId = ConversationId;
         Store.ConversationsChanged -= OnConversationsChangedAsync;
         Store.ConversationsChanged += OnConversationsChangedAsync;
         Store.MessagesArrived -= OnMessagesArrivedAsync;
         Store.MessagesArrived += OnMessagesArrivedAsync;
+        Store.ConversationLeft -= OnConversationLeftAsync;
+        Store.ConversationLeft += OnConversationLeftAsync;
         await LoadAsync();
         _live ??= await Store.AcquireLiveAsync();
     }
@@ -204,7 +253,7 @@
         if (ConversationId == 0)
         {
             // まだ会話が無い。会話は、最初の送信で作る
-            _title = string.IsNullOrWhiteSpace(Name) ? "新しい会話" : Name;
+            _title = _pendingGroup is not null ? _pendingGroup.Name : string.IsNullOrWhiteSpace(Name) ? "新しい会話" : Name;
             return;
         }
 
@@ -403,6 +452,16 @@
         });
     }
 
+    /// <summary>別の端末でこの会話を抜けたことが届いたとき、会話の一覧へ戻る。</summary>
+    /// <param name="conversationId">抜けた会話の番号。</param>
+    private Task OnConversationLeftAsync(int conversationId) => InvokeAsync(() =>
+    {
+        if (conversationId == ConversationId && ConversationId > 0)
+        {
+            Navigation.NavigateTo(MessagesPage.Route, replace: true);
+        }
+    });
+
     /// <summary>人の一覧が変わったとき、相手の受け取り先の有無を取り込む。</summary>
     private Task OnConversationsChangedAsync() => InvokeAsync(() =>
     {
@@ -432,6 +491,8 @@
         if (form.Succeeded)
         {
             _bodyMaxLength = form.Value!.BodyMaxLength;
+            _groupNameMax = form.Value.GroupNameMaxLength;
+            _groupMaxMembers = form.Value.GroupMaxMembers;
             _selfCanReceive = form.Value.SelfCanReceive;
             if (ConversationId > 0 || PeerUserId > 0)
             {
@@ -458,7 +519,8 @@
         _error = null;
         // 進行バーを出すため、待つ前に画面へ反映する
         StateHasChanged();
-        var result = await Messages.SendAsync(new MessageSendDto(ConversationId, ConversationId > 0 ? 0 : PeerUserId, _body.Trim(), _replyTo?.Id ?? 0));
+        var result = await Messages.SendAsync(
+            new MessageSendDto(ConversationId, ConversationId > 0 ? 0 : PeerUserId, _body.Trim(), _replyTo?.Id ?? 0, _pendingGroup?.Name ?? "", _pendingGroup?.MemberIds));
         _sending = false;
         if (result.Status == ApiFailure.SignedOut)
         {
@@ -479,6 +541,7 @@
         if (ConversationId == 0)
         {
             // 会話ができた。履歴に戻ったとき、空の会話の画面が残らないよう、置き換えて移る
+            Store.PendingGroup = null;
             Navigation.NavigateTo($"messages/{result.Value!.ConversationId}", replace: true);
             return;
         }
@@ -487,6 +550,35 @@
         _scrollToBottom = true;
         await Store.SyncAsync();
     }
+
+    /// <summary>参加者のシートを開く。</summary>
+    private void OpenParticipants() => _showParticipants = true;
+
+    /// <summary>参加者のシートを閉じる。</summary>
+    private void CloseParticipants() => _showParticipants = false;
+
+    /// <summary>名前の変更か人の追加ができたとき、差分を読み直して、名前と参加者の一覧を直す。</summary>
+    private async Task OnParticipantsChangedAsync()
+    {
+        await Store.SyncAsync();
+        ApplySummary();
+    }
+
+    /// <summary>グループを抜けたとき、差分を読み直して、会話の一覧へ戻る。</summary>
+    private async Task OnLeftAsync()
+    {
+        _showParticipants = false;
+        await Store.SyncAsync();
+        Navigation.NavigateTo(MessagesPage.Route, replace: true);
+    }
+
+    /// <summary>「既読 N」を押したとき、読んだ人の名前の一覧を出す。</summary>
+    /// <param name="message">自分が送ったメッセージ。</param>
+    private void ShowReaders(MessageDto message)
+        => _readerNames = [.. _readers.Where(reader => reader.UserId != message.SenderUserId && reader.LastReadMessageId >= message.Id).Select(reader => reader.DisplayName)];
+
+    /// <summary>読んだ人の名前の一覧を閉じる。</summary>
+    private void CloseReaders() => _readerNames = null;
 
     /// <summary>返信を始める。</summary>
     /// <param name="message">返信元のメッセージ。</param>
@@ -525,16 +617,6 @@
         var count = _readers.Count(reader => reader.UserId != message.SenderUserId && reader.LastReadMessageId >= message.Id);
         return count == 0 ? "" : _isDirect ? "既読" : $"既読 {count}";
     }
-
-    /// <summary>自分が送ったメッセージに付ける、通知の状態の印を作る。送信済みには付けない。</summary>
-    /// <param name="message">メッセージ。</param>
-    /// <returns>印の文字。無ければ空文字。</returns>
-    private static string MarkText(MessageDto message) => message.DeliveryStatus switch
-    {
-        1 => "送信待ち",
-        3 => "失敗",
-        _ => "",
-    };
 
     /// <summary>本文を、文字とリンクに分ける。サーバーが見つけた位置を使い、<c>http</c> か <c>https</c> 以外は、リンクにしない。</summary>
     /// <param name="message">メッセージ。</param>
@@ -592,6 +674,7 @@
         }
         Store.ConversationsChanged -= OnConversationsChangedAsync;
         Store.MessagesArrived -= OnMessagesArrivedAsync;
+        Store.ConversationLeft -= OnConversationLeftAsync;
         Browser.BecameVisible -= LoadOnReturnAsync;
         if (_topWatch is not null)
         {

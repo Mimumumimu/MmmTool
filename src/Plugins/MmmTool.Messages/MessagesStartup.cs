@@ -90,11 +90,19 @@ public sealed class MessagesStartup(
             NotificationSourceKey,
             NotificationOrder,
             "メッセージ",
-            [.. fresh.Select(message => new NotificationItem(message.SenderName, Detail: FirstLine(message.Body)))],
+            [.. fresh.Select(message => new NotificationItem(HeadingOf(message), Detail: FirstLine(message.Body)))],
             OnClicked: () => dispatcher.TryEnqueue(
                 // 通知ウィンドウが閉じている最中に別のウィンドウを操作しないよう、閉じ終わってから開く
                 DispatcherQueuePriority.Low, () => OpenConversation(first))));
     }
+
+    /// <summary>通知の項目の見出しを作る</summary>
+    /// <param name="message">新着</param>
+    /// <returns>1 対 1 は送った人の名前。グループは「グループ名 / 送った人の名前」</returns>
+    private string HeadingOf(ChatMessage message)
+        => sync.Conversations.FirstOrDefault(conversation => conversation.Id == message.ConversationId) is { Kind: ConversationKind.Group } group
+            ? $"{group.Name} / {message.SenderName}"
+            : message.SenderName;
 
     /// <summary>メッセージのページを開いて、会話を開く</summary>
     /// <param name="message">開く会話の新着</param>

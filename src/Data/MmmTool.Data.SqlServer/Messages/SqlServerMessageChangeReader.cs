@@ -11,6 +11,7 @@ namespace MmmTool.Data.SqlServer.Messages;
 /// <remarks>
 /// 全員分を 1 つの問い合わせにして、索引 <c>Message (UpdatedAt)</c> と <c>MessageConversationMember (UpdatedAt)</c> で、基準より後に更新された行だけを読む。
 /// 読むのは番号と日時だけで、本文は読まない。
+/// 参加者の行は、削除済みも読む。グループを抜けた人の別の端末に、抜けたことを知らせるため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerMessageChangeReader(SqlServerDatabase database)
@@ -36,7 +37,7 @@ public sealed class SqlServerMessageChangeReader(SqlServerDatabase database)
                 UNION ALL
                 SELECT p.Id, p.UpdatedAt, p.UserId, CAST(1 AS bit)
                 FROM dbo.MessageConversationMember AS p
-                WHERE p.UpdatedAt > @Since AND p.IsDeleted = 0
+                WHERE p.UpdatedAt > @Since
                 """;
             command.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset) { Value = since });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

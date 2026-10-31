@@ -36,8 +36,8 @@ public interface IMessageRepository
     /// <summary>基準より後に更新された、会話とメッセージを取得する</summary>
     /// <param name="since">この日時より後に更新された行を読む。呼ぶ側が、前回の基準から <see cref="MessageSync.Lookback"/> を戻した日時を渡す</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>自分宛のメッセージ・自分が送ったメッセージ・自分が新しく入った会話の、変わった分と、次の基準の日時</returns>
-    /// <remarks>会話の数に関係なく、索引 3 回で読む。同じ行が何度届いても、受け取る側は、番号と更新日時で突き合わせて、結果を変えない。</remarks>
+    /// <returns>自分宛のメッセージ・自分が送ったメッセージ・自分が参加している会話のシステムメッセージ・自分が新しく入った会話の、変わった分と、自分が抜けた会話の番号と、次の基準の日時</returns>
+    /// <remarks>会話の数に関係なく、索引 4 回で読む。同じ行が何度届いても、受け取る側は、番号と更新日時で突き合わせて、結果を変えない。</remarks>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<MessageSyncResult> GetChangesAsync(DateTimeOffset since, CancellationToken cancellationToken = default);
 
@@ -78,20 +78,53 @@ public interface IMessageRepository
     Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default);
 
     /// <summary>メッセージを送る</summary>
-    /// <param name="conversationId">会話の番号。まだ会話が無いときは 0</param>
-    /// <param name="peerUserId">会話の番号が 0 のとき、1 対 1 の相手の番号。自分の番号なら、自分に送る</param>
+    /// <param name="target">送り先。既にある会話・1 対 1 の相手・新しいグループのどれか</param>
     /// <param name="body">本文。前後の空白は取って書く</param>
     /// <param name="replyToMessageId">返信元のメッセージの番号。返信でなければ 0</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>結果。送れたときは、書いた会話とメッセージの番号</returns>
     /// <remarks>
     /// 1 つのトランザクションで、メッセージと、送った人以外の参加者ごとの通知の状態 (自分との会話は自分に 1 行)を書く。
-    /// 会話の番号が 0 のときは、1 対 1 の会話を、2 人の組ごとの鍵のもとで探し、無ければ作る。同時に始めても、1 つだけになる。
+    /// 1 対 1 の相手で、会話がまだ無いときは、2 人の組ごとの鍵のもとで探し、無ければ作る。同時に始めても、1 つだけになる。
+    /// 新しいグループのときは、会話と参加者を作る。
     /// 1 対 1 は、相手が受け取り先を指定していないとき、何も書かない。
     /// </remarks>
-    /// <exception cref="ArgumentException">本文が空か長すぎる・会話の番号と相手の番号の指定が正しくない。</exception>
+    /// <exception cref="ArgumentException">本文が空か長すぎる・送り先の指定が正しくない。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
-    Task<SendMessageResult> SendAsync(int conversationId, int peerUserId, string body, int replyToMessageId, CancellationToken cancellationToken = default);
+    Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default);
+
+    /// <summary>グループに人を追加する</summary>
+    /// <param name="conversationId">グループの番号</param>
+    /// <param name="userIds">追加する人の番号。すでに入っている人は、無視する</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>結果の区分</returns>
+    /// <remarks>
+    /// 参加者であれば、誰でも追加できる。人数は、会話ごとの鍵のもとで数え直し、自分を含めて 50 人を超えるときは、何も書かない。
+    /// 同じトランザクションで、システムメッセージを書く。ほかの参加者には、そのメッセージの差分で届く。
+    /// </remarks>
+    /// <exception cref="ArgumentException">追加する人が 1 人もいない。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<GroupChangeOutcome> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds, CancellationToken cancellationToken = default);
+
+    /// <summary>グループの名前を変える</summary>
+    /// <param name="conversationId">グループの番号</param>
+    /// <param name="name">新しい名前。前後の空白は取って書く</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>結果の区分</returns>
+    /// <remarks>参加者であれば、誰でも変えられる。同じトランザクションで、システムメッセージを書く。ほかの参加者には、そのメッセージの差分で届く。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<GroupChangeOutcome> RenameGroupAsync(int conversationId, string name, CancellationToken cancellationToken = default);
+
+    /// <summary>グループを抜ける</summary>
+    /// <param name="conversationId">グループの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>結果の区分</returns>
+    /// <remarks>
+    /// 自分の参加者の行を論理削除する。同じトランザクションで、先にシステムメッセージを書き、
+    /// 抜ける前に自分宛に書かれた送信待ちの通知を「送らなかった」にする。他の人を外す操作は無い。
+    /// </remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<GroupChangeOutcome> LeaveGroupAsync(int conversationId, CancellationToken cancellationToken = default);
 
     /// <summary>会話の、自分が読んだ位置を書く</summary>
     /// <param name="conversationId">会話の番号</param>

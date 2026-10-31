@@ -13,8 +13,8 @@ namespace MmmToolWeb.Messages.Client;
 /// </remarks>
 public sealed record MessageCacheState(int UserId, DateTimeOffset NextBase, IReadOnlyList<ConversationDto> Conversations, int Version)
 {
-    /// <summary>いまの控えの形の版。2 は、会話の要約に、読んでいない数と読んだ位置を足した形。</summary>
-    public const int CurrentVersion = 2;
+    /// <summary>いまの控えの形の版。3 は、会話の要約に、最後に送った人と、参加者の名前を足した形。</summary>
+    public const int CurrentVersion = 3;
 
     /// <summary>いまの版の控えを作る。</summary>
     /// <param name="userId">控えの持ち主の番号。</param>
