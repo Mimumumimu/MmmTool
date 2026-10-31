@@ -35,6 +35,9 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>通知ダイアログに出した、他の人のメッセージの番号。同じメッセージを、続けて出さない</summary>
     private readonly HashSet<int> _notified = [];
 
+    /// <summary>この PC から DB に書いた、会話ごとの読んだ位置の最大。同じ位置を何度も書かないため</summary>
+    private readonly Dictionary<int, int> _reportedRead = [];
+
     /// <summary>ループを止めるための取り消し</summary>
     private CancellationTokenSource? _cancellation;
 
@@ -123,6 +126,57 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             }
 
             _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
+            if (_nextBase is { } known)
+            {
+                await cache.WriteListAsync(new CachedConversationList(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Synced?.Invoke();
+    }
+
+    /// <summary>会話の、自分が読んだ位置を DB に書き、会話の要約と端末の控えへ反映する</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="messageId">画面に出ている、一番新しいメッセージの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書く処理の完了を表すタスク。すでに同じか大きい位置を書いたとき、読めないときは、何もしない</returns>
+    /// <remarks>
+    /// 相手の画面に「既読」が出る元で、自分の未読の数の元でもある。呼ぶ側は、会話を開いていて、ウィンドウが前面に見えているときだけ呼ぶ。
+    /// 書けなかったとき (<see cref="DataFileException"/>)は、次に呼ばれたときにもう一度書く。画面には出さない。
+    /// </remarks>
+    public async Task MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default)
+    {
+        if (conversationId <= 0 || messageId <= 0 || messageId <= _reportedRead.GetValueOrDefault(conversationId) || !repository.IsAvailable || !currentUser.IsIdentified)
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            MarkReadOutcome outcome;
+            try
+            {
+                outcome = await repository.MarkReadAsync(conversationId, messageId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (DataFileException)
+            {
+                return;
+            }
+
+            _reportedRead[conversationId] = messageId;
+            if (outcome is MarkReadOutcome.NotMember or MarkReadOutcome.MessageInvalid
+                || _conversations.FirstOrDefault(conversation => conversation.Id == conversationId) is not { UnreadCount: > 0 } current
+                || messageId < current.LastMessageId)
+            {
+                return;
+            }
+
+            _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { UnreadCount = 0 } : conversation)];
             if (_nextBase is { } known)
             {
                 await cache.WriteListAsync(new CachedConversationList(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
@@ -261,13 +315,14 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _sessionStart = null;
             _conversations = [];
             _notified.Clear();
+            _reportedRead.Clear();
         }
 
         if (_nextBase is null && await cache.ReadListAsync(me, cancellationToken).ConfigureAwait(false) is { } cached)
         {
-            // 最初に、控えから出す。続けて、差分を読む
+            // 最初に、控えから出す。続けて、差分を読む。読んだ位置の欄が無い古い控えは、読まれていないものとして扱う
             _nextBase = cached.NextBase;
-            _conversations = cached.Conversations;
+            _conversations = [.. cached.Conversations.Select(conversation => conversation.Readers is null ? conversation with { Readers = [] } : conversation)];
             Synced?.Invoke();
         }
 

@@ -28,6 +28,8 @@ internal static class MessageEndpoints
         messages.MapGet("/direct", FindDirectAsync);
         messages.MapGet("/people/search", SearchPeopleAsync);
         messages.MapPost("/", SendAsync);
+        messages.MapPut("/conversations/{conversationId:int}/read", MarkReadAsync);
+        messages.MapGet("/unread-count", UnreadCountAsync);
         messages.MapGet("/events", Events);
     }
 
@@ -162,6 +164,39 @@ internal static class MessageEndpoints
     }
 
     /// <summary>
+    /// 会話の、自分が読んだ位置を書く。相手の画面に「既読」が出る元になる。
+    /// </summary>
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="request">読んだ最後のメッセージの番号。</param>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>書いたときと、読んだ位置がすでにその番号以上だったときは 204。番号がその会話のメッセージでないときは 400。参加者でないときは 404。</returns>
+    /// <remarks>状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。</remarks>
+    private static async Task<IResult> MarkReadAsync(int conversationId, MessageReadDto request, IMessageRepository repository, CancellationToken cancellationToken)
+    {
+        if (conversationId < 1 || request.MessageId < 1)
+        {
+            return Results.BadRequest(new ErrorResponse("読んだ位置が正しくありません。"));
+        }
+
+        return await repository.MarkReadAsync(conversationId, request.MessageId, cancellationToken) switch
+        {
+            MarkReadOutcome.Advanced or MarkReadOutcome.Unchanged => Results.NoContent(),
+            MarkReadOutcome.MessageInvalid => Results.BadRequest(new ErrorResponse("読んだ位置が正しくありません。")),
+            _ => Results.NotFound(new ErrorResponse("会話が見つかりません。")),
+        };
+    }
+
+    /// <summary>
+    /// 読んでいないメッセージの、全部の会話の合計を返す。ホーム画面のアイコンの数字とタイルの数に使う。
+    /// </summary>
+    /// <param name="repository">会話とメッセージの保存先。</param>
+    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <returns>読んでいないメッセージの数。</returns>
+    private static async Task<IResult> UnreadCountAsync(IMessageRepository repository, CancellationToken cancellationToken)
+        => Results.Ok(new UnreadCountDto(await repository.GetUnreadCountAsync(cancellationToken)));
+
+    /// <summary>
     /// 会話の更新の知らせを流す。会話を開いている間、つないだままにする。
     /// </summary>
     /// <param name="currentUser">今のユーザー。</param>
@@ -195,7 +230,8 @@ internal static class MessageEndpoints
     private static ConversationDto ToDto(ConversationSummary conversation, DateTimeOffset now)
         => new(
             conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerCanReceive,
-            conversation.LastMessageId, conversation.LastText, FormatTime(conversation.LastAt, now));
+            conversation.LastMessageId, conversation.LastText, FormatTime(conversation.LastAt, now), conversation.UnreadCount,
+            [.. conversation.Readers.Select(reader => new ReadPositionDto(reader.UserId, reader.LastReadMessageId))]);
 
     /// <summary>
     /// メッセージを、API の型にする。

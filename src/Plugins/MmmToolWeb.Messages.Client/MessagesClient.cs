@@ -81,6 +81,24 @@ public sealed class MessagesClient(HttpClient http)
             response => Read(response, MessagesJsonContext.Default.MessageSentDto));
 
     /// <summary>
+    /// 会話の、自分が読んだ位置を書く。相手の画面に「既読」が出る元になる。
+    /// </summary>
+    /// <param name="conversationId">会話の番号。</param>
+    /// <param name="messageId">読んだ最後のメッセージの番号。</param>
+    /// <returns>書けた、または読んだ位置がすでにその番号以上だったとき、成功。</returns>
+    public Task<ApiResult<bool>> MarkReadAsync(int conversationId, int messageId)
+        => CallAsync<bool>(
+            () => http.PutAsJsonAsync($"{Path}/conversations/{conversationId}/read", new MessageReadDto(messageId), MessagesJsonContext.Default.MessageReadDto),
+            _ => Task.FromResult(true));
+
+    /// <summary>
+    /// 読んでいないメッセージの、全部の会話の合計を読む。
+    /// </summary>
+    /// <returns>読んでいないメッセージの数。</returns>
+    public Task<ApiResult<UnreadCountDto>> LoadUnreadCountAsync()
+        => CallAsync(() => http.GetAsync($"{Path}/unread-count"), response => Read(response, MessagesJsonContext.Default.UnreadCountDto));
+
+    /// <summary>
     /// 成功の応答から、中身を読む。
     /// </summary>
     /// <typeparam name="T">中身の型。</typeparam>

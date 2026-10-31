@@ -20,6 +20,7 @@ public static class MessagesClientServiceCollectionExtensions
     {
         services.AddScoped<MessagesClient>();
         services.AddScoped<MessageStore>();
+        services.AddScoped<IUnreadCountSource, MessageUnreadCountSource>();
         return services.AddClientFeature(new ClientFeature("メッセージ", IconPath, MessagesPage.Route, typeof(MessagesPage).Assembly, UnreadKind: MessageStore.MessageKind));
     }
 }

@@ -133,6 +133,16 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// 画面がいま前面に見えているかを返す。
+    /// </summary>
+    /// <returns>前面に見えているとき true。裏に回っている・画面が消えているときは false。</returns>
+    public async Task<bool> IsVisibleAsync()
+    {
+        var module = await GetModuleAsync();
+        return await module.InvokeAsync<bool>("isVisible");
+    }
+
+    /// <summary>
     /// 端末の控えの値を返す。
     /// </summary>
     /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>
@@ -178,41 +188,16 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
-    /// 画面が取り込んだ新着を、読んでいない通知に数える。
+    /// サーバーが数える種類の、読んでいない件数を置いて、ホーム画面のアイコンの数字を直す。
     /// </summary>
     /// <param name="kind">通知の種類。</param>
-    /// <param name="ids">数えるものの番号。</param>
-    /// <param name="maxId">取り込んだ全部の中で、一番大きい番号。自分が送ったものも含む。</param>
-    /// <returns>数えたことを表すタスク。</returns>
-    /// <remarks>基準の番号以下のものは数えない。更新の知らせで同じものが届き直しても、読んだものを未読に戻さないため。</remarks>
-    public async Task AddArrivedUnreadAsync(string kind, IReadOnlyList<int> ids, int maxId)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("unreadAddArrived", kind, ids, maxId);
-    }
-
-    /// <summary>
-    /// 読んでいない通知の基準の番号が無いときだけ、置く。最初の読み込みで呼ぶ。
-    /// </summary>
-    /// <param name="kind">通知の種類。</param>
-    /// <param name="maxId">いま取り込んでいる中で、一番大きい番号。</param>
+    /// <param name="count">サーバーから読んだ、読んでいない件数。</param>
     /// <returns>置いたことを表すタスク。</returns>
-    public async Task InitUnreadAsync(string kind, int maxId)
+    /// <remarks>メッセージは、読んだ位置を DB に持つので、端末では数えず、サーバーから読んだ件数を置く。</remarks>
+    public async Task SetServerUnreadAsync(string kind, int count)
     {
         var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("unreadInit", kind, maxId);
-    }
-
-    /// <summary>
-    /// 読んだ通知を、読んでいない通知から外す。
-    /// </summary>
-    /// <param name="kind">通知の種類。</param>
-    /// <param name="ids">読んだものの番号。</param>
-    /// <returns>外したことを表すタスク。</returns>
-    public async Task RemoveUnreadAsync(string kind, IReadOnlyList<int> ids)
-    {
-        var module = await GetModuleAsync();
-        await module.InvokeVoidAsync("unreadRemove", kind, ids);
+        await module.InvokeVoidAsync("unreadSetServer", kind, count);
     }
 
     /// <summary>

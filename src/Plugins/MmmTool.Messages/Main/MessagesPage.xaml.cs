@@ -92,6 +92,11 @@ public sealed partial class MessagesPage : Page
     /// <returns>出すなら Visible、出さないなら Collapsed</returns>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>会話の行の名前の太さを、読んでいないかから決める</summary>
+    /// <param name="unread">読んでいないメッセージがあるか</param>
+    /// <returns>読んでいないときは太字、読んだときは通常の見出しの太さ</returns>
+    public static Windows.UI.Text.FontWeight NameWeight(bool unread) => unread ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.SemiBold;
+
     /// <summary>ページが載っているウィンドウの表示の状態が変わったら、読む間隔を直す</summary>
     /// <param name="sender">ウィンドウの内容の画面 (<c>XamlRoot</c>)</param>
     /// <param name="args">変更の情報</param>

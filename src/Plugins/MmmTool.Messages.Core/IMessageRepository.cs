@@ -92,4 +92,24 @@ public interface IMessageRepository
     /// <exception cref="ArgumentException">本文が空か長すぎる・会話の番号と相手の番号の指定が正しくない。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     Task<SendMessageResult> SendAsync(int conversationId, int peerUserId, string body, int replyToMessageId, CancellationToken cancellationToken = default);
+
+    /// <summary>会話の、自分が読んだ位置を書く</summary>
+    /// <param name="conversationId">会話の番号</param>
+    /// <param name="messageId">読んだ最後のメッセージの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>結果の区分。進めたときだけ、書いた</returns>
+    /// <remarks>
+    /// 今の読んだ位置より大きいときだけ書く。複数の端末で読む人が、順序が前後して書いても、読んだ位置が戻らない。
+    /// 書くときは、同じトランザクションで、同じ会話のほかの参加者の行の更新日時も進める。ほかの参加者が、差分の取得で、読んだ位置の変わりを知るため。
+    /// </remarks>
+    /// <exception cref="ArgumentException">会話の番号かメッセージの番号が 1 未満。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default);
+
+    /// <summary>自分がまだ読んでいないメッセージの、全部の会話の合計を数える</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読んでいないメッセージの数。ホーム画面のアイコンの数字の元</returns>
+    /// <remarks>数え方は <see cref="ConversationSummary.UnreadCount"/> と同じ。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default);
 }

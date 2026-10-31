@@ -29,4 +29,7 @@ public sealed class ConversationItem(ConversationSummary source)
 
     /// <summary>案内を出すか</summary>
     public bool HasNote => NoteText.Length > 0;
+
+    /// <summary>読んでいないメッセージがあるか。青い点と、名前の太字に使う。読んだ位置は DB にあり、この PC の状態ではない</summary>
+    public bool IsUnread { get; } = source.UnreadCount > 0;
 }

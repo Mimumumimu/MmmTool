@@ -43,7 +43,11 @@
                 </div>
                 <div class="meta">
                     <span>@message.TimeText</span>
-                    @if (MarkText(message) is { Length: > 0 } mark)
+                    @if (ReadText(message) is { Length: > 0 } read)
+                    {
+                        <span>@read</span>
+                    }
+                    else if (MarkText(message) is { Length: > 0 } mark)
                     {
                         <span class="mark">@mark</span>
                     }
@@ -108,6 +112,8 @@
     private bool _peerCanReceive = true;
     private bool _peerChecked;
     private bool _selfCanReceive = true;
+    private bool _isDirect = true;
+    private IReadOnlyList<ReadPositionDto> _readers = [];
     private bool _watchingVisible;
     private int _bodyMaxLength = MessageLimitsBody;
     private string _body = "";
@@ -227,7 +233,7 @@
         _messages = [.. cached];
         _scrollToBottom = true;
         StateHasChanged();
-        await Store.MarkReadAsync(_messages);
+        await Store.MarkReadAsync(ConversationId, _messages);
 
         var result = await Messages.LoadMessagesAsync(ConversationId, 0);
         if (version != _loadVersion)
@@ -252,7 +258,7 @@
 
         MergeNewest(result.Value!);
         await Store.WriteConversationCacheAsync(ConversationId, _messages);
-        await Store.MarkReadAsync(_messages);
+        await Store.MarkReadAsync(ConversationId, _messages);
 
         // 通知を押して開いたときは、そのメッセージの位置まで読み足す
         while (version == _loadVersion && _highlightId > 0 && _hasMore && _messages.Count > 0 && _highlightId < _messages[0].Id && !_loadingOlder)
@@ -277,6 +283,8 @@
         if (Store.Conversations.FirstOrDefault(conversation => conversation.Id == ConversationId) is { } conversation)
         {
             _title = conversation.Name;
+            _isDirect = conversation.IsDirect;
+            _readers = conversation.Readers ?? [];
             if (!_peerChecked)
             {
                 // 一覧の控えの値は、相手が受け取り先を変えても古いまま。サーバーから読み直したあとは、使わない
@@ -352,7 +360,7 @@
         _hasMore = page.HasMore;
         _keepFromHeight = height;
         StateHasChanged();
-        await Store.MarkReadAsync(page.Messages);
+        await Store.MarkReadAsync(ConversationId, page.Messages);
         return true;
     }
 
@@ -391,7 +399,7 @@
             _scrollToBottom = added && nearBottom;
             StateHasChanged();
             await Store.WriteConversationCacheAsync(ConversationId, _messages);
-            await Store.MarkReadAsync(_messages);
+            await Store.MarkReadAsync(ConversationId, _messages);
         });
     }
 
@@ -411,6 +419,8 @@
         await ApplyFormAsync(await Messages.LoadFormAsync(ConversationId, PeerUserId));
         StateHasChanged();
         await Store.SyncAsync();
+        // 裏に回っている間に届いて、画面に出ていたメッセージを、前面に戻ったここで読んだことにする
+        await Store.MarkReadAsync(ConversationId, _messages);
     });
 
     /// <summary>入力欄の決まりを取り込む。読めなかったときは、前の値のまま。送るとき、サーバーが同じ決まりで断る。</summary>
@@ -500,6 +510,21 @@
     /// <returns>class の値。</returns>
     private string RowClass(MessageDto message)
         => (message.IsMine ? "row mine" : "row") + (message.Id == _highlightId ? " highlight" : "");
+
+    /// <summary>自分が送ったメッセージに付ける、相手が読んだことを表す文字を作る。</summary>
+    /// <param name="message">メッセージ。</param>
+    /// <returns>1 対 1 は「既読」、グループは「既読 N」。読まれていない・自分が送ったのでない・自分との会話は空文字。</returns>
+    /// <remarks>読んだとは、参加者の読んだ位置が、メッセージの番号以上のこと。N は、読んだ人数で、送った人を含めない。</remarks>
+    private string ReadText(MessageDto message)
+    {
+        if (!message.IsMine)
+        {
+            return "";
+        }
+
+        var count = _readers.Count(reader => reader.UserId != message.SenderUserId && reader.LastReadMessageId >= message.Id);
+        return count == 0 ? "" : _isDirect ? "既読" : $"既読 {count}";
+    }
 
     /// <summary>自分が送ったメッセージに付ける、通知の状態の印を作る。送信済みには付けない。</summary>
     /// <param name="message">メッセージ。</param>

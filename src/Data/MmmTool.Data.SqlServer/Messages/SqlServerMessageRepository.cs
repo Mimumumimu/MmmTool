@@ -21,6 +21,7 @@ namespace MmmTool.Data.SqlServer.Messages;
 /// 通知の状態を変えるのは MmmBatch で、ここは行を足すだけ。受け取り先の送信先の値は、読まない。
 /// 差分の取得は、会話の数に関係なく、<c>MessageDelivery (UserId, UpdatedAt)</c>・<c>Message (SenderUserId, UpdatedAt)</c>・
 /// <c>MessageConversationMember (UserId, UpdatedAt)</c> の索引 3 回で読む。
+/// 読んだ位置を書くときは、同じ会話のほかの参加者の行の更新日時も進めるので、3 つ目の索引が、読んだ位置の変わりも届ける。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
@@ -122,7 +123,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             messageCommand.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset) { Value = since });
             var messages = await ReadMessagesAsync(messageCommand, cancellationToken).ConfigureAwait(false);
 
-            // 自分が新しく入った会話
+            // 自分が新しく入った会話と、読んだ位置が変わった会話 (読んだ位置を書く人が、ほかの参加者の行の更新日時を進める)
             var conversationIds = new HashSet<int>(messages.Select(message => message.ConversationId));
             await using var memberCommand = connection.CreateCommand();
             memberCommand.CommandText =
@@ -349,7 +350,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             recipients = allowed;
         }
 
-        if (replyToMessageId > 0 && !await ReplyExistsAsync(connection, transaction, conversationId, replyToMessageId, cancellationToken).ConfigureAwait(false))
+        if (replyToMessageId > 0 && !await MessageInConversationExistsAsync(connection, transaction, conversationId, replyToMessageId, cancellationToken).ConfigureAwait(false))
         {
             return SendMessageResult.Failed(SendMessageOutcome.ReplyInvalid);
         }
@@ -413,7 +414,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             $"""
             SELECT c.Id, c.Kind, c.Name, ISNULL(peer.UserId, @Me), ISNULL(pu.DisplayName, N''),
                 CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END,
-                lastMessage.Id, lastMessage.Body, lastMessage.CreatedAt
+                lastMessage.Id, lastMessage.Body, lastMessage.CreatedAt, unread.Cnt
             FROM dbo.MessageConversation AS c
             INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
             OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
@@ -421,6 +422,9 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             LEFT JOIN dbo.AppUser AS pu ON pu.Id = ISNULL(peer.UserId, @Me)
             CROSS APPLY (SELECT TOP 1 m.Id, m.Body, m.CreatedAt FROM dbo.Message AS m
                          WHERE m.ConversationId = c.Id AND m.IsDeleted = 0 ORDER BY m.Id DESC) AS lastMessage
+            CROSS APPLY (SELECT COUNT(*) AS Cnt FROM dbo.Message AS u
+                         WHERE u.ConversationId = c.Id AND u.IsDeleted = 0 AND u.Id > mine.LastReadMessageId
+                             AND (u.SenderUserId <> @Me OR peer.UserId IS NULL)) AS unread
             WHERE c.IsDeleted = 0 {filter}
             ORDER BY lastMessage.Id DESC
             """;
@@ -438,9 +442,139 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             var isDirect = kind == ConversationKind.Direct;
             summaries.Add(new ConversationSummary(
                 reader.GetInt32(0), kind, isDirect ? reader.GetString(4) : reader.GetString(2), isDirect ? reader.GetInt32(3) : 0,
-                !isDirect || reader.GetInt32(5) == 1, reader.GetInt32(6), FirstLine(reader.GetString(7)), reader.GetDateTimeOffset(8)));
+                !isDirect || reader.GetInt32(5) == 1, reader.GetInt32(6), FirstLine(reader.GetString(7)), reader.GetDateTimeOffset(8), reader.GetInt32(9), []));
         }
-        return summaries;
+        await reader.CloseAsync().ConfigureAwait(false);
+
+        if (summaries.Count == 0)
+        {
+            return summaries;
+        }
+        var readers = await ReadReadPositionsAsync(connection, me, conversationIds, cancellationToken).ConfigureAwait(false);
+        return summaries.ConvertAll(summary => readers.TryGetValue(summary.Id, out var positions) ? summary with { Readers = positions } : summary);
+    }
+
+    /// <inheritdoc />
+    public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default)
+    {
+        var me = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT COUNT(*)
+                FROM dbo.MessageConversationMember AS mine
+                INNER JOIN dbo.MessageConversation AS c ON c.Id = mine.ConversationId AND c.IsDeleted = 0
+                INNER JOIN dbo.Message AS u ON u.ConversationId = mine.ConversationId AND u.IsDeleted = 0 AND u.Id > mine.LastReadMessageId
+                WHERE mine.UserId = @Me AND mine.IsDeleted = 0
+                    AND (u.SenderUserId <> @Me
+                         OR NOT EXISTS (SELECT 1 FROM dbo.MessageConversationMember AS x WHERE x.ConversationId = mine.ConversationId AND x.UserId <> @Me AND x.IsDeleted = 0))
+                """;
+            command.Parameters.Add(Int("@Me", me));
+            return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        }, cancellationToken);
+    }
+
+    /// <summary>会話ごとの、自分以外の参加者の読んだ位置を読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="me">自分の番号</param>
+    /// <param name="conversationIds">読む会話の番号。null なら、自分の会話すべて</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>会話の番号ごとの読んだ位置。自分しかいない会話は含まない</returns>
+    private static async Task<Dictionary<int, IReadOnlyList<ReadPosition>>> ReadReadPositionsAsync(
+        SqlConnection connection, int me, IReadOnlyCollection<int>? conversationIds, CancellationToken cancellationToken)
+    {
+        // 番号は int だけなので、そのまま文に入れても安全
+        var scope = conversationIds is null
+            ? "mm.ConversationId IN (SELECT ConversationId FROM dbo.MessageConversationMember WHERE UserId = @Me AND IsDeleted = 0)"
+            : "mm.ConversationId IN (" + string.Join(',', conversationIds.Select(id => id.ToString(CultureInfo.InvariantCulture))) + ")";
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+            SELECT mm.ConversationId, mm.UserId, mm.LastReadMessageId
+            FROM dbo.MessageConversationMember AS mm
+            WHERE {scope} AND mm.UserId <> @Me AND mm.IsDeleted = 0
+            ORDER BY mm.ConversationId, mm.Id
+            """;
+        command.Parameters.Add(Int("@Me", me));
+
+        var lists = new Dictionary<int, List<ReadPosition>>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var conversationId = reader.GetInt32(0);
+            if (!lists.TryGetValue(conversationId, out var list))
+            {
+                list = [];
+                lists[conversationId] = list;
+            }
+            list.Add(new ReadPosition(reader.GetInt32(1), reader.GetInt32(2)));
+        }
+        return lists.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<ReadPosition>)pair.Value);
+    }
+
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">会話の番号かメッセージの番号が 1 未満。</exception>
+    public Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(conversationId, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(messageId, 1);
+
+        var me = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync(database, async connection =>
+        {
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            if (await ReadKindIfMemberAsync(connection, transaction, me, conversationId, cancellationToken).ConfigureAwait(false) is null)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return MarkReadOutcome.NotMember;
+            }
+            if (!await MessageInConversationExistsAsync(connection, transaction, conversationId, messageId, cancellationToken).ConfigureAwait(false))
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return MarkReadOutcome.MessageInvalid;
+            }
+
+            // 今の値より大きいときだけ進める。端末の順序が前後しても、戻らない
+            int advanced;
+            await using (var update = connection.CreateCommand())
+            {
+                update.Transaction = transaction;
+                update.CommandText =
+                    """
+                    UPDATE dbo.MessageConversationMember
+                    SET LastReadMessageId = @MessageId, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @Me
+                    WHERE ConversationId = @ConversationId AND UserId = @Me AND IsDeleted = 0 AND LastReadMessageId < @MessageId
+                    """;
+                update.Parameters.Add(Int("@Me", me));
+                update.Parameters.Add(Int("@ConversationId", conversationId));
+                update.Parameters.Add(Int("@MessageId", messageId));
+                advanced = await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            if (advanced == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                return MarkReadOutcome.Unchanged;
+            }
+
+            // ほかの参加者が、自分の行の更新日時の変わりで、読んだ位置の変わりを知る (MmmBatch が状態を変えるときと同じく、更新者は 0)
+            await using (var notify = connection.CreateCommand())
+            {
+                notify.Transaction = transaction;
+                notify.CommandText =
+                    """
+                    UPDATE dbo.MessageConversationMember
+                    SET UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
+                    WHERE ConversationId = @ConversationId AND UserId <> @Me AND IsDeleted = 0
+                    """;
+                notify.Parameters.Add(Int("@Me", me));
+                notify.Parameters.Add(Int("@ConversationId", conversationId));
+                await notify.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return MarkReadOutcome.Advanced;
+        }, cancellationToken);
     }
 
     /// <summary>問い合わせを実行して、メッセージを読む</summary>
@@ -603,14 +737,14 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
-    /// <summary>返信元が、同じ会話のメッセージか調べる</summary>
+    /// <summary>メッセージが、その会話の、削除されていないメッセージか調べる。返信元と、読んだ位置の確かめに使う</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="conversationId">会話の番号</param>
-    /// <param name="messageId">返信元の番号</param>
+    /// <param name="messageId">メッセージの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>同じ会話のメッセージのとき true</returns>
-    private static async Task<bool> ReplyExistsAsync(SqlConnection connection, SqlTransaction transaction, int conversationId, int messageId, CancellationToken cancellationToken)
+    private static async Task<bool> MessageInConversationExistsAsync(SqlConnection connection, SqlTransaction transaction, int conversationId, int messageId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;

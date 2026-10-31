@@ -16,6 +16,8 @@ namespace MmmToolWeb.Messages.Client;
 [JsonSerializable(typeof(MessagePageDto))]
 [JsonSerializable(typeof(MessageSendDto))]
 [JsonSerializable(typeof(MessageSentDto))]
+[JsonSerializable(typeof(MessageReadDto))]
+[JsonSerializable(typeof(UnreadCountDto))]
 [JsonSerializable(typeof(PersonDto[]))]
 [JsonSerializable(typeof(DirectDto))]
 [JsonSerializable(typeof(MessageFormDto))]

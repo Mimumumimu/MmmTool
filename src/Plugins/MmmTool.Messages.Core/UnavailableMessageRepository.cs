@@ -47,6 +47,14 @@ public sealed class UnavailableMessageRepository : IMessageRepository
     public Task<SendMessageResult> SendAsync(int conversationId, int peerUserId, string body, int replyToMessageId, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default) => throw NotAvailable();
+
     /// <summary>使えないときの例外を作る</summary>
     /// <returns>使えないことを表す例外</returns>
     private static NotSupportedException NotAvailable() => new("メッセージは、DB モードだけで使えます。");

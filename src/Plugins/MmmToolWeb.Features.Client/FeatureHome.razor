@@ -3,6 +3,7 @@
 @inject FeatureAvailability Availability
 @inject SessionClient Session
 @inject BrowserClient Browser
+@inject IEnumerable<IUnreadCountSource> Sources
 @implements IDisposable
 
 <main class="home">
@@ -63,14 +64,33 @@
     /// <summary>端末が覚えている、読んでいない通知の識別子「種類:番号」。</summary>
     private IReadOnlyList<string> _unreadKeys = [];
 
+    /// <summary>サーバーに聞いた、種類ごとの読んでいない数。サーバーが数える種類だけ。</summary>
+    private readonly Dictionary<string, int> _serverCounts = [];
+
     /// <summary>行に出す数の上限。これを超えたら「99+」のように出す。</summary>
     private const int MaxShownCount = 99;
 
-    /// <summary>機能の、読んでいない通知の数。数を出さない機能は 0。</summary>
+    /// <summary>機能の、読んでいない通知の数。数を出さない機能は 0。サーバーが数える種類は、サーバーに聞いた数。</summary>
     private int UnreadCount(ClientFeature feature)
-        => feature.UnreadKind is { } kind ? _unreadKeys.Count(key => key.StartsWith(kind + ":", StringComparison.Ordinal)) : 0;
+        => feature.UnreadKind is not { } kind
+            ? 0
+            : Sources.Any(source => source.Kind == kind)
+                ? _serverCounts.GetValueOrDefault(kind)
+                : _unreadKeys.Count(key => key.StartsWith(kind + ":", StringComparison.Ordinal));
 
-    private async Task LoadUnreadAsync() => _unreadKeys = await Browser.GetUnreadAsync();
+    /// <summary>端末の控えの一覧と、サーバーが数える種類の数を読む。数を聞けなかった種類は、前の数のまま。聞けたら、アイコンの数字も直す。</summary>
+    private async Task LoadUnreadAsync()
+    {
+        _unreadKeys = await Browser.GetUnreadAsync();
+        foreach (var source in Sources)
+        {
+            if (await source.GetCountAsync() is { } count)
+            {
+                _serverCounts[source.Kind] = count;
+                await Browser.SetServerUnreadAsync(source.Kind, count);
+            }
+        }
+    }
 
     /// <summary>アプリが裏から戻ったときに、数を読み直す。</summary>
     private Task LoadUnreadOnReturnAsync() => InvokeAsync(async () =>

@@ -16,7 +16,25 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Ellipse
+                            Width="8"
+                            Height="8"
+                            Margin="0,0,6,0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="未読"
+                            Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                            Visibility="{x:Bind local:MessagesPage.Visible(IsUnread)}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            FontWeight="{x:Bind local:MessagesPage.NameWeight(IsUnread)}"
+                            Text="{x:Bind Name}"
+                            TextTrimming="CharacterEllipsis" />
+                    </Grid>
                     <TextBlock
                         Grid.Column="1"
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -79,7 +97,7 @@
             </Grid>
         </DataTemplate>
 
-        <!-- 自分が送ったメッセージ。右に寄せ、強調色にする。通知の状態の印は、送信待ちと失敗のときだけ出す -->
+        <!-- 自分が送ったメッセージ。右に寄せ、強調色にする。相手が読んだら「既読」を出し、通知の状態の印は、送信待ちと失敗のときだけ出す -->
         <DataTemplate x:Key="MineTemplate" x:DataType="local:ChatMessageItem">
             <Grid Margin="0,0,0,8" HorizontalAlignment="Right">
                 <Border
@@ -107,6 +125,12 @@
                                 Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
                                 Style="{StaticResource CaptionTextBlockStyle}"
                                 Text="{x:Bind TimeText}" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{ThemeResource TextOnAccentFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="{x:Bind ReadText}"
+                                Visibility="{x:Bind local:MessagesPage.Visible(HasReadText)}" />
                             <TextBlock
                                 VerticalAlignment="Center"
                                 Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"

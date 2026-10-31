@@ -40,7 +40,30 @@ public sealed record MessageLinkDto(int Start, int Length, string Href);
 /// <param name="LastMessageId">最後のメッセージの番号。会話の並びの基準。</param>
 /// <param name="LastText">最後のメッセージの本文の 1 行目。</param>
 /// <param name="TimeText">最後のメッセージの日時の表示の文字。</param>
-public sealed record ConversationDto(int Id, bool IsDirect, string Name, int PeerUserId, bool PeerCanReceive, int LastMessageId, string LastText, string TimeText);
+/// <param name="UnreadCount">自分がまだ読んでいないメッセージの数。会話の行の青い点の元。0 なら読んでいないものは無い。端末の控えに残っている古い要約は 0 で、次の差分の取得で直る。</param>
+/// <param name="Readers">自分以外の参加者の、読んだ位置。送った人の画面に「既読」を出す元。端末の控えに残っている古い要約は null で、読まれていないものとして扱う。</param>
+public sealed record ConversationDto(
+    int Id, bool IsDirect, string Name, int PeerUserId, bool PeerCanReceive, int LastMessageId, string LastText, string TimeText,
+    int UnreadCount = 0, IReadOnlyList<ReadPositionDto>? Readers = null);
+
+/// <summary>
+/// 読んでいないメッセージの、全部の会話の合計。
+/// </summary>
+/// <param name="Count">読んでいないメッセージの数。</param>
+public sealed record UnreadCountDto(int Count);
+
+/// <summary>
+/// 会話の参加者 1 人の、読んだ位置。
+/// </summary>
+/// <param name="UserId">参加者の番号。</param>
+/// <param name="LastReadMessageId">その人が読んだ最後のメッセージの番号。0 は何も読んでいない。</param>
+public sealed record ReadPositionDto(int UserId, int LastReadMessageId);
+
+/// <summary>
+/// 読んだ位置を書く要求。
+/// </summary>
+/// <param name="MessageId">読んだ最後のメッセージの番号。</param>
+public sealed record MessageReadDto(int MessageId);
 
 /// <summary>
 /// 会話とメッセージの読み込みの結果。最初の読み込みと、差分の取得で共通。

@@ -9,9 +9,13 @@ namespace MmmTool.Messages.Main;
 /// <param name="source">メッセージ</param>
 /// <param name="isMine">自分が送ったメッセージか</param>
 /// <param name="openLinkCommand">本文のリンクを押したときのコマンド。引数は、開く URL の文字列</param>
+/// <param name="readText">相手が読んだことを表す文字。1 対 1 は「既読」、グループは「既読 N」。読まれていない・自分が送ったのでないときは空文字</param>
 /// <remarks>受け取ったメッセージは左、自分が送ったメッセージは右に寄せる。向きと、出す・出さないは、画面が、この値から決める。</remarks>
-public sealed class ChatMessageItem(ChatMessage source, bool isMine, ICommand openLinkCommand)
+public sealed class ChatMessageItem(ChatMessage source, bool isMine, ICommand openLinkCommand, string readText = "")
 {
+    /// <summary>相手が読んだことを表す文字。読まれていないときは空文字</summary>
+    public string ReadText { get; } = isMine ? readText : "";
+
     /// <summary>本文のリンクを押したときのコマンド。引数は、開く URL の文字列</summary>
     public ICommand OpenLinkCommand { get; } = openLinkCommand;
 
@@ -38,8 +42,8 @@ public sealed class ChatMessageItem(ChatMessage source, bool isMine, ICommand op
         ? $"{source.ReplyToSenderName}  {source.ReplyToText}"
         : "";
 
-    /// <summary>通知の状態の印。自分が送ったメッセージの、送信待ちは「送信待ち」、失敗は「失敗」。それ以外は空文字</summary>
-    public string MarkText { get; } = isMine
+    /// <summary>通知の状態の印。自分が送ったメッセージの、送信待ちは「送信待ち」、失敗は「失敗」。相手が読んだメッセージと、それ以外は空文字</summary>
+    public string MarkText { get; } = isMine && readText.Length == 0
         ? source.DeliveryStatus switch
         {
             MessageSendStatus.Pending => "送信待ち",
@@ -53,4 +57,7 @@ public sealed class ChatMessageItem(ChatMessage source, bool isMine, ICommand op
 
     /// <summary>通知の状態の印を出すか</summary>
     public bool HasMark => MarkText.Length > 0;
+
+    /// <summary>相手が読んだことを表す文字を出すか</summary>
+    public bool HasReadText => ReadText.Length > 0;
 }

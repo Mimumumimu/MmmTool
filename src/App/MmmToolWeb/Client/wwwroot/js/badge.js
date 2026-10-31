@@ -1,17 +1,21 @@
 // 読んでいない通知の一覧と、ホーム画面のアイコンの数字 (バッジ)を扱う。サービスワーカー (sw.js)と画面 (index.html)の両方が読み込む
 // 一覧は、端末の控え (IndexedDB の mmmtoolweb.cache の kv)の unread に置く。ログアウトとアカウントの変更で、控えと一緒に消える
-//   { keys: ["message:123", ...], high: { message: 130 } }
-//   keys = 読んでいない通知の識別子で、種類:番号 の形。数字は、この件数
-//   high = 種類ごとに、これまでに取り込んだ一番大きい番号。更新の知らせで同じメッセージが届き直しても、読んだものを未読に戻さないため
+//   { keys: ["note:123", ...], high: { note: 130 }, counts: { message: 3 } }
+//   keys = 端末が数える種類の、読んでいない通知の識別子で、種類:番号 の形。この件数が数字に入る
+//   high = 種類ごとに、これまでに取り込んだ一番大きい番号。更新の知らせで同じ通知が届き直しても、読んだものを未読に戻さないため
+//   counts = サーバーが数える種類の、直近に聞いた件数。この合計も数字に入る。読んだ位置はサーバーが持つので、端末は数えない
 // バッジの機能や IndexedDB が使えない環境では、何もしない。通知の表示には影響しない
 
 const cacheDbName = 'mmmtoolweb.cache';
 const cacheStoreName = 'kv';
 const unreadKey = 'unread';
 
-// 数える種類。識別子の「種類:番号」の種類。数えない種類の通知は、数字に入れない
+// 端末が数える種類。識別子の「種類:番号」の種類。数えない種類の通知は、数字に入れない
 // note は、通知が届いたときだけ数える。画面からは入れない。ノートのページを開いたときに、全部外す
-const countedKinds = ['message', 'note'];
+const countedKinds = ['note'];
+
+// サーバーが数える種類と、件数を聞く道。メッセージは、読んだ位置が DB にあるので、端末では数えない
+const serverCountedKinds = { message: '/api/messages/unread-count' };
 
 // 端末の控えを開く。画面の js/browser.js も、これを使う
 function openCacheDb() {
@@ -33,22 +37,36 @@ function changeUnread(change) {
             let state = null;
             const read = store.get(unreadKey);
             read.onsuccess = () => {
-                state = {
-                    keys: Array.isArray(read.result?.keys) ? read.result.keys : [],
-                    high: read.result?.high && typeof read.result.high === 'object' ? read.result.high : {},
-                };
+                state = normalizeUnread(read.result);
                 change(state);
                 store.put(state, unreadKey);
             };
             transaction.oncomplete = () => {
                 db.close();
-                showUnreadBadge(state.keys.length);
+                showUnreadBadge(unreadTotal(state));
                 resolve(state);
             };
             transaction.onerror = () => reject(transaction.error);
             transaction.onabort = () => reject(transaction.error);
         }, reject);
     });
+}
+
+// 控えから読んだ値を、一覧の形に整える。無い・壊れているときは、空の一覧にする
+function normalizeUnread(value) {
+    const object = (item) => (item && typeof item === 'object' && !Array.isArray(item) ? item : {});
+    return {
+        // 端末が数える種類だけ残す。前のバージョンが持っていたメッセージの識別子は、いま数えず、サーバーの件数と二重にならないよう、ここで捨てる
+        keys: Array.isArray(value?.keys) ? value.keys.filter((key) => parseUnreadKey(key) !== null) : [],
+        high: object(value?.high),
+        counts: object(value?.counts),
+    };
+}
+
+// アイコンの数字にする合計。端末が数える通知の件数と、サーバーが数える件数
+function unreadTotal(state) {
+    const server = Object.values(state.counts).reduce((sum, count) => sum + (Number.isInteger(count) && count > 0 ? count : 0), 0);
+    return state.keys.length + server;
 }
 
 // アイコンの数字を直す。0 のときは消す
@@ -90,6 +108,47 @@ async function addUnreadFromPush(key) {
         });
     } catch {
         // 数えられなくても、通知は出す
+    }
+}
+
+// サーバーが数える種類の件数を、置く。画面が、サーバーから読んだ件数を渡す
+async function setServerUnread(kind, count) {
+    if (!(kind in serverCountedKinds) || !Number.isInteger(count) || count < 0) {
+        return;
+    }
+    try {
+        await changeUnread((state) => {
+            state.counts[kind] = count;
+        });
+    } catch {
+        // 置けなくても、使うのに困らない
+    }
+}
+
+// サーバーが数える種類の件数を、サーバーに聞いて置く。ログインが切れているなど、聞けないときは、前の件数のまま
+async function refreshServerUnread(onlyKind) {
+    for (const [kind, path] of Object.entries(serverCountedKinds)) {
+        if (onlyKind && onlyKind !== kind) {
+            continue;
+        }
+        try {
+            const response = await fetch(path, { credentials: 'same-origin' });
+            if (response.ok) {
+                await setServerUnread(kind, (await response.json()).count);
+            }
+        } catch {
+            // 聞けなくても、通知とバッジの表示には影響しない
+        }
+    }
+}
+
+// 通知が届いたとき、サービスワーカーが数字を直す。端末が数える種類は一覧に入れ、サーバーが数える種類は件数を聞き直す
+async function updateBadgeFromPush(key) {
+    const kind = typeof key === 'string' ? key.slice(0, key.indexOf(':')) : '';
+    if (kind in serverCountedKinds) {
+        await refreshServerUnread(kind);
+    } else {
+        await addUnreadFromPush(key);
     }
 }
 
@@ -153,8 +212,8 @@ async function clearUnread(kind) {
     }
 }
 
-// 読んでいない通知の識別子を返す。無いとき、読めないときは空
-async function readUnreadKeys() {
+// 一覧と件数を読む。無いとき、読めないときは空
+async function readUnreadState() {
     try {
         const db = await openCacheDb();
         const value = await new Promise((resolve) => {
@@ -163,13 +222,22 @@ async function readUnreadKeys() {
             request.onerror = () => resolve(null);
         });
         db.close();
-        return Array.isArray(value?.keys) ? value.keys : [];
+        return normalizeUnread(value);
     } catch {
-        return [];
+        return normalizeUnread(null);
     }
 }
 
-// 画面として読み込まれたときだけ、アイコンの数字を一覧の件数に合わせる (サービスワーカーには document が無い)
+// 端末が数える、読んでいない通知の識別子を返す。無いとき、読めないときは空
+async function readUnreadKeys() {
+    return (await readUnreadState()).keys;
+}
+
+// 画面として読み込まれたときだけ、アイコンの数字を直す (サービスワーカーには document が無い)
+// 先に前回の件数で出し、そのあと、サーバーが数える種類の件数を聞き直す
 if (typeof document !== 'undefined') {
-    readUnreadKeys().then((keys) => showUnreadBadge(keys.length));
+    readUnreadState().then((state) => {
+        showUnreadBadge(unreadTotal(state));
+        return refreshServerUnread();
+    });
 }

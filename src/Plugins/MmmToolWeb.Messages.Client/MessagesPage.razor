@@ -6,9 +6,7 @@
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="メッセージ" Busy="@_loading">
-        <button type="button" class="text" @onclick="MarkAllReadAsync" disabled="@(Store.UnreadMessageIds.Count == 0)">すべて既読にする</button>
-    </FeatureHeader>
+    <FeatureHeader Title="メッセージ" Busy="@_loading" />
 
     @if (_error is not null)
     {
@@ -135,17 +133,6 @@
         _loaded = true;
         _error = result.Succeeded ? null : $"会話を読み込めませんでした: {result.Message}";
         StateHasChanged();
-    }
-
-    /// <summary>読んでいないメッセージを、すべて読んだことにする。押したあとは、押せない表示に変わる。</summary>
-    private async Task MarkAllReadAsync()
-    {
-        if (Store.UnreadMessageIds.Count == 0)
-        {
-            return;
-        }
-
-        await Store.MarkAllReadAsync();
     }
 
     /// <summary>宛先を選ぶ画面を開く。宛先に選べる人を、開くたびに読み直す。</summary>

@@ -120,6 +120,11 @@ export function placeCaretAtStart(element) {
     setTimeout(() => element.setSelectionRange(0, 0), 0);
 }
 
+// 画面がいま前面に見えているか。読んだ位置を相手に見せてよいかの判定に使う
+export function isVisible() {
+    return document.visibilityState === "visible";
+}
+
 // アプリが裏から前面に戻ったときに、.NET の NotifyVisible を呼ぶ。dispose で購読をやめる
 export function watchVisibility(dotNetRef) {
     const handler = () => {
@@ -188,6 +193,13 @@ export async function unreadInit(kind, maxId) {
 export async function unreadRemove(kind, ids) {
     if (await loadBadge()) {
         await globalThis.removeUnread(kind, ids);
+    }
+}
+
+// サーバーが数える種類 (メッセージ)の件数を置いて、アイコンの数字を直す
+export async function unreadSetServer(kind, count) {
+    if (await loadBadge()) {
+        await globalThis.setServerUnread(kind, count);
     }
 }
 

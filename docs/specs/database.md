@@ -394,14 +394,17 @@
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `ConversationId` | 整数 | `int` | | 会話の `MessageConversation.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どの会話に・誰がの順 |
 | `UserId` | 整数 | `int` | | 参加している人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
+| `LastReadMessageId` | 整数 | `int` | 0 | その人が読んだ最後のメッセージの `Message.Id`。0 は何も読んでいない。**列の並び: `UserId` の次**で、誰がの次に、どこまで読んだか。0 以上の検査。大きくなるときだけ書く ([messages.md](messages.md) の「既読」) |
 
 - 1 つの会話に、同じ人は 1 行だけで、削除されていない行の間で一意。自分との会話は、自分 1 人の 1 行。
 - インデックスは、業務の列と更新日時で作る
   - `UX_MessageConversationMember_ConversationId_UserId (ConversationId, UserId)`。`IsDeleted = 0` の行だけの一意のインデックス。同じ人が二重に入らないため。
   - `IX_MessageConversationMember_UserId_ConversationId (UserId, ConversationId)`。自分の会話の一覧と、2 人の 1 対 1 の会話を探すため。
-  - `IX_MessageConversationMember_UserId_UpdatedAt (UserId, UpdatedAt)`。自分が新しく入った会話を、差分で知るため。削除された行も含める。
+  - `IX_MessageConversationMember_UserId_UpdatedAt (UserId, UpdatedAt)`。自分が新しく入った会話と、読んだ位置が変わった会話を、差分で知るため。削除された行も含める。
+  - `IX_MessageConversationMember_UpdatedAt (UpdatedAt)`。Web 版のサーバーが、更新された参加者の行を、人を特定せずに、全員分まとめて調べるため。削除された行も含める。
+- 読んだ位置を書くときは、同じ会話のほかの参加者の行の `UpdatedAt` も進める。ほかの参加者が、`(UserId, UpdatedAt)` の索引で、読んだ位置の変わりを知るため。
 - 会話・人の存在は、アプリが検査する (外部キーは付けない)
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
+- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。`LastReadMessageId` と `IX_MessageConversationMember_UpdatedAt` は、版 10 の `010_AddMessageReadPosition.sql` で足す。SQL Server だけ。
 
 ### `Message`(メッセージ)
 
@@ -865,7 +868,8 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`
+  - `010_AddMessageReadPosition.sql` は、メッセージの既読のために、`MessageConversationMember` に `LastReadMessageId` の列と `IX_MessageConversationMember_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
   - `009_AddNoteNoticeIndexes.sql` は、他の人の作成・更新の通知のための索引を足す。無ければ作る。
     - `Note` の `IX_Note_UpdatedAt`。SQLite は、`Sql/schema.sql` との点検が足す。
     - `AppUserSetting` の `IX_AppUserSetting_FeatureNo_CategoryNo_CodeNo_Value_UserId`。SQL Server だけ。

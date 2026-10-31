@@ -281,6 +281,9 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
             RefreshSelfCanReceiveAsync().Forget();
             RefreshPeerCanReceiveAsync().Forget();
+
+            // ウィンドウが隠れている間に届いて、画面に出ていたメッセージを、前面に戻ったここで読んだことにする
+            ReportRead();
         }
     }
 
@@ -553,6 +556,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             IsSkeletonVisible = false;
             MergeNewest(newest.Take(MessageSync.PageSize).Reverse().ToList(), newest.Count > MessageSync.PageSize);
             await sync.WriteCachedMessagesAsync(conversationId, [.. Messages.Select(item => item.Source)]);
+            ReportRead();
         }
         catch (DataFileException ex)
         {
@@ -646,6 +650,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     private void OnSynced() => Post(() =>
     {
         RefreshConversations();
+        RefreshReadMarks();
 
         // 読み込みの失敗だけを出し入れする。送れなかった・探せなかった、などのエラーを、読み込みの成功で消さない
         var text = sync.LastError is { } error ? $"読み込めませんでした: {error}" : null;
@@ -690,6 +695,7 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
             ScrollToEndRequested?.Invoke(true);
         }
         sync.WriteCachedMessagesAsync(_conversationId, [.. Messages.Select(item => item.Source)]).Forget();
+        ReportRead();
     });
 
     /// <summary>人の一覧を、読み続ける部品が持つ要約に合わせる。変わった行だけ差し替える</summary>
@@ -791,7 +797,50 @@ public sealed partial class MessagesViewModel(IMessageRepository repository, Mes
     /// <summary>メッセージを、画面の行にする</summary>
     /// <param name="message">メッセージ</param>
     /// <returns>画面の行。自分が送ったメッセージかは、読み込んだ人の番号で決める</returns>
-    private ChatMessageItem ToItem(ChatMessage message) => new(message, message.SenderUserId == sync.UserId, OpenLinkCommand);
+    private ChatMessageItem ToItem(ChatMessage message) => new(message, message.SenderUserId == sync.UserId, OpenLinkCommand, ReadTextOf(message));
+
+    /// <summary>自分が送ったメッセージに付ける、相手が読んだことを表す文字を作る</summary>
+    /// <param name="message">メッセージ</param>
+    /// <returns>1 対 1 は「既読」、グループは「既読 N」。N は読んだ人数で、送った人を含めない。読まれていない・自分が送ったのでない・会話の要約がまだ無いときは空文字</returns>
+    /// <remarks>読んだとは、参加者の読んだ位置が、メッセージの番号以上のこと。</remarks>
+    private string ReadTextOf(ChatMessage message)
+    {
+        if (message.SenderUserId != sync.UserId
+            || sync.Conversations.FirstOrDefault(conversation => conversation.Id == message.ConversationId) is not { } summary)
+        {
+            return "";
+        }
+
+        var count = summary.Readers.Count(reader => reader.UserId != message.SenderUserId && reader.LastReadMessageId >= message.Id);
+        return count == 0 ? "" : summary.Kind == ConversationKind.Direct ? "既読" : $"既読 {count}";
+    }
+
+    /// <summary>開いている会話のメッセージの「既読」を、読み続ける部品が持つ要約に合わせる。変わった行だけ差し替える</summary>
+    private void RefreshReadMarks()
+    {
+        for (var i = 0; i < Messages.Count; i++)
+        {
+            if (Messages[i].ReadText != ReadTextOf(Messages[i].Source))
+            {
+                Messages[i] = ToItem(Messages[i].Source);
+            }
+        }
+    }
+
+    /// <summary>開いている会話の、一番新しいメッセージまで読んだことを、DB に書く</summary>
+    /// <remarks>
+    /// 会話を開いていて、ウィンドウが前面に見えているときだけ書く。裏に回っている間や、通知ダイアログに出しただけでは、読んだことにしない。
+    /// 書けなかったときは、次の機会にもう一度書く。
+    /// </remarks>
+    private void ReportRead()
+    {
+        if (!_visible || !IsConversationOpen || _conversationId == 0 || Messages.Count == 0)
+        {
+            return;
+        }
+
+        sync.MarkReadAsync(_conversationId, Messages[^1].Id).Forget();
+    }
 
     /// <summary>本文の 1 行目を取る</summary>
     /// <param name="text">本文</param>
