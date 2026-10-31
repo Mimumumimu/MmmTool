@@ -67,31 +67,29 @@ public sealed class ReminderSendService(
 
         try
         {
-            var targets = await source.GetTargetsAsync(cancellationToken).ConfigureAwait(false);
-            var existing = (await statuses.GetByDateAsync(today, cancellationToken).ConfigureAwait(false))
-                .ToDictionary(status => (status.ReminderId, status.ChannelId));
+            // 送る対象と、今日・昨日の送信の状況を、1 回の問い合わせで読む
+            var targets = await source.GetTargetsAsync(today, cancellationToken).ConfigureAwait(false);
 
             var due = targets
-                .Where(target => IsDue(target, today, nowTime))
-                .OrderBy(target => target.Reminder.Time)
-                .ThenBy(target => target.Reminder.No);
-            foreach (var target in due)
+                .Where(state => IsDue(state.Target, today, nowTime))
+                .OrderBy(state => state.Target.Reminder.Time)
+                .ThenBy(state => state.Target.Reminder.No);
+            foreach (var state in due)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                existing.TryGetValue((target.Reminder.No, target.Channel.Id), out var current);
-                var claimed = await ClaimAsync(target, current, today, cancellationToken).ConfigureAwait(false);
+                var claimed = await ClaimAsync(state.Target, state.Today, today, cancellationToken).ConfigureAwait(false);
                 if (claimed is null)
                 {
                     continue;
                 }
 
                 changed = true;
-                await SendAsync(target, claimed, cancellationToken).ConfigureAwait(false);
+                await SendAsync(state.Target, claimed, cancellationToken).ConfigureAwait(false);
             }
 
             // 昨日の、送れなかった (または、送信中のまま止まった)ものも、上限の回数まで送り直す (日付をまたいでも、送り直しは数分で終わる)
-            changed |= await RetryPreviousDayAsync(targets, today.AddDays(-1), cancellationToken).ConfigureAwait(false);
+            changed |= await RetryPreviousDayAsync(targets, cancellationToken).ConfigureAwait(false);
 
             changed |= SetLastError(null);
         }
@@ -140,17 +138,11 @@ public sealed class ReminderSendService(
     public async Task<IReadOnlyList<ReminderSendPlanItem>> GetTodayPlanAsync(DateTime now, CancellationToken cancellationToken = default)
     {
         var today = DateOnly.FromDateTime(now);
-        var targets = await source.GetTargetsAsync(cancellationToken).ConfigureAwait(false);
-        var existing = (await statuses.GetByDateAsync(today, cancellationToken).ConfigureAwait(false))
-            .ToDictionary(status => (status.ReminderId, status.ChannelId));
+        var targets = await source.GetTargetsAsync(today, cancellationToken).ConfigureAwait(false);
 
         return [.. targets
-            .Where(target => ReminderDates.ToTime(target.Reminder.Time) is not null && ReminderDates.OccursOn(target.Reminder, today))
-            .Select(target =>
-            {
-                var status = existing.GetValueOrDefault((target.Reminder.No, target.Channel.Id));
-                return new ReminderSendPlanItem(target, status, status is null && !IsPlanned(target, today));
-            })
+            .Where(state => ReminderDates.ToTime(state.Target.Reminder.Time) is not null && ReminderDates.OccursOn(state.Target.Reminder, today))
+            .Select(state => new ReminderSendPlanItem(state.Target, state.Today, state.Today is null && !IsPlanned(state.Target, today)))
             .OrderBy(item => item.Target.Reminder.Time)
             .ThenBy(item => item.Target.Reminder.No)];
     }
@@ -176,8 +168,7 @@ public sealed class ReminderSendService(
         ArgumentNullException.ThrowIfNull(target);
 
         var today = DateOnly.FromDateTime(now);
-        var current = (await statuses.GetByDateAsync(today, cancellationToken).ConfigureAwait(false))
-            .FirstOrDefault(status => status.ReminderId == target.Reminder.No && status.ChannelId == target.Channel.Id);
+        var current = await statuses.GetAsync(target.Reminder.No, target.Channel.Id, today, cancellationToken).ConfigureAwait(false);
 
         // まだ時刻が来ていない予定は、送るだけ (今日の送信の状況は作らない。時刻になれば、予定どおり送られる)
         if (current is null && IsPlanned(target, today) && target.Reminder.Time > ReminderDates.ToTimeValue(now))
@@ -279,26 +270,24 @@ public sealed class ReminderSendService(
     }
 
     /// <summary>昨日の、送れなかったもの・送信中のまま止まったものを、送り直す</summary>
-    /// <param name="targets">送る対象 (送信設定が今もあるものだけ。削除されたリマインダー・送信先は送り直さない)</param>
-    /// <param name="yesterday">昨日</param>
+    /// <param name="targets">送る対象と、昨日の送信の状況。送信設定が今もあるものだけで、削除されたリマインダー・送信先は送り直さない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送り直しを始めたものがあれば true</returns>
-    /// <remarks>新しい行は作らない (昨日の分を、今から新しく送らない)。送る内容は、今のリマインダーの内容。</remarks>
-    private async Task<bool> RetryPreviousDayAsync(IReadOnlyList<ReminderSendTarget> targets, DateOnly yesterday, CancellationToken cancellationToken)
+    /// <remarks>新しい行は作らない。昨日の分を、今から新しく送らないため。送る内容は、今のリマインダーの内容。</remarks>
+    private async Task<bool> RetryPreviousDayAsync(IReadOnlyList<ReminderSendTargetState> targets, CancellationToken cancellationToken)
     {
         var changed = false;
-        foreach (var status in await statuses.GetByDateAsync(yesterday, cancellationToken).ConfigureAwait(false))
+        foreach (var state in targets.Where(state => state.Yesterday is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var target = targets.FirstOrDefault(item => item.Reminder.No == status.ReminderId && item.Channel.Id == status.ChannelId);
-            if (target is null || await ClaimRetryAsync(status, cancellationToken).ConfigureAwait(false) is not { } claimed)
+            if (await ClaimRetryAsync(state.Yesterday!, cancellationToken).ConfigureAwait(false) is not { } claimed)
             {
                 continue;
             }
 
             changed = true;
-            await SendAsync(target, claimed, cancellationToken).ConfigureAwait(false);
+            await SendAsync(state.Target, claimed, cancellationToken).ConfigureAwait(false);
         }
         return changed;
     }

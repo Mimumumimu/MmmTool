@@ -23,6 +23,10 @@ public sealed class SqlServerAppUserSettingRepository(SqlServerDatabase database
         => UserSettingTable.AppUserSetting.GetAsync(database, SendTableAccess.RequireUserId(currentUser), featureNo, categoryNo, codeNo, cancellationToken);
 
     /// <inheritdoc />
+    public Task<IReadOnlyDictionary<int, string>> GetByFeatureAsync(int categoryNo, int codeNo, CancellationToken cancellationToken = default)
+        => UserSettingTable.AppUserSetting.GetByFeatureAsync(database, SendTableAccess.RequireUserId(currentUser), categoryNo, codeNo, cancellationToken);
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">番号が 1 未満・値が長すぎる。</exception>
     public Task SetAsync(int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default)
     {

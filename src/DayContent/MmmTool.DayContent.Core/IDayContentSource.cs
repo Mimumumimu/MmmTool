@@ -60,4 +60,14 @@ public interface IDayContentSource
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>見出しの下に出す文</returns>
     Task<string> GetTextAsync(DateOnly from, DateOnly to, int? userId, IReadOnlyDictionary<string, bool> options, CancellationToken cancellationToken = default);
+
+    /// <summary>期間と複数の人を指定して、人ごとの内容を、まとめて返す</summary>
+    /// <param name="from">期間の開始日</param>
+    /// <param name="to">期間の終了日 (その日の内容を出す日)</param>
+    /// <param name="userIds">人の番号</param>
+    /// <param name="options">選択肢の値で、キーは <see cref="DayContentOption.Key"/>。無いキーは、既定値</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>人の番号ごとの、見出しの下に出す文</returns>
+    /// <remarks>人の数だけ <see cref="GetTextAsync"/> を呼ぶ代わりに使う。提供元は、保存先から 1 回で読んで、人ごとに分ける。</remarks>
+    Task<IReadOnlyDictionary<int, string>> GetTextsAsync(DateOnly from, DateOnly to, IReadOnlyCollection<int> userIds, IReadOnlyDictionary<string, bool> options, CancellationToken cancellationToken = default);
 }

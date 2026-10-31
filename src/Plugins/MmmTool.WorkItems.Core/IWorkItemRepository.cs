@@ -80,6 +80,16 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, int? userId = null, CancellationToken cancellationToken = default);
 
+    /// <summary>作業報告のために、指定した全員分の作業と記録と日報メモを、1 回の往復で読み、人ごとに分けて返す</summary>
+    /// <param name="from">記録を読み始める日 (実績の開始日)</param>
+    /// <param name="to">記録を読み終える日で、報告日。その日も含む</param>
+    /// <param name="userIds">人の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>人の番号ごとの、<see cref="LoadReportAsync"/> と同じ中身。作業も日報メモも無い人は、空の中身</returns>
+    /// <remarks>人の数だけ <see cref="LoadReportAsync"/> を呼ぶ代わりに使う。分けるのは <see cref="WorkReportSplitter"/>。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<IReadOnlyDictionary<int, WorkReportData>> LoadReportsAsync(DateOnly from, DateOnly to, IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default);
+
     /// <summary>作業報告に、実績か予定か日報メモがある人の番号を読む</summary>
     /// <param name="from">記録を読み始める日 (実績の開始日)</param>
     /// <param name="to">記録を読み終える日で、報告日。その日も含む</param>

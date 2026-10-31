@@ -10,6 +10,9 @@ public sealed record WorkDayNote
     /// <summary>番号 (保存先が決める)</summary>
     public int Id { get; init; }
 
+    /// <summary>持ち主のユーザーの番号。全員分を 1 回で読んだ作業報告を、人ごとに分けるために持つ</summary>
+    public int UserId { get; init; }
+
     /// <summary>日付</summary>
     public DateOnly Date { get; init; }
 

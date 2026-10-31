@@ -24,6 +24,11 @@ public sealed class UnavailableNotificationChannelRepository : INotificationChan
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    public Task<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>> GetAllSummariesAsync(CancellationToken cancellationToken = default)
+        => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
     public Task<NotificationChannelMatch?> FindWebPushAsync(string endpoint, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

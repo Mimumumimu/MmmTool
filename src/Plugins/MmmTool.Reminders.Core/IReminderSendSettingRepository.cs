@@ -27,4 +27,16 @@ public interface IReminderSendSettingRepository
     /// <remarks>選んだものは、すでにある設定も含めて、更新日時を今にする (保存した時点で過ぎている今日の分を、送らないため)。選んでいないものは、論理削除する。対象は、自分が使用者の送信先だけ (ほかの人の送信先の設定は、足さず、外さない)。</remarks>
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default);
+
+    /// <summary>複数のリマインダーに、同じ送信先を設定する (選んだ送信先の一覧で置き換える)</summary>
+    /// <param name="reminderNos">リマインダーの番号</param>
+    /// <param name="channelIds">選んだ送信先の番号。空なら、送信先なし</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>設定を終えたことを表すタスク</returns>
+    /// <remarks>
+    /// リマインダーの数だけ <see cref="SetChannelsAsync(int, IReadOnlyCollection{int}, CancellationToken)"/> を呼ぶ代わりに使う。
+    /// 全部を 1 つのトランザクションの 1 回の往復で書く。選んだものの更新日時と、対象にする送信先は、1 件のときと同じ。
+    /// </remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task SetChannelsAsync(IReadOnlyCollection<int> reminderNos, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default);
 }

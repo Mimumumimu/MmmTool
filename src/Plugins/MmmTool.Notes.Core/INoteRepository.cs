@@ -16,13 +16,14 @@ public interface INoteRepository
     /// <exception cref="InvalidOperationException">DB モードで、今のユーザーをまだ特定していない。</exception>
     int CurrentUserId { get; }
 
-    /// <summary>指定の日に有効なノートを取得する</summary>
+    /// <summary>指定の日に有効なノートを、書いた人と更新した人の名前つきで取得する</summary>
     /// <param name="day">日</param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>有効なノート (並びは不定。並べるのは呼ぶ側)</returns>
+    /// <returns>有効なノートと名前で、並びは不定。並べるのは呼ぶ側</returns>
+    /// <remarks>名前は、ノートと一緒に 1 回の問い合わせで読む。ノートごとに名前を引かない。</remarks>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
-    Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
 
     /// <summary>指定の日が実施日のノートを取得する (削除済みは含めない)</summary>
     /// <param name="day">日</param>

@@ -26,8 +26,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private readonly ReminderService _reminders;
     /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
     private readonly IAppUserRepository _users;
-    /// <summary>機能の利用 (宛先の選択肢から、リマインダーを無効にされた人を外すために使う)</summary>
-    private readonly FeatureAccessService _access;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
     /// <summary>リマインダーの送信設定の保存先</summary>
@@ -45,17 +43,15 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
-    /// <param name="access">機能の利用</param>
     /// <param name="channelLoader">送信先の選択肢を作る</param>
     /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderInputViewModel(
-        ReminderService reminders, IAppUserRepository users, FeatureAccessService access, ReminderChannelLoader channelLoader,
+        ReminderService reminders, IAppUserRepository users, ReminderChannelLoader channelLoader,
         IReminderSendSettingRepository sendSettings, TimeProvider time)
     {
         _reminders = reminders;
         _users = users;
-        _access = access;
         _channelLoader = channelLoader;
         _sendSettings = sendSettings;
         _time = time;
@@ -215,11 +211,13 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         TargetOptions.Add(new ReminderTargetOption(0, "全員"));
 
         IReadOnlyList<AppUser> users = [];
-        IReadOnlyCollection<int> disabledIds = [];
+        HashSet<int> disabledIds = [];
         try
         {
-            users = await _users.GetUsersAsync();
-            disabledIds = await _access.GetDisabledUserIdsAsync(CodeFeatures.Reminders);
+            // ユーザーの一覧と、リマインダーを無効にされた人を、1 回の問い合わせで読む
+            var states = await _users.GetUsersWithFeatureStateAsync(CodeFeatures.Reminders);
+            users = [.. states.Select(state => state.User)];
+            disabledIds = [.. states.Where(state => state.IsFeatureDisabled).Select(state => state.User.Id)];
         }
         catch (DataFileException ex)
         {

@@ -30,6 +30,13 @@ public interface INotificationChannelRepository
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<NotificationChannelSummary>> GetSummariesAsync(NotificationChannelKind kind, CancellationToken cancellationToken = default);
 
+    /// <summary>自分が登録した、すべての種類の送信先の要約を、1 回で取得する</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>種類ごとの、論理削除されていない送信先の番号と登録名で、番号の順。送信先が無い種類は含まない。送る先の値は読まない</returns>
+    /// <remarks>種類の数だけ <see cref="GetSummariesAsync"/> を呼ぶ代わりに使う。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>> GetAllSummariesAsync(CancellationToken cancellationToken = default);
+
     /// <summary>自分が登録した Web 版通知の送信先を、端末の宛先 (配達係の URL)から探す</summary>
     /// <param name="endpoint">端末の宛先の URL</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

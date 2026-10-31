@@ -30,6 +30,11 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <summary>表の全部の列 (読む順)</summary>
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
+    /// <summary>表の全部の列 (読む順)に、表の別名を付けたもの</summary>
+    /// <param name="alias">ノートの表の別名。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <returns>別名つきの列の並び (14 列)</returns>
+    private static string QualifiedColumns(string alias) => string.Join(", ", Columns.Split(", ").Select(column => $"{alias}.{column}"));
+
     /// <inheritdoc />
     public bool IsShared => true;
 
@@ -38,29 +43,32 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
 
     /// <inheritdoc />
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+    /// <remarks>書いた人と更新した人の名前は、ノートと一緒に <c>dbo.AppUser</c> を外部結合して読む。表示のための名前で、検索や索引には使わない。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
-        return RunAsync<IReadOnlyList<Note>>(async connection =>
+        return RunAsync<IReadOnlyList<NoteWithNames>>(async connection =>
         {
             await using var command = connection.CreateCommand();
             command.CommandText =
                 $"""
-                SELECT {Columns}
-                FROM dbo.Note
-                WHERE EndDate >= @Day AND StartDate <= @Day
-                  AND (@IncludeDeleted = 1 OR IsDeleted = 0)
-                  AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                SELECT {QualifiedColumns("n")}, ISNULL(a.DisplayName, N''), ISNULL(u.DisplayName, N'')
+                FROM dbo.Note AS n
+                LEFT JOIN dbo.AppUser AS a ON a.Id = n.AuthorUserId
+                LEFT JOIN dbo.AppUser AS u ON u.Id = n.UpdatedByUserId
+                WHERE n.EndDate >= @Day AND n.StartDate <= @Day
+                  AND (@IncludeDeleted = 1 OR n.IsDeleted = 0)
+                  AND (n.IsPrivate = 0 OR n.AuthorUserId = @UserId)
                 """;
             command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
             command.Parameters.Add(new SqlParameter("@IncludeDeleted", SqlDbType.Bit) { Value = includeDeleted });
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-            var notes = new List<Note>();
+            var notes = new List<NoteWithNames>();
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                notes.Add(ReadRow(reader).ToNote());
+                notes.Add(new NoteWithNames(ReadRow(reader).ToNote(), reader.GetString(14), reader.GetString(15)));
             }
             return notes;
         }, cancellationToken);

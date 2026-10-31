@@ -21,11 +21,6 @@ public sealed class UnavailableAppUserAdminSettingRepository : IAppUserAdminSett
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">管理者が決める設定は、DB モードだけで使える。</exception>
-    public Task<IReadOnlyList<int>> GetUserIdsAsync(int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default)
-        => throw NotAvailable();
-
-    /// <inheritdoc />
-    /// <exception cref="NotSupportedException">管理者が決める設定は、DB モードだけで使える。</exception>
     public Task SetAsync(int userId, int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

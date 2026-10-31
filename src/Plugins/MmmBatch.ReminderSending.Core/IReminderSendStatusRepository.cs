@@ -10,12 +10,15 @@ namespace MmmBatch.ReminderSending.Core;
 /// </remarks>
 public interface IReminderSendStatusRepository
 {
-    /// <summary>ある日の送信の状況を取得する</summary>
+    /// <summary>ある日の、あるリマインダーと送信先の送信の状況を、1 件取得する</summary>
+    /// <param name="reminderId">リマインダーの番号</param>
+    /// <param name="channelId">送信先の番号</param>
     /// <param name="date">日付</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>その日の送信の状況</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
-    Task<IReadOnlyList<ReminderSendStatus>> GetByDateAsync(DateOnly date, CancellationToken cancellationToken = default);
+    /// <returns>送信の状況。まだ送ろうとしていなければ null</returns>
+    /// <remarks>一意の制約 <c>(ReminderId, ChannelId, Date)</c> の索引で 1 件を引く。1 日分をすべて読んで探さない。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<ReminderSendStatus?> GetAsync(int reminderId, int channelId, DateOnly date, CancellationToken cancellationToken = default);
 
     /// <summary>送信中 (<see cref="SendStatus.Pending"/>・1 回目)の行を作る</summary>
     /// <param name="reminderId">送るリマインダーの番号</param>

@@ -25,9 +25,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>「ない」日付 (<c>9999-12-31</c>)</summary>
     private static readonly DateTime NoDate = new(9999, 12, 31);
 
-    /// <summary>一度に <c>IN</c> に並べる番号の最大の数</summary>
-    private const int ChunkSize = 500;
-
     /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
     private const int InvalidObjectName = 208;
 
@@ -77,7 +74,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     connection,
                     null,
                     $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.Date = @date AND r.IsDeleted = 0 AND {ProjectFilter("r", "ProjectId", exclude)}",
-                    [("@projects", ProjectsJson(projectIds)), ("@date", date)],
+                    [("@projects", IdJson.From(projectIds)), ("@date", date)],
                     reader => ReadRecord(reader).ToWorkRecord(),
                     cancellationToken),
                 cancellationToken);
@@ -91,7 +88,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     connection,
                     null,
                     $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND (r.Hours > 0 OR r.Note <> '') AND {ProjectFilter("r", "ProjectId", exclude)}",
-                    [("@projects", ProjectsJson(projectIds))],
+                    [("@projects", IdJson.From(projectIds))],
                     reader => ReadRecord(reader).ToWorkRecord(),
                     cancellationToken),
                 cancellationToken);
@@ -110,31 +107,58 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <inheritdoc />
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly to, int? userId = null, CancellationToken cancellationToken = default)
-        => RunAsync(async connection =>
+        => RunAsync(connection => LoadReportCoreAsync(connection, from, to, "= @me", ("@me", userId ?? UserId), cancellationToken), cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<int, WorkReportData>> LoadReportsAsync(DateOnly from, DateOnly to, IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userIds);
+        if (userIds.Count == 0)
         {
-            // 担当が指定の人 (@me)で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る
-            (string, object)[] parameters = [("@me", userId ?? UserId), ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual), ("@feature", WorkCodes.FeatureNo)];
-            var projects = new List<WorkProject>();
-            var groups = new List<WorkGroup>();
-            var items = new List<WorkItem>();
-            var records = new List<WorkRecord>();
-            var codes = new List<CodeMasterEntry>();
-            var dayNotes = new List<WorkDayNote>();
-            await QueryBatchAsync(
-                connection,
-                null,
-                [
-                    ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => projects.Add(ReadProject(r).ToWorkProject())),
-                    ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w")})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
-                    ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i")}", r => items.Add(ReadItem(r).ToWorkItem())),
-                    ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me AND w.ReportExclusion <> @exclAll)", r => records.Add(ReadRecord(r).ToWorkRecord())),
-                    ($"SELECT {CodeMasterRowReader.Columns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(CodeMasterRowReader.Read(r).ToEntry())),
-                    ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @me AND n.Date = @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
-                ],
-                parameters,
-                cancellationToken);
-            return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records, dayNotes);
-        }, cancellationToken);
+            return new Dictionary<int, WorkReportData>();
+        }
+
+        // 人の番号は、JSON の 1 つのパラメーターで渡す。人数が多くても、同じ問い合わせになる。読んだあとに、人ごとに分ける
+        var all = await RunAsync(
+            connection => LoadReportCoreAsync(connection, from, to, "IN (SELECT UserId FROM OPENJSON(@people) WITH (UserId int '$'))", ("@people", IdJson.From(userIds)), cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        return WorkReportSplitter.Split(all, userIds);
+    }
+
+    /// <summary>作業報告の中身を、担当者の条件を指定して、1 回の往復で読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="from">記録を読み始める日</param>
+    /// <param name="to">記録を読み終える日で、報告日</param>
+    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
+    /// <param name="assigneeParameter">条件が使うパラメーターの名前と値</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>指定の担当者の、作業報告の中身</returns>
+    /// <remarks>担当が指定の人で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る。</remarks>
+    private async Task<WorkReportData> LoadReportCoreAsync(
+        SqlConnection connection, DateOnly from, DateOnly to, string assignee, (string, object) assigneeParameter, CancellationToken cancellationToken)
+    {
+        (string, object)[] parameters = [assigneeParameter, ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual), ("@feature", WorkCodes.FeatureNo)];
+        var projects = new List<WorkProject>();
+        var groups = new List<WorkGroup>();
+        var items = new List<WorkItem>();
+        var records = new List<WorkRecord>();
+        var codes = new List<CodeMasterEntry>();
+        var dayNotes = new List<WorkDayNote>();
+        await QueryBatchAsync(
+            connection,
+            null,
+            [
+                ($"SELECT {Header("p")}, p.Name, p.Link, p.Note FROM dbo.WorkProject p WHERE p.IsDeleted = 0 AND p.Id IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w", assignee)})", r => projects.Add(ReadProject(r).ToWorkProject())),
+                ($"SELECT {Header("g")}, g.ProjectId, g.ParentGroupId, g.SortOrder, g.Name, g.Link, g.Note FROM dbo.WorkGroup g WHERE g.IsDeleted = 0 AND g.ProjectId IN (SELECT w.ProjectId FROM dbo.WorkItem w WHERE {ReportItemCondition("w", assignee)})", r => groups.Add(ReadGroup(r).ToWorkGroup())),
+                ($"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE {ReportItemCondition("i", assignee)}", r => items.Add(ReadItem(r).ToWorkItem())),
+                ($"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.IsDeleted = 0 AND r.Date >= @from AND r.Date <= @to AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId {assignee} AND w.ReportExclusion <> @exclAll)", r => records.Add(ReadRecord(r).ToWorkRecord())),
+                ($"SELECT {CodeMasterRowReader.Columns("c")} FROM dbo.CodeMaster c WHERE c.FeatureNo = @feature", r => codes.Add(CodeMasterRowReader.Read(r).ToEntry())),
+                ($"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId {assignee} AND n.Date = @to", r => dayNotes.Add(ReadDayNote(r).ToWorkDayNote())),
+            ],
+            parameters,
+            cancellationToken).ConfigureAwait(false);
+        return new WorkReportData(new WorkLoadResult(projects, groups, items, codes), records, dayNotes);
+    }
 
     /// <inheritdoc />
     public Task<IReadOnlyList<int>> GetReportPeopleAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
@@ -194,21 +218,22 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
-    /// <returns>条件の SQL。パラメーター <c>@me</c>・<c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> を使う</returns>
+    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
+    /// <returns>条件の SQL。パラメーター <c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う</returns>
     /// <remarks>
     /// 担当が指定の人で、次のどちらか。
     /// 予定の枝は、外す印が無く、状態が作業予定・作業中。
     /// 実績の枝は、実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
     /// </remarks>
-    private static string ReportItemCondition(string alias)
-        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId = @me AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN (@planned, @inProgress)) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
+    private static string ReportItemCondition(string alias, string assignee)
+        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId {assignee} AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN (@planned, @inProgress)) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
 
     /// <inheritdoc />
     public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
         => RunAsync(async connection =>
         {
             // 更新日時のインデックスは、削除された行も含むので、論理削除も差分で届く。選んだ案件で絞る。5 つの問い合わせを 1 回の往復で受け取る
-            (string, object)[] parameters = [("@projects", ProjectsJson(hiddenProjectIds)), ("@since", since), ("@date", date), ("@feature", WorkCodes.FeatureNo)];
+            (string, object)[] parameters = [("@projects", IdJson.From(hiddenProjectIds)), ("@since", since), ("@date", date), ("@feature", WorkCodes.FeatureNo)];
             var projects = new List<WorkProject>();
             var groups = new List<WorkGroup>();
             var items = new List<WorkItem>();
@@ -255,7 +280,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                     connection,
                     null,
                     sql,
-                    [("@projects", ProjectsJson(hiddenProjectIds)), ("@none", NoDate), ("@closed", (int)WorkItemStatus.Closed), ("@query", EscapeLike(query)), ("@activeOnly", activeOnly), ("@selectedOnly", selectedOnly), ("@selectedFirst", selectedFirst), ("@offset", offset), ("@count", count)],
+                    [("@projects", IdJson.From(hiddenProjectIds)), ("@none", NoDate), ("@closed", (int)WorkItemStatus.Closed), ("@query", EscapeLike(query)), ("@activeOnly", activeOnly), ("@selectedOnly", selectedOnly), ("@selectedFirst", selectedFirst), ("@offset", offset), ("@count", count)],
                     reader => new WorkProjectEntry(
                         reader.GetInt32(0),
                         reader.GetString(1),
@@ -402,13 +427,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         => WriteAsync(async (connection, transaction, user) =>
         {
             await ApplyPositionsAsync(connection, transaction, user, positions, cancellationToken).ConfigureAwait(false);
-            foreach (var projectId in touchedProjectIds)
+            if (touchedProjectIds.Count > 0)
             {
+                // 案件の数だけ流さず、案件の番号を JSON の 1 つのパラメーターで渡して、1 回で更新する
                 await ExecuteAsync(
                     connection,
                     transaction,
-                    "UPDATE dbo.WorkProject SET UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id = @id",
-                    [("@user", user), ("@id", projectId)],
+                    "UPDATE dbo.WorkProject SET UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id IN (SELECT ProjectId FROM OPENJSON(@projects) WITH (ProjectId int '$'))",
+                    [("@user", user), ("@projects", IdJson.From(touchedProjectIds))],
                     cancellationToken).ConfigureAwait(false);
             }
         }, cancellationToken);
@@ -417,18 +443,24 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     public Task DeleteAsync(IReadOnlyList<int> groupIds, IReadOnlyList<int> itemIds, CancellationToken cancellationToken = default)
         => WriteAsync(async (connection, transaction, user) =>
         {
-            foreach (var (table, ids) in new[] { ("dbo.WorkGroup", groupIds), ("dbo.WorkItem", itemIds) })
+            if (groupIds.Count == 0 && itemIds.Count == 0)
             {
-                foreach (var chunk in ids.Chunk(ChunkSize))
-                {
-                    await ExecuteAsync(
-                        connection,
-                        transaction,
-                        $"UPDATE {table} SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE IsDeleted = 0 AND Id IN ({InList(chunk.Length)})",
-                        [("@user", user), .. InParameters(chunk)],
-                        cancellationToken).ConfigureAwait(false);
-                }
+                return;
             }
+
+            // 番号は、JSON の 1 つのパラメーターで渡す。何件でも、2 つの UPDATE を 1 回の往復で行う
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                UPDATE dbo.WorkGroup SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user
+                WHERE IsDeleted = 0 AND Id IN (SELECT j.Id FROM OPENJSON(@groups) WITH (Id int '$') AS j);
+
+                UPDATE dbo.WorkItem SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user
+                WHERE IsDeleted = 0 AND Id IN (SELECT j.Id FROM OPENJSON(@items) WITH (Id int '$') AS j);
+                """,
+                [("@user", user), ("@groups", IdJson.From(groupIds)), ("@items", IdJson.From(itemIds))],
+                cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -464,13 +496,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             }
             var projectId = Convert.ToInt32(projectValue);
 
+            // 書く前の行を、全列読む。書かなかったときは、この行が結果になる
             var existing = (await QueryAsync(
                 connection,
                 transaction,
-                "SELECT Id, IsDeleted FROM dbo.WorkRecord WHERE WorkItemId = @item AND Date = @date",
+                $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.WorkItemId = @item AND r.Date = @date",
                 [("@item", row.WorkItemId), ("@date", row.Date)],
-                reader => (Id: reader.GetInt64(0), IsDeleted: reader.GetBoolean(1)),
-                cancellationToken).ConfigureAwait(false)).Cast<(long Id, bool IsDeleted)?>().FirstOrDefault();
+                reader => ReadRecord(reader),
+                cancellationToken).ConfigureAwait(false)).FirstOrDefault();
 
             // 行があれば、論理削除された行も含めて、何も書かない (手で 0 にした日を戻さない)
             if (onlyIfAbsent && existing is not null)
@@ -478,35 +511,41 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 return;
             }
 
+            // 書いた行は、OUTPUT で同じ往復の中で受け取る。書いたあとに読み直さない
+            var output = $"OUTPUT {Header("inserted")}, inserted.ProjectId, inserted.WorkItemId, inserted.Date, inserted.Hours, inserted.Note";
+            var saved = existing;
             if (record.IsEmpty)
             {
                 if (existing is { IsDeleted: false } alive)
                 {
-                    await ExecuteAsync(
+                    saved = (await QueryAsync(
                         connection,
                         transaction,
-                        "UPDATE dbo.WorkRecord SET IsDeleted = 1, Hours = 0, Note = N'', UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id = @id",
+                        $"UPDATE dbo.WorkRecord SET IsDeleted = 1, Hours = 0, Note = N'', UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user {output} WHERE Id = @id",
                         [("@user", user), ("@id", alive.Id)],
-                        cancellationToken).ConfigureAwait(false);
+                        reader => ReadRecord(reader),
+                        cancellationToken).ConfigureAwait(false)).First();
                 }
             }
             else if (existing is { } found)
             {
-                await ExecuteAsync(
+                saved = (await QueryAsync(
                     connection,
                     transaction,
-                    "UPDATE dbo.WorkRecord SET IsDeleted = 0, ProjectId = @project, Hours = @hours, Note = @note, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id = @id",
+                    $"UPDATE dbo.WorkRecord SET IsDeleted = 0, ProjectId = @project, Hours = @hours, Note = @note, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user {output} WHERE Id = @id",
                     [("@project", projectId), ("@hours", row.Hours), ("@note", row.Note), ("@user", user), ("@id", found.Id)],
-                    cancellationToken).ConfigureAwait(false);
+                    reader => ReadRecord(reader),
+                    cancellationToken).ConfigureAwait(false)).First();
             }
             else
             {
-                await ExecuteAsync(
+                saved = (await QueryAsync(
                     connection,
                     transaction,
-                    "INSERT INTO dbo.WorkRecord (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, WorkItemId, Date, Hours, Note) VALUES (0, @user, @user, @project, @item, @date, @hours, @note)",
+                    $"INSERT INTO dbo.WorkRecord (IsDeleted, CreatedByUserId, UpdatedByUserId, ProjectId, WorkItemId, Date, Hours, Note) {output} VALUES (0, @user, @user, @project, @item, @date, @hours, @note)",
                     [("@user", user), ("@project", projectId), ("@item", row.WorkItemId), ("@date", row.Date), ("@hours", row.Hours), ("@note", row.Note)],
-                    cancellationToken).ConfigureAwait(false);
+                    reader => ReadRecord(reader),
+                    cancellationToken).ConfigureAwait(false)).First();
             }
 
             // その作業の記録をすべて足し直して、作業の行に書く (差分は足さない)
@@ -525,14 +564,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 [("@total", (decimal)total), ("@user", user), ("@item", row.WorkItemId)],
                 cancellationToken).ConfigureAwait(false);
 
-            var saved = (await QueryAsync(
-                connection,
-                transaction,
-                $"SELECT {Header("r")}, r.ProjectId, r.WorkItemId, r.Date, r.Hours, r.Note FROM dbo.WorkRecord r WHERE r.WorkItemId = @item AND r.Date = @date",
-                [("@item", row.WorkItemId), ("@date", row.Date)],
-                reader => ReadRecord(reader).ToWorkRecord(),
-                cancellationToken).ConfigureAwait(false)).FirstOrDefault();
-            result = new WorkRecordResult(saved, total);
+            result = new WorkRecordResult(saved?.ToWorkRecord(), total);
         }, cancellationToken).ConfigureAwait(false);
         return result;
     }
@@ -546,27 +578,20 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         await WriteAsync(async (connection, transaction, _) =>
         {
             // 同じ (持ち主, 日付)の行があれば書き直し、無ければ作る。空にしても、行は消さない。同時に同じ日を書く (別の PC)ときに、一意の索引に当たらないよう、行をロックして確かめる
-            var updated = await ExecuteAsync(
-                connection,
-                transaction,
-                "UPDATE dbo.WorkDayNote WITH (UPDLOCK, HOLDLOCK) SET Note = @note, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE UserId = @user AND Date = @date",
-                [("@note", text), ("@user", user), ("@date", date)],
-                cancellationToken).ConfigureAwait(false);
-            if (updated == 0)
-            {
-                await ExecuteAsync(
-                    connection,
-                    transaction,
-                    "INSERT INTO dbo.WorkDayNote (IsDeleted, CreatedByUserId, UpdatedByUserId, UserId, Date, Note) VALUES (0, @user, @user, @user, @date, @note)",
-                    [("@user", user), ("@date", date), ("@note", text)],
-                    cancellationToken).ConfigureAwait(false);
-            }
-
+            // 書いた行は、OUTPUT で同じ往復の中で受け取る。書いたあとに読み直さない
+            var output = $"OUTPUT {Header("inserted")}, inserted.UserId, inserted.Date, inserted.Note";
             result = (await QueryAsync(
                 connection,
                 transaction,
-                $"SELECT {Header("n")}, n.UserId, n.Date, n.Note FROM dbo.WorkDayNote n WHERE n.UserId = @user AND n.Date = @date",
-                [("@user", user), ("@date", date)],
+                $"UPDATE dbo.WorkDayNote WITH (UPDLOCK, HOLDLOCK) SET Note = @note, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user {output} WHERE UserId = @user AND Date = @date",
+                [("@note", text), ("@user", user), ("@date", date)],
+                reader => ReadDayNote(reader).ToWorkDayNote(),
+                cancellationToken).ConfigureAwait(false)).FirstOrDefault();
+            result ??= (await QueryAsync(
+                connection,
+                transaction,
+                $"INSERT INTO dbo.WorkDayNote (IsDeleted, CreatedByUserId, UpdatedByUserId, UserId, Date, Note) {output} VALUES (0, @user, @user, @user, @date, @note)",
+                [("@user", user), ("@date", date), ("@note", text)],
                 reader => ReadDayNote(reader).ToWorkDayNote(),
                 cancellationToken).ConfigureAwait(false)).First();
         }, cancellationToken).ConfigureAwait(false);
@@ -657,24 +682,31 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <remarks>作業の案件が変わるときは、その作業の記録の案件の番号も直す。</remarks>
     private static async Task ApplyPositionsAsync(SqlConnection connection, SqlTransaction transaction, int user, IReadOnlyList<WorkPosition> positions, CancellationToken cancellationToken)
     {
-        foreach (var p in positions)
+        if (positions.Count == 0)
         {
-            (string, object)[] parameters = [("@project", p.ProjectId), ("@parent", p.ParentId), ("@order", p.SortOrder), ("@user", user), ("@id", p.Id)];
-            if (p.Kind == WorkRowKind.Group)
-            {
-                await ExecuteAsync(connection, transaction, "UPDATE dbo.WorkGroup SET ProjectId = @project, ParentGroupId = @parent, SortOrder = @order, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id = @id", parameters, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await ExecuteAsync(connection, transaction, "UPDATE dbo.WorkItem SET ProjectId = @project, GroupId = @parent, SortOrder = @order, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE Id = @id", parameters, cancellationToken).ConfigureAwait(false);
-                await ExecuteAsync(
-                    connection,
-                    transaction,
-                    "UPDATE dbo.WorkRecord SET ProjectId = @project, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user WHERE WorkItemId = @id AND ProjectId <> @project",
-                    parameters,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
+
+        // 位置の数だけ流さず、位置を JSON の 1 つのパラメーターで渡して、3 つの UPDATE を 1 回の往復で行う
+        await ExecuteAsync(
+            connection,
+            transaction,
+            """
+            UPDATE g SET g.ProjectId = j.ProjectId, g.ParentGroupId = j.ParentId, g.SortOrder = j.SortOrder, g.UpdatedAt = SYSDATETIMEOFFSET(), g.UpdatedByUserId = @user
+            FROM dbo.WorkGroup AS g
+            INNER JOIN OPENJSON(@groups) WITH (Id int '$.id', ProjectId int '$.project', ParentId int '$.parent', SortOrder int '$.order') AS j ON j.Id = g.Id;
+
+            UPDATE w SET w.ProjectId = j.ProjectId, w.GroupId = j.ParentId, w.SortOrder = j.SortOrder, w.UpdatedAt = SYSDATETIMEOFFSET(), w.UpdatedByUserId = @user
+            FROM dbo.WorkItem AS w
+            INNER JOIN OPENJSON(@items) WITH (Id int '$.id', ProjectId int '$.project', ParentId int '$.parent', SortOrder int '$.order') AS j ON j.Id = w.Id;
+
+            UPDATE r SET r.ProjectId = j.ProjectId, r.UpdatedAt = SYSDATETIMEOFFSET(), r.UpdatedByUserId = @user
+            FROM dbo.WorkRecord AS r
+            INNER JOIN OPENJSON(@items) WITH (Id int '$.id', ProjectId int '$.project') AS j ON j.Id = r.WorkItemId
+            WHERE r.ProjectId <> j.ProjectId;
+            """,
+            [("@groups", PositionJson.From(positions.Where(p => p.Kind == WorkRowKind.Group))), ("@items", PositionJson.From(positions.Where(p => p.Kind != WorkRowKind.Group))), ("@user", user)],
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>案件の中身 (案件の行・グループ・作業)と、必要ならコードマスタを、1 回の往復で読む</summary>
@@ -686,7 +718,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、コードマスタは空)</returns>
     private static async Task<WorkLoadResult> ReadContentAsync(SqlConnection connection, IReadOnlyCollection<int> projectIds, bool exclude, bool withMaster, CancellationToken cancellationToken)
     {
-        (string, object)[] parameters = [("@projects", ProjectsJson(projectIds)), ("@feature", WorkCodes.FeatureNo)];
+        (string, object)[] parameters = [("@projects", IdJson.From(projectIds)), ("@feature", WorkCodes.FeatureNo)];
         var projects = new List<WorkProject>();
         var groups = new List<WorkGroup>();
         var items = new List<WorkItem>();
@@ -705,12 +737,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         await QueryBatchAsync(connection, null, [.. queries], parameters, cancellationToken).ConfigureAwait(false);
         return new WorkLoadResult(projects, groups, items, codes);
     }
-
-    /// <summary>案件の番号の一覧を、1 つのパラメーター (JSON の配列)にする</summary>
-    /// <param name="projectIds">案件の番号</param>
-    /// <returns>JSON の配列 (例: <c>[1,5,7]</c>)。番号は整数だけなので、文字の組み立てで足りる</returns>
-    /// <remarks>番号をパラメーターに 1 つずつ並べると、数に上限 (2100)があり、問い合わせの形も変わる。1 つの JSON なら、何件でも同じ問い合わせになる。</remarks>
-    private static string ProjectsJson(IReadOnlyCollection<int> projectIds) => "[" + string.Join(',', projectIds) + "]";
 
     /// <summary>案件の番号が、パラメーター <c>@projects</c> (JSON の配列)に、含まれる (または含まれない)という条件</summary>
     /// <param name="alias">表の別名</param>
@@ -837,16 +863,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <returns><c>\</c> で逃がした検索語</returns>
     private static string EscapeLike(string query)
         => query.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal).Replace("[", "\\[", StringComparison.Ordinal);
-
-    /// <summary><c>IN</c> に並べるパラメーターの名前の並び</summary>
-    /// <param name="count">番号の数</param>
-    /// <returns><c>@id0,@id1,…</c></returns>
-    private static string InList(int count) => string.Join(',', Enumerable.Range(0, count).Select(i => "@id" + i));
-
-    /// <summary><c>IN</c> に並べる番号のパラメーター</summary>
-    /// <param name="ids">番号</param>
-    /// <returns>パラメーター</returns>
-    private static (string, object)[] InParameters(IEnumerable<int> ids) => [.. ids.Select((id, i) => ($"@id{i}", (object)id))];
 
     /// <summary>コマンドを作り、型を決めたパラメーターを付ける</summary>
     /// <param name="connection">開いた接続</param>

@@ -46,5 +46,5 @@ public sealed record WorkDayNoteRow
 
     /// <summary>DB の行から、アプリの型にする</summary>
     /// <returns>日報メモ</returns>
-    public WorkDayNote ToWorkDayNote() => new() { Id = Id, Date = Date, Note = Note, UpdatedAt = UpdatedAt };
+    public WorkDayNote ToWorkDayNote() => new() { Id = Id, UserId = UserId, Date = Date, Note = Note, UpdatedAt = UpdatedAt };
 }

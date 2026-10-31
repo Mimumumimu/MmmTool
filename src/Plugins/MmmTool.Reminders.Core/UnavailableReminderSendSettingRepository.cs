@@ -19,6 +19,11 @@ public sealed class UnavailableReminderSendSettingRepository : IReminderSendSett
     public Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">送信設定は、DB モードだけで使える。</exception>
+    public Task SetChannelsAsync(IReadOnlyCollection<int> reminderNos, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
+        => throw NotAvailable();
+
     /// <summary>使えないときの例外を作る</summary>
     /// <returns>使えないことを表す例外</returns>
     private static NotSupportedException NotAvailable() => new("送信設定は、DB モードだけで使えます。");

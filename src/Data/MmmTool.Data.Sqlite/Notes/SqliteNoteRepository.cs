@@ -39,14 +39,15 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         => Task.FromResult(new NoteChanges(time.GetUtcNow(), []));
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
-        => RunAsync<IReadOnlyList<Note>>(
+    /// <remarks>ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+        => RunAsync<IReadOnlyList<NoteWithNames>>(
             async connection => [.. (await SqliteQueries.QueryAsync(
                 connection,
                 null,
                 $"SELECT {Columns} FROM Note WHERE EndDate >= @day AND StartDate <= @day AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
                 [("@day", day), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
-                reader => ReadRow(reader).ToNote(),
+                reader => new NoteWithNames(ReadRow(reader).ToNote(), "", ""),
                 cancellationToken).ConfigureAwait(false))],
             cancellationToken);
 
@@ -73,13 +74,13 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         await RunInTransactionAsync(
             async (connection, transaction) =>
             {
-                await SqliteQueries.ExecuteAsync(
+                // 採番された番号は、RETURNING で同じ往復の中で受け取る。書いたあとに別に問い合わせない
+                var id = Convert.ToInt32(await SqliteQueries.ScalarAsync(
                     connection,
                     transaction,
-                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body)",
+                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body) RETURNING Id",
                     [("@now", now), ("@user", LocalUserId), ("@private", false), ("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body)],
-                    cancellationToken).ConfigureAwait(false);
-                var id = Convert.ToInt32(await SqliteQueries.ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken).ConfigureAwait(false));
+                    cancellationToken).ConfigureAwait(false));
                 saved = new Note
                 {
                     Id = id,

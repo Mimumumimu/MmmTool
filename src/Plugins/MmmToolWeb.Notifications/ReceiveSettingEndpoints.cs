@@ -85,10 +85,11 @@ internal static class ReceiveSettingEndpoints
         CancellationToken cancellationToken)
     {
         var states = await access.GetAllAsync(currentUser.Id, cancellationToken);
+        var values = await settings.GetByFeatureAsync(NotificationFeatureSettings.CategoryNo, NotificationFeatureSettings.CodeNo, cancellationToken);
         var list = new List<NotificationFeatureDto>();
         foreach (var feature in features.Where(feature => !states.TryGetValue(feature.FeatureNo, out var state) || state != FeatureAccess.Disabled))
         {
-            var saved = await settings.GetAsync(feature.FeatureNo, NotificationFeatureSettings.CategoryNo, NotificationFeatureSettings.CodeNo, cancellationToken);
+            values.TryGetValue(feature.FeatureNo, out var saved);
             list.Add(new NotificationFeatureDto(feature.FeatureNo, feature.Name, NotificationFeatureSettings.IsOn(saved, feature.DefaultOn)));
         }
         return Results.Ok(list.ToArray());
@@ -123,11 +124,14 @@ internal static class ReceiveSettingEndpoints
     /// <returns>送信先。種類の順で、番号の順。</returns>
     private static async Task<IReadOnlyList<ReceiveChannelDto>> ListChannelsAsync(INotificationChannelRepository channels, CancellationToken cancellationToken)
     {
+        var byKind = await channels.GetAllSummariesAsync(cancellationToken);
         var list = new List<ReceiveChannelDto>();
         foreach (var kind in Enum.GetValues<NotificationChannelKind>())
         {
-            var summaries = await channels.GetSummariesAsync(kind, cancellationToken);
-            list.AddRange(summaries.OrderBy(summary => summary.Id).Select(summary => new ReceiveChannelDto(summary.Id, summary.Name, NotificationChannelKinds.ToText(kind))));
+            if (byKind.TryGetValue(kind, out var summaries))
+            {
+                list.AddRange(summaries.OrderBy(summary => summary.Id).Select(summary => new ReceiveChannelDto(summary.Id, summary.Name, NotificationChannelKinds.ToText(kind))));
+            }
         }
         return list;
     }

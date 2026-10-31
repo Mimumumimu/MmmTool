@@ -22,20 +22,17 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
     private static readonly DateTimeOffset NotSent = new(DateTime.MaxValue.Date, TimeSpan.Zero);
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ReminderSendStatus>> GetByDateAsync(DateOnly date, CancellationToken cancellationToken = default)
-        => SendTableAccess.RunAsync<IReadOnlyList<ReminderSendStatus>>(database, async connection =>
+    public Task<ReminderSendStatus?> GetAsync(int reminderId, int channelId, DateOnly date, CancellationToken cancellationToken = default)
+        => SendTableAccess.RunAsync<ReminderSendStatus?>(database, async connection =>
         {
             await using var command = connection.CreateCommand();
-            command.CommandText = $"SELECT {Columns} FROM dbo.ReminderSendStatus WHERE Date = @Date";
+            command.CommandText = $"SELECT {Columns} FROM dbo.ReminderSendStatus WHERE ReminderId = @ReminderId AND ChannelId = @ChannelId AND Date = @Date";
+            command.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = reminderId });
+            command.Parameters.Add(new SqlParameter("@ChannelId", SqlDbType.Int) { Value = channelId });
             command.Parameters.Add(new SqlParameter("@Date", SqlDbType.Date) { Value = date.ToDateTime(TimeOnly.MinValue) });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-            var statuses = new List<ReminderSendStatus>();
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                statuses.Add(ReadStatus(reader));
-            }
-            return statuses;
+            return await reader.ReadAsync(cancellationToken).ConfigureAwait(false) ? ReadStatus(reader) : null;
         }, cancellationToken);
 
     /// <inheritdoc />
@@ -124,27 +121,43 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             return 0;
         }, cancellationToken);
 
+    /// <summary>読む列 (<see cref="ReadStatus"/> の並び)に、表の別名を付けたもの</summary>
+    /// <param name="alias">表の別名。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <returns>別名つきの列の並び (8 列)</returns>
+    /// <remarks>送る対象の問い合わせが、状況の表を結合して読むときに使う。</remarks>
+    internal static string ColumnsOf(string alias)
+        => $"{alias}.Id, {alias}.ReminderId, {alias}.ChannelId, {alias}.Date, {alias}.Status, {alias}.Attempts, {alias}.SentAt, {alias}.UpdatedAt";
+
+    /// <summary>外部結合で読んだ行を、送信の状況にする。結合先の行が無いときは null</summary>
+    /// <param name="reader">読んでいる位置のリーダー</param>
+    /// <param name="offset">状況の 8 列の、先頭の位置</param>
+    /// <returns>送信の状況。結合先の行が無いとき null</returns>
+    /// <exception cref="InvalidOperationException">状態が、定義にない値になっている。バグか、手で直した値。</exception>
+    internal static ReminderSendStatus? ReadStatusOrNull(SqlDataReader reader, int offset)
+        => reader.IsDBNull(offset) ? null : ReadStatus(reader, offset);
+
     /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="ReminderSendStatus"/> にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
+    /// <param name="offset">状況の 8 列の、先頭の位置</param>
     /// <returns>送信の状況</returns>
-    /// <exception cref="InvalidOperationException">状態が、定義にない値 (バグか、手で直した値)。</exception>
-    private static ReminderSendStatus ReadStatus(SqlDataReader reader)
+    /// <exception cref="InvalidOperationException">状態が、定義にない値になっている。バグか、手で直した値。</exception>
+    private static ReminderSendStatus ReadStatus(SqlDataReader reader, int offset = 0)
     {
-        var status = (SendStatus)reader.GetByte(4);
+        var status = (SendStatus)reader.GetByte(offset + 4);
         if (!Enum.IsDefined(status))
         {
-            throw new InvalidOperationException($"送信の状況 {reader.GetInt32(0)} の状態が正しくありません ({(int)status})。");
+            throw new InvalidOperationException($"送信の状況 {reader.GetInt32(offset)} の状態が正しくありません。状態の値は {(int)status} です。");
         }
 
-        var sentAt = reader.GetDateTimeOffset(6);
+        var sentAt = reader.GetDateTimeOffset(offset + 6);
         return new ReminderSendStatus(
-            reader.GetInt32(0),
-            reader.GetInt32(1),
-            reader.GetInt32(2),
-            DateOnly.FromDateTime(reader.GetDateTime(3)),
+            reader.GetInt32(offset),
+            reader.GetInt32(offset + 1),
+            reader.GetInt32(offset + 2),
+            DateOnly.FromDateTime(reader.GetDateTime(offset + 3)),
             status,
-            reader.GetByte(5),
+            reader.GetByte(offset + 5),
             sentAt >= NotSent ? null : sentAt,
-            reader.GetDateTimeOffset(7));
+            reader.GetDateTimeOffset(offset + 7));
     }
 }

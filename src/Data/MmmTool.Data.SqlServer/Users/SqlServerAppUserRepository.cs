@@ -36,8 +36,23 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
             return users;
         }, cancellationToken);
 
-    /// <summary>1 回の問い合わせに入れる番号の最大数 (SQL Server のパラメーターの上限 2100 に収める)</summary>
-    private const int IdChunkSize = 500;
+    /// <inheritdoc />
+    /// <remarks>無効かどうかは、<see cref="FeatureAccessSql.IsDisabled"/> の条件を、同じ問い合わせの列にして読む。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyList<AppUserFeatureState>> GetUsersWithFeatureStateAsync(int featureNo, CancellationToken cancellationToken = default)
+        => database.RunAsync<IReadOnlyList<AppUserFeatureState>>(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT {Columns}, CASE WHEN {FeatureAccessSql.IsDisabled("u.Id", featureNo)} THEN 1 ELSE 0 END FROM dbo.AppUser AS u ORDER BY Id";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var users = new List<AppUserFeatureState>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                users.Add(new AppUserFeatureState(ReadRow(reader).ToAppUser(), reader.GetInt32(10) == 1));
+            }
+            return users;
+        }, cancellationToken);
 
     /// <inheritdoc />
     /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
@@ -52,22 +67,16 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
 
         return database.RunAsync<IReadOnlyList<AppUser>>(async connection =>
         {
+            // 番号は、JSON の 1 つのパラメーターで渡す。何件でも、問い合わせは 1 回で、同じ形になる
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"SELECT {Columns} FROM dbo.AppUser WHERE Id IN (SELECT j.Id FROM OPENJSON(@Ids) WITH (Id int '$') AS j) ORDER BY Id";
+            command.Parameters.Add(new SqlParameter("@Ids", SqlDbType.NVarChar, -1) { Value = IdJson.From(distinct) });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
             var users = new List<AppUser>();
-            foreach (var chunk in distinct.Chunk(IdChunkSize))
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                await using var command = connection.CreateCommand();
-                var names = new string[chunk.Length];
-                for (var i = 0; i < chunk.Length; i++)
-                {
-                    names[i] = $"@Id{i}";
-                    command.Parameters.Add(new SqlParameter(names[i], SqlDbType.Int) { Value = chunk[i] });
-                }
-                command.CommandText = $"SELECT {Columns} FROM dbo.AppUser WHERE Id IN ({string.Join(", ", names)}) ORDER BY Id";
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    users.Add(ReadRow(reader).ToAppUser());
-                }
+                users.Add(ReadRow(reader).ToAppUser());
             }
             return users;
         }, cancellationToken);

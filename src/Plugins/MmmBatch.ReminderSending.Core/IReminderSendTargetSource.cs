@@ -5,9 +5,11 @@ namespace MmmBatch.ReminderSending.Core;
 /// <summary>送る対象 (送信先を選んだリマインダー)の読み出し口</summary>
 public interface IReminderSendTargetSource
 {
-    /// <summary>送信先を選んでいる、削除されていないリマインダーと、その送信先を取得する</summary>
+    /// <summary>送信先を選んでいる、削除されていないリマインダーと、その送信先を、今日・昨日の送信の状況つきで取得する</summary>
+    /// <param name="today">今日。昨日は、この前日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送る対象。日付・時刻で絞る前の、すべて (絞るのは <see cref="ReminderSendService"/>)</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
-    Task<IReadOnlyList<ReminderSendTarget>> GetTargetsAsync(CancellationToken cancellationToken = default);
+    /// <returns>送る対象と、今日・昨日の送信の状況。日付・時刻で絞る前の、すべて (絞るのは <see cref="ReminderSendService"/>)</returns>
+    /// <remarks>対象と状況を、1 回の問い合わせで読む。対象ごとに状況を引かない。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlyList<ReminderSendTargetState>> GetTargetsAsync(DateOnly today, CancellationToken cancellationToken = default);
 }

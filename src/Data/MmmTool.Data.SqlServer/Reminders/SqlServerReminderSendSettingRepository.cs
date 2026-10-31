@@ -60,119 +60,73 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     /// <inheritdoc />
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     public Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
+        => SetChannelsAsync([reminderNo], channelIds, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 送信先の確認と、不要な設定の論理削除と、選んだ設定の更新と、無いものの追加を、1 つのトランザクションの 1 回の往復で行う。
+    /// 番号は JSON の 1 つのパラメーターで渡す。リマインダーや送信先の数が増えても、問い合わせの数は変わらない。
+    /// </remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    public Task SetChannelsAsync(IReadOnlyCollection<int> reminderNos, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(reminderNos);
         ArgumentNullException.ThrowIfNull(channelIds);
 
         var userId = SendTableAccess.RequireUserId(currentUser);
+        var reminders = reminderNos.Where(no => no > 0).Distinct().ToList();
+        if (reminders.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
         var wanted = channelIds.Where(id => id > 0).Distinct().ToList();
         return SendTableAccess.RunAsync(database, async connection =>
         {
-            // 途中で失敗して、一部だけが書き換わらないよう、まとめて 1 つのトランザクションにする
-            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SET XACT_ABORT ON;
+                BEGIN TRAN;
 
-            // 自分が使用者の送信先だけを対象にする (ほかの人の送信先の番号が混ざっても、足さない)
-            var mine = await GetOwnChannelIdsAsync(connection, transaction, userId, cancellationToken).ConfigureAwait(false);
-            var target = wanted.Where(mine.Contains).ToList();
-            await ClearUnselectedAsync(connection, transaction, reminderNo, target, userId, cancellationToken).ConfigureAwait(false);
-            foreach (var channelId in target)
-            {
-                await UpsertAsync(connection, transaction, reminderNo, channelId, userId, cancellationToken).ConfigureAwait(false);
-            }
+                -- 自分が使用者の送信先だけを対象にする。ほかの人の送信先の番号が混ざっても、足さない
+                DECLARE @Wanted TABLE (ChannelId int PRIMARY KEY);
+                INSERT INTO @Wanted (ChannelId)
+                SELECT DISTINCT j.ChannelId FROM OPENJSON(@Channels) WITH (ChannelId int '$') AS j
+                WHERE EXISTS (SELECT 1 FROM dbo.NotificationChannel AS c WHERE c.Id = j.ChannelId AND c.UserId = @UserId AND c.IsDeleted = 0);
 
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                DECLARE @Reminders TABLE (ReminderId int PRIMARY KEY);
+                INSERT INTO @Reminders (ReminderId)
+                SELECT DISTINCT j.ReminderId FROM OPENJSON(@ReminderIds) WITH (ReminderId int '$') AS j;
+
+                -- 選んでいない送信先の設定を、論理削除する。自分が使用者の送信先の分だけ
+                UPDATE s SET s.IsDeleted = 1, s.UpdatedAt = SYSDATETIMEOFFSET(), s.UpdatedByUserId = @UserId
+                FROM dbo.ReminderSendSetting AS s
+                WHERE s.ReminderId IN (SELECT ReminderId FROM @Reminders) AND s.IsDeleted = 0
+                  AND s.ChannelId NOT IN (SELECT ChannelId FROM @Wanted)
+                  AND s.ChannelId IN (SELECT Id FROM dbo.NotificationChannel WHERE UserId = @UserId);
+
+                -- 選んだ送信先の既存の行 (削除済みも含む)を、更新日時を今にして、削除されていない行にする。削除されていない行を先にして、番号の大きい行を使う
+                WITH ranked AS (
+                    SELECT s.IsDeleted, s.UpdatedAt, s.UpdatedByUserId,
+                           ROW_NUMBER() OVER (PARTITION BY s.ReminderId, s.ChannelId ORDER BY s.IsDeleted, s.Id DESC) AS rn
+                    FROM dbo.ReminderSendSetting AS s
+                    WHERE s.ReminderId IN (SELECT ReminderId FROM @Reminders) AND s.ChannelId IN (SELECT ChannelId FROM @Wanted))
+                UPDATE ranked SET IsDeleted = 0, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId WHERE rn = 1;
+
+                -- 行が無いものだけ、追加する
+                INSERT INTO dbo.ReminderSendSetting (CreatedByUserId, UpdatedByUserId, ReminderId, ChannelId)
+                SELECT @UserId, @UserId, r.ReminderId, w.ChannelId
+                FROM @Reminders AS r CROSS JOIN @Wanted AS w
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.ReminderSendSetting AS s WHERE s.ReminderId = r.ReminderId AND s.ChannelId = w.ChannelId);
+
+                COMMIT TRAN;
+                """;
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            command.Parameters.Add(new SqlParameter("@ReminderIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(reminders) });
+            command.Parameters.Add(new SqlParameter("@Channels", SqlDbType.NVarChar, -1) { Value = IdJson.From(wanted) });
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return 0;
         }, cancellationToken);
-    }
-
-    /// <summary>自分が使用者の送信先の番号を読む</summary>
-    /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">トランザクション</param>
-    /// <param name="userId">今のユーザーの番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送信先の番号の集合</returns>
-    private static async Task<HashSet<int>> GetOwnChannelIdsAsync(
-        SqlConnection connection, SqlTransaction transaction, int userId, CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = "SELECT Id FROM dbo.NotificationChannel WHERE UserId = @UserId AND IsDeleted = 0";
-        command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-        var ids = new HashSet<int>();
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            ids.Add(reader.GetInt32(0));
-        }
-        return ids;
-    }
-
-    /// <summary>選んでいない送信先の設定を、論理削除する (自分が使用者の送信先の分だけ)</summary>
-    /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">トランザクション</param>
-    /// <param name="reminderNo">リマインダーの番号</param>
-    /// <param name="wanted">選んだ送信先の番号</param>
-    /// <param name="userId">今のユーザーの番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>論理削除の完了を表すタスク</returns>
-    private static async Task ClearUnselectedAsync(
-        SqlConnection connection, SqlTransaction transaction, int reminderNo, IReadOnlyList<int> wanted, int userId, CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        // 番号は整数なので、そのまま並べても、SQL に文字列を差し込むことにならない
-        var exclusion = wanted.Count == 0 ? "" : $" AND ChannelId NOT IN ({string.Join(',', wanted)})";
-        command.CommandText =
-            $"""
-            UPDATE dbo.ReminderSendSetting
-            SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-            WHERE ReminderId = @ReminderId AND IsDeleted = 0{exclusion}
-              AND ChannelId IN (SELECT Id FROM dbo.NotificationChannel WHERE UserId = @UserId)
-            """;
-        command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-        command.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = reminderNo });
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>選んだ送信先の設定を、更新日時を今にして、削除されていない行にする (無ければ追加する)</summary>
-    /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">トランザクション</param>
-    /// <param name="reminderNo">リマインダーの番号</param>
-    /// <param name="channelId">送信先の番号</param>
-    /// <param name="userId">今のユーザーの番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新または追加の完了を表すタスク</returns>
-    private static async Task UpsertAsync(
-        SqlConnection connection, SqlTransaction transaction, int reminderNo, int channelId, int userId, CancellationToken cancellationToken)
-    {
-        await using (var update = connection.CreateCommand())
-        {
-            update.Transaction = transaction;
-            update.CommandText =
-                """
-                UPDATE dbo.ReminderSendSetting
-                SET IsDeleted = 0, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = (SELECT TOP (1) Id FROM dbo.ReminderSendSetting WHERE ReminderId = @ReminderId AND ChannelId = @ChannelId ORDER BY IsDeleted, Id DESC)
-                """;
-            update.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-            update.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = reminderNo });
-            update.Parameters.Add(new SqlParameter("@ChannelId", SqlDbType.Int) { Value = channelId });
-            if (await update.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1)
-            {
-                return;
-            }
-        }
-
-        await using var insert = connection.CreateCommand();
-        insert.Transaction = transaction;
-        insert.CommandText =
-            """
-            INSERT INTO dbo.ReminderSendSetting (CreatedByUserId, UpdatedByUserId, ReminderId, ChannelId)
-            VALUES (@UserId, @UserId, @ReminderId, @ChannelId)
-            """;
-        insert.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-        insert.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = reminderNo });
-        insert.Parameters.Add(new SqlParameter("@ChannelId", SqlDbType.Int) { Value = channelId });
-        await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

@@ -23,6 +23,15 @@ public interface IAppUserSettingRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<string?> GetAsync(int featureNo, int categoryNo, int codeNo, CancellationToken cancellationToken = default);
 
+    /// <summary>今のユーザーの、同じ区分・コード番号の設定を、機能ごとに 1 回で取得する</summary>
+    /// <param name="categoryNo">区分番号</param>
+    /// <param name="codeNo">コード番号 (枝番)</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>機能番号と値の組。設定が無い (外した)機能は含まない</returns>
+    /// <remarks>機能の数だけ <see cref="GetAsync"/> を呼ぶ代わりに使う。</remarks>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlyDictionary<int, string>> GetByFeatureAsync(int categoryNo, int codeNo, CancellationToken cancellationToken = default);
+
     /// <summary>今のユーザーの設定の値を保存する</summary>
     /// <param name="featureNo">機能番号</param>
     /// <param name="categoryNo">区分番号</param>

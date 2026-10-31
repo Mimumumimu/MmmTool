@@ -52,16 +52,6 @@ public sealed class FeatureAccessService(IAppUserAdminSettingRepository reposito
         return values.ToDictionary(pair => pair.Key, pair => Parse(pair.Value));
     }
 
-    /// <summary>機能が無効の人の番号を取得する</summary>
-    /// <param name="featureNo">機能番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>無効の人の番号。ローカルモードは空</returns>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    public async Task<IReadOnlyCollection<int>> GetDisabledUserIdsAsync(int featureNo, CancellationToken cancellationToken = default)
-        => IsAvailable
-            ? await repository.GetUserIdsAsync(featureNo, CategoryNo, CodeNo, ((int)FeatureAccess.Disabled).ToString(), cancellationToken).ConfigureAwait(false)
-            : [];
-
     /// <summary>1 人の、1 つの機能の状態を保存する</summary>
     /// <param name="userId">ユーザーの番号</param>
     /// <param name="featureNo">機能番号</param>

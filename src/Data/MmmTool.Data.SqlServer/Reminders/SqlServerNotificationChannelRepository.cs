@@ -75,6 +75,39 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
+    /// <remarks>送る先の値の列 <c>Value</c> を読まない。定義の無い種類の行は、含めない。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>> GetAllSummariesAsync(CancellationToken cancellationToken = default)
+    {
+        var userId = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Kind, Id, Name FROM dbo.NotificationChannel WHERE UserId = @UserId AND IsDeleted = 0 ORDER BY Kind, Id";
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var byKind = new Dictionary<NotificationChannelKind, List<NotificationChannelSummary>>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var kind = (NotificationChannelKind)reader.GetByte(0);
+                if (!Enum.IsDefined(kind))
+                {
+                    continue;
+                }
+
+                if (!byKind.TryGetValue(kind, out var summaries))
+                {
+                    summaries = [];
+                    byKind[kind] = summaries;
+                }
+                summaries.Add(new NotificationChannelSummary(reader.GetInt32(1), reader.GetString(2)));
+            }
+            return byKind.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<NotificationChannelSummary>)pair.Value);
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// 送る先の値の列 <c>Value</c> を読めない DB のログインでも呼べるよう、ストアドプロシージャ <c>dbo.FindWebPushChannel</c> に探させる。
     /// プロシージャは表の持ち主 (<c>dbo</c>)の権限で動くので、呼ぶ側に <c>Value</c> の権限は要らない。返すのは番号と削除済みかだけ。

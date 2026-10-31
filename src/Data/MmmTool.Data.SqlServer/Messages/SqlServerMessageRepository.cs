@@ -56,6 +56,15 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             AND NOT {{MessagesDisabled}})
         """;
 
+    /// <summary>人が使える状態で存在するかを調べる条件。削除されておらず、今日使える期間にいる</summary>
+    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
+    private const string UserUsable =
+        "EXISTS (SELECT 1 FROM dbo.AppUser WHERE Id = {0} AND IsDeleted = 0 AND ValidFrom <= CAST(GETDATE() AS date) AND ValidTo >= CAST(GETDATE() AS date))";
+
+    /// <summary>グループに足せる人かを調べる条件。使える状態で存在し、メッセージを受け取れる</summary>
+    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
+    private static readonly string UserCanBeAdded = $"({UserUsable} AND {ReceiveTargetExists})";
+
     /// <inheritdoc />
     public bool IsAvailable => true;
 
@@ -343,26 +352,17 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         var recipients = await ReadRecipientsAsync(connection, transaction, me, conversationId, cancellationToken).ConfigureAwait(false);
         if (kind == DirectKind)
         {
-            foreach (var recipient in recipients)
+            var receivable = await ReadUserIdsWhereAsync(connection, transaction, recipients, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
+            if (recipients.Any(recipient => !receivable.Contains(recipient)))
             {
-                if (!await CanReceiveAsync(connection, transaction, recipient, cancellationToken).ConfigureAwait(false))
-                {
-                    return SendMessageResult.Failed(SendMessageOutcome.NoReceiveTarget);
-                }
+                return SendMessageResult.Failed(SendMessageOutcome.NoReceiveTarget);
             }
         }
         else
         {
             // グループは、メッセージを無効にした人には、通知の状態を書かない。ほかの参加者には送る
-            var allowed = new List<int>();
-            foreach (var recipient in recipients)
-            {
-                if (!await IsMessagesDisabledAsync(connection, transaction, recipient, cancellationToken).ConfigureAwait(false))
-                {
-                    allowed.Add(recipient);
-                }
-            }
-            recipients = allowed;
+            var disabled = await ReadUserIdsWhereAsync(connection, transaction, recipients, MessagesDisabled, cancellationToken).ConfigureAwait(false);
+            recipients = recipients.Where(recipient => !disabled.Contains(recipient)).ToList();
         }
 
         if (replyToMessageId > 0 && !await MessageInConversationExistsAsync(connection, transaction, conversationId, replyToMessageId, excludeSystem: true, cancellationToken).ConfigureAwait(false))
@@ -387,14 +387,20 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             messageId = (int)(await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
         }
 
-        foreach (var recipient in recipients)
+        if (recipients.Count > 0)
         {
+            // 受け取る人の数だけ流さず、人の番号を JSON の 1 つのパラメーターで渡して、1 回で足す
             await using var delivery = connection.CreateCommand();
             delivery.Transaction = transaction;
-            delivery.CommandText = "INSERT INTO dbo.MessageDelivery (CreatedByUserId, UpdatedByUserId, MessageId, UserId) VALUES (@Me, @Me, @MessageId, @UserId)";
+            delivery.CommandText =
+                """
+                INSERT INTO dbo.MessageDelivery (CreatedByUserId, UpdatedByUserId, MessageId, UserId)
+                SELECT @Me, @Me, @MessageId, CAST(j.value AS int)
+                FROM OPENJSON(@UserIds) AS j
+                """;
             delivery.Parameters.Add(Int("@Me", me));
             delivery.Parameters.Add(Int("@MessageId", messageId));
-            delivery.Parameters.Add(Int("@UserId", recipient));
+            delivery.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(recipients) });
             await delivery.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
         return new SendMessageResult(SendMessageOutcome.Sent, conversationId, messageId);
@@ -701,16 +707,26 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     private static async Task InsertMembersAsync(
         SqlConnection connection, SqlTransaction transaction, int me, int conversationId, IEnumerable<int> userIds, CancellationToken cancellationToken)
     {
-        foreach (var userId in userIds)
+        var ids = userIds.ToList();
+        if (ids.Count == 0)
         {
-            await using var member = connection.CreateCommand();
-            member.Transaction = transaction;
-            member.CommandText = "INSERT INTO dbo.MessageConversationMember (CreatedByUserId, UpdatedByUserId, ConversationId, UserId) VALUES (@Me, @Me, @ConversationId, @UserId)";
-            member.Parameters.Add(Int("@Me", me));
-            member.Parameters.Add(Int("@ConversationId", conversationId));
-            member.Parameters.Add(Int("@UserId", userId));
-            await member.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        // 人の数だけ流さず、人の番号を JSON の 1 つのパラメーターで渡して、1 回で足す。並べた順に番号を振る
+        await using var member = connection.CreateCommand();
+        member.Transaction = transaction;
+        member.CommandText =
+            """
+            INSERT INTO dbo.MessageConversationMember (CreatedByUserId, UpdatedByUserId, ConversationId, UserId)
+            SELECT @Me, @Me, @ConversationId, CAST(j.value AS int)
+            FROM OPENJSON(@UserIds) AS j
+            ORDER BY CAST(j.[key] AS int)
+            """;
+        member.Parameters.Add(Int("@Me", me));
+        member.Parameters.Add(Int("@ConversationId", conversationId));
+        member.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(ids) });
+        await member.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>新しいグループの名前と参加者が、正しいか調べる</summary>
@@ -725,14 +741,8 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         {
             return false;
         }
-        foreach (var userId in memberIds)
-        {
-            if (!await CanReceiveAsync(connection, null, userId, cancellationToken).ConfigureAwait(false))
-            {
-                return false;
-            }
-        }
-        return true;
+        var receivable = await ReadUserIdsWhereAsync(connection, null, memberIds, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
+        return memberIds.All(receivable.Contains);
     }
 
     /// <inheritdoc />
@@ -761,22 +771,16 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             {
                 return GroupChangeOutcome.Invalid;
             }
-            foreach (var userId in added)
+            var addable = await ReadUserIdsWhereAsync(connection, transaction, added, UserCanBeAdded, cancellationToken).ConfigureAwait(false);
+            if (added.Any(userId => !addable.Contains(userId)))
             {
-                if (!await UserExistsAsync(connection, transaction, userId, cancellationToken).ConfigureAwait(false)
-                    || !await CanReceiveAsync(connection, transaction, userId, cancellationToken).ConfigureAwait(false))
-                {
-                    return GroupChangeOutcome.Invalid;
-                }
+                return GroupChangeOutcome.Invalid;
             }
 
             await InsertMembersAsync(connection, transaction, me, conversationId, added, cancellationToken).ConfigureAwait(false);
-            var addedNames = new List<string>();
-            foreach (var userId in added)
-            {
-                addedNames.Add(await ReadDisplayNameAsync(connection, transaction, userId, cancellationToken).ConfigureAwait(false));
-            }
-            var actorName = await ReadDisplayNameAsync(connection, transaction, me, cancellationToken).ConfigureAwait(false);
+            var names = await ReadDisplayNamesAsync(connection, transaction, [.. added, me], cancellationToken).ConfigureAwait(false);
+            var addedNames = added.Select(userId => names.GetValueOrDefault(userId, "")).ToList();
+            var actorName = names.GetValueOrDefault(me, "");
             await WriteSystemMessageAsync(connection, transaction, me, conversationId, SystemMessage.Added(actorName, addedNames), cancellationToken).ConfigureAwait(false);
             return GroupChangeOutcome.Done;
         }, cancellationToken), cancellationToken);
@@ -1018,9 +1022,68 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT 1 FROM dbo.AppUser WHERE Id = @UserId AND IsDeleted = 0 AND ValidFrom <= CAST(GETDATE() AS date) AND ValidTo >= CAST(GETDATE() AS date)";
+        command.CommandText = $"SELECT CASE WHEN {string.Format(CultureInfo.InvariantCulture, UserUsable, "@UserId")} THEN 1 ELSE 0 END";
         command.Parameters.Add(Int("@UserId", userId));
-        return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
+        return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
+    }
+
+    /// <summary>人の番号の一覧のうち、条件を満たす人の番号を、1 回の問い合わせで読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">使うトランザクション。無ければ null</param>
+    /// <param name="userIds">調べる人の番号</param>
+    /// <param name="condition">人の番号を表す式を <c>{0}</c> に入れる条件</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>条件を満たす人の番号</returns>
+    /// <remarks>
+    /// 番号は JSON の 1 つのパラメーターで渡し、<c>OPENJSON</c> で行にする。人数が多くても、パラメーターの数の上限 (2100)に当たらない。
+    /// 人ごとに問い合わせを流さないための部品で、条件は <see cref="ReceiveTargetExists"/>・<see cref="MessagesDisabled"/>・<see cref="UserUsable"/> を使う。
+    /// </remarks>
+    private static async Task<HashSet<int>> ReadUserIdsWhereAsync(
+        SqlConnection connection, SqlTransaction? transaction, IReadOnlyCollection<int> userIds, string condition, CancellationToken cancellationToken)
+    {
+        var passed = new HashSet<int>();
+        if (userIds.Count == 0)
+        {
+            return passed;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"SELECT DISTINCT j.UserId FROM OPENJSON(@UserIds) WITH (UserId int '$') AS j WHERE {string.Format(CultureInfo.InvariantCulture, condition, "j.UserId")}";
+        command.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(userIds) });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            passed.Add(reader.GetInt32(0));
+        }
+        return passed;
+    }
+
+    /// <summary>人の表示名を、1 回の問い合わせでまとめて読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">使うトランザクション</param>
+    /// <param name="userIds">人の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>人の番号と表示名の組。人が無い番号は含まない</returns>
+    private static async Task<Dictionary<int, string>> ReadDisplayNamesAsync(
+        SqlConnection connection, SqlTransaction transaction, IReadOnlyCollection<int> userIds, CancellationToken cancellationToken)
+    {
+        var names = new Dictionary<int, string>();
+        if (userIds.Count == 0)
+        {
+            return names;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT u.Id, u.DisplayName FROM dbo.AppUser AS u WHERE u.Id IN (SELECT j.UserId FROM OPENJSON(@UserIds) WITH (UserId int '$') AS j)";
+        command.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(userIds) });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            names[reader.GetInt32(0)] = reader.GetString(1);
+        }
+        return names;
     }
 
     /// <summary>メッセージが、その会話の、削除されていないメッセージか調べる。返信元と、読んだ位置の確かめに使う</summary>

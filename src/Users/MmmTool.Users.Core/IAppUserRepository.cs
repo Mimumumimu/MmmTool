@@ -10,6 +10,13 @@ public interface IAppUserRepository
     /// <returns>全ユーザー (論理削除済み・使える期間の外も含む)。番号の順。パスワードのハッシュは含まない</returns>
     Task<IReadOnlyList<AppUser>> GetUsersAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>ユーザーの一覧を、ある機能を無効にされているかつきで取得する</summary>
+    /// <param name="featureNo">機能番号で、<c>CodeFeatures</c> の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>全ユーザー (論理削除済み・使える期間の外も含む)と、その機能を無効にされているか。番号の順。パスワードのハッシュは含まない</returns>
+    /// <remarks>一覧と無効の人を、別々に読む代わりに使う。無効の判定は 1 人に 1 件までなので、結合しても行は増えない。</remarks>
+    Task<IReadOnlyList<AppUserFeatureState>> GetUsersWithFeatureStateAsync(int featureNo, CancellationToken cancellationToken = default);
+
     /// <summary>番号を指定して、ユーザーを取得する</summary>
     /// <param name="ids">ユーザーの番号 (重複していてもよい)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

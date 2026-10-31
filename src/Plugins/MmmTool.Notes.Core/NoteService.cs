@@ -1,18 +1,15 @@
-using MmmTool.Users.Core;
-
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// ノートの読み書きの入口。並び・名前の引き方・今日の更新の印を決める。
+/// ノートの読み書きの入口。並び・名前の出し方・今日の更新の印を決める。
 /// </summary>
 /// <param name="repository">ノートの保存先</param>
-/// <param name="users">ユーザーの保存先 (作成者・更新者の名前を引く。DB モードだけで使う)</param>
 /// <param name="time">現在時刻の取得元</param>
 /// <remarks>
 /// 並びは、表示する日が実施日のカードが先頭で、そのあとは重要度の高い順。同じ重要度の中は、更新日時の新しい順で、同じ更新日時なら番号の大きい順。
-/// 作成者・更新者の名前は、SQL で結合せず、必要な人だけを番号で引く (<see cref="IAppUserRepository.GetUsersByIdsAsync"/>)。
+/// 作成者・更新者の名前は、保存先がノートと一緒に 1 回の問い合わせで読み、<see cref="NoteWithNames"/> で受け取る。名前を別に引かない。
 /// </remarks>
-public sealed class NoteService(INoteRepository repository, IAppUserRepository users, TimeProvider time)
+public sealed class NoteService(INoteRepository repository, TimeProvider time)
 {
     /// <summary>名前が引けなかったユーザーの表示</summary>
     public const string UnknownUserName = "(不明なユーザー)";
@@ -37,20 +34,19 @@ public sealed class NoteService(INoteRepository repository, IAppUserRepository u
     {
         var notes = await repository.GetOnDayAsync(day, includeDeleted, cancellationToken).ConfigureAwait(false);
         var sorted = notes
-            .OrderByDescending(note => note.IsEventOn(day))
-            .ThenByDescending(note => note.Priority)
-            .ThenByDescending(note => note.UpdatedAt)
-            .ThenByDescending(note => note.Id)
+            .OrderByDescending(item => item.Note.IsEventOn(day))
+            .ThenByDescending(item => item.Note.Priority)
+            .ThenByDescending(item => item.Note.UpdatedAt)
+            .ThenByDescending(item => item.Note.Id)
             .ToList();
 
-        var names = await LoadNamesAsync(sorted, cancellationToken).ConfigureAwait(false);
         var today = Today;
-        return [.. sorted.Select(note => new NoteCard(
-            note,
-            NameOf(names, note.AuthorUserId),
-            NameOf(names, note.UpdatedByUserId),
-            DateOnly.FromDateTime(note.UpdatedAt.ToLocalTime().DateTime) == today,
-            note.IsEventOn(day),
+        return [.. sorted.Select(item => new NoteCard(
+            item.Note,
+            NameOf(item.AuthorName),
+            NameOf(item.UpdatedByName),
+            DateOnly.FromDateTime(item.Note.UpdatedAt.ToLocalTime().DateTime) == today,
+            item.Note.IsEventOn(day),
             day == today))];
     }
 
@@ -106,32 +102,15 @@ public sealed class NoteService(INoteRepository repository, IAppUserRepository u
         return input.Trimmed();
     }
 
-    /// <summary>カードに出す作成者・更新者の名前を引く</summary>
-    /// <param name="notes">ノート</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>ユーザーの番号と表示名 (共有しないとき (ローカルモード)は空)</returns>
-    private async Task<Dictionary<int, string>> LoadNamesAsync(List<Note> notes, CancellationToken cancellationToken)
-    {
-        if (!repository.IsShared || notes.Count == 0)
-        {
-            return [];
-        }
-
-        var ids = notes.SelectMany(note => new[] { note.AuthorUserId, note.UpdatedByUserId }).Distinct().ToArray();
-        var found = await users.GetUsersByIdsAsync(ids, cancellationToken).ConfigureAwait(false);
-        return found.ToDictionary(user => user.Id, user => user.DisplayName);
-    }
-
-    /// <summary>名前を引く (共有しないときは空文字。引けなかったときは <see cref="UnknownUserName"/>)</summary>
-    /// <param name="names">ユーザーの番号と表示名</param>
-    /// <param name="userId">ユーザーの番号</param>
-    /// <returns>名前</returns>
-    private string NameOf(Dictionary<int, string> names, int userId)
+    /// <summary>カードに出す名前にする。共有しないときは空文字で、読めなかったときは <see cref="UnknownUserName"/></summary>
+    /// <param name="name">保存先が読んだ表示名。人が見つからないときは空文字</param>
+    /// <returns>カードに出す名前</returns>
+    private string NameOf(string name)
     {
         if (!repository.IsShared)
         {
             return "";
         }
-        return names.TryGetValue(userId, out var name) && name.Length > 0 ? name : UnknownUserName;
+        return name.Length > 0 ? name : UnknownUserName;
     }
 }

@@ -228,6 +228,11 @@
   - 実績の読みと同じ 1 回の往復で受け取る (`WorkReportData.DayNotes`)
   - `(UserId, Date)` の一意の索引で 1 件を引く
 - 実績: 作業を読む条件に、完了日が範囲内の完了した作業も入る (`(AssigneeUserId, StatusCodeNo)` の索引で、担当が自分の完了した作業を引き、完了日で絞る)
+- 複数の人: ノートの「全員」の枠は、人の数だけ読まず、全員分を 1 回の往復で読む (`LoadReportsAsync`)
+  - 担当者の条件を `= @me` ではなく、JSON で渡した人の番号の一覧にする。それ以外の問い合わせは、1 人を読むときと同じ。
+  - 読んだあとに、`WorkReportSplitter` が、人ごとに分ける。作業と日報メモは担当者・持ち主で、記録は属する作業の担当者で分け、案件とグループは、その人の作業が属するものだけにする。
+  - SQL Server と SQLite で同じ分け方にするため、分ける処理は保存先の外 (`MmmTool.WorkItems.Core`)に 1 つだけ置く。
+  - 日報メモに持ち主の番号 (`WorkDayNote.UserId`)を持つのは、このため。
 - 人の一覧: ノートの「全員」の枠で使う。詳細は [notes-sources.md](notes-sources.md) にある。実績・予定の条件に当たる作業を持つ担当者と、報告日に空でない日報メモがある人の番号を、1 回の問い合わせで返す。
   - 担当者で絞らず、状態と期間で読むので、先頭が担当者の索引 `(AssigneeUserId, StatusCodeNo)` は使えない。
   - 条件ごとに分けた 4 つの `SELECT` を `UNION` し、それぞれが専用の索引を使う ([database.md](database.md) の `WorkItem`・`WorkRecord`・`WorkDayNote`)
