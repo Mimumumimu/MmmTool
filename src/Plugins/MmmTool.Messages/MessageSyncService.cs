@@ -128,7 +128,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerCanReceive = peerCanReceive } : conversation)];
             if (_nextBase is { } known)
             {
-                await cache.WriteListAsync(new CachedConversationList(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+                await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -179,7 +179,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { UnreadCount = 0 } : conversation)];
             if (_nextBase is { } known)
             {
-                await cache.WriteListAsync(new CachedConversationList(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
+                await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
             }
         }
         finally
@@ -320,9 +320,9 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
 
         if (_nextBase is null && await cache.ReadListAsync(me, cancellationToken).ConfigureAwait(false) is { } cached)
         {
-            // 最初に、控えから出す。続けて、差分を読む。読んだ位置の欄が無い古い控えは、読まれていないものとして扱う
+            // 最初に、控えから出す。続けて、差分を読む。古い形の控えは、読み込みの時点で捨てられている
             _nextBase = cached.NextBase;
-            _conversations = [.. cached.Conversations.Select(conversation => conversation.Readers is null ? conversation with { Readers = [] } : conversation)];
+            _conversations = cached.Conversations;
             Synced?.Invoke();
         }
 
@@ -340,7 +340,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
 
         _nextBase = result.NextBase;
         _sessionStart ??= result.NextBase;
-        await cache.WriteListAsync(new CachedConversationList(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
+        await cache.WriteListAsync(CachedConversationList.Create(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
 
         if (result.Messages.Count > 0)
         {

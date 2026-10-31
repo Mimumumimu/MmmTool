@@ -288,7 +288,8 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
 
         try
         {
-            return JsonSerializer.Deserialize(text, MessagesJsonContext.Default.MessageCacheState);
+            var state = JsonSerializer.Deserialize(text, MessagesJsonContext.Default.MessageCacheState);
+            return state is { Version: MessageCacheState.CurrentVersion } ? state : null;
         }
         catch (JsonException)
         {
@@ -303,7 +304,7 @@ public sealed class MessageStore(MessagesClient client, BrowserClient browser) :
     private Task WriteListCacheAsync()
         => browser.CachePutAsync(
             ListCacheKey,
-            JsonSerializer.Serialize(new MessageCacheState(UserId, NextBase ?? DateTimeOffset.MinValue, Conversations), MessagesJsonContext.Default.MessageCacheState));
+            JsonSerializer.Serialize(MessageCacheState.Create(UserId, NextBase ?? DateTimeOffset.MinValue, Conversations), MessagesJsonContext.Default.MessageCacheState));
 
     /// <summary>
     /// 会話の要約を、番号で突き合わせて取り込み、最後のメッセージが新しい順に並べる。

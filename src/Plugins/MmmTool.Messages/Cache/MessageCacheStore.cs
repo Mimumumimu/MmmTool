@@ -49,12 +49,12 @@ public sealed class MessageCacheStore : IDisposable
     /// <summary>人の一覧の控えを読む</summary>
     /// <param name="userId">いまの人の番号。ほかの人の控えは、読まない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>控え。無い・別の人の控え・読めないときは null</returns>
+    /// <returns>控え。無い・別の人の控え・古い形の控え・読めないときは null</returns>
     public async Task<CachedConversationList?> ReadListAsync(int userId, CancellationToken cancellationToken = default)
     {
         var json = await ReadAsync(ListKey, cancellationToken).ConfigureAwait(false);
         var cached = Deserialize(json, MessageCacheJsonContext.Default.CachedConversationList);
-        return cached is not null && cached.UserId == userId ? cached : null;
+        return cached is not null && cached.UserId == userId && cached.Version == CachedConversationList.CurrentVersion ? cached : null;
     }
 
     /// <summary>人の一覧の控えを書く</summary>
