@@ -162,6 +162,12 @@
     private double _keepFromHeight = -1;
     private int _highlightId;
     private int _loadVersion;
+
+    /// <summary>会話を開く読み込みの途中か。途中は、控えの全体を持たないので、控えを書かない。</summary>
+    private bool _loadingOpen;
+
+    /// <summary>読み込みの途中に届いたメッセージ。控えと最新の 1 ページの取り込みで消えないよう、あとで取り込み直す。</summary>
+    private readonly List<MessageDto> _arrivedWhileLoading = [];
     private IAsyncDisposable? _live;
     private IAsyncDisposable? _topWatch;
 
@@ -244,36 +250,56 @@
 
         // 会話を続けて開いたとき、古い会話の読み込みの結果が、新しい会話の表示と控えを上書きしないよう、読み込みごとに番号を進める
         var version = ++_loadVersion;
-        var form = await Messages.LoadFormAsync(ConversationId, PeerUserId);
-        if (version != _loadVersion)
+        _arrivedWhileLoading.Clear();
+        _loadingOpen = true;
+        try
         {
-            return;
+            await LoadCoreAsync(version);
         }
-        await ApplyFormAsync(form);
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                _loadingOpen = false;
+            }
+        }
+    }
+
+    /// <summary>会話を開く処理の本体。</summary>
+    /// <param name="version">この読み込みの番号。別の会話を開かれたら、結果を使わずに終わる。</param>
+    private async Task LoadCoreAsync(int version)
+    {
+        // 入力欄の決まりは、メッセージの表示に要らないので、待たずに進める
+        var formTask = Messages.LoadFormAsync(ConversationId, PeerUserId);
         if (ConversationId == 0)
         {
+            var newForm = await formTask;
+            if (version != _loadVersion)
+            {
+                return;
+            }
+            await ApplyFormAsync(newForm);
             // まだ会話が無い。会話は、最初の送信で作る
             _title = _pendingGroup is not null ? _pendingGroup.Name : string.IsNullOrWhiteSpace(Name) ? "新しい会話" : Name;
             return;
         }
 
+        _ = ApplyFormWhenReadyAsync(formTask, version);
         _loading = true;
         StateHasChanged();
+        // ページを読み直したときなど、一覧が空のときは、端末の控えだけを先に戻す。サーバーからの読み込みは、待たずに進める
         if (Store.NextBase is null)
         {
-            var started = await Store.LoadAsync();
-            if (started.Status == ApiFailure.SignedOut)
-            {
-                Navigation.NavigateTo("/", forceLoad: true);
-                return;
-            }
+            await Store.RestoreAsync();
+            _ = NavigateIfSignedOutAsync(Store.LoadAsync());
         }
+        var messagesTask = Messages.LoadMessagesAsync(ConversationId, 0);
         if (version != _loadVersion)
         {
             return;
         }
         ApplySummary();
-        // まず控えから出す
+        // まず控えから出す。控えの最新が、一覧の最後のメッセージと同じなら、控えは最新なので、読み込み中の表示を出さない
         var cached = await Store.ReadConversationCacheAsync(ConversationId);
         if (version != _loadVersion)
         {
@@ -281,10 +307,11 @@
         }
         _messages = [.. cached];
         _scrollToBottom = true;
+        _loading = !IsCacheLatest();
         StateHasChanged();
-        await Store.MarkReadAsync(ConversationId, _messages);
+        var markTask = Store.MarkReadAsync(ConversationId, _messages);
 
-        var result = await Messages.LoadMessagesAsync(ConversationId, 0);
+        var result = await messagesTask;
         if (version != _loadVersion)
         {
             return;
@@ -306,6 +333,20 @@
         }
 
         MergeNewest(result.Value!);
+        // 読み込み中に届いたメッセージは、控えの読み込みと、最新の 1 ページの取り込みで消えることがあるので、取り込み直す
+        MergeArrived(_arrivedWhileLoading);
+        _arrivedWhileLoading.Clear();
+        if (_highlightId <= 0)
+        {
+            // 控えと既読の書き込みを待たずに、先に出す
+            _scrollToBottom = true;
+            StateHasChanged();
+        }
+        await markTask;
+        if (version != _loadVersion)
+        {
+            return;
+        }
         await Store.WriteConversationCacheAsync(ConversationId, _messages);
         await Store.MarkReadAsync(ConversationId, _messages);
 
@@ -341,6 +382,14 @@
             }
         }
     }
+
+    /// <summary>画面に出した控えの最新が、人の一覧にある、この会話の最後のメッセージと同じか。</summary>
+    /// <returns>同じとき true。一覧に会話が無い、または控えが空のときは false。</returns>
+    private bool IsCacheLatest()
+        => _messages.Count > 0
+            && Store.Conversations.FirstOrDefault(conversation => conversation.Id == ConversationId) is { } summary
+            && summary.LastMessageId == _messages[^1].Id;
+
     /// <summary>
     /// サーバーから読んだ最新の 1 ページを、控えと合わせる。控えは、新しいほうから切れ目なく持つ。
     /// </summary>
@@ -426,30 +475,73 @@
         await InvokeAsync(async () =>
         {
             var nearBottom = await Browser.IsNearBottomAsync(_thread);
-            var byId = _messages.ToDictionary(message => message.Id);
-            var added = false;
-            foreach (var message in mine)
+            var added = MergeArrived(mine);
+            if (_loadingOpen)
             {
-                if (byId.TryGetValue(message.Id, out var existing))
-                {
-                    if (message.UpdatedAt >= existing.UpdatedAt)
-                    {
-                        byId[message.Id] = message;
-                    }
-                }
-                else
-                {
-                    byId[message.Id] = message;
-                    added = true;
-                }
+                _arrivedWhileLoading.AddRange(mine);
             }
-
-            _messages = [.. byId.Values.OrderBy(message => message.Id)];
             _scrollToBottom = added && nearBottom;
             StateHasChanged();
-            await Store.WriteConversationCacheAsync(ConversationId, _messages);
+            if (!_loadingOpen)
+            {
+                // 読み込み中は、まだ一部しか持っていない。控えを書くのは、読み込みの終わりに任せる
+                await Store.WriteConversationCacheAsync(ConversationId, _messages);
+            }
             await Store.MarkReadAsync(ConversationId, _messages);
         });
+    }
+
+    /// <summary>届いたメッセージを、番号と更新日時で突き合わせて、いまのメッセージへ取り込む。</summary>
+    /// <param name="arrived">届いた、または更新されたメッセージ。</param>
+    /// <returns>新しい番号のメッセージを足したとき true。</returns>
+    private bool MergeArrived(IEnumerable<MessageDto> arrived)
+    {
+        var byId = _messages.ToDictionary(message => message.Id);
+        var added = false;
+        foreach (var message in arrived)
+        {
+            if (byId.TryGetValue(message.Id, out var existing))
+            {
+                if (message.UpdatedAt >= existing.UpdatedAt)
+                {
+                    byId[message.Id] = message;
+                }
+            }
+            else
+            {
+                byId[message.Id] = message;
+                added = true;
+            }
+        }
+
+        _messages = [.. byId.Values.OrderBy(message => message.Id)];
+        return added;
+    }
+
+    /// <summary>入力欄の決まりが読めたら取り込む。別の会話を開かれていたら、使わない。</summary>
+    /// <param name="formTask">入力欄の決まりの読み込み。</param>
+    /// <param name="version">読み込みを始めたときの番号。</param>
+    /// <returns>取り込みの完了を表すタスク。</returns>
+    private async Task ApplyFormWhenReadyAsync(Task<ApiResult<MessageFormDto>> formTask, int version)
+    {
+        var form = await formTask;
+        if (version != _loadVersion)
+        {
+            return;
+        }
+        await ApplyFormAsync(form);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>一覧の読み込みで、ログインが切れていたと分かったら、ログインの画面へ戻す。</summary>
+    /// <param name="loading">一覧の読み込み。</param>
+    /// <returns>確かめ終えたことを表すタスク。</returns>
+    private async Task NavigateIfSignedOutAsync(Task<ApiResult<bool>> loading)
+    {
+        if ((await loading).Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
     }
 
     /// <summary>別の端末でこの会話を抜けたことが届いたとき、会話の一覧へ戻る。</summary>

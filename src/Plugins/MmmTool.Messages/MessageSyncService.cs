@@ -330,9 +330,11 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         }
 
         MessageSyncResult result;
+        IReadOnlyList<ConversationSummary> previous = [];
         if (_nextBase is { } known)
         {
             result = await repository.GetChangesAsync(MessageSync.SinceOf(known), cancellationToken).ConfigureAwait(false);
+            previous = _conversations;
             _conversations = Merge(_conversations, result.Conversations);
         }
         else
@@ -357,6 +359,8 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             ConversationLeft?.Invoke(leftId);
         }
 
+        await MergeIntoMessageCachesAsync(me, result.Messages, previous, cancellationToken).ConfigureAwait(false);
+
         if (result.Messages.Count > 0)
         {
             MessagesArrived?.Invoke(result.Messages);
@@ -368,6 +372,49 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             {
                 NewMessagesFromOthers?.Invoke(fresh);
             }
+        }
+    }
+
+    /// <summary>差分で届いたメッセージを、会話の控えへ足す</summary>
+    /// <param name="me">自分の番号</param>
+    /// <param name="messages">差分で届いた、または更新されたメッセージ</param>
+    /// <param name="previous">今回の差分を取り込む前の、会話の要約</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書いたことを表すタスク</returns>
+    /// <remarks>
+    /// 会話を開く前に、控えを最新にしておくため。差分は、前回の基準より後の変更を、すべて返す。
+    /// 足すのは、控えの最後のメッセージが、前回の要約の最後のメッセージと同じ会話だけ。前回の時点で、控えが最新だった証拠が、これしかないため。
+    /// 違う会話 (控えの無い会話・前回以降に取りこぼした会話)は、足すと途中が抜けるので書かず、開いたときに、DB から読み直す。
+    /// 控えの先頭より古い番号のメッセージは、足さない。控えは、新しいほうから切れ目なく持つため。
+    /// 開いている会話は、画面が、届いたメッセージを持つので、ここでは書かない。
+    /// 同じメッセージが何度届いても、番号と更新日時で突き合わせるので、結果は変わらない。
+    /// </remarks>
+    private async Task MergeIntoMessageCachesAsync(
+        int me, IReadOnlyList<ChatMessage> messages, IReadOnlyList<ConversationSummary> previous, CancellationToken cancellationToken)
+    {
+        foreach (var group in messages.GroupBy(message => message.ConversationId))
+        {
+            if (group.Key == _openConversationId || previous.FirstOrDefault(conversation => conversation.Id == group.Key) is not { } before)
+            {
+                continue;
+            }
+
+            var cached = await cache.ReadMessagesAsync(me, group.Key, cancellationToken).ConfigureAwait(false);
+            if (cached.Count == 0 || cached[^1].Id != before.LastMessageId)
+            {
+                continue;
+            }
+
+            var oldest = cached[0].Id;
+            var byId = cached.ToDictionary(message => message.Id);
+            foreach (var message in group.Where(message => message.Id >= oldest))
+            {
+                if (!byId.TryGetValue(message.Id, out var existing) || message.UpdatedAt >= existing.UpdatedAt)
+                {
+                    byId[message.Id] = message;
+                }
+            }
+            await cache.WriteMessagesAsync(me, group.Key, [.. byId.Values.OrderBy(message => message.Id)], cancellationToken).ConfigureAwait(false);
         }
     }
 
