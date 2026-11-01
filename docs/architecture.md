@@ -225,6 +225,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - それでも起きる失敗 (ファイル・JSON・OS・COM)は、範囲を絞った `catch` で受けて画面に出す (InfoBar)
   - 復旧が難しい失敗・予想外の失敗 (バグ)は、ログ → ダイアログ → 終了 (SDK の `FatalErrorHandler`)
     - ログは `AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`
+  - SQL Server の失敗 (`SqlException`)は、画面に出す前に、`SqlServerDatabase` が同じログへ書く。サーバー名・データベース名・エラー番号と、例外全体 (スタックトレースで、どの機能の処理かが分かる)を残す。画面の文は変えない
   - 隠さず、握りつぶさない
 - `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` する
   - Host を作る前の失敗も拾うため

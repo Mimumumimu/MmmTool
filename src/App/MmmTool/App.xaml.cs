@@ -57,7 +57,8 @@ public partial class App : Application
             Environment.Exit(0);
         }
 
-        _fatalErrors = new FatalErrorHandler(new ErrorLog(AppInfo.LogDirectory), AppInfo.Name);
+        var errorLog = new ErrorLog(AppInfo.LogDirectory);
+        _fatalErrors = new FatalErrorHandler(errorLog, AppInfo.Name);
         _fatalErrors.AttachTo(this);
 
         InitializeComponent();
@@ -68,18 +69,20 @@ public partial class App : Application
             DisableDefaults = true,
             ContentRootPath = AppContext.BaseDirectory,
         });
-        ConfigureServices(builder.Services, _fatalErrors);
+        ConfigureServices(builder.Services, _fatalErrors, errorLog);
         _host = builder.Build();
     }
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <param name="fatalErrors">復旧できないエラーの報告先 (トレイなど、SDK の部品が使う)</param>
+    /// <param name="errorLog">エラーを書くログ。復旧できないエラーの報告と共有し、DB の失敗の記録にも使う</param>
     /// <remarks>機能ごとの中身 (保存先・サービス・画面)は、各機能の Add～ メソッドにある。</remarks>
-    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors)
+    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
     {
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(fatalErrors);
+        services.AddSingleton(errorLog);
 
         // SDK の部品は、JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(AppInfo.DataDirectory);

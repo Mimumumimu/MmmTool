@@ -21,12 +21,6 @@ namespace MmmTool.Data.SqlServer.Notes;
 /// </remarks>
 public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentUser currentUser) : INoteRepository
 {
-    /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidObjectName = 208;
-
-    /// <summary>列名が正しくない (列が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidColumnName = 207;
-
     /// <summary>表の全部の列 (読む順)</summary>
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
@@ -275,24 +269,9 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
-    /// <remarks>表は、管理者が <c>003_AddNote.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝える。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
-        => database.RunAsync(async connection =>
-        {
-            try
-            {
-                return await work(connection).ConfigureAwait(false);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidObjectName)
-            {
-                throw new DataFileException("ノートの表がデータベースにありません。管理者に、003_AddNote.sql を実行してもらってください。", ex);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidColumnName)
-            {
-                throw new DataFileException("ノートの表に実施日の列がありません。管理者に、005_AddNoteEventDate.sql を実行してもらってください。", ex);
-            }
-        }, cancellationToken);
+        => database.RunAsync(work, cancellationToken);
 
     /// <summary>ノートの行を読む (<see cref="Columns"/> の順)</summary>
     /// <param name="reader">読み取り中の結果</param>

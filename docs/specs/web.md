@@ -501,7 +501,7 @@
     -- 送信先は、送る先の値 (Value)を除いた列だけ読める。通知を受け取る端末の登録 (区分 Web 版通知)のために、足す・更新するのは付ける
     GRANT INSERT, UPDATE ON dbo.NotificationChannel TO [MmmToolWeb];
     GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];
-    -- 端末の宛先から、自分の送信先の行を探す。Value を読めないログインのために、表の持ち主の権限で動くプロシージャに探させる。プロシージャは更新用スクリプト 007 が作る
+    -- 端末の宛先から、自分の送信先の行を探す。Value を読めないログインのために、表の持ち主の権限で動くプロシージャに探させる。プロシージャは MmmTool の 001_CreateTables.sql が作る
     GRANT EXECUTE ON dbo.FindWebPushChannel TO [MmmToolWeb];
     -- 通知の画面の一覧が、自分の送信先に届いたリマインダーの通知を読む。読む列だけを許す。列の許可は行を絞れないので、自分の送信先の分だけという条件は、コードで守る
     GRANT SELECT (Id, ReminderId, ChannelId, Date, Status, SentAt) ON dbo.ReminderSendStatus TO [MmmToolWeb];

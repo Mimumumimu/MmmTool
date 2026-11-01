@@ -408,7 +408,7 @@
 
 - ローカルモード: SQLite (`Data/MmmTool.db`)の `Note` 表 (`SqliteNoteRepository`)
 - DB モード: SQL Server の `Note` 表 (`SqlServerNoteRepository`)
-  - 表がまだ無いときは、`003_AddNote.sql` を流す手順を伝えるメッセージを出す
+  - 表が無いときも、ほかの読み書きの失敗と同じ「データベースの読み書きに失敗しました」を出す。表が無いことだけを見分けない
 - 表の列・索引・型は [database.md](database.md) にある
   - DB の種類で変わる所は、その文書の「SQL Server の場合」「SQLite の場合」
 - ホスト (`src/App/MmmTool`)に、ノートの名前を書いた保存先の登録を足さない

@@ -232,9 +232,10 @@
 - コード番号は、`WorkItemStatus` の値 (`Open` = 1・`Planned` = 2・`InProgress` = 3・`Closed` = 4・`OnHold` = 5)と同じ
   - 保留は後から足したので、コード番号が表示順と同じ並びではない。コード番号は、一度使ったら別の意味に使わないため。
   - 完了を見分ける処理 (完了日の記録・完了したグループを畳む・案件の完了の計算・案件・グループの状態の計算)が、コード番号 4 に頼る
-- 作成スクリプト (SQL Server・SQLite の `001_CreateTables.sql`)が、状態を 4 つ入れる
+- 作成スクリプトが、状態を入れる
   - 状態を持つ列の既定値は 1 (未対応)
-  - 保留は、更新用スクリプト (SQL Server の `013_AddWorkStatusOnHold.sql`・SQLite の `006_AddWorkStatusOnHold.sql`)で足す。完了の表示順を 4 から 5 に変えて、保留をコード番号 5・表示順 4 で足す。
+  - SQL Server の `001_CreateTables.sql` が、保留を含めた 5 つを入れる
+  - SQLite は、`001_CreateTables.sql` が 4 つを入れ、更新用スクリプト `006_AddWorkStatusOnHold.sql` が保留を足す。完了の表示順を 4 から 5 に変えて、保留をコード番号 5・表示順 4 で足す。
 - 案件・グループの状態 (計算値)の規則は、[work-items.md](work-items.md) の「完了したグループを畳む」の「案件・グループの状態」
   - 作業予定の作業が混ざったグループは「作業中」になる (仮)
 

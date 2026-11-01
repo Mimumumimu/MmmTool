@@ -131,10 +131,10 @@
   - 原因が分かって直したら、その動きの項目を消す。
   - 2 台の PC (または PC と Web 版)で、片方から追加・編集・削除・完了・「未」への戻しをしても、もう片方に反映されない
     - 関係する変更: リマインダーの毎分の読み出しを、差分にした。`SqlServerReminderRepository` の `ReadChangesAsync` と `Merge`。
-    - 関係する変更: 「未」に戻すとき、行の削除をやめ、`Status` を 0 にした。`SetStatesAsync` と `011_AllowReminderStateNone.sql`。
+    - 関係する変更: 「未」に戻すとき、行の削除をやめ、`Status` を 0 にした。`SetStatesAsync` と、0 を許す形にした `ReminderState` の `Status` の検査。
     - 症状の見当: 片方の変更が、もう片方に出ない。または、30 分ほどたつと直る。
     - 症状の見当: 宛先を替えられた行が、消えない。30 回ごとの全件の読み直し `FullReloadEvery` が、効いていない。
-    - 症状の見当: 「未」に戻そうとすると、保存できない。`011` を流していない DB。
+    - 症状の見当: 「未」に戻そうとすると、保存できない。`Status` の検査が 0 を許さない古い DB。
   - 失敗する送信先 (宛先を壊したもの)で送っても、送り直されない
     - 関係する変更: `SqlServerMessageSendStore.SkipDisabledAndGetSendableAsync` が、待ち時間を SQL の条件にした。待ち時間の表は `SendRetryPolicy` から作って `@FailedWaits` で渡す。
     - 関係する変更: 送る権利を、20 件ずつまとめて取る `TryClaimManyAsync`。

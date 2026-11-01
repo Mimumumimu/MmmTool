@@ -25,9 +25,6 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>「ない」日付 (<c>9999-12-31</c>)</summary>
     private static readonly DateTime NoDate = new(9999, 12, 31);
 
-    /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidObjectName = 208;
-
     /// <inheritdoc />
     /// <remarks>ユーザーを特定していないときは 0。読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>。</remarks>
     public int UserId => currentUser.User?.Id ?? 0;
@@ -166,7 +163,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             connection => QueryAsync(
                 connection,
                 null,
-                // 担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。予定の枝は外す印が無い作業だけ、実績の枝は実績と予定から外す作業を除く。索引は 004_AddWorkReportExclusion.sql にある。条件ごとに分けて UNION し、それぞれが索引を使えるようにする
+                // 担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。予定の枝は外す印が無い作業だけ、実績の枝は実績と予定から外す作業を除く。索引は 001_CreateTables.sql にある。条件ごとに分けて UNION し、それぞれが索引を使えるようにする
                 $"""
                 SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExclusion = 0 AND i.StatusCodeNo IN ({WorkItemStatuses.ReportSqlList})
                 UNION
@@ -209,7 +206,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             connection => QueryAsync(
                 connection,
                 null,
-                // 担当が自分で、完了も保留もしていなくて、自動入力の時間がある作業。表示しない案件も含む。索引は 007_AddWorkItemAutoEntry.sql の IX_WorkItem_AssigneeUserId_AutoHours
+                // 担当が自分で、完了も保留もしていなくて、自動入力の時間がある作業。表示しない案件も含む。索引は 001_CreateTables.sql の IX_WorkItem_AssigneeUserId_AutoHours
                 $"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId = @me AND i.AutoHours > 0 AND i.StatusCodeNo NOT IN ({WorkItemStatuses.AutoEntryStoppedSqlList}) AND i.ProjectId IN (SELECT p.Id FROM dbo.WorkProject p WHERE p.IsDeleted = 0)",
                 [("@me", UserId)],
                 reader => ReadItem(reader).ToWorkItem(),
@@ -608,36 +605,22 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     private int RequireUser()
         => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません (ログインが必要です)。", new InvalidOperationException("今のユーザーが特定されていません。"));
 
-    /// <summary>接続を開いて、処理を実行する (作業管理の表が無いときは、作成の手順を伝えるメッセージにする)</summary>
+    /// <summary>接続を開いて、処理を実行する</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
-        => database.RunAsync(async connection =>
-        {
-            try
-            {
-                return await work(connection).ConfigureAwait(false);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidObjectName)
-            {
-                throw new DataFileException("作業管理の表がデータベースにありません。管理者に、001_CreateTables.sql と 002_AddWorkDayNote.sql を実行してもらってください。", ex);
-            }
-        }, cancellationToken);
+        => database.RunAsync(work, cancellationToken);
 
-    /// <summary>接続を開いて、結果を返さない処理を実行する (作業管理の表が無いときは、作成の手順を伝えるメッセージにする)</summary>
+    /// <summary>接続を開いて、結果を返さない処理を実行する</summary>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task RunAsync(Func<SqlConnection, Task> work, CancellationToken cancellationToken)
-        => RunAsync(async connection =>
-        {
-            await work(connection).ConfigureAwait(false);
-            return 0;
-        }, cancellationToken);
+        => database.RunAsync(work, cancellationToken);
 
     /// <summary>トランザクションの中で書き込む</summary>
     /// <param name="work">開いた接続・トランザクション・今のユーザーの番号で行う書き込み</param>

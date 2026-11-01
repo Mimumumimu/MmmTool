@@ -211,7 +211,7 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 - 接続の設定 (サーバー名・データベース名・ユーザー名など)は `Data/AppSettings.json` の `Database.*` に、パスワードは Windows の資格情報マネージャー (`MmmTool.Database`)に保存します。通信は常に暗号化します。
 - 通知の受け取り先と、機能ごとの「通知を受け取る」のオン・オフは、`Data` フォルダーではなく、SQL Server のユーザーごとの設定に保存します。
 - 起動時にログインが必要です。最初は「新規登録」でログイン名・表示名・パスワードを決めます。ログイン情報は、この PC(Windows アカウントごと)の資格情報マネージャーに覚え、次の起動からは自動でログインします。
-- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/` の `001_CreateTables.sql` から番号の順に流して作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます。
+- 表は、`src/Data/MmmTool.Data.SqlServer/Sql/` の `001_CreateTables.sql` を流して作ります。アプリが使うログインには、`dbo` スキーマの読み書き (`SELECT`・`INSERT`・`UPDATE`・`DELETE`)だけを与えます。
 
 接続・ログイン・パスワードの再設定などの詳しいことは、[docs/specs/database.md](docs/specs/database.md) と [docs/specs/settings.md](docs/specs/settings.md) にあります。
 

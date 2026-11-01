@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using MmmSdk.Core.Components.Logging;
 using MmmSdk.Core.Components.Secrets;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Db.SqlServer.Components.Connections;
@@ -15,7 +16,8 @@ namespace MmmTool.Data.SqlServer.Connection;
 /// <see cref="DataFileException"/> にして渡す。画面は、ほかの保存先と同じ <see cref="DataFileException"/> を受ける。
 /// </remarks>
 /// <param name="builder">接続を作るファクトリを作る処理</param>
-public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
+/// <param name="errorLog">SQL Server が返した失敗を、例外ごと書くログ。登録していないアプリ (ログを別の仕組みで書くもの)では null で、書かない</param>
+public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder, ErrorLog? errorLog = null)
 {
     private readonly Lock _gate = new();
     private SqlServerConnectionFactory? _factory;
@@ -30,9 +32,11 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(work);
 
+        var databaseName = "";
         try
         {
             await using var connection = await GetFactory().OpenAsync(cancellationToken).ConfigureAwait(false);
+            databaseName = connection.Database;
             return await work(connection).ConfigureAwait(false);
         }
         catch (DatabaseSettingsException ex)
@@ -49,6 +53,8 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
         }
         catch (SqlException ex)
         {
+            // どのサーバー・どの DB で、どのエラー番号かを残す。呼び出しの流れ (どの機能の処理か)は、例外のスタックトレースに入る
+            errorLog?.Write($"データベースの読み書きに失敗 (サーバー: {ex.Server} / データベース: {databaseName} / エラー番号: {ex.Number})", ex);
             throw new DataFileException($"データベースの読み書きに失敗しました ({ex.Message})。", ex);
         }
     }
