@@ -370,3 +370,7 @@ FodyWeavers.xsd
 
 # Claude Code personal settings
 .claude/settings.local.json
+/scripts/9001_tool_publish - ショートカット.lnk
+/scripts/9011_web_publish - ショートカット.lnk
+/scripts/9021_batch_publish - ショートカット.lnk
+/scripts/9029_admin_publish - ショートカット.lnk
