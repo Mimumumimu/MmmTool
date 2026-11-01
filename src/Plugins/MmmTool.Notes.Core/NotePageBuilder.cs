@@ -43,7 +43,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 
         if (cards.Count == 0)
         {
-            html.Append("<p class=\"empty\"><span class=\"empty-date\">").Append(Escape(FormatDay(options.Day))).Append("</span>この日のノートはありません</p>\n");
+            html.Append("<p class=\"empty\"><span class=\"empty-date\">").Append(Escape(FormatDay(options.Day))).Append("</span>").Append(options.Basis == NoteBasis.Updated ? "この日に更新したノートはありません" : "この日のノートはありません").Append("</p>\n");
         }
         foreach (var card in cards)
         {

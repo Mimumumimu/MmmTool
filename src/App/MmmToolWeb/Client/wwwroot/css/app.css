@@ -156,3 +156,51 @@ input {
 .message {
     color: var(--danger);
 }
+
+/* 横に並べた選択のセグメントは、div.segments の中に、label.segment (input[type=radio] と span)を並べる。個数は問わず、等分する */
+.segments {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.segment {
+    position: relative;
+    display: block;
+    text-align: center;
+}
+
+.segment + .segment {
+    border-left: 1px solid var(--border);
+}
+
+.segment input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+}
+
+.segment span {
+    display: block;
+    min-height: 2.75rem;
+    line-height: 2.75rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.segment input:checked + span {
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+.segment input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}

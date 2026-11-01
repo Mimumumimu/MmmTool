@@ -41,12 +41,34 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     /// <inheritdoc />
     /// <remarks>ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。</remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "EndDate >= @day AND StartDate <= @day",
+            [("@day", day), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
+            cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 更新日時は、いつも同じ時差の同じ形の文字で保存するので、範囲の端も同じ形の文字にして、文字の大小で比べる。
+    /// ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。
+    /// </remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "UpdatedAt >= @from AND UpdatedAt < @to",
+            [("@from", from), ("@to", to), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
+            cancellationToken);
+
+    /// <summary>条件に合う、見えるノートを読む (名前は空文字)</summary>
+    /// <param name="condition">絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="parameters">パラメーター。<c>@includeDeleted</c> と <c>@me</c> を含める</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートと名前で、並びは不定</returns>
+    private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, (string Name, object Value)[] parameters, CancellationToken cancellationToken)
         => RunAsync<IReadOnlyList<NoteWithNames>>(
             async connection => [.. (await SqliteQueries.QueryAsync(
                 connection,
                 null,
-                $"SELECT {Columns} FROM Note WHERE EndDate >= @day AND StartDate <= @day AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
-                [("@day", day), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
+                $"SELECT {Columns} FROM Note WHERE {condition} AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
+                parameters,
                 reader => new NoteWithNames(ReadRow(reader).ToNote(), "", ""),
                 cancellationToken).ConfigureAwait(false))],
             cancellationToken);

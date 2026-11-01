@@ -108,9 +108,10 @@ internal static class NoteEndpoints
     }
 
     /// <summary>
-    /// ある日に有効なノートを返す。
+    /// ある日のノートを、基準に従って返す。
     /// </summary>
     /// <param name="day">日。</param>
+    /// <param name="basis">基準。<c>updated</c> はその日に更新したノート。無いときと、それ以外は、その日に有効なノート。</param>
     /// <param name="includeDeleted">削除したものも含めるか。</param>
     /// <param name="service">ノートの読み書き。</param>
     /// <param name="formatter">本文を、表示してよい HTML にする処理。</param>
@@ -118,10 +119,11 @@ internal static class NoteEndpoints
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>ノートの一覧。</returns>
     private static async Task<IResult> LoadAsync(
-        DateOnly day, bool? includeDeleted, NoteService service, INoteBodyFormatter formatter, CurrentUser currentUser,
+        DateOnly day, string? basis, bool? includeDeleted, NoteService service, INoteBodyFormatter formatter, CurrentUser currentUser,
         CancellationToken cancellationToken)
     {
-        var cards = await service.LoadAsync(day, includeDeleted ?? false, cancellationToken);
+        var noteBasis = string.Equals(basis, "updated", StringComparison.OrdinalIgnoreCase) ? NoteBasis.Updated : NoteBasis.Period;
+        var cards = await service.LoadAsync(day, noteBasis, includeDeleted ?? false, cancellationToken);
         var userId = currentUser.Id;
         return Results.Ok(new NoteListResponse(day, [.. cards.Select(card => ToDto(card, userId, formatter))]));
     }

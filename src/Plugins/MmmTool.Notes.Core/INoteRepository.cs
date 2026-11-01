@@ -25,6 +25,16 @@ public interface INoteRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
     Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
 
+    /// <summary>指定の範囲の時刻に最後に更新されたノートを、書いた人と更新した人の名前つきで取得する</summary>
+    /// <param name="from">この時刻以降 (含む)</param>
+    /// <param name="to">この時刻より前 (含まない)</param>
+    /// <param name="includeDeleted">削除済みも含めるか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>更新日時が範囲の中のノートと名前で、並びは不定。並べるのは呼ぶ側</returns>
+    /// <remarks>更新日時の索引 (<c>IX_Note_UpdatedAt</c>)で絞る。名前は、<see cref="GetOnDayAsync"/> と同じく、ノートと一緒に 1 回の問い合わせで読む。</remarks>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default);
+
     /// <summary>指定の日が実施日のノートを取得する (削除済みは含めない)</summary>
     /// <param name="day">日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

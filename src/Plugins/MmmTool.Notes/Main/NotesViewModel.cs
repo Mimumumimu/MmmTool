@@ -75,6 +75,10 @@ public sealed partial class NotesViewModel(
     [ObservableProperty]
     public partial DateOnly Day { get; set; } = state.Day.Resolve(notes.Today);
 
+    /// <summary>表示する日に、どのノートを出すかの基準 (期間・更新日)</summary>
+    [ObservableProperty]
+    public partial NoteBasis Basis { get; set; } = state.Basis;
+
     /// <summary>「タイトルだけ」にするか (false は「全文」)</summary>
     [ObservableProperty]
     public partial bool IsTitleOnly { get; set; } = state.IsTitleOnly;
@@ -89,8 +93,18 @@ public sealed partial class NotesViewModel(
     /// <summary>「表示する内容」に出す、他の機能の内容。オンの機能の分だけ</summary>
     public ObservableCollection<DayContentSourceItem> Sources { get; } = [];
 
-    /// <summary>「表示する内容」のボタンを出すか (出せる内容が 1 つ以上ある)</summary>
-    public bool HasSources => Sources.Count > 0;
+    /// <summary>「表示する内容」のボタンを出すか (出せる内容が 1 つ以上あり、基準が期間のとき)</summary>
+    /// <remarks>作業報告などは「その日の内容」なので、更新日で見るときは出さない。</remarks>
+    public bool HasSources => Sources.Count > 0 && Basis == NoteBasis.Period;
+
+    /// <summary>基準を変えたら、先頭から表示し直す</summary>
+    /// <param name="value">新しい基準</param>
+    partial void OnBasisChanged(NoteBasis value)
+    {
+        state.Basis = value;
+        OnPropertyChanged(nameof(HasSources));
+        ReloadAsync(preserveState: false).Forget();
+    }
 
     /// <summary>日付を変えたら、先頭から表示し直す</summary>
     /// <param name="value">新しい日</param>
@@ -129,12 +143,25 @@ public sealed partial class NotesViewModel(
     private void Today() => Day = notes.Today;
 
     /// <summary>実際の今日を表示する</summary>
-    /// <remarks>通知のクリックから、ページを開いたあとに呼ぶ。すでに今日を表示しているときは、何もしない。</remarks>
-    public void ShowToday() => Day = notes.Today;
+    /// <remarks>
+    /// 通知のクリックから、ページを開いたあとに呼ぶ。
+    /// 基準は「期間」に戻す。今日実施のノートを、今日更新したとは限らないため。
+    /// すでに今日を表示しているときは、日は変えない。
+    /// </remarks>
+    public void ShowToday()
+    {
+        Basis = NoteBasis.Period;
+        Day = notes.Today;
+    }
 
     /// <summary>指定の日を表示する (他の人の作成・更新の通知から開くとき、そのノートが有効な日にする)</summary>
     /// <param name="day">表示する日</param>
-    public void ShowDay(DateOnly day) => Day = day;
+    /// <remarks>基準は「期間」に戻す。通知のノートが有効な日は、期間で決めた日のため。</remarks>
+    public void ShowDay(DateOnly day)
+    {
+        Basis = NoteBasis.Period;
+        Day = day;
+    }
 
     /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
     public bool CanRefresh => notes.IsShared;
@@ -302,7 +329,8 @@ public sealed partial class NotesViewModel(
     /// <summary>少し待ってから、枠を読み直す。待っている間に次の通知が来たら、待ち直す</summary>
     private void ScheduleContentReload()
     {
-        if (_refreshing is null)
+        // 更新日で見ているときは、他の機能の内容を出さないので、読み直さない
+        if (_refreshing is null || Basis != NoteBasis.Period)
         {
             return;
         }
@@ -434,7 +462,7 @@ public sealed partial class NotesViewModel(
         IReadOnlyList<NoteCard> cards;
         try
         {
-            cards = await notes.LoadAsync(Day, ShowDeleted);
+            cards = await notes.LoadAsync(Day, Basis, ShowDeleted);
         }
         catch (DataFileException ex)
         {
@@ -447,7 +475,10 @@ public sealed partial class NotesViewModel(
         string? frameError = null;
         try
         {
-            frames = await LoadFramesAsync();
+            if (Basis == NoteBasis.Period)
+            {
+                frames = await LoadFramesAsync();
+            }
         }
         catch (DataFileException ex)
         {
@@ -466,7 +497,7 @@ public sealed partial class NotesViewModel(
             Error.Show(frameError);
         }
         _cards = cards;
-        var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, state?.OpenIds, state?.KnownIds), frames);
+        var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, Basis, state?.OpenIds, state?.KnownIds), frames);
         if (preserveState && html == _lastHtml)
         {
             return;

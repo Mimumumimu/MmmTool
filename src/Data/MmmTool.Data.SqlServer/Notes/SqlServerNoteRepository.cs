@@ -45,6 +45,34 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     /// <remarks>書いた人と更新した人の名前は、ノートと一緒に <c>dbo.AppUser</c> を外部結合して読む。表示のための名前で、検索や索引には使わない。</remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "n.EndDate >= @Day AND n.StartDate <= @Day",
+            command => command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) }),
+            includeDeleted,
+            cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <remarks>更新日時の索引 <c>IX_Note_UpdatedAt</c> で範囲を絞る。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "n.UpdatedAt >= @From AND n.UpdatedAt < @To",
+            command =>
+            {
+                command.Parameters.Add(new SqlParameter("@From", SqlDbType.DateTimeOffset) { Value = from });
+                command.Parameters.Add(new SqlParameter("@To", SqlDbType.DateTimeOffset) { Value = to });
+            },
+            includeDeleted,
+            cancellationToken);
+
+    /// <summary>条件に合う、見えるノートを、書いた人と更新した人の名前つきで 1 回の問い合わせで読む</summary>
+    /// <param name="condition">ノートの表の別名 <c>n</c> を使った、絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="addParameters">条件で使うパラメーターを足す処理</param>
+    /// <param name="includeDeleted">削除済みも含めるか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートと名前で、並びは不定</returns>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, Action<SqlCommand> addParameters, bool includeDeleted, CancellationToken cancellationToken)
     {
         var userId = RequireUserId();
         return RunAsync<IReadOnlyList<NoteWithNames>>(async connection =>
@@ -56,11 +84,11 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
                 FROM dbo.Note AS n
                 LEFT JOIN dbo.AppUser AS a ON a.Id = n.AuthorUserId
                 LEFT JOIN dbo.AppUser AS u ON u.Id = n.UpdatedByUserId
-                WHERE n.EndDate >= @Day AND n.StartDate <= @Day
+                WHERE {condition}
                   AND (@IncludeDeleted = 1 OR n.IsDeleted = 0)
                   AND (n.IsPrivate = 0 OR n.AuthorUserId = @UserId)
                 """;
-            command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
+            addParameters(command);
             command.Parameters.Add(new SqlParameter("@IncludeDeleted", SqlDbType.Bit) { Value = includeDeleted });
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

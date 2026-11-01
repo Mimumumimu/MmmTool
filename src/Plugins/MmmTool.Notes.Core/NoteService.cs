@@ -24,21 +24,41 @@ public sealed class NoteService(INoteRepository repository, TimeProvider time)
     /// <summary>実際の今日 (この PC の日付)</summary>
     public DateOnly Today => DateOnly.FromDateTime(time.GetLocalNow().DateTime);
 
-    /// <summary>指定の日に有効なノートを、並べて取得する</summary>
+    /// <summary>指定の日のノートを、基準に従って、並べて取得する</summary>
     /// <param name="day">日</param>
+    /// <param name="basis">その日にどのノートを出すかの基準</param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>カードに出す内容 (実施日のカードが先頭、そのあとは重要度の高い順、同じ重要度の中は更新日時の新しい順)</returns>
+    /// <returns>
+    /// カードに出す内容。
+    /// <see cref="NoteBasis.Period"/> は、実施日のカードが先頭、そのあとは重要度の高い順、同じ重要度の中は更新日時の新しい順。
+    /// <see cref="NoteBasis.Updated"/> は、更新日時の新しい順で、同じなら番号の大きい順。
+    /// </returns>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">読めなかった。メッセージは画面に出せる。</exception>
-    public async Task<IReadOnlyList<NoteCard>> LoadAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// <see cref="NoteBasis.Updated"/> の「その日」は、この PC の時刻での、その日の 0 時から翌日の 0 時まで。
+    /// ノートは変更の履歴を持たないので、出るのは「最後に更新した日がその日」のノートだけ。
+    /// </remarks>
+    public async Task<IReadOnlyList<NoteCard>> LoadAsync(DateOnly day, NoteBasis basis, bool includeDeleted, CancellationToken cancellationToken = default)
     {
-        var notes = await repository.GetOnDayAsync(day, includeDeleted, cancellationToken).ConfigureAwait(false);
-        var sorted = notes
-            .OrderByDescending(item => item.Note.IsEventOn(day))
-            .ThenByDescending(item => item.Note.Priority)
-            .ThenByDescending(item => item.Note.UpdatedAt)
-            .ThenByDescending(item => item.Note.Id)
-            .ToList();
+        List<NoteWithNames> sorted;
+        if (basis == NoteBasis.Updated)
+        {
+            var notes = await repository.GetUpdatedBetweenAsync(StartOfDay(day), StartOfDay(day.AddDays(1)), includeDeleted, cancellationToken).ConfigureAwait(false);
+            sorted = [.. notes.OrderByDescending(item => item.Note.UpdatedAt).ThenByDescending(item => item.Note.Id)];
+        }
+        else
+        {
+            var notes = await repository.GetOnDayAsync(day, includeDeleted, cancellationToken).ConfigureAwait(false);
+            sorted =
+            [
+                .. notes
+                    .OrderByDescending(item => item.Note.IsEventOn(day))
+                    .ThenByDescending(item => item.Note.Priority)
+                    .ThenByDescending(item => item.Note.UpdatedAt)
+                    .ThenByDescending(item => item.Note.Id),
+            ];
+        }
 
         var today = Today;
         return [.. sorted.Select(item => new NoteCard(
@@ -87,6 +107,15 @@ public sealed class NoteService(INoteRepository repository, TimeProvider time)
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
         => repository.SetDeletedAsync(id, isDeleted, cancellationToken);
+
+    /// <summary>この PC の時刻での、その日の 0 時</summary>
+    /// <param name="day">日</param>
+    /// <returns>その日の 0 時 (この PC の時差つき)</returns>
+    private DateTimeOffset StartOfDay(DateOnly day)
+    {
+        var local = day.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(local, time.LocalTimeZone.GetUtcOffset(local));
+    }
 
     /// <summary>入力内容を調べて、前後の空白を取り除く</summary>
     /// <param name="input">入力内容</param>
