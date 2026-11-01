@@ -126,6 +126,23 @@
   - 直したら、計測のコードとログを消し、`BringToFront` に戻す。`NativeMethods.txt` の `GetWindowThreadProcessId` も、使わなければ消す。
   - 閉じている画面を新しく開く経路は `Activate()` だけで `BringToFront` を通らない。docs/specs/reminders.md の「前面に出すのは SDK の `BringToFront`」と食い違うので、直すときにそろえる。
 
+- 次の動きがおかしいときに、先に疑う変更
+  - 簡単に試せない動きなので、症状が出たときに、原因の見当をつけるために残す。
+  - 原因が分かって直したら、その動きの項目を消す。
+  - 2 台の PC (または PC と Web 版)で、片方から追加・編集・削除・完了・「未」への戻しをしても、もう片方に反映されない
+    - 関係する変更: リマインダーの毎分の読み出しを、差分にした。`SqlServerReminderRepository` の `ReadChangesAsync` と `Merge`。
+    - 関係する変更: 「未」に戻すとき、行の削除をやめ、`Status` を 0 にした。`SetStatesAsync` と `011_AllowReminderStateNone.sql`。
+    - 症状の見当: 片方の変更が、もう片方に出ない。または、30 分ほどたつと直る。
+    - 症状の見当: 宛先を替えられた行が、消えない。30 回ごとの全件の読み直し `FullReloadEvery` が、効いていない。
+    - 症状の見当: 「未」に戻そうとすると、保存できない。`011` を流していない DB。
+  - 失敗する送信先 (宛先を壊したもの)で送っても、送り直されない
+    - 関係する変更: `SqlServerMessageSendStore.SkipDisabledAndGetSendableAsync` が、待ち時間を SQL の条件にした。待ち時間の表は `SendRetryPolicy` から作って `@FailedWaits` で渡す。
+    - 関係する変更: 送る権利を、20 件ずつまとめて取る `TryClaimManyAsync`。
+    - 症状の見当: 失敗した通知が、いつまでも送り直されない。または、待ち時間を待たずに、回数が上限まで進む。
+  - 通知の端末を登録し直しても、通知が届かない
+    - 関係する変更: `UpdateAndRestoreAsync`。更新と削除の取り消しを、1 文にした。`NotificationEndpoints.RegisterAsync` が使う。
+    - 症状の見当: 削除した端末を登録し直しても、使える状態に戻らない。
+
 ## そのうち (方向だけ)
 
 - `scripts/` の発行用のショートカット (`9001_tool_publish`・`9011_web_publish`・`9021_batch_publish`・`9029_admin_publish`)を、リポジトリに入れるか、`.gitignore` に足すかを決める

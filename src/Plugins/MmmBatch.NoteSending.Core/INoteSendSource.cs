@@ -35,4 +35,15 @@ public interface INoteSendSource
     /// </returns>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<NoteRecipient>> GetRecipientsAsync(int afterUserId, int excludeUserId, int count, CancellationToken cancellationToken = default);
+
+    /// <summary>指定した人のうち、いまも通知する相手である人を、1 回で読む</summary>
+    /// <param name="userIds">調べる人の番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>
+    /// <see cref="GetRecipientsAsync"/> と同じ条件を満たす人と、いまの受け取り先。条件を外れた人は含まない。人の番号の順。
+    /// ノートを最後に更新した人を除く判断はしない。送り直しの予定に入る前に、除いてあるため。
+    /// </returns>
+    /// <remarks>人の数だけ <see cref="GetRecipientsAsync"/> を呼ぶ代わりに使う。送り直しの前に、相手が条件を満たしているかを確かめるために使う。</remarks>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlyList<NoteRecipient>> GetRecipientsByIdsAsync(IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default);
 }

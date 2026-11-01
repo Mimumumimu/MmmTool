@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MmmTool.Users.Core;
 
 namespace MmmToolWeb.Features;
@@ -17,6 +18,7 @@ public static class WebFeatureExtensions
         where TFeature : IWebFeature, new()
     {
         var feature = new TFeature();
+        services.TryAddScoped<RequestFeatureAccess>();
         services.AddSingleton<IWebFeature>(feature);
         feature.AddServices(services);
         return services;
@@ -56,9 +58,9 @@ public static class WebFeatureExtensions
         {
             var services = context.HttpContext.RequestServices;
             var currentUser = services.GetRequiredService<CurrentUser>();
-            var access = services.GetRequiredService<FeatureAccessService>();
-            if (currentUser.IsIdentified
-                && await access.GetAsync(currentUser.Id, featureNo, context.HttpContext.RequestAborted) == FeatureAccess.Disabled)
+            // 同じ要求の中で、ほかの判定と読みを共有する
+            var access = services.GetRequiredService<RequestFeatureAccess>();
+            if (currentUser.IsIdentified && await access.IsDisabledAsync(featureNo, context.HttpContext.RequestAborted))
             {
                 return Results.NotFound();
             }

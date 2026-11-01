@@ -3,6 +3,7 @@ using System.Text.Json;
 using Fido2NetLib;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using MmmTool.Users.Core;
 using MmmToolWeb.Auth.Core;
 using MmmToolWeb.Auth.Core.Enrollment;
 using MmmToolWeb.Auth.Core.Passkeys;
@@ -204,10 +205,18 @@ internal static class AuthEndpoints
         HttpContext context, WebUserLookup users, int appUserId, CancellationToken cancellationToken)
     {
         var user = await users.FindActiveAsync(appUserId, cancellationToken);
-        if (user is null)
-        {
-            return null;
-        }
+        return user is null ? null : await IssueSessionAsync(context, user);
+    }
+
+    /// <summary>
+    /// 読み済みの、使える状態のユーザーに、ログイン状態の Cookie を発行する。
+    /// </summary>
+    /// <param name="context">今の要求。</param>
+    /// <param name="user">ログインした人。今日使える状態であることを、呼ぶ側が確かめてある。</param>
+    /// <returns>発行したログイン状態。</returns>
+    /// <remarks>ユーザーを探したあとに呼ぶ。同じ人を、同じ要求の中でもう一度読まないため。</remarks>
+    internal static async Task<ClaimsPrincipal> IssueSessionAsync(HttpContext context, AppUser user)
+    {
         var now = DateTimeOffset.UtcNow;
         var identity = new ClaimsIdentity(
             [

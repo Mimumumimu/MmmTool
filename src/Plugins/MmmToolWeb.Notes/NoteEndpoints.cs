@@ -3,6 +3,7 @@ using System.Text;
 using MmmTool.DayContent.Core;
 using MmmTool.Notes.Core;
 using MmmTool.Users.Core;
+using MmmToolWeb.Features;
 using MmmToolWeb.Features.Client;
 using MmmToolWeb.Notes.Client;
 
@@ -36,15 +37,14 @@ internal static class NoteEndpoints
     /// </summary>
     /// <param name="day">表示する日。実績の開始日の既定を、この日で決める。</param>
     /// <param name="contents">他の機能の内容を集める処理。</param>
-    /// <param name="currentUser">今のユーザー。</param>
-    /// <param name="access">機能の利用。</param>
+    /// <param name="access">この要求での、今のユーザーの機能の状態。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>出せる内容の一覧。サーバーに登録された機能の分だけで、管理者に無効にされた機能の分は含まない。</returns>
     private static async Task<IResult> LoadContentSourcesAsync(
-        DateOnly day, DayContentService contents, CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
+        DateOnly day, DayContentService contents, RequestFeatureAccess access, CancellationToken cancellationToken)
     {
         var sources = new List<DayContentSourceDto>();
-        foreach (var source in await AllowedSourcesAsync(contents, currentUser, access, cancellationToken))
+        foreach (var source in await AllowedSourcesAsync(contents, access, cancellationToken))
         {
             var from = await source.GetDefaultFromAsync(day, cancellationToken);
             sources.Add(new DayContentSourceDto(
@@ -60,25 +60,21 @@ internal static class NoteEndpoints
     /// ノートの画面に出せる他の機能の内容から、管理者に無効にされた機能の分を除く。
     /// </summary>
     /// <param name="contents">他の機能の内容を集める処理。</param>
-    /// <param name="currentUser">今のユーザー。</param>
-    /// <param name="access">機能の利用。</param>
+    /// <param name="access">この要求での、今のユーザーの機能の状態。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>今のユーザーに出せる内容。機能番号が無い内容は、常に含む。</returns>
     private static async Task<IReadOnlyList<IDayContentSource>> AllowedSourcesAsync(
-        DayContentService contents, CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
+        DayContentService contents, RequestFeatureAccess access, CancellationToken cancellationToken)
     {
-        var allowed = new List<IDayContentSource>();
-        foreach (var source in contents.Sources)
+        // 機能番号を持つ内容があるときだけ、そのユーザーの全機能の状態を読む。内容ごとに読まず、同じ要求のほかの判定とも共有する
+        if (!contents.Sources.Any(source => source.FeatureNo is not null))
         {
-            if (source.FeatureNo is { } featureNo
-                && await access.GetAsync(currentUser.Id, featureNo, cancellationToken) == FeatureAccess.Disabled)
-            {
-                continue;
-            }
-
-            allowed.Add(source);
+            return contents.Sources;
         }
-        return allowed;
+
+        var states = await access.GetAllAsync(cancellationToken);
+        return [.. contents.Sources.Where(source =>
+            source.FeatureNo is not { } featureNo || !states.TryGetValue(featureNo, out var state) || state != FeatureAccess.Disabled)];
     }
 
     /// <summary>
@@ -91,15 +87,14 @@ internal static class NoteEndpoints
     /// <param name="on">選んでいる選択肢の識別を、カンマでつないだ文字。無い識別は、選んでいない。</param>
     /// <param name="contents">他の機能の内容を集める処理。</param>
     /// <param name="notes">ノートの読み書き。自分の番号を引く。</param>
-    /// <param name="currentUser">今のユーザー。</param>
-    /// <param name="access">機能の利用。</param>
+    /// <param name="access">この要求での、今のユーザーの機能の状態。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>枠の一覧。内容の識別が無いとき、または管理者に無効にされた機能の内容のときは 404。</returns>
     private static async Task<IResult> LoadContentAsync(
         string key, DateOnly day, DateOnly from, bool? everyone, string? on, DayContentService contents, NoteService notes,
-        CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
+        RequestFeatureAccess access, CancellationToken cancellationToken)
     {
-        var source = (await AllowedSourcesAsync(contents, currentUser, access, cancellationToken)).FirstOrDefault(s => s.Key == key);
+        var source = (await AllowedSourcesAsync(contents, access, cancellationToken)).FirstOrDefault(s => s.Key == key);
         if (source is null)
         {
             return Results.NotFound(new ErrorResponse("この内容は、見つかりません。"));

@@ -44,6 +44,11 @@ public sealed class UnavailableNotificationChannelRepository : INotificationChan
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    public Task<bool> UpdateAndRestoreAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
+        => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

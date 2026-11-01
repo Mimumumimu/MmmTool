@@ -53,9 +53,9 @@ internal static class DevAuthEndpoints
         {
             return Results.Unauthorized();
         }
-        return await AuthEndpoints.IssueSessionAsync(context, users, user.Id, cancellationToken) is null
-            ? Results.Unauthorized()
-            : Results.NoContent();
+        // 探した人をそのまま渡す。同じ人を、もう一度読まない
+        await AuthEndpoints.IssueSessionAsync(context, user);
+        return Results.NoContent();
     }
 }
 #endif

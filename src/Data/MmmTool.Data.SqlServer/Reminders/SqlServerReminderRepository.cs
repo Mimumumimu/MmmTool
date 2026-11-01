@@ -17,7 +17,8 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// <remarks>
 /// <para>
 /// 読みはメモリから返す (通知の毎分の判定で、DB を毎回読まない)。見えるのは、宛先が自分のもの・全員宛て・自分が作成したリマインダーと、自分の対応状態だけ (通知と今日の対象にするのは、宛先が自分と全員宛てだけで、これは <see cref="ReminderService"/> が絞る)。
-/// 1 分ごとに、見える分を全件読み直し、前回と違えば <see cref="ExternalChanged"/> で知らせる (ほかの PC の変更を知るため。完全削除も、読み直しで反映される)。
+/// 1 分ごとに、前回より後に更新された行だけを読んでメモリに重ね、前回と違えば <see cref="ExternalChanged"/> で知らせる。ほかの PC の変更を知るため。
+/// 最初と、ユーザーが替わったときと、管理者の無効の状態が変わったときと、差分を 30 回続けたときは、見える分を全件読み直す。
 /// </para>
 /// <para>
 /// 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する (DB の内容と同じ形になる。備考・リンクの空文字は null など)。
@@ -26,13 +27,20 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// </para>
 /// <para>
 /// 操作した人 (作成者・更新者・対応状態の持ち主)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
-/// 編集は見える人なら誰でもでき (削除済みを編集すると復活する)、論理削除は作成者だけができる。完全削除は、DB では行わない (<see cref="CanPurge"/> が false)。未対応への変更は、対応状態の行を消す。
+/// 編集は見える人なら誰でもでき、削除済みを編集すると復活する。論理削除は作成者だけができる。
+/// 完全削除は、DB では行わない。<see cref="CanPurge"/> が false になる。未対応への変更も、対応状態の行を消さず、<c>Status</c> を 0 にする。
 /// </para>
 /// </remarks>
 public sealed class SqlServerReminderRepository : IReminderRepository, IDisposable
 {
     /// <summary>ほかの PC の変更を読み直す間隔の既定値</summary>
     private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>差分の読み出しで、前回の基準より戻して読む時間。更新が確定するのが遅れた書き込みを、取りこぼさないため</summary>
+    private static readonly TimeSpan DiffOverlap = TimeSpan.FromSeconds(10);
+
+    /// <summary>差分の読み出しを何回続けたら、全件を読み直すか。見えなくなった行など、差分では分からない変わりを直すため</summary>
+    private const int FullReloadEvery = 30;
 
     /// <summary>SQL Server への入口</summary>
     private readonly SqlServerDatabase _database;
@@ -69,6 +77,18 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
 
     /// <summary>最後の読み込みに失敗したときのメッセージ。正常なら null</summary>
     private volatile string? _loadError;
+
+    /// <summary>前回の読み出しを始めたときの、DB の時計の日時。差分の読み出しの基準。まだ読んでいなければ null</summary>
+    private DateTimeOffset? _readAt;
+
+    /// <summary>前回の読み出しで、管理者にリマインダーを無効にされていたか</summary>
+    private bool _wasDisabled;
+
+    /// <summary>前回の読み出しが、どの人の分か。人が替わったら、全件を読み直す</summary>
+    private int _loadedUserId;
+
+    /// <summary>前回の全件の読み出しから、差分で読んだ回数</summary>
+    private int _diffReads;
 
     /// <summary>DB に保存するリマインダーの保存先を作る</summary>
     /// <param name="database">SQL Server への入口</param>
@@ -199,15 +219,16 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         => throw new NotSupportedException("DB モードでは、完全削除はできません (論理削除だけです)。");
 
     /// <inheritdoc />
-    /// <remarks>未対応 (<see cref="ReminderStatus.None"/>)は、行を消す。完了・スヌーズは、あれば上書きし、無ければ追加する。全部を 1 つのトランザクションで書く。</remarks>
+    /// <remarks>
+    /// 未対応 (<see cref="ReminderStatus.None"/>)に戻したときも、行は消さない。<c>Status</c> を 0 にして残す。
+    /// 完了・スヌーズ・未対応のどれも、あれば上書きし、無ければ追加する。全部を 1 つのトランザクションで書く。
+    /// </remarks>
     /// <exception cref="ArgumentException">対応状態の値・日付が、DB に入れられない値。</exception>
     public Task SetStatesAsync(IReadOnlyList<ReminderStateChange> changes, CancellationToken cancellationToken = default)
     {
         // 行にする値を、先に確かめる (書き始めてから、途中で例外にしないため)
         var rows = changes
-            .Select(change => (Change: change, Row: change.Status == ReminderStatus.None
-                ? null
-                : ReminderStateRow.FromReminderState(new ReminderState { BaseNo = change.BaseNo, Date = change.Date, Status = change.Status })))
+            .Select(change => (Change: change, Row: ReminderStateRow.FromReminderState(new ReminderState { BaseNo = change.BaseNo, Date = change.Date, Status = change.Status })))
             .ToList();
 
         return WriteAsync(async (connection, transaction, userId) =>
@@ -218,24 +239,17 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
                 command.Transaction = transaction;
                 AddUserParameter(command, userId);
                 command.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = change.BaseNo });
-                if (row is null)
-                {
-                    command.CommandText = "DELETE FROM dbo.ReminderState WHERE ReminderId = @ReminderId AND UserId = @UserId";
-                }
-                else
-                {
-                    command.CommandText =
-                        """
-                        UPDATE dbo.ReminderState WITH (UPDLOCK, HOLDLOCK)
-                        SET Date = @Date, Status = @Status, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                        WHERE ReminderId = @ReminderId AND UserId = @UserId;
-                        IF @@ROWCOUNT = 0
-                            INSERT INTO dbo.ReminderState (CreatedByUserId, UpdatedByUserId, ReminderId, UserId, Date, Status)
-                            VALUES (@UserId, @UserId, @ReminderId, @UserId, @Date, @Status);
-                        """;
-                    command.Parameters.Add(new SqlParameter("@Date", SqlDbType.Date) { Value = row.Date.ToDateTime(TimeOnly.MinValue) });
-                    command.Parameters.Add(new SqlParameter("@Status", SqlDbType.TinyInt) { Value = row.Status });
-                }
+                command.CommandText =
+                    """
+                    UPDATE dbo.ReminderState WITH (UPDLOCK, HOLDLOCK)
+                    SET Date = @Date, Status = @Status, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+                    WHERE ReminderId = @ReminderId AND UserId = @UserId;
+                    IF @@ROWCOUNT = 0
+                        INSERT INTO dbo.ReminderState (CreatedByUserId, UpdatedByUserId, ReminderId, UserId, Date, Status)
+                        VALUES (@UserId, @UserId, @ReminderId, @UserId, @Date, @Status);
+                    """;
+                command.Parameters.Add(new SqlParameter("@Date", SqlDbType.Date) { Value = row.Date.ToDateTime(TimeOnly.MinValue) });
+                command.Parameters.Add(new SqlParameter("@Status", SqlDbType.TinyInt) { Value = row.Status });
                 await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
             return 0;
@@ -409,13 +423,36 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             }
 
             var userId = _currentUser.Id;
-            var (reminders, states) = await _database
-                .RunAsync(connection => ReadAllAsync(connection, userId, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
 
-            var changed = !reminders.SequenceEqual(_reminders) || !states.SequenceEqual(_states) || _loadError is not null;
-            _reminders = reminders;
-            _states = states;
+            // 最初・人が替わったとき・一定の回数ごと・無効の状態が変わったときは、全件を読む。それ以外は、前回より後に更新された行だけを読む
+            var needsFull = _readAt is null || _loadedUserId != userId || _diffReads >= FullReloadEvery;
+            Snapshot? snapshot = null;
+            if (!needsFull)
+            {
+                snapshot = await _database
+                    .RunAsync(connection => ReadChangesAsync(connection, userId, _readAt!.Value - DiffOverlap, _wasDisabled, cancellationToken), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (snapshot is null)
+            {
+                snapshot = await _database
+                    .RunAsync(connection => ReadAllAsync(connection, userId, cancellationToken), cancellationToken)
+                    .ConfigureAwait(false);
+                _diffReads = 0;
+            }
+            else
+            {
+                snapshot = Merge(snapshot, _reminders, _states);
+                _diffReads++;
+            }
+
+            var changed = !snapshot.Reminders.SequenceEqual(_reminders) || !snapshot.States.SequenceEqual(_states) || _loadError is not null;
+            _reminders = snapshot.Reminders;
+            _states = snapshot.States;
+            _readAt = snapshot.ReadAt;
+            _wasDisabled = snapshot.Disabled;
+            _loadedUserId = userId;
             _loadError = null;
             return changed;
         }
@@ -435,71 +472,159 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return changed;
     }
 
+    /// <summary>読み出しの結果。見えるリマインダーと、自分の対応状態と、読み始めた DB の時計の日時</summary>
+    /// <param name="Reminders">リマインダー本体。全件の読み出しでは全部で、差分の読み出しでは、更新された行だけ</param>
+    /// <param name="States">自分の対応状態。全件の読み出しでは全部で、差分の読み出しでは、更新された行だけ</param>
+    /// <param name="ReadAt">読み始めたときの、DB の時計の日時。次の差分の基準になる</param>
+    /// <param name="Disabled">管理者に、リマインダーを無効にされているか</param>
+    private sealed record Snapshot(IReadOnlyList<Reminder> Reminders, IReadOnlyList<ReminderState> States, DateTimeOffset ReadAt, bool Disabled);
+
+    /// <summary>DB の今の日時と、管理者にリマインダーを無効にされているかを読む問い合わせ</summary>
+    private static readonly string TimeAndDisabledSql =
+        $"SELECT SYSDATETIMEOFFSET(), CASE WHEN {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)} THEN 1 ELSE 0 END";
+
+    /// <summary>リマインダー本体の列を選ぶ問い合わせの先頭部分</summary>
+    private const string ReminderSelect =
+        "SELECT Id, IsDeleted, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak FROM dbo.Reminder";
+
+    /// <summary>対応状態の列を選ぶ問い合わせの先頭部分</summary>
+    private const string StateSelect = "SELECT Id, ReminderId, Date, Status FROM dbo.ReminderState";
+
     /// <summary>見えるリマインダーと、自分の対応状態を、全件読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="userId">今のユーザーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>見えるリマインダーと、自分の対応状態</returns>
-    private static async Task<(IReadOnlyList<Reminder> Reminders, IReadOnlyList<ReminderState> States)> ReadAllAsync(
-        SqlConnection connection, int userId, CancellationToken cancellationToken)
+    /// <returns>全件の読み出しの結果</returns>
+    private static async Task<Snapshot> ReadAllAsync(SqlConnection connection, int userId, CancellationToken cancellationToken)
     {
+        await using var command = connection.CreateCommand();
+
+        // 管理者がリマインダーを無効にした人には、何も見えない (通知も出ない)
+        command.CommandText =
+            $"""
+            {TimeAndDisabledSql};
+            {ReminderSelect}
+            WHERE (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId) AND NOT {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)}
+            ORDER BY Id;
+            {StateSelect}
+            WHERE UserId = @UserId AND IsDeleted = 0
+            ORDER BY Id;
+            """;
+        AddUserParameter(command, userId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadSnapshotAsync(reader, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>前回の基準より後に更新された、リマインダーと対応状態だけを読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="userId">今のユーザーの番号</param>
+    /// <param name="since">この日時以降に更新された行を読む</param>
+    /// <param name="wasDisabled">前回の読み出しで、無効にされていたか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>更新された行。無効の状態が前回と変わったとき (有効に戻ったときも含む)は null で、全件を読み直す。無効のままのときは、リマインダーを空にして返す</returns>
+    /// <remarks>
+    /// 3 つの問い合わせを 1 回の往復で読む。見える範囲の絞り込みは、全件のときと同じ。
+    /// 更新日時の索引 (<c>IX_Reminder_UpdatedAt</c>・<c>IX_ReminderState_UserId_UpdatedAt</c>)で、更新された行だけを探す。論理削除された行も、更新日時が進むので届く。
+    /// </remarks>
+    private static async Task<Snapshot?> ReadChangesAsync(
+        SqlConnection connection, int userId, DateTimeOffset since, bool wasDisabled, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+            {TimeAndDisabledSql};
+            {ReminderSelect}
+            WHERE UpdatedAt >= @Since AND (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId)
+            ORDER BY Id;
+            {StateSelect}
+            WHERE UserId = @UserId AND IsDeleted = 0 AND UpdatedAt >= @Since
+            ORDER BY Id;
+            """;
+        AddUserParameter(command, userId);
+        command.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset, 0) { Value = since, Scale = 3 });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await ReadSnapshotAsync(reader, cancellationToken).ConfigureAwait(false);
+
+        // 無効の状態が変わったときは、見える分が丸ごと変わるので、差分では足りない
+        if (snapshot.Disabled != wasDisabled)
+        {
+            return null;
+        }
+
+        // 無効のままの人には、何も見えない。差分の問い合わせは無効を見ないので、読んだリマインダーは捨てる
+        return snapshot.Disabled ? snapshot with { Reminders = [] } : snapshot;
+    }
+
+    /// <summary>3 つの結果 (日時と無効の有無・リマインダー・対応状態)を、順に読む</summary>
+    /// <param name="reader">読んでいるリーダー</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読み出しの結果</returns>
+    private static async Task<Snapshot> ReadSnapshotAsync(SqlDataReader reader, CancellationToken cancellationToken)
+    {
+        await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        var readAt = reader.GetDateTimeOffset(0);
+        var disabled = reader.GetInt32(1) == 1;
+
+        await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
         var reminders = new List<Reminder>();
-        await using (var command = connection.CreateCommand())
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            // 管理者がリマインダーを無効にした人には、何も見えない (通知も出ない)
-            command.CommandText =
-                $"""
-                SELECT Id, IsDeleted, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak
-                FROM dbo.Reminder
-                WHERE (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId) AND NOT {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)}
-                ORDER BY Id
-                """;
-            AddUserParameter(command, userId);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            reminders.Add(new ReminderRow
             {
-                reminders.Add(new ReminderRow
-                {
-                    Id = reader.GetInt32(0),
-                    IsDeleted = reader.GetBoolean(1),
-                    AuthorUserId = reader.GetInt32(2),
-                    TargetUserId = reader.GetInt32(3),
-                    Date = DateOnly.FromDateTime(reader.GetDateTime(4)),
-                    Time = TimeOnly.FromTimeSpan(reader.GetTimeSpan(5)),
-                    Weekdays = reader.GetByte(6),
-                    Title = reader.GetString(7),
-                    Note = reader.GetString(8),
-                    Link = reader.GetString(9),
-                    IsSpeak = reader.GetBoolean(10),
-                }.ToReminder());
-            }
+                Id = reader.GetInt32(0),
+                IsDeleted = reader.GetBoolean(1),
+                AuthorUserId = reader.GetInt32(2),
+                TargetUserId = reader.GetInt32(3),
+                Date = DateOnly.FromDateTime(reader.GetDateTime(4)),
+                Time = TimeOnly.FromTimeSpan(reader.GetTimeSpan(5)),
+                Weekdays = reader.GetByte(6),
+                Title = reader.GetString(7),
+                Note = reader.GetString(8),
+                Link = reader.GetString(9),
+                IsSpeak = reader.GetBoolean(10),
+            }.ToReminder());
         }
 
+        await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
         var states = new List<ReminderState>();
-        await using (var command = connection.CreateCommand())
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            command.CommandText =
-                """
-                SELECT Id, ReminderId, Date, Status
-                FROM dbo.ReminderState
-                WHERE UserId = @UserId AND IsDeleted = 0
-                ORDER BY Id
-                """;
-            AddUserParameter(command, userId);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            states.Add(new ReminderStateRow
             {
-                states.Add(new ReminderStateRow
-                {
-                    Id = reader.GetInt32(0),
-                    ReminderId = reader.GetInt32(1),
-                    Date = DateOnly.FromDateTime(reader.GetDateTime(2)),
-                    Status = reader.GetByte(3),
-                }.ToReminderState());
-            }
+                Id = reader.GetInt32(0),
+                ReminderId = reader.GetInt32(1),
+                Date = DateOnly.FromDateTime(reader.GetDateTime(2)),
+                Status = reader.GetByte(3),
+            }.ToReminderState());
         }
 
-        return (reminders, states);
+        return new Snapshot(reminders, states, readAt, disabled);
+    }
+
+    /// <summary>差分で読んだ行を、メモリの一覧に重ねる</summary>
+    /// <param name="changes">差分の読み出しの結果</param>
+    /// <param name="reminders">メモリのリマインダー</param>
+    /// <param name="states">メモリの対応状態</param>
+    /// <returns>重ねたあとの全件の一覧。番号の順</returns>
+    private static Snapshot Merge(Snapshot changes, IReadOnlyList<Reminder> reminders, IReadOnlyList<ReminderState> states)
+    {
+        var mergedReminders = reminders.ToDictionary(reminder => reminder.No);
+        foreach (var reminder in changes.Reminders)
+        {
+            mergedReminders[reminder.No] = reminder;
+        }
+
+        var mergedStates = states.ToDictionary(state => state.Seq);
+        foreach (var state in changes.States)
+        {
+            mergedStates[state.Seq] = state;
+        }
+
+        return changes with
+        {
+            Reminders = [.. mergedReminders.Values.OrderBy(reminder => reminder.No)],
+            States = [.. mergedStates.Values.OrderBy(state => state.Seq)],
+        };
     }
 
     /// <summary>トランザクションで書き込み、成功したらメモリに反映する</summary>

@@ -182,17 +182,15 @@ internal static class NotificationEndpoints
         var channel = new NotificationChannel { Kind = NotificationChannelKind.WebPush, Name = name, Value = value };
         // 同じ宛先の行を先に探す。覚えていた番号が古く、削除済みの別の行を指していると、その行を戻して、同じ宛先の行が 2 つ使用中になり、通知が二重に届くため
         if (await channels.FindWebPushAsync(subscription.Endpoint, cancellationToken) is { } existing
-            && await channels.UpdateAsync(channel with { Id = existing.Id }, cancellationToken))
+            && await channels.UpdateAndRestoreAsync(channel with { Id = existing.Id }, cancellationToken))
         {
-            await channels.SetDeletedAsync(existing.Id, isDeleted: false, cancellationToken);
             return Results.Ok(new PushRegisterResponse(existing.Id));
         }
 
         // 同じ宛先の行が無いときは、覚えていた番号の行を更新する。送り手の鍵が替わって宛先が変わっても、同じ行を使えて、受け取り先の選択が残る
-        if (request.Id > 0 && await channels.UpdateAsync(channel with { Id = request.Id }, cancellationToken))
+        // MmmTool の送信先の一覧で削除された行でも、更新は成功する。登録し直す操作なので、同じ文で削除を戻す。戻さないと、届かない
+        if (request.Id > 0 && await channels.UpdateAndRestoreAsync(channel with { Id = request.Id }, cancellationToken))
         {
-            // MmmTool の送信先の一覧で削除された行でも、更新は成功する。登録し直す操作なので、削除を戻す。戻さないと、届かない
-            await channels.SetDeletedAsync(request.Id, isDeleted: false, cancellationToken);
             return Results.Ok(new PushRegisterResponse(request.Id));
         }
 

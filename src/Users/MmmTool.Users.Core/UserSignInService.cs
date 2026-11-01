@@ -18,8 +18,9 @@ public sealed class UserSignInService(IAppUserRepository users, ISavedCredential
         var credential = saved.Load();
         if (credential is null)
         {
-            // 覚えていなくても、先に DB へつなげるか確かめる (つなげないとき、ログインの画面を出さずに、保存先が知らせるため)
-            await users.GetUsersAsync(cancellationToken).ConfigureAwait(false);
+            // 覚えていなくても、先に DB へつなげるか確かめる。つなげないとき、ログインの画面を出さずに、保存先が知らせるため。
+            // 存在しない番号 0 を 1 件引く。全ユーザーを読まず、つなげるかと表があるかだけを、主キーの 1 回の引きで確かめる
+            await users.GetUsersByIdsAsync([0], cancellationToken).ConfigureAwait(false);
             return null;
         }
 

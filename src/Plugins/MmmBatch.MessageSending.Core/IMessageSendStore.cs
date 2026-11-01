@@ -11,12 +11,21 @@ namespace MmmBatch.MessageSending.Core;
 /// </remarks>
 public interface IMessageSendStore
 {
-    /// <summary>送る対象になりうる通知の状態を取得する</summary>
+    /// <summary>無効の人の通知を止めてから、送る対象になりうる通知の状態を取得する</summary>
     /// <param name="maxAttempts">送ろうとする回数の上限。失敗でこれに達したものは含めない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送信待ち・送信中のものと、失敗で上限に達していないもの。番号の順。待つ時間で絞る前のすべてで、絞るのは <see cref="MessageSendService"/></returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    Task<IReadOnlyList<MessageSendTarget>> GetSendableAsync(int maxAttempts, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// 止めた件数と、送る対象。対象は、いま送ってよいもので、番号の順。
+    /// 足したばかりのもの、失敗して待ち時間が過ぎたもの、送信中のまま止まって待ち時間が過ぎたもの。回数が上限に達したものは含まない。
+    /// 待ち時間は、送り直しの決まり <c>SendRetryPolicy</c> を、DB の時計で当てる。待ち時間が残るものは、含まない。
+    /// </returns>
+    /// <remarks>
+    /// 通知を受ける人が、管理者にメッセージを無効にされている通知の状態を、送らなかったことにする。
+    /// 対象は送信待ち・送信中・失敗のもので、送信済みは変えない。有効に戻っても、古い通知は送り直さない。メッセージ本体は消さない。
+    /// 止める更新と読み出しを、1 回の往復で行う。止めたものは、読み出しに含まれない。
+    /// </remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<MessageSendBatch> SkipDisabledAndGetSendableAsync(int maxAttempts, CancellationToken cancellationToken = default);
 
     /// <summary>最近の通知の状態を、新しい順に取得する</summary>
     /// <param name="count">取得する最大の件数</param>
@@ -25,19 +34,20 @@ public interface IMessageSendStore
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(int count, CancellationToken cancellationToken = default);
 
-    /// <summary>通知を受ける人が、管理者にメッセージを無効にされている通知の状態を、送らなかったことにする</summary>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送らなかったことにした件数。送信待ち・送信中・失敗のものが対象で、送信済みは変えない</returns>
-    /// <remarks>送る前に呼ぶ。有効に戻っても、古い通知は送り直さない。メッセージ本体は消さない。</remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
-    Task<int> SkipDisabledAsync(CancellationToken cancellationToken = default);
-
     /// <summary>送る権利を取る。送信中にし、回数を 1 増やす</summary>
     /// <param name="current">読んだ内容。状態と更新日時が、いまの行と同じときだけ更新できる</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>権利を取れたとき true。別の MmmBatch が先に取っていれば false</returns>
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     Task<bool> TryClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken = default);
+
+    /// <summary>複数の通知の送る権利を、まとめて取る。取れたものを送信中にし、回数を 1 増やす</summary>
+    /// <param name="items">読んだ内容。それぞれ、状態と更新日時が、いまの行と同じときだけ更新できる</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>権利を取れた通知の状態の番号。別の MmmBatch が先に取っていたものは含まない</returns>
+    /// <remarks>行ごとに <see cref="TryClaimAsync"/> を呼ぶ代わりに使う。条件は 1 件のときと同じで、1 回の往復で更新する。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<IReadOnlySet<int>> TryClaimManyAsync(IReadOnlyList<MessageDeliveryItem> items, CancellationToken cancellationToken = default);
 
     /// <summary>送信済みにする</summary>
     /// <param name="id">通知の状態の番号</param>

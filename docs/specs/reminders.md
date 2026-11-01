@@ -64,6 +64,7 @@
 - 一覧 (`GetRemindersAsync`)は、保存先が見せるものを、そのまま返す (DB は、自分が作成したほかの人宛てを含む)
 - 保存先の外での変更 (ほかの PC など)は、`ExternalChanged` で知らせる
   - `ReminderService` が受けて、自分の書き込みと同じ `Changed` として画面・監視に伝える
+  - DB は、毎分、前回より後に更新された行だけを読んで反映する。30 分に 1 回は、見える分を全件読み直す。詳細は [database.md](database.md) の「Repository の動き」にある。
   - JSON は 1 つの PC だけなので、発火しない
   - DB (SQL Server)の保存先の動きは [database.md](database.md) の「Repository の動き」
 - JSON 実装 (`JsonReminderRepository`)

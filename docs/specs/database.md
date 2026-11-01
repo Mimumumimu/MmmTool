@@ -59,7 +59,7 @@
   - ユーザーの登録は本人が行う (別の人が登録する口は作らない)
     - 登録のとき自分の番号はまだ無いので、`AppUser` の作成者は 0 にする
   - 意味の薄い列も、共通化を優先して持つ
-    - `ReminderState` の `IsDeleted` は常に 0 (「なし」は行を消す)
+    - `ReminderState` の `IsDeleted` は常に 0。未対応に戻しても、行は消さず、`Status` を 0 にする
     - `ReminderState` の作成者・更新者は `UserId` と同じ人 (本人の操作のため)
 - 日時は時差つき・ミリ秒まで
   - 日本時間 +09:00 のまま保存する (SSMS などで日本時間のまま読める)
@@ -176,6 +176,7 @@
   - `IX_Reminder_TargetUserId (TargetUserId)`: 宛先が自分・全員宛て
   - `IX_Reminder_AuthorUserId (AuthorUserId)`: 自分が作ったもの
   - 見える範囲は、この 2 つの条件を合わせる
+  - `IX_Reminder_UpdatedAt (UpdatedAt)`: 毎分の読み直しを、前回より後に更新された行だけにする差分の取得のため。共通の列で索引に使ってよいのは、`UpdatedAt` だけ。更新用スクリプト `012_AddReminderUpdatedAtIndexes.sql` で足した
   - 削除済みも含めて持つ (「削除済みを表示」のため)
 - 曜日の列は、ドメインの `[Flags]`(`Weekdays`)と JSON と同じ数をそのまま持つ (変換が要らない)
 - 件名・備考・リンクの長さ (200・1000・2000)は、アプリの `ReminderLimits` (入力画面の `MaxLength`)と同じ数にそろえる
@@ -198,23 +199,24 @@
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ドメインの `Seq` |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列で、「なし」は行を消す) |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0。共通ヘッダーのための列で、未対応に戻しても行は消さない |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `ReminderId` | 整数 | `int` | | 対応するリマインダー (`Reminder.Id`) |
 | `UserId` | 整数 | `int` | | 状態を持つ人 (`AppUser.Id`) |
-| `Date` | 日付 | `date` | | どの日の状態か |
-| `Status` | 整数 (小) | `tinyint` | | Done = 1 / Snooze = 2 で、1 か 2 の検査。None は行を持たない |
+| `Date` | 日付 | `date` | | どの日の状態か。今日でない行は、未対応として扱う |
+| `Status` | 整数 (小) | `tinyint` | | None = 0 / Done = 1 / Snooze = 2 で、0 から 2 の検査。未対応に戻したら、行を消さずに 0 にする。更新用スクリプト `011_AllowReminderStateNone.sql` で、0 を許した |
 
 - `(ReminderId, UserId)` を一意にする (状態は人ごとに 1 件で上書き)
+- `IX_ReminderState_UserId_UpdatedAt (UserId, UpdatedAt)`: 自分の状態の変わりを、差分で読む。業務の列 `UserId` と、`UpdatedAt` だけで作る。`012_AddReminderUpdatedAtIndexes.sql` で足した
 - 全員宛てのリマインダーを自分が完了にしても、他の人の状態は変わらない
 - ドメインの型 (`ReminderState`)と DB の行 (`MmmTool.Data` の `ReminderStateRow`)の変換は、`ReminderStateRow.FromReminderState` / `ToReminderState` に集める
   - `Seq` ↔ `Id`、`BaseNo` ↔ `ReminderId`、日付 (`yyyyMMdd`) ↔ `date`、対応状態は完了 = 1・スヌーズ = 2 のまま
-  - 未対応 (`None`)は行にしない
-    - `FromReminderState` は `ArgumentException` にするので、`None` への変更は、Repository が行を消す
-    - 範囲外の対応状態・正しくない日付も、バグなので例外 (握りつぶさない)
+  - 未対応 (`None`)も行にする: `Status` は 0
+    - 「未対応に戻す」ために、行を消さない。`Date` があるので、今日の行が無い人も、今日でない行がある人も、未対応と読める
+    - 範囲外の対応状態・正しくない日付は、バグなので例外 (握りつぶさない)
   - アプリの型に人 (`UserId`)が無いので、変換では決めない
     - 作成・更新の日時と、作成者・更新者も同じ (Repository が、操作した人を入れる)
 
@@ -757,12 +759,16 @@
   - 見えない人の操作は、対象が無いのと同じ (false)
 - 完全削除 (行を消す)は、DB では行わない (ユーザーの決定)
   - 画面は、完全削除の操作を出さない (`IReminderRepository.CanPurge` が false)
-- 未対応への変更は、自分の対応状態の行を消す
+- 未対応への変更は、自分の対応状態の行を消さず、`Status` を 0 にする
 
 ## Repository の動き (`SqlServerReminderRepository`)
 
 - 読みはメモリから返す
-  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに読み、そのあとは 1 分ごとに全件読み直す
+  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに全件読み、そのあとは 1 分ごとに、前回より後に更新された行だけを読んで、メモリに重ねる
+    - 基準は、前回の読み出しを始めたときの DB の時計。そこから 10 秒戻して読む (更新が確定するのが遅れた書き込みを、取りこぼさないため)
+    - 行は消さない (論理削除で、「未」は `Status` が 0)ので、削除や「未」に戻した変わりも、更新日時で届く
+    - 次のときは、全件を読み直す: 最初・ユーザーが替わったとき・管理者がリマインダーを無効にした (または有効に戻した)とき・差分を 30 回続けたとき
+      - 30 回ごとに全件を読む理由: 宛先を替えられて見えなくなった行など、差分では分からない変わりを、直すため
   - 前回と違えば `ExternalChanged` を発火する (ほかの PC の変更が、読み直しで反映される)
   - 自分の書き込みでは発火しない (それは `ReminderService.Changed` が知らせる)
 - 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する
@@ -868,7 +874,9 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`・`011_AllowReminderStateNone.sql`・`012_AddReminderUpdatedAtIndexes.sql`
+  - `012_AddReminderUpdatedAtIndexes.sql` は、リマインダーの毎分の読み直しを差分にするために、`Reminder` の `IX_Reminder_UpdatedAt` と、`ReminderState` の `IX_ReminderState_UserId_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
+  - `011_AllowReminderStateNone.sql` は、未対応に戻したとき行を消さずに残すために、`ReminderState` の `Status` の検査を、0 も許す形に付け替える。SQL Server だけ。流す前の DB で、新しいアプリが未対応に戻す操作をすると、検査に当たって保存できない。
   - `010_AddMessageReadPosition.sql` は、メッセージの既読のために、`MessageConversationMember` に `LastReadMessageId` の列と `IX_MessageConversationMember_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
   - `009_AddNoteNoticeIndexes.sql` は、他の人の作成・更新の通知のための索引を足す。無ければ作る。
     - `Note` の `IX_Note_UpdatedAt`。SQLite は、`Sql/schema.sql` との点検が足す。

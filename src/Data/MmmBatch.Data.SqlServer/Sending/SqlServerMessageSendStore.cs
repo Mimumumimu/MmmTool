@@ -1,6 +1,8 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using MmmBatch.MessageSending.Core;
+using MmmBatch.Sending.Core;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
@@ -39,11 +41,6 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
         LEFT JOIN dbo.AppUser AS su ON su.Id = m.SenderUserId
         """;
 
-    /// <inheritdoc />
-    public Task<IReadOnlyList<MessageSendTarget>> GetSendableAsync(int maxAttempts, CancellationToken cancellationToken = default)
-        => ReadAsync(
-            "WHERE d.IsDeleted = 0 AND d.Status IN (@Pending, @Failed) AND d.Attempts < @MaxAttempts ORDER BY d.Id",
-            maxAttempts, null, cancellationToken);
 
     /// <inheritdoc />
     /// <remarks>主キー (<c>Id</c>)の降順で先頭から読む。日付・状態では絞らないので、索引は要らない。</remarks>
@@ -56,7 +53,7 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
     /// <remarks>
     /// 受ける人のメッセージが無効かの判定は、MmmTool と Web 版が宛先を外すときと同じ条件で、<see cref="FeatureAccessSql"/> にある。
     /// </remarks>
-    public Task<int> SkipDisabledAsync(CancellationToken cancellationToken = default)
+    public Task<MessageSendBatch> SkipDisabledAndGetSendableAsync(int maxAttempts, CancellationToken cancellationToken = default)
         => SendTableAccess.RunAsync(database, async connection =>
         {
             await using var command = connection.CreateCommand();
@@ -74,34 +71,77 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
                 FROM dbo.MessageDelivery AS d
                 WHERE d.IsDeleted = 0 AND d.Status IN (@Pending, @Failed) AND {disabled};
                 SELECT @@ROWCOUNT;
+                {Select}
+                WHERE d.IsDeleted = 0 AND d.Status IN (@Pending, @Failed) AND d.Attempts < @MaxAttempts
+                    AND ((d.Status = @Pending AND (d.Attempts = 0 OR d.UpdatedAt <= DATEADD(second, -@StaleSeconds, SYSDATETIMEOFFSET())))
+                        OR (d.Status = @Failed AND d.UpdatedAt <= DATEADD(second, -(SELECT w.Seconds FROM OPENJSON(@FailedWaits) WITH (Attempts int '$.attempts', Seconds int '$.seconds') AS w WHERE w.Attempts = d.Attempts), SYSDATETIMEOFFSET())))
+                ORDER BY d.Id;
                 """;
             command.Parameters.Add(new SqlParameter("@Pending", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Pending });
             command.Parameters.Add(new SqlParameter("@Failed", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Failed });
             command.Parameters.Add(new SqlParameter("@Skipped", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Skipped });
-            return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+            command.Parameters.Add(new SqlParameter("@MaxAttempts", SqlDbType.Int) { Value = maxAttempts });
+
+            // 待ち時間は、送り直しの決まり (SendRetryPolicy)から作って渡す。決まりを SQL に写さない
+            command.Parameters.Add(new SqlParameter("@StaleSeconds", SqlDbType.Int) { Value = (int)SendRetryPolicy.StalePendingAge.TotalSeconds });
+            var failedWaits = JsonSerializer.Serialize(Enumerable.Range(0, maxAttempts).Select(attempts => new { attempts, seconds = (int)SendRetryPolicy.FailedWait(attempts).TotalSeconds }));
+            command.Parameters.Add(new SqlParameter("@FailedWaits", SqlDbType.NVarChar, -1) { Value = failedWaits });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            // 1 つ目の結果は止めた件数、2 つ目の結果は送る対象
+            await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            var skipped = reader.GetInt32(0);
+            await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+            var targets = new List<MessageSendTarget>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                targets.Add(ReadTarget(reader));
+            }
+            return new MessageSendBatch(skipped, targets);
         }, cancellationToken);
 
     /// <inheritdoc />
-    public Task<bool> TryClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken = default)
+    public async Task<bool> TryClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(current);
+        return (await TryClaimManyAsync([current], cancellationToken).ConfigureAwait(false)).Contains(current.Id);
+    }
 
-        return SendTableAccess.RunAsync(database, async connection =>
+    /// <inheritdoc />
+    /// <remarks>
+    /// 読んだときの状態・更新日時と同じ行だけを更新する。別の MmmBatch が先に取っていれば、その行は更新されない。
+    /// 行ごとの条件 (番号・状態・更新日時)は、JSON の 1 つのパラメーターで渡す。更新日時はミリ秒までの値で比べる。
+    /// </remarks>
+    public Task<IReadOnlySet<int>> TryClaimManyAsync(IReadOnlyList<MessageDeliveryItem> items, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        if (items.Count == 0)
         {
-            // 読んだときの状態・更新日時と同じときだけ更新する。別の MmmBatch が先に取っていれば、0 行になる
+            return Task.FromResult<IReadOnlySet<int>>(new HashSet<int>());
+        }
+
+        var json = JsonSerializer.Serialize(items.Select(item => new { id = item.Id, status = (byte)item.Status, updatedAt = item.UpdatedAt }));
+        return SendTableAccess.RunAsync<IReadOnlySet<int>>(database, async connection =>
+        {
             await using var command = connection.CreateCommand();
             command.CommandText =
                 """
-                UPDATE dbo.MessageDelivery
-                SET Status = @Pending, Attempts = Attempts + 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
-                WHERE Id = @Id AND Status = @Status AND UpdatedAt = @UpdatedAt;
-                SELECT @@ROWCOUNT;
+                UPDATE d SET d.Status = @Pending, d.Attempts = d.Attempts + 1, d.UpdatedAt = SYSDATETIMEOFFSET(), d.UpdatedByUserId = 0
+                OUTPUT inserted.Id
+                FROM dbo.MessageDelivery AS d
+                INNER JOIN OPENJSON(@Items) WITH (Id int '$.id', Status tinyint '$.status', UpdatedAt datetimeoffset(3) '$.updatedAt') AS j ON j.Id = d.Id
+                WHERE d.Status = j.Status AND d.UpdatedAt = j.UpdatedAt
                 """;
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = current.Id });
             command.Parameters.Add(new SqlParameter("@Pending", SqlDbType.TinyInt) { Value = (byte)MessageSendStatus.Pending });
-            command.Parameters.Add(new SqlParameter("@Status", SqlDbType.TinyInt) { Value = (byte)current.Status });
-            command.Parameters.Add(new SqlParameter("@UpdatedAt", SqlDbType.DateTimeOffset, 0) { Value = current.UpdatedAt, Scale = 3 });
-            return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
+            command.Parameters.Add(new SqlParameter("@Items", SqlDbType.NVarChar, -1) { Value = json });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var claimed = new HashSet<int>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                claimed.Add(reader.GetInt32(0));
+            }
+            return claimed;
         }, cancellationToken);
     }
 

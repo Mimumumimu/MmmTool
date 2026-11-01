@@ -247,6 +247,52 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 自分の状態と相手の状態を、同じ問い合わせの列にして読む。
+    /// 会話の番号があるときは、<see cref="CanPeerReceiveAsync"/> と同じ決まりで相手を見つける。グループは、相手が 1 人に決まらないので true。
+    /// </remarks>
+    public Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default)
+    {
+        var me = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<MessageReceiveState?>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            if (conversationId > 0)
+            {
+                command.CommandText =
+                    $"""
+                    SELECT c.Kind,
+                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END,
+                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Me")} THEN 1 ELSE 0 END
+                    FROM dbo.MessageConversation AS c
+                    INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
+                    OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
+                                 WHERE mm.ConversationId = c.Id AND mm.UserId <> @Me AND mm.IsDeleted = 0 ORDER BY mm.Id) AS peer
+                    WHERE c.Id = @ConversationId AND c.IsDeleted = 0
+                    """;
+                command.Parameters.Add(Int("@ConversationId", conversationId));
+            }
+            else
+            {
+                command.CommandText =
+                    $"""
+                    SELECT CAST({DirectKind} AS tinyint),
+                           CASE WHEN @Peer <= 0 OR {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Peer")} THEN 1 ELSE 0 END,
+                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Me")} THEN 1 ELSE 0 END
+                    """;
+                command.Parameters.Add(Int("@Peer", peerUserId));
+            }
+            command.Parameters.Add(Int("@Me", me));
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return null;
+            }
+            return new MessageReceiveState(reader.GetInt32(2) == 1, reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1);
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <exception cref="ArgumentException">本文が空か長すぎる・送り先の指定が正しくない。</exception>
     public Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default)
     {

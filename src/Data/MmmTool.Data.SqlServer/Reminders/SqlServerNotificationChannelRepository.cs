@@ -162,6 +162,20 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     public Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
+        => UpdateCoreAsync(channel, restore: false, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    public Task<bool> UpdateAndRestoreAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
+        => UpdateCoreAsync(channel, restore: true, cancellationToken);
+
+    /// <summary>自分が使用者の送信先の名前と値を更新する。削除済みを戻すかを選べる</summary>
+    /// <param name="channel">置き換える内容</param>
+    /// <param name="restore">true なら、削除済みの行の削除を戻す</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>対象があって更新したとき true</returns>
+    private Task<bool> UpdateCoreAsync(NotificationChannel channel, bool restore, CancellationToken cancellationToken)
     {
         var row = NotificationChannelRow.FromChannel(channel);
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -170,9 +184,9 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
             // 自分が使用者のものだけ、区分は変えずに、名前と値を更新する
             await using var command = connection.CreateCommand();
             command.CommandText =
-                """
+                $"""
                 UPDATE dbo.NotificationChannel
-                SET Name = @Name, Value = @Value, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+                SET Name = @Name, Value = @Value, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId{(restore ? ", IsDeleted = 0" : "")}
                 WHERE Id = @Id AND UserId = @UserId AND Kind = @Kind
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = row.Id });

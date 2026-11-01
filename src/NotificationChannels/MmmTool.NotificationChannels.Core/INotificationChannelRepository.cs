@@ -61,6 +61,15 @@ public interface INotificationChannelRepository
     /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
     Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default);
 
+    /// <summary>自分が登録した送信先を、同じ番号の内容で置き換え、削除済みなら削除を戻す</summary>
+    /// <param name="channel">置き換える内容。<see cref="NotificationChannel.Id"/> で対象を決め、区分は変えない</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>対象があって置き換えたとき true。無いときと、自分が登録したものでないときは false</returns>
+    /// <remarks><see cref="UpdateAsync"/> と <see cref="SetDeletedAsync"/> を続けて呼ぶ代わりに、1 文で行う。端末が登録し直したときに使う。</remarks>
+    /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    Task<bool> UpdateAndRestoreAsync(NotificationChannel channel, CancellationToken cancellationToken = default);
+
     /// <summary>自分が登録した送信先の削除フラグ (論理削除)を変える</summary>
     /// <param name="id">送信先の番号</param>
     /// <param name="isDeleted">削除済みにするか (false なら解除)</param>

@@ -77,6 +77,15 @@ public interface IMessageRepository
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default);
 
+    /// <summary>入力欄を出すための、自分と相手が受け取り先を指定しているかを、1 回で調べる</summary>
+    /// <param name="conversationId">開いている会話の番号。0 のときは使わない</param>
+    /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。0 のときは、相手を決めない</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>自分と相手の状態。会話の番号があるときは、<see cref="CanPeerReceiveAsync"/> と同じ決まりで相手を決める。自分が入っていない会話・無い会話は null</returns>
+    /// <remarks><see cref="CanReceiveAsync"/> と <see cref="CanPeerReceiveAsync"/> を別々に呼ぶ代わりに使う。相手を決めないときの相手の状態は true。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default);
+
     /// <summary>メッセージを送る</summary>
     /// <param name="target">送り先。既にある会話・1 対 1 の相手・新しいグループのどれか</param>
     /// <param name="body">本文。前後の空白は取って書く</param>
