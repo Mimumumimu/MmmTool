@@ -27,7 +27,7 @@
 | `src/Plugins/MmmToolWeb.Reminders` | リマインダーの Web 版。画面と API は持たず、「通知」の一覧に出す、リマインダーの提供元を登録するだけ。リマインダーの Web 画面は、このプロジェクトに足す |
 
 - 発行すると、Client の出力が Server の出力の中にコピーされ、1 つのフォルダになる (`dotnet publish` で `Server` を発行する。`Server` が `Client` を参照しているため、向きは Client から Server)
-  - フォルダ直下 (`MmmToolWeb.Server.exe` と DLL): サーバーの PC で動く部分
+  - フォルダ直下 (`MmmToolWeb.Server.exe` と数ファイル): サーバーの PC で動く部分。パッケージ・自分のプロジェクトの DLL は `Lib\` に置く ([build-and-distribution.md](../build-and-distribution.md))
   - `wwwroot\` (`index.html`・`css`・`js`・`_framework`): Client の出力。サーバーが iPhone に配るファイルで、サーバーでは実行されない
   - 1 つのフォルダにするのは、アドレスを 1 つにするため (パスキーはアドレスに結びつく)。Client を別の置き場に分けない
 - ソリューションは `MmmToolWeb.slnx`。`MmmTool.slnx` からは参照せず、`MmmToolWeb.*` のプロジェクトを `MmmTool.*` が参照することもない。

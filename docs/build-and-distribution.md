@@ -69,6 +69,14 @@
   - MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の 4 つすべてを発行する
   - 1 つだけ発行するときは、MmmTool は `01_update_and_publish_tool.bat`、MmmToolWeb は `11_update_and_publish_web.bat`、MmmBatch は `21_update_and_publish_batch.bat`、MmmToolAdmin は `29_update_and_publish_admin.bat` を実行する。4 つとも `00_update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
   - MmmToolWeb の出力は `src/App/MmmToolWeb/Server/bin/Release/publish/MmmToolWeb/`
+    - 直下に残るのは、`MmmToolWeb.Server.exe`・`.dll`・`.deps.json`・`.runtimeconfig.json` などの数ファイルと、`Assets\`・`Lib\`・`wwwroot\` (ブラウザに配る画面)だけ
+    - パッケージの DLL・自分のプロジェクトの DLL・言語別リソース (日本語と英語だけ)は `Lib\` にある。仕組みは MmmTool と同じ `build/AppDistribution.targets`
+    - ブラウザのデバッグ用の `BlazorDebugProxy\` は、Release の出力に入れない
+      - 設定は `BlazorWebAssemblyOmitDebugProxyOutput`
+      - VS で F5 する Debug にだけ要るため
+    - 発行は前の出力を消さないので、整理前の出力が残るフォルダーには、ばらの DLL が残る
+      - `bin/Release/publish/MmmToolWeb/` を消してから発行する
+      - `Data/` や `appsettings.json` を置いて使っているときは、先に退避する
   - リポジトリの根元は、バッチの 1 つ上のフォルダ。どこにクローンしても動く。
   - 順は、`git pull --ff-only` → `git submodule update --init --recursive` → 上の `dotnet publish`。どれかが失敗した時点で止まる。
   - 出力先の考え方は上と同じで、発行の前に既存のファイルは消さない
@@ -125,7 +133,7 @@
   - MmmBatch のアイコンは MmmTool と別にする
     - 緑の角丸の四角・白い歯車・紫の再生マークにする
     - タスクトレイとウィンドウで MmmTool と見分けるため
-  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin の csproj の末尾が読み込む
+  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin・MmmToolWeb.Server の csproj の末尾が読み込む
     - 仕組みは、`Lib` への移動・`deps.json` の書き足し・ライセンス全文の自動生成・Release の強制・配布物のフォルダへの配置・発行の設定
     - アプリごとに違う値は、各 csproj に書く: `DistributionFolderName` (配布物のフォルダ名で、MmmTool は `MmmTool_$(Version)`)・`DistributionDocument` (並べる説明書で、MmmTool だけ)・`LICENSE.txt` の `None` の項目・アイコンなど
     - 最終形にどう近づくか: 配布の仕組みが 1 か所になり、アプリを足しても写さずに済む
