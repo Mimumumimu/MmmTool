@@ -27,6 +27,10 @@ public sealed partial class MainWindow : Window
         _settings = settings;
         _exit = exit;
         InitializeComponent();
+#if DEBUG
+        // デバッグビルドで起動したと分かるよう、タイトルバーの文字に付ける
+        TitleText.Text = "MmmTool (DebugMode)";
+#endif
         ContentHost.Child = navigation;
         HistoryButtons.Bind(navigation.ViewModel);
 
