@@ -533,7 +533,7 @@
 | `ReportExclusion` | 0〜2 の整数 | `tinyint` | 0 | 作業報告のどの部分から外すか。0 は外さない、1 は予定にだけ出さず、実績には、ほかの作業と同じ条件で出す、2 は実績にも予定にも出さない。値は `WorkReportExclusion` で、外す範囲が増えるときは、値を足す。ノートの「全員」の人の一覧も、同じ範囲で外す。定例の会議など、報告に書かない作業に付ける。検査 `CK_WorkItem_ReportExclusion` (0・1・2 のどれか)を、SQL Server にも付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列で、0.7.0 は `ReportExcluded` (`bit`)の名前で足した。SQL Server は、更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、`005_AddNoteEventDate.sql` が、名前と型をその場で変えるので、位置は変わらない。SQLite は、`Sql/schema.sql` との点検が新しい列を足し、列の置き換え (`SqliteMigrations.ColumnReplacements`)が、古い列 (`ReportExcluded` か `PlanExcluded`)の値を移して、古い列を落とす。SQLite は列の位置を決められず、新しい列は末尾に付く |
 | `AutoHours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | 自動入力の時間。0 は自動入力しない。0 より大きいと、作業管理のページを開いたとき、システムの今日の記録が無ければ、この時間を入れる。0 以上 24 以下の検査。位置は、行の属性として `ReportExclusion` の次で、状態の前。SQLite は列の位置を決められず、新しい列は末尾に付く |
 | `AutoWeekdays` | 整数 (小) | `tinyint` | 0 | 自動入力する曜日。月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数で、`Reminder.Weekdays` と同じ。0 と 127 は、どちらも毎日。0 から 127 の検査。位置は `AutoHours` の次 |
-| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 1・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
+| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 1・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 / OnHold = 5 で、コードの列挙と同じ値。表示順は、作業中の次が保留のコード番号 5、その次が完了のコード番号 4 で、コード番号の順とは違う。1 以上の検査で、上限は持たない |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 1・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
@@ -874,7 +874,8 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`・`011_AllowReminderStateNone.sql`・`012_AddReminderUpdatedAtIndexes.sql`
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`・`011_AllowReminderStateNone.sql`・`012_AddReminderUpdatedAtIndexes.sql`・`013_AddWorkStatusOnHold.sql`
+  - `013_AddWorkStatusOnHold.sql` は、作業管理の状態に「保留」を足す。コードマスタの機能番号 1・区分 1 で、完了 (コード番号 4)の表示順を 4 から 5 に変え、保留をコード番号 5・表示順 4 で足す。何度流しても同じ結果になる。流す前の DB で、新しいアプリが状態を保留にすると、名前を引けず、状態の選択肢にも出ない。
   - `012_AddReminderUpdatedAtIndexes.sql` は、リマインダーの毎分の読み直しを差分にするために、`Reminder` の `IX_Reminder_UpdatedAt` と、`ReminderState` の `IX_ReminderState_UserId_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
   - `011_AllowReminderStateNone.sql` は、未対応に戻したとき行を消さずに残すために、`ReminderState` の `Status` の検査を、0 も許す形に付け替える。SQL Server だけ。流す前の DB で、新しいアプリが未対応に戻す操作をすると、検査に当たって保存できない。
   - `010_AddMessageReadPosition.sql` は、メッセージの既読のために、`MessageConversationMember` に `LastReadMessageId` の列と `IX_MessageConversationMember_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
@@ -896,6 +897,7 @@
     - `WorkItem` の列 `AutoHours` (`decimal(4,2)`)と `AutoWeekdays` (`tinyint`)を、既定値の制約と値の検査つきで足す。SQLite は、`Sql/schema.sql` との点検が足す。
     - 索引 `IX_WorkItem_AssigneeUserId_AutoHours` を足す。
     - ストアドプロシージャ `dbo.FindWebPushChannel (@UserId, @Endpoint)` を足す。Web 版通知の宛先 (`Value` の JSON の `endpoint`)から、自分の `Kind = 3` の行の `Id` と `IsDeleted` を返す。Web 版の DB のログインは `Value` を読めないので、表と同じ持ち主 (`dbo`)の権限で動くプロシージャに探させる。`Value` は返さない。SQL Server だけで、SQLite には送信先の表が無い。
+  - SQLite の `006_AddWorkStatusOnHold.sql` は、SQL Server の `013_AddWorkStatusOnHold.sql` と同じ設計で、コードマスタの作業管理の状態に保留を足す。起動時に、版が新しいスクリプトとして自動で流れる。
   - SQLite の `005_RenumberFeatureNo.sql` は、作業管理の機能番号を、コードマスタ `CodeMaster` で 2 から 1 に変える。ローカルモードにあるのは、この行だけ。起動時に、版が新しいスクリプトとして自動で流れる。
   - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
     - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。

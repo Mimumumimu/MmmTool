@@ -72,7 +72,7 @@ public interface IWorkItemRepository
     /// <param name="to">記録を読み終える日で、報告日。その日も含む</param>
     /// <param name="userId">人の番号。null は自分</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>担当が指定の人で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業と、その作業が属する案件・グループ、期間内の記録、報告日のその人の日報メモ</returns>
+    /// <returns>担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業と、その作業が属する案件・グループ、期間内の記録、報告日のその人の日報メモ</returns>
     /// <remarks>
     /// 表示しない案件も含む。表示しないのは、この PC の見え方の設定のため。人で絞るのは作業の担当者 <see cref="WorkItem.AssigneeUserId"/> だけで、記録を付けた人は問わない。日報メモは、持ち主 <c>UserId</c> が指定の人の行だけ。
     /// 表ごとに別の <c>SELECT</c> で、1 回の往復で受け取る。

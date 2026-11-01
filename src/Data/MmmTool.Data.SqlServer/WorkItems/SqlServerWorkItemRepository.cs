@@ -133,11 +133,11 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="assigneeParameter">条件が使うパラメーターの名前と値</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>指定の担当者の、作業報告の中身</returns>
-    /// <remarks>担当が指定の人で、状態が作業予定・作業中か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る。</remarks>
+    /// <remarks>担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る。</remarks>
     private async Task<WorkReportData> LoadReportCoreAsync(
         SqlConnection connection, DateOnly from, DateOnly to, string assignee, (string, object) assigneeParameter, CancellationToken cancellationToken)
     {
-        (string, object)[] parameters = [assigneeParameter, ("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual), ("@feature", WorkCodes.FeatureNo)];
+        (string, object)[] parameters = [assigneeParameter, ("@from", from), ("@to", to), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual), ("@feature", WorkCodes.FeatureNo)];
         var projects = new List<WorkProject>();
         var groups = new List<WorkGroup>();
         var items = new List<WorkItem>();
@@ -167,8 +167,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 connection,
                 null,
                 // 担当者で絞らず、状態・完了日・記録の日付・日報メモの日付から引く。予定の枝は外す印が無い作業だけ、実績の枝は実績と予定から外す作業を除く。索引は 004_AddWorkReportExclusion.sql にある。条件ごとに分けて UNION し、それぞれが索引を使えるようにする
-                """
-                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExclusion = 0 AND i.StatusCodeNo IN (@planned, @inProgress)
+                $"""
+                SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExclusion = 0 AND i.StatusCodeNo IN ({WorkItemStatuses.ReportSqlList})
                 UNION
                 SELECT i.AssigneeUserId FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId <> 0 AND i.ReportExclusion <> @exclAll AND i.StatusCodeNo = @closed AND i.CompletedDate >= @from AND i.CompletedDate <= @to
                 UNION
@@ -176,7 +176,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                 UNION
                 SELECT n.UserId FROM dbo.WorkDayNote n WHERE n.IsDeleted = 0 AND n.Date = @to AND LTRIM(RTRIM(n.Note)) <> N''
                 """,
-                [("@from", from), ("@to", to), ("@planned", (int)WorkItemStatus.Planned), ("@inProgress", (int)WorkItemStatus.InProgress), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual)],
+                [("@from", from), ("@to", to), ("@closed", (int)WorkItemStatus.Closed), ("@exclAll", (byte)WorkReportExclusion.PlanAndActual)],
                 reader => reader.GetInt32(0),
                 cancellationToken),
             cancellationToken);
@@ -209,9 +209,9 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             connection => QueryAsync(
                 connection,
                 null,
-                // 担当が自分で、完了していなくて、自動入力の時間がある作業。表示しない案件も含む。索引は 007_AddWorkItemAutoEntry.sql の IX_WorkItem_AssigneeUserId_AutoHours
-                $"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId = @me AND i.AutoHours > 0 AND i.StatusCodeNo <> @closed AND i.ProjectId IN (SELECT p.Id FROM dbo.WorkProject p WHERE p.IsDeleted = 0)",
-                [("@me", UserId), ("@closed", (int)WorkItemStatus.Closed)],
+                // 担当が自分で、完了も保留もしていなくて、自動入力の時間がある作業。表示しない案件も含む。索引は 007_AddWorkItemAutoEntry.sql の IX_WorkItem_AssigneeUserId_AutoHours
+                $"SELECT {Header("i")}, {ItemColumns("i")} FROM dbo.WorkItem i WHERE i.IsDeleted = 0 AND i.AssigneeUserId = @me AND i.AutoHours > 0 AND i.StatusCodeNo NOT IN ({WorkItemStatuses.AutoEntryStoppedSqlList}) AND i.ProjectId IN (SELECT p.Id FROM dbo.WorkProject p WHERE p.IsDeleted = 0)",
+                [("@me", UserId)],
                 reader => ReadItem(reader).ToWorkItem(),
                 cancellationToken),
             cancellationToken);
@@ -219,14 +219,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
     /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
-    /// <returns>条件の SQL。パラメーター <c>@planned</c>・<c>@inProgress</c>・<c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う</returns>
+    /// <returns>条件の SQL。パラメーター <c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う</returns>
     /// <remarks>
     /// 担当が指定の人で、次のどちらか。
-    /// 予定の枝は、外す印が無く、状態が作業予定・作業中。
+    /// 予定の枝は、外す印が無く、状態が作業予定・作業中・保留。
     /// 実績の枝は、実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
     /// </remarks>
     private static string ReportItemCondition(string alias, string assignee)
-        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId {assignee} AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN (@planned, @inProgress)) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
+        => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId {assignee} AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN ({WorkItemStatuses.ReportSqlList})) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
 
     /// <inheritdoc />
     public Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default)
@@ -259,12 +259,15 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         => RunAsync<IReadOnlyList<WorkProjectEntry>>(
             connection =>
             {
-                // 完了済み: 作業が 1 件以上あり、未完了の作業 (状態が完了でない、または完了日が無い)が 1 件も無い。選んでいるか: 選んだ案件の番号 (JSON)に含まれるか
+                // 止めている: 完了でない作業が 1 件以上あり、そのすべてが止めている状態で、規則は WorkItemStatuses.ContainerStatus と同じ。完了済み: 作業が 1 件以上あり、未完了の作業 (状態が完了でない、または完了日が無い)が 1 件も無い。選んでいるか: 選んだ案件の番号 (JSON)に含まれるか
                 var sql = $"""
                     SELECT p.Id, p.Name,
                            CASE WHEN {ProjectFilter("p", "Id", exclude: true)} THEN 1 ELSE 0 END,
                            f.IsFinished,
-                           CASE WHEN f.IsFinished = 1 THEN (SELECT MAX(w.CompletedDate) FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END
+                           CASE WHEN f.IsFinished = 1 THEN (SELECT MAX(w.CompletedDate) FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0) ELSE @none END,
+                           CASE WHEN EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND w.StatusCodeNo IN ({WorkItemStatuses.StoppedSqlList}))
+                                 AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND w.StatusCodeNo <> @closed AND w.StatusCodeNo NOT IN ({WorkItemStatuses.StoppedSqlList}))
+                                THEN 1 ELSE 0 END
                     FROM dbo.WorkProject p
                     CROSS APPLY (SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0)
                                               AND NOT EXISTS (SELECT 1 FROM dbo.WorkItem w WHERE w.ProjectId = p.Id AND w.IsDeleted = 0 AND (w.CompletedDate = @none OR w.StatusCodeNo <> @closed))
@@ -286,7 +289,8 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
                         reader.GetString(1),
                         reader.GetInt32(2) != 0,
                         reader.GetInt32(3) != 0,
-                        reader.GetInt32(3) != 0 ? WorkRowValues.ToDate(DateOnly.FromDateTime(reader.GetDateTime(4))) : null),
+                        reader.GetInt32(3) != 0 ? WorkRowValues.ToDate(DateOnly.FromDateTime(reader.GetDateTime(4))) : null,
+                        reader.GetInt32(5) != 0),
                     cancellationToken);
             },
             cancellationToken);
