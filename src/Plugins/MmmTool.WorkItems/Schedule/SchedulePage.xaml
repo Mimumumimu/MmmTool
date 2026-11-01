@@ -84,6 +84,20 @@
                 <TextBlock Style="{StaticResource ValueTextStyle}" Text="{x:Bind AssigneeName, Mode=OneWay}" />
             </DataTemplate>
 
+            <!-- 状態。案件・グループは、下の作業から計算した値なので、計算値の色 -->
+            <DataTemplate x:Key="StatusCell" x:DataType="local:ScheduleRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
             <!-- 進捗。期限切れの作業は、右に警告のアイコンを付ける。色だけで伝えないため。触れると、過ぎた日数を出す -->
             <DataTemplate x:Key="ProgressCell" x:DataType="local:ScheduleRow">
                 <StackPanel Orientation="Horizontal" Spacing="6">

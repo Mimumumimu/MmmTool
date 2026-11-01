@@ -383,6 +383,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
             node.Children.Count > 0,
             expanded,
             node.Item is { } work ? _service.AssigneeName(work.AssigneeUserId) : "",
+            _service.Codes,
             snapshot.Actuals.TryGetValue(node.Key, out var runs) ? runs : [],
             snapshot.DayNotes.TryGetValue(node.Key, out var dayNotes) ? dayNotes : ScheduleRow.NoDayNotes,
             Axis!,
