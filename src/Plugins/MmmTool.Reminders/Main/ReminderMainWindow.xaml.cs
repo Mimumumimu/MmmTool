@@ -15,8 +15,8 @@ namespace MmmTool.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面</summary>
 /// <remarks>
-/// トレイメニュー・通知から開く普通のウィンドウ (モーダルではない)。アプリ内で 1 枚だけで、開いていれば前面に出す (<see cref="ReminderWindowService"/>)。
-/// 閉じたら破棄する (閉じたウィンドウは再表示できないため、次は作り直す)。位置と大きさは SDK の <see cref="WindowBoundsKeeper"/> が保存し、次に開くとき復元する。
+/// トレイメニュー・通知から開く普通のウィンドウで、モーダルではない。アプリ内で 1 枚だけで、開いていれば前面に出す。開くのは <see cref="ReminderWindowService"/>。
+/// 閉じたら破棄する。閉じたウィンドウは再表示できないため、次は作り直す。位置と大きさは SDK の <see cref="WindowBoundsKeeper"/> が保存し、次に開くとき復元する。
 /// 保存が無い・画面外のときは、最初の大きさで主モニターの作業領域の右下に出す。最大化・最小化はできない。タイトル帯をドラッグして移動できる。
 /// </remarks>
 public sealed partial class ReminderMainWindow : Window
@@ -25,7 +25,7 @@ public sealed partial class ReminderMainWindow : Window
     private const double InitialWidth = 360;
     /// <summary>最初の高さ (DIP)</summary>
     private const double InitialHeight = 440;
-    /// <summary>最小の幅 (DIP)。最初の幅より狭いと、状態の切り替えに押されて件名が見えなくなるため</summary>
+    /// <summary>最小の幅で、単位は DIP。最初の幅より狭いと、状態の切り替えに押されて件名が見えなくなるため</summary>
     private const double MinimumWidth = 360;
     /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 320;

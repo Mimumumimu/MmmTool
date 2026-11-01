@@ -1,7 +1,7 @@
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// カードに出す 1 件分 (ノートと、画面に出す名前・印)。
+/// カードに出す 1 件分で、ノートと、画面に出す名前・印。
 /// </summary>
 /// <param name="Note">ノート</param>
 /// <param name="AuthorName">作成者の名前 (ローカルモードは空文字)</param>

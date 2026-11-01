@@ -1,11 +1,11 @@
 namespace MmmTool.Users.Core;
 
 /// <summary>
-/// このアプリを使う人。1 件が 1 人 (ログイン名とパスワードで特定する)。
+/// このアプリを使う人。1 件が 1 人で、ログイン名とパスワードで特定する。
 /// </summary>
 /// <remarks>
-/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る (<c>init</c>)。
-/// 作成・更新の日時は、DB だけが持つ (アプリの型には出さない)。パスワードのハッシュも、この型には持たせない (<see cref="AppUserCredential"/>)。
+/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る。値は <c>init</c> で設定する。
+/// 作成・更新の日時は、DB だけが持ち、アプリの型には出さない。パスワードのハッシュも、この型には持たせない。ハッシュは <see cref="AppUserCredential"/> にある。
 /// </remarks>
 public sealed record AppUser
 {
@@ -25,7 +25,7 @@ public sealed record AppUser
     public static bool IsValidLoginName(string loginName) =>
         loginName.Length > 0 && loginName.All(c => c is > ' ' and <= '~');
 
-    /// <summary>番号 (ID)。0 は未登録 (保存先が採番する)</summary>
+    /// <summary>番号で、ID。0 は未登録で、保存先が採番する</summary>
     public int Id { get; init; }
 
     /// <summary>表示名</summary>
@@ -37,7 +37,7 @@ public sealed record AppUser
     /// <summary>使い始める日</summary>
     public DateOnly ValidFrom { get; init; }
 
-    /// <summary>使い終わる日 (含む)。終わりがなければ <see cref="DateOnly.MaxValue"/></summary>
+    /// <summary>使い終わる日で、含む。終わりがなければ <see cref="DateOnly.MaxValue"/></summary>
     public DateOnly ValidTo { get; init; } = DateOnly.MaxValue;
 
     /// <summary>論理削除されているか</summary>

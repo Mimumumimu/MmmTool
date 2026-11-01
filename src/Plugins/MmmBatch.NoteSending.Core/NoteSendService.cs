@@ -298,14 +298,7 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
             any = true;
 
             // 送り直す前に、その人が、いまも通知を受け取る人か確かめる。オフにした人・受け取り先を外した人には、送り直さない
-            var targets = new List<Retry>();
-            foreach (var retry in group)
-            {
-                if (await FindRecipientAsync(retry, cancellationToken).ConfigureAwait(false) is { } current)
-                {
-                    targets.Add(retry with { Recipient = current });
-                }
-            }
+            var targets = await FindCurrentTargetsAsync(group, cancellationToken).ConfigureAwait(false);
 
             var results = await Task.WhenAll(targets.Select(retry => SendAsync(retry, cancellationToken))).ConfigureAwait(false);
             for (var i = 0; i < targets.Count; i++)
@@ -329,20 +322,22 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
         return any;
     }
 
-    /// <summary>送り直しの相手が、いまも通知を受け取る人か確かめる。送る先が変わっていたら、新しい送る先を返す</summary>
-    /// <param name="retry">送り直しの予定</param>
+    /// <summary>送り直しの相手が、いまも通知を受け取る人か、まとめて確かめる。送る先が変わっていたら、新しい送る先にする</summary>
+    /// <param name="group">送り直しの予定</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>いまの相手と受け取り先。オフにした・受け取り先を外した・管理者が無効にした人は null。DB を読めなかったときは、前の相手のまま返す (送り直しを、一時的な失敗で捨てないため)</returns>
-    private async Task<NoteRecipient?> FindRecipientAsync(Retry retry, CancellationToken cancellationToken)
+    /// <returns>送り直す予定。オフにした・受け取り先を外した・管理者が無効にした人の分は含まない。DB を読めなかったときは、全員を前の相手のまま返す。送り直しを、一時的な失敗で捨てないため</returns>
+    /// <remarks>相手の数だけ読まず、全員分を 1 回の問い合わせで読む。</remarks>
+    private async Task<List<Retry>> FindCurrentTargetsAsync(List<Retry> group, CancellationToken cancellationToken)
     {
         try
         {
-            var found = await source.GetRecipientsAsync(retry.Recipient.UserId - 1, 0, 1, cancellationToken).ConfigureAwait(false);
-            return found.Count > 0 && found[0].UserId == retry.Recipient.UserId ? found[0] : null;
+            var found = await source.GetRecipientsByIdsAsync([.. group.Select(retry => retry.Recipient.UserId)], cancellationToken).ConfigureAwait(false);
+            var current = found.ToDictionary(recipient => recipient.UserId);
+            return [.. group.Where(retry => current.ContainsKey(retry.Recipient.UserId)).Select(retry => retry with { Recipient = current[retry.Recipient.UserId] })];
         }
         catch (DataFileException)
         {
-            return retry.Recipient;
+            return group;
         }
     }
 

@@ -1,6 +1,6 @@
 namespace MmmTool.Notes.Core;
 
-/// <summary>ノートの重要度 (5 段階)。数が大きいほど重要で、DB にもこの数で保存する</summary>
+/// <summary>ノートの重要度で、5 段階。数が大きいほど重要で、DB にもこの数で保存する</summary>
 public enum NotePriority : byte
 {
     /// <summary>最低</summary>

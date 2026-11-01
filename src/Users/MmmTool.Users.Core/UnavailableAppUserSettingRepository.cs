@@ -16,6 +16,11 @@ public sealed class UnavailableAppUserSettingRepository : IAppUserSettingReposit
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
+    public Task<IReadOnlyDictionary<int, string>> GetByFeatureAsync(int categoryNo, int codeNo, CancellationToken cancellationToken = default)
+        => throw NotAvailable();
+
+    /// <inheritdoc />
+    /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
     public Task SetAsync(int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

@@ -27,7 +27,7 @@ public static class ProjectBlockRows
     /// <typeparam name="TRow">行の型</typeparam>
     /// <param name="rows">表に渡している行の一覧</param>
     /// <param name="projectId">案件の番号</param>
-    /// <returns>抜いた行 (上から順)。表に出ていない案件は null (反映できなかったことにして、全体を作り直すため)</returns>
+    /// <returns>抜いた行で、上から順。表に出ていない案件は null (反映できなかったことにして、全体を作り直すため)</returns>
     public static IReadOnlyList<TRow>? Remove<TRow>(IList<TRow> rows, int projectId)
         where TRow : class, IProjectBlockRow
     {

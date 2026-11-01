@@ -12,9 +12,9 @@ namespace MmmTool.WorkItems.ProjectManager;
 
 /// <summary>案件の管理のウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる (最大化・最小化はできない)。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
-/// 名前は、普段は文字だけで、クリックすると入力欄になる。既存の案件は、フォーカスが外れたとき・Enter で保存し (Excel と同じ)、Esc で取り消す。追加は、左上の「新しい案件」で出る入力中の行から行い、Enter で確認してから作る (フォーカスが外れただけでは作らない)。削除は、行の右クリックのメニュー (送信先の一覧と同じ)。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 名前は、普段は文字だけで、クリックすると入力欄になる。既存の案件は、フォーカスが外れたとき・Enter で保存し、Esc で取り消す。これは Excel と同じ。追加は、左上の「新しい案件」で出る入力中の行から行い、Enter で確認してから作る。フォーカスが外れただけでは作らない。削除は、行の右クリックのメニューで、送信先の一覧と同じ。
 /// </remarks>
 public sealed partial class ProjectManagerWindow : Window
 {
@@ -146,7 +146,7 @@ public sealed partial class ProjectManagerWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnNameLostFocus(object sender, RoutedEventArgs e)
     {
-        // 新しい案件は、Enter で確認してから作る (フォーカスが外れただけでは、保存しない)。既存の案件の名前は、Excel と同じく、フォーカスが外れたら確定する
+        // 新しい案件は、Enter で確認してから作る。フォーカスが外れただけでは、保存しない。既存の案件の名前は、Excel と同じく、フォーカスが外れたら確定する
         if (sender is TextBox { DataContext: ProjectManagerItem { IsNew: false } item })
         {
             ViewModel.RenameAsync(item).Forget();

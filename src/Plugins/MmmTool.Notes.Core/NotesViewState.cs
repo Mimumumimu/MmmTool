@@ -14,6 +14,9 @@ public sealed class NotesViewState
     /// <summary>表示する日 (同じ日の間だけ引き継ぐ)</summary>
     public RememberedDate Day { get; } = new();
 
+    /// <summary>その日にどのノートを出すかの基準</summary>
+    public NoteBasis Basis { get; set; } = NoteBasis.Period;
+
     /// <summary>「タイトルだけ」にするか (false は「全文」)</summary>
     public bool IsTitleOnly { get; set; }
 

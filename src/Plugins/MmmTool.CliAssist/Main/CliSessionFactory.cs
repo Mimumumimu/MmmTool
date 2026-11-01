@@ -8,7 +8,7 @@ namespace MmmTool.CliAssist.Main;
 public sealed class CliSessionFactory(IServiceProvider services)
 {
     /// <summary>セッションを作る</summary>
-    /// <param name="directory">シェルを始める作業ディレクトリ (Windows のパス)。null なら既定 (ユーザーのフォルダ)</param>
+    /// <param name="directory">シェルを始める作業ディレクトリで、Windows のパス。null なら既定 (ユーザーのフォルダ)</param>
     /// <returns>新しいセッション (シェルは、画面につないだときに起動する)</returns>
     public CliSessionViewModel Create(string? directory)
     {

@@ -12,8 +12,8 @@ namespace MmmBatch.MessageSending.Core;
 /// <para>
 /// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (送信待ち・送信中・失敗で上限に達していない通知の状態)ごとに、送る権利を取ってから送る。
 /// 権利は、読んだ内容と同じときだけ更新できる条件つきの更新で取る。取れた (1 行更新できた)ものだけが送る。
-/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す (決まりは <see cref="SendRetryPolicy"/>)。
-/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる (取りこぼすより、重複を許す側に倒す)。
+/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す。決まりは <see cref="SendRetryPolicy"/> にある。
+/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる。取りこぼすより、重複を許す側に倒す。
 /// </para>
 /// <para>
 /// リマインダーと違い、日付・時刻は見ない。書かれた順に、すぐ送る。1 秒おきの実行で拾うので、書いてから送るまで最大で約 1 秒かかる。
@@ -33,6 +33,10 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
 
     /// <summary>「最近の依頼」に出す最大の件数</summary>
     public const int RecentCount = 100;
+
+    /// <summary>送る権利を、一度にまとめて取る最大の件数</summary>
+    /// <remarks>取ってから送り終えるまでの間、その行は送信中のままになる。長く掛からないよう、件数ごとに区切る。</remarks>
+    private const int ClaimGroupSize = 20;
 
     /// <summary>区分ごとの、外部へ送る口</summary>
     private readonly Dictionary<NotificationChannelKind, INotifier> _notifiers = notifiers.ToDictionary(notifier => notifier.Kind);
@@ -60,7 +64,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>
-    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終える (次の分に、また試す)。送信の失敗は、行の状態に残す。
+    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終え、次の分に、また試す。送信の失敗は、行の状態に残す。
     /// 気づいてほしい失敗は、送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
     /// </remarks>
     public async Task RunAsync(DateTime now, CancellationToken cancellationToken = default)
@@ -68,20 +72,23 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var changed = false;
         try
         {
-            // メッセージを無効にされた人への通知は、送る前に止める
-            changed |= await store.SkipDisabledAsync(cancellationToken).ConfigureAwait(false) > 0;
+            // メッセージを無効にされた人への通知は、送る前に止める。止める更新と、送る対象の読み出しは、1 回の往復で行う
+            var batch = await store.SkipDisabledAndGetSendableAsync(SendRetryPolicy.MaxAttempts, cancellationToken).ConfigureAwait(false);
+            changed |= batch.SkippedCount > 0;
 
-            foreach (var target in await store.GetSendableAsync(SendRetryPolicy.MaxAttempts, cancellationToken).ConfigureAwait(false))
+            // 送る権利は、行ごとに取らず、一定の件数ずつまとめて取る。取ったものを送ってから、次の件数を取る。待ち時間が残る行は、読み出しの時点で含まれない
+            foreach (var group in batch.Targets.Chunk(ClaimGroupSize))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (await ClaimAsync(target.Request, cancellationToken).ConfigureAwait(false) is not { } claimed)
+                var claimedIds = await store.TryClaimManyAsync([.. group.Select(target => target.Request)], cancellationToken).ConfigureAwait(false);
+                foreach (var target in group.Where(target => claimedIds.Contains(target.Request.Id)))
                 {
-                    continue;
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                changed = true;
-                await SendAsync(target, claimed, cancellationToken).ConfigureAwait(false);
+                    changed = true;
+                    await SendAsync(target, target.Request with { Status = MessageSendStatus.Pending, Attempts = target.Request.Attempts + 1 }, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             changed |= SetLastError(null);
@@ -107,7 +114,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <summary>「最近の依頼」に出す依頼を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>依頼を新しい順に、最大 <see cref="RecentCount"/> 件。日付・状態では絞らない</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(CancellationToken cancellationToken = default)
         => store.GetRecentAsync(RecentCount, cancellationToken);
 
@@ -116,10 +123,10 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     /// <remarks>
-    /// 送信済み・回数の上限に達した失敗も送り直せる (回数は数え続ける)。
+    /// 送信済み・回数の上限に達した失敗も送り直せる。回数は数え続ける。
     /// 同じ送信を、別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
     /// </remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった。メッセージは画面に出せる。</exception>
     public async Task ResendAsync(MessageSendTarget target, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -132,31 +139,6 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var claimed = target.Request with { Status = MessageSendStatus.Pending, Attempts = target.Request.Attempts + 1 };
         await SendAsync(target, claimed, cancellationToken).ConfigureAwait(false);
         Changed?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>送る権利を取る (済み・上限・待ち時間のものは取らない)</summary>
-    /// <param name="current">今の依頼</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>権利を取れたときの、送信中の依頼。送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null</returns>
-    private async Task<MessageDeliveryItem?> ClaimAsync(MessageDeliveryItem current, CancellationToken cancellationToken)
-    {
-        if (current.Status == MessageSendStatus.Sent || current.Attempts >= SendRetryPolicy.MaxAttempts)
-        {
-            return null;
-        }
-
-        // 足したばかりの依頼はすぐ。失敗は、回数 × 1 分、送信中のまま止まったものは 10 分、待ってから送り直す
-        var wait = current.Status == MessageSendStatus.Failed
-            ? SendRetryPolicy.FailedWait(current.Attempts)
-            : current.Attempts == 0 ? TimeSpan.Zero : SendRetryPolicy.StalePendingAge;
-        if (time.GetUtcNow() - current.UpdatedAt < wait)
-        {
-            return null;
-        }
-
-        return await store.TryClaimAsync(current, cancellationToken).ConfigureAwait(false)
-            ? current with { Status = MessageSendStatus.Pending, Attempts = current.Attempts + 1 }
-            : null;
     }
 
     /// <summary>送って、結果を行とログに残す</summary>
@@ -212,7 +194,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="error">失敗の理由。成功は空文字。送信のログにだけ残す</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
-    /// <remarks>ログを書けなくても、送信そのものは失敗にしない (気づけるよう、通知は出す)。</remarks>
+    /// <remarks>ログを書けなくても、送信そのものは失敗にしない。気づけるよう、通知は出す。</remarks>
     private async Task FinishAsync(MessageSendTarget target, MessageDeliveryItem claimed, SendStatus status, string error, CancellationToken cancellationToken)
     {
         if (status == SendStatus.Sent)

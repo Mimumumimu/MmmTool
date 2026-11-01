@@ -17,7 +17,7 @@ public static class UserServiceCollectionExtensions
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// 起動時の準備は、登録した順に動くので、各機能の登録より前に呼ぶ (機能の準備より先に、今のユーザーを決めておく)。
+    /// 起動時の準備は、登録した順に動くので、各機能の登録より前に呼ぶ。機能の準備より先に、今のユーザーを決めておくため。
     /// ユーザーの部品 (<c>AddUsers</c>)と、保存先は、DB の種類ごとの登録 (<c>AddSqlServerData</c>)が行う。
     /// </remarks>
     public static IServiceCollection AddUserSignIn(this IServiceCollection services)
@@ -32,7 +32,7 @@ public static class UserServiceCollectionExtensions
         services.AddTransient<SignInWindow>();
         services.AddTransient<SignInViewModel>();
 
-        // 設定ページに並べる部品 (アカウントのカード)。DB に保存していて、ログイン済みのときだけ出る
+        // 設定ページに並べる部品で、アカウントのカード。DB に保存していて、ログイン済みのときだけ出る
         services.AddTransient<AccountSettingsViewModel>();
         services.AddSettingsSection<AccountSettingsControl>(order: SettingsSectionOrder.Account);
 

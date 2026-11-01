@@ -269,7 +269,7 @@
                                 Header="名前"
                                 Text="{x:Bind ViewModel.SelectedItem.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=''}" />
 
-                            <!-- パス (リンクのとき)。手入力が基本で、参照は補助 -->
+                            <!-- パスで、リンクのときに使う。手入力が基本で、参照は補助 -->
                             <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.IsLinkSelected, Mode=OneWay}">
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions>
@@ -394,7 +394,7 @@
                 </Grid>
             </Border>
 
-            <!-- 通知 (保存完了・エラー)。レイアウトに場所を取らないよう、本体の下部に重ねて出す -->
+            <!-- 通知で、保存完了・エラー。レイアウトに場所を取らないよう、本体の下部に重ねて出す -->
             <StackPanel
                 Grid.ColumnSpan="2"
                 MaxWidth="560"

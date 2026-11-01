@@ -11,7 +11,7 @@ namespace MmmToolWeb.Data.SqlServer.Enrollment;
 /// </summary>
 /// <remarks>
 /// 1 人に 1 行で、行が無い人は、コードを出すときに作る。コードの期限と更新日時は、DB サーバーの時計で書く・比べる。
-/// 作成者・更新者は、コードを出した管理者のユーザーの番号を持てないので 0 (この操作はユーザーのログインではなく、サーバーの PC での操作のため)。
+/// 作成者・更新者は、コードを出した管理者のユーザーの番号を持てないので 0 になる。この操作はユーザーのログインではなく、サーバーの PC での操作のため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database) : IAppUserWebAuthRepository
@@ -20,7 +20,7 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
     private static readonly int[] DuplicateKeyErrors = [2601, 2627];
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     /// <exception cref="InvalidOperationException">別の操作と重なって、2 回続けて保存できなかった。</exception>
     public Task<DateTimeOffset> SetEnrollmentCodeAsync(int appUserId, string codeHash, TimeSpan lifetime, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
@@ -39,7 +39,7 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<int?> FindUserByEnrollmentCodeAsync(string codeHash, CancellationToken cancellationToken)
         => database.RunAsync<int?>(async connection =>
         {
@@ -54,7 +54,7 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<int?> ConsumeEnrollmentCodeAsync(string codeHash, CancellationToken cancellationToken)
         => database.RunAsync<int?>(async connection =>
         {

@@ -1,7 +1,7 @@
 namespace MmmTool.Notes.Main;
 
 /// <summary>
-/// カード一覧の表示の状態 (作り直しても、読んでいる位置が変わらないように、作り直す前に控える)。
+/// カード一覧の表示の状態で、作り直しても、読んでいる位置が変わらないように、作り直す前に控える。
 /// </summary>
 /// <param name="ScrollTop">上端からのスクロールの位置 (CSS のピクセル)</param>
 /// <param name="OpenIds">開いているカードのノートの番号</param>

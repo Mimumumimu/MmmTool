@@ -12,7 +12,7 @@ namespace MmmTool.Reminders.Main;
 /// <remarks>
 /// 未対応 (未・スヌーズ)を <see cref="Pending"/>、完了を <see cref="Done"/> に分け、どちらも時刻 → 参照番号の順に並べる。
 /// 保存内容が変わったら (<see cref="ReminderService.Changed"/>)読み直し、日付が変わったら新しい日の対象に切り替える。
-/// UI スレッドで作ること (変更の通知を作ったスレッドへ戻して反映するため)。画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> する。
+/// UI スレッドで作ること。変更の通知を作ったスレッドへ戻して反映するため。画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> する。
 /// </remarks>
 public sealed partial class ReminderMainViewModel : ReminderViewModelBase
 {
@@ -118,7 +118,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <summary>コピーして新規追加 (入力画面を開く)</summary>
     /// <param name="item">コピー元の行</param>
     /// <returns>入力画面が閉じるまでの待機を表すタスク</returns>
-    /// <remarks>日付・時刻・曜日・件名・備考・リンク・読み上げの有無だけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない (一覧画面と同じ)。</remarks>
+    /// <remarks>日付・時刻・曜日・件名・備考・リンク・読み上げの有無だけを引き継ぐ。番号・削除フラグは引き継がず、元のリマインダーは変えない。一覧画面と同じ。</remarks>
     [RelayCommand]
     private Task CopyAsNewAsync(ReminderTodayItem item)
         => _dialogs.ShowInputAsync(item.Source with { No = 0, IsDeleted = false }, item.Source.No);

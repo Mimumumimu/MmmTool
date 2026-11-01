@@ -44,6 +44,13 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <summary>追加するリマインダー (一覧のうち、重ならない行)</summary>
     private List<Reminder> _toAdd = [];
 
+    /// <summary>保存したが、送信設定をまだ書いていないリマインダーの番号</summary>
+    /// <remarks>
+    /// 登録の途中で失敗したとき、保存済みのリマインダーは、押し直すと「すでにある」として飛ばされる。
+    /// 送信設定を書き終えるまで番号を持ち、押し直したときにも書くことで、送信設定が付かないまま残らないようにする。書き終えたら空にする。
+    /// </remarks>
+    private readonly List<int> _pendingSendSettingNos = [];
+
     /// <summary>読み込みを終えたか (初期値を入れている間は、選びを保存しない)</summary>
     private bool _isLoaded;
 
@@ -294,14 +301,17 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
             var count = 0;
             foreach (var reminder in _toAdd.Where(reminder => !_existing.Contains(KeyOf(reminder))).OrderBy(reminder => reminder.Time))
             {
-                var saved = await _reminders.SaveAsync(reminder);
-                // 送信先を選んでいるときは、送信設定も書く (送る処理は MmmBatch が行う)
-                if (IsChannelVisible && channelIds.Count > 0)
-                {
-                    await _sendSettings.SetChannelsAsync(saved.No, channelIds);
-                }
+                _pendingSendSettingNos.Add((await _reminders.SaveAsync(reminder)).No);
                 count++;
             }
+
+            // 送信先を選んでいるときは、送信設定も書く。送る処理は MmmBatch が行う。リマインダーの数だけ書かず、まとめて 1 回で書く
+            // 前の押下で保存して、書けなかった分も含める。送信先は置き換えなので、同じ番号に重ねて書いても結果は変わらない
+            if (IsChannelVisible && channelIds.Count > 0 && _pendingSendSettingNos.Count > 0)
+            {
+                await _sendSettings.SetChannelsAsync(_pendingSendSettingNos, channelIds);
+            }
+            _pendingSendSettingNos.Clear();
             CloseRequested?.Invoke(this, count);
         }
         catch (DataFileException ex)

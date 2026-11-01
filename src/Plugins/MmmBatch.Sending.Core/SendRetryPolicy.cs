@@ -3,7 +3,7 @@ namespace MmmBatch.Sending.Core;
 /// <summary>送り直しの決まり (機能に共通)</summary>
 /// <remarks>
 /// 送り先がスマホの通知・Discord なので、少し遅れて届いても困らない。待つ時間を空けて、上限の回数まで送り直す。
-/// 送り直しの前に送信が済んでいたときは、二重に送られうる (取りこぼすより、重複を許す側に倒す)。
+/// 送り直しの前に送信が済んでいたときは、二重に送られうる。取りこぼすより、重複を許す側に倒す。
 /// </remarks>
 public static class SendRetryPolicy
 {

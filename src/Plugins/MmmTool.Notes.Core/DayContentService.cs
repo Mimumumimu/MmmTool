@@ -51,12 +51,8 @@ public sealed class DayContentService(IEnumerable<IDayContentSource> sources, IA
             .OrderBy(person => person.Name, StringComparer.CurrentCulture)
             .ThenBy(person => person.UserId));
 
-        var frames = new List<DayContentFrame>(ordered.Count);
-        foreach (var person in ordered)
-        {
-            var text = await source.GetTextAsync(from, to, person.UserId, options, cancellationToken).ConfigureAwait(false);
-            frames.Add(new DayContentFrame($"{source.Title} - {person.Name}", text));
-        }
-        return frames;
+        // 人の数だけ読まず、全員分を 1 回でまとめて読む
+        var texts = await source.GetTextsAsync(from, to, [.. ordered.Select(person => person.UserId)], options, cancellationToken).ConfigureAwait(false);
+        return [.. ordered.Select(person => new DayContentFrame($"{source.Title} - {person.Name}", texts.GetValueOrDefault(person.UserId, "")))];
     }
 }

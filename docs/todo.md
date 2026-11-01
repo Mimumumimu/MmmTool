@@ -126,6 +126,23 @@
   - 直したら、計測のコードとログを消し、`BringToFront` に戻す。`NativeMethods.txt` の `GetWindowThreadProcessId` も、使わなければ消す。
   - 閉じている画面を新しく開く経路は `Activate()` だけで `BringToFront` を通らない。docs/specs/reminders.md の「前面に出すのは SDK の `BringToFront`」と食い違うので、直すときにそろえる。
 
+- 次の動きがおかしいときに、先に疑う変更
+  - 簡単に試せない動きなので、症状が出たときに、原因の見当をつけるために残す。
+  - 原因が分かって直したら、その動きの項目を消す。
+  - 2 台の PC (または PC と Web 版)で、片方から追加・編集・削除・完了・「未」への戻しをしても、もう片方に反映されない
+    - 関係する変更: リマインダーの毎分の読み出しを、差分にした。`SqlServerReminderRepository` の `ReadChangesAsync` と `Merge`。
+    - 関係する変更: 「未」に戻すとき、行の削除をやめ、`Status` を 0 にした。`SetStatesAsync` と、0 を許す形にした `ReminderState` の `Status` の検査。
+    - 症状の見当: 片方の変更が、もう片方に出ない。または、30 分ほどたつと直る。
+    - 症状の見当: 宛先を替えられた行が、消えない。30 回ごとの全件の読み直し `FullReloadEvery` が、効いていない。
+    - 症状の見当: 「未」に戻そうとすると、保存できない。`Status` の検査が 0 を許さない古い DB。
+  - 失敗する送信先 (宛先を壊したもの)で送っても、送り直されない
+    - 関係する変更: `SqlServerMessageSendStore.SkipDisabledAndGetSendableAsync` が、待ち時間を SQL の条件にした。待ち時間の表は `SendRetryPolicy` から作って `@FailedWaits` で渡す。
+    - 関係する変更: 送る権利を、20 件ずつまとめて取る `TryClaimManyAsync`。
+    - 症状の見当: 失敗した通知が、いつまでも送り直されない。または、待ち時間を待たずに、回数が上限まで進む。
+  - 通知の端末を登録し直しても、通知が届かない
+    - 関係する変更: `UpdateAndRestoreAsync`。更新と削除の取り消しを、1 文にした。`NotificationEndpoints.RegisterAsync` が使う。
+    - 症状の見当: 削除した端末を登録し直しても、使える状態に戻らない。
+
 ## そのうち (方向だけ)
 
 - `scripts/` の発行用のショートカット (`9001_tool_publish`・`9011_web_publish`・`9021_batch_publish`・`9029_admin_publish`)を、リポジトリに入れるか、`.gitignore` に足すかを決める
@@ -158,14 +175,6 @@
 - MmmBatch を MmmToolBatch に改名する
   - アプリの名前を MmmTool・MmmToolWeb とそろえるため
   - 直す範囲は、フォルダ・プロジェクト・名前空間・文書・DB のログイン名
-- CLI補助を、サイドバーから別のウィンドウに外せるようにする
-  - 方向: 動いているシェルは残し、ターミナルの表示 (WebView2)だけを、外した先で作り直す
-  - 理由: WebView2 は、作られたウィンドウから別のウィンドウへ移すと、入力が元のウィンドウへ届いてしまうため。ページごと作り直すと、シェルが終了する。
-  - 作り方の案
-    - 画面の中身は引き継がない。外した先では、以降の出力から表示する。画面を描き直し続ける表示 (Claude Code など)は、ターミナルの大きさを変えて描き直させる。
-    - 画面の中身も引き継ぐなら、xterm.js の `addon-serialize` を SDK に足して、外す前に保存し、外した先で復元する。MIT ライセンスで、同梱の一覧にも足す。
-  - 直す場所は、`CliSessionView`・`CliAssistPage` と、SDK の `PageDetacher`・`TerminalControl`
-  - 登録は `AddNavigationPage` の `canDetach: true` で決める ([specs/tray-and-main.md](specs/tray-and-main.md))
 - メッセージの会話の切り替えで入れた「重ねたフェード」を、アプリ全体の切り替えに広げる。共通の処理にできるかを検討する
   - 方向: 画面の一部の中身を入れ替えるとき、前の見た目を画像に撮って重ね、下で差し替えてから、薄くしながら新しい中身を濃くする。空の瞬間を見せない。
   - 仕組みは、メッセージのページ (`MessagesPage.xaml.cs` の `PrepareSwitchAsync`・`CrossFadeAsync`・`FadeAsync`)と、ViewModel の `PrepareSwitchAsync`・`MessagesReplaced` にある。決めたことは [specs/messages.md](specs/messages.md) の「人の一覧」にある。

@@ -70,6 +70,11 @@
     text-align: center;
 }
 
+/* 表示の基準の切り替え。共通のセグメントを、日付の行の下に置く */
+.basis {
+    margin-top: 0.5rem;
+}
+
 .options {
     display: flex;
     flex-wrap: wrap;

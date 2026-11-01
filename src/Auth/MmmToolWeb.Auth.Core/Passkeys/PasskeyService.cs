@@ -5,17 +5,17 @@ using Fido2NetLib.Objects;
 namespace MmmToolWeb.Auth.Core.Passkeys;
 
 /// <summary>
-/// パスキーの登録とログイン (WebAuthn の手続き)。人の特定とログイン状態の発行は呼び出し側が行う。
+/// パスキーの登録とログインで、WebAuthn の手続き。人の特定とログイン状態の発行は呼び出し側が行う。
 /// </summary>
 /// <param name="fido2">WebAuthn の検証を行うライブラリ。</param>
 /// <param name="repository">パスキーの保存先。</param>
 /// <param name="ceremonies">手続きの途中の状態の置き場。</param>
 public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repository, PasskeyCeremonyStore ceremonies)
 {
-    /// <summary>手続きの途中の状態 (登録)。</summary>
+    /// <summary>手続きの途中の状態で、登録のもの。</summary>
     private sealed record RegistrationCeremony(int AppUserId, string DeviceName, CredentialCreateOptions Options);
 
-    /// <summary>手続きの途中の状態 (ログイン)。</summary>
+    /// <summary>手続きの途中の状態で、ログインのもの。</summary>
     private sealed record LoginCeremony(AssertionOptions Options);
 
     /// <summary>
@@ -86,7 +86,7 @@ public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repos
     }
 
     /// <summary>
-    /// パスキーでのログインを始める (ユーザー名を入力させない方式)。
+    /// パスキーでのログインを始める。ユーザー名を入力させない方式。
     /// </summary>
     /// <returns>ブラウザに渡す選択肢と、完了の呼び出しに渡す番号。</returns>
     public PasskeyStart StartLogin()

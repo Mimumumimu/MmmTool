@@ -5,7 +5,7 @@ namespace MmmTool.Notes.Core;
 /// </summary>
 /// <remarks>
 /// カードの「編集」「削除」「復元」は、表示ページが持つ仮想ホストの URL (<see cref="ActionUrl"/>)で表し、ページの移動を横取りして、アプリが処理する。
-/// 本文に書いた <c>&lt;a&gt;</c> が、この操作になりすまして、ほかの人のノートの削除などを呼ばないよう、本文のリンクは仮想ホストを指せない (<see cref="TryNormalizeHref"/>)。
+/// 本文に書いた <c>&lt;a&gt;</c> が、この操作になりすまして、ほかの人のノートの削除などを呼ばないよう、本文のリンクは仮想ホストを指せない。判定は <see cref="TryNormalizeHref"/> で行う。
 /// </remarks>
 public static class NoteLinks
 {
@@ -60,8 +60,8 @@ public static class NoteLinks
     /// <param name="href">正規化したリンク先 (<see cref="TryNormalizeHref"/>の結果)</param>
     /// <returns>ページの <c>href</c> に出す URL</returns>
     /// <remarks>
-    /// 仮想ホストの https のページから <c>file:</c> のリンクを押しても、WebView2 (Chromium)は、ローカルのファイルへの移動を、移動が始まる前に止める
-    /// (アプリが横取りする <c>NavigationStarting</c> が来ない)。そのため、<c>file:</c> は、仮想ホストの内部リンクに包んで出し、アプリが横取りして、元の URL を取り出す。
+    /// 仮想ホストの https のページから <c>file:</c> のリンクを押しても、WebView2 (Chromium)は、ローカルのファイルへの移動を、移動が始まる前に止める。
+    /// アプリが横取りする <c>NavigationStarting</c> が来ない。そのため、<c>file:</c> は、仮想ホストの内部リンクに包んで出し、アプリが横取りして、元の URL を取り出す。
     /// </remarks>
     public static string ToPageHref(string href)
         => href.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ? $"https://{PageHost}/open?u={Uri.EscapeDataString(href)}" : href;
@@ -134,7 +134,7 @@ public static class NoteLinks
     /// <param name="html">アプリが組み立てたページの HTML</param>
     /// <returns>リンク先の正規化した URL (<see cref="Uri.AbsoluteUri"/>)の集まり。カードの操作の内部リンクは含まない</returns>
     /// <remarks>
-    /// 押したリンクを開いてよいかの判定に使う (開くのは、今のページに出したリンクだけ)。ファイルをページに落として、そのファイルへ移ろうとしたときなど、
+    /// 押したリンクを開いてよいかの判定に使う。開くのは、今のページに出したリンクだけ。ファイルをページに落として、そのファイルへ移ろうとしたときなど、
     /// ページに出していないものは、開かない。HTML はアプリが組み立てたもの (<c>&lt;a href="…"&gt;</c> の形だけ)なので、その形だけを集める。
     /// </remarks>
     public static HashSet<string> CollectHrefs(string html)

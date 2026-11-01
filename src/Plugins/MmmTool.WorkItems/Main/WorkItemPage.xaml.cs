@@ -20,8 +20,8 @@ namespace MmmTool.WorkItems.Main;
 /// <summary>作業管理のページ</summary>
 /// <remarks>
 /// 表 (<see cref="TreeGridView"/>)の列と右クリックのメニューを組み立て、セルの入力の確定を ViewModel に渡す。
-/// 入力欄は表の行を使い回すので、確定の操作 (フォーカスが外れたとき・Enter)だけを保存に結び付け、値の変更のイベント (選択・日付の変更)には結び付けない
-/// (使い回しの値の差し替えで、保存が走らないようにするため)。
+/// 入力欄は表の行を使い回すので、確定の操作 (フォーカスが外れたとき・Enter)だけを保存に結び付け、値の変更のイベント (選択・日付の変更)には結び付けない。
+/// 使い回しの値の差し替えで、保存が走らないようにするため。
 /// </remarks>
 public sealed partial class WorkItemPage : Page
 {
@@ -159,8 +159,8 @@ public sealed partial class WorkItemPage : Page
 
     /// <summary>日報メモの入力欄の高さを、<see cref="DayNoteLines"/> 行ちょうどが入る高さにする</summary>
     /// <remarks>
-    /// 高さ = 行数 × 1 行の高さ + 上下の余白 + 枠。1 行の高さは、入力欄と同じフォントの <see cref="TextBlock"/> を 1 行ぶん測って求める
-    /// (<see cref="TextBox"/> には、行の高さの指定が無い。測るので、画面の拡大率やフォントが変わってもずれない)。
+    /// 高さ = 行数 × 1 行の高さ + 上下の余白 + 枠。1 行の高さは、入力欄と同じフォントの <see cref="TextBlock"/> を 1 行ぶん測って求める。
+    /// <see cref="TextBox"/> には、行の高さの指定が無い。測るので、画面の拡大率やフォントが変わってもずれない。
     /// 入力欄を作ったあと (<see cref="FrameworkElement.Loaded"/>)に呼ぶ。スタイルが当たる前は、フォントの大きさが決まらないため。
     /// </remarks>
     private void FitDayNoteHeight()
@@ -192,7 +192,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>カレンダーが開いたとき、日付が空なら、入力日 (終了日は開始日があれば開始日)の月を表示する</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>日付が空のままだと、カレンダーはシステムの今日の月を表示するため。選択はしない (表示する月だけ変える)。</remarks>
+    /// <remarks>日付が空のままだと、カレンダーはシステムの今日の月を表示するため。選択はしない。表示する月だけ変える。</remarks>
     private void OnDateOpened(object? sender, object e)
     {
         if (sender is not CalendarDatePicker { Date: null } picker || TreeGridView.GetRow(picker) is not WorkItemRow row)
@@ -302,8 +302,8 @@ public sealed partial class WorkItemPage : Page
     /// <param name="only">測る列 (null なら、表示しているすべての列)</param>
     /// <returns>幅が変わった列があるか</returns>
     /// <remarks>
-    /// 見出し・選択肢・今の行の文字のうち、いちばん長いものに、余白を足した幅にする (備考だけは、上限を設ける)。
-    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。表示していない列は測らない (行の数 × 列の数だけ、文字の幅を測るので、重いため)。
+    /// 見出し・選択肢・今の行の文字のうち、いちばん長いものに、余白を足した幅にする。備考だけは、上限を設ける。
+    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。表示していない列は測らない。行の数 × 列の数だけ、文字の幅を測るので、重いため。
     /// </remarks>
     private bool FitColumns(IReadOnlyCollection<TreeGridColumn>? only = null)
     {
@@ -522,7 +522,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>時間の入力欄で、数字と小数点以外の入力を受け付けない</summary>
     /// <param name="sender">入力欄</param>
     /// <param name="args">入力前の文字の情報</param>
-    /// <remarks>整数部 4 桁・小数部 2 桁まで (1・1.5・1.25 の形)。空は許す (なし)。</remarks>
+    /// <remarks>整数部 4 桁・小数部 2 桁まで。1・1.5・1.25 の形。空は許し、なしとして扱う。</remarks>
     private void OnNumberBeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
         => args.Cancel = !HoursPattern().IsMatch(args.NewText);
 
@@ -586,7 +586,7 @@ public sealed partial class WorkItemPage : Page
     /// <param name="row">入力欄の行</param>
     /// <remarks>
     /// Enter・フォーカスが外れた通知・入力欄を外す直前の通知 (<see cref="TreeGridView.EditEnding"/>)の、どれからも呼ばれるので、
-    /// 同じ入力欄からの 2 回目は何もしない (1 回目の保存が終わる前は、行の値が古いので、値の比較では防げない)。
+    /// 同じ入力欄からの 2 回目は何もしない。1 回目の保存が終わる前は、行の値が古いので、値の比較では防げない。
     /// 入力のたびに、入力欄は作り直されるので、入力欄ごとに 1 回で足りる。
     /// </remarks>
     private void CommitText(TextBox box, WorkItemRow row)
@@ -617,7 +617,7 @@ public sealed partial class WorkItemPage : Page
     /// <param name="e">セルの情報</param>
     /// <remarks>
     /// プルダウン (ComboBox)は、行ごとに置くと重く、表の中で入力の切り替えと組み合わせると、一覧の項目が選べなくなったため、使わない。
-    /// 選択肢は短い一覧なので、メニューで選ぶ (今の値にチェックを付ける)。
+    /// 選択肢は短い一覧なので、メニューで選び、今の値にチェックを付ける。
     /// </remarks>
     private void OnCellInvoked(object? sender, TreeGridCellEventArgs e)
     {
@@ -676,7 +676,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>リンクの入力欄を、指定の場所の下に出す</summary>
     /// <param name="row">行</param>
     /// <param name="target">入力欄を出す場所の要素</param>
-    /// <remarks>Enter か、入力欄を閉じたときに確定する。Esc は、元のリンクのまま閉じる (保存しない)。空にして確定すると、リンクを消す。</remarks>
+    /// <remarks>Enter か、入力欄を閉じたときに確定する。Esc は、元のリンクのまま閉じて、保存しない。空にして確定すると、リンクを消す。</remarks>
     private void ShowLinkEditor(WorkItemRow row, FrameworkElement target)
     {
         var box = new TextBox

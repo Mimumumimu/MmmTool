@@ -2,10 +2,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.Core.Utilities;
+using MmmTool.Notes.Core;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>ノートのページ (サイドバー)。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
+/// <summary>ノートのページで、サイドバーに出す。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
 public sealed partial class NotesPage : Page
 {
     /// <summary>ページが載っている画面 (見える・見えないの変化を受けるため。載っていない間は null)</summary>
@@ -28,6 +29,7 @@ public sealed partial class NotesPage : Page
         DatePicker.Language = "ja-JP";
         DatePicker.DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
         DatePicker.Date = ToOffset(ViewModel.Day);
+        BasisBar.SelectedItem = ViewModel.Basis == NoteBasis.Updated ? UpdatedItem : PeriodItem;
 
         CardsView.WebView2Directory = environment.WebView2Directory;
         ViewModel.Surface = CardsView;
@@ -40,6 +42,16 @@ public sealed partial class NotesPage : Page
             if (e.PropertyName == nameof(NotesViewModel.Day) && DatePicker.Date?.Date != ViewModel.Day.ToDateTime(TimeOnly.MinValue))
             {
                 DatePicker.Date = ToOffset(ViewModel.Day);
+            }
+
+            // 通知から開いたときなど、画面の外から基準が変わったら、切り替えも合わせる
+            if (e.PropertyName == nameof(NotesViewModel.Basis))
+            {
+                var item = ViewModel.Basis == NoteBasis.Updated ? UpdatedItem : PeriodItem;
+                if (BasisBar.SelectedItem != item)
+                {
+                    BasisBar.SelectedItem = item;
+                }
             }
         };
 
@@ -100,6 +112,12 @@ public sealed partial class NotesPage : Page
     /// <param name="sender">開く枠</param>
     /// <param name="e">イベントの情報</param>
     private void OnSourcesFlyoutOpening(object? sender, object e) => ViewModel.RefreshSourceSettings();
+
+    /// <summary>基準の切り替えを押したら、基準を変える</summary>
+    /// <param name="sender">切り替え</param>
+    /// <param name="args">変更の情報</param>
+    private void OnBasisChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+        => ViewModel.Basis = sender.SelectedItem == UpdatedItem ? NoteBasis.Updated : NoteBasis.Period;
 
     /// <summary>日付の欄が変わったら、表示する日を変える</summary>
     /// <param name="sender">日付の欄</param>

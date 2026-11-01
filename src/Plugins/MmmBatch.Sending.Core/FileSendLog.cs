@@ -7,13 +7,13 @@ using MmmSdk.Core.Components.Storage;
 namespace MmmBatch.Sending.Core;
 
 /// <summary>
-/// 送信のログを、ローカルのファイルに書く (1 日 1 ファイル。1 行 1 件の JSON Lines)。
+/// 送信のログを、ローカルのファイルに書く。1 日 1 ファイルで、1 行 1 件の JSON Lines。
 /// </summary>
 /// <param name="directory">ログを置くフォルダー (<c>Data/Logs</c>)</param>
 /// <remarks>
-/// ファイル名は <c>send_yyyy-MM-dd.jsonl</c> (送った日のローカルの日付。エラーのログ <c>yyyy-MM-dd.log</c> とは、名前が重ならない)。
+/// ファイル名は <c>send_yyyy-MM-dd.jsonl</c> で、送った日のローカルの日付。エラーのログ <c>yyyy-MM-dd.log</c> とは、名前が重ならない。
 /// ログは永遠に残す。今日から 30 日以上前の日のファイルは、<see cref="MoveOldFiles"/> が <c>old</c> フォルダーへ移す。
-/// アプリは、ログを書くだけで読まない (何かあったときに、人がファイルを読む)。このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログは、そのコンピューターのファイルにある。
+/// アプリは、ログを書くだけで読まない。何かあったときに、人がファイルを読む。このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログは、そのコンピューターのファイルにある。
 /// </remarks>
 public sealed class FileSendLog(string directory) : ISendLog
 {
@@ -33,7 +33,7 @@ public sealed class FileSendLog(string directory) : ISendLog
     private readonly Lock _gate = new();
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ファイルに書けなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ファイルに書けなかった。メッセージは画面に出せる。</exception>
     public Task AppendAsync(SendLogEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -56,7 +56,7 @@ public sealed class FileSendLog(string directory) : ISendLog
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ファイルを移せなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ファイルを移せなかった。メッセージは画面に出せる。</exception>
     public int MoveOldFiles(DateOnly today)
     {
         var moved = 0;

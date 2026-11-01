@@ -26,8 +26,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private readonly ReminderService _reminders;
     /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
     private readonly IAppUserRepository _users;
-    /// <summary>機能の利用 (宛先の選択肢から、リマインダーを無効にされた人を外すために使う)</summary>
-    private readonly FeatureAccessService _access;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
     /// <summary>リマインダーの送信設定の保存先</summary>
@@ -39,23 +37,21 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     private Reminder? _target;
 
     /// <summary>読み込んだときに選んでいた送信先の番号 (なければ空)</summary>
-    /// <remarks>ほかの人が登録した送信先も含む。保存のときに、選び直していなければ、選んだ内容を、そのまま書き直す (外さない)。</remarks>
+    /// <remarks>ほかの人が登録した送信先も含む。保存のときに、選び直していなければ、選んだ内容を、そのまま書き直し、外さない。</remarks>
     private HashSet<int> _initialChannelIds = [];
 
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
-    /// <param name="access">機能の利用</param>
     /// <param name="channelLoader">送信先の選択肢を作る</param>
     /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderInputViewModel(
-        ReminderService reminders, IAppUserRepository users, FeatureAccessService access, ReminderChannelLoader channelLoader,
+        ReminderService reminders, IAppUserRepository users, ReminderChannelLoader channelLoader,
         IReminderSendSettingRepository sendSettings, TimeProvider time)
     {
         _reminders = reminders;
         _users = users;
-        _access = access;
         _channelLoader = channelLoader;
         _sendSettings = sendSettings;
         _time = time;
@@ -148,8 +144,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
     /// <see cref="Load"/> のあとに呼ぶ。送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
-    /// 出すのは、自分が登録した送信先だけ (ほかの人の送信先は、出さず、保存でも触らない)。
-    /// コピーして新規追加のときは、コピー元で選ばれていた送信先のうち、自分の登録分にチェックを入れる (新規なので、保存では選んだ内容をすべて書く)。
+    /// 出すのは、自分が登録した送信先だけ。ほかの人の送信先は、出さず、保存でも触らない。
+    /// コピーして新規追加のときは、コピー元で選ばれていた送信先のうち、自分の登録分にチェックを入れる。新規なので、保存では選んだ内容をすべて書く。
     /// 読み込めなかったとき (接続できない・表が無い)は、エラーを出して、送信先の欄を出さない。
     /// </remarks>
     public async Task LoadChannelsAsync(int copySourceNo = 0)
@@ -215,11 +211,13 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         TargetOptions.Add(new ReminderTargetOption(0, "全員"));
 
         IReadOnlyList<AppUser> users = [];
-        IReadOnlyCollection<int> disabledIds = [];
+        HashSet<int> disabledIds = [];
         try
         {
-            users = await _users.GetUsersAsync();
-            disabledIds = await _access.GetDisabledUserIdsAsync(CodeFeatures.Reminders);
+            // ユーザーの一覧と、リマインダーを無効にされた人を、1 回の問い合わせで読む
+            var states = await _users.GetUsersWithFeatureStateAsync(CodeFeatures.Reminders);
+            users = [.. states.Select(state => state.User)];
+            disabledIds = [.. states.Where(state => state.IsFeatureDisabled).Select(state => state.User.Id)];
         }
         catch (DataFileException ex)
         {
@@ -245,7 +243,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>入力欄に読み込む</summary>
     /// <param name="target">編集するリマインダー。新規なら null</param>
-    /// <remarks>新規は 日付＝今日・時刻＝現在時刻・曜日指定 (曜日は未選択)・ほかは空。編集は対象の値を読み込む (曜日指定なら日付欄は今日)。</remarks>
+    /// <remarks>新規は 日付＝今日・時刻＝現在時刻・曜日指定 (曜日は未選択)・ほかは空。編集は対象の値を読み込む。曜日指定なら日付欄は今日。</remarks>
     public void Load(Reminder? target)
     {
         _target = target;

@@ -20,7 +20,7 @@ public static class SendingCoreServiceCollectionExtensions
     /// <param name="logDirectory">送信のログを置くフォルダー (<c>Data/Logs</c>)</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// ホストが 1 回だけ呼ぶ。通信の <see cref="HttpClient"/> は、アプリ全体で 1 つ (接続を使い回すため)。
+    /// ホストが 1 回だけ呼ぶ。通信の <see cref="HttpClient"/> は、アプリ全体で 1 つ。接続を使い回すため。
     /// 毎分動かす仕事は、各機能が <see cref="AddBatchJob{TJob}"/> で登録する。<see cref="BatchMonitor"/> は、登録された仕事を動かす。
     /// </remarks>
     public static IServiceCollection AddSendingCore(this IServiceCollection services, string logDirectory)

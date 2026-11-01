@@ -1,7 +1,7 @@
 namespace MmmTool.Backlog.Core;
 
 /// <summary>
-/// Backlog の共有ファイルのフォルダーの場所 (スペース・プロジェクト・フォルダーパス)。
+/// Backlog の共有ファイルのフォルダーの場所で、スペース・プロジェクト・フォルダーパス。
 /// </summary>
 /// <param name="Domain">スペースのドメイン (例: <c>xxx.backlog.jp</c>)</param>
 /// <param name="ProjectKey">プロジェクトキー (デコード済み)</param>

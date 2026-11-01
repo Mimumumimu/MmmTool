@@ -11,7 +11,7 @@ namespace MmmTool.Features.Users.Edit;
 /// <summary>アカウントの項目 (表示名・ログイン名・パスワード)を編集するウィンドウ</summary>
 /// <remarks>
 /// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身 (項目ごとに違う)に合わせて決める。サイズ変更・最大化・最小化はできない。
-/// 保存・キャンセル・× のどれでも閉じる。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 保存・キャンセル・× のどれでも閉じる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class AccountEditWindow : Window
 {
@@ -55,7 +55,7 @@ public sealed partial class AccountEditWindow : Window
         _modal.SetOwner(owner);
         this.UseFixedPresenter(isDialog: true, isResizable: false);
 
-        // 高さは中身を読み込んでから決め直す (OnRootLoaded)。ここでは仮の大きさで親の中央に置く
+        // 高さは中身を読み込んでから決め直す。OnRootLoaded で行う。ここでは仮の大きさで親の中央に置く
         this.ResizeClientDip(WindowWidth, 300, _modal.OwnerScale);
         _modal.CenterOnOwner();
 

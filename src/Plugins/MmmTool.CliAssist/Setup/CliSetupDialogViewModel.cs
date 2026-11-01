@@ -28,7 +28,7 @@ public sealed partial class CliSetupDialogViewModel : ObservableObject
     public partial bool IsReset { get; set; }
 
     /// <summary>初回として開いたか</summary>
-    /// <remarks>true のときだけ、あとで変える方法を案内する (初期化のときは、今まさにその方法で開いているため)。</remarks>
+    /// <remarks>true のときだけ、あとで変える方法を案内する。初期化のときは、今まさにその方法で開いているため。</remarks>
     public bool IsFirstRun => !IsReset;
 
     /// <summary>決定できるか (ツールを 1 つ以上選んでいる)</summary>

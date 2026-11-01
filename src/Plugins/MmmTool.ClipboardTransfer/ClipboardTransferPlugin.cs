@@ -10,7 +10,7 @@ namespace MmmTool.ClipboardTransfer;
 public sealed class ClipboardTransferPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存するデータは無い。設定ページでオン・オフできる (オフの間はサイドバーに出さない)。</remarks>
+    /// <remarks>保存するデータは無い。設定ページでオン・オフできる。オフの間はサイドバーに出さない。</remarks>
     public void Register(IServiceCollection services)
     {
         services.AddFeature(ClipboardTransferFeature.Key, ClipboardTransferFeature.DisplayName, defaultEnabled: false);

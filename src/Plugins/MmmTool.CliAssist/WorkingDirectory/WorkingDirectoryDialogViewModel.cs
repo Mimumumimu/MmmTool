@@ -40,7 +40,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         Directories.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoDirectories));
     }
 
-    /// <summary>最近使ったフォルダ (先頭が最新)。</summary>
+    /// <summary>最近使ったフォルダで、先頭が最新。</summary>
     public ObservableCollection<string> Directories { get; } = [];
 
     /// <summary>最近使ったフォルダが無いか</summary>
@@ -50,7 +50,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     [ObservableProperty]
     public partial string DirectoryPath { get; set; }
 
-    /// <summary>入力されたフォルダが存在し、ほかのタブが開いていない (決定できる)。</summary>
+    /// <summary>入力されたフォルダが存在し、ほかのタブが開いていないとき、決定できる。</summary>
     /// <remarks>存在の確認は、入力が止まってから、バックグラウンドで行う。確認が終わるまでは false。</remarks>
     public bool IsValid => _check == DirectoryCheck.Found && !IsOpenInOtherSession;
 
@@ -60,7 +60,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         => DirectoryPath.Trim() is { Length: > 0 } path && _openDirectories.Any(directory => SessionDirectory.IsSame(directory, path));
 
     /// <summary>入力はあるがフォルダが見つからない。</summary>
-    /// <remarks>確認が終わるまでは false (確認中に、見つからないと表示して、ちらつかせないため)。</remarks>
+    /// <remarks>確認が終わるまでは false。確認中に、見つからないと表示して、ちらつかせないため。</remarks>
     public bool IsNotFound => _check == DirectoryCheck.NotFound;
 
     /// <summary>エラー</summary>

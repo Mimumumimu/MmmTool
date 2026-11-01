@@ -9,7 +9,7 @@ namespace MmmTool.Tools;
 public sealed class ToolsPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存するデータは無い。設定ページでオン・オフできる (オフの間はサイドバーに出さない)。</remarks>
+    /// <remarks>保存するデータは無い。設定ページでオン・オフできる。オフの間はサイドバーに出さない。</remarks>
     public void Register(IServiceCollection services)
     {
         services.AddFeature(ToolsFeature.Key, ToolsFeature.DisplayName);

@@ -4,7 +4,7 @@ namespace MmmBatch.Sending;
 
 /// <summary>送信の履歴の一覧の 1 行 (画面に出す文字列)</summary>
 /// <param name="entry">送信の記録の 1 行</param>
-/// <remarks>一覧は読み直すたびに作り直すので、値は変わらない。送る先の値は持たない (秘密のため)。機能ごとの画面が、使う列だけを出す。</remarks>
+/// <remarks>一覧は読み直すたびに作り直すので、値は変わらない。送る先の値は持たない。秘密のため。機能ごとの画面が、使う列だけを出す。</remarks>
 public sealed class SendHistoryItemViewModel(SendLogEntry entry)
 {
     /// <summary>元の記録の行</summary>

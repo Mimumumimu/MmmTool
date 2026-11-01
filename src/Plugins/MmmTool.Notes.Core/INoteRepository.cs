@@ -4,25 +4,36 @@ namespace MmmTool.Notes.Core;
 /// ノート (<see cref="Note"/>)の保存先。ローカルモードは SQLite、DB モードは SQL Server。
 /// </summary>
 /// <remarks>
-/// 読み書きは、操作した人から見えるノートだけが対象 (全員に見えるものと、自分が書いた「自分だけ」のもの)。見えないノートは、番号を指定しても、存在しないのと同じ (false を返す)。
+/// 読み書きは、操作した人から見えるノートだけが対象で、全員に見えるものと、自分が書いた「自分だけ」のもの。見えないノートは、番号を指定しても、存在しないのと同じで、false を返す。
 /// 保存できなかったときは、画面に出せるメッセージの <see cref="MmmSdk.Core.Components.Storage.DataFileException"/> を投げる。
 /// </remarks>
 public interface INoteRepository
 {
-    /// <summary>複数の人で共有するか (DB モード)。false のとき、公開範囲・書いた人・更新者は出さない</summary>
+    /// <summary>複数の人で共有するか。DB モードのとき true。false のとき、公開範囲・書いた人・更新者は出さない</summary>
     bool IsShared { get; }
 
     /// <summary>今のユーザーの番号 (ローカルモードは 1)</summary>
     /// <exception cref="InvalidOperationException">DB モードで、今のユーザーをまだ特定していない。</exception>
     int CurrentUserId { get; }
 
-    /// <summary>指定の日に有効なノートを取得する</summary>
+    /// <summary>指定の日に有効なノートを、書いた人と更新した人の名前つきで取得する</summary>
     /// <param name="day">日</param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>有効なノート (並びは不定。並べるのは呼ぶ側)</returns>
+    /// <returns>有効なノートと名前で、並びは不定。並べるのは呼ぶ側</returns>
+    /// <remarks>名前は、ノートと一緒に 1 回の問い合わせで読む。ノートごとに名前を引かない。</remarks>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
-    Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default);
+
+    /// <summary>指定の範囲の時刻に最後に更新されたノートを、書いた人と更新した人の名前つきで取得する</summary>
+    /// <param name="from">この時刻以降 (含む)</param>
+    /// <param name="to">この時刻より前 (含まない)</param>
+    /// <param name="includeDeleted">削除済みも含めるか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>更新日時が範囲の中のノートと名前で、並びは不定。並べるのは呼ぶ側</returns>
+    /// <remarks>更新日時の索引 (<c>IX_Note_UpdatedAt</c>)で絞る。名前は、<see cref="GetOnDayAsync"/> と同じく、ノートと一緒に 1 回の問い合わせで読む。</remarks>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default);
 
     /// <summary>指定の日が実施日のノートを取得する (削除済みは含めない)</summary>
     /// <param name="day">日</param>

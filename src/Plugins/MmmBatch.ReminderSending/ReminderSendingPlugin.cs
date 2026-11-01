@@ -16,7 +16,7 @@ public sealed class ReminderSendingPlugin : IFeaturePlugin
     /// <inheritdoc />
     public void Register(IServiceCollection services)
     {
-        // MmmBatch の機能は、オフにできない (オン・オフの画面は持たない)。キーは、サイドバーの並びのために使う
+        // MmmBatch の機能は、オフにできない。オン・オフの画面は持たない。キーは、サイドバーの並びのために使う
         services.AddAlwaysOnFeature(ReminderSendingFeature.Key, ReminderSendingFeature.DisplayName);
 
         // 毎分の仕事 (リマインダーを時刻になったら送る)

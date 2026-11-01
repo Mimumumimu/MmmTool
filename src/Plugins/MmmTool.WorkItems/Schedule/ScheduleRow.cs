@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using MmmTool.CodeMaster.Core;
 using MmmTool.WorkItems.Core;
 using MmmTool.WorkItems.Main;
 
@@ -7,9 +8,9 @@ namespace MmmTool.WorkItems.Schedule;
 /// <summary>スケジュールの表の 1 行 (案件・グループ・作業のどれかを、左の列と、日付の棒に出す形にしたもの)</summary>
 /// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
 /// <remarks>
-/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える (スクロールの位置を保つため)。
+/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える。スクロールの位置を保つため。
 /// 棒の描画に関わる値が変わったときだけ、<see cref="VisualVersion"/> を進めて、セルに描き直させる。
-/// 案件・グループの日付・進捗度・実績は、下の作業から計算した値 (<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/>)。見るだけで、入力はできない。
+/// 案件・グループの日付・状態・進捗度・実績は、下の作業から計算した値で、<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/> が作る。見るだけで、入力はできない。
 /// </remarks>
 public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {
@@ -65,6 +66,11 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>担当者の表示名 (作業の行だけで、無ければ空)</summary>
     [ObservableProperty]
     public partial string AssigneeName { get; private set; } = "";
+
+    /// <summary>状態の名前 (例: <c>作業中</c>で、無ければ空)</summary>
+    /// <remarks>作業管理の表と同じ名前。案件・グループは、下の作業から計算した値。</remarks>
+    [ObservableProperty]
+    public partial string StatusText { get; private set; } = "";
 
     /// <summary>進捗度の文字 (例: <c>45%</c>。無ければ空)</summary>
     [ObservableProperty]
@@ -132,11 +138,12 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <param name="hasChildren">子を持つか</param>
     /// <param name="isExpanded">開いているか</param>
     /// <param name="assigneeName">担当者の表示名 (作業の行だけ)</param>
+    /// <param name="codes">コードマスタ (状態の名前を引く)</param>
     /// <param name="runs">実績の棒</param>
     /// <param name="dayNotes">日付ごとの日の備考 (作業の行だけで、無ければ空)</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="today">今日</param>
-    public void Update(WorkNode node, int level, bool hasChildren, bool isExpanded, string assigneeName, IReadOnlyList<ScheduleActualRun> runs, IReadOnlyDictionary<DateOnly, string> dayNotes, ScheduleAxisVisual axis, DateOnly today)
+    public void Update(WorkNode node, int level, bool hasChildren, bool isExpanded, string assigneeName, CodeBook codes, IReadOnlyList<ScheduleActualRun> runs, IReadOnlyDictionary<DateOnly, string> dayNotes, ScheduleAxisVisual axis, DateOnly today)
     {
         Level = level;
         HasChildren = hasChildren;
@@ -146,6 +153,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
         AssigneeName = assigneeName;
 
         var summary = node.Summary;
+        StatusText = summary.Status is { } status ? WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)status) : "";
         ProgressText = summary.Progress is { } percent ? $"{percent}%" : "";
         TotalHoursText = WorkItemRow.FormatHours(summary.ActualTotal > 0 ? summary.ActualTotal : null);
 

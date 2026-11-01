@@ -16,7 +16,7 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     private readonly AudioKeepAliveSettingsService _audioSettings;
 
     /// <summary>保存済みの値を入れている最中か</summary>
-    /// <remarks>true の間は、値の変更で保存しない (読み込んだだけの値で、設定ファイルを書き換えないため)。</remarks>
+    /// <remarks>true の間は、値の変更で保存しない。読み込んだだけの値で、設定ファイルを書き換えないため。</remarks>
     private bool _isInitializing;
 
     /// <summary>画面に出すエラー (保存に失敗したとき)</summary>
@@ -96,7 +96,7 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     /// <param name="value">保存する値</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態 (設定ファイルを読めなかった)では、スイッチを無効にしてあるので、ここへは来ない (来たら、保存されなかったことを知らせる)。
+    /// 保存できない状態 (設定ファイルを読めなかった)では、スイッチを無効にしてあるので、ここへは来ない。来たら、保存されなかったことを知らせる。
     /// 保存の失敗 (ロック・権限など)は、画面に出す。
     /// </remarks>
     private async Task SaveAsync(bool value)

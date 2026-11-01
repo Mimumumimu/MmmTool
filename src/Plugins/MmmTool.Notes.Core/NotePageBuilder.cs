@@ -8,7 +8,7 @@ namespace MmmTool.Notes.Core;
 /// </summary>
 /// <param name="formatter">本文を、表示してよい HTML にする処理</param>
 /// <remarks>
-/// ページはスクリプトを使わない (表示側が、スクリプトを止める)。「タイトルだけ」でカードを開く動きは <c>details</c>、「編集」「削除」「復元」は内部リンク (<see cref="NoteLinks.ActionUrl"/>)。
+/// ページはスクリプトを使わない。表示側が、スクリプトを止める。「タイトルだけ」でカードを開く動きは <c>details</c>、「編集」「削除」「復元」は内部リンクで、<see cref="NoteLinks.ActionUrl"/> を使う。
 /// タイトル・名前・本文は、すべて HTML の文字に直すか、<see cref="INoteBodyFormatter"/> が組み立てたものだけを出す。外部の資源は読み込まない。
 /// 色は、ライト・ダークのそれぞれの値を CSS の変数に持ち、ページの <c>html</c> 要素のクラス (<c>dark</c>)で切り替える。
 /// </remarks>
@@ -43,7 +43,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 
         if (cards.Count == 0)
         {
-            html.Append("<p class=\"empty\"><span class=\"empty-date\">").Append(Escape(FormatDay(options.Day))).Append("</span>この日のノートはありません</p>\n");
+            html.Append("<p class=\"empty\"><span class=\"empty-date\">").Append(Escape(FormatDay(options.Day))).Append("</span>").Append(options.Basis == NoteBasis.Updated ? "この日に更新したノートはありません" : "この日のノートはありません").Append("</p>\n");
         }
         foreach (var card in cards)
         {

@@ -12,7 +12,7 @@ public sealed class EnrollmentCodeService(IAppUserWebAuthRepository repository)
     /// <summary>コードの桁数。</summary>
     private const int Digits = 8;
 
-    /// <summary>コードを作り直す最大の回数 (ほかの人の有効なコードと重なったとき)。</summary>
+    /// <summary>コードを作り直す最大の回数で、ほかの人の有効なコードと重なったときに使う。</summary>
     private const int MaxAttempts = 5;
 
     /// <summary>コードが使える時間。</summary>
@@ -43,7 +43,7 @@ public sealed class EnrollmentCodeService(IAppUserWebAuthRepository repository)
     }
 
     /// <summary>
-    /// 有効な登録用コードの持ち主を探す (コードは使い終わりにしない)。
+    /// 有効な登録用コードの持ち主を探す。コードは使い終わりにしない。
     /// </summary>
     /// <param name="code">入力されたコード。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>

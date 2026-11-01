@@ -6,7 +6,7 @@ namespace MmmBatch.ReminderSending;
 
 /// <summary>今日の送信予定の一覧の 1 行 (画面に出す文字列)</summary>
 /// <param name="item">元の送信予定</param>
-/// <remarks>一覧は読み直すたびに作り直すので、値は変わらない。送る先の値は持たない (秘密のため)。</remarks>
+/// <remarks>一覧は読み直すたびに作り直すので、値は変わらない。送る先の値は持たない。秘密のため。</remarks>
 public sealed class ReminderPlanItemViewModel(ReminderSendPlanItem item)
 {
     /// <summary>元の送信予定 (読み直したときに、変わった行だけ差し替えるための比較にも使う)</summary>

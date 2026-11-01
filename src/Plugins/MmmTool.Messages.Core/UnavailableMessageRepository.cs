@@ -43,6 +43,9 @@ public sealed class UnavailableMessageRepository : IMessageRepository
     public Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
+    public Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default) => throw NotAvailable();
+
+    /// <inheritdoc />
     /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
     public Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default)
         => throw NotAvailable();

@@ -3,11 +3,11 @@ using MmmTool.Notes.Core;
 namespace MmmTool.Data.Notes;
 
 /// <summary>
-/// DB の <c>Note</c> (ノート)の 1 行 (列と 1 対 1)。アプリの型 <see cref="Note"/> とは別の、DB の形のまま持つ。
+/// DB の <c>Note</c> (ノート)の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="Note"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 書いた人は業務の列 <see cref="AuthorUserId"/> で、<see cref="CreatedByUserId"/> は記録用 (検索・結合・索引には使わない)。
-/// 終了日が無い (無期限)ときは <c>9999-12-31</c> (<see cref="DateOnly.MaxValue"/>)。NULL は使わない (理由は docs/specs/database.md)。
+/// 書いた人は業務の列 <see cref="AuthorUserId"/> で、<see cref="CreatedByUserId"/> は記録用で、検索・結合・索引には使わない。
+/// 終了日が無い (無期限)ときは <c>9999-12-31</c>、つまり <see cref="DateOnly.MaxValue"/>。NULL は使わない。理由は docs/specs/database.md にある。
 /// </remarks>
 public sealed record NoteRow
 {
@@ -26,10 +26,10 @@ public sealed record NoteRow
     /// <summary>更新日時</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (ユーザーの番号)。カードに出すだけで、検索には使わない</summary>
+    /// <summary>更新者で、ユーザーの番号。カードに出すだけで、検索には使わない</summary>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>書いた人 (<c>AppUser.Id</c>。ローカルモードは 1)。「自分だけ」のノートが見える人を決める</summary>
+    /// <summary>書いた人で、<c>AppUser.Id</c> の値。ローカルモードは 1。「自分だけ」のノートが見える人を決める</summary>
     public int AuthorUserId { get; init; }
 
     /// <summary>書いた人だけに見えるか</summary>
@@ -67,7 +67,7 @@ public sealed record NoteRow
 
     /// <summary>DB の行から、アプリの型にする</summary>
     /// <returns>ノート</returns>
-    /// <exception cref="InvalidOperationException">重要度が、定義にない値 (バグか、手で直した値)。</exception>
+    /// <exception cref="InvalidOperationException">重要度が、定義にない値で、バグか、手で直した値。</exception>
     public Note ToNote()
     {
         var priority = (NotePriority)Priority;

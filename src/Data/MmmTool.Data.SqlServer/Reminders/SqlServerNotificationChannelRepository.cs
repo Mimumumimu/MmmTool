@@ -12,7 +12,7 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// 送信先 (<see cref="NotificationChannel"/>)を、SQL Server の <c>dbo.NotificationChannel</c> に保存する。
 /// </summary>
 /// <remarks>
-/// 読むたびに DB から読む (件数が少なく、メモリに持たない)。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
+/// 読むたびに DB から読む。件数が少なく、メモリに持たない。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
 /// 一覧に出るのは、自分が使用者のもの (<c>UserId</c> が自分)だけ。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
@@ -29,7 +29,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     public int CurrentUserId => currentUser.User?.Id ?? 0;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<NotificationChannel>> GetChannelsAsync(bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -75,6 +75,39 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
+    /// <remarks>送る先の値の列 <c>Value</c> を読まない。定義の無い種類の行は、含めない。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>> GetAllSummariesAsync(CancellationToken cancellationToken = default)
+    {
+        var userId = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Kind, Id, Name FROM dbo.NotificationChannel WHERE UserId = @UserId AND IsDeleted = 0 ORDER BY Kind, Id";
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var byKind = new Dictionary<NotificationChannelKind, List<NotificationChannelSummary>>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var kind = (NotificationChannelKind)reader.GetByte(0);
+                if (!Enum.IsDefined(kind))
+                {
+                    continue;
+                }
+
+                if (!byKind.TryGetValue(kind, out var summaries))
+                {
+                    summaries = [];
+                    byKind[kind] = summaries;
+                }
+                summaries.Add(new NotificationChannelSummary(reader.GetInt32(1), reader.GetString(2)));
+            }
+            return byKind.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<NotificationChannelSummary>)pair.Value);
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// 送る先の値の列 <c>Value</c> を読めない DB のログインでも呼べるよう、ストアドプロシージャ <c>dbo.FindWebPushChannel</c> に探させる。
     /// プロシージャは表の持ち主 (<c>dbo</c>)の権限で動くので、呼ぶ側に <c>Value</c> の権限は要らない。返すのは番号と削除済みかだけ。
@@ -101,7 +134,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
     {
         var row = NotificationChannelRow.FromChannel(channel with { Id = 0, IsDeleted = false });
@@ -127,8 +160,22 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
+        => UpdateCoreAsync(channel, restore: false, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    public Task<bool> UpdateAndRestoreAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
+        => UpdateCoreAsync(channel, restore: true, cancellationToken);
+
+    /// <summary>自分が使用者の送信先の名前と値を更新する。削除済みを戻すかを選べる</summary>
+    /// <param name="channel">置き換える内容</param>
+    /// <param name="restore">true なら、削除済みの行の削除を戻す</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>対象があって更新したとき true</returns>
+    private Task<bool> UpdateCoreAsync(NotificationChannel channel, bool restore, CancellationToken cancellationToken)
     {
         var row = NotificationChannelRow.FromChannel(channel);
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -137,9 +184,9 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
             // 自分が使用者のものだけ、区分は変えずに、名前と値を更新する
             await using var command = connection.CreateCommand();
             command.CommandText =
-                """
+                $"""
                 UPDATE dbo.NotificationChannel
-                SET Name = @Name, Value = @Value, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+                SET Name = @Name, Value = @Value, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId{(restore ? ", IsDeleted = 0" : "")}
                 WHERE Id = @Id AND UserId = @UserId AND Kind = @Kind
                 """;
             command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = row.Id });
@@ -152,7 +199,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);

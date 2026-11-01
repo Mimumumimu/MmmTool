@@ -11,12 +11,12 @@ namespace MmmBatch.Sending.Core;
 /// <param name="time">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// <para>
-/// 1 秒ごとに時計を確かめ、間隔が来た仕事を、登録順に 1 つずつ動かす。仕事の間隔 (<see cref="IBatchJob.Interval"/>)は、0 時からの区切りに合わせる
-/// (毎分の仕事は毎分 00 秒、5 秒の仕事は 5 秒ごとの区切り)。開始直後に、すべての仕事を 1 回動かす。
-/// 前の実行が終わっていないときは、その回を飛ばす (間隔が来たままなので、終わりしだい動く)。
+/// 1 秒ごとに時計を確かめ、間隔が来た仕事を、登録順に 1 つずつ動かす。仕事の間隔 (<see cref="IBatchJob.Interval"/>)は、0 時からの区切りに合わせる。
+/// 毎分の仕事は毎分 00 秒、5 秒の仕事は 5 秒ごとの区切りになる。開始直後に、すべての仕事を 1 回動かす。
+/// 前の実行が終わっていないときは、その回を飛ばす。間隔が来たままなので、終わりしだい動く。
 /// </para>
 /// <para>
-/// 画面の「再送」も、同じゲート (<see cref="RunExclusiveAsync"/>)を通る (仕事と同時に送らない)。
+/// 画面の「再送」も、同じゲート (<see cref="RunExclusiveAsync"/>)を通り、仕事と同時に送らない。
 /// 破棄 (Host の破棄)で止まり、実行中の仕事も取り消す。このクラスは、個々の機能の名前を持たない。
 /// </para>
 /// </remarks>
@@ -28,15 +28,15 @@ public sealed class BatchMonitor(IEnumerable<IBatchJob> jobs, ISendLog log, Batc
     /// <summary>登録された仕事 (登録順)</summary>
     private readonly IReadOnlyList<IBatchJob> _jobs = [.. jobs];
 
-    /// <summary>仕事ごとの、次に動かす時刻 (ローカル)。まだ動かしていない仕事は、すぐ動かす</summary>
+    /// <summary>仕事ごとの、次に動かす時刻で、ローカル時刻。まだ動かしていない仕事は、すぐ動かす</summary>
     private readonly Dictionary<IBatchJob, DateTime> _nextRun = [];
 
     /// <summary>同時に 1 つだけ実行するためのゲート</summary>
-    /// <remarks>破棄しない (実行中の処理が、終わるときに解放するため。プロセスの終了で消える)。</remarks>
+    /// <remarks>破棄しない。実行中の処理が、終わるときに解放するため。プロセスの終了で消える。</remarks>
     private readonly SemaphoreSlim _running = new(1, 1);
 
     /// <summary>破棄したときに、実行中の仕事を取り消すためのトークン</summary>
-    /// <remarks>破棄しない (実行中の処理が、トークンを読むため。プロセスの終了で消える)。</remarks>
+    /// <remarks>破棄しない。実行中の処理が、トークンを読むため。プロセスの終了で消える。</remarks>
     private readonly CancellationTokenSource _stop = new();
 
     /// <summary>最初の実行が終わったことを知らせる</summary>
@@ -78,14 +78,14 @@ public sealed class BatchMonitor(IEnumerable<IBatchJob> jobs, ISendLog log, Batc
 
     /// <summary>間隔を待たず、すべての仕事を今すぐ 1 回実行する</summary>
     /// <returns>実行の完了を表すタスク。仕事が動いている最中は、その完了まで待たずに、何もしない</returns>
-    /// <remarks>接続の設定を保存した直後に、画面の失敗の表示を、最新にするために使う (次の実行まで、前の失敗が残らないように)。</remarks>
+    /// <remarks>接続の設定を保存した直後に、画面の失敗の表示を、最新にするために使う。次の実行まで、前の失敗が残らないようにするため。</remarks>
     public Task RunNowAsync() => RunAsync(force: true);
 
     /// <summary>仕事と同時にならないように、処理を 1 つ実行する (画面の「再送」「今すぐ送る」)</summary>
     /// <param name="action">実行する処理。破棄で取り消されるトークンを受け取る</param>
     /// <returns>処理の完了を表すタスク</returns>
-    /// <remarks>仕事が動いている最中は、その終わりを待ってから実行する (同時に送らないため)。</remarks>
-    /// <exception cref="DataFileException">処理が、設定が足りない・接続できない・表が無い・保存できなかったことを伝えた (メッセージは画面に出せる)。</exception>
+    /// <remarks>仕事が動いている最中は、その終わりを待ってから実行する。同時に送らないため。</remarks>
+    /// <exception cref="DataFileException">処理が、設定が足りない・接続できない・表が無い・保存できなかったことを伝えた。メッセージは画面に出せる。</exception>
     public async Task RunExclusiveAsync(Func<CancellationToken, Task> action)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -102,7 +102,7 @@ public sealed class BatchMonitor(IEnumerable<IBatchJob> jobs, ISendLog log, Batc
     }
 
     /// <summary>1 秒ごとに、間隔が来た仕事を動かす</summary>
-    /// <remarks>処理中の想定外の例外は握りつぶさない (async void なのでアプリの未処理例外になる)。</remarks>
+    /// <remarks>処理中の想定外の例外は握りつぶさない。async void なので、握りつぶさないとアプリの未処理例外になる。</remarks>
     private async void OnTick() => await RunAsync(force: false).ConfigureAwait(false);
 
     /// <summary>間隔が来た仕事 (<paramref name="force"/> なら、すべて)を、登録順に動かす</summary>
@@ -152,7 +152,7 @@ public sealed class BatchMonitor(IEnumerable<IBatchJob> jobs, ISendLog log, Batc
 
     /// <summary>日付が変わった最初の実行で、古い日のログのファイルを <c>old</c> フォルダーへ移す</summary>
     /// <param name="today">今日</param>
-    /// <remarks>ログは機能に共通なので、特定の仕事ではなく、ここで行う。移せなかったときは、通知で知らせる (送信そのものは止めない)。</remarks>
+    /// <remarks>ログは機能に共通なので、特定の仕事ではなく、ここで行う。移せなかったときは、通知で知らせる。送信そのものは止めない。</remarks>
     private void ArchiveOldLogs(DateOnly today)
     {
         if (_archivedOn == today)

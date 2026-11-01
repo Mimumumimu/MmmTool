@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:picker="using:MmmTool.WorkItems.ProjectPicker">
 
-    <!-- 表示する案件を選ぶ (チェックを入れ外しすると、その場で保存して、画面に出し入れする)。作業管理の表とスケジュールで共有する -->
+    <!-- 表示する案件を選ぶ。チェックを入れ外しすると、その場で保存して、画面に出し入れする。作業管理の表とスケジュールで共有する -->
     <DropDownButton Content="表示する案件">
         <DropDownButton.Flyout>
             <Flyout Opening="OnFlyoutOpening" Placement="BottomEdgeAlignedLeft">

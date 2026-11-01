@@ -7,12 +7,12 @@ namespace MmmTool.Reminders.Core;
 /// <remarks>
 /// 日付指定 (<see cref="Date"/> に yyyyMMdd)と曜日指定 (<see cref="Date"/> に <see cref="ReminderDates.NoDate"/>、
 /// <see cref="Weekdays"/> に曜日)の 2 通りがある。対応状態は <see cref="ReminderState"/> に別に持ち、<see cref="No"/> で紐付ける。
-/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る (<c>init</c>)。
+/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る。値は <c>init</c> で設定する。
 /// </remarks>
 public sealed record Reminder
 {
     /// <summary>番号</summary>
-    /// <remarks>登録順の一意の連番 (ID)で、<see cref="ReminderState.BaseNo"/> が指すキー。0 は未採番 (新規)。</remarks>
+    /// <remarks>登録順の一意の連番 (ID)で、<see cref="ReminderState.BaseNo"/> が指すキー。0 は未採番で、新規を表す。</remarks>
     public int No { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -42,18 +42,18 @@ public sealed record Reminder
     /// <remarks>既存のデータ (この項目が無い JSON)は false (読み上げない)で読み込む。</remarks>
     public bool IsSpeak { get; init; }
 
-    /// <summary>宛先のユーザー (<c>AppUser.Id</c>)。0 は全員宛て</summary>
+    /// <summary>宛先のユーザーで、<c>AppUser.Id</c> の値。0 は全員宛て</summary>
     /// <remarks>
-    /// DB モードだけで使う。ローカルモードでは常に 0 で、JSON には書かない (この項目が無い既存の JSON は 0 で読み込む)。
+    /// DB モードだけで使う。ローカルモードでは常に 0 で、JSON には書かない。この項目が無い既存の JSON は 0 で読み込む。
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int TargetUserId { get; init; }
 
-    /// <summary>作成者のユーザー (<c>AppUser.Id</c>)。作った人。0 は作成者を持たない (ローカルモード)</summary>
+    /// <summary>作成者のユーザーで、<c>AppUser.Id</c> の値。作った人。0 は作成者を持たない (ローカルモード)</summary>
     /// <remarks>
-    /// DB モードだけで使い、DB が持つ値を読むだけ (作成するときに、保存先が今のユーザーを入れる。更新では変えない)。ローカルモードでは常に 0 で、JSON には書かない。
-    /// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)の判断に使う業務の列 (DB の <c>AuthorUserId</c>)。共通ヘッダーの <c>CreatedByUserId</c> は、条件に使わない。
-    /// 編集も削除も、見える人ならできる (削除の確認ダイアログは、いつも出す)。
+    /// DB モードだけで使い、DB が持つ値を読むだけ。作成するときに、保存先が今のユーザーを入れ、更新では変えない。ローカルモードでは常に 0 で、JSON には書かない。
+    /// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)の判断に使う業務の列で、DB の <c>AuthorUserId</c>。共通ヘッダーの <c>CreatedByUserId</c> は、条件に使わない。
+    /// 編集も削除も、見える人ならできる。削除の確認ダイアログは、いつも出す。
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int AuthorUserId { get; init; }

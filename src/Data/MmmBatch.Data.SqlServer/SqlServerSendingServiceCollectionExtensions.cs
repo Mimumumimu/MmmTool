@@ -20,8 +20,8 @@ public static class SqlServerSendingServiceCollectionExtensions
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// MmmTool のリマインダーなどの保存先 (<c>AddSqlServerData</c>)は登録しない (MmmBatch は、リマインダーを読むだけで、書かないため)。
-    /// DB の接続の設定は、MmmBatch の設定ストアに持つ。ユーザーの特定 (ログイン)は、しない (MmmBatch はユーザーではない)。
+    /// MmmTool のリマインダーなどの保存先 (<c>AddSqlServerData</c>)は登録しない。MmmBatch は、リマインダーを読むだけで、書かないため。
+    /// DB の接続の設定は、MmmBatch の設定ストアに持つ。ユーザーの特定 (ログイン)は、しない。MmmBatch はユーザーではない。
     /// </remarks>
     public static IServiceCollection AddMmmBatchSqlServer(this IServiceCollection services)
     {

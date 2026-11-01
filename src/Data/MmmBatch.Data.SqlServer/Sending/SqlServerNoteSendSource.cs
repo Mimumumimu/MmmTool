@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using MmmBatch.NoteSending.Core;
 using MmmTool.CodeMaster.Core;
+using MmmTool.Data;
 using MmmTool.Data.Reminders;
 using MmmTool.Data.SqlServer.Connection;
 using MmmTool.Data.SqlServer.Notes;
@@ -33,12 +34,47 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
 
     /// <inheritdoc />
     public Task<IReadOnlyList<NoteRecipient>> GetRecipientsAsync(int afterUserId, int excludeUserId, int count, CancellationToken cancellationToken = default)
+        => ReadRecipientsAsync(
+            "TOP (@Count) ",
+            "t.UserId > @After AND t.UserId <> @Exclude",
+            command =>
+            {
+                command.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = count });
+                command.Parameters.Add(new SqlParameter("@After", SqlDbType.Int) { Value = afterUserId });
+                command.Parameters.Add(new SqlParameter("@Exclude", SqlDbType.Int) { Value = excludeUserId });
+            },
+            cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>人の番号は JSON の 1 つのパラメーターで渡す。条件は <see cref="GetRecipientsAsync"/> と同じ問い合わせを共有する。</remarks>
+    public Task<IReadOnlyList<NoteRecipient>> GetRecipientsByIdsAsync(IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userIds);
+        if (userIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<NoteRecipient>>([]);
+        }
+
+        return ReadRecipientsAsync(
+            "",
+            "t.UserId IN (SELECT j.UserId FROM OPENJSON(@UserIds) WITH (UserId int '$') AS j)",
+            command => command.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(userIds) }),
+            cancellationToken);
+    }
+
+    /// <summary>通知する相手を読む。人の絞り方と件数の指定だけを変えて、2 つの読み方で共有する</summary>
+    /// <param name="top">先頭に付ける <c>TOP</c> の指定。無ければ空。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="userFilter">人を絞る条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="addParameters">条件が使うパラメーターを足す処理</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>通知する相手。人の番号の順</returns>
+    private Task<IReadOnlyList<NoteRecipient>> ReadRecipientsAsync(string top, string userFilter, Action<SqlCommand> addParameters, CancellationToken cancellationToken)
         => SendTableAccess.RunAsync<IReadOnlyList<NoteRecipient>>(database, async connection =>
         {
             await using var command = connection.CreateCommand();
             command.CommandText =
                 $"""
-                SELECT TOP (@Count) t.UserId, ISNULL(u.DisplayName, N''), c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value
+                SELECT {top}t.UserId, ISNULL(u.DisplayName, N''), c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value
                 FROM dbo.AppUserSetting AS t
                 INNER JOIN dbo.AppUserSetting AS s
                     ON s.UserId = t.UserId AND s.FeatureNo = {ReceiveTarget.FeatureNo} AND s.CategoryNo = {ReceiveTarget.CategoryNo}
@@ -47,13 +83,11 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
                 LEFT JOIN dbo.AppUser AS u ON u.Id = t.UserId
                 WHERE t.FeatureNo = {CodeFeatures.Notes} AND t.CategoryNo = {NotificationFeatureSettings.CategoryNo} AND t.CodeNo = {NotificationFeatureSettings.CodeNo}
                     AND t.Value = N'{NotificationFeatureSettings.On}' AND t.IsDeleted = 0
-                    AND t.UserId > @After AND t.UserId <> @Exclude
+                    AND {userFilter}
                     AND NOT {FeatureAccessSql.IsDisabled("t.UserId", CodeFeatures.Notes)}
                 ORDER BY t.UserId
                 """;
-            command.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = count });
-            command.Parameters.Add(new SqlParameter("@After", SqlDbType.Int) { Value = afterUserId });
-            command.Parameters.Add(new SqlParameter("@Exclude", SqlDbType.Int) { Value = excludeUserId });
+            addParameters(command);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
             var recipients = new List<NoteRecipient>();

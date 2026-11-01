@@ -15,7 +15,7 @@ namespace MmmTool.WorkItems.ProjectManager;
 /// <param name="service">作業管理の読み書き</param>
 /// <param name="confirm">確認ダイアログ</param>
 /// <remarks>
-/// 案件は、「新しい案件」で出る入力中の行に名前を入れて確定すると追加する (空のまま・Esc は保存しない)。追加すると、作った人の表示する案件に加わる。削除は論理削除で、中のグループ・作業も消える (確認に件数を出す)。
+/// 案件は、「新しい案件」で出る入力中の行に名前を入れて確定すると追加する。空のまま・Esc は保存しない。追加すると、作った人の表示する案件に加わる。削除は論理削除で、中のグループ・作業も消える。確認に件数を出す。
 /// 更新してよいかは、サービスの更新の入口 (<see cref="IWorkItemEditPolicy"/>)が決める。
 /// </remarks>
 public sealed partial class ProjectManagerViewModel(WorkItemService service, IDialogService confirm) : ObservableObject
@@ -220,7 +220,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
     /// <returns>作成の完了を表すタスク</returns>
     /// <remarks>
     /// 案件は全員で共有するので、Enter を押したときだけ、確認してから保存する。
-    /// フォーカスが外れただけでは保存しない (行は残り、入力を続けられる)。確認で取りやめたときも、行を残す。
+    /// フォーカスが外れただけでは保存しない。行は残り、入力を続けられる。確認で取りやめたときも、行を残す。
     /// </remarks>
     public async Task CreateAsync(ProjectManagerItem item)
     {

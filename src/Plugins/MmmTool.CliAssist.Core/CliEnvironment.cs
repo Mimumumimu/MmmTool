@@ -7,6 +7,6 @@ public enum CliEnvironment
     /// <summary>Windows (PowerShell)</summary>
     Windows,
 
-    /// <summary>WSL (既定のディストリビューションの既定のシェル)。パスは Linux の形 (<c>/mnt/d/...</c>)にして渡す</summary>
+    /// <summary>WSL で、既定のディストリビューションの既定のシェル。パスは Linux の形 (<c>/mnt/d/...</c>)にして渡す</summary>
     Wsl,
 }

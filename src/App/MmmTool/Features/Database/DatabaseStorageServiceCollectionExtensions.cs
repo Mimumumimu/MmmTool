@@ -16,7 +16,7 @@ public static class DatabaseStorageServiceCollectionExtensions
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
     /// 設定 (<see cref="DatabaseMode"/>)が DB のときは <typeparamref name="TServer"/>、それ以外は <typeparamref name="TLocal"/>。
-    /// 選ぶのは、SQLite と SQL Server の両方を参照するホストの役目 (MmmBatch は SQLite を参照しないので、<c>MmmTool.Data.SqlServer</c> の側には置かない)。
+    /// 選ぶのは、SQLite と SQL Server の両方を参照するホストの役目。MmmBatch は SQLite を参照しないので、<c>MmmTool.Data.SqlServer</c> の側には置かない。
     /// <c>AddSqliteData</c> と <c>AddSqlServerData</c> のあとに呼ぶ。機能が増えても、選ぶ処理はここ 1 か所で、機能は 1 行を足すだけ。
     /// </remarks>
     public static IServiceCollection AddStorage<TService, TLocal, TServer>(this IServiceCollection services)

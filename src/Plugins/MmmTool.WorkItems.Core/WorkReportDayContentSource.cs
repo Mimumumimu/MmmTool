@@ -69,4 +69,16 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
             options.GetValueOrDefault(ShowHoursKey, false),
             options.GetValueOrDefault(ShowProgressKey, true));
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<int, string>> GetTextsAsync(
+        DateOnly from, DateOnly to, IReadOnlyCollection<int> userIds, IReadOnlyDictionary<string, bool> options, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userIds);
+        ArgumentNullException.ThrowIfNull(options);
+        var reports = await repository.LoadReportsAsync(from, to, userIds, cancellationToken).ConfigureAwait(false);
+        var showHours = options.GetValueOrDefault(ShowHoursKey, false);
+        var showProgress = options.GetValueOrDefault(ShowProgressKey, true);
+        return reports.ToDictionary(report => report.Key, report => WorkReportBuilder.Build(report.Value, from, to, showHours, showProgress));
+    }
 }

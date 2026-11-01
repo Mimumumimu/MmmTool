@@ -14,6 +14,6 @@ public interface ICliSetupDialogService
     /// <summary>初期化 (定型コマンドの作り直し)として開く</summary>
     /// <param name="current">今の初期設定 (環境と使っているツール。最初に選んでおく)</param>
     /// <returns>選んだ初期設定。キャンセルなら null</returns>
-    /// <remarks>消えるもの・終了するものの警告を出す (確認を兼ねる)。</remarks>
+    /// <remarks>消えるもの・終了するものの警告を出し、確認を兼ねる。</remarks>
     Task<CliSetup?> ShowResetAsync(CliSetup current);
 }

@@ -220,7 +220,7 @@ public sealed partial class AccountEditViewModel : ObservableObject
 
     /// <summary>入力中に出すエラーを求める (ログイン名に使えない文字があるときだけ)</summary>
     /// <returns>エラーの文言。無ければ null</returns>
-    /// <remarks>今のログイン名と同じなら出さない (ASCII 以外で登録済みのログイン名を、変えずに開いたとき)。</remarks>
+    /// <remarks>今のログイン名と同じなら出さない。ASCII 以外で登録済みのログイン名を、変えずに開いたとき。</remarks>
     private string? GetLiveError()
     {
         var name = Value.Trim();

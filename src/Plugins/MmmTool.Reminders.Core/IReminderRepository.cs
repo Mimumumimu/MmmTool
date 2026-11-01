@@ -4,15 +4,15 @@ namespace MmmTool.Reminders.Core;
 
 /// <summary>リマインダー (本体・対応状態)の保存先</summary>
 /// <remarks>
-/// 1 件単位の操作で書く (一覧を丸ごと置き換えない)。番号 (<see cref="Reminder.No"/>)と対応状態の連番 (<see cref="ReminderState.Seq"/>)は、保存先が「最大 + 1」で決める
-/// (JSON ファイルはロックの中で計算し、SQL Server・DynamoDB などは、保存先の仕組みで一意になるように決める)。
+/// 1 件単位の操作で書く。一覧を丸ごと置き換えない。番号 (<see cref="Reminder.No"/>)と対応状態の連番 (<see cref="ReminderState.Seq"/>)は、保存先が「最大 + 1」で決める
+/// JSON ファイルはロックの中で計算し、SQL Server・DynamoDB などは、保存先の仕組みで一意になるように決める。
 /// 読み書きはスレッドセーフ。返す値は書き換えられない (<c>init</c> の record)ので、複製しなくてよい。
 /// </remarks>
 public interface IReminderRepository
 {
     /// <summary>ファイルを読めなかったときのメッセージ。正常なら null</summary>
     /// <remarks>
-    /// ロック・権限などで読めなかったとき (最初の読み込みのあとに分かる)。元のデータを上書きで消さないよう、このときは書き込みを止める (書こうとすると例外)。
+    /// ロック・権限などで読めなかったとき。最初の読み込みのあとに分かる。元のデータを上書きで消さないよう、このときは書き込みを止める。書こうとすると例外になる。
     /// ファイルを使わない保存先は、常に null。
     /// </remarks>
     string? LoadError { get; }
@@ -21,20 +21,20 @@ public interface IReminderRepository
     /// <remarks>ファイルを使わない保存先は、常に null。</remarks>
     string? RecoveryMessage { get; }
 
-    /// <summary>今のユーザーの番号 (<c>AppUser.Id</c>)。ローカルモードは 0</summary>
+    /// <summary>今のユーザーの番号で、<c>AppUser.Id</c> の値。ローカルモードは 0</summary>
     /// <remarks>
     /// 通知・今日のリマインダーの対象 (宛先が自分と全員宛て)を決めるために使う。一覧に出るのは、これに加えて、自分が作成したもの
-    /// (<see cref="Reminder.AuthorUserId"/>)。まだ特定していないときも 0。
+    /// <see cref="Reminder.AuthorUserId"/> が自分のもの。まだ特定していないときも 0。
     /// </remarks>
     int CurrentUserId { get; }
 
     /// <summary>完全削除 (<see cref="PurgeAsync"/>)ができるか</summary>
-    /// <remarks>JSON は true。DB は、行を消さない方針なので false (<see cref="PurgeAsync"/> は <see cref="NotSupportedException"/>)。画面は、false のときは、完全削除の操作を出さない。</remarks>
+    /// <remarks>JSON は true。DB は、行を消さない方針なので false で、<see cref="PurgeAsync"/> は <see cref="NotSupportedException"/> を投げる。画面は、false のときは、完全削除の操作を出さない。</remarks>
     bool CanPurge { get; }
 
     /// <summary>このアプリの外 (ほかの PC など)で、保存先の内容が変わった</summary>
     /// <remarks>
-    /// このアプリ自身の書き込みでは発火しない (それは <see cref="ReminderService.Changed"/> が知らせる)。ほかの PC と共有する保存先 (DB)だけが発火し、
+    /// このアプリ自身の書き込みでは発火しない。それは <see cref="ReminderService.Changed"/> が知らせる。ほかの PC と共有する保存先 (DB)だけが発火し、
     /// JSON のように 1 つの PC だけの保存先は発火しない。任意のスレッドから発火する。
     /// </remarks>
     event EventHandler? ExternalChanged;
@@ -80,10 +80,10 @@ public interface IReminderRepository
     /// <returns>対象があって削除したとき true</returns>
     /// <remarks>
     /// 対応状態も一緒に消す。残すと、あとで同じ番号が採番されたとき (最大の番号を消した場合)に、無関係な新しいリマインダーが、前の状態 (完了など)を引き継いでしまうため。
-    /// ファイルへの保存は、状態のファイルを先に書く (途中で失敗しても、状態が残るだけの側に倒す。本体が残って状態だけ消えるのは、未対応に戻るだけで害が小さい)。
+    /// ファイルへの保存は、状態のファイルを先に書く。途中で失敗しても、状態が残るだけの側に倒す。本体が残って状態だけ消えるのは、未対応に戻るだけで害が小さい。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
-    /// <exception cref="NotSupportedException">完全削除ができない保存先 (<see cref="CanPurge"/> が false)。呼ぶ側のバグ。</exception>
+    /// <exception cref="NotSupportedException">完全削除ができない保存先で、<see cref="CanPurge"/> が false。呼ぶ側のバグ。</exception>
     Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default);
 
     /// <summary>対応状態をまとめて保存する</summary>

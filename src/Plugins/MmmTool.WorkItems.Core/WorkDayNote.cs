@@ -2,13 +2,16 @@ namespace MmmTool.WorkItems.Core;
 
 /// <summary>日報メモ (作業に結びつかない、その人の 1 日分の記入)</summary>
 /// <remarks>
-/// 1 人 1 日 1 件で、持ち主は今のユーザー (保存先が決める)。空にしたときは、行を消さず、<see cref="Note"/> を空にする。
-/// 作業報告では、空 (空白だけも含む)と、行が無いことを区別しない (<see cref="HasText"/>)。
+/// 1 人 1 日 1 件で、持ち主は今のユーザーで、保存先が決める。空にしたときは、行を消さず、<see cref="Note"/> を空にする。
+/// 作業報告では、空 (空白だけも含む)と、行が無いことを区別しない。判定は <see cref="HasText"/> で行う。
 /// </remarks>
 public sealed record WorkDayNote
 {
     /// <summary>番号 (保存先が決める)</summary>
     public int Id { get; init; }
+
+    /// <summary>持ち主のユーザーの番号。全員分を 1 回で読んだ作業報告を、人ごとに分けるために持つ</summary>
+    public int UserId { get; init; }
 
     /// <summary>日付</summary>
     public DateOnly Date { get; init; }

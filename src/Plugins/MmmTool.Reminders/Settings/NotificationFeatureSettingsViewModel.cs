@@ -39,10 +39,11 @@ public sealed class NotificationFeatureSettingsViewModel(IEnumerable<INotificati
         Error.Clear();
         try
         {
+            var values = await store.GetByFeatureAsync(NotificationFeatureSettings.CategoryNo, NotificationFeatureSettings.CodeNo);
             var loaded = new List<NotificationFeatureItem>();
             foreach (var setting in settings.Where(setting => access.Get(setting.FeatureNo) != FeatureAccess.Disabled))
             {
-                var saved = await store.GetAsync(setting.FeatureNo, NotificationFeatureSettings.CategoryNo, NotificationFeatureSettings.CodeNo);
+                values.TryGetValue(setting.FeatureNo, out var saved);
                 loaded.Add(new NotificationFeatureItem(setting, NotificationFeatureSettings.IsOn(saved, setting.DefaultOn), SaveAsync));
             }
 

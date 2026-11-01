@@ -115,7 +115,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 ```
 
 - 機能 (プラグイン)がホストへ入るときに使う型は、SDK の `MmmSdk.Core.Components.Features` / `.Hosting`、`MmmSdk.WinUI.Components.Pages` / `.Tray` にある。機能もホストも、それを参照する。
-  - 型は、`IFeaturePlugin`・`FeatureInfo`・`IStartupTask`・`IFeatureDisableConfirmation`・`IFeatureStatus`・`NavigationPage`・`SettingsSection`・`IReleasablePage`・`IPageCache`・`AppEnvironment`・`AddFeature` / `AddStartupTask` / `AddNavigationPage` / `AddSettingsSection` / `AddTrayMenuSource`
+  - 型は、`IFeaturePlugin`・`FeatureInfo`・`IStartupTask`・`IFeatureDisableConfirmation`・`IFeatureStatus`・`NavigationPage`・`SettingsSection`・`IReleasablePage`・`IHandoverPage`・`IPageCache`・`AppEnvironment`・`AddFeature` / `AddStartupTask` / `AddNavigationPage` / `AddSettingsSection` / `AddTrayMenuSource`
 - 機能を機能ごとのライブラリに分け、ホストが `AddFeaturePlugin<<機能>Plugin>(order: n)` で登録する (必要な機能だけを参照すれば、その機能だけを持つ配布物になるため)
 - 機能がホスト (exe)を参照できないので、入口の型は SDK に置く
 - 設定ページは、全機能の設定を並べる側なので、ホストに残す (`src/App/MmmTool/Features/`)
@@ -162,6 +162,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - サイドバーのページも、ページごとのスコープから解決する (SDK の `PageProvider`)
   - オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する
   - 残りは Host の破棄で解放する
+  - CLI補助のように `IHandoverPage` を持つページは、別のウィンドウに外す・戻すときも、スコープを捨てない。同じスコープから、画面だけを作り直す。ViewModel (Scoped)とシェルが続くため。詳細は [specs/cli-assist.md](specs/cli-assist.md) の「別のウィンドウに外す」
 - 画面で選んだ状態 (単位・絞り込み・見ている日付・開閉・選んだ行など)は、ページのスコープの外の、その機能の状態クラス (`<機能>ViewState`)に持つ
   - ページは、別のウィンドウに外す・戻す・機能をオフにしてオンに戻すときに作り直される。ViewModel に持たせると、そのたびに初期値へ戻るため。
   - 状態クラスは、機能の `.Core` に置き、`<機能>Plugin.Register` の中で `AddSingleton` で登録する
@@ -224,6 +225,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - それでも起きる失敗 (ファイル・JSON・OS・COM)は、範囲を絞った `catch` で受けて画面に出す (InfoBar)
   - 復旧が難しい失敗・予想外の失敗 (バグ)は、ログ → ダイアログ → 終了 (SDK の `FatalErrorHandler`)
     - ログは `AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`
+  - SQL Server の失敗 (`SqlException`)は、画面に出す前に、`SqlServerDatabase` が同じログへ書く。サーバー名・データベース名・エラー番号と、例外全体 (スタックトレースで、どの機能の処理かが分かる)を残す。画面の文は変えない
   - 隠さず、握りつぶさない
 - `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` する
   - Host を作る前の失敗も拾うため

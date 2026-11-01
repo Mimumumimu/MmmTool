@@ -12,8 +12,8 @@ namespace MmmTool.WorkItems.Schedule;
 /// <summary>スケジュールの 1 行ぶんの、日付の棒を描くセル (休みの日の背景・日付の線・今日の線・予定の棒・実績の棒)</summary>
 /// <remarks>
 /// 行 (<see cref="ScheduleRow"/>)が変わったとき・描画に関わる値が変わったとき (<see cref="ScheduleRow.VisualVersion"/>)・テーマが変わったときに、描き直す。
-/// 休みの日の背景と日付の線の図形は、セルが持ち、軸が変わったときだけ作り直す (位置は、軸 (<see cref="ScheduleAxisVisual"/>)が 1 回だけ数えて、全セルで使う)。
-/// 1 行に、予定の棒 (太い背景)と、実績の棒 (細く、上に重ねる)を重ねる。クリックは通す (行の選択は、表が行の上で受ける)。
+/// 休みの日の背景と日付の線の図形は、セルが持ち、軸が変わったときだけ作り直す。位置は、軸 (<see cref="ScheduleAxisVisual"/>)が 1 回だけ数えて、全セルで使う。
+/// 1 行に、予定の棒 (太い背景)と、実績の棒 (細く、上に重ねる)を重ねる。クリックは通す。行の選択は、表が行の上で受ける。
 /// </remarks>
 public sealed class ScheduleTimelineCell : Canvas
 {
@@ -251,7 +251,7 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
     /// <remarks>
-    /// 開始日だけの作業は、開始日の左端に印と、右へ短い点線。期限だけの作業は、期限日の右端に印と、左へ短い点線 (同じ形で、点線の向きだけ逆)。日付が 1 つも無い作業は、棒を出さない。
+    /// 開始日だけの作業は、開始日の左端に印と、右へ短い点線。期限だけの作業は、期限日の右端に印と、左へ短い点線。同じ形で、点線の向きだけ逆。日付が 1 つも無い作業は、棒を出さない。
     /// 期限切れの作業は、危険の色の枠を付ける。
     /// </remarks>
     private void AddPlan(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
@@ -274,7 +274,7 @@ public sealed class ScheduleTimelineCell : Canvas
         }
         else if (row.PlanEnd is { } dueOnly)
         {
-            // 開始日だけの作業と同じ形 (印と点線)。印は期限日の右端、点線は、その左へ伸ばす
+            // 開始日だけの作業と同じ形で、印と点線。印は期限日の右端、点線は、その左へ伸ばす
             var markLeft = axis.X(dueOnly) + axis.DayWidth - 1 - OpenMarkWidth;
             Children.Add(Bar(markLeft, PlanBarTop, OpenMarkWidth, PlanBarHeight, 3, plan));
             Children.Add(OpenEndLine(markLeft - 4, markLeft - 32, plan));

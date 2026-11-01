@@ -5,7 +5,7 @@ namespace MmmTool.Data.Sqlite;
 /// <summary>
 /// データベースの版を上げるスクリプト (<c>Sql/NNN_*.sql</c>。埋め込みリソース)を読む。
 /// </summary>
-/// <remarks>ファイル名の先頭の数字が版になる (<c>001_CreateTables.sql</c> は版 1)。集計の作り直しのスクリプト (<c>Sql/Maintenance</c>)は、埋め込まない。</remarks>
+/// <remarks>ファイル名の先頭の数字が版になる。例は <c>001_CreateTables.sql</c> が版 1。集計の作り直しのスクリプト (<c>Sql/Maintenance</c>)は、埋め込まない。</remarks>
 internal static class SqliteMigrations
 {
     /// <summary>リソース名の前置き (csproj の <c>LogicalName</c> と同じ)</summary>

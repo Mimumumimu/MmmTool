@@ -4,8 +4,8 @@ namespace MmmTool.Data.WorkItems;
 
 /// <summary>作業管理の表の行と、アプリの型の間の、値の変換と検査 (表ごとの行の型が共有する)</summary>
 /// <remarks>
-/// 「ない」は、日付が <c>9999-12-31</c> (開始日だけ <c>0001-01-01</c>。「いつからでも」を最小値で表す)、予定時間が 0、文字列が空文字 (NULL は使わない。理由は docs/specs/database.md)。
-/// DB に入れられない値 (長さ・範囲の外。手で直したデータなど)は、バグなので <see cref="ArgumentException"/> にする (握りつぶさない・黙って切り詰めない)。
+/// 「ない」は、日付が <c>9999-12-31</c>、予定時間が 0、文字列が空文字。開始日だけ <c>0001-01-01</c> で、「いつからでも」を最小値で表す。NULL は使わない。理由は docs/specs/database.md にある。
+/// DB に入れられない値 (長さ・範囲の外、手で直したデータなど)は、バグなので <see cref="ArgumentException"/> にする。握りつぶさない・黙って切り詰めない。
 /// </remarks>
 public static class WorkRowValues
 {

@@ -27,7 +27,7 @@
 | `src/Plugins/MmmToolWeb.Reminders` | リマインダーの Web 版。画面と API は持たず、「通知」の一覧に出す、リマインダーの提供元を登録するだけ。リマインダーの Web 画面は、このプロジェクトに足す |
 
 - 発行すると、Client の出力が Server の出力の中にコピーされ、1 つのフォルダになる (`dotnet publish` で `Server` を発行する。`Server` が `Client` を参照しているため、向きは Client から Server)
-  - フォルダ直下 (`MmmToolWeb.Server.exe` と DLL): サーバーの PC で動く部分
+  - フォルダ直下 (`MmmToolWeb.Server.exe` と数ファイル): サーバーの PC で動く部分。パッケージ・自分のプロジェクトの DLL は `Lib\` に置く ([build-and-distribution.md](../build-and-distribution.md))
   - `wwwroot\` (`index.html`・`css`・`js`・`_framework`): Client の出力。サーバーが iPhone に配るファイルで、サーバーでは実行されない
   - 1 つのフォルダにするのは、アドレスを 1 つにするため (パスキーはアドレスに結びつく)。Client を別の置き場に分けない
 - ソリューションは `MmmToolWeb.slnx`。`MmmTool.slnx` からは参照せず、`MmmToolWeb.*` のプロジェクトを `MmmTool.*` が参照することもない。
@@ -136,7 +136,10 @@
 - ノートの Web 版は、MmmTool の `NoteService` と `SqlServerNoteRepository` を使い、ノートの決まりは [notes.md](notes.md) と同じ
   - 画面の作り (一覧・入力)は、iPhone 向けに作る。MmmTool の WebView2 のページは使わない。
 - 使える操作は、一覧の閲覧・新規・編集・削除・復元
-  - 一覧は、表示する日に有効なノートを、重要度の高い順に、縦に並べる。上のバーの下に、日付 (前の日・日付の選択・次の日・「今日」)と、「タイトルだけ」「削除したものも表示」を置く。
+  - 一覧は、表示する日に有効なノートを、重要度の高い順に、縦に並べる。上のバーの下に、日付 (前の日・日付の選択・次の日・「今日」)と、表示の基準の切り替え (「期間」「更新日」の 2 つ並び)と、「タイトルだけ」「削除したものも表示」を置く。
+    - 「更新日」は、その日に更新したノートを、更新日時の新しい順に並べる。「表示する内容」は出さない。決まりは [notes.md](notes.md) の「表示の基準」。
+    - API は `GET /api/notes?day=…&basis=updated|period` で、`basis` が無いときは `period` として読む。
+    - 選んだ基準は、画面を開き直すと「期間」に戻る。
   - 「新規」は、画面の右下に浮かべたボタン (親指が届くため)
   - 実施日のカードは、MmmTool と同じ見せ方にする
     - 帯・色味・枠・光・大きなタイトル
@@ -498,7 +501,7 @@
     -- 送信先は、送る先の値 (Value)を除いた列だけ読める。通知を受け取る端末の登録 (区分 Web 版通知)のために、足す・更新するのは付ける
     GRANT INSERT, UPDATE ON dbo.NotificationChannel TO [MmmToolWeb];
     GRANT SELECT (Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, UserId, Kind, Name) ON dbo.NotificationChannel TO [MmmToolWeb];
-    -- 端末の宛先から、自分の送信先の行を探す。Value を読めないログインのために、表の持ち主の権限で動くプロシージャに探させる。プロシージャは更新用スクリプト 007 が作る
+    -- 端末の宛先から、自分の送信先の行を探す。Value を読めないログインのために、表の持ち主の権限で動くプロシージャに探させる。プロシージャは MmmTool の 001_CreateTables.sql が作る
     GRANT EXECUTE ON dbo.FindWebPushChannel TO [MmmToolWeb];
     -- 通知の画面の一覧が、自分の送信先に届いたリマインダーの通知を読む。読む列だけを許す。列の許可は行を絞れないので、自分の送信先の分だけという条件は、コードで守る
     GRANT SELECT (Id, ReminderId, ChannelId, Date, Status, SentAt) ON dbo.ReminderSendStatus TO [MmmToolWeb];

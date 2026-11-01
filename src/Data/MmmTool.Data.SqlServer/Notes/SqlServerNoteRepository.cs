@@ -14,21 +14,20 @@ namespace MmmTool.Data.SqlServer.Notes;
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <remarks>
-/// 読むたびに DB から読む (表示している日の分だけ)。操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
+/// 読むたびに DB から読む。読むのは表示している日の分だけ。操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
 /// 読み書きの SQL は、すべて「見える」条件 (全員に見えるものか、自分が書いたもの)を持つ。見えないノートを、番号だけで操作させないため。
-/// 「自分だけ」の切り替えは、書いた人だけができる (ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため)。
+/// 「自分だけ」の切り替えは、書いた人だけができる。ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため。
 /// 更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
 /// </remarks>
 public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentUser currentUser) : INoteRepository
 {
-    /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidObjectName = 208;
-
-    /// <summary>列名が正しくない (列が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidColumnName = 207;
-
     /// <summary>表の全部の列 (読む順)</summary>
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
+
+    /// <summary>表の全部の列 (読む順)に、表の別名を付けたもの</summary>
+    /// <param name="alias">ノートの表の別名。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <returns>別名つきの列の並び (14 列)</returns>
+    private static string QualifiedColumns(string alias) => string.Join(", ", Columns.Split(", ").Select(column => $"{alias}.{column}"));
 
     /// <inheritdoc />
     public bool IsShared => true;
@@ -38,29 +37,60 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
 
     /// <inheritdoc />
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+    /// <remarks>書いた人と更新した人の名前は、ノートと一緒に <c>dbo.AppUser</c> を外部結合して読む。表示のための名前で、検索や索引には使わない。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "n.EndDate >= @Day AND n.StartDate <= @Day",
+            command => command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) }),
+            includeDeleted,
+            cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <remarks>更新日時の索引 <c>IX_Note_UpdatedAt</c> で範囲を絞る。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "n.UpdatedAt >= @From AND n.UpdatedAt < @To",
+            command =>
+            {
+                command.Parameters.Add(new SqlParameter("@From", SqlDbType.DateTimeOffset) { Value = from });
+                command.Parameters.Add(new SqlParameter("@To", SqlDbType.DateTimeOffset) { Value = to });
+            },
+            includeDeleted,
+            cancellationToken);
+
+    /// <summary>条件に合う、見えるノートを、書いた人と更新した人の名前つきで 1 回の問い合わせで読む</summary>
+    /// <param name="condition">ノートの表の別名 <c>n</c> を使った、絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="addParameters">条件で使うパラメーターを足す処理</param>
+    /// <param name="includeDeleted">削除済みも含めるか</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートと名前で、並びは不定</returns>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, Action<SqlCommand> addParameters, bool includeDeleted, CancellationToken cancellationToken)
     {
         var userId = RequireUserId();
-        return RunAsync<IReadOnlyList<Note>>(async connection =>
+        return RunAsync<IReadOnlyList<NoteWithNames>>(async connection =>
         {
             await using var command = connection.CreateCommand();
             command.CommandText =
                 $"""
-                SELECT {Columns}
-                FROM dbo.Note
-                WHERE EndDate >= @Day AND StartDate <= @Day
-                  AND (@IncludeDeleted = 1 OR IsDeleted = 0)
-                  AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                SELECT {QualifiedColumns("n")}, ISNULL(a.DisplayName, N''), ISNULL(u.DisplayName, N'')
+                FROM dbo.Note AS n
+                LEFT JOIN dbo.AppUser AS a ON a.Id = n.AuthorUserId
+                LEFT JOIN dbo.AppUser AS u ON u.Id = n.UpdatedByUserId
+                WHERE {condition}
+                  AND (@IncludeDeleted = 1 OR n.IsDeleted = 0)
+                  AND (n.IsPrivate = 0 OR n.AuthorUserId = @UserId)
                 """;
-            command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
+            addParameters(command);
             command.Parameters.Add(new SqlParameter("@IncludeDeleted", SqlDbType.Bit) { Value = includeDeleted });
             command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-            var notes = new List<Note>();
+            var notes = new List<NoteWithNames>();
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                notes.Add(ReadRow(reader).ToNote());
+                notes.Add(new NoteWithNames(ReadRow(reader).ToNote(), reader.GetString(14), reader.GetString(15)));
             }
             return notes;
         }, cancellationToken);
@@ -221,13 +251,13 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         command.Parameters.Add(new SqlParameter("@Priority", SqlDbType.TinyInt) { Value = (byte)input.Priority });
         command.Parameters.Add(new SqlParameter("@Title", SqlDbType.NVarChar, NoteLimits.TitleMaxLength) { Value = input.Title });
 
-        // 本文は上限を決めない (nvarchar(max))。サイズ -1 が max
+        // 本文は上限を決めず、nvarchar(max) にする。サイズ -1 が max
         command.Parameters.Add(new SqlParameter("@Body", SqlDbType.NVarChar, -1) { Value = input.Body });
     }
 
     /// <summary>今のユーザーの番号を取得する</summary>
     /// <returns>今のユーザーの番号</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     private int RequireUserId()
     {
         const string Message = "ユーザーが特定されていないため、ノートを使えません (ログインが必要です)。";
@@ -239,24 +269,9 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
-    /// <remarks>表は、管理者が <c>003_AddNote.sql</c> を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝える。</remarks>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
-        => database.RunAsync(async connection =>
-        {
-            try
-            {
-                return await work(connection).ConfigureAwait(false);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidObjectName)
-            {
-                throw new DataFileException("ノートの表がデータベースにありません。管理者に、003_AddNote.sql を実行してもらってください。", ex);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidColumnName)
-            {
-                throw new DataFileException("ノートの表に実施日の列がありません。管理者に、005_AddNoteEventDate.sql を実行してもらってください。", ex);
-            }
-        }, cancellationToken);
+        => database.RunAsync(work, cancellationToken);
 
     /// <summary>ノートの行を読む (<see cref="Columns"/> の順)</summary>
     /// <param name="reader">読み取り中の結果</param>

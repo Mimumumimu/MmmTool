@@ -5,7 +5,7 @@ namespace MmmTool.Backlog.Core;
 /// </summary>
 /// <remarks>
 /// URL の形は <c>https://{domain}/file/{projectKey}/{エンコード済みフォルダーパス}</c>。
-/// API キーを送る先なので、Backlog のドメイン以外は受け付けない (違う URL を貼ったときに、キーを別のサーバーへ送らないため)。
+/// API キーを送る先なので、Backlog のドメイン以外は受け付けない。違う URL を貼ったときに、キーを別のサーバーへ送らないため。
 /// </remarks>
 public static class BacklogLocationParser
 {

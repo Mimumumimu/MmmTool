@@ -10,7 +10,7 @@ namespace MmmTool.Reminders;
 /// <summary>リマインダーの画面 (メイン画面・一覧画面)の ViewModel の共通部分</summary>
 /// <remarks>
 /// 保存内容が変わったら (<see cref="ReminderService.Changed"/>)UI スレッドで読み直す。読み込みの世代を管理し、古い読み込みの結果で上書きしない。
-/// 保存を伴う操作 (<see cref="RunAsync"/>)の失敗はエラーに出す。UI スレッドで作ること (変更の通知を作ったスレッドへ戻して反映するため)。
+/// 保存を伴う操作 (<see cref="RunAsync"/>)の失敗はエラーに出す。UI スレッドで作ること。変更の通知を作ったスレッドへ戻して反映するため。
 /// 画面を閉じたら <see cref="Dispose"/> で購読をやめる。
 /// </remarks>
 public abstract class ReminderViewModelBase : ObservableObject, IDisposable
@@ -35,7 +35,7 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     /// <summary>ViewModel を作り、保存内容の変更の購読を始める</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="time">現在時刻の提供元</param>
-    /// <exception cref="InvalidOperationException">UI スレッド以外で作った (変更の通知を戻す先が無い)。</exception>
+    /// <exception cref="InvalidOperationException">UI スレッド以外で作った。変更の通知を戻す先が無いため。</exception>
     protected ReminderViewModelBase(ReminderService reminders, TimeProvider time)
     {
         Reminders = reminders;

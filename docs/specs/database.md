@@ -59,7 +59,7 @@
   - ユーザーの登録は本人が行う (別の人が登録する口は作らない)
     - 登録のとき自分の番号はまだ無いので、`AppUser` の作成者は 0 にする
   - 意味の薄い列も、共通化を優先して持つ
-    - `ReminderState` の `IsDeleted` は常に 0 (「なし」は行を消す)
+    - `ReminderState` の `IsDeleted` は常に 0。未対応に戻しても、行は消さず、`Status` を 0 にする
     - `ReminderState` の作成者・更新者は `UserId` と同じ人 (本人の操作のため)
 - 日時は時差つき・ミリ秒まで
   - 日本時間 +09:00 のまま保存する (SSMS などで日本時間のまま読める)
@@ -150,7 +150,7 @@
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
 | `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
 
-- メッセージの宛先に選べる人を、表示名の順に先頭から読むため、インデックス `IX_AppUser_DisplayName (DisplayName)` を持つ。業務の列だけで作る。版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。
+- メッセージの宛先に選べる人を、表示名の順に先頭から読むため、インデックス `IX_AppUser_DisplayName (DisplayName)` を持つ。業務の列だけで作る。
 
 ### `Reminder`(リマインダー)
 
@@ -176,6 +176,7 @@
   - `IX_Reminder_TargetUserId (TargetUserId)`: 宛先が自分・全員宛て
   - `IX_Reminder_AuthorUserId (AuthorUserId)`: 自分が作ったもの
   - 見える範囲は、この 2 つの条件を合わせる
+  - `IX_Reminder_UpdatedAt (UpdatedAt)`: 毎分の読み直しを、前回より後に更新された行だけにする差分の取得のため。共通の列で索引に使ってよいのは、`UpdatedAt` だけ
   - 削除済みも含めて持つ (「削除済みを表示」のため)
 - 曜日の列は、ドメインの `[Flags]`(`Weekdays`)と JSON と同じ数をそのまま持つ (変換が要らない)
 - 件名・備考・リンクの長さ (200・1000・2000)は、アプリの `ReminderLimits` (入力画面の `MaxLength`)と同じ数にそろえる
@@ -198,23 +199,24 @@
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
 | `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー。ドメインの `Seq` |
-| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0 (共通ヘッダーのための列で、「なし」は行を消す) |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。常に 0。共通ヘッダーのための列で、未対応に戻しても行は消さない |
 | `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 |
 | `CreatedByUserId` | 整数 | `int` | | 作成者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、`UserId` と同じ人。0 以上の検査 |
 | `ReminderId` | 整数 | `int` | | 対応するリマインダー (`Reminder.Id`) |
 | `UserId` | 整数 | `int` | | 状態を持つ人 (`AppUser.Id`) |
-| `Date` | 日付 | `date` | | どの日の状態か |
-| `Status` | 整数 (小) | `tinyint` | | Done = 1 / Snooze = 2 で、1 か 2 の検査。None は行を持たない |
+| `Date` | 日付 | `date` | | どの日の状態か。今日でない行は、未対応として扱う |
+| `Status` | 整数 (小) | `tinyint` | | None = 0 / Done = 1 / Snooze = 2 で、0 から 2 の検査。未対応に戻したら、行を消さずに 0 にする |
 
 - `(ReminderId, UserId)` を一意にする (状態は人ごとに 1 件で上書き)
+- `IX_ReminderState_UserId_UpdatedAt (UserId, UpdatedAt)`: 自分の状態の変わりを、差分で読む。業務の列 `UserId` と、`UpdatedAt` だけで作る
 - 全員宛てのリマインダーを自分が完了にしても、他の人の状態は変わらない
 - ドメインの型 (`ReminderState`)と DB の行 (`MmmTool.Data` の `ReminderStateRow`)の変換は、`ReminderStateRow.FromReminderState` / `ToReminderState` に集める
   - `Seq` ↔ `Id`、`BaseNo` ↔ `ReminderId`、日付 (`yyyyMMdd`) ↔ `date`、対応状態は完了 = 1・スヌーズ = 2 のまま
-  - 未対応 (`None`)は行にしない
-    - `FromReminderState` は `ArgumentException` にするので、`None` への変更は、Repository が行を消す
-    - 範囲外の対応状態・正しくない日付も、バグなので例外 (握りつぶさない)
+  - 未対応 (`None`)も行にする: `Status` は 0
+    - 「未対応に戻す」ために、行を消さない。`Date` があるので、今日の行が無い人も、今日でない行がある人も、未対応と読める
+    - 範囲外の対応状態・正しくない日付は、バグなので例外 (握りつぶさない)
   - アプリの型に人 (`UserId`)が無いので、変換では決めない
     - 作成・更新の日時と、作成者・更新者も同じ (Repository が、操作した人を入れる)
 
@@ -229,7 +231,7 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `UserId` | 整数 | `int` | | 使用者の `AppUser.Id` で、この送信先を使う人。作ったときに、登録した人 (作成者の列と同じ人)を入れ、0 以上の検査をする。一覧・選択・更新・削除の条件に使う業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。`ReminderState` の `UserId` と同じ作り。**列の並び: 共通ヘッダーの次、`Kind` の前**で、誰の送信先かを、区分・名前・値より前に置く。作成スクリプトはこの並びで作る |
-| `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 / Web 版通知 = 3 で、1 から 3 のどれかの検査 `CK_NotificationChannel_Kind` を付ける。Web 版通知は、版 6 の更新用スクリプトで足した |
+| `Kind` | 整数 (小) | `tinyint` | | 区分。ntfy = 1 / Discord = 2 / Web 版通知 = 3 で、1 から 3 のどれかの検査 `CK_NotificationChannel_Kind` を付ける |
 | `Name` | 文字列 (50) | `nvarchar(50)` | | 登録名で、画面に出す名前。Web 版通知は、端末の呼び名 |
 | `Value` | 文字列 (500) | `nvarchar(500)` | | 送る先の値。ntfy はトピック名、Discord は Webhook の URL、Web 版通知は端末の宛先の JSON で `{"endpoint":…,"p256dh":…,"auth":…}` の形。秘密なので、画面の一覧には出さない |
 
@@ -273,7 +275,7 @@
   - 人の番号を最後の列にするのは、番号の順に区切って読む (キーセットの読み方)ためで、並べ替えを挟まない
   - 先頭を `UserId` にした一意のインデックスでは、設定の種類から人を探せない
 - 通知を受け取る機能の設定 (オン・オフ)の行の値と既定は [notification-settings.md](notification-settings.md) を見る
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQLite にはユーザーの表が無いので、SQL Server だけ。
+- SQLite にはユーザーの表が無いので、SQL Server だけ。
 - 機能番号の台帳 (`CodeFeatures`)は、共通 0・作業管理 1・ノート 2・CLI補助 3・リマインダー 4・メッセージ 5・リンク 6・クリップボード転送 7・Backlog 8・ツール 9
   - 番号は、サイドバーの初期の並びに合わせて、1 度だけ付けた。並びを入れ替えても、番号は変えない。保存済みの設定の意味が変わるため。
   - 新しい機能は、最後の番号の次を足す。共通の 0 は機能に割り当てない。
@@ -356,7 +358,6 @@
 - インデックス `IX_ReminderSendStatus_ChannelId_SentAt (ChannelId, SentAt DESC)` を、業務の列だけで作る
   - Web 版の「受け取った通知」の一覧が、自分の送信先に届いたリマインダーを、送った日時の新しい順に読むため
   - この表は掃除されず増え続けるので、送信先で絞り、新しい順に先頭から読めるようにする
-  - 版 2 の更新用スクリプト `002_AddReminderSendStatusChannelIndex.sql` (MmmBatch の `Sql/`)で足す
 - ログではなく状態で、「送ったか」の判断に使う
   - 画面の「今日」(今日の送信予定)は、この表から読む
   - 送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログに残す ([mmmbatch.md](mmmbatch.md)の「送信のログ」)
@@ -380,7 +381,7 @@
   - グループは、メンバーが同じで名前の違う会話を、いくつでも作れる
 - 最後のメッセージの番号の列は持たない。人の一覧は、会話ごとに最新の 1 通を `Message` から読んで求める。メッセージを送るたびに、会話の行を更新しなくて済むため。
 - インデックスは、主キーだけ。参加者での引きは、`MessageConversationMember` の索引が受け持つ。
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQLite にはユーザーの表が無いので、SQL Server だけ。
+- SQLite にはユーザーの表が無いので、SQL Server だけ。
 
 ### `MessageConversationMember`(会話の参加者)
 
@@ -404,7 +405,7 @@
   - `IX_MessageConversationMember_UpdatedAt (UpdatedAt)`。Web 版のサーバーが、更新された参加者の行を、人を特定せずに、全員分まとめて調べるため。削除された行も含める。
 - 読んだ位置を書くときは、同じ会話のほかの参加者の行の `UpdatedAt` も進める。ほかの参加者が、`(UserId, UpdatedAt)` の索引で、読んだ位置の変わりを知るため。
 - 会話・人の存在は、アプリが検査する (外部キーは付けない)
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。`LastReadMessageId` と `IX_MessageConversationMember_UpdatedAt` は、版 10 の `010_AddMessageReadPosition.sql` で足す。SQL Server だけ。
+- SQL Server だけ。
 
 ### `Message`(メッセージ)
 
@@ -429,7 +430,7 @@
   - `IX_Message_SenderUserId_UpdatedAt (SenderUserId, UpdatedAt)`。自分が送ったメッセージで、基準より後に更新されたものを、差分で読むため。別の端末で送ったメッセージが、ここで届く。
   - `IX_Message_UpdatedAt (UpdatedAt)`。Web 版のサーバーが、数秒おきに、更新された会話の番号だけを調べるため。仕組みは [messages.md](messages.md) の「端末の控えと更新」にある。
 - 会話・送った人・返信元の存在は、アプリが検査する (外部キーは付けない)
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
+- SQL Server だけ。
 
 ### `MessageDelivery`(メッセージの通知の状態)
 
@@ -457,15 +458,15 @@
   - `IX_MessageDelivery_UserId_UpdatedAt (UserId, UpdatedAt)`。自分宛のメッセージの新着と、通知の状態の変わりを、会話の数に関係なく、索引 1 回で差分に読むため。
   - MmmBatch の画面の「最近の依頼」は、主キー (`Id`)の降順で、先頭から決まった件数を読むので、索引は要らない
 - メッセージ・人の存在は、アプリが検査する (外部キーは付けない)
-- 版 6 の更新用スクリプト `006_AddWebPushKind.sql` で足す。SQL Server だけ。
+- SQL Server だけ。
 
 ### 作業管理の表 (5 つ)
 
 - ローカルモードは SQLite、DB モードは SQL Server に、同じ設計で作る
 - 使い方・読み書き・インデックスの理由は [work-items.md](work-items.md) の「データ」
 - 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/001_CreateTables.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`
-  - リリース済みの分
-  - `WorkDayNote` だけは、リリース後に足したので、両方とも `002_AddWorkDayNote.sql`
+  - SQLite の `WorkDayNote` だけは、別の番号つきのスクリプト `002_AddWorkDayNote.sql` で作る
+  - SQL Server は、`WorkDayNote` も含めて `001_CreateTables.sql` が作る
 - SQLite の型は、下の「型の対応 (作業管理の表)」
 - 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く
 
@@ -528,10 +529,10 @@
 | `PlannedHours` | 時間 (小数 2 桁) | `decimal(6,2)` | 0 | 予定時間。0 は予定なし。0 以上の検査 |
 | `ActualTotalHours` | 時間 (小数 2 桁) | `decimal(12,2)` | 0 | 実績の累計。その作業の全員の記録の合計で、記録を保存するたびに計算し直して書く。0 以上の検査 |
 | `Link` | 文字列 (2000) | `nvarchar(2000)` | 空文字 | リンク。URL・フォルダ・ファイルのパスの 1 つで、無いときは空文字。列の位置は、画面の並び (実績 (累計)の右隣)に合わせて、実績の累計と状態の間 |
-| `ReportExclusion` | 0〜2 の整数 | `tinyint` | 0 | 作業報告のどの部分から外すか。0 は外さない、1 は予定にだけ出さず、実績には、ほかの作業と同じ条件で出す、2 は実績にも予定にも出さない。値は `WorkReportExclusion` で、外す範囲が増えるときは、値を足す。ノートの「全員」の人の一覧も、同じ範囲で外す。定例の会議など、報告に書かない作業に付ける。検査 `CK_WorkItem_ReportExclusion` (0・1・2 のどれか)を、SQL Server にも付ける。位置は、行の属性として `Link` の次で、状態の前。リリース後に足した列で、0.7.0 は `ReportExcluded` (`bit`)の名前で足した。SQL Server は、更新用スクリプト `004_AddWorkReportExclusion.sql` が足し、`005_AddNoteEventDate.sql` が、名前と型をその場で変えるので、位置は変わらない。SQLite は、`Sql/schema.sql` との点検が新しい列を足し、列の置き換え (`SqliteMigrations.ColumnReplacements`)が、古い列 (`ReportExcluded` か `PlanExcluded`)の値を移して、古い列を落とす。SQLite は列の位置を決められず、新しい列は末尾に付く |
+| `ReportExclusion` | 0〜2 の整数 | `tinyint` | 0 | 作業報告のどの部分から外すか。0 は外さない、1 は予定にだけ出さず、実績には、ほかの作業と同じ条件で出す、2 は実績にも予定にも出さない。値は `WorkReportExclusion` で、外す範囲が増えるときは、値を足す。ノートの「全員」の人の一覧も、同じ範囲で外す。定例の会議など、報告に書かない作業に付ける。検査 `CK_WorkItem_ReportExclusion` (0・1・2 のどれか)を、SQL Server にも付ける。位置は、行の属性として `Link` の次で、状態の前。SQL Server は、`001_CreateTables.sql` が、この位置で作る。SQLite は、`Sql/schema.sql` との点検が新しい列を足し、列の置き換え (`SqliteMigrations.ColumnReplacements`)が、古い列 (`ReportExcluded` か `PlanExcluded`)の値を移して、古い列を落とす。SQLite は列の位置を決められず、新しい列は末尾に付く |
 | `AutoHours` | 時間 (小数 2 桁) | `decimal(4,2)` | 0 | 自動入力の時間。0 は自動入力しない。0 より大きいと、作業管理のページを開いたとき、システムの今日の記録が無ければ、この時間を入れる。0 以上 24 以下の検査。位置は、行の属性として `ReportExclusion` の次で、状態の前。SQLite は列の位置を決められず、新しい列は末尾に付く |
 | `AutoWeekdays` | 整数 (小) | `tinyint` | 0 | 自動入力する曜日。月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数で、`Reminder.Weekdays` と同じ。0 と 127 は、どちらも毎日。0 から 127 の検査。位置は `AutoHours` の次 |
-| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 1・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 で、コードの列挙と同じ値であり、表示順と同じ並び。1 以上の検査 |
+| `StatusCodeNo` | 整数 | `int` | 1 | 状態のコード番号で、コードマスタの機能番号 1・区分 1。Open = 1 / Planned = 2 / InProgress = 3 / Closed = 4 / OnHold = 5 で、コードの列挙と同じ値。表示順は、作業中の次が保留のコード番号 5、その次が完了のコード番号 4 で、コード番号の順とは違う。1 以上の検査で、上限は持たない |
 | `ProgressCodeNo` | 整数 | `int` | 1 | 進捗度のコード番号で、コードマスタの機能番号 1・区分 2。1 = 0% … 11 = 100%。% の値は、コードマスタの数値から引く。1 以上の検査 |
 | `Note` | 文字列 (1000) | `nvarchar(1000)` | 空文字 | 備考 |
 
@@ -539,8 +540,8 @@
   - `IX_WorkItem_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 表示する案件の中身の読み込み・差分 (論理削除された行も含む)
   - `IX_WorkItem_ProjectId_CompletedDate (ProjectId, CompletedDate)`: 案件の完了の計算 (削除されていない行だけ)
   - `IX_WorkItem_AssigneeUserId_StatusCodeNo (AssigneeUserId, StatusCodeNo)`: 作業報告で、担当が自分の作業を探す (削除されていない行だけ)
-  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけで、更新用スクリプトの `004` で足した
-  - `IX_WorkItem_AssigneeUserId_AutoHours (AssigneeUserId)`: 自動入力の設定がある自分の作業を探す。削除されていなくて、`AutoHours > 0` の行だけ。大半の作業は設定が無いので、索引が小さく済む。更新用スクリプトの `007` で足した
+  - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけ
+  - `IX_WorkItem_AssigneeUserId_AutoHours (AssigneeUserId)`: 自動入力の設定がある自分の作業を探す。削除されていなくて、`AutoHours > 0` の行だけ。大半の作業は設定が無いので、索引が小さく済む
 
 #### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
 
@@ -567,14 +568,15 @@
 - インデックスは、次の 3 つ
   - `IX_WorkRecord_ProjectId_Date (ProjectId, Date)`: その日の記録 (削除されていない行だけ)
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
-  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけで、更新用スクリプトの `004` で足した
+  - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけ
 
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
 
 - 作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)
   - 作業報告が、報告日の分を予定に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
-- 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/002_AddWorkDayNote.sql`
-  - リリース後の変更なので、`001_CreateTables.sql` は変えず、次の番号の更新用スクリプトに書く
+- 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`
+  - SQLite は、`001_CreateTables.sql` とは別の番号つきのスクリプトで作る
+  - SQL Server は、全部の表を `001_CreateTables.sql` が作る
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -595,7 +597,7 @@
   - 日付の範囲の読み込みと、直近の日の検索にも使う
 - インデックスは、次の 2 つ
   - 一意の `(UserId, Date)`
-  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけで、更新用スクリプトの `004` で足した
+  - `IX_WorkDayNote_Date_UserId (Date, UserId)`: ノートの「全員」の人の一覧で、報告日に日報メモがある人を日付から探す。削除されていない行だけ
   - 差分の取得 (更新日時の索引)は持たない
   - 日報メモは自分の分だけで、複数の端末で同じ人のデータを開く想定にしない
   - 問い合わせの数も増やさない
@@ -611,9 +613,7 @@
 
 - ローカルモードの SQLite と、DB モードの SQL Server で、同じ設計の表を持つ
 - 使い方は [notes.md](notes.md)
-- 作成用のスクリプトは、SQLite・SQL Server とも `003_AddNote.sql`
-  - リリース済みの `001_CreateTables.sql`・`002_AddWorkDayNote.sql` は変えない
-  - リリースまで、この版の変更は、このファイルに集める
+- 作成用のスクリプトは、SQLite が `003_AddNote.sql`、SQL Server が `001_CreateTables.sql`
   - SQLite は、開くとき版を 3 に上げて作る
   - SQL Server は、管理者が、DB を選んで流す
 - SQLite の型は、上の「型の対応 (作業管理の表)」
@@ -632,7 +632,7 @@
 | `IsPrivate` | 真偽 | `bit` | 0 | 公開範囲。0 は全員、1 は書いた人だけ。ローカルモードは常に 0 |
 | `StartDate` | 日付 | `date` | | 開始日 |
 | `EndDate` | 日付 | `date` | `9999-12-31` | 終了日。空 (無期限)は `9999-12-31`。`StartDate` 以上の検査 |
-| `EventDate` | 日付 | `date` | `9999-12-31` | 実施日。空 (未設定)は `9999-12-31`。未設定でないときは、`StartDate` 以上かつ `EndDate` 以下の検査。位置は `EndDate` の次。リリース後に足した列なので、SQL Server は更新用スクリプト `005_AddNoteEventDate.sql` が足し (ALTER で末尾に付くので、並びは SSMS で直す)、SQLite は `Sql/schema.sql` との点検が足す (列の位置は決められず、末尾のまま) |
+| `EventDate` | 日付 | `date` | `9999-12-31` | 実施日。空 (未設定)は `9999-12-31`。未設定でないときは、`StartDate` 以上かつ `EndDate` 以下の検査。位置は `EndDate` の次。SQL Server は `001_CreateTables.sql` がこの位置で作り、SQLite は `Sql/schema.sql` との点検が足す (列の位置は決められず、末尾のまま) |
 | `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要で、1 から 5 の検査) |
 | `Title` | 文字列 (100) | `nvarchar(100)` | | タイトル。1 文字以上。画面の上限 (`NoteLimits`)と同じ長さ |
 | `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 長さの上限を決めず、列の最大までで、`CHECK` も付けない。本文は、書いたとおりの文字で、HTML のタグを含みうる |
@@ -646,6 +646,7 @@
   - 論理削除された行も含める (「削除したものも表示」が読むため)
 - インデックスは、もう 1 つ、`IX_Note_UpdatedAt (UpdatedAt)`
   - 前回読んだ時刻の後に更新されたノートを、全件を調べずに探して、他の人の作成・更新の通知に使うため。MmmBatch も PC 版も、10 秒おきに読む。
+  - 画面の「更新日」の表示 ([notes.md](notes.md) の「表示の基準」)が、その日の 0 時から翌日の 0 時までの範囲を、この索引で絞るため。PC 版も Web 版も読む。
   - 通知は DB モードだけだが、ノートの表は SQL Server と SQLite で同じ設計なので、両方に入れる
   - 論理削除された行も含める
 - インデックスは、もう 1 つ、`IX_Note_EventDate (EventDate)`
@@ -757,12 +758,16 @@
   - 見えない人の操作は、対象が無いのと同じ (false)
 - 完全削除 (行を消す)は、DB では行わない (ユーザーの決定)
   - 画面は、完全削除の操作を出さない (`IReminderRepository.CanPurge` が false)
-- 未対応への変更は、自分の対応状態の行を消す
+- 未対応への変更は、自分の対応状態の行を消さず、`Status` を 0 にする
 
 ## Repository の動き (`SqlServerReminderRepository`)
 
 - 読みはメモリから返す
-  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに読み、そのあとは 1 分ごとに全件読み直す
+  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに全件読み、そのあとは 1 分ごとに、前回より後に更新された行だけを読んで、メモリに重ねる
+    - 基準は、前回の読み出しを始めたときの DB の時計。そこから 10 秒戻して読む (更新が確定するのが遅れた書き込みを、取りこぼさないため)
+    - 行は消さない (論理削除で、「未」は `Status` が 0)ので、削除や「未」に戻した変わりも、更新日時で届く
+    - 次のときは、全件を読み直す: 最初・ユーザーが替わったとき・管理者がリマインダーを無効にした (または有効に戻した)とき・差分を 30 回続けたとき
+      - 30 回ごとに全件を読む理由: 宛先を替えられて見えなくなった行など、差分では分からない変わりを、直すため
   - 前回と違えば `ExternalChanged` を発火する (ほかの PC の変更が、読み直しで反映される)
   - 自分の書き込みでは発火しない (それは `ReminderService.Changed` が知らせる)
 - 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する
@@ -868,58 +873,33 @@
     - 利用者の設定漏れで、バグではない。続けられる失敗なので、画面の InfoBar で知らせる。
     - ログインの方式が Windows のときは、ユーザー名とパスワードを使わない
   - `Encrypt` は既定 (必須)のまま。自己署名の証明書の接続先のときだけ `TrustServerCertificate` を true にする。`Connect Timeout` は 5 秒。
-- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` (リリース済みの全部の DDL)と、リリース後の変更を集めた `002_AddWorkDayNote.sql`・`003_AddNote.sql`・`004_AddWorkReportExclusion.sql`・`005_AddNoteEventDate.sql`・`006_AddWebPushKind.sql`・`007_AddWorkItemAutoEntry.sql`・`008_RenumberFeatureNo.sql`・`009_AddNoteNoticeIndexes.sql`・`010_AddMessageReadPosition.sql`
-  - `010_AddMessageReadPosition.sql` は、メッセージの既読のために、`MessageConversationMember` に `LastReadMessageId` の列と `IX_MessageConversationMember_UpdatedAt` を足す。無ければ作る。SQL Server だけ。
-  - `009_AddNoteNoticeIndexes.sql` は、他の人の作成・更新の通知のための索引を足す。無ければ作る。
-    - `Note` の `IX_Note_UpdatedAt`。SQLite は、`Sql/schema.sql` との点検が足す。
-    - `AppUserSetting` の `IX_AppUserSetting_FeatureNo_CategoryNo_CodeNo_Value_UserId`。SQL Server だけ。
-  - `008_RenumberFeatureNo.sql` は、機能番号の付け直しで、次の変更を持つ。
-    - 機能番号を付け直す。共通 0・作業管理 1・ノート 2・リマインダー 4・メッセージ 5 にする。台帳は、`AppUserSetting` の節に書いてある。
-      - 書き換える行は、次の 3 つ
-        - コードマスタの作業管理: 機能番号 2 を 1 に
-        - 管理者の設定: 作業管理 2 を 1・ノート 4 を 2・リマインダー 5 を 4・メッセージ 3 を 5 に
-        - ユーザーごとの設定のメッセージの受け取り先: 機能番号 3 を 0 に
-      - `AppUserSetting` の機能番号の検査を、1 以上から 0 以上に付け替える。
-      - 番号が入れ替わるので、この部分だけは何度も流せない。流すのは 1 度だけ。
-      - 終えた印は持たない。管理者が手で流す SQL Server は、1 つの環境で 1 人が管理していて、流し直す場面がないため。
-      - 書き換える順は、移し先が空いている順で、1 つのトランザクションにする。
-      - 流すのは、MmmTool・Web 版・MmmBatch・管理ツールを新しい版に入れ替えるのと同時にする。古い版のアプリは、番号の意味が食い違い、作業管理の選択肢が空になり、管理者の設定が別の機能の設定として読まれる。
-  - `007_AddWorkItemAutoEntry.sql` は、未リリースの版の変更で、次の変更を持つ。
-    - `WorkItem` の列 `AutoHours` (`decimal(4,2)`)と `AutoWeekdays` (`tinyint`)を、既定値の制約と値の検査つきで足す。SQLite は、`Sql/schema.sql` との点検が足す。
-    - 索引 `IX_WorkItem_AssigneeUserId_AutoHours` を足す。
-    - ストアドプロシージャ `dbo.FindWebPushChannel (@UserId, @Endpoint)` を足す。Web 版通知の宛先 (`Value` の JSON の `endpoint`)から、自分の `Kind = 3` の行の `Id` と `IsDeleted` を返す。Web 版の DB のログインは `Value` を読めないので、表と同じ持ち主 (`dbo`)の権限で動くプロシージャに探させる。`Value` は返さない。SQL Server だけで、SQLite には送信先の表が無い。
+- 作成用のスクリプトは、`src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql` の 1 本
+  - 1.0.0 の全部の DDL (表・索引・検査・既定値・ストアドプロシージャ)と、コードマスタの初期値を持つ
+  - 1.0.0 より前の更新用スクリプト (`002` から `013`)は、1.0.0 で `001_CreateTables.sql` にまとめた (ユーザーの決定)
+    - まとめたのは、SQL Server を使うのが 1 人で、サーバーが 1 つで、その DB に 013 まで流し済みだったため
+    - 1.0.0 のあとの変更は、次の番号 `014` から、新しいスクリプトに書く。まとめ直さない。
+  - 列の並びは、「列」の節の表のとおりで、後から足した列も、設計した位置に置く
+  - ストアドプロシージャ `dbo.FindWebPushChannel (@UserId, @Endpoint)` を持つ
+    - Web 版通知の宛先 (`Value` の JSON の `endpoint`)から、自分の `Kind = 3` の行の `Id` と `IsDeleted` を返す。
+    - Web 版の DB のログインは `Value` を読めないので、表と同じ持ち主 (`dbo`)の権限で動くプロシージャに探させる。`Value` は返さない。
+    - SQL Server だけで、SQLite には送信先の表が無い。
+  - 機能番号は、共通 0・作業管理 1・ノート 2・リマインダー 4・メッセージ 5 で、台帳は `AppUserSetting` の節に書いてある。コードマスタの初期値は、作業管理の機能番号 1 で入れる。
+  - SQLite の `006_AddWorkStatusOnHold.sql` は、コードマスタの作業管理の状態に保留を足す。起動時に、版が新しいスクリプトとして自動で流れる。
   - SQLite の `005_RenumberFeatureNo.sql` は、作業管理の機能番号を、コードマスタ `CodeMaster` で 2 から 1 に変える。ローカルモードにあるのは、この行だけ。起動時に、版が新しいスクリプトとして自動で流れる。
-  - `006_AddWebPushKind.sql` は、0.9.0 でリリースした。次の変更を持つ。
-    - `NotificationChannel` の区分の検査 `CK_NotificationChannel_Kind` を、`Kind IN (1, 2)` から `Kind IN (1, 2, 3)` に付け替える。値 3 を許す検査が既にあれば、何もしない。
-    - 古いメッセージの表 `MessageSendRequest` を削除する。既存のメッセージの送信依頼は、消える。
-    - ユーザーごとの設定の表 `AppUserSetting` と、その索引 `UX_AppUserSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
-    - 管理者が決める設定の表 `AppUserAdminSetting` と、その索引 `UX_AppUserAdminSetting_UserId_FeatureNo_CategoryNo_CodeNo`。無ければ作る。
-    - `MessageDelivery` の状態の検査は、1 から 4 (Skipped = 4 を足した形)で作る。
-    - メッセージの 4 つの表 `MessageConversation`・`MessageConversationMember`・`Message`・`MessageDelivery`と、「列」の節に書いた索引。無ければ作る。
-    - SQLite には送信先の表もユーザーの表も無いので、SQL Server だけ
-  - `005_AddNoteEventDate.sql` は、0.8.0 でリリースした。次の変更を持つ。
-    - `WorkItem` の列 `ReportExcluded` (`bit`)を、`ReportExclusion` (`tinyint`)に変える
-      - 列の名前と型は、その場で変えるので、位置は変わらない
-      - 既定値の制約を外してから型を変え、`DF_WorkItem_ReportExclusion` と、値の検査 `CK_WorkItem_ReportExclusion` を付ける
-      - 値は、版 4 の `ReportExcluded` の 1 を 2 (実績と予定から外す)にする。1 は版 4 で、実績にも予定にも出さない印だったため。
-      - リリース前の版で名前を変えた `PlanExcluded` がある DB は、値を変えずに同じ列へ変える。1 は予定だけから外す印だったため。
-      - 列の名前を書く文は、列が無い DB でも検査で止まらないよう、`EXEC` の文字列にする
-    - `Note` の列 `EventDate` と、その検査 (`CK_Note_EventDate`)と、索引 `IX_Note_EventDate`
-      - 列の並びは、ALTER で末尾に付くので、`EndDate` の次へ SSMS で直す。
-    - SQLite は、あるべき形の `Sql/schema.sql` との点検と、列の置き換えが行う。
-  - `002_AddWorkDayNote.sql` は日報メモの表 `WorkDayNote`、`003_AddNote.sql` はノートの表 `Note` で、どちらもリリース済みなので変えない
-  - `004_AddWorkReportExclusion.sql` は、`WorkItem` の列 `ReportExcluded` (版 5 で `ReportExclusion` に変える)と、ノートの「全員」の人の一覧用の索引 3 つで、リリース済みなので変えない。
-  - コミットしたスクリプトは、あとから変えない。変更は、次の番号の新しいスクリプトに書く。別の PC が develop を取り込んで使うと、流し済みのスクリプトを直しても、その DB に届かないため。リリースのときも、まとめ直さない。
   - SQLite は、あるべき形の `Sql/schema.sql` が列・索引・表の追加を担うので、同じ変更を番号つきのスクリプトに書かない。詳細は、下の「あるべき形の点検」にある。
   - 先に DB を作り、その DB を選んで、表を作れる権限のあるユーザーで全体を実行する
   - `001_CreateTables.sql` 1 本が、次を作る・入れる (何度流しても、無いものだけを作る・入れ、`DELETE` 文は含まない)
-    - リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)
-    - 送信のための表 (`NotificationChannel`・`ReminderSendSetting`)
-    - 作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`)
-    - コードマスタの表 `CodeMaster` と作業管理の初期値 18 件 (状態 4・進捗度 11・優先度 3)
-  - 初期値は、機能番号 2 (付け直す前の作業管理)で入れる。`008_RenumberFeatureNo.sql` を流した DB に `001_CreateTables.sql` を流し直すと、機能番号 2 (ノート)の行として 18 件が入ってしまう。リリース済みのスクリプトは変えないので、流した DB には流し直さない。
-  - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` は、送信の状況の表 `ReminderSendStatus` を作る
-    - 0.8.0 でリリースしたあとの変更は、`002_AddReminderSendStatusChannelIndex.sql` に集める。`ReminderSendStatus` の索引 `IX_ReminderSendStatus_ChannelId_SentAt` を、無ければ作る。0.9.0 でリリースした。
+    - ユーザー・リマインダー関係 (`AppUser`・`Reminder`・`ReminderState`)
+    - 送信先とユーザーごとの設定 (`NotificationChannel`・`AppUserSetting`・`AppUserAdminSetting`)
+    - リマインダーの送信設定 (`ReminderSendSetting`)
+    - メッセージの表 (`MessageConversation`・`MessageConversationMember`・`Message`・`MessageDelivery`)
+    - 作業管理の表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)
+    - ノートの表 `Note`
+    - コードマスタの表 `CodeMaster` と作業管理の初期値 19 件 (状態 5・進捗度 11・優先度 3)
+  - 検査は、後から付け替えた分も、最終の形で作る
+    - `NotificationChannel.Kind` は 1 から 3、`ReminderState.Status` は 0 から 2、`AppUserSetting.FeatureNo` は 0 以上
+  - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` の 1 本は、送信の状況の表 `ReminderSendStatus` と、索引 `IX_ReminderSendStatus_ChannelId_SentAt` を作る
+    - MmmTool の `001_CreateTables.sql` を流した DB に流す。1.0.0 のあとの変更は、次の番号 `003` から書く。
   - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
   - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
     - 普段は使わない
@@ -949,7 +929,7 @@
     ```sql
     -- サーバーのログイン (master で実行)
     CREATE LOGIN [MmmBatch] WITH PASSWORD = N'<パスワード>', CHECK_POLICY = OFF, DEFAULT_DATABASE = [MmmTool];
-    -- 対象の DB を選んで実行 (MmmTool の 001・002 と、MmmBatch の 001 の作成用の SQL を流したあと)
+    -- 対象の DB を選んで実行 (MmmTool の 001 と、MmmBatch の 001 の作成用の SQL を流したあと)
     CREATE USER [MmmBatch] FOR LOGIN [MmmBatch];
     GRANT SELECT ON dbo.Reminder TO [MmmBatch];
     GRANT SELECT ON dbo.NotificationChannel TO [MmmBatch];

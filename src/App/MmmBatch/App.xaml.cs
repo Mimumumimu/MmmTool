@@ -53,7 +53,8 @@ public partial class App : Application
             Environment.Exit(0);
         }
 
-        _fatalErrors = new FatalErrorHandler(new ErrorLog(AppInfo.LogDirectory), AppInfo.Name);
+        var errorLog = new ErrorLog(AppInfo.LogDirectory);
+        _fatalErrors = new FatalErrorHandler(errorLog, AppInfo.Name);
         _fatalErrors.AttachTo(this);
 
         InitializeComponent();
@@ -64,17 +65,19 @@ public partial class App : Application
             DisableDefaults = true,
             ContentRootPath = AppContext.BaseDirectory,
         });
-        ConfigureServices(builder.Services, _fatalErrors);
+        ConfigureServices(builder.Services, _fatalErrors, errorLog);
         _host = builder.Build();
     }
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <param name="fatalErrors">復旧できないエラーの報告先 (トレイなど、SDK の部品が使う)</param>
-    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors)
+    /// <param name="errorLog">エラーを書くログ。復旧できないエラーの報告と共有し、DB の失敗の記録にも使う</param>
+    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
     {
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(fatalErrors);
+        services.AddSingleton(errorLog);
 
         // SDK (JsonFileStore・設定ストア・位置保存・通知ダイアログ・確認ダイアログなど)
         services.AddMmmSdkCore(AppInfo.DataDirectory);
@@ -89,7 +92,7 @@ public partial class App : Application
             ExitText: "終了",
             IconPath: AppIcon.FilePath));
 
-        // 機能のオン・オフの管理と、サイドバー (SDK)。MmmBatch の機能は、オフにできない (オン・オフの画面は持たない)
+        // 機能のオン・オフの管理と、SDK のサイドバー。MmmBatch の機能は、オフにできない。オン・オフの画面は持たない
         services.AddFeatureService();
         // 共通の設定ファイルを、サイドバーの並びを読む前に先読みしておく (最初の読み込みで、UI スレッドが止まらないように)
         services.AddStartupTask<SettingsStoreStartup>();
@@ -102,7 +105,7 @@ public partial class App : Application
         // DB の接続の設定画面。閉じたウィンドウは再表示できないので、開くたびに作る
         services.AddConnectionSettingsDialog();
 
-        // 機能 (バッチ処理)。足すときは、ここに 1 行足すだけ (サイドバーの項目・毎分の仕事・通知は、機能が自分で登録する)
+        // バッチ処理の機能。足すときは、ここに 1 行足すだけで、サイドバーの項目・毎分の仕事・通知は、機能が自分で登録する
         services.AddFeaturePlugin<ReminderSendingPlugin>(order: 1);
         services.AddFeaturePlugin<MessageSendingPlugin>(order: 2);
         services.AddFeaturePlugin<NoteSendingPlugin>(order: 3);
@@ -127,8 +130,8 @@ public partial class App : Application
     /// <summary>Host を始めて、トレイと各機能を用意する</summary>
     /// <returns>起動の完了を表すタスク</returns>
     /// <remarks>
-    /// 基本は、トレイだけで動き続ける (ウィンドウは出さない)。最初の実行で、どれかの仕事が状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
-    /// このアプリは、個々の機能の名前を持たない (機能は <c>AddFeaturePlugin</c> で登録し、毎分の仕事・通知・サイドバーの項目は、機能が自分で登録する)。
+    /// 基本は、トレイだけで動き続ける。ウィンドウは出さない。最初の実行で、どれかの仕事が状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
+    /// このアプリは、個々の機能の名前を持たない。機能は <c>AddFeaturePlugin</c> で登録し、毎分の仕事・通知・サイドバーの項目は、機能が自分で登録する。
     /// </remarks>
     private async Task StartAsync()
     {
@@ -137,7 +140,7 @@ public partial class App : Application
         // トレイは画面より先に作る。Host は作った順の逆に破棄するので、終了時に画面・送信の後始末が済んでからトレイアイコンが消える
         var tray = _host.Services.GetRequiredService<TrayIcon>();
 
-        // 起動時の準備 (設定ファイルの先読みなど)。画面を作る前に行う
+        // 起動時の準備で、設定ファイルの先読みなど。画面を作る前に行う
         await _host.Services.GetRequiredService<FeatureService>().StartAsync();
 
         _window = _host.Services.GetRequiredService<MainWindow>();
@@ -153,7 +156,7 @@ public partial class App : Application
         _host.Services.GetRequiredService<BatchAlertService>().AlertRaised
             += (_, message) => dispatcher.TryEnqueue(() => tray.ShowNotification(AppInfo.Name, message, isError: true));
 
-        // 毎分の仕事を始める (起動の直後にも 1 回動く)。Host の破棄で止まる。つながらないときは、画面の InfoBar で知らせる (起動は止めない)
+        // 毎分の仕事を始める。起動の直後にも 1 回動く。Host の破棄で止まる。つながらないときは、画面の InfoBar で知らせ、起動は止めない
         var monitor = _host.Services.GetRequiredService<BatchMonitor>();
         monitor.Start();
         await monitor.FirstRunCompleted;

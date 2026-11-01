@@ -13,7 +13,7 @@ internal static class NotifierHttp
     /// <param name="serviceName">失敗のメッセージに出す、送る先のサービスの名前</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信の完了を表すタスク</returns>
-    /// <exception cref="SendFailedException">つながらない・時間内に返らない・成功以外の応答 (メッセージに URL は含まない)。</exception>
+    /// <exception cref="SendFailedException">つながらない・時間内に返らない・成功以外の応答。メッセージに URL は含まない。</exception>
     public static async Task PostJsonAsync(HttpClient http, string url, string json, string serviceName, CancellationToken cancellationToken)
     {
         try

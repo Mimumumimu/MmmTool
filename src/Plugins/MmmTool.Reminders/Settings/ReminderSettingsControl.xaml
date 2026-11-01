@@ -39,7 +39,7 @@
             </HyperlinkButton>
         </controls:SettingsCard>
 
-        <!-- 音量はアプリの再生音量 (Windows の音量とは別)。試し聞きは、主な操作ではないので強調しない -->
+        <!-- 音量はアプリの再生音量で、Windows の音量とは別。試し聞きは、主な操作ではないので強調しない -->
         <controls:SettingsCard Header="読み上げの音量">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Slider

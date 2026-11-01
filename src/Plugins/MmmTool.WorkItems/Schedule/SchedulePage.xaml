@@ -40,7 +40,7 @@
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             </Style>
 
-            <!-- 名前 (木構造の列。字下げと開閉ボタンは表が付ける)。案件は太字・濃い青、グループはやや太字・青 (作業管理の表と同じ) -->
+            <!-- 名前で、木構造の列。字下げと開閉ボタンは表が付ける。案件は太字・濃い青、グループはやや太字・青で、作業管理の表と同じ -->
             <DataTemplate x:Key="NameCell" x:DataType="local:ScheduleRow">
                 <Grid ColumnSpacing="4">
                     <Grid.ColumnDefinitions>
@@ -84,7 +84,21 @@
                 <TextBlock Style="{StaticResource ValueTextStyle}" Text="{x:Bind AssigneeName, Mode=OneWay}" />
             </DataTemplate>
 
-            <!-- 進捗。期限切れの作業は、右に警告のアイコンを付ける (色だけで伝えない)。触れると、過ぎた日数を出す -->
+            <!-- 状態。案件・グループは、下の作業から計算した値なので、計算値の色 -->
+            <DataTemplate x:Key="StatusCell" x:DataType="local:ScheduleRow">
+                <Grid>
+                    <TextBlock
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsWork}" />
+                    <TextBlock
+                        Style="{StaticResource CellTextStyle}"
+                        Text="{x:Bind StatusText, Mode=OneWay}"
+                        Visibility="{x:Bind IsGroup}" />
+                </Grid>
+            </DataTemplate>
+
+            <!-- 進捗。期限切れの作業は、右に警告のアイコンを付ける。色だけで伝えないため。触れると、過ぎた日数を出す -->
             <DataTemplate x:Key="ProgressCell" x:DataType="local:ScheduleRow">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock
@@ -163,7 +177,7 @@
             Message="{x:Bind ViewModel.Error.Message, Mode=OneWay}"
             Severity="Error" />
 
-        <!-- 表示の操作。左は、範囲の動かし方 (今日・単位)、右は、出す行の絞り込み (広い順: 表示する案件 → 自分の担当だけ → 完了) -->
+        <!-- 表示の操作。左は、範囲の動かし方で今日・単位、右は、出す行の絞り込みで、広い順に表示する案件 → 自分の担当だけ → 完了 -->
         <Grid Grid.Row="2" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />

@@ -69,6 +69,14 @@
   - MmmTool・MmmBatch・MmmToolWeb・MmmToolAdmin の 4 つすべてを発行する
   - 1 つだけ発行するときは、MmmTool は `01_update_and_publish_tool.bat`、MmmToolWeb は `11_update_and_publish_web.bat`、MmmBatch は `21_update_and_publish_batch.bat`、MmmToolAdmin は `29_update_and_publish_admin.bat` を実行する。4 つとも `00_update_and_publish.bat` に対象を渡して呼ぶだけで、取得と発行の本体は 1 か所にある。
   - MmmToolWeb の出力は `src/App/MmmToolWeb/Server/bin/Release/publish/MmmToolWeb/`
+    - 直下に残るのは、`MmmToolWeb.Server.exe`・`.dll`・`.deps.json`・`.runtimeconfig.json` などの数ファイルと、`Assets\`・`Lib\`・`wwwroot\` (ブラウザに配る画面)だけ
+    - パッケージの DLL・自分のプロジェクトの DLL・言語別リソース (日本語と英語だけ)は `Lib\` にある。仕組みは MmmTool と同じ `build/AppDistribution.targets`
+    - ブラウザのデバッグ用の `BlazorDebugProxy\` は、Release の出力に入れない
+      - 設定は `BlazorWebAssemblyOmitDebugProxyOutput`
+      - VS で F5 する Debug にだけ要るため
+    - 発行は前の出力を消さないので、整理前の出力が残るフォルダーには、ばらの DLL が残る
+      - `bin/Release/publish/MmmToolWeb/` を消してから発行する
+      - `Data/` や `appsettings.json` を置いて使っているときは、先に退避する
   - リポジトリの根元は、バッチの 1 つ上のフォルダ。どこにクローンしても動く。
   - 順は、`git pull --ff-only` → `git submodule update --init --recursive` → 上の `dotnet publish`。どれかが失敗した時点で止まる。
   - 出力先の考え方は上と同じで、発行の前に既存のファイルは消さない
@@ -125,14 +133,14 @@
   - MmmBatch のアイコンは MmmTool と別にする
     - 緑の角丸の四角・白い歯車・紫の再生マークにする
     - タスクトレイとウィンドウで MmmTool と見分けるため
-  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin の csproj の末尾が読み込む
+  - ビルドの出力と配布物を作る仕組みは、`build/AppDistribution.targets` に 1 つだけ持ち、MmmTool・MmmBatch・MmmToolAdmin・MmmToolWeb.Server の csproj の末尾が読み込む
     - 仕組みは、`Lib` への移動・`deps.json` の書き足し・ライセンス全文の自動生成・Release の強制・配布物のフォルダへの配置・発行の設定
     - アプリごとに違う値は、各 csproj に書く: `DistributionFolderName` (配布物のフォルダ名で、MmmTool は `MmmTool_$(Version)`)・`DistributionDocument` (並べる説明書で、MmmTool だけ)・`LICENSE.txt` の `None` の項目・アイコンなど
     - 最終形にどう近づくか: 配布の仕組みが 1 か所になり、アプリを足しても写さずに済む
     - SDK ではなくこのリポジトリの `build/` に置くのは、アプリの配布の形がこのリポジトリのアプリに共通の決まりで、SDK の責務ではないため
 - WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Cache`(消しても作り直されるもの)・`Lib`(パッケージの DLL)の 4 つだけにする (仕組みは下の「EXE の横のフォルダと DLL」)
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く
+- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 / addon-serialize 0.14.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く
   - ライセンスファイルも同じ場所に置く
   - SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 - 同梱の内閣府「国民の祝日」の一覧 `syukujitsu.csv` (ダウンロードしたままのファイル)は SDK の `MmmSdk.Core/Components/Holidays/` に置く
@@ -164,6 +172,7 @@
 4. **DB のスクリプトの構成を確かめる**
    - 更新用スクリプトは、コミットしたあとに変えず、番号つきのまま残す。リリースのときに、まとめ直す作業は要らない (CLAUDE.md の「DB の変更 (SQL)は、1 度コミットしたスクリプトを、あとから変えない」)
    - MmmBatch の `Sql/` も同じ
+   - 1.0.0 の SQL Server のスクリプトだけは、例外で、ユーザーが決めて `001_CreateTables.sql` にまとめた。次の番号は、MmmTool が `014`、MmmBatch が `003`
    - SQLite の列・索引・表の追加は、`Sql/schema.sql` に書いてあるので、番号つきのスクリプトに写さない。リリース前に、`schema.sql` が、`001` から最後の番号までを流した結果と同じ形かを確かめる。
    - リリース前に、空の DB に流す確認は、しない
      - 理由: テスト用の DB を作ってスクリプトを流し、表とコードマスタの件数を確かめて消す手順は、毎回 DB の作成と削除の許可が要り、見つける場面が少ないため

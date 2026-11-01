@@ -3,15 +3,15 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.WorkItems;
 
 /// <summary>
-/// DB の <c>WorkRecord</c> (日ごとの記録)の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkRecord"/> とは別の、DB の形のまま持つ。
+/// DB の <c>WorkRecord</c> (日ごとの記録)の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkRecord"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 記録は作業ごと・日ごとに 1 件 (人は区別しない。<see cref="CreatedByUserId"/> は最初に記録した人で、検索・一意・結合には使わない)。変換は <see cref="FromWorkRecord"/> と <see cref="ToWorkRecord"/>。
+/// 記録は作業ごと・日ごとに 1 件で、人は区別しない。<see cref="CreatedByUserId"/> は最初に記録した人で、検索・一意・結合には使わない。変換は <see cref="FromWorkRecord"/> と <see cref="ToWorkRecord"/>。
 /// 作成・更新の日時と更新者は、Repository が入れる。
 /// </remarks>
 public sealed record WorkRecordRow
 {
-    /// <summary>主キー (<c>bigint</c>)。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キーで、型は <c>bigint</c>。0 は新規で、DB が採番する</summary>
     public long Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -47,7 +47,7 @@ public sealed record WorkRecordRow
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="record">記録</param>
     /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
-    /// <exception cref="ArgumentException">DB に入れられない値 (実績が 0 から 24 の外、備考が長すぎるなど)。</exception>
+    /// <exception cref="ArgumentException">DB に入れられない値で、実績が 0 から 24 の外、備考が長すぎるなど。</exception>
     public static WorkRecordRow FromWorkRecord(WorkRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);

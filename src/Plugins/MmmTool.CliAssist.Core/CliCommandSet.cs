@@ -7,11 +7,11 @@ public sealed class CliCommandSet
     /// <summary>コマンドを動かす環境 ("windows" または "wsl")</summary>
     /// <remarks>
     /// ファイルを新しく作るときにユーザーが選ぶ。ターミナルで起動するシェルと、CLI へ渡すパスの形がこれで決まる。
-    /// 省略すると Windows (この項目が無かったころのファイルも、そのまま Windows として読む)。
+    /// 省略すると Windows になる。この項目が無かったころのファイルも、そのまま Windows として読む。
     /// </remarks>
     public string? Environment { get; set; }
 
-    /// <summary>シェルで打つコマンド (AI エージェント起動前)。</summary>
+    /// <summary>シェルで打つコマンドで、AI エージェント起動前。</summary>
     /// <remarks>JSON に <c>null</c> と書かれていたときは、読み込み (Repository)で空にする。</remarks>
     public List<CliCommandNode> Shell { get; set; } = [];
 
@@ -22,7 +22,7 @@ public sealed class CliCommandSet
     /// <summary>設定の誤り (知らない <c>environment</c> / <c>switchTo</c> / <c>focus</c> の値)を探す</summary>
     /// <returns>ユーザーに見せる警告のメッセージ。誤りが無ければ空</returns>
     /// <remarks>
-    /// 手で編集した JSON なので、知らない値は読み込みでは無視する (何もしない)。ただし、黙って無視すると、書き間違いに気づけないので、
+    /// 手で編集した JSON なので、知らない値は読み込みでは無視して、何もしない。ただし、黙って無視すると、書き間違いに気づけないので、
     /// 読み込んだあとにこれで調べて、画面で知らせる。
     /// </remarks>
     public IReadOnlyList<string> Validate()
@@ -42,7 +42,7 @@ public sealed class CliCommandSet
     public CliEnvironment GetEnvironment() => CliCommandNode.Parse<CliEnvironment>(Environment) ?? CliEnvironment.Windows;
 
     /// <summary>使っているツールを読み取る</summary>
-    /// <returns>使っているツール (<see cref="CliTool"/> の順)。読み取れなければ Claude Code だけ</returns>
+    /// <returns>使っているツールで、<see cref="CliTool"/> の順。読み取れなければ Claude Code だけ</returns>
     /// <remarks>ツールは別に保存せず、「シェル」「AI セッション」の最上位にあるツールのフォルダの表示名から読む。手で表示名を変えたフォルダは読み取れない。</remarks>
     public IReadOnlyList<CliTool> GetTools()
     {

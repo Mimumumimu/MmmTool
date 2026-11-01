@@ -1,7 +1,7 @@
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>案件 (案件マスターの 1 件。保存するデータ。保存先に依存しない)</summary>
-/// <remarks>全員で共有する。画面に出すのは、利用者が選んだ案件だけ。日付・進捗度・予定時間・実績は、下の作業から計算する (<see cref="WorkItemTree"/>)。</remarks>
+/// <remarks>全員で共有する。画面に出すのは、利用者が選んだ案件だけ。日付・進捗度・予定時間・実績は、下の作業から計算する。計算は <see cref="WorkItemTree"/> が行う。</remarks>
 public sealed record WorkProject
 {
     /// <summary>番号 (保存先が決める。0 は、まだ保存していない)</summary>

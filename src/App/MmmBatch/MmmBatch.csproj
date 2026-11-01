@@ -31,7 +31,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- ライセンス (MIT License の本文)。アプリ本体の Assets\Licenses に置く (MmmTool と同じ。同梱ライブラリのライセンス全文は共有の発行の仕組みが作る) -->
+    <!-- ライセンスは MIT License の本文で、アプリ本体の Assets\Licenses に置く。MmmTool と同じ。同梱ライブラリのライセンス全文は共有の発行の仕組みが作る -->
     <None Include="..\..\..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

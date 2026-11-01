@@ -7,7 +7,7 @@ namespace MmmTool.CliAssist.Setup;
 public sealed partial class CliSetupDialog : ContentDialog
 {
     /// <summary>初回として開いたか</summary>
-    /// <remarks>初回は、選ばずに閉じられないようにする (定型コマンドのファイルを作るのに、選んだ内容が要るため)。</remarks>
+    /// <remarks>初回は、選ばずに閉じられないようにする。定型コマンドのファイルを作るのに、選んだ内容が要るため。</remarks>
     private bool _isFirstRun;
 
     /// <summary>ダイアログの ViewModel</summary>
@@ -23,7 +23,7 @@ public sealed partial class CliSetupDialog : ContentDialog
 
     /// <summary>初回の初期設定として開く</summary>
     /// <returns>選んだ初期設定</returns>
-    /// <remarks>キャンセルのボタンは出さず、Esc でも閉じない (「作成」で閉じるまで待つ)。</remarks>
+    /// <remarks>キャンセルのボタンは出さず、Esc でも閉じない。「作成」で閉じるまで待つ。</remarks>
     public async Task<CliSetup> ShowFirstRunAsync()
     {
         _isFirstRun = true;
@@ -39,7 +39,7 @@ public sealed partial class CliSetupDialog : ContentDialog
     /// <summary>初期化 (定型コマンドの作り直し)として開く</summary>
     /// <param name="current">今の初期設定 (環境と使っているツール。最初に選んでおく)</param>
     /// <returns>選んだ初期設定。キャンセルなら null</returns>
-    /// <remarks>取り消せない操作なので、既定のボタンを置かない (Enter で誤って実行しない。キャンセルを既定にすると強調色になり、主な操作に見えるため。SDK の確認ダイアログと同じ)。</remarks>
+    /// <remarks>取り消せない操作なので、既定のボタンを置かない。Enter で誤って実行しないため。キャンセルを既定にすると強調色になり、主な操作に見えるため。SDK の確認ダイアログと同じ。</remarks>
     public async Task<CliSetup?> ShowResetAsync(CliSetup current)
     {
         _isFirstRun = false;

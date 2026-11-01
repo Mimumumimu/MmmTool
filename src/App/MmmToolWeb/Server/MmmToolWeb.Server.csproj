@@ -2,7 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする (MmmBatch と同じ) -->
+    <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
+    <!-- ブラウザのデバッグ用の BlazorDebugProxy は、Release の出力と発行物に入れない (VS で F5 するときの Debug にだけ要る) -->
+    <BlazorWebAssemblyOmitDebugProxyOutput Condition="'$(Configuration)' == 'Release'">true</BlazorWebAssemblyOmitDebugProxyOutput>
+    <!-- 配布物のフォルダ名。説明書と版は持たず、bin\<構成>\publish\MmmToolWeb\ にできる -->
+    <DistributionFolderName>MmmToolWeb</DistributionFolderName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ライセンスは MIT License の本文で、アプリ本体の Assets\Licenses に置く。同梱ライブラリのライセンス全文は共有の発行の仕組みが作る -->
+    <None Include="..\..\..\..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Fido2.AspNet" />
@@ -22,4 +33,6 @@
     <ProjectReference Include="..\..\..\Data\MmmToolWeb.Data.SqlServer\MmmToolWeb.Data.SqlServer.csproj" />
   </ItemGroup>
 
+  <!-- ビルドの出力と配布物の作り方 (Lib への移動・ライセンス全文・発行の設定)は MmmTool・MmmBatch と共通 -->
+  <Import Project="..\..\..\..\build\AppDistribution.targets" />
 </Project>

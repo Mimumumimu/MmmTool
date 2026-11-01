@@ -34,16 +34,6 @@ public interface IAppUserAdminSettingRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyDictionary<int, string>> GetByFeatureAsync(int userId, int categoryNo, int codeNo, CancellationToken cancellationToken = default);
 
-    /// <summary>同じ設定を持つ人の番号を取得する</summary>
-    /// <param name="featureNo">機能番号</param>
-    /// <param name="categoryNo">区分番号</param>
-    /// <param name="codeNo">コード番号 (枝番)</param>
-    /// <param name="value">探す値</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>値が同じ設定を持つ人の番号</returns>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    Task<IReadOnlyList<int>> GetUserIdsAsync(int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default);
-
     /// <summary>設定の値を保存する</summary>
     /// <param name="userId">設定を持つ人の番号</param>
     /// <param name="featureNo">機能番号</param>

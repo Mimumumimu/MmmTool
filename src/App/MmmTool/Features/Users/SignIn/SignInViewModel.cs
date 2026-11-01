@@ -10,7 +10,7 @@ namespace MmmTool.Features.Users.SignIn;
 /// ログインの画面。ログイン名とパスワードでログインする。新規登録と、再設定のあとの新しいパスワードも、同じ画面で扱う。
 /// </summary>
 /// <remarks>
-/// 状態は <see cref="SignInMode"/> の 3 つ。ログインできたら (登録・新しいパスワードを決めた場合も)、今のユーザーが設定され、
+/// 状態は <see cref="SignInMode"/> の 3 つ。登録・新しいパスワードを決めた場合も含めて、ログインできたら、今のユーザーが設定され、
 /// <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class SignInViewModel : ObservableObject

@@ -1,7 +1,7 @@
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// ノートの入力内容 (新規の登録・編集で保存する値)。
+/// ノートの入力内容で、新規の登録・編集で保存する値。
 /// </summary>
 public sealed record NoteInput
 {
@@ -20,7 +20,7 @@ public sealed record NoteInput
     /// <summary>開始日</summary>
     public DateOnly StartDate { get; init; }
 
-    /// <summary>終了日 (含む)。無期限は <see cref="DateOnly.MaxValue"/></summary>
+    /// <summary>終了日で、含む。無期限は <see cref="DateOnly.MaxValue"/></summary>
     public DateOnly EndDate { get; init; } = DateOnly.MaxValue;
 
     /// <summary>実施日。未設定は <see cref="DateOnly.MaxValue"/></summary>

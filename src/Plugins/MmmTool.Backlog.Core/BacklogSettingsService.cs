@@ -17,7 +17,7 @@ public sealed class BacklogSettingsService(ISettingsStore settings, ISecretStore
     /// <remarks>Windows の資格情報マネージャーでは、この名前の汎用資格情報として見える。変えると、保存済みの API キーを読めなくなる。</remarks>
     public const string ApiKeySecretName = "MmmTool.Backlog";
 
-    /// <summary>最後に使った連携用パス (URL)。無ければ空</summary>
+    /// <summary>最後に使った連携用パスで、URL。無ければ空</summary>
     public string Url => settings.Get(UrlKey, "");
 
     /// <summary>連携用パス (URL)を保存できない状態か (設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている)</summary>

@@ -24,49 +24,29 @@ namespace MmmTool.Data.SqlServer.Notes;
 /// </remarks>
 public sealed class SqlServerNoteChangeReader(SqlServerDatabase database)
 {
-    /// <summary>オブジェクト名が正しくない (表が無い)ときの SQL Server のエラー番号</summary>
-    private const int InvalidObjectName = 208;
-
     /// <summary>基準の時刻の後に更新されたノートを読む</summary>
     /// <param name="since">この時刻より後に更新されたものを読む。null のときは、ノートを読まず、データベースサーバーの今の時刻だけを返す</param>
     /// <param name="today">今日。終了日がこの日以降のノートだけを読む</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>更新されたノート (更新日時の古い順)と、読んだ時点のデータベースサーバーの時刻</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<NoteChanges> ReadAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default)
-        => database.RunAsync(async connection =>
-        {
-            try
-            {
-                return await ReadCoreAsync(connection, since, today, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SqlException ex) when (ex.Number == InvalidObjectName)
-            {
-                throw new DataFileException("ノートの表がデータベースにありません。管理者に、003_AddNote.sql を実行してもらってください。", ex);
-            }
-        }, cancellationToken);
+        => database.RunAsync(connection => ReadCoreAsync(connection, since, today, cancellationToken), cancellationToken);
 
     /// <summary>ノートが、いまも他の人への通知の対象か確かめる</summary>
     /// <param name="noteId">ノートの番号</param>
     /// <param name="today">今日。終了日がこの日以降かを見る</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>削除されておらず、公開範囲が「全員」で、終了日が今日以降なら true。送る予定に入れたあとで、非公開にされた・削除された・期間が過去になったノートを、送る直前に外すために使う</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<bool> IsNoticeTargetAsync(int noteId, DateOnly today, CancellationToken cancellationToken = default)
         => database.RunAsync(async connection =>
         {
-            try
-            {
-                await using var command = connection.CreateCommand();
-                command.CommandText = "SELECT 1 FROM dbo.Note WHERE Id = @Id AND IsDeleted = 0 AND IsPrivate = 0 AND EndDate >= @Today";
-                command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = noteId });
-                command.Parameters.Add(new SqlParameter("@Today", SqlDbType.Date) { Value = today.ToDateTime(TimeOnly.MinValue) });
-                return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
-            }
-            catch (SqlException ex) when (ex.Number == InvalidObjectName)
-            {
-                throw new DataFileException("ノートの表がデータベースにありません。管理者に、003_AddNote.sql を実行してもらってください。", ex);
-            }
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT 1 FROM dbo.Note WHERE Id = @Id AND IsDeleted = 0 AND IsPrivate = 0 AND EndDate >= @Today";
+            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = noteId });
+            command.Parameters.Add(new SqlParameter("@Today", SqlDbType.Date) { Value = today.ToDateTime(TimeOnly.MinValue) });
+            return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
         }, cancellationToken);
 
     /// <summary>接続を開いたあとの、実際の読み込み</summary>

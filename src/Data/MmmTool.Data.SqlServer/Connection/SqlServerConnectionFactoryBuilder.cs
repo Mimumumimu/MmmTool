@@ -9,7 +9,7 @@ namespace MmmTool.Data.SqlServer.Connection;
 /// </summary>
 /// <remarks>
 /// 設定は <see cref="DatabaseSettingsService"/> から、そのつど読む。足りない設定は、画面に出せるメッセージの
-/// <see cref="DatabaseSettingsException"/> にする (利用者の設定漏れで、バグではない)。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない。
+/// <see cref="DatabaseSettingsException"/> にする。利用者の設定漏れで、バグではない。ログインの方式が Windows のときは、ユーザー名とパスワードを使わない。
 /// </remarks>
 /// <param name="settings">DB への接続の設定</param>
 public sealed class SqlServerConnectionFactoryBuilder(DatabaseSettingsService settings)
@@ -74,7 +74,7 @@ public sealed class SqlServerConnectionFactoryBuilder(DatabaseSettingsService se
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>接続を試す処理の完了を表すタスク (接続できたら正常に完了する)</returns>
     /// <exception cref="DatabaseSettingsException">サーバー名・データベース名・ユーザー名が空、またはパスワードが空。</exception>
-    /// <exception cref="SqlServerConnectionException">接続できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="SqlServerConnectionException">接続できなかった。メッセージは画面に出せる。</exception>
     public static async Task TestConnectionAsync(DatabaseSettings value, string? password, CancellationToken cancellationToken = default)
     {
         await using var connection = await Build(value, password).OpenAsync(cancellationToken).ConfigureAwait(false);

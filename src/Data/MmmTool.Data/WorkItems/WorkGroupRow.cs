@@ -3,7 +3,7 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.WorkItems;
 
 /// <summary>
-/// DB の <c>WorkGroup</c> の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkGroup"/> とは別の、DB の形のまま持つ。
+/// DB の <c>WorkGroup</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkGroup"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>変換は <see cref="FromWorkGroup"/> と <see cref="ToWorkGroup"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。</remarks>
 public sealed record WorkGroupRow

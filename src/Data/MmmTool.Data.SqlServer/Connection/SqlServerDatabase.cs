@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using MmmSdk.Core.Components.Logging;
 using MmmSdk.Core.Components.Secrets;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Db.SqlServer.Components.Connections;
@@ -10,12 +11,13 @@ namespace MmmTool.Data.SqlServer.Connection;
 /// SQL Server に接続して、処理を実行する入口。アプリ全体で 1 つ。
 /// </summary>
 /// <remarks>
-/// 接続は、処理のたびに開いて閉じる (実体は接続プールが使い回す)。接続を作るファクトリは、最初に成功したものを使い回す
-/// (設定の変更は、次の起動から反映する。再起動せずに反映したいときは <see cref="ResetConnection"/>)。接続の失敗・設定の不足・実行中の失敗は、画面に出せるメッセージの
-/// <see cref="DataFileException"/> にして渡す (画面は、ほかの保存先と同じ <see cref="DataFileException"/> を受ける)。
+/// 接続は、処理のたびに開いて閉じる。実体は接続プールが使い回す。接続を作るファクトリは、最初に成功したものを使い回す。
+/// 設定の変更は、次の起動から反映する。再起動せずに反映したいときは <see cref="ResetConnection"/> を呼ぶ。接続の失敗・設定の不足・実行中の失敗は、画面に出せるメッセージの
+/// <see cref="DataFileException"/> にして渡す。画面は、ほかの保存先と同じ <see cref="DataFileException"/> を受ける。
 /// </remarks>
 /// <param name="builder">接続を作るファクトリを作る処理</param>
-public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
+/// <param name="errorLog">SQL Server が返した失敗を、例外ごと書くログ。登録していないアプリ (ログを別の仕組みで書くもの)では null で、書かない</param>
+public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder, ErrorLog? errorLog = null)
 {
     private readonly Lock _gate = new();
     private SqlServerConnectionFactory? _factory;
@@ -25,14 +27,16 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     public async Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(work);
 
+        var databaseName = "";
         try
         {
             await using var connection = await GetFactory().OpenAsync(cancellationToken).ConfigureAwait(false);
+            databaseName = connection.Database;
             return await work(connection).ConfigureAwait(false);
         }
         catch (DatabaseSettingsException ex)
@@ -49,6 +53,8 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
         }
         catch (SqlException ex)
         {
+            // どのサーバー・どの DB で、どのエラー番号かを残す。呼び出しの流れ (どの機能の処理か)は、例外のスタックトレースに入る
+            errorLog?.Write($"データベースの読み書きに失敗 (サーバー: {ex.Server} / データベース: {databaseName} / エラー番号: {ex.Number})", ex);
             throw new DataFileException($"データベースの読み書きに失敗しました ({ex.Message})。", ex);
         }
     }
@@ -57,7 +63,7 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
     public Task RunAsync(Func<SqlConnection, Task> work, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(work);
@@ -69,7 +75,7 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder)
     }
 
     /// <summary>覚えている接続のファクトリを捨てて、次の操作で、今の設定から作り直させる</summary>
-    /// <remarks>接続の設定を保存したあとに呼ぶ (再起動せずに、新しい設定を使うため)。実行中の操作は、そのまま続く。</remarks>
+    /// <remarks>接続の設定を保存したあとに呼ぶ。再起動せずに、新しい設定を使うため。実行中の操作は、そのまま続く。</remarks>
     public void ResetConnection()
     {
         lock (_gate)

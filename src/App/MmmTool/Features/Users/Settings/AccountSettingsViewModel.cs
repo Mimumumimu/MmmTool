@@ -14,7 +14,7 @@ namespace MmmTool.Features.Users.Settings;
 /// アカウント (表示名・ログイン名・パスワードの変更とログアウト)の設定ページの部品の ViewModel。
 /// </summary>
 /// <remarks>
-/// DB に保存していて、ログイン済みのときだけ出す (ローカルモードには、ユーザーがいない)。保存先は起動時に決まるので、出すかどうかは、部品を作るときに決める。
+/// DB に保存していて、ログイン済みのときだけ出す。ローカルモードには、ユーザーがいない。保存先は起動時に決まるので、出すかどうかは、部品を作るときに決める。
 /// 変更は、別の画面 (<see cref="AccountEditWindow"/>)で行う。ここは、閉じたあとに、見せている内容を読み直す。
 /// </remarks>
 public sealed partial class AccountSettingsViewModel : ObservableObject

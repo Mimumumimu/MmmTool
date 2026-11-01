@@ -9,7 +9,7 @@ public sealed partial class ProjectManagerItem(WorkProjectEntry entry) : Observa
 {
     /// <summary>新しい案件の入力中の行を作る (名前が入って確定するまで、保存しない)</summary>
     /// <returns>入力中の行</returns>
-    public static ProjectManagerItem CreateNew() => new(new WorkProjectEntry(0, "", false, false, null)) { IsNew = true };
+    public static ProjectManagerItem CreateNew() => new(new WorkProjectEntry(0, "", false, false, null, false)) { IsNew = true };
 
     /// <summary>入力中の新しい行 (番号が 0)か</summary>
     /// <param name="entry">案件マスターの 1 件</param>
@@ -37,6 +37,6 @@ public sealed partial class ProjectManagerItem(WorkProjectEntry entry) : Observa
     /// <summary>名前を文字だけで出しているか</summary>
     public bool IsLabel => !IsEditing;
 
-    /// <summary>進行中か完了済みか (入力中の新しい行は空)</summary>
-    public string StatusText => IsNew ? "" : entry.IsFinished ? "完了" : "進行中";
+    /// <summary>進行中か、保留か、完了済みか。入力中の新しい行は空</summary>
+    public string StatusText => IsNew ? "" : entry.IsFinished ? "完了" : entry.IsStopped ? "保留" : "進行中";
 }

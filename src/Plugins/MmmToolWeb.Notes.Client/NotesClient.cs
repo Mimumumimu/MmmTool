@@ -22,14 +22,15 @@ public sealed class NotesClient(HttpClient http)
     public static string StylesPath => Path + "/styles.css";
 
     /// <summary>
-    /// ある日に有効なノートを読む。
+    /// ある日のノートを読む。
     /// </summary>
     /// <param name="day">日。</param>
+    /// <param name="updated">その日に更新したノートを読むか。false は、その日に有効なノート。</param>
     /// <param name="includeDeleted">削除したものも含めるか。</param>
     /// <returns>ノートの一覧。</returns>
-    public Task<ApiResult<NoteListResponse>> LoadAsync(DateOnly day, bool includeDeleted)
+    public Task<ApiResult<NoteListResponse>> LoadAsync(DateOnly day, bool updated, bool includeDeleted)
         => SendAsync(
-            () => http.GetAsync($"{Path}?day={day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}&includeDeleted={(includeDeleted ? "true" : "false")}"),
+            () => http.GetAsync($"{Path}?day={FormatDay(day)}&basis={(updated ? "updated" : "period")}&includeDeleted={(includeDeleted ? "true" : "false")}"),
             async response => await response.Content.ReadFromJsonAsync(NotesJsonContext.Default.NoteListResponse));
 
     /// <summary>

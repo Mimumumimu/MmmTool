@@ -9,8 +9,8 @@ namespace MmmTool.Reminders.Input;
 
 /// <summary>リマインダー入力ウィンドウ (1 件の新規登録・編集)</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さも固定 (サイズ変更・最大化・最小化はできない)。
-/// タイトル帯をドラッグして移動できる。× で閉じたときはキャンセルと同じ。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さも固定で、サイズ変更・最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。× で閉じたときはキャンセルと同じ。開くたびに作り直す。閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class ReminderInputWindow : Window
 {
@@ -18,7 +18,7 @@ public sealed partial class ReminderInputWindow : Window
     private const double WindowWidth = 480;
 
     /// <summary>ウィンドウの高さの見積もり (DIP。タイトルバーを含む。宛先の欄が出る場合)</summary>
-    /// <remarks>表示する前の仮の高さ。表示して中身が載ったら、中身の高さを測って、ちょうど合わせ直す (<see cref="OnRootLoaded"/>)。送信先の欄が出るときは、<see cref="ChannelFieldHeight"/> を足す。</remarks>
+    /// <remarks>表示する前の仮の高さ。表示して中身が載ったら、中身の高さを測って、ちょうど合わせ直す。これは <see cref="OnRootLoaded"/> で行う。送信先の欄が出るときは、<see cref="ChannelFieldHeight"/> を足す。</remarks>
     private const double WindowHeight = 724;
 
     /// <summary>送信先の欄の高さの見積もり (DIP で、見出し + 3 行の一覧の枠 + 間隔)</summary>
@@ -84,7 +84,7 @@ public sealed partial class ReminderInputWindow : Window
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 高いほうに合わせた高さを確保しておく (切り替えで下の欄やボタンが動かないように)。
+    /// 高いほうに合わせた高さを確保しておく。切り替えで下の欄やボタンが動かないようにするため。
     /// そのために一度だけ両方を表示して測り、表示はバインドで元に戻す。
     /// </remarks>
     private void OnRootLoaded(object sender, RoutedEventArgs e)

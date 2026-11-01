@@ -64,6 +64,7 @@
 - 一覧 (`GetRemindersAsync`)は、保存先が見せるものを、そのまま返す (DB は、自分が作成したほかの人宛てを含む)
 - 保存先の外での変更 (ほかの PC など)は、`ExternalChanged` で知らせる
   - `ReminderService` が受けて、自分の書き込みと同じ `Changed` として画面・監視に伝える
+  - DB は、毎分、前回より後に更新された行だけを読んで反映する。30 分に 1 回は、見える分を全件読み直す。詳細は [database.md](database.md) の「Repository の動き」にある。
   - JSON は 1 つの PC だけなので、発火しない
   - DB (SQL Server)の保存先の動きは [database.md](database.md) の「Repository の動き」
 - JSON 実装 (`JsonReminderRepository`)
@@ -262,7 +263,7 @@
     - 一覧は、入力画面と同じ `ReminderChannelPicker` で、左の列の残りの高さいっぱいに伸びる。入れる数が増えても、一覧の中だけがスクロールする。
     - 選べるのは、入力画面と同じ、自分が登録した送信先だけ。選択肢は `ReminderChannelLoader` が作る。
     - 一覧の各行では選ばせない (毎回同じ送信先を、行ごとに選び直す手間になるため)
-    - 送信設定は、リマインダーを 1 件登録するたびに書く。送る処理は MmmTool に無い ([mmmbatch.md](mmmbatch.md))
+    - 送信設定は、登録したリマインダーの分を、最後に 1 回でまとめて書く。リマインダーの数だけ書かない。送る処理は MmmTool に無い。詳細は [mmmbatch.md](mmmbatch.md) にある。
 - 「何分前に通知」「通知を読み上げる」「送信先」は、選びを変えるたびに保存して、次に開いたときの初期値にする
   - 毎回選び直す手間を省くため
   - 登録しないで閉じても残る。登録のときだけ保存する形にしない。

@@ -4,9 +4,9 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.WorkItems.ProjectPicker;
 
-/// <summary>「表示する案件」のボタンと、案件を選ぶ入れ物 (フライアウト)。作業管理の表とスケジュールが共有する</summary>
+/// <summary>「表示する案件」のボタンと、案件を選ぶ入れ物のフライアウト。作業管理の表とスケジュールが共有する</summary>
 /// <remarks>
-/// 使う側が、作ったあとに <see cref="Attach"/> で ViewModel を渡す (XAML から作るので、コンストラクターで受け取れない)。
+/// 使う側が、作ったあとに <see cref="Attach"/> で ViewModel を渡す。XAML から作るので、コンストラクターで受け取れない。
 /// 選んだ案件は、作業管理と同じ設定に保存するので、どちらの画面で変えても、もう一方に反映する。
 /// </remarks>
 public sealed partial class ProjectPickerButton : UserControl

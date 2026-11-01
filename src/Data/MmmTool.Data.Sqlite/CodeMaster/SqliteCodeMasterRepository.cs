@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using MmmSdk.Db.Sqlite.Components.Connections;
 using MmmTool.CodeMaster.Core;
@@ -60,15 +61,23 @@ public sealed class SqliteCodeMasterRepository(SqliteDatabase database, TimeProv
             () => database.RunInTransactionAsync(
                 async (connection, transaction) =>
                 {
-                    foreach (var (codeNo, name) in namesByCodeNo)
+                    if (namesByCodeNo.Count == 0)
                     {
-                        await using var command = SqliteValues.Command(
-                            connection,
-                            transaction,
-                            "UPDATE CodeMaster SET Name = @name, UpdatedAt = @now, UpdatedByUserId = @user WHERE FeatureNo = @feature AND CategoryNo = @category AND CodeNo = @code AND IsDeleted = 0 AND Name <> @name",
-                            [("@name", name), ("@now", now), ("@user", LocalUserId), ("@feature", featureNo), ("@category", categoryNo), ("@code", codeNo)]);
-                        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                        return;
                     }
+
+                    // コードの数だけ流さず、コードと名前を JSON の 1 つのパラメーターで渡して、1 回で更新する
+                    var names = JsonSerializer.Serialize(namesByCodeNo.Select(pair => new { code = pair.Key, name = pair.Value }));
+                    await using var command = SqliteValues.Command(
+                        connection,
+                        transaction,
+                        """
+                        UPDATE CodeMaster SET Name = j.name, UpdatedAt = @now, UpdatedByUserId = @user
+                        FROM (SELECT json_extract(value, '$.code') AS code, json_extract(value, '$.name') AS name FROM json_each(@names)) AS j
+                        WHERE CodeMaster.FeatureNo = @feature AND CodeMaster.CategoryNo = @category AND CodeMaster.CodeNo = j.code AND CodeMaster.IsDeleted = 0 AND CodeMaster.Name <> j.name
+                        """,
+                        [("@names", names), ("@now", now), ("@user", LocalUserId), ("@feature", featureNo), ("@category", categoryNo)]);
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 },
                 cancellationToken),
             cancellationToken);

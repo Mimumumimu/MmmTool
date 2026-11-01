@@ -15,7 +15,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯で、ドラッグで移動できる。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"
@@ -34,7 +34,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる (範囲の日付は、左が始まり・右が終わり)。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度)は 2 行目に置く -->
+            <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる。範囲の日付は、左が始まり・右が終わり。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度)は 2 行目に置く -->
             <StackPanel Grid.Row="0" Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
@@ -56,7 +56,7 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- プレビュー (読み取り専用。そのまま選んでコピーもできる)。BIZ UDGothic は行の間が詰まっているので、RichTextBlock にして行の高さを指定する (TextBox には行の高さの指定が無い)。選べる TextBlock は、サイズ変更のあとに折り返しの位置が更新されないことがあるため、使わない -->
+            <!-- プレビューで、読み取り専用。そのまま選んでコピーもできる。BIZ UDGothic は行の間が詰まっているので、RichTextBlock にして行の高さを指定する。TextBox には行の高さの指定が無い。選べる TextBlock は、サイズ変更のあとに折り返しの位置が更新されないことがあるため、使わない -->
             <Grid
                 Grid.Row="1"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

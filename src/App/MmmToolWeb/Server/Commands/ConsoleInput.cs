@@ -12,7 +12,7 @@ internal static class ConsoleInput
     /// </summary>
     /// <param name="label">聞く項目の名前。</param>
     /// <param name="defaultValue">何も入力されなかったときの値。</param>
-    /// <returns>入力された値 (前後の空白を除く)。</returns>
+    /// <returns>入力された値で、前後の空白を除く。</returns>
     public static string Ask(string label, string defaultValue)
     {
         Console.Write(defaultValue.Length > 0 ? $"{label} [{defaultValue}]: " : $"{label}: ");
@@ -36,7 +36,7 @@ internal static class ConsoleInput
     /// <summary>
     /// パスワードを、画面に表示せずに聞く。
     /// </summary>
-    /// <param name="hasSaved">すでに保存されたパスワードがあるか (あれば、何も入力しないと、それを使う)。</param>
+    /// <param name="hasSaved">すでに保存されたパスワードがあるか。あれば、何も入力しないと、それを使う。</param>
     /// <returns>入力されたパスワード。何も入力されなければ空文字。</returns>
     public static string AskPassword(bool hasSaved)
     {

@@ -3,10 +3,10 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.WorkItems;
 
 /// <summary>
-/// DB の <c>WorkDayNote</c> (日報メモ)の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkDayNote"/> とは別の、DB の形のまま持つ。
+/// DB の <c>WorkDayNote</c> (日報メモ)の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkDayNote"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 1 人 1 日 1 件。持ち主は業務の列 <see cref="UserId"/> で、<see cref="CreatedByUserId"/> は記録用 (検索・一意・結合には使わない)。
+/// 1 人 1 日 1 件。持ち主は業務の列 <see cref="UserId"/> で、<see cref="CreatedByUserId"/> は記録用で、検索・一意・結合には使わない。
 /// 作成・更新の日時と更新者は、Repository が入れる。
 /// </remarks>
 public sealed record WorkDayNoteRow
@@ -46,5 +46,5 @@ public sealed record WorkDayNoteRow
 
     /// <summary>DB の行から、アプリの型にする</summary>
     /// <returns>日報メモ</returns>
-    public WorkDayNote ToWorkDayNote() => new() { Id = Id, Date = Date, Note = Note, UpdatedAt = UpdatedAt };
+    public WorkDayNote ToWorkDayNote() => new() { Id = Id, UserId = UserId, Date = Date, Note = Note, UpdatedAt = UpdatedAt };
 }

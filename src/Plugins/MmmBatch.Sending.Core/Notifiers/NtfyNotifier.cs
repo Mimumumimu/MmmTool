@@ -8,7 +8,7 @@ namespace MmmBatch.Sending.Core.Notifiers;
 /// </summary>
 /// <param name="http">HTTP クライアント (アプリ全体で 1 つ)</param>
 /// <remarks>
-/// サーバーの URL に JSON を POST する発行の形で送る (タイトルに日本語を使うため、ヘッダーに入れない)。
+/// サーバーの URL に JSON を POST する発行の形で送る。タイトルに日本語を使うため、ヘッダーに入れない。
 /// リンクが URL (http・https)なら、通知をタップしたときに開く。ファイル・フォルダーのパスは開けないので、本文の最後に添える。
 /// </remarks>
 public sealed class NtfyNotifier(HttpClient http) : INotifier
@@ -25,7 +25,7 @@ public sealed class NtfyNotifier(HttpClient http) : INotifier
         ArgumentNullException.ThrowIfNull(channel);
         ArgumentNullException.ThrowIfNull(message);
 
-        // トピック名が正しくないと、ntfy が受け付けない (DB の値を直接直されたときの備え)。メッセージに、トピック名は入れない
+        // トピック名が正しくないと、ntfy が受け付けない。DB の値を直接直されたときの備え。メッセージに、トピック名は入れない
         if (!NotificationChannelRules.IsNtfyTopic(channel.Value))
         {
             throw new SendFailedException("ntfy のトピック名が正しくありません。");

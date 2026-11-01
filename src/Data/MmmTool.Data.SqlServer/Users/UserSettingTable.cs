@@ -90,37 +90,6 @@ internal sealed class UserSettingTable
             return values;
         }, cancellationToken);
 
-    /// <summary>同じ設定の値を持つ人の番号を読む</summary>
-    /// <param name="database">SQL Server への入口</param>
-    /// <param name="featureNo">機能番号</param>
-    /// <param name="categoryNo">区分番号</param>
-    /// <param name="codeNo">コード番号 (枝番)</param>
-    /// <param name="value">探す値</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>人の番号</returns>
-    public Task<IReadOnlyList<int>> GetUserIdsAsync(SqlServerDatabase database, int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken)
-        => SendTableAccess.RunAsync<IReadOnlyList<int>>(database, async connection =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                $"""
-                SELECT UserId FROM dbo.{_table}
-                WHERE FeatureNo = @FeatureNo AND CategoryNo = @CategoryNo AND CodeNo = @CodeNo AND Value = @Value AND IsDeleted = 0
-                """;
-            command.Parameters.Add(new SqlParameter("@FeatureNo", SqlDbType.Int) { Value = featureNo });
-            command.Parameters.Add(new SqlParameter("@CategoryNo", SqlDbType.Int) { Value = categoryNo });
-            command.Parameters.Add(new SqlParameter("@CodeNo", SqlDbType.Int) { Value = codeNo });
-            command.Parameters.Add(new SqlParameter("@Value", SqlDbType.NVarChar, ValueMaxLength) { Value = value });
-            var userIds = new List<int>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                userIds.Add(reader.GetInt32(0));
-            }
-
-            return userIds;
-        }, cancellationToken);
-
     /// <summary>設定の値を保存する</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="userId">設定を持つ人の番号</param>

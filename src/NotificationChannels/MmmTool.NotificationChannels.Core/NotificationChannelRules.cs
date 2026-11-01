@@ -34,7 +34,7 @@ public static class NotificationChannelRules
     /// <summary>Discord の Webhook の URL として正しい形か調べる</summary>
     /// <param name="value">調べる文字列</param>
     /// <returns>Discord の Webhook の URL (<c>https://discord.com/api/webhooks/…</c>)なら true</returns>
-    /// <remarks>送る先を、Discord の外へ向けさせないため、ホストも確かめる (<c>discord.com</c> と <c>discordapp.com</c>)。</remarks>
+    /// <remarks>送る先を、Discord の外へ向けさせないため、ホストも確かめる。許すのは <c>discord.com</c> と <c>discordapp.com</c>。</remarks>
     public static bool IsDiscordWebhookUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length > ValueMaxLength)

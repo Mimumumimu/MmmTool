@@ -7,8 +7,8 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
 /// <remarks>
 /// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。
-/// 並びは画面に表示している順 (案件は名前順、グループと作業は同じ親の下の並び順)。画面の表示の設定には従わない。
+/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。保留は、状態が保留で、予定に含めない印が無い作業で、1 件も無ければ区画を出さない。
+/// 並びは画面に表示している順で、案件は名前順、グループと作業は同じ親の下の並び順。画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
 {
@@ -64,12 +64,14 @@ public static class WorkReportBuilder
 
         // 予定: 状態が作業予定・作業中で、予定に含めない印が無い作業。共通の備考は、実績に出した作業でも、予定に出す
         var planned = new List<ReportEntry>();
-        foreach (var item in items.Values.Where(i => i.ReportExclusion == WorkReportExclusion.None && i.Status is WorkItemStatus.Planned or WorkItemStatus.InProgress))
+        // 保留: 状態が保留で、予定に含めない印が無い作業。待ちの相手などを書いた備考を、予定と同じ形で出す。1 件も無ければ、区画ごと出さない
+        var onHold = new List<ReportEntry>();
+        foreach (var item in items.Values.Where(i => i.ReportExclusion == WorkReportExclusion.None && (i.Status.IsReportPlanned() || i.Status.IsReportOnHold())))
         {
             IEnumerable<string> todayNotes = records.TryGetValue(item.Id, out var itemRecords)
                 ? itemRecords.Where(r => r.Date == reportDate).SelectMany(r => Lines(r.Note))
                 : [];
-            planned.Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. todayNotes]), null));
+            (item.Status.IsReportOnHold() ? onHold : planned).Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. todayNotes]), null));
         }
 
         // 日報メモ: 予定の末尾に、報告日の分だけ出す (実績には出さない)
@@ -80,6 +82,11 @@ public static class WorkReportBuilder
         AppendSection(builder, done, projects, groups, codes, showProgress, []);
         builder.Append(NewLine).Append("■予定").Append(NewLine);
         AppendSection(builder, planned, projects, groups, codes, showProgress, Indented(plannedNotes.SelectMany(n => ManualLines(n.Note)), 1));
+        if (onHold.Count > 0)
+        {
+            builder.Append(NewLine).Append("■保留").Append(NewLine);
+            AppendSection(builder, onHold, projects, groups, codes, showProgress, []);
+        }
         return builder.ToString().TrimEnd('\r', '\n');
     }
 
@@ -117,7 +124,7 @@ public static class WorkReportBuilder
     /// <summary>備考を、空でない行に分ける</summary>
     /// <param name="note">備考</param>
     /// <returns>行 (行末の空白を除く。行頭の空白は、書いた人の字下げなので残す。空白だけの行は含まない)</returns>
-    /// <remarks>改行は、CRLF・CR・LF のどれでも区切る (WinUI の複数行の入力欄は、改行を CR 1 文字で持つことがある)。</remarks>
+    /// <remarks>改行は、CRLF・CR・LF のどれでも区切る。WinUI の複数行の入力欄は、改行を CR 1 文字で持つことがある。</remarks>
     private static IEnumerable<string> Lines(string note)
         => note.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.TrimEnd()).Where(l => l.Length > 0);
 

@@ -16,7 +16,7 @@ public static class ReminderEvaluator
     /// <returns>通知する項目と、スヌーズ分を含むか、読み上げる文 (読み上げ対象が無ければ null)</returns>
     /// <remarks>
     /// 未対応 (None)は毎分通知する。完了 (Done)は通知しない。
-    /// スヌーズ (Snooze)は、前回スヌーズ分を通知してから間隔以上たっていれば通知する (間隔は、リマインダーごとではなく全体で数える。前回が無ければ通知する)。
+    /// スヌーズ (Snooze)は、前回スヌーズ分を通知してから間隔以上たっていれば通知する。間隔は、リマインダーごとではなく全体で数える。前回が無ければ通知する。
     /// </remarks>
     public static ReminderEvaluation Evaluate(
         IReadOnlyList<ReminderTarget> triggered, DateTime minute, DateTime? lastSnoozeNotifiedMinute, int snoozeIntervalMinutes)

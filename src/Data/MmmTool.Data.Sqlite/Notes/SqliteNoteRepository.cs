@@ -11,7 +11,7 @@ namespace MmmTool.Data.Sqlite.Notes;
 /// <param name="database">データベースファイルを開く入口</param>
 /// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
 /// <remarks>
-/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形 (docs/specs/notes.md)。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
+/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/notes.md にある。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
 /// 書き込みは、書き込みの許可を最初に取るトランザクションの中で行う。処理は、UI スレッドを止めないよう、別のスレッドで行う。SQL はパラメーター化だけで書く。
 /// </remarks>
 public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider time) : INoteRepository
@@ -39,14 +39,37 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         => Task.FromResult(new NoteChanges(time.GetUtcNow(), []));
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<Note>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
-        => RunAsync<IReadOnlyList<Note>>(
+    /// <remarks>ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。</remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "EndDate >= @day AND StartDate <= @day",
+            [("@day", day), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
+            cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// 更新日時は、いつも同じ時差の同じ形の文字で保存するので、範囲の端も同じ形の文字にして、文字の大小で比べる。
+    /// ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。
+    /// </remarks>
+    public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
+        => ReadWithNamesAsync(
+            "UpdatedAt >= @from AND UpdatedAt < @to",
+            [("@from", from), ("@to", to), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
+            cancellationToken);
+
+    /// <summary>条件に合う、見えるノートを読む (名前は空文字)</summary>
+    /// <param name="condition">絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="parameters">パラメーター。<c>@includeDeleted</c> と <c>@me</c> を含める</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートと名前で、並びは不定</returns>
+    private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, (string Name, object Value)[] parameters, CancellationToken cancellationToken)
+        => RunAsync<IReadOnlyList<NoteWithNames>>(
             async connection => [.. (await SqliteQueries.QueryAsync(
                 connection,
                 null,
-                $"SELECT {Columns} FROM Note WHERE EndDate >= @day AND StartDate <= @day AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
-                [("@day", day), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
-                reader => ReadRow(reader).ToNote(),
+                $"SELECT {Columns} FROM Note WHERE {condition} AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
+                parameters,
+                reader => new NoteWithNames(ReadRow(reader).ToNote(), "", ""),
                 cancellationToken).ConfigureAwait(false))],
             cancellationToken);
 
@@ -73,13 +96,13 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         await RunInTransactionAsync(
             async (connection, transaction) =>
             {
-                await SqliteQueries.ExecuteAsync(
+                // 採番された番号は、RETURNING で同じ往復の中で受け取る。書いたあとに別に問い合わせない
+                var id = Convert.ToInt32(await SqliteQueries.ScalarAsync(
                     connection,
                     transaction,
-                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body)",
+                    "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body) RETURNING Id",
                     [("@now", now), ("@user", LocalUserId), ("@private", false), ("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body)],
-                    cancellationToken).ConfigureAwait(false);
-                var id = Convert.ToInt32(await SqliteQueries.ScalarAsync(connection, transaction, "SELECT last_insert_rowid()", [], cancellationToken).ConfigureAwait(false));
+                    cancellationToken).ConfigureAwait(false));
                 saved = new Note
                 {
                     Id = id,

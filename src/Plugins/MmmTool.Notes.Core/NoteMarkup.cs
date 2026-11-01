@@ -3,11 +3,11 @@ using System.Text.RegularExpressions;
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// 本文に、書式のタグを入れる文字列を作る (入力欄の右クリックの助けとファイルのドロップが使う)。
+/// 本文に、書式のタグを入れる文字列を作る。入力欄の右クリックの助けとファイルのドロップが使う。
 /// </summary>
 public static partial class NoteMarkup
 {
-    /// <summary>色のタグ (開きタグと、閉じタグ)。色を外すときに取り除く</summary>
+    /// <summary>色のタグで、開きタグと、閉じタグ。色を外すときに取り除く</summary>
     /// <returns>正規表現</returns>
     [GeneratedRegex(@"<span\s+style\s*=\s*(?:""color\s*:\s*#[0-9A-Fa-f]{6}\s*;?\s*""|'color\s*:\s*#[0-9A-Fa-f]{6}\s*;?\s*')\s*>|</span\s*>", RegexOptions.IgnoreCase)]
     private static partial Regex ColorTagRegex();

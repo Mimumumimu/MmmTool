@@ -16,7 +16,7 @@ namespace MmmTool.Reminders;
 /// <param name="reminderWindows">リマインダーのメイン画面を開く</param>
 /// <remarks>
 /// 監視はタイマーのスレッドから通知を求めてくるので、UI スレッドに切り替えて通知ダイアログを出し、読み上げ対象があれば一緒に読み上げる。
-/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く (発動済みの未対応はスヌーズに進む)。
+/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く。発動済みの未対応はスヌーズに進む。
 /// </remarks>
 public sealed class ReminderStartup(
     ReminderMonitor monitor,
@@ -31,7 +31,7 @@ public sealed class ReminderStartup(
     private const int NotificationOrder = 4;
 
     /// <inheritdoc />
-    /// <remarks>UI スレッドから呼ぶ (通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う)。</remarks>
+    /// <remarks>UI スレッドから呼ぶ。通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う。</remarks>
     public Task StartAsync()
     {
         var dispatcher = DispatcherQueue.GetForCurrentThread();

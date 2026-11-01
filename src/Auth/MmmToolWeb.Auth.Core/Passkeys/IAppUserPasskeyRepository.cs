@@ -24,7 +24,7 @@ public interface IAppUserPasskeyRepository
     /// <summary>
     /// パスキーを新しく保存する。
     /// </summary>
-    /// <param name="passkey">保存するパスキー (<see cref="AppUserPasskey.Id"/> は無視する)。</param>
+    /// <param name="passkey">保存するパスキー。<see cref="AppUserPasskey.Id"/> は無視する。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>保存の完了を表すタスク。</returns>
     Task AddAsync(AppUserPasskey passkey, CancellationToken cancellationToken);
@@ -34,7 +34,7 @@ public interface IAppUserPasskeyRepository
     /// </summary>
     /// <param name="id">パスキーの番号。</param>
     /// <param name="signCount">新しい使用回数。</param>
-    /// <param name="lastUsedAt">使った日時 (UTC)。</param>
+    /// <param name="lastUsedAt">使った日時で、UTC。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>更新の完了を表すタスク。</returns>
     Task UpdateUsageAsync(int id, uint signCount, DateTime lastUsedAt, CancellationToken cancellationToken);

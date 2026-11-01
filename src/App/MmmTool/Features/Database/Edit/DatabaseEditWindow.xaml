@@ -16,7 +16,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯で、ドラッグで移動できる。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"

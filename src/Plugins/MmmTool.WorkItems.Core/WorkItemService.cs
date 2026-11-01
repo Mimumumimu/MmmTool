@@ -15,9 +15,9 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="time">現在の時刻を知るための時計</param>
 /// <param name="settings">この PC の設定 (選んだ案件の番号を残す)</param>
 /// <remarks>
-/// 入力の確認 (名前・日付・時間の範囲)、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
+/// 名前・日付・時間の範囲の入力の確認、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
 /// 予測できる入力の誤りは、例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。保存の失敗は <see cref="DataFileException"/>。
-/// 操作は 1 つずつ順に行う (同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う)。
+/// 操作は 1 つずつ順に行う。同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う。
 /// <see cref="StartPolling"/> は UI スレッドから呼ぶ。待ちの続きが UI スレッドに戻るので、<see cref="Changed"/> も UI スレッドから発火する。
 /// </remarks>
 public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings)
@@ -62,7 +62,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private List<WorkRecord> _dayRecords = [];
 
     /// <summary>スケジュールの実績 (表示する案件の、すべての日の記録。作業と日付で 1 件。実績が 0 より大きいものだけ)</summary>
-    /// <remarks>スケジュールを開いている間だけ持つ (<see cref="_holdsScheduleRecords"/>)。表だけを開いている間は、読まず、差分も取らない。</remarks>
+    /// <remarks>スケジュールを開いている間だけ持つ。持つかどうかは <see cref="_holdsScheduleRecords"/> で決まる。表だけを開いている間は、読まず、差分も取らない。</remarks>
     private readonly Dictionary<(int WorkItemId, DateOnly Date), WorkRecord> _scheduleRecords = [];
 
     /// <summary>スケジュールの記録を持っているか (持っている間だけ、差分の取得で、すべての日の記録を読む)</summary>
@@ -156,7 +156,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="day">記録を読む日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した (<see cref="LoadError"/> にも残す)。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した。<see cref="LoadError"/> にも残す。</exception>
     public async Task LoadAsync(DateOnly day, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -231,7 +231,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>他の人の更新を取り込む定期的な取得を始める</summary>
     /// <remarks>
-    /// UI スレッドから呼ぶ。使う画面の数を数え (作業管理の表とスケジュール)、すでに動いていれば、数を増やすだけ。
+    /// UI スレッドから呼ぶ。作業管理の表とスケジュールの、使う画面の数を数え、すでに動いていれば、数を増やすだけ。
     /// 画面の切り替えで、新しい画面の開始が、前の画面の停止より先でも後でも、取得が止まったままにならないため。
     /// </remarks>
     public void StartPolling()
@@ -444,7 +444,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
     /// 実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う (<see cref="BuildTree(DateOnly, bool, CompletedDisplay, Func{WorkItem, bool}?)"/>と同じ理由)。軸の範囲は、隠す前の内容から求める。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。理由は <see cref="BuildTree(DateOnly, bool, CompletedDisplay, Func{WorkItem, bool}?)"/> と同じ。軸の範囲は、隠す前の内容から求める。
     /// </remarks>
     public ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(mineOnly, completed, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
@@ -453,7 +453,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="projectId">案件の番号</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
     /// <param name="completed">完了した作業の見え方</param>
-    /// <returns>その案件だけの行の木・実績の棒・軸の範囲 (軸の範囲は、この案件と今日だけから求めた値)。案件を読み込んでいなければ、行の木は空</returns>
+    /// <returns>その案件だけの行の木・実績の棒・軸の範囲。軸の範囲は、この案件と今日だけから求めた値。案件を読み込んでいなければ、行の木は空</returns>
     /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
     public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(
@@ -718,7 +718,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 Merge(await repository.LoadProjectsAsync([projectId]));
                 _hidden.Remove(projectId);
 
-                // 日の記録は、スケジュールが使わない (作業管理の表だけが使う。表は、開くたびに読み直す)。スケジュールを開いている間は、読まない。
+                // 日の記録は、スケジュールが使わない。作業管理の表だけが使い、表は、開くたびに読み直す。スケジュールを開いている間は、読まない。
                 // 読むのは、この案件の分だけ (ほかの案件の記録は、すでに持っている。外したときに、この案件の分は捨ててある)
                 if (!_holdsScheduleRecords)
                 {
@@ -754,9 +754,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="kind">追加する行の種類 (グループまたは作業)</param>
     /// <param name="projectId">追加先の案件の番号</param>
     /// <param name="parentGroupId">追加先の親のグループの番号 (0 は案件の直下)</param>
-    /// <param name="after">この行の直後に置く (同じ親の下の兄弟)。null なら末尾</param>
+    /// <param name="after">この行の直後に、同じ親の下の兄弟として置く。null なら末尾</param>
     /// <returns>追加した行の識別か、追加しなかった理由</returns>
-    /// <remarks>名前は必須なので、初期値は「新しいグループ」「新しい作業」にする (空の名前を作らない)。作業の開始日の初期値は今日 (期限日は空)。</remarks>
+    /// <remarks>名前は必須なので、初期値は「新しいグループ」「新しい作業」にする。空の名前を作らないため。作業の開始日の初期値は今日で、期限日は空。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     public async Task<WorkAddResult> AddAsync(WorkRowKind kind, int projectId, int parentGroupId, WorkKey? after = null)
     {
@@ -859,7 +859,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
     /// <remarks>
     /// 位置 (案件・親・並び)と実績の累計は、ここでは変えない。日付の逆転・時間の範囲外などは、保存せずにメッセージで返す。
-    /// 状態が完了に変わったときは完了日に入力日を入れ、完了から外れたときは消す (完了のままなら変えない)。
+    /// 状態が完了に変わったときは完了日に入力日を入れ、完了から外れたときは消す。完了のままなら変えない。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     public async Task<string?> UpdateItemAsync(WorkItem updated, DateOnly inputDate)
@@ -981,7 +981,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="key">移す行の識別 (グループまたは作業)</param>
     /// <param name="projectId">移動先の案件の番号</param>
     /// <param name="groupId">移動先のグループの番号 (0 は案件の直下)</param>
-    /// <returns>入力の誤りのメッセージ (自分自身・自分の中へは移せない)。移したら null</returns>
+    /// <returns>入力の誤りのメッセージで、自分自身・自分の中へは移せない。移したら null</returns>
     /// <remarks>別の案件へ移すときは、移す行 (グループなら中身も)の案件の番号と、その作業の記録の案件の番号も直す。移動元の案件の更新日時も更新する。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     public async Task<string?> MoveAsync(WorkKey key, int projectId, int groupId)
@@ -1323,9 +1323,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>この PC の設定から、表示しない案件の番号を読む</summary>
     /// <returns>案件の番号 (重なりなし。ユーザーを特定していないときは空)</returns>
     /// <remarks>
-    /// キーは <c>WorkItems.HiddenProjects</c>、値は案件の番号をカンマでつないだ文字列 (例: <c>1,5,7</c>)。無ければ、全部の案件を表示する。
-    /// モード (ローカル・サーバー)の切り替えは想定せず、キーを分けない。切り替えたときは、この設定を消す (<c>IDatabaseModeChangeHandler</c>)。
-    /// 削除された案件の番号が残っても、読み込みに影響しない (除く対象が、無いだけ)。
+    /// キーは <c>WorkItems.HiddenProjects</c>、値は案件の番号をカンマでつないだ文字列で、例は <c>1,5,7</c>。無ければ、全部の案件を表示する。
+    /// モード (ローカル・サーバー)の切り替えは想定せず、キーを分けない。切り替えたときは、この設定を消す。消すのは <c>IDatabaseModeChangeHandler</c> で行う。
+    /// 削除された案件の番号が残っても、読み込みに影響しない。除く対象が、無いだけ。
     /// </remarks>
     private List<int> ReadHidden()
     {
@@ -1343,7 +1343,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>表示しない案件の番号を、この PC の設定に残す</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>設定を保存できなくても、この起動の間は、メモリの内容で動く (設定の保存の失敗は、設定ストアが扱う)。</remarks>
+    /// <remarks>設定を保存できなくても、この起動の間は、メモリの内容で動く。設定の保存の失敗は、設定ストアが扱う。</remarks>
     private async Task SaveHiddenAsync()
     {
         if (UserId != 0)
@@ -1692,7 +1692,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>変更の通知を、ロックを放したあとに出すよう予約する</summary>
     /// <param name="args">通知の内容 (省略すると、全体の変更)</param>
-    /// <remarks>違う内容の通知が重なったときは、全体の変更にまとめる (どちらの変更も、全体を作り直せば反映できるため)。</remarks>
+    /// <remarks>違う内容の通知が重なったときは、全体の変更にまとめる。どちらの変更も、全体を作り直せば反映できるため。</remarks>
     private void OnChangedLater(WorkChangedEventArgs? args = null)
     {
         args ??= WorkChangedEventArgs.All;

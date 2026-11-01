@@ -18,7 +18,7 @@ namespace MmmTool.Links.Main;
 public sealed partial class LinkEditorViewModel : ObservableObject
 {
     /// <summary>パスの入力が止まってから種類を調べるまでの待ち時間。</summary>
-    /// <remarks>1 文字ごとにファイルの有無を調べないため (ネットワーク上のパスは時間がかかる)。</remarks>
+    /// <remarks>1 文字ごとにファイルの有無を調べないため。ネットワーク上のパスは時間がかかる。</remarks>
     private static readonly TimeSpan PathCheckDelay = TimeSpan.FromMilliseconds(300);
 
     /// <summary>リンクメニューの読み書き</summary>
@@ -83,7 +83,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
 
     /// <summary>初回表示時に読み込む。</summary>
     /// <returns>初回の読み込みの完了を表すタスク</returns>
-    /// <remarks>ページはキャッシュされ表示のたびに呼ばれるので、2 回目以降は何もしない (編集中の内容を読み直して消さないため)。</remarks>
+    /// <remarks>ページはキャッシュされ表示のたびに呼ばれるので、2 回目以降は何もしない。編集中の内容を読み直して消さないため。</remarks>
     public async Task InitializeAsync()
     {
         if (_initialized) return;
@@ -146,10 +146,10 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>フォルダーを選択中か</summary>
     public bool IsFolderSelected => SelectedItem?.Kind == LinkNodeKind.Folder;
 
-    /// <summary>編集欄を出すか (リンク・フォルダーを選択中)。</summary>
+    /// <summary>編集欄を出すか。リンク・フォルダーを選択中のとき。</summary>
     public bool IsEditorVisible => IsLinkSelected || IsFolderSelected;
 
-    /// <summary>編集欄の代わりに案内を出すか (未選択・区切り線)。</summary>
+    /// <summary>編集欄の代わりに案内を出すか。未選択・区切り線のとき。</summary>
     public bool IsEditorHintVisible => !IsEditorVisible;
 
     /// <summary>編集欄の代わりに出す案内の文</summary>
@@ -239,7 +239,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
             });
     }
 
-    /// <summary>URL の表示用の文字列 (日本語のエンコードを戻したもの)。URL でないときは null。</summary>
+    /// <summary>URL の表示用の文字列で、日本語のエンコードを戻したもの。URL でないときは null。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDecodedPath))]
     public partial string? DecodedPath { get; set; }
@@ -343,7 +343,7 @@ public sealed partial class LinkEditorViewModel : ObservableObject
     /// <summary>選択を削除する。</summary>
     /// <returns>削除の完了を表すタスク</returns>
     /// <remarks>
-    /// 中身のあるフォルダだけ確認する (配下のリンクをまとめて失うため)。リンク・区切り線・空のフォルダは 1 件単位で作り直しやすく、
+    /// 中身のあるフォルダだけ確認する。配下のリンクをまとめて失うため。リンク・区切り線・空のフォルダは 1 件単位で作り直しやすく、
     /// 保存前なら「変更を破棄」でも戻せるので、確認せずに削除する。
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanDelete))]

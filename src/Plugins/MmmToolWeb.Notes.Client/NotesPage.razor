@@ -20,6 +20,16 @@
             <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)">›</button>
             <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
         </div>
+        <div class="segments basis" role="radiogroup" aria-label="表示の基準">
+            <label class="segment">
+                <input type="radio" name="basis" checked="@(!_updatedBasis)" @onchange="() => OnBasisChangedAsync(false)" />
+                <span>期間</span>
+            </label>
+            <label class="segment">
+                <input type="radio" name="basis" checked="@_updatedBasis" @onchange="() => OnBasisChangedAsync(true)" />
+                <span>更新日</span>
+            </label>
+        </div>
         <div class="options">
             <label class="option">
                 <input type="checkbox" role="switch" checked="@_titleOnly" @onchange="e => _titleOnly = (bool)e.Value!" />
@@ -30,7 +40,7 @@
                 <span>削除したものも表示</span>
             </label>
         </div>
-        @if (_sources.Count > 0)
+        @if (_sources.Count > 0 && !_updatedBasis)
         {
             <details class="sources">
                 <summary class="text">表示する内容</summary>
@@ -84,7 +94,7 @@
         }
         @if (!_loading && _error is null && _notes.Count == 0)
         {
-            <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>この日のノートはありません</p>
+            <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>@(_updatedBasis ? "この日に更新したノートはありません" : "この日のノートはありません")</p>
         }
         @foreach (var note in _notes)
         {
@@ -148,6 +158,9 @@
     private DateOnly _day;
     private bool _titleOnly;
     private bool _includeDeleted;
+
+    /// <summary>その日に更新したノートを出すか。false は、その日に有効なノート。</summary>
+    private bool _updatedBasis;
     private bool _loading = true;
     private string? _error;
     private IReadOnlyList<NoteDto> _notes = [];
@@ -222,7 +235,7 @@
         _loading = true;
         // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
         StateHasChanged();
-        var result = await Notes.LoadAsync(_day, _includeDeleted);
+        var result = await Notes.LoadAsync(_day, _updatedBasis, _includeDeleted);
         if (version != _loadVersion)
         {
             return;
@@ -244,10 +257,22 @@
         }
         StateHasChanged();
 
-        if (result.Succeeded)
+        if (result.Succeeded && !_updatedBasis)
         {
             await LoadContentsAsync(version);
         }
+        else if (_updatedBasis && _frames.Count > 0)
+        {
+            // 更新日で見るときは、他の機能の内容を出さない。読み込みに失敗したときは、今の内容を残す
+            _frames = [];
+            StateHasChanged();
+        }
+    }
+
+    private Task OnBasisChangedAsync(bool updated)
+    {
+        _updatedBasis = updated;
+        return LoadAsync();
     }
 
     /// <summary>他の機能の内容を読む。表示する日が変わったときは、出せる内容と、実績の開始日の既定を読み直す。</summary>

@@ -16,7 +16,7 @@ public sealed class MessageSendingPlugin : IFeaturePlugin
     /// <inheritdoc />
     public void Register(IServiceCollection services)
     {
-        // MmmBatch の機能は、オフにできない (オン・オフの画面は持たない)。キーは、サイドバーの並びのために使う
+        // MmmBatch の機能は、オフにできない。オン・オフの画面は持たない。キーは、サイドバーの並びのために使う
         services.AddAlwaysOnFeature(MessageSendingFeature.Key, MessageSendingFeature.DisplayName);
 
         // 毎分の仕事 (MmmTool で依頼されたメッセージを送る)

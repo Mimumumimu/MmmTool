@@ -106,22 +106,14 @@ internal static class MessageEndpoints
     private static async Task<IResult> LoadFormAsync(
         int? conversationId, int? peerUserId, IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
     {
-        bool peerCanReceive;
-        if (conversationId is > 0)
+        // 自分と相手の状態を、1 回の問い合わせで読む
+        if (await repository.GetReceiveStateAsync(conversationId ?? 0, peerUserId ?? 0, cancellationToken) is not { } state)
         {
-            if (await repository.CanPeerReceiveAsync(conversationId.Value, cancellationToken) is not { } canReceive)
-            {
-                return Results.NotFound(new ErrorResponse("会話が見つかりません。"));
-            }
-            peerCanReceive = canReceive;
-        }
-        else
-        {
-            peerCanReceive = peerUserId is not > 0 || await repository.CanReceiveAsync(peerUserId.Value, cancellationToken);
+            return Results.NotFound(new ErrorResponse("会話が見つかりません。"));
         }
 
         return Results.Ok(new MessageFormDto(
-            MessageLimits.BodyMaxLength, await repository.CanReceiveAsync(currentUser.Id, cancellationToken), peerCanReceive,
+            MessageLimits.BodyMaxLength, state.SelfCanReceive, state.PeerCanReceive,
             MessageLimits.GroupNameMaxLength, MessageLimits.GroupMaxMembers));
     }
 

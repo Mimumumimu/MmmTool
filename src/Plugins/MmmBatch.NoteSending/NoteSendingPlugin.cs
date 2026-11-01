@@ -27,6 +27,6 @@ public sealed class NoteSendingPlugin : IFeaturePlugin
         services.AddTransient<NoteHistoryControl>();
 
         // アイコンは Segoe Fluent Icons の QuickNote で、コードは E70B の付箋とペン。MmmTool のノートと同じ
-        services.AddNavigationPage<NoteSendingPage>(NoteSendingFeature.DisplayName, "", NavigationArea.Top, NoteSendingFeature.Key);
+        services.AddNavigationPage<NoteSendingPage>(NoteSendingFeature.DisplayName, "", NavigationArea.Top, NoteSendingFeature.Key);
     }
 }

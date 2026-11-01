@@ -15,9 +15,9 @@ namespace MmmTool.Notes.Core;
 /// 外部への接続の型を含むパッケージ (HTML の除去用の部品が使う AngleSharp など)は、MmmTool に入れない決まりのため、この方式にしている。
 /// </para>
 /// <para>
-/// 許可していないタグは、タグだけを取り除く (中の文字は残す)。<c>script</c> と <c>style</c> は、中身ごと取り除く。
+/// 許可していないタグは、タグだけを取り除き、中の文字は残す。<c>script</c> と <c>style</c> は、中身ごと取り除く。
 /// 閉じていないタグは最後に閉じ、対応しない閉じタグは捨てる。
-/// 本文の <c>http://</c> と <c>https://</c> で始まる文字は、リンクにする (<c>&lt;a&gt;</c> の中を除く)。
+/// 本文の <c>http://</c> と <c>https://</c> で始まる文字は、リンクにする。<c>&lt;a&gt;</c> の中は除く。
 /// </para>
 /// </remarks>
 public sealed partial class NoteBodyFormatter : INoteBodyFormatter
@@ -159,7 +159,7 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
             }
             else
             {
-                // 使えないリンク先は、リンクにしない (中の文字は残す)。閉じタグの対応だけ数える
+                // 使えないリンク先は、リンクにせず、中の文字は残す。閉じタグの対応だけ数える
                 open.Add(new OpenTag("a", false));
             }
         }

@@ -20,6 +20,7 @@
             <StackPanel Orientation="Horizontal">
                 <pages:NavigationHistoryButtons x:Name="HistoryButtons" Margin="4,0,0,0" />
                 <TextBlock
+                    x:Name="TitleText"
                     Margin="8,0,0,0"
                     VerticalAlignment="Center"
                     Style="{StaticResource CaptionTextBlockStyle}"

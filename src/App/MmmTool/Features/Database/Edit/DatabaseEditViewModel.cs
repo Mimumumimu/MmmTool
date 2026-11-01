@@ -13,7 +13,7 @@ namespace MmmTool.Features.Database.Edit;
 /// </summary>
 /// <remarks>
 /// 保存するのは「保存」を押したときだけ。DB のときは、「接続を確認」で、つながると確認できるまで、「保存」を押せない。保存先は起動時に決まって使い始めるので、保存先や接続が変わったときは、反映に再起動が要ることを確認して、
-/// 「今すぐ終了」ならアプリを終了する (起動し直すのは利用者)。保存できたら <see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
+/// 「今すぐ終了」ならアプリを終了する。起動し直すのは利用者。保存できたら <see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
 /// </remarks>
 public sealed partial class DatabaseEditViewModel : ObservableObject
 {

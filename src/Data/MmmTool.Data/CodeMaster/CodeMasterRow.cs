@@ -3,9 +3,9 @@ using MmmTool.CodeMaster.Core;
 namespace MmmTool.Data.CodeMaster;
 
 /// <summary>
-/// DB の <c>CodeMaster</c> (コードマスタ)の 1 行 (列と 1 対 1)。
+/// DB の <c>CodeMaster</c> (コードマスタ)の 1 行で、列と 1 対 1 に対応する。
 /// </summary>
-/// <remarks>(<see cref="FeatureNo"/>, <see cref="CategoryNo"/>, <see cref="CodeNo"/>) は一意。名前の「ない」は空文字、数値の「ない」は 0 (NULL は使わない)。</remarks>
+/// <remarks><see cref="FeatureNo"/>・<see cref="CategoryNo"/>・<see cref="CodeNo"/> の組は一意。名前の「ない」は空文字、数値の「ない」は 0。NULL は使わない。</remarks>
 public sealed record CodeMasterRow
 {
     /// <summary>主キー。0 は新規 (DB が採番する)</summary>
