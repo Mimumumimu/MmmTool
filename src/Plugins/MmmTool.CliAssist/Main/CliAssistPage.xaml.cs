@@ -5,13 +5,14 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.Core.Components.Hosting;
 using MmmSdk.WinUI.Components.Pages;
+using MmmSdk.WinUI.Components.Terminal;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.Main;
 
 /// <summary>CLI補助ページ</summary>
-public sealed partial class CliAssistPage : Page, IReleasablePage
+public sealed partial class CliAssistPage : Page, IHandoverPage
 {
     /// <summary>ページの ViewModel</summary>
     public CliAssistViewModel ViewModel { get; }
@@ -50,41 +51,101 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
         ShowSelectedSession();
         UpdateClosable();
 
-        ViewModel.PropertyChanged += (_, e) =>
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(CliAssistViewModel.CommandItems):
-                    RebuildCommandTree();
-                    break;
-                case nameof(CliAssistViewModel.SelectedSession):
-                    // 閉じる・開くなどで選ばれたセッションが変わったら、タブも合わせる
-                    SessionTabs.SelectedItem = _tabs[ViewModel.SelectedSession].Item;
-                    ShowSelectedSession();
-                    break;
-                case nameof(CliAssistViewModel.SelectedCategory):
-                    // コマンドの実行などでタブが切り替わったら、タブの見た目も合わせる
-                    CategorySelector.SelectedItem = ViewModel.SelectedCategory == CommandCategory.Session
-                        ? SessionCategoryItem
-                        : ShellCategoryItem;
-                    break;
-            }
-        };
+        ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         RebuildCommandTree();
     }
 
+    /// <summary>ViewModel のプロパティが変わったら、画面を合わせる</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">変更されたプロパティの情報</param>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(CliAssistViewModel.CommandItems):
+                RebuildCommandTree();
+                break;
+            case nameof(CliAssistViewModel.SelectedSession):
+                // 閉じる・開くなどで選ばれたセッションが変わったら、タブも合わせる
+                SessionTabs.SelectedItem = _tabs[ViewModel.SelectedSession].Item;
+                ShowSelectedSession();
+                break;
+            case nameof(CliAssistViewModel.SelectedCategory):
+                // コマンドの実行などでタブが切り替わったら、タブの見た目も合わせる
+                CategorySelector.SelectedItem = ViewModel.SelectedCategory == CommandCategory.Session
+                    ? SessionCategoryItem
+                    : ShellCategoryItem;
+                break;
+        }
+    }
+
     /// <inheritdoc />
-    /// <remarks>機能をオフにしたとき。ターミナルのコントロールからセッションを外す。シェル (とその中の CLI)は、このあとのスコープの破棄で終了する。</remarks>
+    /// <remarks>
+    /// 機能をオフにしたときと、ページを別のウィンドウへ作り直すとき。ViewModel とのつなぎをすべて外し、ターミナルのコントロールからセッションを外す。
+    /// ViewModel は、スコープが持ち続けることがある (ページの作り直し)ので、このページを残さないよう、購読を外しきる。
+    /// シェル (とその中の CLI)は、スコープの破棄で終了する。何度呼んでもよい。
+    /// </remarks>
     public void Release()
     {
+        ViewModel.Sessions.CollectionChanged -= OnSessionsChanged;
+        ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
         foreach (var (session, tab) in _tabs)
         {
             session.FocusTriggerMatched -= OnFocusTriggerMatched;
+            session.PropertyChanged -= tab.OnSessionChanged;
+            tab.Highlight.Detach();
             tab.View.Release();
         }
+        // x:Bind は ViewModel の変更を購読し続ける。ViewModel が残るので、使い終えたページの購読を止める
+        Bindings?.StopTracking();
         _hostWindow = null;
         _navigation.SetBadge<CliAssistPage>(false);
     }
+
+    #region ページの作り直し (別のウィンドウへ移すとき)
+
+    /// <inheritdoc />
+    public Task PrepareHandoverAsync() => Task.WhenAll(_tabs.Values.Select(tab => tab.View.PrepareHandoverAsync()));
+
+    /// <inheritdoc />
+    /// <remarks>タブごとに、ターミナルの画面の内容と、届いていた出力を受け取る。ViewModel とシェルは、そのまま残る。</remarks>
+    public object TakeHandover()
+    {
+        var handovers = _tabs.ToDictionary(pair => pair.Key, pair => pair.Value.View.TakeHandover());
+        Release();
+        return handovers;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// タブごとに、ターミナルへ引き継ぎの内容を渡し、すぐセッションをつなぐ。画面に出るのを待つと、そのあいだの出力が捨てられるため。
+    /// 定型コマンドの読み込みが済んでいないときは、読み込みのあとに <see cref="OnLoaded"/> がつなぐ。
+    /// </remarks>
+    public void ApplyHandover(object handover, AppWindow? hostWindow)
+    {
+        // 画面に出る前 (メインのページへ戻したとき)も、確認が出たら、載るウィンドウのタスクバーを点滅させられるようにする
+        _hostWindow = hostWindow;
+
+        var handovers = (Dictionary<CliSessionViewModel, TerminalHandover>)handover;
+        foreach (var (session, state) in handovers)
+        {
+            if (_tabs.TryGetValue(session, out var tab))
+            {
+                tab.View.ApplyHandover(state);
+            }
+        }
+
+        _terminalsConnectable = ViewModel.IsInitialized;
+        if (_terminalsConnectable)
+        {
+            foreach (var tab in _tabs.Values)
+            {
+                tab.View.ConnectTerminal();
+            }
+        }
+    }
+
+    #endregion
 
     /// <summary>サイドバーの「CLI補助」の項目に、知らせの印を出す・消す</summary>
     /// <remarks>どれかのタブが確認を待っている間だけ出す。ほかのページを見ていて、タブの黄色が目に入らないときのため。</remarks>

@@ -40,8 +40,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     /// <summary>読み込んだ定型コマンド</summary>
     private CliCommandSet _commandSet = new();
-    /// <summary>初期化済みか</summary>
-    private bool _initialized;
+    /// <summary>初期化のタスク (始めていなければ null)</summary>
+    private Task? _initialization;
     /// <summary>前回のタブを戻し終えたか (戻している間は、タブの記録を書き換えない)</summary>
     private bool _tabsRestored;
 
@@ -280,17 +280,20 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>定型コマンドを読み込んで表示を初期化する</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
-    /// 最初の 1 回だけ行う。定型コマンドのファイルが無いときは、読み込みの中で、環境を選ぶダイアログが開く。
+    /// 最初の 1 回だけ行う。2 回目以降は、同じタスクを返す。ページを別のウィンドウへ作り直して、新しいページが呼んだときも、読み込みが終わるまで待てる。
+    /// 定型コマンドのファイルが無いときは、読み込みの中で、環境を選ぶダイアログが開く。
     /// 読み込んだ環境に合わせて、ターミナルで起動するシェルを決める。読み込めなかったときは Windows のまま。
     /// </remarks>
-    public async Task InitializeAsync()
-    {
-        if (_initialized)
-        {
-            return;
-        }
-        _initialized = true;
+    public Task InitializeAsync() => _initialization ??= InitializeCoreAsync();
 
+    /// <summary>初期化が終わったか</summary>
+    /// <remarks>終わっていれば、起動するシェルが決まっているので、ターミナルをつないでよい。</remarks>
+    public bool IsInitialized { get; private set; }
+
+    /// <summary>初期化を行う</summary>
+    /// <returns>初期化の完了を表すタスク</returns>
+    private async Task InitializeCoreAsync()
+    {
         // 読み込みの問題は複数あり得るので、まとめて 1 つの InfoBar で知らせる
         List<string?> messages =
         [
@@ -319,6 +322,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
             SelectedSession.Error.Show(string.Join("\n\n", errors));
         }
         RebuildCommandItems();
+        IsInitialized = true;
     }
 
     /// <summary>通知する文字列の編集ダイアログを開く</summary>

@@ -61,11 +61,12 @@ public sealed class CliAssistPlugin : IFeaturePlugin
         services.AddTransient<SendHistory>();
         services.AddScoped<CliSessionFactory>();
         services.AddTransient<CliSessionViewModel>();
-        services.AddTransient<CliAssistViewModel>();
+        // ページの作り直し (別のウィンドウへ移すとき)で、新しいページが同じ ViewModel (とシェル)を受け取れるよう、ページのスコープごとに 1 つにする
+        services.AddScoped<CliAssistViewModel>();
         // 設定でオン・オフできる機能。オフの間は、ページ・起動時の準備を使わない
         services.AddFeature(CliAssistFeature.Key, CliAssistFeature.DisplayName, defaultEnabled: false);
         services.AddSingleton<IFeatureDisableConfirmation, CliAssistDisableConfirmation>();
-        services.AddNavigationPage<CliAssistPage>(CliAssistFeature.DisplayName, "", NavigationArea.Top, CliAssistFeature.Key);
+        services.AddNavigationPage<CliAssistPage>(CliAssistFeature.DisplayName, "", NavigationArea.Top, CliAssistFeature.Key, canDetach: true);
 
         services.AddStartupTask<CliAssistStartup>(CliAssistFeature.Key);
     }

@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Clipboards;
+using MmmSdk.WinUI.Components.Terminal;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.CliAssist.Core;
 using Windows.ApplicationModel.DataTransfer;
@@ -99,6 +100,26 @@ public sealed partial class CliSessionView : UserControl
     /// <remarks>起動するシェル (Windows / WSL)は、定型コマンドの読み込みで決まるので、読み込みが済んでから呼ぶ。</remarks>
     public void ConnectTerminal() => TerminalView.Session ??= ViewModel.Terminal;
 
+    /// <summary>ページを別のウィンドウへ移すために、ターミナルの画面の内容を取り出す</summary>
+    /// <returns>取り出しの完了を表すタスク</returns>
+    /// <remarks>画面は表示したままでよい。取り出すあいだに届いた出力は、ためておく。終わったら <see cref="TakeHandover"/> を呼ぶ。</remarks>
+    public Task PrepareHandoverAsync() => TerminalView.FreezeAndCaptureAsync();
+
+    /// <summary>ターミナルの画面を閉じて、引き継ぎの情報を受け取る</summary>
+    /// <returns>新しい画面の <see cref="ApplyHandover"/> へ渡す情報</returns>
+    /// <remarks>シェル (セッション)は終了しない。ViewModel とのつなぎは外す。</remarks>
+    public TerminalHandover TakeHandover()
+    {
+        var handover = TerminalView.TakeHandover();
+        Release();
+        return handover;
+    }
+
+    /// <summary>前の画面から引き継いだ内容を、ターミナルに渡す</summary>
+    /// <param name="handover">前の画面の <see cref="TakeHandover"/> の戻り値</param>
+    /// <remarks><see cref="ConnectTerminal"/> の前に呼ぶ。</remarks>
+    public void ApplyHandover(TerminalHandover handover) => TerminalView.InitialHandover = handover;
+
     /// <summary>ターミナルを閉じて WebView2 のプロセスも解放し、ViewModel とのつなぎも外す</summary>
     /// <remarks>
     /// 機能をオフにしたときと、タブを閉じたとき。閉じたあとは、この画面を再利用できない。
@@ -108,6 +129,8 @@ public sealed partial class CliSessionView : UserControl
     public void Release()
     {
         TerminalView.Close();
+        // x:Bind は ViewModel の変更を購読し続ける。ViewModel が残るので、使い終えた画面の購読を止める
+        Bindings?.StopTracking();
         _viewModel.FocusRequested -= OnFocusRequested;
         _viewModel.FocusTriggerMatched -= OnFocusTriggerMatched;
         _viewModel.TerminalRestartRequested -= OnTerminalRestartRequested;

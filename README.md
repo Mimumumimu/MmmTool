@@ -242,6 +242,7 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 
 - xterm.js(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/xterm.LICENSE.txt)
 - @xterm/addon-fit(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-fit.LICENSE.txt)
+- @xterm/addon-serialize(MIT License): [`external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-serialize.LICENSE.txt`](./external/MmmSdk/MmmSdk.WinUI/Components/Terminal/Assets/addon-serialize.LICENSE.txt)
 
 ---
 
@@ -258,7 +259,7 @@ JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json`
 - CommunityToolkit.WinUI.Controls.SettingsControls(設定ページのカード)
 - Microsoft.Extensions.Hosting(Generic Host による DI)
   - 設定・ログの既定は無効
-- WebView2 + [xterm.js](https://xtermjs.org/) 6.0.0 / addon-fit 0.11.0(ターミナル描画)
+- WebView2 + [xterm.js](https://xtermjs.org/) 6.0.0 / addon-fit 0.11.0 / addon-serialize 0.14.0(ターミナル描画)
 - Win32 API の直接呼び出し (ConPTY・`Shell_NotifyIcon` によるトレイアイコンなど)
   - WinForms には依存しません
 - 共有部品 [MmmSdk](https://github.com/Mimumumimu/MmmSdk)(Git サブモジュール)

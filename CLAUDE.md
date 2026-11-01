@@ -143,6 +143,7 @@ C# + WinUI 3 のデスクトップアプリ。作業管理・ノート・リマ�
 - 添付の一時フォルダを別ビルドと共有し、別ビルドの古いセッションも消える ([external/MmmSdk/docs/controls.md](external/MmmSdk/docs/controls.md))
 - テストが無い。テストプロジェクトは、ユーザーが「作る」と言うまで作らない。
   - 詳細は [docs/architecture.md](docs/architecture.md) の「テストプロジェクト」
+- サイドバーの項目を別のウィンドウに外せる機能は、作業管理・スケジュール・ノート・メッセージ・CLI補助だけ。リマインダー・リンク・Backlog・クリップボード転送・ツール・設定は、外せるようにしない。詳細は [docs/specs/tray-and-main.md](docs/specs/tray-and-main.md) の「サイドバーの項目は、別のウィンドウに外せる」。
 - 通知ウィンドウのリンクのクリック判定の方式 ([external/MmmSdk/docs/notification-dialog.md](external/MmmSdk/docs/notification-dialog.md) の「リンクのクリック判定」)
 - DB の表の設計
   - 対象: 外部キー・連動削除・行の版・同時編集の上書きの検出・曜日別の列が無い、NULL の代わりの値、意味の薄い共通ヘッダーの列、ログイン状態をパスワードそのもので覚える・忘れたときの再設定の画面が無いなど

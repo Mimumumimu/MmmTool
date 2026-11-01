@@ -132,7 +132,7 @@
     - SDK ではなくこのリポジトリの `build/` に置くのは、アプリの配布の形がこのリポジトリのアプリに共通の決まりで、SDK の責務ではないため
 - WinUI の多言語リソース (言語名フォルダ内の `.mui`)は `SatelliteResourceLanguages` では消えないため、csproj の `PruneMuiAfterBuild` / `PruneMuiAfterPublish` で ja-JP・en-us 以外を削除する
 - EXE の横のフォルダは `Assets`(配布物)・`Data`(アプリが書くもの)・`Cache`(消しても作り直されるもの)・`Lib`(パッケージの DLL)の 4 つだけにする (仕組みは下の「EXE の横のフォルダと DLL」)
-- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く
+- 同梱の xterm.js 6.0.0 / addon-fit 0.11.0 / addon-serialize 0.14.0 (MIT)は SDK の `MmmSdk.WinUI/Components/Terminal/Assets/` に置く
   - ライセンスファイルも同じ場所に置く
   - SDK の csproj が、出力・発行フォルダーの `Assets/Terminal/` へ配る
 - 同梱の内閣府「国民の祝日」の一覧 `syukujitsu.csv` (ダウンロードしたままのファイル)は SDK の `MmmSdk.Core/Components/Holidays/` に置く
