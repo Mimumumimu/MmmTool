@@ -92,14 +92,14 @@ public sealed partial class CliSessionView : UserControl
     private void OnTerminalRestartRequested(object? sender, EventArgs e) => TerminalView.RestartSessionAsync().Forget();
 
     /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー (表示する前に設定する)</summary>
-    /// <remarks>データのフォルダーの下の <c>WebView2</c>(WebView2 の既定の EXE の横ではなく、データにまとめる)。</remarks>
+    /// <remarks>データのフォルダーの下の <c>WebView2</c> で、WebView2 の既定の EXE の横ではなく、データにまとめる。</remarks>
     public string WebView2Directory { get; set; } = string.Empty;
 
     /// <summary>ターミナルのコントロールにセッションをつなぐ (つないだとき、シェルが起動する)</summary>
     /// <remarks>起動するシェル (Windows / WSL)は、定型コマンドの読み込みで決まるので、読み込みが済んでから呼ぶ。</remarks>
     public void ConnectTerminal() => TerminalView.Session ??= ViewModel.Terminal;
 
-    /// <summary>ターミナルを閉じ (WebView2 のプロセスも解放する)、ViewModel とのつなぎも外す</summary>
+    /// <summary>ターミナルを閉じて WebView2 のプロセスも解放し、ViewModel とのつなぎも外す</summary>
     /// <remarks>
     /// 機能をオフにしたときと、タブを閉じたとき。閉じたあとは、この画面を再利用できない。
     /// シェル (とその中の CLI)は、このあとの ViewModel の後始末 (Dispose)・スコープの破棄で終了する。
@@ -219,7 +219,7 @@ public sealed partial class CliSessionView : UserControl
     /// このイベントの中では、<c>Clipboard.GetContent()</c> など、コピー元のアプリへ問い合わせるクリップボードの呼び出しをしない。
     /// 返事を待つ間に画面の操作が割り込み、入力欄の貼り付けの途中で WinUI が内部で失敗して落ちるため。
     /// 添付するか (ファイルか、画像だけか)は、問い合わせずに分かる <see cref="ClipboardFormats"/> で決め、
-    /// 添付するときだけ、イベントが終わったあとに中身を読む (<see cref="AttachFromClipboardAsync"/>)。
+    /// 添付するときだけ、イベントが終わったあとに中身を読む。読むのは <see cref="AttachFromClipboardAsync"/>。
     /// テキストの貼り付けは、入力欄の標準の動きに任せる。
     /// </remarks>
     private void OnInputPaste(object sender, TextControlPasteEventArgs e)
@@ -238,7 +238,7 @@ public sealed partial class CliSessionView : UserControl
     /// <summary>クリップボードのファイル・画像を添付する (貼り付けのイベントが終わったあとに呼ぶ)</summary>
     /// <remarks>
     /// クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。このときは添付せず、画面に知らせる。
-    /// 形式の判定は目安なので、実際にはファイルも画像も取り出せなかったときは、テキストがあれば、入力欄の選択範囲へ貼り付ける (貼り付けが消えないように)。
+    /// 形式の判定は目安なので、実際にはファイルも画像も取り出せなかったときは、テキストがあれば、入力欄の選択範囲へ貼り付ける。貼り付けが消えないようにするため。
     /// </remarks>
     private async void AttachFromClipboardAsync()
     {

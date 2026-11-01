@@ -29,7 +29,7 @@ public sealed class SendHistory
     }
 
     /// <summary>絞り込み文字列に合う履歴を返す</summary>
-    /// <param name="filter">絞り込み文字列 (前後の空白は無視。大文字小文字は区別しない)。空なら全件</param>
+    /// <param name="filter">絞り込み文字列で、前後の空白は無視し、大文字小文字は区別しない。空なら全件</param>
     /// <returns>合う履歴 (新しい順)</returns>
     public IReadOnlyList<SendHistoryEntry> Search(string filter)
     {

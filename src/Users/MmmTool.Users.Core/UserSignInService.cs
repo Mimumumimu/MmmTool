@@ -12,7 +12,7 @@ public sealed class UserSignInService(IAppUserRepository users, ISavedCredential
     /// <param name="today">今日 (使える期間の判定に使う)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>ログインしたユーザー。覚えていない・合わなかったときは null (合わなかったときは、覚えている内容を消す)</returns>
-    /// <remarks>覚えていないときも、DB へつなげるか確かめる。つなげないとき (設定が足りない・届かない)は例外のままにして、覚えている内容を消さない (あとでもう一度試せるように)。</remarks>
+    /// <remarks>覚えていないときも、DB へつなげるか確かめる。つなげないとき (設定が足りない・届かない)は例外のままにして、覚えている内容を消さない。あとでもう一度試せるようにするため。</remarks>
     public async Task<AppUser?> TrySignInWithSavedAsync(DateOnly today, CancellationToken cancellationToken = default)
     {
         var credential = saved.Load();
@@ -88,7 +88,7 @@ public sealed class UserSignInService(IAppUserRepository users, ISavedCredential
     /// <param name="today">今日 (使い始める日になる)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>登録したユーザー</returns>
-    /// <exception cref="ArgumentException">ログイン名・表示名・パスワードが正しくない (呼ぶ側が先に確かめる。バグの合図)。</exception>
+    /// <exception cref="ArgumentException">ログイン名・表示名・パスワードが正しくない。呼ぶ側が先に確かめるので、バグの合図。</exception>
     /// <exception cref="LoginNameTakenException">ログイン名がすでに使われている。</exception>
     public async Task<AppUser> RegisterAsync(string loginName, string displayName, string password, DateOnly today, CancellationToken cancellationToken = default)
     {
@@ -135,7 +135,7 @@ public enum SignInStatus
     /// <summary>ログイン名かパスワードが合わない (ユーザーが無い・使えない場合も含む)</summary>
     Failed,
 
-    /// <summary>パスワードが空 (管理者が再設定した)。新しいパスワードを決める</summary>
+    /// <summary>パスワードが空で、管理者が再設定した。新しいパスワードを決める</summary>
     NeedsNewPassword,
 }
 

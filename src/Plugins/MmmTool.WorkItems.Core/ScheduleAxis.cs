@@ -4,7 +4,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="Start">軸の最初の日 (週は月曜、月は 1 日に合わせてある)</param>
 /// <param name="End">軸の最後の日 (週は日曜、月は月末に合わせてある)</param>
 /// <param name="Unit">単位</param>
-/// <remarks>作るときは <see cref="Create"/> を使う (単位の区切りに合わせる)。同じ範囲・単位なら、等しい。</remarks>
+/// <remarks>作るときは <see cref="Create"/> を使う。単位の区切りに合わせる。同じ範囲・単位なら、等しい。</remarks>
 public sealed record ScheduleAxis(DateOnly Start, DateOnly End, ScheduleUnit Unit)
 {
     /// <summary>軸を作る</summary>

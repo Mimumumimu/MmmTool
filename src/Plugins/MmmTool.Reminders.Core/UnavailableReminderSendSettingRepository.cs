@@ -1,7 +1,7 @@
 namespace MmmTool.Reminders.Core;
 
 /// <summary>
-/// リマインダーの送信設定を使えない保存先 (ローカルモード)。
+/// リマインダーの送信設定を使えない保存先で、ローカルモードのもの。
 /// </summary>
 /// <remarks>DB モードのとき、ホストが、SQL Server の保存先に置き換える。画面は、<see cref="IsAvailable"/> が false の間は、送信先の欄を出さない。</remarks>
 public sealed class UnavailableReminderSendSettingRepository : IReminderSendSettingRepository

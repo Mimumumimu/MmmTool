@@ -9,8 +9,8 @@ namespace MmmTool.WorkItems.Schedule;
 
 /// <summary>スケジュールの日付の見出し (上が月か年、下が日付と曜日か、月曜の日付か、月)を作る</summary>
 /// <remarks>
-/// 見出しは、軸ごとに 1 つ作る (行のセルと違い、行の使い回しの影響を受けない)。表の見出しの高さは表全体で 1 つなので、<see cref="Height"/> を表に渡す。
-/// 文字の色は、既定の文字色を使い (テーマに追従)、土曜・日曜・祝日だけ <see cref="SchedulePalette"/> の色にする。
+/// 見出しは、軸ごとに 1 つ作る。行のセルと違い、行の使い回しの影響を受けない。表の見出しの高さは表全体で 1 つなので、<see cref="Height"/> を表に渡す。
+/// 文字の色は、既定の文字色を使って、テーマに追従し、土曜・日曜・祝日だけ <see cref="SchedulePalette"/> の色にする。
 /// </remarks>
 public static class ScheduleHeader
 {

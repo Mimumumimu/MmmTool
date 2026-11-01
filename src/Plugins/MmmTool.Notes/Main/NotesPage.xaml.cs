@@ -5,7 +5,7 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>ノートのページ (サイドバー)。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
+/// <summary>ノートのページで、サイドバーに出す。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
 public sealed partial class NotesPage : Page
 {
     /// <summary>ページが載っている画面 (見える・見えないの変化を受けるため。載っていない間は null)</summary>

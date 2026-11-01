@@ -1,7 +1,7 @@
 namespace MmmTool.Notes.Main;
 
 /// <summary>
-/// カード一覧を表示する面 (ViewModel が、画面の型を知らずに使う口)。
+/// カード一覧を表示する面で、ViewModel が、画面の型を知らずに使う口。
 /// </summary>
 public interface INoteCardsSurface
 {

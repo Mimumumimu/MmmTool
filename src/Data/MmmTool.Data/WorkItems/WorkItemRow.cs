@@ -4,10 +4,10 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.Data.WorkItems;
 
 /// <summary>
-/// DB の <c>WorkItem</c> (作業)の 1 行 (列と 1 対 1)。アプリの型 <see cref="WorkItem"/> とは別の、DB の形のまま持つ。
+/// DB の <c>WorkItem</c> (作業)の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkItem"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 日付の「ない」は <c>9999-12-31</c> (開始日だけ <c>0001-01-01</c>)、予定時間の「ない」は 0 (NULL は使わない。理由は docs/specs/database.md)。
+/// 日付の「ない」は <c>9999-12-31</c> で、開始日だけ <c>0001-01-01</c>。予定時間の「ない」は 0。NULL は使わない。理由は docs/specs/database.md にある。
 /// 変換は <see cref="FromWorkItem"/> と <see cref="ToWorkItem"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。
 /// </remarks>
 public sealed record WorkItemRow
@@ -88,7 +88,7 @@ public sealed record WorkItemRow
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="item">作業</param>
     /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
-    /// <exception cref="ArgumentException">DB に入れられない値 (長さ・範囲の外、「ない」を表す日付など)。</exception>
+    /// <exception cref="ArgumentException">DB に入れられない値で、長さ・範囲の外、「ない」を表す日付など。</exception>
     public static WorkItemRow FromWorkItem(WorkItem item)
     {
         ArgumentNullException.ThrowIfNull(item);

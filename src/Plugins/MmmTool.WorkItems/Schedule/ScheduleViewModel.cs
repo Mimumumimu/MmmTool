@@ -13,11 +13,11 @@ using MmmTool.WorkItems.ProjectPicker;
 namespace MmmTool.WorkItems.Schedule;
 
 /// <summary>
-/// スケジュールのページ。作業の予定と実績を、日付を横に並べて見る (見るだけ)。
+/// スケジュールのページ。作業の予定と実績を、日付を横に並べて見る。見るだけ。
 /// </summary>
 /// <remarks>
 /// 案件・グループ・作業と、他の人の更新の取り込みは、作業管理と同じ <see cref="WorkItemService"/> を使う。
-/// 実績 (すべての日の記録)は、ページを開くたびに読み、離れたら捨てる (<see cref="InitializeAsync"/>・<see cref="Suspend"/>)。
+/// 実績 (すべての日の記録)は、ページを開くたびに読み、離れたら捨てる。読むのは <see cref="InitializeAsync"/>、捨てるのは <see cref="Suspend"/>。
 /// 「表示する案件」「自分の担当だけ」は、作業管理と同じ設定を共有する。
 /// </remarks>
 public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
@@ -89,7 +89,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     public partial int CompletedIndex { get; set; }
 
     /// <summary>保存先から読み込み中か (マウスカーソルを砂時計にする)</summary>
-    /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく (空にして、ちらつかせないため)。</remarks>
+    /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく。空にして、ちらつかせないため。</remarks>
     [ObservableProperty]
     public partial bool IsLoading { get; private set; }
 
@@ -158,14 +158,14 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
     /// 作業管理の表の入力日をずらさないよう、記録を読んでいる日 (<see cref="WorkItemService.Day"/>)のまま読み直す。
-    /// 読み込みの途中は、表を作り直さない (案件・実績を読むたびに作り直すと、実績が空の表を挟んで、3 回作ることになるため)。読み終えてから 1 回だけ作る。
+    /// 読み込みの途中は、表を作り直さない。案件・実績を読むたびに作り直すと、実績が空の表を挟んで、3 回作ることになるため。読み終えてから 1 回だけ作る。
     /// </remarks>
     public async Task InitializeAsync()
     {
         Error.Clear();
         IsLoading = true;
 
-        // 「自分の担当だけ」は、作業管理でも切り替えられる (同じ設定)。画面を開くたびに、設定の値に合わせる
+        // 「自分の担当だけ」は、作業管理でも切り替えられる。同じ設定を使う。画面を開くたびに、設定の値に合わせる
         var mineOnly = _settings.Get(WorkItemSettingKeys.MineOnly, false);
         if (mineOnly != MineOnly)
         {
@@ -362,7 +362,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>木の行から、表の行を作り (使い回し)、見えている行を、木の順に並べる</summary>
+    /// <summary>木の行から、表の行を使い回しで作り、見えている行を、木の順に並べる</summary>
     /// <param name="node">木の行</param>
     /// <param name="level">字下げの段</param>
     /// <param name="snapshot">スケジュールに出す内容 (実績の棒を引く)</param>
@@ -410,7 +410,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <param name="args">変更の内容</param>
     /// <remarks>
     /// 案件の中身は、ほかの案件に依存しない。そのため、外した案件は、その行のかたまりを抜くだけ、加えた案件は、その案件の分だけを作って、名前の順の位置へ差し込めばよい。
-    /// 日付の軸は、外したときは変えない (縮めない。開き直したときに、データに合わせる)。加えたときは、軸の範囲に収まるときだけ差し込み、はみ出すときは、全体を作り直す。
+    /// 日付の軸は、外したときは変えない。縮めないで、開き直したときに、データに合わせる。加えたときは、軸の範囲に収まるときだけ差し込み、はみ出すときは、全体を作り直す。
     /// </remarks>
     private void OnServiceChanged(WorkChangedEventArgs args)
     {

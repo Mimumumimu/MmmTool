@@ -4,12 +4,12 @@ namespace MmmTool.Notes.Core;
 /// ノート (<see cref="Note"/>)の保存先。ローカルモードは SQLite、DB モードは SQL Server。
 /// </summary>
 /// <remarks>
-/// 読み書きは、操作した人から見えるノートだけが対象 (全員に見えるものと、自分が書いた「自分だけ」のもの)。見えないノートは、番号を指定しても、存在しないのと同じ (false を返す)。
+/// 読み書きは、操作した人から見えるノートだけが対象で、全員に見えるものと、自分が書いた「自分だけ」のもの。見えないノートは、番号を指定しても、存在しないのと同じで、false を返す。
 /// 保存できなかったときは、画面に出せるメッセージの <see cref="MmmSdk.Core.Components.Storage.DataFileException"/> を投げる。
 /// </remarks>
 public interface INoteRepository
 {
-    /// <summary>複数の人で共有するか (DB モード)。false のとき、公開範囲・書いた人・更新者は出さない</summary>
+    /// <summary>複数の人で共有するか。DB モードのとき true。false のとき、公開範囲・書いた人・更新者は出さない</summary>
     bool IsShared { get; }
 
     /// <summary>今のユーザーの番号 (ローカルモードは 1)</summary>

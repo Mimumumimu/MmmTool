@@ -4,9 +4,9 @@ namespace MmmTool.WorkItems.Core;
 
 /// <summary>案件・グループ・作業の一覧から、木構造と集計値を作る</summary>
 /// <remarks>
-/// 案件は名前の順 (同じなら番号の順)。グループと作業は、同じ親の下で混ざって、並び (<c>SortOrder</c>)、同じなら グループ → 作業、番号の順。
+/// 案件は名前の順で、同じなら番号の順。グループと作業は、同じ親の下で混ざって、<c>SortOrder</c> の並び、同じなら グループ → 作業、番号の順。
 /// 親が見つからない行 (手で直したデータなど)は、その案件の直下に置く。案件が読み込まれていない行は、出さない。
-/// 案件・グループの集計は、下にある作業すべて (段数を問わない)から計算する。保存はしない (規則は docs/specs/work-items.md)。
+/// 案件・グループの集計は、下にある作業すべて (段数を問わない)から計算する。保存はしない。規則は docs/specs/work-items.md にある。
 /// </remarks>
 public static class WorkItemTree
 {
@@ -113,7 +113,7 @@ public static class WorkItemTree
     /// <param name="date">入力日 (完了日がこの日より前のものが対象。入力日に完了した作業は残す)</param>
     /// <param name="removeGroups">すべて完了して日がたったグループの行も外すか</param>
     /// <remarks>
-    /// 案件の行は外さない。グループは、下に作業が 1 件も無いグループ (空)があるときは外さない (空のグループが、親と一緒に見えなくなるのを防ぐため。畳む条件と同じ)。
+    /// 案件の行は外さない。グループは、下に作業が 1 件も無いグループ (空)があるときは外さない。空のグループが、親と一緒に見えなくなるのを防ぐため。畳む条件と同じ。
     /// 外したグループの下は、たどらない。
     /// </remarks>
     public static void RemoveFinished(IEnumerable<WorkNode> roots, DateOnly date, bool removeGroups)

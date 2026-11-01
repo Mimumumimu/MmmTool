@@ -1,9 +1,9 @@
 namespace MmmTool.Data.Connection;
 
 /// <summary>
-/// DB への接続の設定 (パスワードを除く)。
+/// DB への接続の設定で、パスワードを除く。
 /// </summary>
-/// <remarks>パスワードは設定ストアではなく、秘密の保管庫に保存する (<see cref="DatabaseSettingsService"/>)。値は作ったあとに書き換えず、<c>with</c> で新しく作る。</remarks>
+/// <remarks>パスワードは設定ストアではなく、秘密の保管庫に保存する。保存するのは <see cref="DatabaseSettingsService"/>。値は作ったあとに書き換えず、<c>with</c> で新しく作る。</remarks>
 public sealed record DatabaseSettings
 {
     /// <summary>保存先の種類 (既定は JSON)</summary>

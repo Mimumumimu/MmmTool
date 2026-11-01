@@ -12,9 +12,9 @@ namespace MmmTool.Features.Users.SignIn;
 
 /// <summary>ログインウィンドウ</summary>
 /// <remarks>
-/// 親を持たない、独立したウィンドウ (起動のあと、メインウィンドウがまだ出ていないときに出すため)。主モニターの中央に出す。
-/// 幅は固定で、高さは中身 (状態ごとに違う)に合わせて決め直す (サイズ変更・最大化・最小化はできない)。ログインは必須で、× で閉じたときは、ログインしないままなので、呼び出し側がアプリを終了する。
-/// 開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 親を持たない、独立したウィンドウ。起動のあと、メインウィンドウがまだ出ていないときに出すため。主モニターの中央に出す。
+/// 幅は固定で、高さは中身 (状態ごとに違う)に合わせて決め直す。サイズ変更・最大化・最小化はできない。ログインは必須で、× で閉じたときは、ログインしないままなので、呼び出し側がアプリを終了する。
+/// 開くたびに作り直す。閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class SignInWindow : Window
 {
@@ -56,7 +56,7 @@ public sealed partial class SignInWindow : Window
     {
         this.UseFixedPresenter(isDialog: true, isResizable: false);
 
-        // 高さは中身を読み込んでから決め直す (OnRootLoaded)。ここでは仮の大きさで中央に置く
+        // 高さは中身を読み込んでから決め直す。OnRootLoaded で行う。ここでは仮の大きさで中央に置く
         this.ResizeClientDip(WindowWidth, 360, this.GetDpiScale());
         this.MoveCentered(DisplayArea.Primary.WorkArea);
 

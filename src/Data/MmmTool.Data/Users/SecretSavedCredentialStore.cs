@@ -9,7 +9,7 @@ namespace MmmTool.Data.Users;
 /// </summary>
 /// <remarks>
 /// 項目の名前は <c>MmmTool.Account.&lt;サーバー名&gt;/&lt;データベース名&gt;</c>。接続先が違うと別の項目になり、互いを上書きしない。
-/// 値は「ログイン名、改行、パスワード」の 1 つの文字列 (ログイン名に改行などの制御文字は使えない。<see cref="AppUserRow.FromAppUser"/>)。
+/// 値は「ログイン名、改行、パスワード」の 1 つの文字列で、ログイン名に改行などの制御文字は使えない。判定は <see cref="AppUserRow.FromAppUser"/> で行う。
 /// </remarks>
 /// <param name="secrets">秘密の保管庫</param>
 /// <param name="settings">DB への接続の設定 (項目の名前に使う)</param>
@@ -19,7 +19,7 @@ public sealed class SecretSavedCredentialStore(ISecretStore secrets, DatabaseSet
     private const string NamePrefix = "MmmTool.Account.";
 
     /// <inheritdoc />
-    /// <remarks>保管庫を読めないときは、覚えていないものとして扱う (ログイン画面を出す)。</remarks>
+    /// <remarks>保管庫を読めないときは、覚えていないものとして扱い、ログイン画面を出す。</remarks>
     public SavedCredential? Load()
     {
         string? value;

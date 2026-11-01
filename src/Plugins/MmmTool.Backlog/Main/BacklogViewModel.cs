@@ -91,7 +91,7 @@ public sealed partial class BacklogViewModel(
 
     /// <summary>連携用パスのフォルダーの、共有ファイルの一覧を取得する</summary>
     /// <returns>取得の完了を表すタスク</returns>
-    /// <remarks>取得できたら、連携用パスを次回のために保存する (履歴は持たず、最後の 1 件を上書きする)。</remarks>
+    /// <remarks>取得できたら、連携用パスを次回のために保存する。履歴は持たず、最後の 1 件を上書きする。</remarks>
     [RelayCommand(CanExecute = nameof(CanUseUrl))]
     private async Task FetchAsync()
     {
@@ -239,7 +239,7 @@ public sealed partial class BacklogViewModel(
     /// <summary>登録済みの API キーを取得する</summary>
     /// <param name="apiKey">取得できた API キー</param>
     /// <returns>取得できたら true。登録が無い・読めないときは、エラーを画面に出して false</returns>
-    /// <remarks>キーは押したときに読む (ページは使い回されるので、設定ページで登録・変更した直後でも、新しい値になる)。</remarks>
+    /// <remarks>キーは押したときに読む。ページは使い回されるので、設定ページで登録・変更した直後でも、新しい値になる。</remarks>
     private bool TryGetApiKey([NotNullWhen(true)] out string? apiKey)
     {
         try

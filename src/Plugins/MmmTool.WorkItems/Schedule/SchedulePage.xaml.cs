@@ -70,7 +70,7 @@ public sealed partial class SchedulePage : Page
         // 引き継いだ単位を選んでおく。XAML は何も選ばずに作り、ここで ViewModel の単位と同じ項目を選ぶので、選択の変更は何もしない
         UnitBar.SelectedItem = UnitBar.Items[ViewModel.UnitIndex];
 
-        // 日付の棒の列は、表示だけで、フォーカスを受けない (幅が表より広く、フォーカスが来ると、左端までスクロールが動くため)。見出しは、軸ごとに作る
+        // 日付の棒の列は、表示だけで、フォーカスを受けない。幅が表より広く、フォーカスが来ると、左端までスクロールが動くため。見出しは、軸ごとに作る
         _timelineColumn = new TreeGridColumn
         {
             Key = "Timeline",
@@ -133,7 +133,7 @@ public sealed partial class SchedulePage : Page
     /// <summary>表の行・見出しが画面に描かれてから、処理待ちを終える</summary>
     /// <param name="scope">終える処理待ちの入れ物</param>
     /// <returns>終わりの完了を表すタスク</returns>
-    /// <remarks>読み込みが終わった時点では、行と見出しはまだ作られていない (そのあとのレイアウトで作られる)。続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。</remarks>
+    /// <remarks>読み込みが終わった時点では、行と見出しはまだ作られていない。そのあとのレイアウトで作られる。続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。</remarks>
     private async Task EndBusyAfterRenderAsync(IDisposable scope)
     {
         await WaitForRenderAsync();

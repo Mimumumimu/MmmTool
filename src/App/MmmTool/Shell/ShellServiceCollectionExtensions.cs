@@ -18,7 +18,7 @@ public static class ShellServiceCollectionExtensions
     public static IServiceCollection AddShell(this IServiceCollection services)
     {
         services.AddSingleton<MainWindow>();
-        // サイドバーと、選んだ項目のページ (SDK)。機能 (プラグイン)が作ったページを調べる口 (IPageCache)も含む
+        // サイドバーと、選んだ項目のページで、SDK の部品。機能 (プラグイン)が作ったページを調べる口 (IPageCache)も含む
         services.AddNavigationHost();
         // 画面から、アプリの終了 (トレイの「終了」と同じ処理)を頼む口
         services.AddSingleton<AppExitService>();

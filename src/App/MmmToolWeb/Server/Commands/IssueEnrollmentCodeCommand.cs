@@ -6,7 +6,7 @@ using MmmToolWeb.Server.Hosting;
 namespace MmmToolWeb.Server.Commands;
 
 /// <summary>
-/// サーバーの PC で行う、登録用コードの発行 (<c>issue-code ログイン名</c>)。その人の端末でパスキーを作るときに入力するコードを出す。
+/// サーバーの PC で行う、登録用コードの発行で、コマンドは <c>issue-code ログイン名</c>。その人の端末でパスキーを作るときに入力するコードを出す。
 /// </summary>
 internal static class IssueEnrollmentCodeCommand
 {

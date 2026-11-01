@@ -6,7 +6,7 @@ using MmmTool.Data.SqlServer.Connection;
 namespace MmmToolWeb.Server.Commands;
 
 /// <summary>
-/// サーバーの PC で行う、DB の接続の設定の入力 (<c>setup-db</c>)。サーバー名・データベース名・ユーザー名・パスワードを順に聞き、接続を試して、通ったら保存する。
+/// サーバーの PC で行う、DB の接続の設定の入力で、コマンドは <c>setup-db</c>。サーバー名・データベース名・ユーザー名・パスワードを順に聞き、接続を試して、通ったら保存する。
 /// </summary>
 internal static class SetupDatabaseCommand
 {

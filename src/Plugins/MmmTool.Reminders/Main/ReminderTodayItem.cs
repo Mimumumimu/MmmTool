@@ -6,8 +6,8 @@ namespace MmmTool.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面の行 (今日の対象 1 件)</summary>
 /// <remarks>
-/// 行は参照番号 (<see cref="No"/>)で同定し、読み直しでは作り直さずに <see cref="Apply"/> で中身を差し替える (ちらつき・スクロール位置のリセットを防ぐため)。
-/// ユーザーが状態を切り替えたときだけ、作るときに渡した処理で保存する (読み直しによる反映では保存しない)。
+/// 行は参照番号 (<see cref="No"/>)で同定し、読み直しでは作り直さずに <see cref="Apply"/> で中身を差し替える。ちらつき・スクロール位置のリセットを防ぐため。
+/// ユーザーが状態を切り替えたときだけ、作るときに渡した処理で保存する。読み直しによる反映では保存しない。
 /// </remarks>
 public sealed partial class ReminderTodayItem : ObservableObject
 {

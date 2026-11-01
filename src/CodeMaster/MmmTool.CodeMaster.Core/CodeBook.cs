@@ -1,7 +1,7 @@
 namespace MmmTool.CodeMaster.Core;
 
 /// <summary>読み込んだコードマスタを、区分ごとに引ける形にしたもの</summary>
-/// <remarks>画面の選択肢は <see cref="Options"/> (論理削除されていない件)。保存済みの行が持つコードの名前は <see cref="Find"/> (論理削除された件も引ける)。</remarks>
+/// <remarks>画面の選択肢は <see cref="Options"/> で、論理削除されていない件。保存済みの行が持つコードの名前は <see cref="Find"/> で、論理削除された件も引ける。</remarks>
 public sealed class CodeBook
 {
     /// <summary>何も入っていないコードブック</summary>
@@ -42,7 +42,7 @@ public sealed class CodeBook
     /// <param name="featureNo">機能番号</param>
     /// <param name="categoryNo">区分番号</param>
     /// <param name="codeNo">コード番号</param>
-    /// <returns>見つかった件 (論理削除された件も返す)。無ければ null</returns>
+    /// <returns>見つかった件で、論理削除された件も返す。無ければ null</returns>
     public CodeMasterEntry? Find(int featureNo, int categoryNo, int codeNo)
         => _entries.GetValueOrDefault((featureNo, categoryNo, codeNo));
 

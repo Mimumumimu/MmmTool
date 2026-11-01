@@ -10,7 +10,7 @@ namespace MmmBatch.Data.SqlServer.Sending;
 /// リマインダーの送信の状況 (<see cref="ReminderSendStatus"/>)を、SQL Server の <c>dbo.ReminderSendStatus</c> に保存する。
 /// </summary>
 /// <remarks>
-/// 読むたびに DB から読む。MmmBatch はユーザーではないので、作成者・更新者は 0。更新日時は DB サーバーの時計で書く (複数の MmmBatch の時計のずれを入れない)。
+/// 読むたびに DB から読む。MmmBatch はユーザーではないので、作成者・更新者は 0。更新日時は DB サーバーの時計で書く。複数の MmmBatch の時計のずれを入れないため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase database) : IReminderSendStatusRepository

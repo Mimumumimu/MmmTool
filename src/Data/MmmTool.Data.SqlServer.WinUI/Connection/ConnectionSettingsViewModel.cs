@@ -10,8 +10,8 @@ namespace MmmTool.Data.SqlServer.WinUI.Connection;
 /// DB の接続の設定画面。入力欄 (<see cref="DatabaseConnectionViewModel"/>)に、保存とキャンセルを付ける。
 /// </summary>
 /// <remarks>
-/// 「接続を確認」で、つながると確認できるまで、保存できない (MmmTool の保存先の画面と同じ。確認の順序が、画面の見た目で分かるようにするため)。
-/// 保存できたら、覚えている接続を捨てて (<see cref="SqlServerDatabase.ResetConnection"/>)、再起動せずに新しい設定を使い、画面を閉じてもらう。
+/// 「接続を確認」で、つながると確認できるまで、保存できない。MmmTool の保存先の画面と同じで、確認の順序が、画面の見た目で分かるようにするため。
+/// 保存できたら、<see cref="SqlServerDatabase.ResetConnection"/> で覚えている接続を捨てて、再起動せずに新しい設定を使い、画面を閉じてもらう。
 /// </remarks>
 public sealed partial class ConnectionSettingsViewModel : ObservableObject
 {

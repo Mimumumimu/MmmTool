@@ -16,9 +16,9 @@ namespace MmmTool.Data.SqlServer.WorkItems;
 /// <param name="database">SQL Server に接続して処理を実行する入口</param>
 /// <param name="currentUser">今のユーザー (記録の持ち主・作成者・更新者)</param>
 /// <remarks>
-/// ローカルの SQLite の保存先 (<c>SqliteWorkItemRepository</c>)と同じ設計の表と、同じ読み書きの形 (docs/specs/work-items.md)。
+/// ローカルの SQLite の保存先 (<c>SqliteWorkItemRepository</c>)と同じ設計の表と、同じ読み書きの形で、docs/specs/work-items.md にある。
 /// 読みは、表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。書きは 1 件単位で、更新は変えた列だけ書く。更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
-/// コードマスタ (状態・進捗度・優先度の選択肢)は全員に影響するので、画面から編集しない (表を SQL で直す)。SQL はパラメーター化だけで書く。完全削除 (行を消す)はしない。
+/// コードマスタ (状態・進捗度・優先度の選択肢)は全員に影響するので、画面から編集しない。表を SQL で直す。SQL はパラメーター化だけで書く。完全削除 (行を消す)はしない。
 /// </remarks>
 public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, CurrentUser currentUser) : IWorkItemRepository
 {
@@ -29,7 +29,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     private const int InvalidObjectName = 208;
 
     /// <inheritdoc />
-    /// <remarks>ユーザーを特定していないときは 0 (読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>)。</remarks>
+    /// <remarks>ユーザーを特定していないときは 0。読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>。</remarks>
     public int UserId => currentUser.User?.Id ?? 0;
 
     /// <inheritdoc />
@@ -483,7 +483,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         WorkRecordResult? result = null;
         await WriteAsync(async (connection, transaction, _) =>
         {
-            // 作業の行をロックして (UPDLOCK)、案件の番号を読む。同じ作業の記録を同時に書く人がいても、足し直しの結果が食い違わない
+            // 作業の行を UPDLOCK でロックして、案件の番号を読む。同じ作業の記録を同時に書く人がいても、足し直しの結果が食い違わない
             var projectValue = await ScalarAsync(
                 connection,
                 transaction,
@@ -600,7 +600,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>ユーザーを特定していることを確かめる</summary>
     /// <returns>今のユーザーの番号</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     private int RequireUser()
         => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません (ログインが必要です)。", new InvalidOperationException("今のユーザーが特定されていません。"));
 
@@ -609,7 +609,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
         {
@@ -627,7 +627,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
     private Task RunAsync(Func<SqlConnection, Task> work, CancellationToken cancellationToken)
         => RunAsync(async connection =>
         {
@@ -639,7 +639,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="work">開いた接続・トランザクション・今のユーザーの番号で行う書き込み</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     private Task WriteAsync(Func<SqlConnection, SqlTransaction, int, Task> work, CancellationToken cancellationToken)
         => RunAsync(async connection =>
         {

@@ -4,7 +4,7 @@ namespace MmmTool.WorkItems.Core;
 
 /// <summary>作業管理が使うコードマスタの、機能番号・区分番号と、表示の組み立て</summary>
 /// <remarks>
-/// 区分番号は台帳 (変えない)。状態と優先度のコード番号は <see cref="WorkItemStatus"/>・<see cref="WorkItemPriority"/> の値と同じ。
+/// 区分番号は台帳で、変えない。状態と優先度のコード番号は <see cref="WorkItemStatus"/>・<see cref="WorkItemPriority"/> の値と同じ。
 /// 進捗度のコード番号は選択肢の識別子で、%の値は数値 (<see cref="CodeMasterEntry.NumericValue"/>)が持つ。
 /// </remarks>
 public static class WorkCodes

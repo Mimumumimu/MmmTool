@@ -16,7 +16,7 @@
                 <wi:WorkItemTheme />
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
-                <!-- 毎日入力する列の見出しの下線の色 (背景は塗らない。入力の手がかりの灰色と区別する)。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま -->
+                <!-- 毎日入力する列の見出しの下線の色。背景は塗らない。入力の手がかりの灰色と区別するため。毎日入力する列は、SDK の表の面の色 (見出しと同じ系統)のまま -->
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="DailyLineBrush" Color="#2E9E6B" />
                 </ResourceDictionary>
@@ -25,7 +25,7 @@
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
-            <!-- 右クリックのメニュー (中身は開くときに、コードで作る)。入力欄にも同じものを付け、入力欄の既定のメニューを出さない -->
+            <!-- 右クリックのメニューで、中身は開くときに、コードで作る。入力欄にも同じものを付け、入力欄の既定のメニューを出さない -->
             <MenuFlyout x:Key="RowMenu" />
 
             <!-- カード (リンク・クリップボード転送のページと同じ) -->
@@ -227,7 +227,7 @@
                         Style="{StaticResource ValueTextStyle}"
                         Text="{x:Bind DueText, Mode=OneWay}"
                         Visibility="{x:Bind IsDueNormal, Mode=OneWay}" />
-                    <!-- 期限切れ (未完了で、期限日が入力日より前)。色だけに頼らないよう、警告のアイコンも付ける。列の幅は、カレンダーのボタンの分の余白に収まる -->
+                    <!-- 期限切れで、未完了で、期限日が入力日より前のとき。色だけに頼らないよう、警告のアイコンも付ける。列の幅は、カレンダーのボタンの分の余白に収まる -->
                     <StackPanel
                         Orientation="Horizontal"
                         Visibility="{x:Bind IsOverdue, Mode=OneWay}"
@@ -306,7 +306,7 @@
                     Text="{x:Bind CompletedText, Mode=OneWay}" />
             </DataTemplate>
 
-            <!-- 実績 (累計)。作業・グループとも入力できない -->
+            <!-- 実績で、累計。作業・グループとも入力できない -->
             <DataTemplate x:Key="ActualTotalCell" x:DataType="local:WorkItemRow">
                 <TextBlock
                     HorizontalAlignment="Right"
@@ -314,7 +314,7 @@
                     Text="{x:Bind ActualTotalText, Mode=OneWay}" />
             </DataTemplate>
 
-            <!-- リンク。案件・グループ・作業とも、1 つ付けられる。リンクがある行だけ「リンク」と出し (パスは出さない。ポイントすると出る)、押すと開く。入れる・直すのは、右クリックのメニューの「リンクを編集…」 -->
+            <!-- リンク。案件・グループ・作業とも、1 つ付けられる。リンクがある行だけ「リンク」と出す。パスは出さず、ポイントすると出る。押すと開く。入れる・直すのは、右クリックのメニューの「リンクを編集…」 -->
             <DataTemplate x:Key="LinkCell" x:DataType="local:WorkItemRow">
                 <TextBlock
                     Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
@@ -589,7 +589,7 @@
             </Grid>
         </Border>
 
-        <!-- 日報メモ。作業に結びつかない、入力日の記入で、打ち合わせなどが当たる。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する。入力欄の既定の更新のタイミングと同じ。高さは、行数 (DayNoteLines)から計算して決める (FitDayNoteHeight)。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
+        <!-- 日報メモ。作業に結びつかない、入力日の記入で、打ち合わせなどが当たる。毎日は書かないので、表の下に置く。見出しは付けず、空のときの薄い文字で、どの日のメモかを示す。フォーカスが外れたときに保存する。入力欄の既定の更新のタイミングと同じ。高さは、行数 (DayNoteLines)から計算して決める。計算は FitDayNoteHeight。フォントを 1 つに決めるのは、英数字と日本語で行の高さが変わらないようにするため。作業報告のプレビューと同じ等幅のフォント -->
         <TextBox
             x:Name="DayNoteBox"
             Grid.Row="3"

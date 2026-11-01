@@ -7,7 +7,7 @@ namespace MmmTool.Data.Connection;
 /// DB への接続の設定。パスワードは秘密の保管庫、それ以外は汎用設定ストアに保存・取得する。
 /// </summary>
 /// <remarks>
-/// 設定のキーは <c>Database.</c> で始める (<c>Mode</c>・<c>Server</c>・<c>Name</c>・<c>Authentication</c>・<c>UserName</c>・<c>TrustServerCertificate</c>)。
+/// 設定のキーは <c>Database.</c> で始める。キーは <c>Mode</c>・<c>Server</c>・<c>Name</c>・<c>Authentication</c>・<c>UserName</c>・<c>TrustServerCertificate</c>。
 /// 種類 (<see cref="DatabaseMode"/>・<see cref="DatabaseAuthentication"/>)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。
 /// </remarks>
 /// <param name="settings">汎用設定ストア</param>
@@ -27,7 +27,7 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     public bool IsReadOnly => settings.IsReadOnly;
 
     /// <summary>保存先の種類が、保存されているか</summary>
-    /// <remarks>false なら、まだ保存先を選んでいない (初回)。</remarks>
+    /// <remarks>false なら、まだ保存先を選んでいない。初回のとき。</remarks>
     public bool IsModeSaved => settings.Contains(ModeKey);
 
     /// <summary>今の接続の設定を取得する</summary>

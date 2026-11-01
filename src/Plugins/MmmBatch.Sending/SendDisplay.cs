@@ -26,7 +26,7 @@ public static class SendDisplay
     /// <param name="ownerName">送信先を登録した人の表示名。分からなければ空文字</param>
     /// <param name="kind">送信先の区分</param>
     /// <param name="name">送信先の登録名</param>
-    /// <returns>「ユーザー名 - 登録名 (ntfy)」の形 (MmmTool の宛先の選択肢と同じ)。ユーザー名が分からなければ「登録名 (ntfy)」</returns>
+    /// <returns>「ユーザー名 - 登録名 (ntfy)」の形で、MmmTool の宛先の選択肢と同じ。ユーザー名が分からなければ「登録名 (ntfy)」</returns>
     /// <remarks>送る先の値は秘密なので、出さない。</remarks>
     public static string RecipientText(string ownerName, NotificationChannelKind kind, string name)
     {

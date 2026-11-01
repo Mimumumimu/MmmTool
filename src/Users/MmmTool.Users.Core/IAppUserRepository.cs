@@ -7,7 +7,7 @@ public interface IAppUserRepository
 {
     /// <summary>ユーザーの一覧を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>全ユーザー (論理削除済み・使える期間の外も含む)。番号の順。パスワードのハッシュは含まない</returns>
+    /// <returns>全ユーザーで、論理削除済み・使える期間の外も含む。番号の順。パスワードのハッシュは含まない</returns>
     Task<IReadOnlyList<AppUser>> GetUsersAsync(CancellationToken cancellationToken = default);
 
     /// <summary>ユーザーの一覧を、ある機能を無効にされているかつきで取得する</summary>
@@ -20,8 +20,8 @@ public interface IAppUserRepository
     /// <summary>番号を指定して、ユーザーを取得する</summary>
     /// <param name="ids">ユーザーの番号 (重複していてもよい)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>指定した番号のユーザー (論理削除済み・使える期間の外も含む。存在しない番号は含まない)。番号の順。パスワードのハッシュは含まない</returns>
-    /// <remarks>名前を画面に出すためなど、必要な人だけを引く (全ユーザーを読まない)。</remarks>
+    /// <returns>指定した番号のユーザーで、論理削除済み・使える期間の外も含む。存在しない番号は含まない。番号の順。パスワードのハッシュは含まない</returns>
+    /// <remarks>名前を画面に出すためなど、必要な人だけを引く。全ユーザーを読まない。</remarks>
     Task<IReadOnlyList<AppUser>> GetUsersByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default);
 
     /// <summary>ログイン名から、ユーザーを取得する</summary>
@@ -64,6 +64,6 @@ public interface IAppUserRepository
     /// <param name="passwordHash">新しいパスワードのハッシュ</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>入れ替えたら true。ユーザーが見つからない (削除された)ときは false</returns>
-    /// <remarks>今のハッシュの確認は呼ぶ側が先に行う (<see cref="SetPasswordHashAsync"/> と違い、空でなくても書く)。</remarks>
+    /// <remarks>今のハッシュの確認は呼ぶ側が先に行う。<see cref="SetPasswordHashAsync"/> と違い、空でなくても書く。</remarks>
     Task<bool> ChangePasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default);
 }

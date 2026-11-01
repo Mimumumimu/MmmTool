@@ -9,7 +9,7 @@ namespace MmmTool.Reminders.List;
 /// <remarks>
 /// 一覧のページ (<see cref="ReminderListPage"/>)と、一覧のウィンドウ (<see cref="ReminderListWindow"/>)で共有する。
 /// タイトル・外側の余白・読み込みは、置く側が受け持つ。
-/// 行のダブルタップで編集、右クリックで行のメニュー (削除済みでない行は「削除」、削除済みの行は「完全削除」を出す)。
+/// 行のダブルタップで編集、右クリックで行のメニュー。削除済みでない行は「削除」、削除済みの行は「完全削除」を出す。
 /// </remarks>
 public sealed partial class ReminderListControl : UserControl
 {

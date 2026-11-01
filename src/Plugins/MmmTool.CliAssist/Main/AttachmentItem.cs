@@ -18,14 +18,14 @@ public sealed class AttachmentItem(string filePath, string displayName, bool isT
         ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp",
     };
 
-    /// <summary>送信するファイルの絶対パス (送信時にこのパスを付け足す)。</summary>
+    /// <summary>送信するファイルの絶対パスで、送信時にこのパスを付け足す。</summary>
     public string FilePath { get; } = filePath;
 
-    /// <summary>表示名 (元のファイル名)。</summary>
+    /// <summary>表示名で、元のファイル名。</summary>
     public string DisplayName { get; } = displayName;
 
     /// <summary>一時保存したファイルか。</summary>
-    /// <remarks>true のときだけ、取り除くときにファイルを削除する (元の場所のファイルは決して消さない)。</remarks>
+    /// <remarks>true のときだけ、取り除くときにファイルを削除する。元の場所のファイルは決して消さない。</remarks>
     public bool IsTemporary { get; } = isTemporary;
 
     /// <summary>画像かどうか</summary>
@@ -34,6 +34,6 @@ public sealed class AttachmentItem(string filePath, string displayName, bool isT
     /// <summary>画像ではないか</summary>
     public bool IsNotImage => !IsImage;
 
-    /// <summary>サムネイルに使う画像のパス (画像でなければ null)。</summary>
+    /// <summary>サムネイルに使う画像のパスで、画像でなければ null。</summary>
     public string? ThumbnailPath => IsImage ? FilePath : null;
 }

@@ -11,7 +11,7 @@ namespace MmmTool.Features.Users;
 /// <remarks>
 /// 起動時の準備 (<see cref="UserStartup"/>)が、ログインが要ると分かったとき (<see cref="RequestSignIn"/>)に印を付け、
 /// メインウィンドウを作ったあと、トレイを出す前に、<see cref="ShowIfRequestedAsync"/> が画面を出す。ログインは必須で、済ませないと先へ進ませない。画面は閉じると再表示できないので、開くたびに DI から作る。UI スレッドから呼ぶ。
-/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する (ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため)。
+/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため。
 /// </remarks>
 public sealed class SignInPrompt(IServiceScopeFactory scopeFactory)
 {
@@ -22,7 +22,7 @@ public sealed class SignInPrompt(IServiceScopeFactory scopeFactory)
     public void RequestSignIn() => _requested = true;
 
     /// <summary>印があれば、ログインの画面を出して、閉じるまで待つ</summary>
-    /// <returns>先へ進んでよければ true (ログインした・ログインが要らなかった)。ログインせずに閉じたら false (アプリを終了する)</returns>
+    /// <returns>先へ進んでよければ true で、ログインした・ログインが要らなかったとき。ログインせずに閉じたら false で、アプリを終了する</returns>
     public async Task<bool> ShowIfRequestedAsync()
     {
         if (!_requested)

@@ -126,7 +126,7 @@ public sealed class FeatureListViewModel : ObservableObject
     /// <param name="item">切り替わった行</param>
     /// <returns>反映の完了を表すタスク</returns>
     /// <remarks>
-    /// 画面の状態と実際の状態が同じなら何もしない (初めの表示・下の巻き戻しでも、スイッチの切り替えが通知されるため)。
+    /// 画面の状態と実際の状態が同じなら何もしない。初めの表示・下の巻き戻しでも、スイッチの切り替えが通知されるため。
     /// 取りやめた・保存できなかった (読み込めない・ロックや権限での失敗。画面に出す)ときは、スイッチを実際の状態へ戻す。
     /// </remarks>
     public async Task ToggleFeatureAsync(FeatureItem item)

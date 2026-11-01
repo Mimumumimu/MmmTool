@@ -20,7 +20,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, DisplayName, LoginName, ValidFrom, ValidTo";
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<AppUser>> GetUsersAsync(CancellationToken cancellationToken = default)
         => database.RunAsync<IReadOnlyList<AppUser>>(async connection =>
         {
@@ -55,7 +55,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<AppUser>> GetUsersByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(ids);
@@ -83,7 +83,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<AppUser?> FindByLoginNameWithoutPasswordAsync(string loginName, CancellationToken cancellationToken = default)
         => database.RunAsync<AppUser?>(async connection =>
         {
@@ -96,7 +96,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<AppUserCredential?> FindByLoginNameAsync(string loginName, CancellationToken cancellationToken = default)
         => database.RunAsync<AppUserCredential?>(async connection =>
         {
@@ -114,7 +114,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">表示名・ログイン名・使える期間が正しくない。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     /// <exception cref="LoginNameTakenException">同じログイン名がすでにある。</exception>
     public Task<AppUser> AddAsync(AppUser user, string passwordHash, CancellationToken cancellationToken = default)
     {
@@ -147,7 +147,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetPasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default)
         => database.RunAsync(async connection =>
         {
@@ -166,7 +166,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">表示名・ログイン名が正しくない。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     /// <exception cref="LoginNameTakenException">同じログイン名がすでにある。</exception>
     public Task UpdateAsync(AppUser user, CancellationToken cancellationToken = default)
     {
@@ -197,7 +197,7 @@ public sealed class SqlServerAppUserRepository(SqlServerDatabase database) : IAp
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> ChangePasswordHashAsync(int userId, string passwordHash, CancellationToken cancellationToken = default)
         => database.RunAsync(async connection =>
         {

@@ -8,7 +8,7 @@
 
     <Grid>
         <Grid.Resources>
-            <!-- 列の幅 (見出しと行で共通)。時刻 / 送った人 / 宛先 / 本文 (残り) / 結果 -->
+            <!-- 列の幅で、見出しと行で共通。時刻 / 送った人 / 宛先 / 本文 (残り) / 結果 -->
             <GridLength x:Key="TimeColumnWidth">160</GridLength>
             <GridLength x:Key="SenderColumnWidth">100</GridLength>
             <GridLength x:Key="RecipientColumnWidth">220</GridLength>

@@ -3,7 +3,7 @@ using MmmTool.Reminders.Core;
 namespace MmmTool.Data.Reminders;
 
 /// <summary>
-/// DB の <c>dbo.ReminderState</c> の 1 行 (列と 1 対 1)。アプリの型 <see cref="ReminderState"/> とは別の、DB の形のまま持つ。
+/// DB の <c>dbo.ReminderState</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="ReminderState"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
 /// 状態は人 (<see cref="UserId"/>)ごと・リマインダー (<see cref="ReminderId"/>)ごとに 1 件。未対応 (<see cref="ReminderStatus.None"/>)に戻したときも、行を消さずに、
@@ -12,7 +12,7 @@ namespace MmmTool.Data.Reminders;
 /// </remarks>
 public sealed record ReminderStateRow
 {
-    /// <summary>主キー (<see cref="ReminderState.Seq"/>)。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キーで、<see cref="ReminderState.Seq"/> にあたる。0 は新規 (DB が採番する)</summary>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -24,7 +24,7 @@ public sealed record ReminderStateRow
     public DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>作成者 (<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人)</summary>
-    /// <remarks>アプリの型 (<see cref="ReminderState"/>)に無いので、<see cref="FromReminderState"/> では決めない (Repository が入れる)。</remarks>
+    /// <remarks>アプリの型 (<see cref="ReminderState"/>)に無いので、<see cref="FromReminderState"/> では決めない。Repository が入れる。</remarks>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
@@ -32,14 +32,14 @@ public sealed record ReminderStateRow
     public DateTimeOffset UpdatedAt { get; init; }
 
     /// <summary>更新者 (<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人)</summary>
-    /// <remarks>アプリの型に無いので、<see cref="FromReminderState"/> では決めない (Repository が入れる)。</remarks>
+    /// <remarks>アプリの型に無いので、<see cref="FromReminderState"/> では決めない。Repository が入れる。</remarks>
     public int UpdatedByUserId { get; init; }
 
     /// <summary>対応するリマインダー (<c>Reminder.Id</c>。<see cref="ReminderState.BaseNo"/>)</summary>
     public int ReminderId { get; init; }
 
     /// <summary>状態を持つ人 (<c>AppUser.Id</c>)</summary>
-    /// <remarks>アプリの型に無いので、<see cref="FromReminderState"/> では決めない (Repository が入れる)。</remarks>
+    /// <remarks>アプリの型に無いので、<see cref="FromReminderState"/> では決めない。Repository が入れる。</remarks>
     public int UserId { get; init; }
 
     /// <summary>どの日の状態か</summary>

@@ -22,8 +22,8 @@ public static class SqlServerWebServiceCollectionExtensions
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// MmmTool のノート・リマインダーなどの保存先 (<c>AddSqlServerData</c>)は、ここでは登録しない (機能の画面を足すとき、その機能が登録する)。
-    /// ユーザーは読むだけで、パスワードのハッシュは読まない (専用のログインに、その列の権限を与えない)。
+    /// MmmTool のノート・リマインダーなどの保存先 (<c>AddSqlServerData</c>)は、ここでは登録しない。機能の画面を足すとき、その機能が登録する。
+    /// ユーザーは読むだけで、パスワードのハッシュは読まない。専用のログインに、その列の権限を与えない。
     /// </remarks>
     public static IServiceCollection AddMmmToolWebSqlServer(this IServiceCollection services)
     {

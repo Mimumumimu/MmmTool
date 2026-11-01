@@ -81,20 +81,20 @@ public partial class App : Application
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton(fatalErrors);
 
-        // SDK (JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択)。JsonFileStore はアプリ固有の保存でも共有する
+        // SDK の部品は、JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(AppInfo.DataDirectory);
         services.AddMmmSdkWinUI();
 
         // 画面の枠 (メインウィンドウ・サイドバー・トレイ)
         services.AddShell();
 
-        // 設定ページの先頭の部品 (全般・機能の一覧)。設定ページの部品は並び順の値で並ぶので、呼ぶ位置は問わない
+        // 設定ページの先頭の部品は、全般・機能の一覧。設定ページの部品は並び順の値で並ぶので、呼ぶ位置は問わない
         services.AddSettingsSections();
 
-        // ログイン (DB モード)。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
+        // DB モードのログイン。機能の起動時の準備より先に動かすため、機能の登録より前に呼ぶ
         services.AddUserSignIn();
 
-        // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び (利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちら。トレイメニューは常に order の順)。登録の順は問わない
+        // 機能。起動時の準備は、登録した順に実行する。order は、保存が無いときの並び。利用者が決めた並びがあれば、サイドバー・設定の機能の一覧・設定の部品はそちらに従う。トレイメニューは常に order の順。登録の順は問わない
         // order の並び: 作業管理が主な機能。ノート、CLI補助、リマインダーと続く。メッセージはリマインダーの下。トレイは、メニューが下から開くので、下 (大きい値)ほどカーソルに近い。リンクを下にして近くに置く
         services.AddFeaturePlugin<WorkItemsPlugin>(order: 1);
         services.AddFeaturePlugin<MmmTool.Notes.NotesPlugin>(order: 2);
@@ -106,10 +106,10 @@ public partial class App : Application
         services.AddFeaturePlugin<BacklogPlugin>(order: 8);
         services.AddFeaturePlugin<ToolsPlugin>(order: 9);
 
-        // DB への保存 (SQL Server)。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
+        // SQL Server への保存。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
 
-        // 作業管理の保存先。ローカルは SQLite (Data/MmmTool.db)、DB モードは SQL Server。ホストが設定で選ぶ
+        // 作業管理の保存先。ローカルは SQLite の Data/MmmTool.db、DB モードは SQL Server。ホストが設定で選ぶ
         services.AddSqliteData();
         services.AddWorkItemStorage();
 
@@ -154,7 +154,7 @@ public partial class App : Application
         // トレイは画面・各機能より先に作る。Host は作った順の逆に破棄するので、終了時に各機能の後始末が済んでからトレイアイコンが消える
         var tray = _host.Services.GetRequiredService<TrayIcon>();
 
-        // 保存先がまだ選ばれていない初回だけ、選択の画面を出す。各機能の準備より前に出し (保存先は準備で決まって使い始めるため)、選んだ内容を最初から効かせる
+        // 保存先がまだ選ばれていない初回だけ、選択の画面を出す。各機能の準備より前に出す。保存先は準備で決まって使い始めるため、選んだ内容を最初から効かせる
         // 選ばずに閉じたときは、先へ進ませずに終了する
         var databaseChoice = _host.Services.GetRequiredService<DatabaseChoiceService>();
         if (!await databaseChoice.ShowIfNeededAsync())
@@ -163,7 +163,7 @@ public partial class App : Application
             return;
         }
 
-        // 各機能の起動時の準備 (設定の読み込み・時刻監視の開始など)。画面を作る前に行う (前回の作業ディレクトリでシェルを始めるため等)
+        // 各機能の起動時の準備で、設定の読み込み・時刻監視の開始など。画面を作る前に行う。前回の作業ディレクトリでシェルを始めるため等
         // オフにした機能の準備は行わない (オンにしたときに行う)
         await _host.Services.GetRequiredService<FeatureService>().StartAsync();
 
@@ -182,7 +182,7 @@ public partial class App : Application
         databaseChoice.CloseWindow();
 
         // DB モードで、ログインできていないとき、ログインの画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
-        // ログインを済ませないと先へ進ませない (トレイも出さない)。ログインせずに閉じたときは、終了する
+        // ログインを済ませないと先へ進ませず、トレイも出さない。ログインせずに閉じたときは、終了する
         if (!await _host.Services.GetRequiredService<SignInPrompt>().ShowIfRequestedAsync())
         {
             await ExitAsync();
@@ -201,7 +201,7 @@ public partial class App : Application
         }
     }
 
-    /// <summary>アプリを完全に終了する (トレイメニューの「終了」から)。</summary>
+    /// <summary>アプリを完全に終了する。トレイメニューの「終了」から呼ぶ。</summary>
     /// <returns>終了処理の完了を表すタスク</returns>
     /// <remarks>
     /// 各機能の後始末 (ターミナルのシェル・添付の一時フォルダ等)→ トレイアイコンの解放 → アプリの終了 の順に行う。

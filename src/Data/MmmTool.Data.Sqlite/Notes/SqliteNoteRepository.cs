@@ -11,7 +11,7 @@ namespace MmmTool.Data.Sqlite.Notes;
 /// <param name="database">データベースファイルを開く入口</param>
 /// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
 /// <remarks>
-/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形 (docs/specs/notes.md)。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
+/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/notes.md にある。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
 /// 書き込みは、書き込みの許可を最初に取るトランザクションの中で行う。処理は、UI スレッドを止めないよう、別のスレッドで行う。SQL はパラメーター化だけで書く。
 /// </remarks>
 public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider time) : INoteRepository

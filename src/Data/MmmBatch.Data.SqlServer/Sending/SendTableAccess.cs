@@ -9,7 +9,7 @@ namespace MmmBatch.Data.SqlServer.Sending;
 /// </summary>
 /// <remarks>
 /// 表は、管理者が作成用の SQL を流して作る。まだ流していないとき、SQL のエラーのまま出さず、流す手順を伝えるメッセージの
-/// <see cref="DataFileException"/> にする (画面は、これを InfoBar に出す)。
+/// <see cref="DataFileException"/> にする。画面は、これを InfoBar に出す。
 /// </remarks>
 internal static class SendTableAccess
 {
@@ -25,7 +25,7 @@ internal static class SendTableAccess
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・実行中に失敗した。メッセージは画面に出せる。</exception>
     public static Task<T> RunAsync<T>(SqlServerDatabase database, Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
         {

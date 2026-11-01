@@ -36,7 +36,7 @@ public sealed class BacklogSettingsViewModel
 
     /// <summary>API キーを保存する (入力欄からフォーカスが外れたときに呼ぶ)</summary>
     /// <param name="apiKey">入力された API キー。空なら、登録を消す</param>
-    /// <remarks>前後の空白は除く (貼り付けたときに混ざりやすい)。変わっていなければ何もしない。</remarks>
+    /// <remarks>前後の空白は除く。貼り付けたときに混ざりやすいため。変わっていなければ何もしない。</remarks>
     public void Save(string apiKey)
     {
         apiKey = apiKey.Trim();

@@ -12,7 +12,7 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// 送信先 (<see cref="NotificationChannel"/>)を、SQL Server の <c>dbo.NotificationChannel</c> に保存する。
 /// </summary>
 /// <remarks>
-/// 読むたびに DB から読む (件数が少なく、メモリに持たない)。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
+/// 読むたびに DB から読む。件数が少なく、メモリに持たない。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
 /// 一覧に出るのは、自分が使用者のもの (<c>UserId</c> が自分)だけ。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
@@ -29,7 +29,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     public int CurrentUserId => currentUser.User?.Id ?? 0;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<NotificationChannel>> GetChannelsAsync(bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -134,7 +134,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
     {
         var row = NotificationChannelRow.FromChannel(channel with { Id = 0, IsDeleted = false });
@@ -160,7 +160,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
         => UpdateCoreAsync(channel, restore: false, cancellationToken);
 
@@ -199,7 +199,7 @@ public sealed class SqlServerNotificationChannelRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);

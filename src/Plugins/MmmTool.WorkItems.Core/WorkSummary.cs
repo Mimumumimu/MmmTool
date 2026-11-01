@@ -31,7 +31,7 @@ public sealed record WorkSummary(
 
     /// <summary>期限を過ぎた日数</summary>
     /// <param name="date">基準の日 (画面では入力日)</param>
-    /// <returns>未完了で、期限日が基準の日より前なら、過ぎた日数 (1 以上)。それ以外は 0</returns>
-    /// <remarks>期限日の当日は、過ぎていない。完了した作業は、期限を過ぎてから完了したものも含めて 0 (未完了の定義は <see cref="IsFinished"/>)。</remarks>
+    /// <returns>未完了で、期限日が基準の日より前なら、過ぎた日数で、1 以上。それ以外は 0</returns>
+    /// <remarks>期限日の当日は、過ぎていない。完了した作業は、期限を過ぎてから完了したものも含めて 0。未完了の定義は <see cref="IsFinished"/> にある。</remarks>
     public int OverdueDays(DateOnly date) => !IsFinished && DueDate is { } due && due < date ? date.DayNumber - due.DayNumber : 0;
 }

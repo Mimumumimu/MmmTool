@@ -20,13 +20,13 @@ namespace MmmTool.Notes.Main;
 /// </summary>
 /// <remarks>
 /// <para>
-/// ページは、アプリが組み立てた HTML (<see cref="NotePageBuilder"/>)を、仮想ホスト (<see cref="NoteLinks.PageHost"/>)の <c>index.html</c> として返して表示する
-/// (文字列で渡す方式には、渡せる量の上限があるが、本文は上限を決めないため)。
+/// ページは、アプリが組み立てた HTML (<see cref="NotePageBuilder"/>)を、仮想ホスト (<see cref="NoteLinks.PageHost"/>)の <c>index.html</c> として返して表示する。
+/// 文字列で渡す方式には、渡せる量の上限があるが、本文は上限を決めないため。
 /// </para>
 /// <para>
-/// ページの中のスクリプトは止める。外へのリクエストはすべて止め (仮想ホスト以外は、失敗で返す)、ページの移動は、すべて横取りする。
+/// ページの中のスクリプトは止める。外へのリクエストはすべて止める。仮想ホスト以外は、失敗で返す。ページの移動は、すべて横取りする。
 /// カードの「編集」「削除」「復元」は <see cref="ActionRequested"/>、本文のリンク (http・https・file)は <see cref="LinkRequested"/> で知らせる。それ以外への移動は、取り消す。
-/// 作り直す前の状態 (スクロールの位置・開いているカード)は、アプリ側から実行するスクリプトで取り出す (ページのスクリプトを止めても、これは動く)。
+/// 作り直す前の状態 (スクロールの位置・開いているカード)は、アプリ側から実行するスクリプトで取り出す。ページのスクリプトを止めても、これは動く。
 /// </para>
 /// </remarks>
 public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
@@ -285,7 +285,7 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
     /// <param name="sender">WebView2</param>
     /// <param name="args">メニューの情報</param>
     /// <remarks>
-    /// 右クリックした位置のカードは、アプリ側から実行するスクリプトで調べる (ページのスクリプトは止めてあるが、これは動く)。
+    /// 右クリックした位置のカードは、アプリ側から実行するスクリプトで調べる。ページのスクリプトは止めてあるが、これは動く。
     /// カードの上なら、「編集」「削除」(削除済みのカードなら「復元」)を出す。選んだ文字があるときは、「コピー」を出す。それ以外の項目は出さない。
     /// メニューは、WebView2 の標準のメニュー (項目の文字の幅しかなく、押しにくい)ではなく、アプリ (WinUI)の <see cref="MenuFlyout"/> で出す。
     /// </remarks>

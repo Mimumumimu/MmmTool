@@ -7,9 +7,9 @@ namespace MmmTool.WorkItems.Schedule;
 /// <summary>スケジュールの表の 1 行 (案件・グループ・作業のどれかを、左の列と、日付の棒に出す形にしたもの)</summary>
 /// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
 /// <remarks>
-/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える (スクロールの位置を保つため)。
+/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える。スクロールの位置を保つため。
 /// 棒の描画に関わる値が変わったときだけ、<see cref="VisualVersion"/> を進めて、セルに描き直させる。
-/// 案件・グループの日付・進捗度・実績は、下の作業から計算した値 (<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/>)。見るだけで、入力はできない。
+/// 案件・グループの日付・進捗度・実績は、下の作業から計算した値で、<see cref="WorkItemTree"/>・<see cref="ScheduleActuals"/> が作る。見るだけで、入力はできない。
 /// </remarks>
 public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {

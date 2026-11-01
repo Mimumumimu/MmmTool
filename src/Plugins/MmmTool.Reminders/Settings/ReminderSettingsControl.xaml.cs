@@ -33,7 +33,7 @@ public sealed partial class ReminderSettingsControl : UserControl
     /// <param name="numberBox">対象の NumberBox</param>
     /// <remarks>
     /// NumberBox は消去ボタンを隠すプロパティを持たない。ビジュアルステートは Visibility を書き換えるので、
-    /// ステートに触られない大きさ・不透明度・当たり判定で見えなくする (スタイルの MinWidth があるので MinWidth も 0 にする)。
+    /// ステートに触られない大きさ・不透明度・当たり判定で見えなくする。スタイルの MinWidth があるので MinWidth も 0 にする。
     /// 空欄は <see cref="ReminderSettingsViewModel"/> が補正するので消去は不要。
     /// </remarks>
     private static void HideDeleteButton(DependencyObject numberBox)

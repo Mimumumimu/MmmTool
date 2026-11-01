@@ -14,8 +14,8 @@ namespace MmmTool.Data.Sqlite.WorkItems;
 /// <param name="database">データベースファイルを開く入口</param>
 /// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
 /// <remarks>
-/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形 (docs/specs/work-items.md)。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
-/// 読みは、表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う (JOIN で親の列が子の行に重ならない)。木はメモリで組み立てる。
+/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/work-items.md にある。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
+/// 読みは、表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。JOIN で親の列が子の行に重ならないため。木はメモリで組み立てる。
 /// 書きは 1 件単位で、更新は変えた列だけ書く。書き込みは、書き込みの許可を最初に取るトランザクション (<c>BEGIN IMMEDIATE</c>)の中で行う。
 /// 処理は、UI スレッドを止めないよう、別のスレッドで行う。SQL はパラメーター化だけで書く。
 /// </remarks>
@@ -487,7 +487,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         WorkRecordResult? result = null;
         await RunInTransactionAsync(async (connection, transaction) =>
         {
-            // 作業の行を先に確かめる (案件の番号は、作業の行が正)。BEGIN IMMEDIATE で書き込みを待ち合わせているので、読んでから書く間に、ほかの書き込みは割り込まない
+            // 作業の行を先に確かめる。案件の番号は、作業の行が正。BEGIN IMMEDIATE で書き込みを待ち合わせているので、読んでから書く間に、ほかの書き込みは割り込まない
             var projectValue = await ScalarAsync(connection, transaction, "SELECT ProjectId FROM WorkItem WHERE Id = @item AND IsDeleted = 0", [("@item", row.WorkItemId)], cancellationToken);
             if (projectValue is null)
             {

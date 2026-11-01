@@ -2,8 +2,8 @@ namespace MmmTool.CliAssist.Core;
 
 /// <summary>セッション (タブ)の作業フォルダの比較と、タブ名の作成</summary>
 /// <remarks>
-/// パスは文字列のまま扱い、ファイルシステムには触れない (入力のたびに呼んでも止まらず、不正な文字があっても例外にならないため)。
-/// 区切りは <c>\</c> と <c>/</c> のどちらも認め、大文字小文字は区別しない (Windows のパス)。
+/// パスは文字列のまま扱い、ファイルシステムには触れない。入力のたびに呼んでも止まらず、不正な文字があっても例外にならないため。
+/// 区切りは <c>\</c> と <c>/</c> のどちらも認め、大文字小文字は区別しない。Windows のパスの扱いに合わせる。
 /// </remarks>
 public static class SessionDirectory
 {
@@ -16,7 +16,7 @@ public static class SessionDirectory
 
     /// <summary>入力されたフォルダを、作業フォルダとして使える形にする</summary>
     /// <param name="path">入力されたパス</param>
-    /// <returns>前後の空白を取り除き、末尾を <c>\</c> にそろえたパス (空のときは空)。区切りの <c>/</c> は <c>\</c> にする</returns>
+    /// <returns>前後の空白を取り除き、末尾を <c>\</c> にそろえたパスで、空のときは空。区切りの <c>/</c> は <c>\</c> にする</returns>
     /// <remarks>
     /// 「D:」のままだと、シェルが「そのドライブで最後にいたフォルダ」と解釈して、移動できない。
     /// ドライブだけ <c>\</c> を付けると表記がばらつくので、すべてのフォルダの末尾を <c>\</c> にそろえる。
@@ -33,7 +33,7 @@ public static class SessionDirectory
     /// <param name="directories">タブごとの作業フォルダ (タブの並び順)</param>
     /// <returns>タブごとのタブ名 (入力と同じ並び順)</returns>
     /// <remarks>
-    /// タブ名はフォルダ名だけにする。フォルダ名が同じで場所が違うタブがあるときだけ、親フォルダ名を足す (<c>名前 (親)</c>)。
+    /// タブ名はフォルダ名だけにする。フォルダ名が同じで場所が違うタブがあるときだけ、親フォルダ名を足す。形は <c>名前 (親)</c>。
     /// それでも同じになるときは、パス全体にする。
     /// </remarks>
     public static IReadOnlyList<string> CreateTitles(IReadOnlyList<string> directories)
@@ -84,7 +84,7 @@ public static class SessionDirectory
 
     /// <summary>パスを、フォルダ名の並びに分ける</summary>
     /// <param name="path">パス</param>
-    /// <returns>フォルダ名の並び (<c>C:\work\app</c> なら <c>C:</c> <c>work</c> <c>app</c>)。空のパスは空</returns>
+    /// <returns>フォルダ名の並びで、<c>C:\work\app</c> なら <c>C:</c> <c>work</c> <c>app</c>。空のパスは空</returns>
     private static string[] Split(string path)
         => Normalize(path).Split('\\', StringSplitOptions.RemoveEmptyEntries);
 }

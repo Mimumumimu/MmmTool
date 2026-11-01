@@ -10,7 +10,7 @@ public static class ReminderSendContent
     /// <summary>通知の見出し。どの送信先でも同じ</summary>
     public const string Title = ReminderNotificationText.Heading;
 
-    /// <summary>送信のログの機能のキー (<see cref="SendLogEntry.Source"/>)。古いログの行が持たないときの値でもあるので、変えない</summary>
+    /// <summary>送信のログの機能のキーで、<see cref="SendLogEntry.Source"/> の値。古いログの行が持たないときの値でもあるので、変えない</summary>
     public const string Source = SendLogEntry.LegacySource;
 
     /// <summary>Web 版の提供元のキー。通知の識別子の先頭になる。Web 版の <c>SqlServerReceivedReminderSource</c> と合わせる</summary>

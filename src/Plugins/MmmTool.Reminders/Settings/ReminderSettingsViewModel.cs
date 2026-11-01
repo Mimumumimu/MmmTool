@@ -22,7 +22,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     private const string SpeechSettingsUri = "ms-settings:speech";
 
     /// <summary>保存済みの値を入れている最中か</summary>
-    /// <remarks>true の間は、値の変更で保存しない (読み込んだだけの値で、設定ファイルを書き換えないため)。</remarks>
+    /// <remarks>true の間は、値の変更で保存しない。読み込んだだけの値で、設定ファイルを書き換えないため。</remarks>
     private bool _isInitializing;
 
     /// <summary>画面に出すエラー (保存に失敗したとき)</summary>
@@ -52,7 +52,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     public bool IsVolumeEditable => !_speech.IsVolumeReadOnly;
 
     /// <summary>読み上げの音量 (%)</summary>
-    /// <remarks>スライダーを動かし終えるのを待ってから保存する (動かす間は、保存しない)。</remarks>
+    /// <remarks>スライダーを動かし終えるのを待ってから保存する。動かす間は、保存しない。</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SpeechVolumeText))]
     public partial double SpeechVolumePercent { get; set; }
@@ -87,7 +87,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
 
     /// <summary>今の音量で、短い文を読み上げる</summary>
     /// <returns>読み上げの開始が済んだことを表すタスク</returns>
-    /// <remarks>予約中の保存を待たず、いまのスライダーの値をすぐ保存してから読む (読み上げは保存値を使うため)。</remarks>
+    /// <remarks>予約中の保存を待たず、いまのスライダーの値をすぐ保存してから読む。読み上げは保存値を使うため。</remarks>
     [RelayCommand]
     private async Task PreviewSpeechAsync()
     {
@@ -178,7 +178,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <param name="minutes">保存するスヌーズ間隔 (分)</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態 (設定ファイルを読めなかった)では、入力欄を無効にしてあるので、ここへは来ない (来たら、保存されなかったことを知らせる)。
+    /// 保存できない状態 (設定ファイルを読めなかった)では、入力欄を無効にしてあるので、ここへは来ない。来たら、保存されなかったことを知らせる。
     /// 保存の失敗 (ロック・権限など)は、画面に出す。
     /// </remarks>
     private async Task SaveSnoozeIntervalAsync(int minutes)

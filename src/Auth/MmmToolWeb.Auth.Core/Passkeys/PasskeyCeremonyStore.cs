@@ -7,22 +7,22 @@ namespace MmmToolWeb.Auth.Core.Passkeys;
 /// パスキーの登録・ログインの途中の状態 (最初の問い合わせで作った選択肢)を、完了の呼び出しまで覚えておく。
 /// </summary>
 /// <remarks>
-/// 状態は、1 回取り出すと消える。同じ呼び出しを 2 回送っても、2 回目は通らない (リプレイの防止)。
-/// プロセスのメモリだけに持つので、サーバーを再起動すると消える (途中の操作は、最初からやり直す)。
+/// 状態は、1 回取り出すと消える。同じ呼び出しを 2 回送っても、2 回目は通らない。リプレイの防止になる。
+/// プロセスのメモリだけに持つので、サーバーを再起動すると消える。途中の操作は、最初からやり直す。
 /// </remarks>
 public sealed class PasskeyCeremonyStore
 {
     /// <summary>状態を覚えておく時間。</summary>
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
 
-    /// <summary>番号ごとの状態と、期限 (UTC)。</summary>
+    /// <summary>番号ごとの状態と、期限で、UTC。</summary>
     private readonly ConcurrentDictionary<string, (object State, DateTime ExpiresAt)> _items = new();
 
     /// <summary>
     /// 状態を覚えて、取り出すための番号を返す。
     /// </summary>
     /// <param name="state">覚える状態。</param>
-    /// <returns>取り出すための番号 (推測できないランダムな値)。</returns>
+    /// <returns>取り出すための番号で、推測できないランダムな値。</returns>
     public string Put(object state)
     {
         RemoveExpired();

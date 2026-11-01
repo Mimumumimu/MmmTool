@@ -20,7 +20,7 @@ public sealed class ReminderSettingsService(ISettingsStore settings)
     /// <summary>スヌーズの再通知間隔 (分)の最大値</summary>
     public const int MaxSnoozeInterval = 999;
 
-    /// <summary>スヌーズの再通知間隔 (分)。保存値を範囲内に収めて返す (無ければ既定値)</summary>
+    /// <summary>スヌーズの再通知間隔で、単位は分。保存値を範囲内に収めて返す (無ければ既定値)</summary>
     public int SnoozeIntervalMinutes => ClampSnoozeInterval(settings.Get(SnoozeIntervalKey, DefaultSnoozeInterval));
 
     /// <summary>まとめて追加の「何分前に通知」の設定キー</summary>

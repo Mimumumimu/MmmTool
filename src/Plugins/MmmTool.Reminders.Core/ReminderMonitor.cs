@@ -11,9 +11,9 @@ namespace MmmTool.Reminders.Core;
 /// <param name="settings">リマインダー用の設定 (スヌーズの再通知間隔)</param>
 /// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
-/// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する
-/// (タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/>。ここはそれらをつなぎ、スヌーズの通知時刻を覚える)。
-/// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる (通知 UI に依存しないため)。
+/// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する。
+/// タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/> が行う。ここはそれらをつなぎ、スヌーズの通知時刻を覚える。
+/// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる。通知 UI に依存しないため。
 /// </remarks>
 public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, TimeProvider timeProvider) : IDisposable
 {
@@ -29,7 +29,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     /// <summary>通知を表示するコールバック</summary>
     private Action<string, IReadOnlyList<NotificationItem>, string?>? _notify;
 
-    /// <summary>前回スヌーズ分を通知した分 (秒以下を切り捨てた時刻)。まだ無ければ null</summary>
+    /// <summary>前回スヌーズ分を通知した分で、秒以下を切り捨てた時刻。まだ無ければ null</summary>
     /// <remarks>スヌーズの再通知間隔は、リマインダーごとではなくモニター全体でこの時刻から数える。メモリ上だけに持つ。</remarks>
     private DateTime? _lastSnoozeNotifiedMinute;
 
@@ -37,7 +37,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     private bool _disposed;
 
     /// <summary>監視を始める</summary>
-    /// <param name="notify">通知を表示するコールバック (タイトル・項目・読み上げる文。読み上げ対象が無ければ文は null)。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
+    /// <param name="notify">通知を表示するコールバックで、引数はタイトル・項目・読み上げる文。読み上げ対象が無ければ文は null。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
     /// <exception cref="InvalidOperationException">すでに開始している。</exception>
     public void Start(Action<string, IReadOnlyList<NotificationItem>, string?> notify)
     {

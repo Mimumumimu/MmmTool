@@ -9,8 +9,8 @@ namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
 /// <summary>DB の接続の設定ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身に合わせて決める (お知らせが出入りしたら、決め直す)。
-/// サイズ変更・最大化・最小化はできない。保存・キャンセル・× のどれでも閉じる。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身に合わせて決める。お知らせが出入りしたら、決め直す。
+/// サイズ変更・最大化・最小化はできない。保存・キャンセル・× のどれでも閉じる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class ConnectionSettingsWindow : Window
 {
@@ -54,7 +54,7 @@ public sealed partial class ConnectionSettingsWindow : Window
         _modal.SetOwner(owner);
         this.UseFixedPresenter(isDialog: true, isResizable: false);
 
-        // 高さは中身を読み込んでから決め直す (OnRootLoaded)。ここでは仮の大きさで親の中央に置く
+        // 高さは中身を読み込んでから決め直す。OnRootLoaded で行う。ここでは仮の大きさで親の中央に置く
         this.ResizeClientDip(WindowWidth, 440, _modal.OwnerScale);
         _modal.CenterOnOwner();
 

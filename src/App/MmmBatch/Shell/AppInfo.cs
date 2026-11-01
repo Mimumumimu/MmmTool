@@ -1,7 +1,7 @@
 namespace MmmBatch.Shell;
 
 /// <summary>アプリの名前と、データ・ログの置き場所</summary>
-/// <remarks>アプリの名前・フォルダー名は、ここ 1 か所に持つ (多重起動の防止・エラーのダイアログ・データ・ログで共通)。</remarks>
+/// <remarks>アプリの名前・フォルダー名は、ここ 1 か所に持つ。多重起動の防止・エラーのダイアログ・データ・ログで共通。</remarks>
 public static class AppInfo
 {
     /// <summary>アプリの名前</summary>
@@ -16,7 +16,7 @@ public static class AppInfo
     public static string CacheDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Cache");
 
     /// <summary>エラーのログの保存先フォルダー</summary>
-    /// <remarks><see cref="DataDirectory"/> の下の <c>Logs</c>(アプリが書くものは Data にまとめ、EXE の横にフォルダーを増やさない)。</remarks>
+    /// <remarks><see cref="DataDirectory"/> の下の <c>Logs</c> で、アプリが書くものは Data にまとめ、EXE の横にフォルダーを増やさない。</remarks>
     public static string LogDirectory { get; } = Path.Combine(DataDirectory, "Logs");
 
     /// <summary>トレイのウィンドウクラス名</summary>

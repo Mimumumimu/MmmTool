@@ -10,7 +10,7 @@ namespace MmmToolWeb.Data.SqlServer.Passkeys;
 /// パスキー (<see cref="AppUserPasskey"/>)を、SQL Server の <c>dbo.AppUserPasskey</c> に保存する。
 /// </summary>
 /// <remarks>
-/// 作成者・更新者は、パスキーの持ち主 (本人が登録し、本人がログインで更新するため)。更新日時は DB サーバーの時計で書く。
+/// 作成者・更新者は、パスキーの持ち主。本人が登録し、本人がログインで更新するため。更新日時は DB サーバーの時計で書く。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database) : IAppUserPasskeyRepository
@@ -22,7 +22,7 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
     private const int DeviceNameMaxLength = 50;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<AppUserPasskey?> FindByCredentialIdAsync(byte[] credentialId, CancellationToken cancellationToken)
         => database.RunAsync<AppUserPasskey?>(async connection =>
         {
@@ -34,7 +34,7 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<AppUserPasskey>> GetByUserAsync(int appUserId, CancellationToken cancellationToken)
         => database.RunAsync<IReadOnlyList<AppUserPasskey>>(async connection =>
         {
@@ -52,7 +52,7 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     public Task AddAsync(AppUserPasskey passkey, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(passkey);
@@ -80,7 +80,7 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     public Task UpdateUsageAsync(int id, uint signCount, DateTime lastUsedAt, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
         {

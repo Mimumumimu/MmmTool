@@ -17,7 +17,7 @@ public enum WorkChangeKind
 /// <param name="Kind">変わり方の種類</param>
 /// <param name="ProjectId">加えた・外した案件の番号 (<see cref="WorkChangeKind.All"/> のときは 0)</param>
 /// <remarks>
-/// 受け取る側は、<see cref="WorkChangeKind.All"/> 以外の種類を、その案件の分だけ反映してよい。反映できないときは、全体を作り直せばよい (内容は、どちらでも同じになる)。
+/// 受け取る側は、<see cref="WorkChangeKind.All"/> 以外の種類を、その案件の分だけ反映してよい。反映できないときは、全体を作り直せばよい。内容は、どちらでも同じになる。
 /// </remarks>
 public sealed record WorkChangedEventArgs(WorkChangeKind Kind, int ProjectId = 0)
 {

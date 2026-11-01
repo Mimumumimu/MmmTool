@@ -1,10 +1,10 @@
 namespace MmmTool.Backlog.Core;
 
 /// <summary>
-/// Backlog の共有ファイル 1 件 (API の応答の 1 要素)。
+/// Backlog の共有ファイル 1 件で、API の応答の 1 要素。
 /// </summary>
 /// <remarks>
-/// 応答の JSON から読むので、プロパティ名は API の名前 (camelCase)に対応する (大文字小文字は区別しない)。使うものだけを持つ。
+/// 応答の JSON から読むので、プロパティ名は API の名前 (camelCase)に対応する。大文字小文字は区別しない。使うものだけを持つ。
 /// </remarks>
 public sealed class BacklogSharedFile
 {
@@ -20,7 +20,7 @@ public sealed class BacklogSharedFile
     /// <summary>ファイル名</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>大きさ (バイト)。応答に無い (null)ときは null</summary>
+    /// <summary>大きさで、単位はバイト。応答に無い (null)ときは null</summary>
     public long? Size { get; init; }
 
     /// <summary>更新日時。応答に無いときは null</summary>

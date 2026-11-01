@@ -17,6 +17,6 @@ public sealed record BacklogFileItem(BacklogSharedFile Source, ICommand Download
     /// <summary>大きさの表記</summary>
     public string SizeText => FileSizeFormatter.Format(Source.Size ?? 0);
 
-    /// <summary>更新日時の表記 (この PC のタイムゾーン)。応答に無いときは空</summary>
+    /// <summary>更新日時の表記で、この PC のタイムゾーン。応答に無いときは空</summary>
     public string UpdatedText => Source.Updated?.ToLocalTime().ToString("yyyy/MM/dd HH:mm") ?? "";
 }

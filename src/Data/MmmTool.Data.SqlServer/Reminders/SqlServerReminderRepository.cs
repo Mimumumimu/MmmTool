@@ -16,13 +16,13 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 読みはメモリから返す (通知の毎分の判定で、DB を毎回読まない)。見えるのは、宛先が自分のもの・全員宛て・自分が作成したリマインダーと、自分の対応状態だけ (通知と今日の対象にするのは、宛先が自分と全員宛てだけで、これは <see cref="ReminderService"/> が絞る)。
+/// 読みはメモリから返す。通知の毎分の判定で、DB を毎回読まないため。見えるのは、宛先が自分のもの・全員宛て・自分が作成したリマインダーと、自分の対応状態だけ。通知と今日の対象にするのは、宛先が自分と全員宛てだけで、これは <see cref="ReminderService"/> が絞る。
 /// 1 分ごとに、前回より後に更新された行だけを読んでメモリに重ね、前回と違えば <see cref="ExternalChanged"/> で知らせる。ほかの PC の変更を知るため。
 /// 最初と、ユーザーが替わったときと、管理者の無効の状態が変わったときと、差分を 30 回続けたときは、見える分を全件読み直す。
 /// </para>
 /// <para>
-/// 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する (DB の内容と同じ形になる。備考・リンクの空文字は null など)。
-/// 読み込みに失敗したときは、最後に読めた内容を返し続け、<see cref="LoadError"/> に残す (次の読み直しで、つながれば消える)。書き込みの失敗は、
+/// 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する。DB の内容と同じ形になり、備考・リンクの空文字は null などになる。
+/// 読み込みに失敗したときは、最後に読めた内容を返し続け、<see cref="LoadError"/> に残す。次の読み直しで、つながれば消える。書き込みの失敗は、
 /// 画面に出せるメッセージの <see cref="DataFileException"/>。同時編集の上書きは検出しない。
 /// </para>
 /// <para>
@@ -63,7 +63,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>読み直しの繰り返しを止める</summary>
     private readonly CancellationTokenSource _stop = new();
 
-    /// <summary>見えるリマインダー本体の一覧 (論理削除済みも含む)。書き換えず、読み直したときに差し替える</summary>
+    /// <summary>見えるリマインダー本体の一覧で、論理削除済みも含む。書き換えず、読み直したときに差し替える</summary>
     private volatile IReadOnlyList<Reminder> _reminders = [];
 
     /// <summary>自分の対応状態の一覧。書き換えず、読み直したときに差し替える</summary>
@@ -108,7 +108,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <remarks>DB を読めなかったとき (ユーザーを特定していない場合も含む)。最後に読めた内容は、そのまま使える。</remarks>
+    /// <remarks>DB を読めなかったとき。ユーザーを特定していない場合も含む。最後に読めた内容は、そのまま使える。</remarks>
     public string? LoadError => _loadError;
 
     /// <inheritdoc />
@@ -176,7 +176,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             await EnsureAllowedAsync(connection, transaction, userId, row.TargetUserId, cancellationToken).ConfigureAwait(false);
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            // 編集できるのは、見える人 (宛先が自分・全員宛て・自分が作成したもの)。削除済みを編集すると、復活する (呼ぶ側が IsDeleted を false にして渡す)
+            // 編集できるのは、宛先が自分・全員宛て・自分が作成したもので、見える人だけ。削除済みを編集すると、復活する。呼ぶ側が IsDeleted を false にして渡す
             command.CommandText =
                 """
                 UPDATE dbo.Reminder
@@ -194,7 +194,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <remarks>見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる (編集と同じ)。見えないときは、対象が無いのと同じ (false)。</remarks>
+    /// <remarks>見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる。編集と同じ。見えないときは、対象が無いのと同じで、false を返す。</remarks>
     public Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default)
         => WriteAsync(async (connection, transaction, userId) =>
         {
@@ -285,7 +285,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <summary>読み直しの繰り返しを止める</summary>
-    /// <remarks>何度呼んでもよい (DI が、同じインスタンスを、実体の型とインターフェースの両方の登録から、2 回破棄するため)。</remarks>
+    /// <remarks>何度呼んでもよい。DI が、同じインスタンスを、実体の型とインターフェースの両方の登録から、2 回破棄するため。</remarks>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -303,7 +303,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <param name="e">イベントの情報</param>
     /// <remarks>
     /// 読み直しの中でユーザーを特定したとき (ロックを持っている間)にも呼ばれるので、ロックを同期で待たず、別に読み直しを始める
-    /// (すでに読み直した内容と同じなら、何も通知しない)。最初の読み込みがまだなら、そちらが読むので、何もしない。
+    /// すでに読み直した内容と同じなら、何も通知しない。最初の読み込みがまだなら、そちらが読むので、何もしない。
     /// </remarks>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
@@ -632,7 +632,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <param name="work">開いた接続・トランザクション・今のユーザーの番号で行う書き込み</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの結果</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     private async Task<T> WriteAsync<T>(Func<SqlConnection, SqlTransaction, int, Task<T>> work, CancellationToken cancellationToken)
     {
         await EnsureStartedAsync(cancellationToken).ConfigureAwait(false);

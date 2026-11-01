@@ -113,7 +113,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     private void AddSession(CliSessionViewModel session)
     {
         // 作業ディレクトリが変わったら、タブ名を付け直す (同じフォルダ名のタブがあるかが変わるため)
-        // 左ペインの群が変わったら (選ばれているタブのときだけ)、左ペインも合わせる
+        // 選ばれているタブのときだけ、左ペインの群が変わったら、左ペインも合わせる
         session.PropertyChanged += (_, e) =>
         {
             switch (e.PropertyName)
@@ -154,7 +154,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     /// <summary>開いているタブ (並び順・選んでいるタブ)を保存する</summary>
     /// <remarks>
-    /// 失敗したときは、選んでいるタブに InfoBar で知らせる (タブは動かし続けられるため)。
+    /// 失敗したときは、選んでいるタブに InfoBar で知らせる。タブは動かし続けられるため。
     /// 保存は呼ばれた順に行われ、そのときの最新の内容が書かれる。
     /// </remarks>
     private async void PersistTabs()
@@ -187,7 +187,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     }
 
     /// <summary>ほかのタブが開いているフォルダの一覧</summary>
-    /// <param name="session">除くセッション (自分のタブ)。新しいタブを作るときは null</param>
+    /// <param name="session">除くセッションで、自分のタブ。新しいタブを作るときは null</param>
     /// <returns>ほかのタブの作業ディレクトリ</returns>
     private List<string> DirectoriesOpenInOthers(CliSessionViewModel? session)
         => [.. Sessions.Where(other => other != session).Select(other => other.WorkingDirectory)];
@@ -195,7 +195,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>新しいタブを開く</summary>
     /// <returns>タブを開く操作の完了を表すタスク</returns>
     /// <remarks>
-    /// 作業ディレクトリ変更ダイアログでフォルダを選んでから、そのフォルダでタブを作る (選ばずに作ると、ほかのタブと同じフォルダになりうるため)。
+    /// 作業ディレクトリ変更ダイアログでフォルダを選んでから、そのフォルダでタブを作る。選ばずに作ると、ほかのタブと同じフォルダになりうるため。
     /// ほかのタブが開いているフォルダは、ダイアログで断る。
     /// </remarks>
     [RelayCommand]
@@ -218,8 +218,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <param name="session">閉じるセッション</param>
     /// <returns>タブを閉じる操作の完了を表すタスク</returns>
     /// <remarks>
-    /// 閉じる前に、いつも確認する (中で動いている CLI の有無は確実には分からないため)。
-    /// 最後の 1 つは閉じない (ターミナルが 1 つも無い画面は意味が無いため)。
+    /// 閉じる前に、いつも確認する。中で動いている CLI の有無は確実には分からないため。
+    /// 最後の 1 つは閉じない。ターミナルが 1 つも無い画面は意味が無いため。
     /// </remarks>
     [RelayCommand]
     private async Task CloseSessionAsync(CliSessionViewModel session)
@@ -257,8 +257,8 @@ public sealed partial class CliAssistViewModel : ObservableObject
 
     #region 定型コマンド
 
-    /// <summary>左ペインで表示中のコマンド群 (シェル / AI セッション)。</summary>
-    /// <remarks>選ばれているセッションの値 (<see cref="CliSessionViewModel.Category"/>)。タブを切り替えると、そのタブの値に変わる。</remarks>
+    /// <summary>左ペインで表示中のコマンド群で、シェルか AI セッション。</summary>
+    /// <remarks>選ばれているセッションの <see cref="CliSessionViewModel.Category"/> の値。タブを切り替えると、そのタブの値に変わる。</remarks>
     public CommandCategory SelectedCategory
     {
         get => SelectedSession.Category;
@@ -338,9 +338,9 @@ public sealed partial class CliAssistViewModel : ObservableObject
     /// <summary>定型コマンドを既定の内容に作り直す (初期化)</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
-    /// 初期設定ダイアログ (警告を出して、確認を兼ねる)で、使うツールと環境を (今の値を選んだ状態から)選び直し、その既定の内容で上書きする (今の内容は引き継がない)。
-    /// 全タブに効く。ターミナルは、環境が変わらなくても、いつも起動し直す (ユーザーの決定)。動いている CLI は終了する。
-    /// 環境が変わったときは、添付を外す (パスの形・一時保存先が環境ごとに違うため)。一時保存した添付は消す。
+    /// 初期設定ダイアログ (警告を出して、確認を兼ねる)で、使うツールと環境を (今の値を選んだ状態から)選び直し、その既定の内容で上書きする。今の内容は引き継がない。
+    /// 全タブに効く。ターミナルは、環境が変わらなくても、いつも起動し直す。これはユーザーの決定による。動いている CLI は終了する。
+    /// 環境が変わったときは、添付を外す。パスの形・一時保存先が環境ごとに違うため。一時保存した添付は消す。
     /// </remarks>
     [RelayCommand]
     private async Task ResetCommandsAsync()
@@ -405,7 +405,7 @@ public sealed partial class CliAssistViewModel : ObservableObject
         CommandItems = items;
     }
 
-    /// <summary>ツリーの要素を実行する (コマンドなら送信、作業ディレクトリ変更ならダイアログ)。</summary>
+    /// <summary>ツリーの要素を実行する。コマンドなら送信、作業ディレクトリ変更ならダイアログを開く。</summary>
     /// <param name="item">実行するツリーの要素</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>送信と作業ディレクトリ変更は、選ばれているタブへ向ける。</remarks>

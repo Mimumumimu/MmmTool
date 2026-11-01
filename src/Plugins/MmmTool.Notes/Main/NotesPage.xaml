@@ -17,7 +17,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- 見出しと、毎日使う操作 (新規)。表示を切り替える部品とは並べない -->
+        <!-- 見出しと、毎日使う操作で、新規。表示を切り替える部品とは並べない -->
         <Grid ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -132,7 +132,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- 行の間は、行ごとの上の余白で取る (行の間隔の指定だと、閉じている InfoBar の行の分も空いてしまうため)。閉じている InfoBar は、自分自身は残って余白が効くので、Visibility でも畳む -->
+        <!-- 行の間は、行ごとの上の余白で取る。行の間隔の指定だと、閉じている InfoBar の行の分も空いてしまうため。閉じている InfoBar は、自分自身は残って余白が効くので、Visibility でも畳む -->
         <InfoBar
             Grid.Row="2"
             Margin="0,12,0,0"

@@ -14,10 +14,10 @@ namespace MmmTool.Data.SqlServer.WinUI.Connection;
 /// </summary>
 /// <remarks>
 /// 設定ページの「保存先」と、初回の保存先の選択の画面が、同じ入力欄 (<see cref="DatabaseConnectionForm"/>)として使う。ログインは、ユーザー名とパスワードで固定する。
-/// 「接続を確認」で、つながると分かるまでは、画面の「決定」・「保存」を押せない (<see cref="IsVerified"/>。入力を直したら、また確認が要る)。
-/// パスワードは、入力したときだけ保存する (空のままなら、登録済みのものを変えない)。保存・接続の確認の結果は、<see cref="Error"/> / <see cref="Success"/> に出す。
-/// サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバー (自己署名など)のときだけ、初めての接続で 1 回、「接続する」かを聞き
-/// (<see cref="NeedsCertificateConsent"/>)、答えた内容を、サーバーとセットで覚える (サーバーを変えたときは、また聞く)。
+/// 「接続を確認」で、つながると分かるまでは、画面の「決定」・「保存」を押せない。判定は <see cref="IsVerified"/> で行い、入力を直したら、また確認が要る。
+/// パスワードは、入力したときだけ保存する。空のままなら、登録済みのものを変えない。保存・接続の確認の結果は、<see cref="Error"/> / <see cref="Success"/> に出す。
+/// サーバーの証明書は、画面の項目にしない。証明書を信頼できないサーバー (自己署名など)のときだけ、初めての接続で 1 回、「接続する」かを聞く。
+/// 聞くかどうかは <see cref="NeedsCertificateConsent"/> で決める。答えた内容は、サーバーとセットで覚える。サーバーを変えたときは、また聞く。
 /// </remarks>
 public sealed partial class DatabaseConnectionViewModel : ObservableObject
 {
@@ -120,7 +120,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     /// <param name="mode">保存する保存先の種類</param>
     /// <returns>すべて保存できたら true。入力が足りない・つながらない・保存できなかったときは、エラーを出して false</returns>
     /// <remarks>
-    /// 保存先が DB のときは、サーバーとデータベース名が要る。「接続を確認」で、つながると確認できていなければ、保存の前に、つながることを確かめる (つながらない設定を保存しないため)。
+    /// 保存先が DB のときは、サーバーとデータベース名が要る。「接続を確認」で、つながると確認できていなければ、保存の前に、つながることを確かめる。つながらない設定を保存しないため。
     /// 証明書を聞かれて「やめる」と答えたときも false。パスワードは、入力があるときだけ保存する。
     /// </remarks>
     public async Task<bool> SaveAsync(DatabaseMode mode)
@@ -203,7 +203,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     }
 
     /// <summary>証明書について、「接続する」と答える</summary>
-    /// <remarks>今のサーバーに対して、証明書を信頼する答えを覚えて、接続をやり直させる (保存するのは、「保存」・「決定」のとき)。</remarks>
+    /// <remarks>今のサーバーに対して、証明書を信頼する答えを覚えて、接続をやり直させる。保存するのは、「保存」・「決定」のとき。</remarks>
     [RelayCommand]
     private void AcceptCertificate()
     {

@@ -21,7 +21,7 @@ namespace MmmTool.WorkItems.Main;
 /// 作業管理のページ。木構造の表・入力日・表示列・表示する案件を扱う。
 /// </summary>
 /// <remarks>
-/// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する (<c>Commit～</c>)。入力が受け入れられなかったときは、
+/// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する。保存は <c>Commit～</c> が行う。入力が受け入れられなかったときは、
 /// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
 /// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
@@ -235,7 +235,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         _active = true;
         _synced = false;
 
-        // 「自分の担当だけ」は、スケジュールでも切り替えられる (同じ設定)。画面を開くたびに、設定の値に合わせる (表は、作り直す)
+        // 「自分の担当だけ」は、スケジュールでも切り替えられる。同じ設定を使う。画面を開くたびに、設定の値に合わせる。表は、作り直す
         var mineOnly = _settings.Get(WorkItemSettingKeys.MineOnly, false);
         if (mineOnly != MineOnly)
         {
@@ -772,7 +772,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>作業報告の画面を開く (「作業報告」ボタンから。報告日の初期値は、作業管理で開いている日)</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
-    /// <remarks>日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く (保存は、入力欄のフォーカスが外れたときに始まる)。</remarks>
+    /// <remarks>日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く。保存は、入力欄のフォーカスが外れたときに始まる。</remarks>
     [RelayCommand]
     private async Task OpenReportAsync()
     {
@@ -1008,7 +1008,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>
     /// <param name="row">行</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>リンクは、登録されたものを種類を問わずそのまま開く (リンクの機能と同じ。開けなかったときは、理由を画面に出す)。</remarks>
+    /// <remarks>リンクは、登録されたものを種類を問わずそのまま開く。リンクの機能と同じで、開けなかったときは、理由を画面に出す。</remarks>
     public async Task OpenLinkAsync(WorkItemRow row)
     {
         if (!row.HasLink)
@@ -1216,7 +1216,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     private async Task RefreshMasterAsync() => _masterEmpty = (await _service.SearchProjectsAsync("", false, false, false, 0, 1)).Count == 0;
 
     /// <summary>木構造から、見えている行の一覧を作り直す</summary>
-    /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する (入力欄の位置とフォーカスを保つため)。</remarks>
+    /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する。入力欄の位置とフォーカスを保つため。</remarks>
     private void Rebuild()
     {
         if (!ReferenceEquals(_choices.Book, _service.Codes))
@@ -1284,7 +1284,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>行が開いているか</summary>
     /// <param name="node">木の行</param>
     /// <returns>開いていれば true</returns>
-    /// <remarks>中身がすべて完了して日がたったグループは、既定で畳む (利用者が開いたら開く)。作業が 1 件も無いグループ (空)が下にあるときは畳まない (消えたように見えないため)。</remarks>
+    /// <remarks>中身がすべて完了して日がたったグループは、既定で畳む。利用者が開いたら開く。作業が 1 件も無いグループ (空)が下にあるときは畳まない。消えたように見えないため。</remarks>
     private bool IsExpanded(WorkNode node)
     {
         var collapsedByDefault = node.Key.Kind == WorkRowKind.Group && IsPastFinished(node)
@@ -1292,7 +1292,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return _expanded.Contains(node.Key) || (!_collapsed.Contains(node.Key) && !collapsedByDefault);
     }
 
-    /// <summary>木の行から、表の行を作り (使い回し)、見えている行を、木の順に並べる</summary>
+    /// <summary>木の行から、表の行を使い回しで作り、見えている行を、木の順に並べる</summary>
     /// <param name="node">木の行</param>
     /// <param name="level">字下げの段</param>
     /// <param name="target">見えている行の並び (ここに足す)</param>
@@ -1339,7 +1339,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>サービスの内容が変わったときに、表を更新する (表示する案件の変更は、その案件の行だけで応える)</summary>
     /// <param name="args">変更の内容</param>
     /// <remarks>
-    /// ページを開いていない間は、作らない (開くたびに、読み直して作るため。スケジュールでの付け外しのたびに、見えていない表を作り直さないため)。
+    /// ページを開いていない間は、作らない。開くたびに、読み直して作るため。スケジュールでの付け外しのたびに、見えていない表を作り直さないため。
     /// 案件の中身は、ほかの案件に依存しないので、外した案件は行のかたまりを抜くだけ、加えた案件はその案件の分だけ作って、名前の順の位置へ差し込む。
     /// 外した案件のうち、閉じていて表に出ていなかった行は、次に全体を作り直すときに、使い回しの置き場から外れる。
     /// </remarks>

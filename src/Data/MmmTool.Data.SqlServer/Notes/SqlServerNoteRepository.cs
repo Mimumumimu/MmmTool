@@ -14,9 +14,9 @@ namespace MmmTool.Data.SqlServer.Notes;
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <remarks>
-/// 読むたびに DB から読む (表示している日の分だけ)。操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
+/// 読むたびに DB から読む。読むのは表示している日の分だけ。操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
 /// 読み書きの SQL は、すべて「見える」条件 (全員に見えるものか、自分が書いたもの)を持つ。見えないノートを、番号だけで操作させないため。
-/// 「自分だけ」の切り替えは、書いた人だけができる (ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため)。
+/// 「自分だけ」の切り替えは、書いた人だけができる。ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため。
 /// 更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
 /// </remarks>
 public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentUser currentUser) : INoteRepository
@@ -229,13 +229,13 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         command.Parameters.Add(new SqlParameter("@Priority", SqlDbType.TinyInt) { Value = (byte)input.Priority });
         command.Parameters.Add(new SqlParameter("@Title", SqlDbType.NVarChar, NoteLimits.TitleMaxLength) { Value = input.Title });
 
-        // 本文は上限を決めない (nvarchar(max))。サイズ -1 が max
+        // 本文は上限を決めず、nvarchar(max) にする。サイズ -1 が max
         command.Parameters.Add(new SqlParameter("@Body", SqlDbType.NVarChar, -1) { Value = input.Body });
     }
 
     /// <summary>今のユーザーの番号を取得する</summary>
     /// <returns>今のユーザーの番号</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない (ログインが必要)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     private int RequireUserId()
     {
         const string Message = "ユーザーが特定されていないため、ノートを使えません (ログインが必要です)。";

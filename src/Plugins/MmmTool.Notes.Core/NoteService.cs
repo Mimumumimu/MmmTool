@@ -64,8 +64,8 @@ public sealed class NoteService(INoteRepository repository, TimeProvider time)
     /// <param name="input">入力内容</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した内容</returns>
-    /// <exception cref="ArgumentException">入力内容が正しくない (<see cref="NoteInput.Validate"/> で先に調べる)。</exception>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="ArgumentException">入力内容が正しくない。<see cref="NoteInput.Validate"/> で先に調べる。</exception>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった。メッセージは画面に出せる。</exception>
     public Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)
         => repository.AddAsync(Checked(input), cancellationToken);
 
@@ -75,7 +75,7 @@ public sealed class NoteService(INoteRepository repository, TimeProvider time)
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>変更したら true。見えない・存在しないときは false</returns>
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> UpdateAsync(int id, NoteInput input, CancellationToken cancellationToken = default)
         => repository.UpdateAsync(id, Checked(input), cancellationToken);
 
@@ -84,7 +84,7 @@ public sealed class NoteService(INoteRepository repository, TimeProvider time)
     /// <param name="isDeleted">削除するなら true、復元するなら false</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>変更したら true。見えない・存在しないときは false</returns>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった。メッセージは画面に出せる。</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
         => repository.SetDeletedAsync(id, isDeleted, cancellationToken);
 

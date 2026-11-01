@@ -380,7 +380,7 @@ public sealed partial class NotesViewModel(
     /// <summary>本文のリンクを、既定のアプリで開く</summary>
     /// <param name="uri">リンク先 (http・https・file)</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>ファイル (<c>file:</c>)は、パスにして開く (フォルダは、エクスプローラーで開く)。開けなかったときは、失敗を表示する。</remarks>
+    /// <remarks>ファイル (<c>file:</c>)は、パスにして開く。フォルダは、エクスプローラーで開く。開けなかったときは、失敗を表示する。</remarks>
     public async Task OpenLinkAsync(Uri uri)
     {
         try
@@ -425,7 +425,7 @@ public sealed partial class NotesViewModel(
     /// <summary>表示する日のノートを読み込んで、ページを作り直す</summary>
     /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は、先頭から表示する)</param>
     /// <returns>読み込みと表示の完了を表すタスク</returns>
-    /// <remarks>失敗は、画面に出す (続けられる失敗。今の表示は変えない)。読み直しの結果が前と同じなら、ページを作り直さない。</remarks>
+    /// <remarks>失敗は、画面に出す。続けられる失敗なので、今の表示は変えない。読み直しの結果が前と同じなら、ページを作り直さない。</remarks>
     private async Task ReloadAsync(bool preserveState)
     {
         var version = ++_version;

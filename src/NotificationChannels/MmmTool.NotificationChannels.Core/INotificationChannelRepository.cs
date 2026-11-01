@@ -13,14 +13,14 @@ public interface INotificationChannelRepository
     /// <remarks>DB モードは true、ローカルモードは false。false のとき、ほかの操作は <see cref="NotSupportedException"/>。</remarks>
     bool IsAvailable { get; }
 
-    /// <summary>今のユーザーの番号 (<c>AppUser.Id</c>)。まだ特定していない・ローカルモードは 0</summary>
+    /// <summary>今のユーザーの番号で、<c>AppUser.Id</c> の値。まだ特定していない・ローカルモードは 0</summary>
     int CurrentUserId { get; }
 
     /// <summary>自分が登録した送信先の一覧を取得する</summary>
     /// <param name="includeDeleted">論理削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信先の一覧 (番号の順)</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     Task<IReadOnlyList<NotificationChannel>> GetChannelsAsync(bool includeDeleted, CancellationToken cancellationToken = default);
 
     /// <summary>自分が登録した、ある種類の送信先の要約を取得する</summary>
@@ -50,7 +50,7 @@ public interface INotificationChannelRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>追加した内容 (保存先が決めた番号つき)</returns>
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default);
 
     /// <summary>自分が登録した送信先を、同じ番号の内容で置き換える</summary>
@@ -58,7 +58,7 @@ public interface INotificationChannelRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があって置き換えたとき true (無い・自分が登録したものでないとき false)</returns>
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default);
 
     /// <summary>自分が登録した送信先を、同じ番号の内容で置き換え、削除済みなら削除を戻す</summary>
@@ -75,6 +75,6 @@ public interface INotificationChannelRepository
     /// <param name="isDeleted">削除済みにするか (false なら解除)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true (無い・自分が登録したものでないとき false)</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default);
 }

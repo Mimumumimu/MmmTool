@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <!--
-      ターミナルの定型コマンドから呼ぶ補助スクリプト ({AppDir}\Assets\Tools\...)。参照するアプリの出力フォルダー (Assets\Tools)へコピーする。
+      ターミナルの定型コマンドから呼ぶ補助スクリプトで、{AppDir}\Assets\Tools\... に置く。参照するアプリの出力フォルダー (Assets\Tools)へコピーする。
       WinUI のライブラリの Content や Assets フォルダーの中身は、コピー先にプロジェクト名のフォルダーが付くため、Assets の外に置き、None で指定する (既定で None に含まれるので Update。SDK のターミナルの資材と同じ形)
     -->
     <None Update="Tools\*" Link="Assets\Tools\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

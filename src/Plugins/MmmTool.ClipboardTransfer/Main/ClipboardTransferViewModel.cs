@@ -10,7 +10,7 @@ using MmmTool.ClipboardTransfer.Core;
 namespace MmmTool.ClipboardTransfer.Main;
 
 /// <summary>
-/// クリップボード転送ページ。ファイルをクリップボードに載せ (送信)、クリップボードからファイルを保存する (受信)。
+/// クリップボード転送ページ。ファイルをクリップボードに載せる送信と、クリップボードからファイルを保存する受信を行う。
 /// </summary>
 /// <param name="transfer">変換・保存の処理</param>
 /// <param name="clipboard">クリップボード</param>

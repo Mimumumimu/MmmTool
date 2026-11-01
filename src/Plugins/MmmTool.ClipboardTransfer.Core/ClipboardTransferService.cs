@@ -28,7 +28,7 @@ public sealed class ClipboardTransferService
     /// <summary>クリップボードの JSON を、転送データに戻す</summary>
     /// <param name="json">クリップボードのテキスト</param>
     /// <returns>転送データに戻した結果</returns>
-    /// <remarks>ファイル名・Base64 が正しいかまで確かめる (保存の途中で壊れたファイルが混ざらないよう、保存の前に全件を確かめる)。</remarks>
+    /// <remarks>ファイル名・Base64 が正しいかまで確かめる。保存の途中で壊れたファイルが混ざらないよう、保存の前に全件を確かめる。</remarks>
     public Task<TransferDecodeResult> DecodeAsync(string json) => Task.Run(() => Decode(json));
 
     /// <summary>保存先のパスを返す</summary>

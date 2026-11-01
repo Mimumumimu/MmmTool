@@ -8,10 +8,10 @@ namespace MmmTool.Backlog.Core;
 /// Backlog の REST API (API キー認証)で、共有ファイルの一覧の取得とダウンロードを行う。
 /// </summary>
 /// <remarks>
-/// <see cref="HttpClient"/> はアプリ全体で 1 つを使い回す (ソケットの枯渇を避けるため、このクラスを Singleton にする)。接続は定期的に張り直す (DNS の変更に追従するため)。
-/// タイムアウトは長め (5 分)。ダウンロードは、応答の先頭を受けたあとはタイムアウトの対象にならないので、大きなファイルも取れる。
+/// <see cref="HttpClient"/> はアプリ全体で 1 つを使い回す。ソケットの枯渇を避けるため、このクラスを Singleton にする。接続は定期的に張り直す。DNS の変更に追従するため。
+/// タイムアウトは長めで、5 分。ダウンロードは、応答の先頭を受けたあとはタイムアウトの対象にならないので、大きなファイルも取れる。
 /// 通信は常に https。API キーはクエリに入るので、エラーのメッセージには URL を入れない。
-/// 失敗は <see cref="BacklogException"/> で上げる (呼び出し元が画面に出す)。
+/// 失敗は <see cref="BacklogException"/> で上げる。呼び出し元が画面に出す。
 /// </remarks>
 public sealed class BacklogClient : IDisposable
 {
@@ -66,7 +66,7 @@ public sealed class BacklogClient : IDisposable
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存先の隣の一時ファイルに書いてから置き換える (途中で失敗しても、元のファイルが壊れない)。メモリには溜めず、受けながら書く。
+    /// 保存先の隣の一時ファイルに書いてから置き換える。途中で失敗しても、元のファイルが壊れない。メモリには溜めず、受けながら書く。
     /// 保存先に書けないとき (ロック・権限など)は、<see cref="IOException"/> / <see cref="UnauthorizedAccessException"/> をそのまま上げる。
     /// </remarks>
     /// <exception cref="BacklogException">通信に失敗した。</exception>

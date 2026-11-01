@@ -9,7 +9,7 @@ namespace MmmBatch.Sending;
 /// 送信の履歴の画面。このアプリを起動してから送った 1 回ごとの記録 (メモリ上)を、機能ごとに、新しい順に、最大 <see cref="MaxCount"/> 件並べる。
 /// </summary>
 /// <remarks>
-/// 起動時は空 (揮発性。ログのファイルは読まない)。機能の仕事の結果が変わったとき (送ったとき)に読み直す。
+/// 起動時は空で、揮発性。ログのファイルは読まない。機能の仕事の結果が変わったとき (送ったとき)に読み直す。
 /// 機能ごとに、この型を継承して、機能のキー (<see cref="SendLogEntry.Source"/>)と仕事を渡す。
 /// </remarks>
 public partial class SendHistoryViewModel : SendViewModelBase
@@ -24,7 +24,7 @@ public partial class SendHistoryViewModel : SendViewModelBase
     private readonly string _source;
 
     /// <summary>ViewModel を作る</summary>
-    /// <param name="source">この履歴の機能のキー (<see cref="SendLogEntry.Source"/>)。この機能の行だけを出す</param>
+    /// <param name="source">この履歴の機能のキーで、<see cref="SendLogEntry.Source"/> の値。この機能の行だけを出す</param>
     /// <param name="history">起動してから送った分の記録</param>
     /// <param name="job">この履歴の機能の仕事</param>
     /// <param name="dialogs">接続の設定の画面を開く</param>

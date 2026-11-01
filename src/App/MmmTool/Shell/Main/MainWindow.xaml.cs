@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
         this.KeepClickableInTitleBar(HistoryButtons);
-        // 前回の位置と大きさを復元する (無い・画面外のときは、既定の 1280×720 DIP。DPI に合わせる)。変わったら保存する。ウィンドウが閉じたら自分で後始末する
+        // 前回の位置と大きさを復元する。無い・画面外のときは、既定の 1280×720 DIP で、DPI に合わせる。変わったら保存する。ウィンドウが閉じたら自分で後始末する
         WindowBoundsKeeper.Attach(this, positions, "MainWindow", DefaultWidth, DefaultHeight);
         AppWindow.Closing += OnClosing;
     }

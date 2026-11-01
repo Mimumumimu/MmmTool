@@ -8,9 +8,9 @@ namespace MmmTool.Reminders.List;
 
 /// <summary>リマインダー一覧ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる (最大化・最小化はできない)。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す (閉じたウィンドウは再表示できないため)。
-/// 一覧の中身は <see cref="ReminderListControl"/> (ページと共有)。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 一覧の中身は <see cref="ReminderListControl"/> で、ページと共有する。
 /// </remarks>
 public sealed partial class ReminderListWindow : Window
 {
@@ -18,7 +18,7 @@ public sealed partial class ReminderListWindow : Window
     private const double InitialWidth = 760;
     /// <summary>最初の高さ (DIP)</summary>
     private const double InitialHeight = 560;
-    /// <summary>最小の幅 (DIP)。日付・曜日・時刻の列と件名が少し見える幅</summary>
+    /// <summary>最小の幅で、単位は DIP。日付・曜日・時刻の列と件名が少し見える幅</summary>
     private const double MinimumWidth = 560;
     /// <summary>最小の高さ (DIP)</summary>
     private const double MinimumHeight = 360;

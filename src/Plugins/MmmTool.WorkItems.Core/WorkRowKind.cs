@@ -1,7 +1,7 @@
 namespace MmmTool.WorkItems.Core;
 
 /// <summary>表の行の種類</summary>
-/// <remarks>作ったときに決め、あとから変えない (理由は docs/specs/work-items.md)。案件・グループ・作業は別の表に持つので、番号は種類ごとに別の連番。</remarks>
+/// <remarks>作ったときに決め、あとから変えない。理由は docs/specs/work-items.md にある。案件・グループ・作業は別の表に持つので、番号は種類ごとに別の連番。</remarks>
 public enum WorkRowKind
 {
     /// <summary>案件 (案件マスターの 1 件。一番上の行)</summary>

@@ -8,7 +8,7 @@ public static class UrlDecoder
     /// <returns>戻した文字列。UTF-8 として読めない %XX の並びは、そのまま残る</returns>
     /// <remarks>
     /// `%2F` や `%20` のような記号も戻す。結果は読むための文字列で、リンクとして開く用途ではない。
-    /// `+` は空白に直さない (パスの `+` は、そのままの文字のため)。
+    /// `+` は空白に直さない。パスの `+` は、そのままの文字のため。
     /// </remarks>
     public static string Decode(string text) => Uri.UnescapeDataString(text);
 }

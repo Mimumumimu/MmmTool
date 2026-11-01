@@ -15,7 +15,7 @@ public sealed record WorkChanges(
     IReadOnlyList<WorkRecord> Records,
     IReadOnlyList<CodeMasterEntry> Codes)
 {
-    /// <summary>届いた行のうち、いちばん新しい更新日時 (次の基準の時刻にする)。1 行も無ければ null</summary>
+    /// <summary>届いた行のうち、いちばん新しい更新日時で、次の基準の時刻にする。1 行も無ければ null</summary>
     public DateTimeOffset? MaxUpdatedAt => new[]
     {
         Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),

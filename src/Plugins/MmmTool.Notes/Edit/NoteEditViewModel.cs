@@ -88,7 +88,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// <summary>新規の登録・編集の内容を読み込む</summary>
     /// <param name="note">編集するノート。新規なら null</param>
     /// <param name="defaultStartDate">新規のときの、開始日の初期値</param>
-    /// <remarks>新規の終了日は、開始日と同じ (1 日だけ。無期限は、利用者が空にして選ぶ)。</remarks>
+    /// <remarks>新規の終了日は、開始日と同じで、1 日だけ。無期限は、利用者が空にして選ぶ。</remarks>
     public void Load(Note? note, DateOnly defaultStartDate)
     {
         _target = note;

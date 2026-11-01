@@ -3,13 +3,13 @@ using System.Globalization;
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// 本文に付けられる文字色のパレット (11 系統 × 4 段階の 44 色)。
+/// 本文に付けられる文字色のパレットで、11 系統 × 4 段階の 44 色。
 /// </summary>
 /// <remarks>
 /// 色は、系統 (灰色・赤・橙など)と段階 (濃い〜薄い)で決める。本文には、ライトモードで読める色の値 (<see cref="NoteColor.Hex"/>)が入り、
-/// 表示のときに、ダークモードでは同じ系統の別の色 (<see cref="NoteColor.DarkHex"/>)に差し替える。パレットに無い値は、色を付けない (標準の文字色になる)。
+/// 表示のときに、ダークモードでは同じ系統の別の色 (<see cref="NoteColor.DarkHex"/>)に差し替える。パレットに無い値は、色を付けず、標準の文字色になる。
 /// 全部の色は、カードの背景 (ライト <see cref="LightBackground"/>・ダーク <see cref="DarkBackground"/>)に対して、本文の文字として読める明るさ (コントラスト比 4.5 以上)になるよう、計算で決める。
-/// 「黒」は置かない (ダークモードで見えなくなるため)。色を外すときは「標準」にする。
+/// 「黒」は置かない。ダークモードで見えなくなるため。色を外すときは「標準」にする。
 /// </remarks>
 public static class NoteColorPalette
 {
@@ -28,7 +28,7 @@ public static class NoteColorPalette
     /// <summary>ダークモードで、背景との間に確保するコントラスト比 (段階ごと。濃い順)</summary>
     private static readonly double[] DarkContrasts = [4.8, 6.5, 8.5, 11.0];
 
-    /// <summary>系統 (名前・色相・彩度)。灰色だけ彩度 0</summary>
+    /// <summary>系統で、名前・色相・彩度。灰色だけ彩度 0</summary>
     private static readonly (string Name, double Hue, double Saturation)[] Families =
     [
         ("灰色", 0, 0),
@@ -151,7 +151,7 @@ public static class NoteColorPalette
     /// <summary>相対輝度 (WCAG)を求める</summary>
     /// <param name="rgb">赤・緑・青 (0〜1)</param>
     /// <returns>相対輝度</returns>
-    /// <remarks>丸めた 8 ビットの値で求める (表示される色のコントラスト比と合わせるため)。</remarks>
+    /// <remarks>丸めた 8 ビットの値で求める。表示される色のコントラスト比と合わせるため。</remarks>
     private static double Luminance((double R, double G, double B) rgb)
     {
         static double Linear(double channel)

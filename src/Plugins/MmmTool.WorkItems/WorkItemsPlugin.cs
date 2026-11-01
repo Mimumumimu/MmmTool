@@ -22,7 +22,7 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
     /// <inheritdoc />
     /// <remarks>
     /// 保存先 (<see cref="IWorkItemRepository"/>)は登録しない。ローカルは SQLite、DB モードは SQL Server で、ホストが設定 (<c>Database.Mode</c>)で選んで登録する。
-    /// 設定ページでオン・オフできる (オフの間は、サイドバーに出さず、起動時の読み込みもしない)。
+    /// 設定ページでオン・オフできる。オフの間は、サイドバーに出さず、起動時の読み込みもしない。
     /// </remarks>
     public void Register(IServiceCollection services)
     {

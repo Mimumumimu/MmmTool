@@ -22,7 +22,7 @@
                 <Setter Property="FontSize" Value="12" />
             </Style>
 
-            <!-- 1 行 (カード)。左から 状態の色の縦線 / 時刻 / 件名 (リンクがあれば押して開く) / 状態の切り替え -->
+            <!-- 1 行で、カード。左から 状態の色の縦線 / 時刻 / 件名 (リンクがあれば押して開く) / 状態の切り替え -->
             <DataTemplate x:Key="RowTemplate" x:DataType="local:ReminderTodayItem">
                 <Grid
                     Height="48"
@@ -155,7 +155,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- タイトル帯 (ドラッグで移動できる)。右上の × と重ならないよう右に余白を空ける -->
+        <!-- タイトル帯で、ドラッグで移動できる。右上の × と重ならないよう右に余白を空ける -->
         <Grid
             x:Name="TitleBarArea"
             Grid.Row="0"

@@ -12,8 +12,8 @@ namespace MmmTool.Reminders.List;
 /// リマインダー一覧画面。全リマインダーを並べ、追加・編集・削除・コピーして新規追加・完全削除を行う。
 /// </summary>
 /// <remarks>
-/// 並びは 日付 → 時刻 → 番号 の昇順 (曜日指定は日付なしの特殊値なので日付指定の後ろに来る)。
-/// 保存内容が変わったら (<see cref="ReminderService.Changed"/>)一覧を読み直す。UI スレッドで作ること (変更の通知を作ったスレッドへ戻して反映するため)。
+/// 並びは 日付 → 時刻 → 番号 の昇順。曜日指定は日付なしの特殊値なので日付指定の後ろに来る。
+/// 保存内容が変わったら (<see cref="ReminderService.Changed"/>)一覧を読み直す。UI スレッドで作ること。変更の通知を作ったスレッドへ戻して反映するため。
 /// 画面を閉じたら <see cref="ReminderViewModelBase.Dispose"/> で購読をやめる。
 /// </remarks>
 public sealed partial class ReminderListViewModel : ReminderViewModelBase
@@ -56,7 +56,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     public partial bool ShowDeleted { get; set; }
 
     /// <summary>過去の予定 (日付が昨日以前の日付指定)も表示するか</summary>
-    /// <remarks>既定はオフ (終わった予定が一覧の上に並んで邪魔になるため)。今日の分は時刻が過ぎていても表示する。</remarks>
+    /// <remarks>既定はオフ。終わった予定が一覧の上に並んで邪魔になるため。今日の分は時刻が過ぎていても表示する。</remarks>
     [ObservableProperty]
     public partial bool ShowPast { get; set; }
 
@@ -134,7 +134,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
 
     /// <summary>一覧を読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
-    /// <remarks>変わった行だけを差し替える (全部を作り直すとスクロール位置が先頭へ戻るため)。</remarks>
+    /// <remarks>変わった行だけを差し替える。全部を作り直すとスクロール位置が先頭へ戻るため。</remarks>
     protected override async Task RefreshAsync()
     {
         var version = NextVersion();

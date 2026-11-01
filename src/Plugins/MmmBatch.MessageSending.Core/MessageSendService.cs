@@ -12,8 +12,8 @@ namespace MmmBatch.MessageSending.Core;
 /// <para>
 /// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (送信待ち・送信中・失敗で上限に達していない通知の状態)ごとに、送る権利を取ってから送る。
 /// 権利は、読んだ内容と同じときだけ更新できる条件つきの更新で取る。取れた (1 行更新できた)ものだけが送る。
-/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す (決まりは <see cref="SendRetryPolicy"/>)。
-/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる (取りこぼすより、重複を許す側に倒す)。
+/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す。決まりは <see cref="SendRetryPolicy"/> にある。
+/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる。取りこぼすより、重複を許す側に倒す。
 /// </para>
 /// <para>
 /// リマインダーと違い、日付・時刻は見ない。書かれた順に、すぐ送る。1 秒おきの実行で拾うので、書いてから送るまで最大で約 1 秒かかる。
@@ -64,7 +64,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>
-    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終える (次の分に、また試す)。送信の失敗は、行の状態に残す。
+    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終え、次の分に、また試す。送信の失敗は、行の状態に残す。
     /// 気づいてほしい失敗は、送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
     /// </remarks>
     public async Task RunAsync(DateTime now, CancellationToken cancellationToken = default)
@@ -114,7 +114,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <summary>「最近の依頼」に出す依頼を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>依頼を新しい順に、最大 <see cref="RecentCount"/> 件。日付・状態では絞らない</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(CancellationToken cancellationToken = default)
         => store.GetRecentAsync(RecentCount, cancellationToken);
 
@@ -123,10 +123,10 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     /// <remarks>
-    /// 送信済み・回数の上限に達した失敗も送り直せる (回数は数え続ける)。
+    /// 送信済み・回数の上限に達した失敗も送り直せる。回数は数え続ける。
     /// 同じ送信を、別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
     /// </remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった。メッセージは画面に出せる。</exception>
     public async Task ResendAsync(MessageSendTarget target, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -194,7 +194,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <param name="error">失敗の理由。成功は空文字。送信のログにだけ残す</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
-    /// <remarks>ログを書けなくても、送信そのものは失敗にしない (気づけるよう、通知は出す)。</remarks>
+    /// <remarks>ログを書けなくても、送信そのものは失敗にしない。気づけるよう、通知は出す。</remarks>
     private async Task FinishAsync(MessageSendTarget target, MessageDeliveryItem claimed, SendStatus status, string error, CancellationToken cancellationToken)
     {
         if (status == SendStatus.Sent)

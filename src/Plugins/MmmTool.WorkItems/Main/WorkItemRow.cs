@@ -7,8 +7,8 @@ namespace MmmTool.WorkItems.Main;
 /// <summary>表の 1 行 (案件・グループ・作業のどれかを、表の列に出す形にしたもの)</summary>
 /// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
 /// <remarks>
-/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える (入力欄の位置・フォーカスを保つため)。
-/// 案件・グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示 (入力はできない)。
+/// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える。入力欄の位置・フォーカスを保つため。
+/// 案件・グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示で、入力はできない。
 /// </remarks>
 public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjectBlockRow
 {
@@ -44,7 +44,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     public bool IsSubGroup { get; } = key.Kind == WorkRowKind.Group;
 
     /// <summary>完了して日がたった作業で、触れないか (作業のみ。完了日が入力日より前)</summary>
-    /// <remarks>入力日を完了日に戻すと、触れる。行の背景は灰色にする (<see cref="RowTint"/>)。</remarks>
+    /// <remarks>入力日を完了日に戻すと、触れる。行の背景は灰色にする。色は <see cref="RowTint"/> で決まる。</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RowTint))]
     [NotifyPropertyChangedFor(nameof(PlannedHintVisible))]
@@ -298,8 +298,8 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
     /// <summary>このセルを、入力できるか</summary>
     /// <param name="columnKey">列のキー</param>
-    /// <returns>名前とリンクは、案件・グループも作業も入力できる。ほかの列は、作業だけ (グループは計算値)。触れない作業 (<see cref="IsLocked"/>)は、リンクを除いて入力できない</returns>
-    /// <remarks>リンクの列は、押すとリンクを開く列なので、触れない作業でも true にする (リンクの編集は、右クリックのメニューで止める)。</remarks>
+    /// <returns>名前とリンクは、案件・グループも作業も入力できる。ほかの列は、作業だけで、グループは計算値。触れない作業 (<see cref="IsLocked"/>)は、リンクを除いて入力できない</returns>
+    /// <remarks>リンクの列は、押すとリンクを開く列なので、触れない作業でも true にする。リンクの編集は、右クリックのメニューで止める。</remarks>
     public bool CanEdit(string columnKey) => columnKey == "Link" || (!IsLocked && (columnKey == "Name" || IsWork));
 
     /// <summary>入力欄の表示を、今の値に戻す</summary>
@@ -313,7 +313,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
     /// <summary>日付を、日付の選択欄の値にする</summary>
     /// <param name="date">日付 (無ければ null)</param>
-    /// <returns>その日の 0 時 (この PC のタイムゾーン)。無ければ null</returns>
+    /// <returns>その日の 0 時で、この PC のタイムゾーン。無ければ null</returns>
     private static DateTimeOffset? ToValue(DateOnly? date) => date is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue)) : null;
 
     /// <summary>時間を、表の表示にする</summary>

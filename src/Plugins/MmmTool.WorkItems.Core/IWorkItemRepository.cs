@@ -5,7 +5,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業管理の保存先</summary>
 /// <remarks>
 /// 利用者が選んだ案件の分だけを、必要なときに読む。書きは 1 件単位の操作で、更新は変えた列だけを書く。番号 (<c>Id</c>)は保存先が決める。
-/// 削除は論理削除だけ (完全削除はしない)。失敗は <see cref="DataFileException"/>。
+/// 削除は論理削除だけで、完全削除はしない。失敗は <see cref="DataFileException"/>。
 /// 入力の確認・並べ替えの計算・差分の反映は保存先ではなく <see cref="WorkItemService"/> が行い、保存先は行を読み書きするだけにする。
 /// </remarks>
 public interface IWorkItemRepository
@@ -21,7 +21,7 @@ public interface IWorkItemRepository
 
     /// <summary>担当者にできる人の一覧を読む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>全ユーザー (削除済みも含む。名前を引くため)。表示名の順</returns>
+    /// <returns>全ユーザーで、削除済みも含む。名前を引くため。表示名の順</returns>
     /// <remarks>ローカルモードは、固定のローカルユーザー 1 人だけ。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkAssignee>> GetAssigneesAsync(CancellationToken cancellationToken = default);
@@ -47,7 +47,7 @@ public interface IWorkItemRepository
     /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>その日の記録 (全員分。論理削除済みを除く)</returns>
-    /// <remarks>案件の番号で絞る (<c>(ProjectId, Date)</c> のインデックス)。</remarks>
+    /// <remarks>案件の番号で絞る。インデックスは <c>(ProjectId, Date)</c>。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
 
@@ -56,7 +56,7 @@ public interface IWorkItemRepository
     /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実績が 0 より大きい記録 (全員分。論理削除済みと、備考だけの記録を除く)</returns>
-    /// <remarks>日付で絞らない。案件の番号で絞る (<c>(ProjectId, Date)</c> のインデックス)。</remarks>
+    /// <remarks>日付で絞らない。案件の番号で絞る。インデックスは <c>(ProjectId, Date)</c>。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadRecordsAsync(IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
 
@@ -113,7 +113,7 @@ public interface IWorkItemRepository
     /// <param name="hiddenProjectIds">表示しない案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>更新された行 (論理削除された行も含む。表示しない案件の行は含まない)</returns>
-    /// <remarks>記録も、案件・グループ・作業と同じ 1 回の往復で受け取る (取り込みを、別の問い合わせに分けない)。</remarks>
+    /// <remarks>記録も、案件・グループ・作業と同じ 1 回の往復で受け取る。取り込みを、別の問い合わせに分けない。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
@@ -122,7 +122,7 @@ public interface IWorkItemRepository
     /// <param name="note">メモ (空なら、空で上書きする)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した日報メモ</returns>
-    /// <remarks>同じ (持ち主, 日付)の行があれば使い回し、無ければ作る。空にしても、行は消さず (論理削除しない)、メモを空にする。</remarks>
+    /// <remarks>同じ (持ち主, 日付)の行があれば使い回し、無ければ作る。空にしても、行は消さず論理削除もしないで、メモを空にする。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkDayNote> SetDayNoteAsync(DateOnly date, string note, CancellationToken cancellationToken = default);
 
@@ -195,7 +195,7 @@ public interface IWorkItemRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 変えた列だけ書く (画面が持っている古い値で、他の人が書いた列を消さないため)。実績の累計・位置は書かない。
+    /// 変えた列だけ書く。画面が持っている古い値で、他の人が書いた列を消さないため。実績の累計・位置は書かない。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task UpdateItemAsync(WorkItem before, WorkItem after, CancellationToken cancellationToken = default);
@@ -222,8 +222,8 @@ public interface IWorkItemRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した記録と、計算し直した累計</returns>
     /// <remarks>
-    /// 同じ作業・日付の行があれば使い回す (人は区別しない。ほかの人の記録も、同じ 1 件を直す)。実績も備考も空 (<see cref="WorkRecord.IsEmpty"/>)なら、論理削除する。
-    /// 同じトランザクションで、作業の行をロックして、記録をすべて足し直す (<see cref="WorkActualTotal"/>)。
+    /// 同じ作業・日付の行があれば使い回す。人は区別しないので、ほかの人の記録も、同じ 1 件を直す。実績も備考も空 (<see cref="WorkRecord.IsEmpty"/>)なら、論理削除する。
+    /// 同じトランザクションで、作業の行をロックして、記録をすべて <see cref="WorkActualTotal"/> として足し直す。
     /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task<WorkRecordResult> SetRecordAsync(WorkRecord record, CancellationToken cancellationToken = default);

@@ -26,7 +26,7 @@ public sealed partial class SettingsPage : Page
     /// <param name="sections">各機能が登録した設定の部品</param>
     /// <param name="features">機能のオン・オフ</param>
     /// <param name="services">部品を作る DI のサービスプロバイダー</param>
-    /// <remarks>部品は並び順の値の順に並べる (機能の部品は、利用者が決めた機能の並び順。同じ値は登録順)。オフの機能の部品は並べず、オン・オフ・並び順が変わったら並べ直す。</remarks>
+    /// <remarks>部品は並び順の値の順に並べる。機能の部品は、利用者が決めた機能の並び順で、同じ値は登録順。オフの機能の部品は並べず、オン・オフ・並び順が変わったら並べ直す。</remarks>
     public SettingsPage(SettingsViewModel viewModel, IEnumerable<SettingsSection> sections, FeatureService features, IServiceProvider services)
     {
         ViewModel = viewModel;
@@ -49,7 +49,7 @@ public sealed partial class SettingsPage : Page
 
     /// <summary>オンの機能の設定の部品を、並び順の値の順に並べ直す</summary>
     /// <remarks>
-    /// すでに並んでいる部品は作り直さず、順序の違うものだけを動かす (「機能」の一覧は、ドラッグの直後に作り直さない)。
+    /// すでに並んでいる部品は作り直さず、順序の違うものだけを動かす。「機能」の一覧は、ドラッグの直後に作り直さない。
     /// 並べなくなった部品は外し、新しく並べる部品だけ DI から作る。
     /// </remarks>
     private void BuildSections()

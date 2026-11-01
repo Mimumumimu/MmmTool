@@ -2,15 +2,15 @@ namespace MmmTool.WorkItems.Core;
 
 /// <summary>スケジュールの実績の棒を、行ごとに作る</summary>
 /// <remarks>
-/// 作業の棒は、その作業の日ごとの記録 (実績が 0 より大きい日)。案件・グループの棒は、下の作業の日ごとの時間の合計。
-/// 実績のある最初の日から最後の日までを、空いた日 (土日など)も含めて 1 本につなぐ (細かく切れて、ぶつぶつして見えるため)。
+/// 作業の棒は、その作業の日ごとの記録で、実績が 0 より大きい日。案件・グループの棒は、下の作業の日ごとの時間の合計。
+/// 実績のある最初の日から最後の日までを、空いた日 (土日など)も含めて 1 本につなぐ。細かく切れて、ぶつぶつして見えるため。
 /// </remarks>
 public static class ScheduleActuals
 {
     /// <summary>行ごとの、実績の棒を作る</summary>
     /// <param name="roots">案件の行の並び (絞り込む前。案件・グループの合計は、全員の作業から計算する)</param>
     /// <param name="records">記録 (木に無い作業の記録と、実績が 0 以下の記録は数えない)</param>
-    /// <returns>行の識別ごとの、実績の棒 (日付の順)。実績が無い行は含まれない</returns>
+    /// <returns>行の識別ごとの、実績の棒で、日付の順。実績が無い行は含まれない</returns>
     public static IReadOnlyDictionary<WorkKey, IReadOnlyList<ScheduleActualRun>> Build(IReadOnlyList<WorkNode> roots, IEnumerable<WorkRecord> records)
     {
         // 作業ごとに、その作業と、案件までの祖先の識別を求める (記録を、祖先の合計にも足すため)

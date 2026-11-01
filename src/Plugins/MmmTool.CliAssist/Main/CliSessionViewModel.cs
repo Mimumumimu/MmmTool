@@ -16,9 +16,9 @@ namespace MmmTool.CliAssist.Main;
 /// <summary>CLI のセッション 1 つ分 (ターミナル・入力欄・添付)の ViewModel</summary>
 /// <remarks>
 /// 定型コマンド・環境は、セッションをまたいで共通なので、<see cref="CliAssistViewModel"/> が持つ。送信履歴はセッションごとに持つ。
-/// セッションは <see cref="CliSessionFactory"/> が DI から作る (Transient)。
-/// 添付の一時保存先もセッションごとに持つ (ほかのタブの送信で、送信前の添付が影響を受けないようにするため)。
-/// タブを閉じるときは <see cref="Dispose"/> を呼ぶ (シェルが終了し、一時保存した添付が消える)。呼ばなくても、作ったスコープ (ページ)の破棄で同じ後始末が行われる。
+/// セッションは <see cref="CliSessionFactory"/> が Transient で DI から作る。
+/// 添付の一時保存先もセッションごとに持つ。ほかのタブの送信で、送信前の添付が影響を受けないようにするため。
+/// タブを閉じるときは <see cref="Dispose"/> を呼ぶと、シェルが終了し、一時保存した添付が消える。呼ばなくても、作ったスコープ (ページ)の破棄で同じ後始末が行われる。
 /// </remarks>
 public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 {
@@ -128,8 +128,8 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>シェルのセッション。</summary>
     /// <remarks>
-    /// 起動するシェルは定型コマンドの環境 (<see cref="CliCommandSet.Environment"/>)で決まるので、<see cref="CliAssistViewModel.InitializeAsync"/> が済んでから画面につなぐ (つないだときに起動する)。
-    /// 今どちらの環境で動いているかは、このシェルの種類 (<see cref="ShellInfo.Kind"/>)で見る (ここ 1 か所に持つ)。
+    /// 起動するシェルは定型コマンドの環境 (<see cref="CliCommandSet.Environment"/>)で決まるので、<see cref="CliAssistViewModel.InitializeAsync"/> が済んでから画面につなぐ。つないだときに起動する。
+    /// 今どちらの環境で動いているかは、このシェルの種類 (<see cref="ShellInfo.Kind"/>)で見る。ここ 1 か所に持つ。
     /// </remarks>
     public ITerminalSession Terminal { get; }
 
@@ -267,7 +267,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #region 送信
 
-    /// <summary>複数行の貼り付けを CLI が取り込み終えたときに出す表示の先頭 (Claude Code の「[Pasted text #1 +4 lines]」)。</summary>
+    /// <summary>複数行の貼り付けを CLI が取り込み終えたときに出す表示の先頭。Claude Code の「[Pasted text #1 +4 lines]」にあたる。</summary>
     /// <remarks>Enter を、この表示が出てから送るために使う。出ない CLI では、待ちの上限 (2 秒)で送る。</remarks>
     private const string PastedTextMarker = "[Pasted text";
 
@@ -312,7 +312,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <remarks>入力欄が空のときに出す。編集ボタンがあるので、文が 0 件でも出す。</remarks>
     public bool ShowQuickMessages => string.IsNullOrEmpty(InputText);
 
-    /// <summary>よく使う文を入力欄に入れる (送信はしない)。</summary>
+    /// <summary>よく使う文を、送信せずに入力欄に入れる。</summary>
     /// <param name="item">選ばれたチップ</param>
     public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text ?? string.Empty;
 
@@ -368,7 +368,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <param name="readyMarker">貼り付けの取り込みが終わった合図になる出力の文字列 (無ければ null)</param>
     /// <returns>送ったら true。ターミナルが起動していない・シェルが終了しているときは false</returns>
     /// <remarks>
-    /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき (ターミナルの場所に理由が出る)。
+    /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき。ターミナルの場所に理由が出る。
     /// 黙って捨てると、押したのに何も起きない状態になるので、知らせる。
     /// </remarks>
     public bool TrySubmit(string text, string? readyMarker = null)
@@ -399,11 +399,11 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <summary>添付があるか</summary>
     public bool HasAttachments => Attachments.Count > 0;
 
-    /// <summary>ディスク上のファイルを添付する (ドラッグ＆ドロップ・ファイルの貼り付け)。</summary>
+    /// <summary>ディスク上のファイルを添付する。ドラッグ＆ドロップ・ファイルの貼り付けで使う。</summary>
     /// <param name="filePath">添付するファイルのパス</param>
     /// <remarks>
-    /// コピーせず、元のパスをそのまま送る (ローカルで動く CLI は、元の場所のファイルを直接読めるため)。
-    /// WSL では、WSL から開けない場所 (ネットワークのフォルダーなど)のファイルは添付せず、知らせる (送ってから読めないと分かるより、先に分かるほうがよいため)。
+    /// コピーせず、元のパスをそのまま送る。ローカルで動く CLI は、元の場所のファイルを直接読めるため。
+    /// WSL では、WSL から開けない場所 (ネットワークのフォルダーなど)のファイルは添付せず、知らせる。送ってから読めないと分かるより、先に分かるほうがよいため。
     /// </remarks>
     public void AddAttachmentFile(string filePath)
     {
@@ -447,13 +447,13 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
     /// <param name="filePath">添付ファイルのパス (Windows のパス)</param>
     /// <returns>シェルから見たパス</returns>
-    /// <exception cref="InvalidOperationException">変換できない (添付したときに確かめてあるので、起きればバグ)。</exception>
+    /// <exception cref="InvalidOperationException">変換できない。添付したときに確かめてあるので、起きればバグ。</exception>
     private string ToShellPath(string filePath)
         => ShellCommands.TryConvertPath(Terminal.Shell, filePath, out var path)
             ? path
             : throw new InvalidOperationException($"添付ファイルのパスを、シェルから見たパスにできません: {filePath}");
 
-    /// <summary>ディスク上に無いファイルを一時保存して添付する (メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付け)。</summary>
+    /// <summary>ディスク上に無いファイルを一時保存して添付する。メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付けで使う。</summary>
     /// <param name="content">ファイルの内容のストリーム</param>
     /// <param name="fileName">ファイル名</param>
     /// <returns>添付の完了を表すタスク</returns>
@@ -473,7 +473,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>画像を JPEG にして添付する (画像の貼り付け)。</summary>
+    /// <summary>画像を JPEG にして添付する。画像の貼り付けで使う。</summary>
     /// <param name="image">添付する画像のストリーム</param>
     /// <returns>添付の完了を表すタスク</returns>
     public async Task AddAttachmentImageAsync(Stream image)

@@ -3,15 +3,15 @@ using MmmTool.Users.Core;
 namespace MmmTool.Data.Users;
 
 /// <summary>
-/// DB の <c>dbo.AppUser</c> の 1 行 (列と 1 対 1)。アプリの型 <see cref="AppUser"/> とは別の、DB の形のまま持つ。
+/// DB の <c>dbo.AppUser</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="AppUser"/> とは別の、DB の形のまま持つ。
 /// </summary>
 /// <remarks>
-/// 無期限の使い終わる日は <see cref="DateOnly.MaxValue"/> (<c>9999-12-31</c>)で、アプリの型と同じ。NULL は使わない (理由は docs/specs/database.md)。
+/// 無期限の使い終わる日は <see cref="DateOnly.MaxValue"/> (<c>9999-12-31</c>)で、アプリの型と同じ。NULL は使わない。理由は docs/specs/database.md にある。
 /// 変換は <see cref="FromAppUser"/> と <see cref="ToAppUser"/>。
 /// </remarks>
 public sealed record AppUserRow
 {
-    /// <summary>主キー (<see cref="AppUser.Id"/>)。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キーで、<see cref="AppUser.Id"/> にあたる。0 は新規 (DB が採番する)</summary>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -45,14 +45,14 @@ public sealed record AppUserRow
     /// <summary>使い始める日</summary>
     public DateOnly ValidFrom { get; init; }
 
-    /// <summary>使い終わる日 (含む)。無期限は <see cref="DateOnly.MaxValue"/></summary>
+    /// <summary>使い終わる日で、含む。無期限は <see cref="DateOnly.MaxValue"/></summary>
     public DateOnly ValidTo { get; init; } = DateOnly.MaxValue;
 
     /// <summary>アプリの型から、DB の行にする</summary>
     /// <param name="user">ユーザー</param>
     /// <param name="passwordHash">パスワードのハッシュ</param>
     /// <returns>DB の行。作成・更新の日時と、作成者・更新者は決めない</returns>
-    /// <exception cref="ArgumentException">表示名・ログイン名が空か長すぎる (50 文字まで)、ログイン名に制御文字がある、使い終わる日が使い始める日より前。</exception>
+    /// <exception cref="ArgumentException">表示名・ログイン名が空か 50 文字を超える、ログイン名に制御文字がある、使い終わる日が使い始める日より前。</exception>
     public static AppUserRow FromAppUser(AppUser user, string passwordHash)
     {
         ArgumentNullException.ThrowIfNull(user);

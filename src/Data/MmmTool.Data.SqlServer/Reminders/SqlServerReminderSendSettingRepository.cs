@@ -12,9 +12,9 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// </summary>
 /// <remarks>
 /// 読むたびに DB から読む。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、保存できない。
-/// 1 つのリマインダーに、送信先を複数持てる (1 つの送信先につき 1 行)。選んでいない送信先の行は論理削除する。
-/// 読み書きするのは、自分が使用者の送信先 (<c>NotificationChannel.UserId</c>)の分だけ。ほかの人の送信先の設定は、読まず、足さず、外さない
-/// (全員宛てのリマインダーに、複数の人が送信先を付けたとき、片方の保存で、ほかの人の設定が消えないようにするため)。
+/// 1 つのリマインダーに、送信先を複数持てる。1 つの送信先につき 1 行。選んでいない送信先の行は論理削除する。
+/// 読み書きするのは、自分が使用者の送信先 (<c>NotificationChannel.UserId</c>)の分だけ。ほかの人の送信先の設定は、読まず、足さず、外さない。
+/// 全員宛てのリマインダーに、複数の人が送信先を付けたとき、片方の保存で、ほかの人の設定が消えないようにするため。
 /// 選び直したときは、そのリマインダーと送信先の既存の行 (削除済みも含む)を更新して使い回し、無いときだけ追加する。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
@@ -25,7 +25,7 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     public bool IsAvailable => true;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
     public Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> GetChannelIdsAsync(CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -58,7 +58,7 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった (メッセージは画面に出せる)。</exception>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
         => SetChannelsAsync([reminderNo], channelIds, cancellationToken);
 

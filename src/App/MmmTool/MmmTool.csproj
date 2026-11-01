@@ -11,7 +11,7 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <!--
       ビルドも x64 専用にする。ネイティブ DLL が全 CPU 分の runtimes フォルダーではなく、EXE の横に x64 の分だけ置かれる。
-      出力先のパスには RID を付けない (Directory.Build.props の AppendRuntimeIdentifierToOutputPath。bin\<構成>\<TFM>\ のまま)。理由は docs/build-and-distribution.md の「決定の理由」
+      出力先のパスには RID を付けない。Directory.Build.props の AppendRuntimeIdentifierToOutputPath で行い、bin\<構成>\<TFM>\ のまま。理由は docs/build-and-distribution.md の「決定の理由」
     -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
@@ -35,13 +35,13 @@
 
   <ItemGroup>
     <!--
-      配布用の説明書 (README.txt は変更履歴を含む。操作説明.html は機能ごとの使い方)。発行のときだけ、アプリ本体と同じ版のフォルダに置く (下の PackageDistribution。ビルドの出力には入れない)
+      配布用の説明書で、README.txt は変更履歴を含み、操作説明.html は機能ごとの使い方。発行のときだけ、アプリ本体と同じ版のフォルダに置く。置くのは下の PackageDistribution で、ビルドの出力には入れない
     -->
     <DistributionDocument Include="Distribution\README.txt" />
     <DistributionDocument Include="Distribution\操作説明.html" />
     <!--
-      ライセンス (MIT License の本文。ライセンスの条件として、配布物に入れる)。アプリ本体の Assets\Licenses に置く。
-      アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため (EXE の横は増やさない)。
+      ライセンスは MIT License の本文で、ライセンスの条件として、配布物に入れる。アプリ本体の Assets\Licenses に置く。
+      アプリ本体だけをコピー・再配布されても、ライセンスが一緒に付いていくようにするため。EXE の横は増やさない。
       同梱ライブラリのライセンス全文 (THIRD-PARTY-NOTICES.txt)も、下の GenerateThirdPartyNotices が作って同じ場所に置く
     -->
     <None Include="..\..\..\LICENSE.txt" Link="Assets\Licenses\LICENSE.txt" CopyToPublishDirectory="PreserveNewest" />
@@ -71,7 +71,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <!--
-      Windows App SDK は全部入りのパッケージを参照する (CommunityToolkit が古い全部入り 1.6 に依存しているため、部品だけの参照にはできない)。
+      Windows App SDK は全部入りのパッケージを参照する。CommunityToolkit が古い全部入り 1.6 に依存しているため、部品だけの参照にはできない。
       そのうえで、使わない部品 (AI・ML・検索・ウィジェット)と、それらだけが使う依存 (MachineLearning・Tensors)は、中身を出力に入れない (DLL を減らすため。理由は docs/build-and-distribution.md の「決定の理由」)
     -->
     <PackageReference Include="Microsoft.WindowsAppSDK" />

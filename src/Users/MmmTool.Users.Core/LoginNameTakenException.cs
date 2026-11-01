@@ -3,7 +3,7 @@ namespace MmmTool.Users.Core;
 /// <summary>
 /// 登録しようとしたログイン名が、すでに使われている。
 /// </summary>
-/// <remarks>利用者が別のログイン名に直せる、予測できる失敗 (バグではない)。</remarks>
+/// <remarks>利用者が別のログイン名に直せる、予測できる失敗で、バグではない。</remarks>
 public sealed class LoginNameTakenException : Exception
 {
     /// <summary>例外を作る</summary>

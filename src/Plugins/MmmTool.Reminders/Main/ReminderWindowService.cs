@@ -10,8 +10,8 @@ namespace MmmTool.Reminders.Main;
 /// <param name="dialogs">ダイアログの親を管理するサービス</param>
 /// <remarks>
 /// 画面はアプリ内で 1 枚だけ持ち、開いていれば前面に出す。閉じられたら次に開くときに作り直す。UI スレッドから呼ぶ。
-/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する
-/// (ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため。通知をクリックするたびに開くので、積み上がる)。
+/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。
+/// ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため、通知をクリックするたびに開くと、積み上がる。
 /// </remarks>
 public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDialogHost dialogs)
 {
@@ -21,7 +21,7 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
 
     /// <summary>開く (開いていれば前面に出す)</summary>
     /// <returns>開いた画面</returns>
-    /// <remarks>画面を作る・表示するのに失敗したときは、例外をそのまま呼び出し元へ渡す (バグなので、安全網が受ける)。次に呼ぶときは、作り直す。</remarks>
+    /// <remarks>画面を作る・表示するのに失敗したときは、例外をそのまま呼び出し元へ渡す。バグなので、安全網が受ける。次に呼ぶときは、作り直す。</remarks>
     public async Task<ReminderMainWindow> ShowAsync()
     {
         if (_opening is { } opening)
@@ -113,7 +113,7 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
 
     /// <summary>通知から開く</summary>
     /// <returns>開いてスヌーズへ進める処理の完了を表すタスク</returns>
-    /// <remarks>通知をクリックして「気づいた」とみなし、発動済みで未対応のものをスヌーズに進める (次はスヌーズ間隔の後に再通知)。</remarks>
+    /// <remarks>通知をクリックして「気づいた」とみなし、発動済みで未対応のものをスヌーズに進める。次はスヌーズ間隔の後に再通知する。</remarks>
     public async Task ShowFromNotificationAsync()
     {
         var window = await ShowAsync();

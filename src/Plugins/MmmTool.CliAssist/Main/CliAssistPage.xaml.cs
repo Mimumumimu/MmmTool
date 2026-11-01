@@ -19,7 +19,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>セッションごとのタブと画面</summary>
     private readonly Dictionary<CliSessionViewModel, SessionTab> _tabs = [];
     /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー</summary>
-    /// <remarks><see cref="AppEnvironment.WebView2Directory"/> (WebView2 の既定の EXE の横ではなく、データにまとめる。アプリの中の WebView2 は、すべて同じ場所を使う)。</remarks>
+    /// <remarks><see cref="AppEnvironment.WebView2Directory"/> は、WebView2 の既定の EXE の横ではなく、データにまとめる。アプリの中の WebView2 は、すべて同じ場所を使う。</remarks>
     private readonly string _webView2Directory;
     /// <summary>ターミナルをつないでよいか (定型コマンドの読み込みが済んだか)</summary>
     private bool _terminalsConnectable;
@@ -120,7 +120,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
 
     /// <summary>選ばれているセッションの画面を、タブの下の枠に入れる</summary>
     /// <remarks>
-    /// 選ばれていないタブの画面は、枠から外れる。ターミナルは外れても作り直されない (再表示のときは、フォーカスを戻すだけ)。
+    /// 選ばれていないタブの画面は、枠から外れる。ターミナルは外れても作り直されない。再表示のときは、フォーカスを戻すだけ。
     /// </remarks>
     private void ShowSelectedSession()
         => SessionHost.Child = _tabs.TryGetValue(ViewModel.SelectedSession, out var tab) ? tab.View : null;
@@ -161,8 +161,8 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>セッションのタブを作って、並べる</summary>
     /// <param name="session">セッション</param>
     /// <remarks>
-    /// 定型コマンドの読み込みが済んでいれば、ターミナルをつなぐ (つないだとき、シェルが起動する)。済んでいなければ、読み込みのあとでつなぐ。
-    /// 選ばれていないタブは画面から外れるが、ターミナルは外れても作り直されない (再表示のときは、フォーカスを戻すだけ)。
+    /// 定型コマンドの読み込みが済んでいれば、ターミナルをつなぐ。つないだとき、シェルが起動する。済んでいなければ、読み込みのあとでつなぐ。
+    /// 選ばれていないタブは画面から外れるが、ターミナルは外れても作り直されない。再表示のときは、フォーカスを戻すだけ。
     /// </remarks>
     private void AddTab(CliSessionViewModel session)
     {
@@ -348,7 +348,7 @@ public sealed partial class CliAssistPage : Page, IReleasablePage
     /// <summary>ツリーを横にもスクロールできるようにする。</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>TreeView は既定で横スクロールが無効 (長い名前は右が切れる)。テンプレート内の ScrollViewer に直接設定する。</remarks>
+    /// <remarks>TreeView は既定で横スクロールが無効で、長い名前は右が切れる。テンプレート内の ScrollViewer に直接設定する。</remarks>
     private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
         if (VisualTreeSearch.FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)

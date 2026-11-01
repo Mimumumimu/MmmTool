@@ -8,7 +8,7 @@ public sealed class CliCommandNode
     /// <summary>表示名</summary>
     public string Label { get; set; } = "";
 
-    /// <summary>ターミナルへ送るコマンド文字列 (葉のとき)。</summary>
+    /// <summary>ターミナルへ送るコマンド文字列で、葉のときに使う。</summary>
     public string? Command { get; set; }
 
     /// <summary>コマンドを送ったあとに切り替える左ペインのタブ ("shell" または "session")</summary>
@@ -19,7 +19,7 @@ public sealed class CliCommandNode
     /// <remarks>省略すると移さない。</remarks>
     public string? Focus { get; set; }
 
-    /// <summary>子要素 (中間ノードのとき)。</summary>
+    /// <summary>子要素で、中間ノードのときに使う。</summary>
     public List<CliCommandNode>? Children { get; set; }
 
     /// <summary>列挙値を、JSON に書く文字列にする</summary>
@@ -41,7 +41,7 @@ public sealed class CliCommandNode
     /// <typeparam name="T">変換先の列挙型</typeparam>
     /// <param name="value">変換する文字列</param>
     /// <returns>変換した列挙値。変換できなければ null</returns>
-    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視する (何もしない)。<see cref="CliCommandSet"/> の項目の変換にも使う。</remarks>
+    /// <remarks>手で編集した JSON なので、大文字小文字は区別せず、知らない値は無視して、何もしない。<see cref="CliCommandSet"/> の項目の変換にも使う。</remarks>
     internal static T? Parse<T>(string? value) where T : struct, Enum
         => !string.IsNullOrWhiteSpace(value) && Enum.TryParse<T>(value.Trim(), ignoreCase: true, out var result) && Enum.IsDefined(result)
             ? result
