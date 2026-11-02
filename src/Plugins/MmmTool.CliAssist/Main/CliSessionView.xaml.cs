@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Input;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -369,6 +370,22 @@ public sealed partial class CliSessionView : UserControl
         {
             ViewModel.Error.Show($"ドロップされたファイルを読めませんでした。{ex.Message}");
         }
+
+        FocusInputAfterDrop();
+    }
+
+    /// <summary>ドロップのあと、このウィンドウを前面に出し、入力欄にフォーカスを移す</summary>
+    /// <remarks>ドロップを受けても前面は元のアプリ (エクスプローラーなど)のままなので、続けて入力できるようにする。</remarks>
+    private void FocusInputAfterDrop()
+    {
+        // 処理の途中でタブが閉じられると、画面に載っていない
+        if (XamlRoot is null)
+        {
+            return;
+        }
+
+        AppWindow.GetFromWindowId(XamlRoot.ContentIslandEnvironment.AppWindowId)?.SetForeground();
+        InputBox.Focus(FocusState.Programmatic);
     }
 
     /// <summary>ドロップされたフォルダーのパスを、入力欄の選択範囲へ入れる</summary>
