@@ -126,7 +126,7 @@
                             Width="14"
                             Height="14"
                             VerticalAlignment="Center"
-                            ToolTipService.ToolTip="予定に含めない"
+                            ToolTipService.ToolTip="予定・保留に含めない"
                             Visibility="{x:Bind ShowsPlanExclusionMark, Mode=OneWay}">
                             <FontIcon
                                 VerticalAlignment="Center"
@@ -147,7 +147,7 @@
                             FontSize="14"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Glyph="&#xED1A;"
-                            ToolTipService.ToolTip="実績・予定に含めない"
+                            ToolTipService.ToolTip="実績・予定・保留に含めない"
                             Visibility="{x:Bind ShowsFullExclusionMark, Mode=OneWay}" />
                     </StackPanel>
                     <TextBlock

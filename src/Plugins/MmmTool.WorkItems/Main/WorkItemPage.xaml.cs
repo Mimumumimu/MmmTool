@@ -896,8 +896,8 @@ public sealed partial class WorkItemPage : Page
     {
         var submenu = new MenuFlyoutSubItem { Text = "作業報告", IsEnabled = !row.IsLocked };
         AddReportExclusionItem(submenu, row, "すべて含める", WorkReportExclusion.None);
-        AddReportExclusionItem(submenu, row, "予定に含めない", WorkReportExclusion.Plan);
-        AddReportExclusionItem(submenu, row, "実績・予定に含めない", WorkReportExclusion.PlanAndActual);
+        AddReportExclusionItem(submenu, row, "予定・保留に含めない", WorkReportExclusion.Plan);
+        AddReportExclusionItem(submenu, row, "実績・予定・保留に含めない",WorkReportExclusion.PlanAndActual);
         menu.Items.Add(submenu);
     }
 
