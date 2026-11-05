@@ -884,6 +884,36 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(item);
     }
 
+    /// <summary>名前のセルの、自動入力の印が押されたら、自動入力の入力枠を、名前のセルの下に開く</summary>
+    /// <param name="sender">印のボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>右クリックの「自動入力…」と同じ入力枠。触れない行では、開かない。</remarks>
+    private void OnAutoEntryMarkClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement mark
+            && TreeGridView.GetRow(mark) is WorkItemRow { IsLocked: false } row
+            && TreeGrid.FindCell(row, "Name") is { } nameCell)
+        {
+            ShowAutoEntryEditor(row, nameCell);
+        }
+    }
+
+    /// <summary>名前のセルの、作業報告から外す印が押されたら、選択肢のメニューを、印の下に開く</summary>
+    /// <param name="sender">印のボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>選択肢は、右クリックの「作業報告」と同じ。触れない行では、選べない。</remarks>
+    private void OnReportExclusionMarkClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement mark || TreeGridView.GetRow(mark) is not WorkItemRow row)
+        {
+            return;
+        }
+
+        var menu = new MenuFlyout();
+        AddReportExclusionItems(menu.Items, row);
+        menu.ShowAt(mark, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
+    }
+
     /// <summary>メニューに、作業報告から外す範囲を選ぶサブメニューを足す</summary>
     /// <param name="menu">足し先のメニュー</param>
     /// <param name="row">行 (作業)</param>
@@ -895,22 +925,30 @@ public sealed partial class WorkItemPage : Page
     private void AddReportExclusionMenu(MenuFlyout menu, WorkItemRow row)
     {
         var submenu = new MenuFlyoutSubItem { Text = "作業報告", IsEnabled = !row.IsLocked };
-        AddReportExclusionItem(submenu, row, "すべて含める", WorkReportExclusion.None);
-        AddReportExclusionItem(submenu, row, "予定・保留に含めない", WorkReportExclusion.Plan);
-        AddReportExclusionItem(submenu, row, "実績・予定・保留に含めない",WorkReportExclusion.PlanAndActual);
+        AddReportExclusionItems(submenu.Items, row);
         menu.Items.Add(submenu);
     }
 
-    /// <summary>サブメニューに、作業報告から外す範囲の項目を足す</summary>
-    /// <param name="submenu">足し先のサブメニュー</param>
+    /// <summary>メニューに、作業報告から外す範囲の 3 つの項目を足す</summary>
+    /// <param name="items">足し先の項目の一覧 (右クリックのサブメニューと、印を押したときのメニューで共通)</param>
+    /// <param name="row">行 (作業)</param>
+    private void AddReportExclusionItems(IList<MenuFlyoutItemBase> items, WorkItemRow row)
+    {
+        AddReportExclusionItem(items, row, "すべて含める", WorkReportExclusion.None);
+        AddReportExclusionItem(items, row, "予定・保留に含めない", WorkReportExclusion.Plan);
+        AddReportExclusionItem(items, row, "実績・予定・保留に含めない", WorkReportExclusion.PlanAndActual);
+    }
+
+    /// <summary>作業報告から外す範囲の項目を足す</summary>
+    /// <param name="items">足し先の項目の一覧</param>
     /// <param name="row">行 (作業)</param>
     /// <param name="text">項目の文言</param>
     /// <param name="value">この項目が表す範囲</param>
-    private void AddReportExclusionItem(MenuFlyoutSubItem submenu, WorkItemRow row, string text, WorkReportExclusion value)
+    private void AddReportExclusionItem(IList<MenuFlyoutItemBase> items, WorkItemRow row, string text, WorkReportExclusion value)
     {
-        var item = new RadioMenuFlyoutItem { Text = text, GroupName = "ReportExclusion", IsChecked = row.ReportExclusion == value };
+        var item = new RadioMenuFlyoutItem { Text = text, GroupName = "ReportExclusion", IsChecked = row.ReportExclusion == value, IsEnabled = !row.IsLocked };
         item.Click += (_, _) => ViewModel.SetReportExclusionAsync(row, value).Forget();
-        submenu.Items.Add(item);
+        items.Add(item);
     }
 
     #endregion
