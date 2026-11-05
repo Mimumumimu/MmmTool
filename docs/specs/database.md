@@ -573,7 +573,7 @@
 #### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
 
 - 作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)
-  - 作業報告が、報告日の分を予定に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
+  - 作業報告が、報告日の分を「■日報メモ」に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
 - 作成用のスクリプトは、SQLite が `src/Data/MmmTool.Data.Sqlite/Sql/002_AddWorkDayNote.sql`、SQL Server が `src/Data/MmmTool.Data.SqlServer/Sql/001_CreateTables.sql`
   - SQLite は、`001_CreateTables.sql` とは別の番号つきのスクリプトで作る
   - SQL Server は、全部の表を `001_CreateTables.sql` が作る
