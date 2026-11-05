@@ -160,33 +160,16 @@ public sealed partial class MessagesViewModel(
     [ObservableProperty]
     public partial string ConversationTitle { get; set; } = "";
 
-    /// <summary>入力欄が押せるか。相手が受け取り先を指定しているときだけ</summary>
+    /// <summary>1 対 1 の相手に、通知が届くか。届かなくても送れる</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
-    [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
+    [NotifyPropertyChangedFor(nameof(IsPeerNoNotifyVisible))]
     public partial bool PeerCanReceive { get; set; } = true;
 
-    /// <summary>入力欄を押せるか。自分と相手の両方が受け取り先を指定しているとき</summary>
-    public bool IsInputEnabled => SelfCanReceive && PeerCanReceive;
+    /// <summary>相手に通知が届かないことの案内を出すか</summary>
+    public bool IsPeerNoNotifyVisible => IsConversationOpen && !PeerCanReceive;
 
-    /// <summary>入力欄が押せるか。自分が受け取り先を指定しているときだけ</summary>
-    /// <remarks>送る人も受け取り先を指定していないと送れない。指定は設定ページで行うので、ページが見えるようになったときに読み直す。</remarks>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
-    [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsSelfNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
-    public partial bool SelfCanReceive { get; set; } = true;
-
-    /// <summary>「受け取り先が未設定です」の案内を出すか。自分が未設定のときは、自分の案内だけを出す</summary>
-    public bool IsNoReceiveTargetVisible => IsConversationOpen && SelfCanReceive && !PeerCanReceive;
-
-    /// <summary>「自分の受け取り先が未設定です」の案内を出すか</summary>
-    public bool IsSelfNoReceiveTargetVisible => IsConversationOpen && !SelfCanReceive;
-
-    /// <summary>自分の受け取り先が未設定のときの案内の文</summary>
-    public static string SelfNoReceiveTargetText => MessageDraft.SelfNoReceiveTargetMessage;
+    /// <summary>相手に通知が届かないことの案内の文</summary>
+    public static string PeerNoNotifyText => MessageDraft.PeerNoNotifyMessage;
 
     /// <summary>入力した本文</summary>
     [ObservableProperty]
@@ -351,8 +334,7 @@ public sealed partial class MessagesViewModel(
         sync.SetViewState(IsConversationOpen ? _conversationId : 0, visible);
         if (visible && IsConversationOpen)
         {
-            // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
-            RefreshSelfCanReceiveAsync().Forget();
+            // 相手が通知先を指定したときに、案内を消す
             RefreshPeerCanReceiveAsync().Forget();
 
             // ウィンドウが隠れている間に届いて、画面に出ていたメッセージを、前面に戻ったここで読んだことにする
@@ -360,10 +342,10 @@ public sealed partial class MessagesViewModel(
         }
     }
 
-    /// <summary>開いている 1 対 1 の会話の相手が、受け取り先を指定しているかを、DB から読み直す</summary>
+    /// <summary>開いている 1 対 1 の会話の相手に、通知が届くかを、DB から読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
     /// <remarks>
-    /// 読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。
+    /// 読めなかったときは、前の値のまま。案内が出るかどうかだけで、送れるかは変わらない。
     /// 会話が一覧の要約にまだ無いとき (通知から開いた直後など)は、読まない。要約が入ったときに、<see cref="RefreshConversations"/> がもう一度呼ぶ。
     /// </remarks>
     private async Task RefreshPeerCanReceiveAsync()
@@ -380,40 +362,20 @@ public sealed partial class MessagesViewModel(
 
         try
         {
-            var canReceive = await repository.CanReceiveAsync(peerUserId);
-            if (version == _openVersion)
+            var receiveState = await repository.GetReceiveStateAsync(conversationId, peerUserId);
+            if (receiveState is not null && version == _openVersion)
             {
                 _peerChecked = true;
-                PeerCanReceive = canReceive;
+                PeerCanReceive = receiveState.PeerCanReceive;
                 if (conversationId > 0)
                 {
-                    await sync.UpdatePeerCanReceiveAsync(conversationId, canReceive);
+                    await sync.UpdatePeerCanReceiveAsync(conversationId, receiveState.PeerCanReceive);
                 }
             }
         }
         catch (DataFileException)
         {
-            // 読めなかった。送るときに、サーバーが断る
-        }
-    }
-
-    /// <summary>自分が受け取り先を指定しているかを、DB から読み直す</summary>
-    /// <returns>読み直しの完了を表すタスク</returns>
-    /// <remarks>読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。</remarks>
-    private async Task RefreshSelfCanReceiveAsync()
-    {
-        if (sync.UserId <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            SelfCanReceive = await repository.CanReceiveAsync(sync.UserId);
-        }
-        catch (DataFileException)
-        {
-            // 読めなかった。送るときに、サーバーが断る
+            // 読めなかった。案内の出し入れだけなので、前の値のまま
         }
     }
 
@@ -834,7 +796,6 @@ public sealed partial class MessagesViewModel(
         PeerCanReceive = peerCanReceive;
         IsConversationOpen = true;
         OnPropertyChanged(nameof(SelectedConversation));
-        RefreshSelfCanReceiveAsync().Forget();
         _peerChecked = false;
         RefreshPeerCanReceiveAsync().Forget();
         IsStale = false;
@@ -1060,9 +1021,9 @@ public sealed partial class MessagesViewModel(
         OnPropertyChanged(nameof(SelectedConversation));
     }
 
-    /// <summary>送れる状態か。自分と相手が受け取り先を指定していて、本文が空白だけでない</summary>
+    /// <summary>送れる状態か。会話を開いていて、送っている最中でなく、本文が空白だけでない</summary>
     /// <returns>送れるとき true</returns>
-    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(SelfCanReceive, PeerCanReceive, Body);
+    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(Body);
 
     /// <summary>メッセージを送る。メッセージと通知の状態の行を DB に書く</summary>
     /// <returns>送る処理の完了を表すタスク</returns>
@@ -1080,14 +1041,6 @@ public sealed partial class MessagesViewModel(
             if (result.Outcome != SendMessageOutcome.Sent)
             {
                 Error.Show($"送れませんでした: {OutcomeText(result.Outcome)}");
-                if (result.Outcome == SendMessageOutcome.NoReceiveTarget)
-                {
-                    PeerCanReceive = false;
-                }
-                else if (result.Outcome == SendMessageOutcome.SelfNoReceiveTarget)
-                {
-                    SelfCanReceive = false;
-                }
                 return;
             }
 
@@ -1125,8 +1078,6 @@ public sealed partial class MessagesViewModel(
     /// <returns>理由の文</returns>
     private static string OutcomeText(SendMessageOutcome outcome) => outcome switch
     {
-        SendMessageOutcome.NoReceiveTarget => MessageDraft.NoReceiveTargetMessage,
-        SendMessageOutcome.SelfNoReceiveTarget => MessageDraft.SelfNoReceiveTargetMessage,
         SendMessageOutcome.ReplyInvalid => "返信元のメッセージが見つかりません。",
         SendMessageOutcome.GroupInvalid => "グループの名前か参加者が正しくありません。",
         _ => "会話が見つかりません。",

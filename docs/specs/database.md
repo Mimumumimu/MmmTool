@@ -105,7 +105,7 @@
 | `NotificationChannel` | 送信先 (ntfy・Discord・Web 版通知)の登録。1 行が 1 つの送信先 |
 | `ReminderSendSetting` | リマインダーの送信設定。どのリマインダーを、どの送信先へ送るか |
 | `ReminderSendStatus` | リマインダーの送信の状況。リマインダー・送信先・日ごと。MmmBatch が書く |
-| `AppUserSetting` | ユーザーごとの設定。人・機能・区分・コード番号ごとに、値を 1 行で持つ縦持ちの表。通知の受け取り先と、機能ごとの「通知を受け取る」から使う ([notification-settings.md](notification-settings.md)) |
+| `AppUserSetting` | ユーザーごとの設定。人・機能・区分・コード番号ごとに、値を 1 行で持つ縦持ちの表。通知先と、機能ごとの「通知を受け取る」から使う ([notification-settings.md](notification-settings.md)) |
 | `AppUserAdminSetting` | 管理者がユーザーごとに決める設定。作りは `AppUserSetting` と同じで、管理ツールだけが書く。機能の利用 (無効・有効・読み取り専用)を持つ ([mmmtooladmin.md](mmmtooladmin.md)の「機能の利用」) |
 | `MessageConversation` | メッセージの会話。1 対 1 かグループかの種類と、グループの名前を持つ ([messages.md](messages.md)) |
 | `MessageConversationMember` | 会話に入っている人。1 人が 1 行 |
@@ -255,8 +255,8 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者の `AppUser.Id`。0 以上の検査 |
 | `UserId` | 整数 | `int` | | 設定を持つ人の `AppUser.Id`。業務の列で、共通ヘッダーの `CreatedByUserId` は条件に使わない。0 以上の検査。**列の並び: 共通ヘッダーの次、`FeatureNo` の前** |
-| `FeatureNo` | 整数 | `int` | | 機能番号で、`CodeMaster` と同じ台帳 (`CodeFeatures`)の数字。どの機能にも属さない共通の設定は 0 で、通知の受け取り先がこれを使う。0 以上の検査 |
-| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、設定の種類。共通 (0)の区分 1 は通知の受け取り先。1 以上の検査 |
+| `FeatureNo` | 整数 | `int` | | 機能番号で、`CodeMaster` と同じ台帳 (`CodeFeatures`)の数字。どの機能にも属さない共通の設定は 0 で、通知先がこれを使う。0 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 区分番号で、機能の中の、設定の種類。共通 (0)の区分 1 は通知先。1 以上の検査 |
 | `CodeNo` | 整数 | `int` | | コード番号 (枝番)で、区分の中の識別子。値が 1 つだけの設定は 1。複数の値を持つ設定は、値ごとに 1 行で、別の番号にする。1 以上の検査 |
 | `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、整数は読むときに直す。直せない値は、未設定として扱う |
 
@@ -280,7 +280,7 @@
   - 番号は、サイドバーの初期の並びに合わせて、1 度だけ付けた。並びを入れ替えても、番号は変えない。保存済みの設定の意味が変わるため。
   - 新しい機能は、最後の番号の次を足す。共通の 0 は機能に割り当てない。
   - 共通の設定を、機能の番号に混ぜない。機能を足したとき、番号の間に共通が挟まるため。
-  - 通知の受け取り先は、メッセージにもノートにも属さない共通の設定なので、共通の 0 に置く。機能ごとの「通知を受け取る」のオン・オフは、その機能の番号の下に置く。
+  - 通知先は、メッセージにもノートにも属さない共通の設定なので、共通の 0 に置く。機能ごとの「通知を受け取る」のオン・オフは、その機能の番号の下に置く。
   - 管理者の設定 `AppUserAdminSetting` とコードマスタ `CodeMaster` は、共通を使わないので、機能番号の検査は 1 以上のまま
 
 ### `AppUserAdminSetting`(管理者がユーザーごとに決める設定)
@@ -423,7 +423,7 @@
 | `Body` | 文字列 (1000) | `nvarchar(1000)` | | 本文。画面の上限 (`MessageLimits`)と同じ長さ |
 
 - タイトルの列を持たない。会話の形では、件名を付けないため。
-- 送る先の送信先 (`ChannelId`)の列を持たない。受け取る人の受け取り先は、MmmBatch が送るときに `AppUserSetting` から読むため。
+- 送る先の送信先 (`ChannelId`)の列を持たない。受け取る人の通知先は、MmmBatch が送るときに `AppUserSetting` から読むため。
 - 一意制約は付けない (1 回の送信の操作が 1 通で、同じ内容を続けて送っても別の行)
 - インデックスは、業務の列と更新日時で作る
   - `IX_Message_ConversationId_Id (ConversationId, Id DESC)`。会話の 50 件を、`Id` で区切って読むため。人の一覧で、会話ごとの最新の 1 通を読むためにも使う。
@@ -444,7 +444,7 @@
 | `UpdatedByUserId` | 整数 | `int` | | 更新者。頼んだときは送った人、MmmBatch が更新するときは 0 で、MmmBatch はユーザーではない。0 以上の検査 |
 | `MessageId` | 整数 | `int` | | 通知するメッセージの `Message.Id`。**列の並び: 共通ヘッダーの次、`UserId` の前**で、どのメッセージを・誰にの順 |
 | `UserId` | 整数 | `int` | | 通知を受ける人の `AppUser.Id`。送った人以外の参加者で、自分との会話は自分。業務の列で、共通ヘッダーの `CreatedByUserId` は、条件に使わない。0 以上の検査 |
-| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、送らなかった状態。通知を受ける人が管理者にメッセージを無効にされたとき、MmmBatch が書く。通知を受ける人がグループを抜けたとき、その人宛の送信待ちと失敗の行を、MmmTool と Web 版が書く (このとき `UpdatedByUserId` は抜けた人) |
+| `Status` | 整数 (小) | `tinyint` | 1 | Pending = 1 / Sent = 2 / Failed = 3 / Skipped = 4 で、1 から 4 の検査 `CK_MessageDelivery_Status`。1 から 3 は `ReminderSendStatus` と同じ意味。Skipped は、送らなかった状態。通知を受ける人が管理者にメッセージを無効にされたとき、MmmBatch が書く。通知先を指定していない人宛ては、MmmTool と Web 版が、行を書くときから Skipped にする。通知を受ける人がグループを抜けたとき、その人宛の送信待ちと失敗の行を、MmmTool と Web 版が書く (このとき `UpdatedByUserId` は抜けた人) |
 | `Attempts` | 整数 (小) | `tinyint` | 0 | 試した回数 |
 | `SentAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `9999-12-31` | 送った日時。未送信は `9999-12-31` |
 

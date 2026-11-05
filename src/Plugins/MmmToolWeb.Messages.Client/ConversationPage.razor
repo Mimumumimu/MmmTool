@@ -76,13 +76,9 @@
     </ol>
 
     <div class="composer">
-        @if (!_selfCanReceive)
+        @if (!_peerCanReceive)
         {
-            <p class="notice" role="status">@SelfNotice</p>
-        }
-        else if (!_peerCanReceive)
-        {
-            <p class="notice" role="status">@MessageDraftNotice</p>
+            <p class="notice" role="status">@PeerNoNotifyNotice</p>
         }
         @if (_replyTo is not null)
         {
@@ -92,7 +88,7 @@
             </p>
         }
         <div class="input">
-            <textarea aria-label="メッセージ" rows="1" maxlength="@_bodyMaxLength" disabled="@(!_selfCanReceive || !_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
+            <textarea aria-label="メッセージ" rows="1" maxlength="@_bodyMaxLength" @bind="_body" @bind:event="oninput"></textarea>
             <button type="button" class="primary" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
         </div>
     </div>
@@ -114,11 +110,8 @@
     /// <summary>作る途中のグループの、空の会話の画面の道。</summary>
     public const string NewGroupRoute = "messages/new-group";
 
-    /// <summary>相手が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
-    private const string MessageDraftNotice = "受け取り先が未設定です";
-
-    /// <summary>自分が受け取り先を指定していないときの案内。サーバーの <c>MessageDraft</c> と同じ文。</summary>
-    private const string SelfNotice = "自分の受け取り先が未設定です。設定で指定すると送れます";
+    /// <summary>相手が通知先を指定していないときの案内。送れるが、通知は届かない。PC 版の <c>MessageDraft</c> と同じ文。</summary>
+    private const string PeerNoNotifyNotice = "相手は Web 版通知が未設定のため、通知は届きません。";
 
     [Parameter]
     public int ConversationId { get; set; }
@@ -144,7 +137,6 @@
     private bool _hasMore;
     private bool _peerCanReceive = true;
     private bool _peerChecked;
-    private bool _selfCanReceive = true;
     private bool _isDirect = true;
     private IReadOnlyList<ReadPositionDto> _readers = [];
     private bool _showParticipants;
@@ -177,8 +169,8 @@
     /// <summary>本文の最大の長さの既定。サーバーが返す値で置き換える。</summary>
     private const int MessageLimitsBody = 1000;
 
-    /// <summary>送れる状態か。サーバーも同じ決まり (自分と相手の受け取り先があり、本文が空白だけでないこと)で確かめる。</summary>
-    private bool CanSend => !_sending && _selfCanReceive && _peerCanReceive && !string.IsNullOrWhiteSpace(_body);
+    /// <summary>送れる状態か。送っている最中でなく、本文が空白だけでない。通知先の有無は問わない。サーバーも、本文を確かめる。</summary>
+    private bool CanSend => !_sending && !string.IsNullOrWhiteSpace(_body);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -602,7 +594,6 @@
             _bodyMaxLength = form.Value!.BodyMaxLength;
             _groupNameMax = form.Value.GroupNameMaxLength;
             _groupMaxMembers = form.Value.GroupMaxMembers;
-            _selfCanReceive = form.Value.SelfCanReceive;
             if (ConversationId > 0 || PeerUserId > 0)
             {
                 _peerChecked = true;
@@ -639,9 +630,6 @@
         if (!result.Succeeded)
         {
             _error = $"送れませんでした: {result.Message}";
-            // 受け取り先が無いと断られたときは、入力欄を押せなくする (PC 版と同じ)
-            _selfCanReceive &= result.Message != SelfNotice;
-            _peerCanReceive &= result.Message != MessageDraftNotice;
             return;
         }
 

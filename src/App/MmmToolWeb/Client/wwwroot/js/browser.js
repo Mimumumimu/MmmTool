@@ -31,15 +31,6 @@ export function setRemembered(key, value) {
     }
 }
 
-// 最後に開いた機能の道。いまの画面は使わない。端末に残っている古い画面が呼ぶので、消さない
-export function getLastFeature() {
-    return getRemembered("lastFeature");
-}
-
-export function setLastFeature(route) {
-    setRemembered("lastFeature", route);
-}
-
 // 端末の呼び名。パスキーの登録名と、通知の宛先の登録名に使う。iPhone と iPad は「iPhone」、それ以外は「ブラウザ」
 export function deviceName() {
     return /iPhone|iPad/.test(navigator.userAgent) ? "iPhone" : "ブラウザ";

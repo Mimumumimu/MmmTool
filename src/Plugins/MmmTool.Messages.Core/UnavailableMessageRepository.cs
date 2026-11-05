@@ -36,10 +36,6 @@ public sealed class UnavailableMessageRepository : IMessageRepository
 
     /// <inheritdoc />
     /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
-    public Task<bool> CanReceiveAsync(int userId, CancellationToken cancellationToken = default) => throw NotAvailable();
-
-    /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
     public Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />

@@ -29,18 +29,50 @@
     font-size: 0.875rem;
 }
 
-/* 読み取り専用の一覧。枠や背景を付けず、入力欄や押せる行に見えないようにする */
+/* 登録済みの端末の一覧。行の右に、この端末の印か、削除のボタンを置く。行の全体は押せない */
 .devices {
     margin: 0 0 0.75rem;
-    padding: 0 0 0 1.25rem;
-    list-style: disc;
+    padding: 0;
+    list-style: none;
 }
 
 .devices li {
-    padding: 0.25rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+}
+
+.devices li + li {
+    margin-top: 0.5rem;
+}
+
+.devices .name {
+    min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.device button {
+.devices .this {
+    flex: none;
+    padding: 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+/* 文字だけのボタン。ノートの画面の「削除」と同じ作り */
+.devices .text {
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+}
+
+.devices .text.danger {
+    color: var(--danger);
+}
+
+/* 登録と解除の操作は、横いっぱいの主なボタン。一覧の中の削除のボタンには効かせない */
+.device > button {
     width: 100%;
 }

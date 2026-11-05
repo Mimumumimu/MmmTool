@@ -9,11 +9,11 @@
 
     @if (_loaded && _channels.Count == 0)
     {
-        <p class="note" role="status">送信先がありません。MmmTool の設定ページの「送信先」で登録してください。</p>
+        <p class="note" role="status">登録した端末がありません。上の「通知」の節で、この端末を登録してください。</p>
     }
 
     <label class="field">
-        <span>受け取り先</span>
+        <span>通知先</span>
         <select disabled="@(_channels.Count == 0 || _saving)" @onchange="SaveAsync">
             <option value="0" selected="@(_selected == 0)">指定しない</option>
             @foreach (var channel in _channels)
@@ -22,7 +22,7 @@
             }
         </select>
     </label>
-    <p class="note">ほかの人から届いた通知を、この送信先で受け取ります。指定しないと、メッセージは送れません。</p>
+    <p class="note">ほかの人から届いた通知を、選んだ端末で受け取ります。</p>
 </div>
 
 @code {
@@ -42,7 +42,7 @@
         }
         if (!result.Succeeded)
         {
-            _error = $"受け取り先を読み込めませんでした: {result.Message}";
+            _error = $"通知先を読み込めませんでした: {result.Message}";
             return;
         }
 

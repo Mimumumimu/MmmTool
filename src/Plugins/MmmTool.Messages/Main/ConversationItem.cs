@@ -28,7 +28,7 @@ public sealed class ConversationItem(ConversationSummary source, int myUserId)
     public string TimeText { get; } = MessageTimeText.Format(source.LastAt);
 
     /// <summary>相手が受け取り先を指定していないときの案内。指定しているときは空文字</summary>
-    public string NoteText { get; } = source.PeerCanReceive ? "" : MessageDraft.NoReceiveTargetMessage;
+    public string NoteText { get; } = source.PeerCanReceive ? "" : MessageDraft.PeerNoNotifyListText;
 
     /// <summary>案内を出すか</summary>
     public bool HasNote => NoteText.Length > 0;

@@ -28,6 +28,7 @@ using MmmTool.Features.Users;
 using MmmTool.Links;
 using MmmTool.Notes.Core;
 using MmmTool.Reminders;
+using MmmTool.Reminders.Settings;
 using MmmTool.Shell;
 using MmmTool.Shell.Main;
 using MmmTool.Tools;
@@ -123,6 +124,9 @@ public partial class App : Application
         services.AddSingleton<UnavailableCodeMasterRepository>();
         services.AddStorage<ICodeMasterRepository, SqliteCodeMasterRepository, UnavailableCodeMasterRepository>();
         services.AddCodeMasterSettings(SettingsSectionOrder.CodeMaster);
+
+        // 設定ページの通知の節は、送信先・受け取り先・通知を受け取る機能の 3 つ。どの機能にも属さない共通の節で、サーバーモードだけ出る
+        services.AddNotificationSettings(SettingsSectionOrder.Notifications);
 
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();

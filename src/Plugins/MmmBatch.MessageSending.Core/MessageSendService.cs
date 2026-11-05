@@ -151,7 +151,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var error = "";
         if (target.Channel is null)
         {
-            error = "受け取り先が指定されていません。";
+            error = "通知先が指定されていません。";
         }
         else if (target.Channel.IsDeleted)
         {

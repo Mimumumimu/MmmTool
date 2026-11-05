@@ -1,8 +1,8 @@
 namespace MmmTool.Messages.Core;
 
 /// <summary>
-/// 自分と相手が、メッセージの受け取り先を指定しているか。
+/// 1 対 1 の相手に、メッセージの通知が届くか。
 /// </summary>
-/// <param name="SelfCanReceive">自分が、受け取り先を指定していて、その送信先が削除されておらず、管理者にメッセージを無効にされていないとき true</param>
-/// <param name="PeerCanReceive">相手が受け取れるとき true。相手を決めないときと、グループは true</param>
-public sealed record MessageReceiveState(bool SelfCanReceive, bool PeerCanReceive);
+/// <param name="PeerCanReceive">相手に通知が届くとき true。相手が通知先を指定していないときは false。相手を決めないときと、グループは true</param>
+/// <remarks>送れるかどうかは決めない。false のときは、送れるが相手に通知が届かないことを、入力欄の近くで知らせる。</remarks>
+public sealed record MessageReceiveState(bool PeerCanReceive);

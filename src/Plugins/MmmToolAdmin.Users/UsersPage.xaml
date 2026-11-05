@@ -26,31 +26,42 @@
             Style="{StaticResource TitleTextBlockStyle}"
             Text="ユーザー" />
 
-        <!-- 選んだ人の登録用コードを出す。使える状態の人を選んだときだけ押せる -->
-        <Button
+        <!-- 選んだ人への操作。登録用コードの発行は、使える状態の人を選んだときだけ押せる。ログインの無効化は、人を選んだときだけ押せる -->
+        <StackPanel
             Grid.Row="1"
             Grid.ColumnSpan="2"
             Margin="0,0,0,12"
-            Command="{x:Bind ViewModel.IssueCodeCommand}"
-            Content="登録用コードを発行"
-            Style="{StaticResource AccentButtonStyle}" />
+            Orientation="Horizontal"
+            Spacing="8">
+            <Button
+                Command="{x:Bind ViewModel.IssueCodeCommand}"
+                Content="登録用コードを発行"
+                Style="{StaticResource AccentButtonStyle}" />
+            <Button Command="{x:Bind ViewModel.RevokeSessionsCommand}" Content="ログインを無効にする" />
+        </StackPanel>
 
-        <!-- 発行したコード。コードは選んでコピーできる -->
-        <InfoBar
-            Grid.Row="2"
-            Grid.ColumnSpan="2"
-            Margin="0,0,0,12"
-            IsOpen="{x:Bind ViewModel.IsIssuedOpen, Mode=TwoWay}"
-            Message="{x:Bind ViewModel.IssuedMessage, Mode=OneWay}"
-            Severity="Success"
-            Title="{x:Bind ViewModel.IssuedTitle, Mode=OneWay}">
-            <TextBlock
+        <!-- 操作の結果。発行したコードは選んでコピーできる -->
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2">
+            <InfoBar
                 Margin="0,0,0,12"
-                FontFamily="Consolas"
-                FontSize="28"
-                IsTextSelectionEnabled="True"
-                Text="{x:Bind ViewModel.IssuedCode, Mode=OneWay}" />
-        </InfoBar>
+                IsOpen="{x:Bind ViewModel.IsIssuedOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.IssuedMessage, Mode=OneWay}"
+                Severity="Success"
+                Title="{x:Bind ViewModel.IssuedTitle, Mode=OneWay}">
+                <TextBlock
+                    Margin="0,0,0,12"
+                    FontFamily="Consolas"
+                    FontSize="28"
+                    IsTextSelectionEnabled="True"
+                    Text="{x:Bind ViewModel.IssuedCode, Mode=OneWay}" />
+            </InfoBar>
+            <InfoBar
+                Margin="0,0,0,12"
+                IsOpen="{x:Bind ViewModel.IsRevokedOpen, Mode=TwoWay}"
+                Message="{x:Bind ViewModel.RevokedMessage, Mode=OneWay}"
+                Severity="Success"
+                Title="{x:Bind ViewModel.RevokedTitle, Mode=OneWay}" />
+        </StackPanel>
 
         <!-- 見出し。一覧の行と、列の幅と左右の余白をそろえる -->
         <Grid Grid.Row="3" Margin="16,0,16,4">

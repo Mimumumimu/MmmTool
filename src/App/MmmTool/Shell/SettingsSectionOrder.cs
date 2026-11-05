@@ -3,7 +3,7 @@ namespace MmmTool.Shell;
 /// <summary>設定ページの先頭に並べる部品 (機能に属さないもの)の並び順の値</summary>
 /// <remarks>
 /// 各機能の部品は、機能の並び順の値 (0 以上)で並ぶ。ここの値は、すべて、それより前に並ぶ。
-/// 「全般」→「保存先」→「アカウント」→「機能」の一覧 →「選択肢」→ 各機能の設定、の順になる。
+/// 「全般」→「保存先」→「アカウント」→「機能」の一覧 →「選択肢」→ 通知の 3 つの節 → 各機能の設定、の順になる。
 /// </remarks>
 public static class SettingsSectionOrder
 {
@@ -21,4 +21,7 @@ public static class SettingsSectionOrder
 
     /// <summary>選択肢で、ローカルモードのときだけ、コードマスタの名前を編集する</summary>
     public const int CodeMaster = -50;
+
+    /// <summary>通知の節の先頭の「送信先」。続く「受け取り先」「通知を受け取る機能」は、1 ずつ大きい値で、すぐあとに並ぶ。サーバーモードのときだけ</summary>
+    public const int Notifications = -40;
 }

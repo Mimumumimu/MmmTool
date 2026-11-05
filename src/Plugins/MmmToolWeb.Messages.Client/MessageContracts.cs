@@ -40,7 +40,7 @@ public sealed record MessageLinkDto(int Start, int Length, string Href);
 /// <param name="IsDirect">1 対 1 か。</param>
 /// <param name="Name">画面に出す名前。1 対 1 は相手の表示名、グループは会話の名前。</param>
 /// <param name="PeerUserId">1 対 1 の相手の番号。自分との会話は自分の番号。グループは 0。</param>
-/// <param name="PeerCanReceive">1 対 1 の相手が、受け取り先を指定しているか。false のとき、入力欄は押せない。</param>
+/// <param name="PeerCanReceive">1 対 1 の相手に、通知が届くか。false のとき、通知が届かないことを案内する。</param>
 /// <param name="LastMessageId">最後のメッセージの番号。会話の並びの基準。</param>
 /// <param name="LastText">最後のメッセージの本文の 1 行目。</param>
 /// <param name="TimeText">最後のメッセージの日時の表示の文字。</param>
@@ -158,9 +158,8 @@ public sealed record DirectDto(int ConversationId);
 /// 入力欄を出すのに要る情報。
 /// </summary>
 /// <param name="BodyMaxLength">本文の最大の長さ。</param>
-/// <param name="SelfCanReceive">自分が、受け取り先を指定しているか。false のとき、入力欄は押せない。</param>
-/// <param name="PeerCanReceive">相手の番号を渡したとき、その相手が、受け取り先を指定しているか。番号を渡さないときは true。false のとき、入力欄は押せない。</param>
+/// <param name="PeerCanReceive">相手の番号を渡したとき、その相手に通知が届くか。番号を渡さないときは true。false のとき、通知が届かないことを案内する。入力欄は止めない。</param>
 /// <param name="GroupNameMaxLength">グループの名前の最大の長さ。</param>
 /// <param name="GroupMaxMembers">グループの参加者の最大の人数。自分を含む。</param>
-public sealed record MessageFormDto(int BodyMaxLength, bool SelfCanReceive, bool PeerCanReceive, int GroupNameMaxLength, int GroupMaxMembers);
+public sealed record MessageFormDto(int BodyMaxLength, bool PeerCanReceive, int GroupNameMaxLength, int GroupMaxMembers);
 

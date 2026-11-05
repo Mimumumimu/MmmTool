@@ -28,12 +28,12 @@ internal static class ReceiveSettingEndpoints
     }
 
     /// <summary>
-    /// 受け取り先の設定を返す。自分が使用者の送信先と、選んでいる送信先。
+    /// 通知先の設定を返す。自分が使用者の Web 版通知の送信先と、選んでいる送信先。
     /// </summary>
     /// <param name="channels">送信先の保存先。</param>
     /// <param name="settings">ユーザーごとの設定の保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>送信先の一覧と、選んでいる送信先の番号。送る先の値は含めない。</returns>
+    /// <returns>送信先の一覧と、選んでいる送信先の番号。送る先の値は含めない。選んでいる送信先が一覧に無いときは 0。</returns>
     private static async Task<IResult> LoadReceiveSettingAsync(
         INotificationChannelRepository channels, IAppUserSettingRepository settings, CancellationToken cancellationToken)
     {
@@ -117,22 +117,16 @@ internal static class ReceiveSettingEndpoints
     }
 
     /// <summary>
-    /// 自分が使用者の送信先を、種類ごとに読んで並べる。
+    /// 通知先に選べる送信先を読んで並べる。自分が使用者の送信先のうち、種類が Web 版通知のものだけ。
     /// </summary>
     /// <param name="channels">送信先の保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>送信先。種類の順で、番号の順。</returns>
+    /// <returns>送信先。番号の順。</returns>
+    /// <remarks>ntfy と Discord は、通知先に選べない。PC には通知ダイアログがあるので、通知先は、スマホの通知のためだけにある。保存の検査も、この一覧を使うので、選べない種類の番号は断る。</remarks>
     private static async Task<IReadOnlyList<ReceiveChannelDto>> ListChannelsAsync(INotificationChannelRepository channels, CancellationToken cancellationToken)
     {
-        var byKind = await channels.GetAllSummariesAsync(cancellationToken);
-        var list = new List<ReceiveChannelDto>();
-        foreach (var kind in Enum.GetValues<NotificationChannelKind>())
-        {
-            if (byKind.TryGetValue(kind, out var summaries))
-            {
-                list.AddRange(summaries.OrderBy(summary => summary.Id).Select(summary => new ReceiveChannelDto(summary.Id, summary.Name, NotificationChannelKinds.ToText(kind))));
-            }
-        }
-        return list;
+        var summaries = await channels.GetSummariesAsync(NotificationChannelKind.WebPush, cancellationToken);
+        var kindText = NotificationChannelKinds.ToText(NotificationChannelKind.WebPush);
+        return [.. summaries.OrderBy(summary => summary.Id).Select(summary => new ReceiveChannelDto(summary.Id, summary.Name, kindText))];
     }
 }

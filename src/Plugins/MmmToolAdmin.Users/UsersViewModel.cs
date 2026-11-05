@@ -12,19 +12,21 @@ using MmmToolWeb.Auth.Core.Enrollment;
 namespace MmmToolAdmin.Users;
 
 /// <summary>
-/// ユーザーのページの ViewModel。ユーザーの一覧を出し、選んだ人の登録用コードの発行と、機能の利用の設定を行う。
+/// ユーザーのページの ViewModel。ユーザーの一覧を出し、選んだ人の登録用コードの発行・ログインの無効化・機能の利用の設定を行う。
 /// </summary>
 /// <param name="users">ユーザーの保存先</param>
 /// <param name="lookup">今日使える状態のユーザーを探す</param>
 /// <param name="codes">登録用コードの発行</param>
+/// <param name="webAuth">ログインの世代の番号の保存先</param>
 /// <param name="access">機能の利用の読み書き</param>
 /// <param name="dialogs">接続の設定の画面を開く</param>
-/// <param name="confirm">発行の前の確認ダイアログ</param>
+/// <param name="confirm">発行と無効化の前の確認ダイアログ</param>
 /// <param name="time">今日の日付を決める時計</param>
 public sealed partial class UsersViewModel(
     IAppUserRepository users,
     WebUserLookup lookup,
     EnrollmentCodeService codes,
+    IAppUserWebAuthRepository webAuth,
     FeatureAccessService access,
     IConnectionSettingsDialogService dialogs,
     IDialogService confirm,
@@ -42,6 +44,7 @@ public sealed partial class UsersViewModel(
     /// <summary>一覧で選んでいるユーザー。無ければ null</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(IssueCodeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RevokeSessionsCommand))]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     [NotifyPropertyChangedFor(nameof(HasNoSelection))]
     public partial UserItem? Selected { get; set; }
@@ -67,6 +70,18 @@ public sealed partial class UsersViewModel(
     /// <summary>発行した登録用コードの、期限と使い方の説明</summary>
     [ObservableProperty]
     public partial string IssuedMessage { get; private set; } = "";
+
+    /// <summary>ログインを無効にしたことを知らせる帯を出しているか</summary>
+    [ObservableProperty]
+    public partial bool IsRevokedOpen { get; set; }
+
+    /// <summary>ログインを無効にしたことを知らせる帯の見出しで、持ち主の名前を含む</summary>
+    [ObservableProperty]
+    public partial string RevokedTitle { get; private set; } = "";
+
+    /// <summary>ログインを無効にしたことを知らせる帯の説明</summary>
+    [ObservableProperty]
+    public partial string RevokedMessage { get; private set; } = "";
 
     /// <inheritdoc />
     public override async Task RefreshAsync()
@@ -141,6 +156,42 @@ public sealed partial class UsersViewModel(
             IssuedCode = issued.Code;
             IssuedMessage = $"{issued.ExpiresAt.ToLocalTime():yyyy-MM-dd HH:mm} まで、1 回だけ使えます。前に出したコードは使えなくなります。";
             IsIssuedOpen = true;
+            Error.Clear();
+        }
+        catch (Exception ex) when (ex is DataFileException or InvalidOperationException)
+        {
+            // DB に接続できない・表が無いなど。画面に出せるメッセージを見せる
+            Error.Show(ex.Message);
+        }
+    }
+
+    /// <summary>選んだ人の、Web 版のログインを、すべての端末で無効にする</summary>
+    /// <returns>無効化の完了を表すタスク</returns>
+    /// <remarks>ログインの世代の番号を 1 上げる。前の番号の Cookie は、Web 版が次の API の呼び出しで断る。パスキーの登録は消えないので、本人は、もう一度ログインできる。</remarks>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task RevokeSessionsAsync()
+    {
+        if (Selected is not { } selected)
+        {
+            return;
+        }
+
+        // 取り消せず、本人の全端末が、次の操作でログイン画面に戻るので、必ず確認する
+        if (!await confirm.ConfirmAsync(
+            "ログインの無効化",
+            $"{selected.DisplayName} さんの Web 版のログインを、すべての端末で無効にします。{selected.DisplayName} さんは、もう一度ログインするまで、Web 版を使えません。",
+            "無効にする",
+            "キャンセル"))
+        {
+            return;
+        }
+
+        try
+        {
+            await webAuth.IncrementSessionVersionAsync(selected.Id, CancellationToken.None);
+            RevokedTitle = $"{selected.DisplayName} さんのログインを無効にしました。";
+            RevokedMessage = "Web 版は、パスキーでもう一度ログインすれば、使えます。";
+            IsRevokedOpen = true;
             Error.Clear();
         }
         catch (Exception ex) when (ex is DataFileException or InvalidOperationException)

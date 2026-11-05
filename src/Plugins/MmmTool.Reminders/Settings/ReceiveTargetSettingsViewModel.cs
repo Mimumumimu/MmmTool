@@ -8,7 +8,7 @@ using MmmTool.Users.Core;
 namespace MmmTool.Reminders.Settings;
 
 /// <summary>
-/// 設定ページの「受け取り先」の ViewModel。通知の受け取り先を 1 つ選び、保存する。
+/// 設定ページの「通知先」の ViewModel。通知先を 1 つ選び、保存する。選べるのは、Web 版通知の送信先だけ。
 /// </summary>
 /// <param name="store">ユーザーごとの設定の保存先</param>
 /// <param name="channels">送信先の保存先。自分が使用者の送信先を読む</param>
@@ -40,7 +40,10 @@ public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository sto
         try
         {
             var options = new List<ReceiveChannelOption> { ReceiveChannelOption.None };
-            options.AddRange((await channels.GetChannelsAsync(includeDeleted: false)).Select(ReceiveChannelOption.From));
+            // 通知先に選べるのは、Web 版通知の送信先だけ。ntfy と Discord は選べない (PC には通知ダイアログがあり、通知先はスマホの通知のためだけにある)
+            options.AddRange((await channels.GetChannelsAsync(includeDeleted: false))
+                .Where(channel => channel.Kind == NotificationChannelKind.WebPush)
+                .Select(ReceiveChannelOption.From));
 
             var saved = await store.GetAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo);
             var item = new ReceiveTargetItem(options, SaveAsync) { IsLoading = true };
@@ -52,7 +55,7 @@ public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository sto
         }
         catch (DataFileException ex)
         {
-            Error.Show($"受け取り先を読み込めませんでした: {ex.Message}");
+            Error.Show($"通知先を読み込めませんでした: {ex.Message}");
         }
     }
 
@@ -75,7 +78,7 @@ public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository sto
         }
         catch (DataFileException ex)
         {
-            Error.Show($"受け取り先を保存できませんでした: {ex.Message}");
+            Error.Show($"通知先を保存できませんでした: {ex.Message}");
             await InitializeAsync();
         }
     }

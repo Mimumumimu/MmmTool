@@ -46,8 +46,14 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <summary>管理者がメッセージを無効にした人かを調べる条件。人の番号を表す式は、<c>{0}</c> に入れる</summary>
     private static readonly string MessagesDisabled = FeatureAccessSql.IsDisabled("{0}", CodeFeatures.Messages);
 
-    /// <summary>その人が、メッセージを受け取れるかを調べる条件。その人が、メッセージの受け取り先を指定し、その送信先が削除されておらず、管理者がメッセージを無効にしていない</summary>
-    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
+    /// <summary>管理者がメッセージを無効にしていない人かを調べる条件。人の番号を表す式は、<c>{0}</c> に入れる</summary>
+    private static readonly string MessagesEnabled = $"(NOT {MessagesDisabled})";
+
+    /// <summary>その人に、通知が届くかを調べる条件。その人が、通知先を指定し、その送信先が削除されておらず、管理者がメッセージを無効にしていない</summary>
+    /// <remarks>
+    /// 人の番号を表す式は、<c>{0}</c> に入れる。
+    /// 通知の状態の行を書く相手を決めることと、相手に通知が届かないことの案内に使う。送れるかどうかには使わない。
+    /// </remarks>
     private static readonly string ReceiveTargetExists =
         $$"""
         (EXISTS (SELECT 1 FROM dbo.AppUserSetting AS s
@@ -61,9 +67,9 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     private const string UserUsable =
         "EXISTS (SELECT 1 FROM dbo.AppUser WHERE Id = {0} AND IsDeleted = 0 AND ValidFrom <= CAST(GETDATE() AS date) AND ValidTo >= CAST(GETDATE() AS date))";
 
-    /// <summary>グループに足せる人かを調べる条件。使える状態で存在し、メッセージを受け取れる</summary>
-    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
-    private static readonly string UserCanBeAdded = $"({UserUsable} AND {ReceiveTargetExists})";
+    /// <summary>グループに足せる人かを調べる条件。使える状態で存在し、管理者にメッセージを無効にされていない</summary>
+    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。通知先の有無は問わない。</remarks>
+    private static readonly string UserCanBeAdded = $"({UserUsable} AND {MessagesEnabled})";
 
     /// <inheritdoc />
     public bool IsAvailable => true;
@@ -196,7 +202,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 FROM dbo.AppUser AS u
                 WHERE u.IsDeleted = 0 AND u.ValidFrom <= CAST(GETDATE() AS date) AND u.ValidTo >= CAST(GETDATE() AS date)
                     AND u.DisplayName LIKE @Pattern ESCAPE N'\'
-                    AND {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "u.Id")}
+                    AND {string.Format(CultureInfo.InvariantCulture, MessagesEnabled, "u.Id")}
                 ORDER BY u.DisplayName, u.Id
                 """;
             command.Parameters.Add(Int("@Count", count));
@@ -210,13 +216,6 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             }
             return people;
         }, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public Task<bool> CanReceiveAsync(int userId, CancellationToken cancellationToken = default)
-    {
-        _ = SendTableAccess.RequireUserId(currentUser);
-        return SendTableAccess.RunAsync(database, connection => CanReceiveAsync(connection, null, userId, cancellationToken), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -248,7 +247,6 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
     /// <inheritdoc />
     /// <remarks>
-    /// 自分の状態と相手の状態を、同じ問い合わせの列にして読む。
     /// 会話の番号があるときは、<see cref="CanPeerReceiveAsync"/> と同じ決まりで相手を見つける。グループは、相手が 1 人に決まらないので true。
     /// </remarks>
     public Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default)
@@ -262,8 +260,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 command.CommandText =
                     $"""
                     SELECT c.Kind,
-                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END,
-                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Me")} THEN 1 ELSE 0 END
+                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
                     FROM dbo.MessageConversation AS c
                     INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
                     OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
@@ -277,8 +274,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 command.CommandText =
                     $"""
                     SELECT CAST({DirectKind} AS tinyint),
-                           CASE WHEN @Peer <= 0 OR {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Peer")} THEN 1 ELSE 0 END,
-                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Me")} THEN 1 ELSE 0 END
+                           CASE WHEN @Peer <= 0 OR {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Peer")} THEN 1 ELSE 0 END
                     """;
                 command.Parameters.Add(Int("@Peer", peerUserId));
             }
@@ -288,7 +284,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             {
                 return null;
             }
-            return new MessageReceiveState(reader.GetInt32(2) == 1, reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1);
+            return new MessageReceiveState(reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1);
         }, cancellationToken);
     }
 
@@ -317,19 +313,13 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 return SendMessageResult.Failed(SendMessageOutcome.NotMember);
             }
 
-            // 自分の受け取り先を指定していない人は、送れない。返事を受け取れない人が、一方的に送る形にしないため
-            if (!await CanReceiveAsync(connection, null, me, cancellationToken).ConfigureAwait(false))
+            // 新しい 1 対 1 は、相手が管理者にメッセージを無効にされていないときだけ作る。無効のとき、空の会話を残さない。通知先の有無は問わない
+            if (target.PeerUserId > 0 && await IsMessagesDisabledAsync(connection, null, target.PeerUserId, cancellationToken).ConfigureAwait(false))
             {
-                return SendMessageResult.Failed(SendMessageOutcome.SelfNoReceiveTarget);
+                return SendMessageResult.Failed(SendMessageOutcome.NotMember);
             }
 
-            // 新しい 1 対 1 は、相手が受け取り先を指定しているときだけ作る。指定していないとき、空の会話を残さない
-            if (target.PeerUserId > 0 && !await CanReceiveAsync(connection, null, target.PeerUserId, cancellationToken).ConfigureAwait(false))
-            {
-                return SendMessageResult.Failed(SendMessageOutcome.NoReceiveTarget);
-            }
-
-            // 新しいグループは、名前と参加者が正しいときだけ作る。参加者は、全員が受け取り先を指定している人に限る
+            // 新しいグループは、名前と参加者が正しいときだけ作る。参加者は、全員がメッセージを無効にされていない人に限る
             var groupMembers = target.GroupMemberIds.Where(userId => userId != me).Distinct().ToList();
             if (target.IsNewGroup && !await IsValidNewGroupAsync(connection, target.GroupName, groupMembers, cancellationToken).ConfigureAwait(false))
             {
@@ -396,20 +386,20 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         }
 
         var recipients = await ReadRecipientsAsync(connection, transaction, me, conversationId, cancellationToken).ConfigureAwait(false);
-        if (kind == DirectKind)
+        var disabled = await ReadUserIdsWhereAsync(connection, transaction, recipients, MessagesDisabled, cancellationToken).ConfigureAwait(false);
+        if (kind == DirectKind && disabled.Count > 0)
         {
-            var receivable = await ReadUserIdsWhereAsync(connection, transaction, recipients, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
-            if (recipients.Any(recipient => !receivable.Contains(recipient)))
-            {
-                return SendMessageResult.Failed(SendMessageOutcome.NoReceiveTarget);
-            }
+            // 1 対 1 の相手が、メッセージを無効にされているときは、送れない。会話を作る前にも確かめているが、既にある会話の相手が、あとから無効にされることもある
+            return SendMessageResult.Failed(SendMessageOutcome.NotMember);
         }
-        else
-        {
-            // グループは、メッセージを無効にした人には、通知の状態を書かない。ほかの参加者には送る
-            var disabled = await ReadUserIdsWhereAsync(connection, transaction, recipients, MessagesDisabled, cancellationToken).ConfigureAwait(false);
-            recipients = recipients.Where(recipient => !disabled.Contains(recipient)).ToList();
-        }
+
+        // グループは、メッセージを無効にした人には、通知の状態を書かない。ほかの参加者には送る
+        recipients = recipients.Where(recipient => !disabled.Contains(recipient)).ToList();
+
+        // 通知の状態の行は、通知が届く人 (通知先を指定していて、その送信先が削除されていない人)には「送信待ち」、届かない人には「送らなかった」で書く
+        // 届かない人にも行を書くのは、画面と PC の通知ダイアログが、自分宛の新着を、この行で見つけるため。「送らなかった」にするのは、MmmBatch が、通知先が無い失敗を、送り直しの上限まで出し続けないため
+        var notifiable = await ReadUserIdsWhereAsync(connection, transaction, recipients, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
+        var notifiableIds = recipients.Where(notifiable.Contains).ToList();
 
         if (replyToMessageId > 0 && !await MessageInConversationExistsAsync(connection, transaction, conversationId, replyToMessageId, excludeSystem: true, cancellationToken).ConfigureAwait(false))
         {
@@ -435,18 +425,21 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
         if (recipients.Count > 0)
         {
-            // 受け取る人の数だけ流さず、人の番号を JSON の 1 つのパラメーターで渡して、1 回で足す
+            // 受け取る人の数だけ流さず、人の番号を JSON の 1 つのパラメーターで渡して、1 回で足す。状態は、通知が届く人が送信待ち、届かない人が送らなかった
             await using var delivery = connection.CreateCommand();
             delivery.Transaction = transaction;
             delivery.CommandText =
-                """
-                INSERT INTO dbo.MessageDelivery (CreatedByUserId, UpdatedByUserId, MessageId, UserId)
-                SELECT @Me, @Me, @MessageId, CAST(j.value AS int)
+                $"""
+                INSERT INTO dbo.MessageDelivery (CreatedByUserId, UpdatedByUserId, MessageId, UserId, Status)
+                SELECT @Me, @Me, @MessageId, CAST(j.value AS int),
+                       CASE WHEN CAST(j.value AS int) IN (SELECT CAST(n.value AS int) FROM OPENJSON(@NotifiableIds) AS n)
+                            THEN {(int)MessageSendStatus.Pending} ELSE {(int)MessageSendStatus.Skipped} END
                 FROM OPENJSON(@UserIds) AS j
                 """;
             delivery.Parameters.Add(Int("@Me", me));
             delivery.Parameters.Add(Int("@MessageId", messageId));
             delivery.Parameters.Add(new SqlParameter("@UserIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(recipients) });
+            delivery.Parameters.Add(new SqlParameter("@NotifiableIds", SqlDbType.NVarChar, -1) { Value = IdJson.From(notifiableIds) });
             await delivery.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
         return new SendMessageResult(SendMessageOutcome.Sent, conversationId, messageId);
@@ -780,15 +773,15 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="name">名前。前後の空白を取った文字</param>
     /// <param name="memberIds">自分以外の参加者の番号。重なりを除いたもの</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>名前が使え、参加者が 1 人以上で自分を含めて上限以内、全員が使える人で受け取り先を指定しているとき true</returns>
+    /// <returns>名前が使え、参加者が 1 人以上で自分を含めて上限以内、全員が使える人で、管理者にメッセージを無効にされていないとき true</returns>
     private static async Task<bool> IsValidNewGroupAsync(SqlConnection connection, string name, IReadOnlyList<int> memberIds, CancellationToken cancellationToken)
     {
         if (!MessageDraft.IsValidGroupName(name) || !MessageDraft.IsValidGroupMemberCount(memberIds.Count))
         {
             return false;
         }
-        var receivable = await ReadUserIdsWhereAsync(connection, null, memberIds, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
-        return memberIds.All(receivable.Contains);
+        var usable = await ReadUserIdsWhereAsync(connection, null, memberIds, MessagesEnabled, cancellationToken).ConfigureAwait(false);
+        return memberIds.All(usable.Contains);
     }
 
     /// <inheritdoc />
@@ -1150,21 +1143,6 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         command.Parameters.Add(Int("@MessageId", messageId));
         command.Parameters.Add(Int("@ConversationId", conversationId));
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
-    }
-
-    /// <summary>人が、受け取り先を指定していて、その送信先が削除されていないか調べる</summary>
-    /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">使うトランザクション。無ければ null</param>
-    /// <param name="userId">人の番号</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>受け取れるとき true</returns>
-    private static async Task<bool> CanReceiveAsync(SqlConnection connection, SqlTransaction? transaction, int userId, CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = $"SELECT CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@UserId")} THEN 1 ELSE 0 END";
-        command.Parameters.Add(Int("@UserId", userId));
-        return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
     }
 
     /// <summary>管理者が、その人のメッセージを無効にしているか調べる</summary>
