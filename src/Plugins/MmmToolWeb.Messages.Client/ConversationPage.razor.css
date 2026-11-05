@@ -1,8 +1,13 @@
 /* 会話の画面。上のバー、中央にメッセージ、下に入力欄を縦に並べる。メッセージの部分がスクロールし、入力欄は下に貼り付く */
 .screen {
+    /* 画面に固定する。上端と高さは、js/browser.js の watchSheetViewport が、キーボードを除いた見える範囲に合わせる。iPhone は、キーボードを出しても 100dvh が縮まず、入力欄の下がキーボードの裏に隠れるため。値が無いときは、画面いっぱい */
+    position: fixed;
+    top: var(--sheet-top, 0);
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    height: var(--sheet-height, 100dvh);
     padding-bottom: 0;
 }
 
@@ -175,16 +180,10 @@
 
 /* 入力欄。画面の下に貼り付き、ホームバーに隠れないよう、下の余白を取る */
 .composer {
-    padding: 0.5rem 0 calc(env(safe-area-inset-bottom) + 0.5rem);
+    /* ホームバーの余白は、キーボードが出ても 0 にならない。キーボードが出ている間は、画面 (--sheet-height)が最大の高さ (100lvh)より縮むので、縮んだ分を余白から引いて、キーボードのすぐ上に付ける。出ていないときは、差が 0 で、ホームバーの余白が付く。下限は 0.5rem */
+    padding: 0.5rem 0 max(0.5rem, env(safe-area-inset-bottom) + 0.5rem - (100lvh - var(--sheet-height, 100lvh)));
     border-top: 1px solid var(--border);
     background: var(--bg);
-}
-
-/* iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (dvh)が画面の高さ (lvh)より縮んだまま戻らないことがある。縮んだ分より下は描かれないので、下へは動かせない。縮んだ分は、すでにホームバーの下に当たるので、余白 (ホームバーの余白と 0.5rem)から引く。縮んでいなければ、差は 0 */
-@media (display-mode: standalone) {
-    .composer {
-        padding-bottom: max(0px, env(safe-area-inset-bottom) + 0.5rem - (100lvh - 100dvh));
-    }
 }
 
 .notice {
@@ -215,8 +214,11 @@
     box-sizing: border-box;
     flex: 1;
     min-width: 0;
+    /* 最初は 1 行。改行すると、中身に合わせて伸び、5 行で止める。それ以上は、欄の中でスクロールする。上限は、行の高さ 1.5rem の 5 行分に、上下の余白と枠を足した高さ */
+    /* field-sizing に対応しない Safari 26.1 以前の端末では、1 行のまま、欄の中でスクロールする */
+    field-sizing: content;
     min-height: 2.75rem;
-    max-height: 9rem;
+    max-height: calc(1.5rem * 5 + 1rem + 2px);
     margin: 0;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
@@ -227,6 +229,7 @@
     /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
     font-size: 1rem;
     line-height: 1.5;
+    overflow-y: auto;
     resize: none;
 }
 

@@ -325,12 +325,34 @@ export function scrollToBottom(element) {
     element.scrollTop = element.scrollHeight;
 }
 
+// 要素の高さが縮んでも、一番下近くを見ていたら、一番下を保つ。キーボードを出したときや、入力欄が伸びたときに、最新のメッセージが押し出されないため。dispose でやめる
+// 見ていた位置は、スクロールのたびに覚える。縮む動きでは、スクロールの位置が変わらないので、縮んだあとに測ると、押し出された位置で判定してしまう
+export function keepBottomOnResize(element) {
+    let stickToBottom = isNearBottom(element);
+    const remember = () => {
+        stickToBottom = isNearBottom(element);
+    };
+    const observer = new ResizeObserver(() => {
+        if (stickToBottom) {
+            element.scrollTop = element.scrollHeight;
+        }
+    });
+    element.addEventListener("scroll", remember, { passive: true });
+    observer.observe(element);
+    return {
+        dispose() {
+            element.removeEventListener("scroll", remember);
+            observer.disconnect();
+        },
+    };
+}
+
 // 要素が、ほぼ一番下を見ているか。新着が届いたとき、見ている位置を動かさないかを決める
 export function isNearBottom(element) {
     return element.scrollHeight - element.scrollTop - element.clientHeight < 120;
 }
 
-// 全画面のシートが開いている間、シートを見えている範囲 (キーボードを除いた範囲)の上端と高さに合わせ、画面のずれを戻す。dispose でやめる
+// 全画面のシートや、画面いっぱいに固定した画面 (会話など)が開いている間、見えている範囲 (キーボードを除いた範囲)の上端と高さに合わせ、画面のずれを戻す。dispose でやめる
 // iPhone は、キーボードを出すとき、入力欄が見えるように画面全体を動かし、閉じても戻さない端末がある。シートが開いている間は、裏の画面をスクロールさせない (css/app.css)ので、動いた分は、開いたときの位置に戻してよい
 // 開いたときの位置は、裏の画面 (ノートの一覧など)のスクロール位置なので、0 ではなく、その位置へ戻す
 // シートの css は、--sheet-top と --sheet-height を使う

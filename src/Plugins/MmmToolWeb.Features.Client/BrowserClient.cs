@@ -240,13 +240,25 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
-    /// 全画面のシートを、キーボードを除いた見える範囲に合わせ始める。キーボードを閉じたあとの、画面のずれも戻す。
+    /// 全画面のシートや、画面いっぱいに固定した画面 (会話など)を、キーボードを除いた見える範囲に合わせ始める。キーボードを閉じたあとの、画面のずれも戻す。
     /// </summary>
     /// <returns>閉じると、やめる購読。</returns>
     public async Task<IAsyncDisposable> WatchSheetViewportAsync()
     {
         var module = await GetModuleAsync();
         var handle = await module.InvokeAsync<IJSObjectReference>("watchSheetViewport");
+        return new JsSubscription(handle);
+    }
+
+    /// <summary>
+    /// 要素の高さが縮んでも、一番下近くを見ていたら、一番下を保ち始める。キーボードを出したときや入力欄が伸びたときに、最新のメッセージが押し出されないため。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <returns>閉じると、やめる購読。</returns>
+    public async Task<IAsyncDisposable> KeepBottomOnResizeAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        var handle = await module.InvokeAsync<IJSObjectReference>("keepBottomOnResize", element);
         return new JsSubscription(handle);
     }
 

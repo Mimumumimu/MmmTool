@@ -92,7 +92,7 @@
             </p>
         }
         <div class="input">
-            <textarea aria-label="メッセージ" rows="2" maxlength="@_bodyMaxLength" disabled="@(!_selfCanReceive || !_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
+            <textarea aria-label="メッセージ" rows="1" maxlength="@_bodyMaxLength" disabled="@(!_selfCanReceive || !_peerCanReceive)" @bind="_body" @bind:event="oninput"></textarea>
             <button type="button" class="primary" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
         </div>
     </div>
@@ -170,6 +170,9 @@
     private readonly List<MessageDto> _arrivedWhileLoading = [];
     private IAsyncDisposable? _live;
     private IAsyncDisposable? _topWatch;
+    private IAsyncDisposable? _viewport;
+    private IAsyncDisposable? _keepBottom;
+    private bool _disposed;
 
     /// <summary>本文の最大の長さの既定。サーバーが返す値で置き換える。</summary>
     private const int MessageLimitsBody = 1000;
@@ -211,6 +214,20 @@
         if (firstRender)
         {
             _topWatch = await Browser.WatchScrollTopAsync(_thread, () => InvokeAsync(LoadOlderAsync));
+            // キーボードを出したとき、入力欄の下が隠れないよう、画面をキーボードを除いた範囲に合わせる
+            var viewport = await Browser.WatchSheetViewportAsync();
+            // 画面が縮んでも、一番下を見ていたら、最新のメッセージを見える位置に保つ
+            var keepBottom = await Browser.KeepBottomOnResizeAsync(_thread);
+            if (_disposed)
+            {
+                await viewport.DisposeAsync();
+                await keepBottom.DisposeAsync();
+            }
+            else
+            {
+                _viewport = viewport;
+                _keepBottom = keepBottom;
+            }
         }
         if (!_watchingVisible)
         {
@@ -760,6 +777,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         if (Store.OpenConversationId == ConversationId)
         {
             Store.OpenConversationId = 0;
@@ -771,6 +789,14 @@
         if (_topWatch is not null)
         {
             await _topWatch.DisposeAsync();
+        }
+        if (_viewport is not null)
+        {
+            await _viewport.DisposeAsync();
+        }
+        if (_keepBottom is not null)
+        {
+            await _keepBottom.DisposeAsync();
         }
         if (_live is not null)
         {
