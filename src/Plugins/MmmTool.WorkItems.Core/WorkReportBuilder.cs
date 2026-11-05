@@ -15,6 +15,9 @@ public static class WorkReportBuilder
     /// <summary>1 段の字下げ (全角スペース)</summary>
     private const string Indent = "　";
 
+    /// <summary>作業の行の頭に付ける印。1 件の始まりを見分けるため。全角 1 文字</summary>
+    private const string Bullet = "・";
+
     /// <summary>行の区切り</summary>
     private const string NewLine = "\r\n";
 
@@ -250,7 +253,7 @@ public static class WorkReportBuilder
     /// <param name="showProgress">進捗度 (<c>70% (レビュー中)</c> の形)を添えるか</param>
     private static void AppendWork(StringBuilder builder, ReportEntry entry, string indent, int depth, CodeBook codes, bool showProgress)
     {
-        builder.Append(indent).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
+        builder.Append(indent).Append(Bullet).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
         if (showProgress)
         {
             builder.Append(' ').Append(WorkCodes.Display(codes, WorkCodes.ProgressCategory, entry.Item.ProgressCodeNo));
@@ -259,14 +262,10 @@ public static class WorkReportBuilder
         {
             builder.Append(" [").Append(hours.ToString("0.##", CultureInfo.InvariantCulture)).Append("h]");
         }
-        if (entry.Notes.Count == 1)
-        {
-            // 1 行だけのときは、行頭の字下げを除く (「 - 」のすぐ後ろに続けるため)
-            builder.Append(" - ").Append(entry.Notes[0].TrimStart()).Append(NewLine);
-            return;
-        }
+        // 備考は、1 行でも次の行に出す。作業の行の末尾に続けると、読み飛ばされるため。
+        // 字下げは、作業名の位置 (「・」の幅の分だけ右)より、さらに 1 段深くする。作業名の続きの文に見えず、作業の中身だと分かるため。
         builder.Append(NewLine);
-        var noteIndent = string.Concat(Enumerable.Repeat(Indent, depth + 1));
+        var noteIndent = string.Concat(Enumerable.Repeat(Indent, depth + 2));
         foreach (var note in entry.Notes)
         {
             builder.Append(noteIndent).Append(note).Append(NewLine);
