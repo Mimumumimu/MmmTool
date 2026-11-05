@@ -347,11 +347,11 @@ public sealed partial class WorkItemPage : Page
     private const double NoteMaxWidth = 320;
 
     /// <summary>名前のセルの右端に並ぶ印 1 つの幅 (自動入力の印と、作業報告から外す印)</summary>
-    /// <remarks>アイコンの大きさ 14 に、印どうしの間隔 6 を足した値。どの印も同じ大きさ。</remarks>
-    private const double MarkWidth = 20;
+    /// <remarks>アイコンの大きさ 14 に、ボタンの余白 (左右 2 ずつ)の 4 と、印どうしの間隔 6 を足した値。どの印も同じ大きさ。</remarks>
+    private const double MarkWidth = 24;
 
     /// <summary>名前のセルの右端に印が並ぶときの、文字との間の余白</summary>
-    /// <remarks>印の右の余白 6 から、最後の印の間隔 6 を引いた分に、文字との間の 4 を足した値。</remarks>
+    /// <remarks>印の右の余白 6 から、最後の印の間隔 6 を引いた分は 0 なので、文字との間の 4 だけを足す。</remarks>
     private const double MarksMargin = 4;
 
     /// <summary>文字の幅の測定に使う部品</summary>
