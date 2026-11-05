@@ -66,7 +66,8 @@ public sealed record ReceivedListResponse(IReadOnlyList<ReceivedNotificationDto>
 /// 通知を押したときに開く画面。
 /// </summary>
 /// <param name="Path">開く画面の道。先頭は「/」。行き先が無い種類・開けないときは null。</param>
-public sealed record DestinationResponse(string? Path);
+/// <param name="ReceivedAt">押した通知を受け取った日時。受け取った通知の一覧に出る種類で、その通知が自分のものだったときだけ。それ以外は null。</param>
+public sealed record DestinationResponse(string? Path, DateTimeOffset? ReceivedAt = null);
 
 /// <summary>
 /// 登録を解除する要求。

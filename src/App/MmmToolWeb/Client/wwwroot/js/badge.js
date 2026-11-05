@@ -11,8 +11,8 @@ const cacheStoreName = 'kv';
 const unreadKey = 'unread';
 
 // 端末が数える種類。識別子の「種類:番号」の種類。数えない種類の通知は、数字に入れない
-// note は、通知が届いたときだけ数える。画面からは入れない。ノートのページを開いたときに、全部外す
-const countedKinds = ['note'];
+// note と reminder は、通知が届いたときだけ数える。画面からは入れない。ノートのページとリマインダーの画面を開いたときに、それぞれ全部外す
+const countedKinds = ['note', 'reminder'];
 
 // サーバーが数える種類と、件数を聞く道。メッセージは、読んだ位置が DB にあるので、端末では数えない
 const serverCountedKinds = { message: '/api/messages/unread-count' };

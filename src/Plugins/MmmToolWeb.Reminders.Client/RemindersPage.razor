@@ -1,0 +1,407 @@
+@attribute [Route(Route)]
+@implements IAsyncDisposable
+@inject RemindersClient Reminders
+@inject BrowserClient Browser
+@inject NavigationManager Navigation
+
+<div class="@(_editorOpen ? "screen behind" : "screen")">
+    <FeatureHeader Title="リマインダー" Busy="_loading">
+        <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
+    </FeatureHeader>
+
+    <div class="segments tabs" role="radiogroup" aria-label="表示">
+        <label class="segment">
+            <input type="radio" name="view" checked="@(!_showAll)" @onchange="() => ChangeViewAsync(false)" />
+            <span>今日</span>
+        </label>
+        <label class="segment">
+            <input type="radio" name="view" checked="@_showAll" @onchange="() => ChangeViewAsync(true)" />
+            <span>すべて</span>
+        </label>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="message" role="alert">@_error</p>
+    }
+
+    @if (!_showAll)
+    {
+        <p class="day-label">@_today.ToString("yyyy/MM/dd")</p>
+        <main class="cards">
+            @if (!_loading && _error is null && _todayItems.Count == 0)
+            {
+                <p class="empty">今日のリマインダーはありません。</p>
+            }
+            @foreach (var item in Pending)
+            {
+                <article class="@TodayClass(item)" id="@ElementId(item.No)" @key="item.No">
+                    <div class="meta">
+                        <span class="time">@item.Time</span>
+                        <span class="status">@StatusText(item.Status)</span>
+                    </div>
+                    @Heading(item)
+                    @if (!string.IsNullOrEmpty(item.Note))
+                    {
+                        <p class="note">@item.Note</p>
+                    }
+                </article>
+            }
+            @if (Done.Count > 0)
+            {
+                <details class="done" open="@_doneOpen">
+                    <summary class="done-head">完了 (@Done.Count)</summary>
+                    @foreach (var item in Done)
+                    {
+                        <article class="@TodayClass(item)" id="@ElementId(item.No)" @key="item.No">
+                            <div class="meta">
+                                <span class="time">@item.Time</span>
+                                <span class="status">@StatusText(item.Status)</span>
+                            </div>
+                            @Heading(item)
+                            @if (!string.IsNullOrEmpty(item.Note))
+                            {
+                                <p class="note">@item.Note</p>
+                            }
+                        </article>
+                    }
+                </details>
+            }
+        </main>
+    }
+    else
+    {
+        <div class="options">
+            <label class="option">
+                <input type="checkbox" checked="@_includePast" @onchange="OnIncludePastChangedAsync" />
+                <span>過去の予定を表示</span>
+            </label>
+            <label class="option">
+                <input type="checkbox" checked="@_includeDeleted" @onchange="OnIncludeDeletedChangedAsync" />
+                <span>削除済みを表示</span>
+            </label>
+        </div>
+        <main class="cards">
+            @if (!_loading && _error is null && _listItems.Count == 0)
+            {
+                <p class="empty">リマインダーはありません。</p>
+            }
+            @foreach (var item in _listItems)
+            {
+                <button type="button" class="@ListClass(item)" id="@ElementId(item.No)" @key="item.No" @onclick="() => StartEditAsync(item)">
+                    <span class="meta">
+                        <span class="when">@item.WhenText</span>
+                        <span class="time">@item.Time</span>
+                    </span>
+                    <span class="title">@item.Title</span>
+                </button>
+            }
+        </main>
+    }
+
+    <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+</div>
+
+@if (_editorOpen)
+{
+    <ReminderEditSheet @key="_sheetKey" Source="_editing" IsCopy="_copy" OnSaved="OnSavedAsync" OnCancel="CloseEditor"
+                       OnFailed="OnEditFailedAsync" OnCopy="StartCopy" OnDelete="StartDelete" />
+}
+
+@if (_deleting is { } target)
+{
+    <ConfirmDialog Title="このリマインダーを削除しますか?" Target="@target.Title" ConfirmText="削除"
+                   OnConfirm="ConfirmDeleteAsync" OnCancel="() => _deleting = null" />
+}
+
+@code {
+    /// <summary>リマインダーの画面の道。</summary>
+    public const string Route = "/reminders";
+
+    /// <summary>通知の識別子の種類。リマインダーの通知の数を、このページを開いたときに外す。</summary>
+    internal const string ReminderNoticeKind = "reminder";
+
+    private DateOnly _today;
+    private bool _showAll;
+    private bool _includePast;
+    private bool _includeDeleted;
+    private bool _loading = true;
+    private string? _error;
+    private IReadOnlyList<ReminderTodayItemDto> _todayItems = [];
+    private IReadOnlyList<ReminderListItemDto> _listItems = [];
+    private bool _editorOpen;
+    private ReminderDetailDto? _editing;
+    private bool _copy;
+    private int _sheetKey;
+    private ReminderListItemDto? _deleting;
+    private int _loadVersion;
+    private bool _watching;
+
+    /// <summary>通知を押して開いたときの、強調するリマインダーの番号。無いときは 0。</summary>
+    private int _highlightNo;
+
+    /// <summary>描画のあとに、画面の中に見えるまで動かすリマインダーの番号。動かしたら 0 に戻す。</summary>
+    private int _scrollNo;
+
+    /// <summary>完了の折りたたみを開くか。通知で開いたリマインダーが完了のときに開く。</summary>
+    private bool _doneOpen;
+
+    /// <summary>通知を押して開いたときの、リマインダーの番号。</summary>
+    [SupplyParameterFromQuery(Name = "no")]
+    public int? OpenNo { get; set; }
+
+    /// <summary>通知を押して開いたときの、通知を送った日。<c>yyyy-MM-dd</c> の形。今日より前なら、「すべて」を開く。</summary>
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? OpenDate { get; set; }
+
+    /// <summary>未対応。状態が未とスヌーズのもの。</summary>
+    private List<ReminderTodayItemDto> Pending => [.. _todayItems.Where(item => item.Status != DoneStatus)];
+
+    /// <summary>完了。</summary>
+    private List<ReminderTodayItemDto> Done => [.. _todayItems.Where(item => item.Status == DoneStatus)];
+
+    /// <summary>完了を表す対応状態の値。</summary>
+    private const int DoneStatus = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _today = await Browser.GetTodayAsync();
+        await Browser.ClearUnreadAsync(ReminderNoticeKind);
+
+        if (OpenNo is > 0)
+        {
+            _highlightNo = OpenNo.Value;
+            _scrollNo = _highlightNo;
+
+            // 送った日が過去なら、今日の対象には出ない。「すべて」を、過去の予定つきで開く
+            if (DateOnly.TryParseExact(OpenDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sent)
+                && sent < _today)
+            {
+                _showAll = true;
+                _includePast = true;
+            }
+        }
+
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_watching)
+        {
+            _watching = true;
+            Browser.BecameVisible += LoadOnReturnAsync;
+            await Browser.StartWatchingVisibilityAsync();
+        }
+
+        if (_scrollNo > 0 && !_loading)
+        {
+            var no = _scrollNo;
+            _scrollNo = 0;
+            await Browser.ScrollIntoViewAsync(ElementId(no));
+        }
+    }
+
+    /// <summary>アプリが裏から戻ったときに、読み直す。日付が変わっていれば、新しい日で読む。</summary>
+    private Task LoadOnReturnAsync() => InvokeAsync(async () =>
+    {
+        _today = await Browser.GetTodayAsync();
+        await LoadAsync();
+    });
+
+    private async Task LoadAsync()
+    {
+        var version = ++_loadVersion;
+        _loading = true;
+        // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
+        StateHasChanged();
+
+        if (_showAll)
+        {
+            var result = await Reminders.LoadListAsync(_today, _includePast, _includeDeleted);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+            _loading = false;
+            if (await HandleFailureAsync(result.Status, result.Message))
+            {
+                return;
+            }
+            if (result.Succeeded)
+            {
+                _listItems = result.Value!.Items;
+            }
+        }
+        else
+        {
+            var result = await Reminders.LoadTodayAsync(_today);
+            if (version != _loadVersion)
+            {
+                return;
+            }
+            _loading = false;
+            if (await HandleFailureAsync(result.Status, result.Message))
+            {
+                return;
+            }
+            if (result.Succeeded)
+            {
+                _todayItems = result.Value!.Items;
+                _doneOpen = _doneOpen || _todayItems.Any(item => item.No == _highlightNo && item.Status == DoneStatus);
+            }
+        }
+        StateHasChanged();
+    }
+
+    /// <summary>読み込みの失敗を扱う。ログインが切れていれば、ログイン画面へ移る。</summary>
+    /// <param name="status">失敗の種類。</param>
+    /// <param name="message">画面に出す理由。</param>
+    /// <returns>画面を移したとき true。</returns>
+    private Task<bool> HandleFailureAsync(ApiFailure status, string? message)
+    {
+        if (status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return Task.FromResult(true);
+        }
+        _error = status == ApiFailure.None ? null : message;
+        return Task.FromResult(false);
+    }
+
+    private Task ChangeViewAsync(bool showAll)
+    {
+        _showAll = showAll;
+        return LoadAsync();
+    }
+
+    private Task OnIncludePastChangedAsync(ChangeEventArgs e)
+    {
+        _includePast = (bool)e.Value!;
+        return LoadAsync();
+    }
+
+    private Task OnIncludeDeletedChangedAsync(ChangeEventArgs e)
+    {
+        _includeDeleted = (bool)e.Value!;
+        return LoadAsync();
+    }
+
+    private void StartNew()
+    {
+        _editing = null;
+        _copy = false;
+        _sheetKey++;
+        _editorOpen = true;
+    }
+
+    private async Task StartEditAsync(ReminderListItemDto item)
+    {
+        var result = await Reminders.LoadDetailAsync(item.No);
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded)
+        {
+            // ほかの人や PC 版が先に変えたとき。理由を出して、読み直す
+            await LoadAsync();
+            _error = result.Message;
+            return;
+        }
+        _editing = result.Value;
+        _copy = false;
+        _sheetKey++;
+        _editorOpen = true;
+    }
+
+    /// <summary>開いているリマインダーを元に、新規のシートを開き直す。番号と削除済みは引き継がない。</summary>
+    private void StartCopy()
+    {
+        _copy = true;
+        _sheetKey++;
+    }
+
+    /// <summary>開いているシートを閉じて、削除の確認を出す。</summary>
+    private void StartDelete()
+    {
+        if (_editing is not { } editing)
+        {
+            return;
+        }
+        _editorOpen = false;
+        _deleting = new ReminderListItemDto(editing.No, "", editing.Time, editing.Title, editing.IsDeleted);
+    }
+
+    private void CloseEditor() => _editorOpen = false;
+
+    private Task OnSavedAsync()
+    {
+        _editorOpen = false;
+        return LoadAsync();
+    }
+
+    private async Task OnEditFailedAsync(string message)
+    {
+        _editorOpen = false;
+        await LoadAsync();
+        _error = message;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        var target = _deleting!;
+        _deleting = null;
+        var result = await Reminders.DeleteAsync(target.No);
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        await LoadAsync();
+        if (!result.Succeeded)
+        {
+            _error = result.Message;
+        }
+    }
+
+    /// <summary>「今日」の行の件名。リンクがあれば、件名を押して開く。</summary>
+    /// <param name="item">行の内容。</param>
+    /// <returns>件名の部分。</returns>
+    private static RenderFragment Heading(ReminderTodayItemDto item) => @<p class="title">
+        @if (item.LinkUrl is { } url)
+        {
+            <a href="@url" target="_blank" rel="noopener noreferrer">@item.Title</a>
+        }
+        else
+        {
+            @item.Title
+        }
+    </p>;
+
+    /// <summary>要素の id。通知で開いたとき、画面の中に見えるまで動かすために使う。</summary>
+    private static string ElementId(int no) => $"reminder-{no}";
+
+    /// <summary>「今日」の行の class。通知を押して開いたものは強調し、完了は薄くする。</summary>
+    private string TodayClass(ReminderTodayItemDto item)
+        => $"card{(item.Status == DoneStatus ? " finished" : "")}{(item.No == _highlightNo ? " selected" : "")}";
+
+    /// <summary>「すべて」の行の class。通知を押して開いたものは強調し、削除済みは薄くする。</summary>
+    private string ListClass(ReminderListItemDto item)
+        => $"card entry{(item.IsDeleted ? " deleted" : "")}{(item.No == _highlightNo ? " selected" : "")}";
+
+    /// <summary>対応状態を、画面に出す文字にする。色だけに頼らない。</summary>
+    private static string StatusText(int status) => status switch
+    {
+        1 => "完了",
+        2 => "スヌーズ",
+        _ => "未",
+    };
+
+    public ValueTask DisposeAsync()
+    {
+        Browser.BecameVisible -= LoadOnReturnAsync;
+        return ValueTask.CompletedTask;
+    }
+}

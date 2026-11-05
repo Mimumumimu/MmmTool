@@ -33,7 +33,7 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
 5. DB の表を読み書きするときは、Web 版の DB のログインに、その表の権限を足す。
 
 - 画面と API を持たず、ほかの機能に提供元を登録するだけの機能は、サーバー側の 1 つのプロジェクトだけで作る。
-  - 例: `MmmToolWeb.Reminders`・`MmmToolWeb.WorkItems`
+  - 例: `MmmToolWeb.WorkItems`
   - `ClientAssembly` は、そのプロジェクト自身のアセンブリを返す。
   - 画面側の手順 (2 と、3 の画面の行)は行わない
 

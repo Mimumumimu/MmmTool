@@ -6,6 +6,12 @@ export function todayLocal() {
     return `${now.getFullYear()}-${month}-${day}`;
 }
 
+// 端末の今の時刻を HH:mm の文字で返す。リマインダーの新規の時刻の初期値に使う
+export function nowTimeLocal() {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
 // この端末で覚えておく値。前回の宛先など、端末ごとの使い勝手の記憶なので、ブラウザの記憶である localStorage に置く。使えないときは、覚えない
 const rememberedPrefix = "mmmtoolweb.";
 

@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Messages.Client\MmmToolWeb.Messages.Client.csproj" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notifications.Client\MmmToolWeb.Notifications.Client.csproj" />
     <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Notes.Client\MmmToolWeb.Notes.Client.csproj" />
+    <ProjectReference Include="..\..\..\Plugins\MmmToolWeb.Reminders.Client\MmmToolWeb.Reminders.Client.csproj" />
   </ItemGroup>
 
 </Project>

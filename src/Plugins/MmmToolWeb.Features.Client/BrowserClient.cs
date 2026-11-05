@@ -37,6 +37,16 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// ブラウザの時計の今の時刻を返す。
+    /// </summary>
+    /// <returns>今の時刻で、秒は 0。</returns>
+    public async Task<TimeOnly> GetNowTimeAsync()
+    {
+        var module = await GetModuleAsync();
+        return TimeOnly.ParseExact(await module.InvokeAsync<string>("nowTimeLocal"), "HH:mm");
+    }
+
+    /// <summary>
     /// この端末で覚えている値を返す。
     /// </summary>
     /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>

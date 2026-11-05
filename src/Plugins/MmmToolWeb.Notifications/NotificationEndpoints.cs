@@ -99,11 +99,15 @@ internal static class NotificationEndpoints
     /// </summary>
     /// <param name="item">通知の識別子。「種類:番号」の形。</param>
     /// <param name="destinations">行き先の登録。登録された種類のぶん。</param>
+    /// <param name="sources">受け取った通知の提供元。押した通知を受け取った日時を引くため。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>開く画面の道。行き先が無い種類・開けないときは、道が null。</returns>
+    /// <returns>開く画面の道と、押した通知を受け取った日時。行き先が無い種類・開けないときは、道が null。</returns>
     /// <remarks>メッセージなどの名前は、ここでは持たない。登録が無い種類は、通知の一覧を開く。</remarks>
     private static async Task<IResult> LoadDestinationAsync(
-        string? item, IEnumerable<INotificationDestination> destinations, CancellationToken cancellationToken)
+        string? item,
+        IEnumerable<INotificationDestination> destinations,
+        IEnumerable<IReceivedNotificationSource> sources,
+        CancellationToken cancellationToken)
     {
         if (!TryParseKey(item, out var kind, out var id)
             || destinations.FirstOrDefault(destination => destination.Key == kind) is not { } owner)
@@ -111,7 +115,11 @@ internal static class NotificationEndpoints
             return Results.Ok(new DestinationResponse(null));
         }
 
-        return Results.Ok(new DestinationResponse(await owner.GetPathAsync(id, cancellationToken)));
+        // 一覧に出る種類の通知は、受け取った日時も返す。画面が、別の画面へ移る前に、見た通知の時刻を進めるため
+        var received = sources.FirstOrDefault(source => source.Key == kind) is { } source
+            ? await source.GetAsync(id, cancellationToken)
+            : null;
+        return Results.Ok(new DestinationResponse(await owner.GetPathAsync(id, cancellationToken), received?.ReceivedAt));
     }
 
     /// <summary>

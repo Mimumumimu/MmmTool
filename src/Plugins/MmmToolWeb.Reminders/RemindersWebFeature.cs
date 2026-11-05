@@ -1,23 +1,25 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.NotificationChannels.Core;
 using MmmToolWeb.Features;
+using MmmToolWeb.Reminders.Client;
 
 namespace MmmToolWeb.Reminders;
 
 /// <summary>
-/// リマインダーの Web 版のサーバー側。「通知」の画面の一覧に、自分の送信先に届いたリマインダーを出すために、提供元を登録する。
+/// リマインダーの Web 版のサーバー側。画面の API と、「通知」の画面の一覧に出す提供元と、通知を押したときの行き先を登録する。
 /// </summary>
 /// <remarks>
-/// リマインダーの画面と API は持たない。リマインダーの Web 画面を作るときに、このプロジェクトに足す。docs/todo.md の「リマインダーの Web 画面を作る」を見る。
+/// 状態 (未・スヌーズ・完了)は、読むだけで、書かない。変えるのは PC 版だけ。
+/// 時刻に外へ送る通知は MmmBatch が行うので、この機能は通知を出さない。
 /// リマインダーを Web 版の「通知」に出さないときは、サーバー本体のこの機能の登録の 1 行を外す。
 /// </remarks>
 public sealed class RemindersWebFeature : IWebFeature
 {
     /// <inheritdoc />
-    /// <remarks>ブラウザ側の画面を持たないので、この機能のアセンブリを返す。<c>@page</c> は無い。</remarks>
-    public Assembly ClientAssembly => typeof(RemindersWebFeature).Assembly;
+    public Assembly ClientAssembly => typeof(RemindersClient).Assembly;
 
     /// <inheritdoc />
     public int? FeatureNo => CodeFeatures.Reminders;
@@ -25,13 +27,20 @@ public sealed class RemindersWebFeature : IWebFeature
     /// <inheritdoc />
     public void AddServices(IServiceCollection services)
     {
-        // 提供元は、要求ごとに作る。今のユーザーが、要求ごとに違うため
+        // 保存先と提供元は、要求ごとに作る。今のユーザーが、要求ごとに違うため
+        services.AddScoped<SqlServerReminderWebRepository>();
+        services.AddScoped<SqlServerReminderSendSettingRepository>();
         services.AddScoped<IReceivedNotificationSource, SqlServerReceivedReminderSource>();
+
+        // 送信先の一覧は、「通知」の機能と同じ保存先から読む。どちらの機能の登録が先でも、1 つだけ登録する
+        services.TryAddScoped<INotificationChannelRepository, SqlServerNotificationChannelRepository>();
+
+        // リマインダーの通知を押したときに、そのリマインダーを強調して、リマインダーの画面を開く
+        services.AddScoped<INotificationDestination, ReminderNotificationDestination>();
+
+        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Insert(0, RemindersJsonContext.Default));
     }
 
     /// <inheritdoc />
-    public void MapEndpoints(RouteGroupBuilder api)
-    {
-        // API は持たない
-    }
+    public void MapEndpoints(RouteGroupBuilder api) => ReminderEndpoints.Map(api.MapGroup("/reminders"));
 }

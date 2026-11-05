@@ -6,6 +6,7 @@ using MmmToolWeb.Features.Client;
 using MmmToolWeb.Messages.Client;
 using MmmToolWeb.Notes.Client;
 using MmmToolWeb.Notifications.Client;
+using MmmToolWeb.Reminders.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -19,6 +20,7 @@ builder.Services.AddScoped<AuthClient>();
 builder.Services.AddClientFeatureSupport();
 builder.Services.AddNotesClient();
 builder.Services.AddMessagesClient();
+builder.Services.AddRemindersClient();
 builder.Services.AddNotificationsClient();
 
 await builder.Build().RunAsync();

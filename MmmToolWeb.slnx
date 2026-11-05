@@ -63,6 +63,7 @@
     <Project Path="src/Plugins/MmmToolWeb.Notifications/MmmToolWeb.Notifications.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/Plugins/MmmToolWeb.Reminders.Client/MmmToolWeb.Reminders.Client.csproj" />
     <Project Path="src/Plugins/MmmToolWeb.Reminders/MmmToolWeb.Reminders.csproj">
       <Platform Project="x64" />
     </Project>

@@ -90,7 +90,7 @@ URL・フォルダー・ファイル・アプリを、階層に整理して、�
 - 管理者が通知の送信を用意していれば、リマインダーを、スマホ (ntfy)や Discord、Web 版にも通知できます。
 - 他のユーザーと、会話の形で、短いメッセージをやり取りできます。1 対 1 のほか、複数人のグループも作れます。
 - ノートを、複数の人で共有できます。ノートごとに、全員に見せるか、自分だけにするかを選べます。
-- iPhone のホーム画面のアプリ (Web 版)から、ノートとメッセージを使えます。リマインダーは、通知の一覧に出ます。ログインはパスキーです。
+- iPhone のホーム画面のアプリ (Web 版)から、ノートとメッセージとリマインダーを使えます。リマインダーは、今日の予定と一覧を見て、予定を作れます。ログインはパスキーです。
 
 ## ダウンロード
 
@@ -384,7 +384,7 @@ git submodule update --remote external/MmmSdk
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
 | `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
 | `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用 |
-| `src/App/MmmToolWeb/` と `src/Plugins/MmmToolWeb.*` | Web 版 MmmToolWeb で、ソリューションは `MmmToolWeb.slnx`。サーバー (`Server`)と、ブラウザで動く画面 (Blazor WebAssembly の `Client`)から成り、ノートとメッセージを使え、通知の一覧にリマインダーも出る。ログインはパスキー (`src/Auth/`) |
+| `src/App/MmmToolWeb/` と `src/Plugins/MmmToolWeb.*` | Web 版 MmmToolWeb で、ソリューションは `MmmToolWeb.slnx`。サーバー (`Server`)と、ブラウザで動く画面 (Blazor WebAssembly の `Client`)から成り、ノートとメッセージとリマインダーを使える。ログインはパスキー (`src/Auth/`) |
 | `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer`・`MmmToolWeb.Data.SqlServer` |
 | `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |

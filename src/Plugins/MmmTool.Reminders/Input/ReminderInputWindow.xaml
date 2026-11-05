@@ -114,10 +114,18 @@
 
             <!-- 送信先 (DB モードで、送信先を読み込めたときだけ。送る処理は MmmBatch が行う) -->
             <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsChannelVisible, Mode=OneWay}">
-                <TextBlock Text="送信先" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="送信先" />
+                    <!-- 宛先が自分でも全員でもないときの理由。同じ行に出して、高さを変えない -->
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="宛先が自分か全員のときに選べます"
+                        Visibility="{x:Bind ViewModel.IsChannelHintVisible, Mode=OneWay}" />
+                </StackPanel>
                 <!-- 一覧の高さは、3 行 x 32 + 枠 2 で固定。4 個以上のときは、一覧の中だけがスクロールする -->
                 <reminders:ReminderChannelPicker
                     Height="98"
+                    IsEnabled="{x:Bind ViewModel.IsChannelEnabled, Mode=OneWay}"
                     IsEmpty="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}"
                     Options="{x:Bind ViewModel.ChannelOptions}" />
             </StackPanel>
