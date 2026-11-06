@@ -28,7 +28,7 @@ public sealed class ReminderSendingPlugin : IFeaturePlugin
         services.AddTransient<ReminderHistoryViewModel>();
         services.AddTransient<ReminderHistoryControl>();
 
-        // アイコンは Segoe Fluent Icons の Calendar (E787。MmmTool のリマインダーと同じ)
+        // アイコンは Segoe Fluent Icons の Calendar で、コードは E787。MmmTool のリマインダーと同じ
         services.AddNavigationPage<ReminderSendingPage>(ReminderSendingFeature.DisplayName, "", NavigationArea.Top, ReminderSendingFeature.Key);
     }
 }

@@ -44,7 +44,7 @@ public sealed class ReminderListItem(Reminder source, bool canPurge)
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted => Source.IsDeleted;
 
-    /// <summary>メニューに「削除」を出すか (削除済みでない。見えるリマインダーは、誰でも削除できる)</summary>
+    /// <summary>メニューに「削除」を出すか。削除済みでないときで、見えるリマインダーは、誰でも削除できる</summary>
     public bool CanDelete { get; } = !source.IsDeleted;
 
     /// <summary>メニューに「完全削除」を出すか (削除済みで、保存先が完全削除に対応している)</summary>

@@ -63,7 +63,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- 添付 (画像はサムネイル、それ以外はアイコン＋ファイル名。多いときは横スクロール) -->
+                <!-- 添付。画像はサムネイル、それ以外はアイコン＋ファイル名で、多いときは横スクロール -->
                 <ListView
                     Height="48"
                     Margin="0,0,0,6"
@@ -165,7 +165,7 @@
                             <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
                         </TextBox.Resources>
                     </TextBox>
-                    <!-- よく使う文 (入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く) -->
+                    <!-- よく使う文。入力欄が空のときだけ、入力欄の下端に出す。背景を持たないので、チップの間のクリックは入力欄へ届く -->
                     <local:QuickMessageBar
                         Margin="0,0,8,0"
                         VerticalAlignment="Bottom"

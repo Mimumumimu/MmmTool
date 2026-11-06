@@ -31,7 +31,7 @@ namespace MmmTool.Notes.Main;
 /// </remarks>
 public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
 {
-    /// <summary>右クリックのメニューの項目の最小の幅 (DIP。押しやすい幅にする)</summary>
+    /// <summary>右クリックのメニューの項目の最小の幅で、単位は DIP。押しやすい幅にする</summary>
     private const double MenuMinWidth = 160;
 
     /// <summary>ページに付ける、外部の読み込みを止める決まり (表示に使うのは、ページの中の CSS だけ)</summary>
@@ -196,11 +196,11 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
     {
         WebView.Visibility = Visibility.Collapsed;
         InitializationErrorText.Text =
-            $"ノートを表示できません (WebView2 を初期化できませんでした)。\nWebView2 ランタイムがインストールされているか確認してください。\n\n{exception.Message}";
+            $"ノートを表示できません。WebView2 を初期化できませんでした。\nWebView2 ランタイムがインストールされているか確認してください。\n\n{exception.Message}";
         InitializationErrorText.Visibility = Visibility.Visible;
     }
 
-    /// <summary>リクエストに答える (仮想ホストの <c>index.html</c> は、今のページ。それ以外は、失敗)</summary>
+    /// <summary>リクエストに答える。仮想ホストの <c>index.html</c> は、今のページで、それ以外は、失敗</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">リクエストの情報</param>
     private async void OnWebResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)

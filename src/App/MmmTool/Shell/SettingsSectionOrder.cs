@@ -13,7 +13,7 @@ public static class SettingsSectionOrder
     /// <summary>保存先 (ローカル / DB)</summary>
     public const int Database = -200;
 
-    /// <summary>アカウント (表示名・ログイン名・パスワードの変更とログアウト。DB に保存していて、ログイン済みのときだけ)</summary>
+    /// <summary>アカウントで、表示名・ログイン名・パスワードの変更とログアウト。DB に保存していて、ログイン済みのときだけ</summary>
     public const int Account = -150;
 
     /// <summary>機能の一覧 (オン・オフ)</summary>

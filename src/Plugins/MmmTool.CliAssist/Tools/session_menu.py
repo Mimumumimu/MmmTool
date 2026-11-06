@@ -73,7 +73,7 @@ class KeyReader:
         return True
 
     def read(self):
-        """キーを 1 つ読んで、名前 (UpArrow・Spacebar・A など。PowerShell 版のキー名に合わせる)を返す"""
+        """キーを 1 つ読んで、名前を返す。名前は UpArrow・Spacebar・A など、PowerShell 版のキー名に合わせる"""
         while not self._buffer:
             self._fill()
         if self._buffer[0] == ESC:
@@ -113,7 +113,7 @@ class KeyReader:
 
 
 def read_selection_menu(items, label, prompt, back_label):
-    """矢印キー・スペースで選ぶ。戻り値は (action, items)。action は ok / back / quit"""
+    """矢印キー・スペースで選ぶ。戻り値は action と items の組で、action は ok / back / quit"""
     selected = set()
     cursor = 0
     offset = 0
@@ -124,7 +124,7 @@ def read_selection_menu(items, label, prompt, back_label):
 
     out = sys.stdout
     print(prompt)
-    print(f"{GRAY}↑↓:移動  Space:選択/解除  Tab:選択して下へ  a:全選択/全解除  Enter:決定(未選択ならカーソル行)  Esc:{back_label}  q/Ctrl+C:終了{RESET}")
+    print(f"{GRAY}↑↓:移動  Space:選択/解除  Tab:選択して下へ  a:全選択/全解除  Enter:決定 (未選択ならカーソル行)  Esc:{back_label}  q/Ctrl+C:終了{RESET}")
     # 一覧と件数の行の場所を先に空けて (下端ならスクロールして)から、先頭へ戻ってその位置を覚える
     out.write("\n" * (rows + 1))
     out.write(f"{ESC}[{rows + 1}A{ESC}7{ESC}[?25l")
@@ -166,7 +166,7 @@ def read_selection_menu(items, label, prompt, back_label):
                 elif key == "Spacebar":
                     selected ^= {cursor}
                 elif key in ("Tab", "ShiftTab"):
-                    # 選択/解除して隣へ進む (Tab=下、Shift+Tab=上)。連続した行を続けて選びやすい
+                    # 選択/解除して隣へ進む。Tab は下、Shift+Tab は上で、連続した行を続けて選びやすい
                     selected ^= {cursor}
                     cursor = max(0, cursor - 1) if key == "ShiftTab" else min(len(items) - 1, cursor + 1)
                 elif key == "A":

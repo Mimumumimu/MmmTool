@@ -32,7 +32,7 @@ public sealed class LinkMenu
             var here = $"{path} › {node.Name}";
             if (!string.IsNullOrWhiteSpace(node.Kind) && LinkNodeKindNames.Parse(node.Kind) is null)
             {
-                problems.Add($"「{here}」の kind「{node.Kind}」は使えません ({string.Join(" / ", LinkNodeKindNames.Allowed)} のどれかを書きます)。この設定は無視して、名前・子要素から種類を決めます。");
+                problems.Add($"「{here}」の kind「{node.Kind}」は使えません。{string.Join(" / ", LinkNodeKindNames.Allowed)} のどれかを書きます。この設定は無視して、名前・子要素から種類を決めます。");
             }
 
             CheckNodes(node.Children, here, problems);

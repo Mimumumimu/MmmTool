@@ -125,7 +125,7 @@ public sealed class ClipboardTransferService
         {
             if (file is null || !IsSafeFileName(file.FileName))
             {
-                return new([], $"ファイル名が正しくありません ({file?.FileName})。");
+                return new([], $"「{file?.FileName}」はファイル名として正しくありません。");
             }
             if (file.Base64Data is null || !Base64.IsValid(file.Base64Data))
             {
@@ -152,7 +152,7 @@ public sealed class ClipboardTransferService
     /// <summary>同じ名前のファイルがあるときのエラーメッセージ</summary>
     /// <param name="name">重複した名前</param>
     /// <returns>画面に出すメッセージ</returns>
-    private static string DuplicateMessage(string name) => $"同じ名前のファイルは、一度に送れません ({name})。";
+    private static string DuplicateMessage(string name) => $"「{name}」と同じ名前のファイルは、一度に送れません。";
 
     /// <summary>ファイル名が、保存先のフォルダーの中にだけ書けるものか</summary>
     /// <param name="fileName">確かめるファイル名</param>

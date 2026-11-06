@@ -13,7 +13,7 @@
     <!-- 非パッケージ (WindowsPackageType=None)でも、WinUI のリソース (resources.pri)の生成にこの MSIX ツールを使うため、true のままにする -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提 (MmmTool と同じ。単一ファイルにはしない) -->
+    <!-- ランタイム (Windows App Runtime / .NET)は PC 側にインストールする前提で、MmmTool と同じ。単一ファイルにはしない -->
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <SelfContained>false</SelfContained>
     <!-- 言語別リソース (NuGet 由来のサテライト DLL)を日本語・英語だけにする -->
@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <!-- 配布物のフォルダ名 (説明書と版は持たない。bin\<構成>\publish\MmmBatch\) -->
+    <!-- 配布物のフォルダ名で、説明書と版は持たない。bin\<構成>\publish\MmmBatch\ -->
     <DistributionFolderName>MmmBatch</DistributionFolderName>
   </PropertyGroup>
 
@@ -45,7 +45,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
-    <!-- Windows App SDK は全部入りのパッケージを参照し、使わない部品の中身は出力に入れない (MmmTool と同じ。理由は docs/build-and-distribution.md の「決定の理由」) -->
+    <!-- Windows App SDK は全部入りのパッケージを参照し、使わない部品の中身は出力に入れない。MmmTool と同じで、理由は docs/build-and-distribution.md の「決定の理由」にある -->
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Microsoft.Windows.AI.MachineLearning" ExcludeAssets="all" />
     <PackageReference Include="System.Numerics.Tensors" ExcludeAssets="all" />

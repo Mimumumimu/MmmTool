@@ -4,7 +4,7 @@ namespace MmmTool.WorkItems.Main;
 /// <remarks>XAML から、静的なプロパティ・関数として結び付ける。</remarks>
 public static class WorkItemOptions
 {
-    /// <summary>案件の名前の文字の大きさ (ほかは 14。一回り大きくして、グループと見分ける)</summary>
+    /// <summary>案件の名前の文字の大きさで、ほかは 14。一回り大きくして、グループと見分ける</summary>
     public static double ProjectFontSize => 16;
 
     /// <summary>名前の列の文字の太さ (案件は太字、グループはやや太字)</summary>

@@ -10,13 +10,13 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public interface IWorkItemRepository
 {
-    /// <summary>今のユーザーの番号 (「自分の担当」の判定と、作成者・更新者に使う。日ごとの記録の持ち主ではない)</summary>
+    /// <summary>今のユーザーの番号。「自分の担当」の判定と、作成者・更新者に使い、日ごとの記録の持ち主ではない</summary>
     int UserId { get; }
 
     /// <summary>壊れたファイルを退避して作り直したときのメッセージ。通常は null</summary>
     string? RecoveryMessage { get; }
 
-    /// <summary>担当者を扱う保存先か (ローカルモードは false。担当の列・絞り込みを出さない)</summary>
+    /// <summary>担当者を扱う保存先か。ローカルモードは false で、担当の列・絞り込みを出さない</summary>
     bool HasAssignees { get; }
 
     /// <summary>担当者にできる人の一覧を読む</summary>
@@ -35,7 +35,7 @@ public interface IWorkItemRepository
     Task<WorkLoadResult> LoadVisibleAsync(IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
 
     /// <summary>案件を番号で指定して、中身を読む</summary>
-    /// <param name="projectIds">案件の番号 (少数。選びの変更や移動で、読み直す案件)</param>
+    /// <param name="projectIds">案件の番号。少数で、選びの変更や移動で、読み直す案件</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだ内容 (選んでいる案件の番号と、コードマスタは空)</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
@@ -44,18 +44,18 @@ public interface IWorkItemRepository
     /// <summary>ある日の記録を読む</summary>
     /// <param name="date">日付</param>
     /// <param name="projectIds">案件の番号</param>
-    /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
+    /// <param name="exclude">その番号を除くか。表示しない案件を除いて、表示する案件の全部を読むとき true で、番号を指定して読むときは false</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>その日の記録 (全員分。論理削除済みを除く)</returns>
+    /// <returns>その日の記録。全員分で、論理削除済みを除く</returns>
     /// <remarks>案件の番号で絞る。インデックスは <c>(ProjectId, Date)</c>。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadDayAsync(DateOnly date, IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
 
     /// <summary>案件の、すべての日の記録を読む (スケジュールの実績)</summary>
     /// <param name="projectIds">案件の番号</param>
-    /// <param name="exclude">その番号を除くか (表示しない案件を除いて、表示する案件の全部を読むとき true。番号を指定して読むときは false)</param>
+    /// <param name="exclude">その番号を除くか。表示しない案件を除いて、表示する案件の全部を読むとき true で、番号を指定して読むときは false</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>実績が 0 より大きい記録 (全員分。論理削除済みと、備考だけの記録を除く)</returns>
+    /// <returns>実績が 0 より大きい記録。全員分で、論理削除済みと、備考だけの記録を除く</returns>
     /// <remarks>日付で絞らない。案件の番号で絞る。インデックスは <c>(ProjectId, Date)</c>。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkRecord>> LoadRecordsAsync(IReadOnlyCollection<int> projectIds, bool exclude, CancellationToken cancellationToken = default);
@@ -109,10 +109,10 @@ public interface IWorkItemRepository
     /// <summary>基準の時刻より後に更新された行を読む</summary>
     /// <param name="since">基準の時刻 (この時刻以後に更新された行を返す)</param>
     /// <param name="date">記録を読む日</param>
-    /// <param name="allRecordDates">記録を、すべての日で読むか (スケジュールが記録を持っているとき true。false なら、<paramref name="date"/> の記録だけ)</param>
+    /// <param name="allRecordDates">記録を、すべての日で読むか。スケジュールが記録を持っているとき true で、false なら、<paramref name="date"/> の記録だけ</param>
     /// <param name="hiddenProjectIds">表示しない案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新された行 (論理削除された行も含む。表示しない案件の行は含まない)</returns>
+    /// <returns>更新された行。論理削除された行も含み、表示しない案件の行は含まない</returns>
     /// <remarks>記録も、案件・グループ・作業と同じ 1 回の往復で受け取る。取り込みを、別の問い合わせに分けない。</remarks>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<WorkChanges> GetChangesAsync(DateTimeOffset since, DateOnly date, bool allRecordDates, IReadOnlyCollection<int> hiddenProjectIds, CancellationToken cancellationToken = default);
@@ -127,7 +127,7 @@ public interface IWorkItemRepository
     Task<WorkDayNote> SetDayNoteAsync(DateOnly date, string note, CancellationToken cancellationToken = default);
 
     /// <summary>案件マスターを、名前で検索して読む</summary>
-    /// <param name="query">検索語 (名前の一部。空なら絞らない)</param>
+    /// <param name="query">検索語。名前の一部で、空なら絞らない</param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
     /// <param name="selectedOnly">表示している案件だけを読むか (表示しない案件を除く)</param>
     /// <param name="hiddenProjectIds">表示しない案件の番号 (一覧の「表示しているか」の印と、先頭にまとめる並びに使う)</param>
@@ -135,7 +135,7 @@ public interface IWorkItemRepository
     /// <param name="offset">読み始める位置</param>
     /// <param name="count">読む件数の上限</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>案件の一覧 (名前の順。選んでいる案件を先頭にまとめるときは、その中も名前の順。論理削除済みを除く)</returns>
+    /// <returns>案件の一覧。名前の順で、選んでいる案件を先頭にまとめるときは、その中も名前の順にする。論理削除済みを除く</returns>
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedOnly, IReadOnlyCollection<int> hiddenProjectIds, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default);
 
@@ -149,7 +149,7 @@ public interface IWorkItemRepository
     /// <summary>案件の名前・リンク・備考を更新する</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
-    /// <param name="link">新しいリンク (変えないなら null。空文字はリンクを消す)</param>
+    /// <param name="link">新しいリンク。変えないなら null で、空文字はリンクを消す</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
@@ -157,7 +157,7 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task UpdateProjectAsync(int projectId, string? name, string? link, string? note, CancellationToken cancellationToken = default);
 
-    /// <summary>案件を論理削除する (案件の行だけ。中のグループ・作業の行は、そのまま残す)</summary>
+    /// <summary>案件を論理削除する。案件の行だけで、中のグループ・作業の行は、そのまま残す</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>削除の完了を表すタスク</returns>
@@ -202,14 +202,14 @@ public interface IWorkItemRepository
 
     /// <summary>行の位置 (案件・親・並び)を、まとめて更新する</summary>
     /// <param name="positions">更新する位置</param>
-    /// <param name="touchedProjectIds">更新日時を更新する案件 (案件をまたぐ移動の、移動元と移動先。ほかの PC に、行が減ったことを差分で伝えるため。無ければ空)</param>
+    /// <param name="touchedProjectIds">更新日時を更新する案件。案件をまたぐ移動の、移動元と移動先で、ほかの PC に、行が減ったことを差分で伝えるため。無ければ空</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>案件が変わる行は、その作業の記録の案件の番号も、同じトランザクションで直す。</remarks>
     /// <exception cref="DataFileException">保存に失敗した。</exception>
     Task UpdatePositionsAsync(IReadOnlyList<WorkPosition> positions, IReadOnlyList<int> touchedProjectIds, CancellationToken cancellationToken = default);
 
-    /// <summary>グループと作業を論理削除する (渡された行だけ。グループの中の行は、そのまま残す)</summary>
+    /// <summary>グループと作業を論理削除する。渡された行だけで、グループの中の行は、そのまま残す</summary>
     /// <param name="groupIds">削除するグループの番号</param>
     /// <param name="itemIds">削除する作業の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

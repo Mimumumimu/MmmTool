@@ -57,7 +57,7 @@ public sealed partial class AccountEditViewModel : ObservableObject
     /// <summary>名前の入力欄を出すか (表示名・ログイン名)</summary>
     public bool ShowValue => _kind != AccountEditKind.Password;
 
-    /// <summary>今のパスワードの入力欄を出すか (ログイン名・パスワード。本人の確認)</summary>
+    /// <summary>今のパスワードの入力欄を出すか。ログイン名・パスワードで、本人の確認</summary>
     public bool NeedsCurrentPassword => _kind != AccountEditKind.DisplayName;
 
     /// <summary>新しいパスワードの入力欄を出すか</summary>

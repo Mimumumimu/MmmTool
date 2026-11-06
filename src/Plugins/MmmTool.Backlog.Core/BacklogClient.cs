@@ -127,7 +127,7 @@ public sealed class BacklogClient : IDisposable
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "API キーが正しくないか、このプロジェクトを見る権限がありません。設定ページの API キーを確かめてください。",
             HttpStatusCode.NotFound => "プロジェクトまたはフォルダーが見つかりません。URL を確かめてください。",
             HttpStatusCode.TooManyRequests => "Backlog への要求が多すぎます。しばらく待ってからやり直してください。",
-            _ => $"Backlog がエラーを返しました (HTTP {(int)response.StatusCode})。",
+            _ => $"Backlog が HTTP {(int)response.StatusCode} のエラーを返しました。",
         });
     }
 
@@ -141,7 +141,7 @@ public sealed class BacklogClient : IDisposable
     /// <param name="exception">元の例外</param>
     /// <returns>画面に出せるメッセージを持つ例外</returns>
     private static BacklogException TimedOut(TaskCanceledException exception)
-        => new("Backlog からの応答がありませんでした (時間切れ)。", exception);
+        => new("Backlog からの応答がありませんでした。時間切れです。", exception);
 
     /// <summary>一時ファイルを消す。消せなくても例外にしない</summary>
     /// <param name="path">消すファイルのパス</param>

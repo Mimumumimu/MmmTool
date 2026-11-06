@@ -428,7 +428,7 @@ public sealed partial class NotesViewModel(
     {
         if (!await notes.SetDeletedAsync(note.Id, isDeleted))
         {
-            Error.Show("ノートを変更できませんでした (ほかの人がすでに変更したか、見えなくなった可能性があります)。");
+            Error.Show("ノートを変更できませんでした。ほかの人がすでに変更したか、見えなくなった可能性があります。");
         }
         await ReloadAsync(preserveState: true);
     }

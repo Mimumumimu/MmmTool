@@ -26,7 +26,7 @@ public sealed class FileSendLog(string directory) : ISendLog
     /// <summary>ファイルを移すフォルダー名</summary>
     private const string OldFolderName = "old";
 
-    /// <summary>ファイルを残す日数 (今日を含む。これより古い日のファイルは <c>old</c> へ移す)</summary>
+    /// <summary>ファイルを残す日数で、今日を含む。これより古い日のファイルは <c>old</c> へ移す</summary>
     public const int KeepDays = 30;
 
     /// <summary>書き込みを 1 つずつにするロック</summary>
@@ -50,7 +50,7 @@ public sealed class FileSendLog(string directory) : ISendLog
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new DataFileException($"送信のログを書けませんでした ({ex.Message})。", ex);
+            throw new DataFileException($"送信のログを書けませんでした。{ex.Message}", ex);
         }
         return Task.CompletedTask;
     }
@@ -88,7 +88,7 @@ public sealed class FileSendLog(string directory) : ISendLog
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new DataFileException($"古い送信のログを old フォルダーへ移せませんでした ({ex.Message})。", ex);
+            throw new DataFileException($"古い送信のログを old フォルダーへ移せませんでした。{ex.Message}", ex);
         }
         return moved;
     }

@@ -63,7 +63,7 @@ public sealed record AppUserRow
         }
         if (string.IsNullOrWhiteSpace(user.LoginName) || user.LoginName.Length > AppUser.LoginNameMaxLength || user.LoginName.Any(char.IsControl))
         {
-            throw new ArgumentException($"ログイン名は、空でない {AppUser.LoginNameMaxLength} 文字までにしてください (改行などは使えません)。", nameof(user));
+            throw new ArgumentException($"ログイン名は、空でない {AppUser.LoginNameMaxLength} 文字までにしてください。改行などは使えません。", nameof(user));
         }
         if (user.ValidTo < user.ValidFrom)
         {

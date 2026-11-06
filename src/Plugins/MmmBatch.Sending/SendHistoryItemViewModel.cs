@@ -10,7 +10,7 @@ public sealed class SendHistoryItemViewModel(SendLogEntry entry)
     /// <summary>元の記録の行</summary>
     public SendLogEntry Source { get; } = entry;
 
-    /// <summary>送った日時 (「2026/10/08 09:00:05」の形。ローカル時刻)</summary>
+    /// <summary>送った日時で、「2026/10/08 09:00:05」の形。ローカル時刻</summary>
     public string TimeText { get; } = entry.At.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss");
 
     /// <summary>リマインダーの件名。メッセージは、タイトル (無ければ空文字)</summary>
@@ -28,6 +28,6 @@ public sealed class SendHistoryItemViewModel(SendLogEntry entry)
     /// <summary>宛先 (「ユーザー名 - 登録名 (種類)」の形)</summary>
     public string RecipientText { get; } = SendDisplay.RecipientText(entry.OwnerName, entry.ChannelKind, entry.ChannelName);
 
-    /// <summary>結果 (「成功」「失敗」。失敗は理由つき)</summary>
+    /// <summary>結果で、「成功」「失敗」。失敗は理由つき</summary>
     public string ResultText { get; } = SendDisplay.ResultText(entry.Status, entry.Error);
 }

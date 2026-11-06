@@ -277,7 +277,7 @@ public sealed partial class WorkItemPage : Page
     private static string EditKey(string templateKey) => templateKey[..^"Cell".Length] + "Edit";
 
     /// <summary>設定と入力日に合わせて、列の表示・見出し・色を直し、表に反映する</summary>
-    /// <param name="fitAll">表示しているすべての列の幅を測るか (作った直後。false なら、新しく表示する列だけ)</param>
+    /// <param name="fitAll">表示しているすべての列の幅を測るか。作った直後で、false なら、新しく表示する列だけ</param>
     private void ApplyColumns(bool fitAll = false)
     {
         var lineBrush = (Brush)Resources["DailyLineBrush"];
@@ -293,7 +293,7 @@ public sealed partial class WorkItemPage : Page
             }
         }
 
-        // 幅を測るのは、新しく表示する列だけ (ほかの列の中身は変わらない。表示していない間に変わった中身は、表示するときに測る)
+        // 幅を測るのは、新しく表示する列だけ。ほかの列の中身は変わらず、表示していない間に変わった中身は、表示するときに測る
         FitColumns(fitAll ? null : shown);
         TreeGrid.RefreshColumns();
     }
@@ -572,7 +572,7 @@ public sealed partial class WorkItemPage : Page
     private static string ColumnKey(FrameworkElement element) => element.Name.StartsWith("Col_", StringComparison.Ordinal) ? element.Name[4..] : element.Name;
 
     /// <summary>文字の入力欄の入力を、保存に渡す</summary>
-    /// <param name="sender">入力欄 (行は、表から引く。Name に列の名前が入っている)</param>
+    /// <param name="sender">入力欄で、行は、表から引く。Name に列の名前が入っている</param>
     private void CommitText(object sender)
     {
         if (sender is TextBox box && TreeGridView.GetRow(box) is WorkItemRow row)
@@ -756,7 +756,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の入れ物を開いているボタン</summary>
     private Button? _noteTarget;
 
-    /// <summary>備考の入力欄で Esc が押されたら、入力を取りやめる (元の備考に戻す。入れ物は、そのまま閉じる)</summary>
+    /// <summary>備考の入力欄で Esc が押されたら、入力を取りやめる。元の備考に戻し、入れ物は、そのまま閉じる</summary>
     /// <param name="sender">備考の入力欄</param>
     /// <param name="e">キー入力の情報</param>
     /// <remarks>閉じるときの確定では、元の備考と同じなので、保存されない。表のセルの Esc と同じ動き。</remarks>

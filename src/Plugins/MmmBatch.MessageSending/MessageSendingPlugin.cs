@@ -28,7 +28,7 @@ public sealed class MessageSendingPlugin : IFeaturePlugin
         services.AddTransient<MessageHistoryViewModel>();
         services.AddTransient<MessageHistoryControl>();
 
-        // アイコンは Segoe Fluent Icons の Message (E8BD。吹き出し。MmmTool のメッセージ送信と同じ)
+        // アイコンは Segoe Fluent Icons の Message で、コードは E8BD の吹き出し。MmmTool のメッセージ送信と同じ
         services.AddNavigationPage<MessageSendingPage>(MessageSendingFeature.DisplayName, "", NavigationArea.Top, MessageSendingFeature.Key);
     }
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Claude Code の会話履歴 (~/.claude/projects 配下の .jsonl)を選んでごみ箱へ移動する (WSL・Linux 版)。
+"""Claude Code の会話履歴 (~/.claude/projects 配下の .jsonl)を選んでごみ箱へ移動する。WSL・Linux 版。
 
 Remove-ClaudeSession.ps1 (Windows 版)と同じ流れ・同じ操作にしている。直すときは両方を直す。
 
-ターミナル内で完結する (別ウィンドウなし)。
+ターミナル内で完結し、別ウィンドウは出さない。
   1. プロジェクトの一覧から選ぶ
   2. 選んだプロジェクト内のセッションを選ぶ
   3. 確認のうえ、ごみ箱へ移動 → 2 に戻る (q で終了するまで繰り返せる)
@@ -14,11 +14,11 @@ Remove-ClaudeSession.ps1 (Windows 版)と同じ流れ・同じ操作にしてい
 
 --all を付けると手順 2 を省略し、選んだプロジェクトの全セッションを対象にする。
 --what-if を付けると、削除せず対象を表示するだけ。
-Claude Code で開いているセッションは消さないこと (先に閉じる)。
+Claude Code で開いているセッションは消さないこと。先に閉じておく。
 
-ごみ箱は、Linux のデスクトップの決まり (freedesktop.org の Trash)の形 (~/.local/share/Trash の files/ と info/)。
-WSL には Windows のごみ箱が無いので、こちらへ移す。戻すときは files/ から元の場所 (info/ の .trashinfo の Path)へ移す
-(trash-cli の trash-restore・gio trash --restore でも戻せる)。
+ごみ箱は、Linux のデスクトップの決まり (freedesktop.org の Trash)の形で、~/.local/share/Trash の files/ と info/ に置く。
+WSL には Windows のごみ箱が無いので、こちらへ移す。戻すときは files/ から元の場所 (info/ の .trashinfo の Path)へ移す。
+trash-cli の trash-restore・gio trash --restore でも戻せる。
 """
 
 import argparse
@@ -62,7 +62,7 @@ def first_user_message(path):
 
 
 def session_title(path):
-    """/resume に出るタイトル (custom-title 行の最後のもの。無ければ ai-title 行の最後のもの)。どちらも無ければ最初のユーザー発言"""
+    """/resume に出るタイトル。custom-title 行の最後のもので、無ければ ai-title 行の最後のもの。どちらも無ければ最初のユーザー発言"""
     title = None
     custom_line = None
     ai_line = None

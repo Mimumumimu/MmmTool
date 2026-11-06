@@ -175,7 +175,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <remarks>DB は、行を消さない方針 (論理削除だけ)なので、できない。画面は、<see cref="CanPurge"/> が false のとき、操作を出さない。</remarks>
     /// <exception cref="NotSupportedException">常に。呼ぶ側のバグ。</exception>
     public Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("DB モードでは、完全削除はできません (論理削除だけです)。");
+        => throw new NotSupportedException("DB モードでは、完全削除はできません。論理削除だけです。");
 
     /// <inheritdoc />
     /// <remarks>
@@ -322,7 +322,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             if (!_currentUser.IsIdentified
                 && await _signIn.TrySignInWithSavedAsync(DateOnly.FromDateTime(_time.GetLocalNow().DateTime), cancellationToken).ConfigureAwait(false) is null)
             {
-                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません (ログインが必要です)。");
+                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません。ログインが必要です。");
             }
 
             var userId = _currentUser.Id;
@@ -361,7 +361,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         }
         catch (DataFileException ex)
         {
-            return SetLoadError($"データベースから読み込めませんでした (最後に読めた内容を使っています)。{ex.Message}");
+            return SetLoadError($"データベースから読み込めませんでした。最後に読めた内容を使っています。{ex.Message}");
         }
     }
 
@@ -539,7 +539,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             {
                 // ログインできない理由 (DB に届かない・ログインしていない)は、読み込みの失敗と同じ
                 throw new DataFileException(
-                    _loadError ?? "ユーザーが特定されていないため、保存できません (ログインが必要です)。",
+                    _loadError ?? "ユーザーが特定されていないため、保存できません。ログインが必要です。",
                     new InvalidOperationException("今のユーザーが特定されていません。"));
             }
 

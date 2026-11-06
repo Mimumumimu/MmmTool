@@ -23,13 +23,13 @@
 | `src/Plugins/MmmToolWeb.WorkItems` | 作業管理の Web 版。画面と API は持たず、ノートの画面に出す作業報告の提供元を登録するだけ ([notes-sources.md](notes-sources.md)) |
 | `src/Plugins/MmmToolWeb.Notes` / `src/Plugins/MmmToolWeb.Notes.Client` | ノートの Web 版。サーバー側の API (`NoteService` と `SqlServerNoteRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
 | `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | メッセージの Web 版。サーバー側の API (`MmmTool.Data.SqlServer` のメッセージの Repository を再利用)と、通知を押したときの行き先の登録と、ブラウザ側の画面・API の型。画面側は AnyCPU |
-| `src/Plugins/MmmToolWeb.Notifications` / `src/Plugins/MmmToolWeb.Notifications.Client` | 受け取った通知の一覧と、設定の画面の「通知」の節 (通知を受け取る端末の登録)。サーバー側の API (`SqlServerNotificationChannelRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
+| `src/Plugins/MmmToolWeb.Notifications` / `src/Plugins/MmmToolWeb.Notifications.Client` | 受け取った通知の一覧と、設定の画面の「通知」の節で、通知を受け取る端末を登録する。サーバー側の API (`SqlServerNotificationChannelRepository` を再利用)と、ブラウザ側の画面・API の型。画面側は AnyCPU |
 | `src/Plugins/MmmToolWeb.Reminders` / `src/Plugins/MmmToolWeb.Reminders.Client` | リマインダーの Web 版。サーバー側の API と、「通知」の一覧に出すリマインダーの提供元と、通知を押したときの行き先の登録と、ブラウザ側の画面・API の型。画面側は AnyCPU ([リマインダー (Web 版)](#リマインダー-web-版)) |
 
-- 発行すると、Client の出力が Server の出力の中にコピーされ、1 つのフォルダになる (`dotnet publish` で `Server` を発行する。`Server` が `Client` を参照しているため、向きは Client から Server)
+- 発行すると、Client の出力が Server の出力の中にコピーされ、1 つのフォルダになる。`dotnet publish` で `Server` を発行し、`Server` が `Client` を参照しているため、向きは Client から Server になる。
   - フォルダ直下 (`MmmToolWeb.Server.exe` と数ファイル): サーバーの PC で動く部分。パッケージ・自分のプロジェクトの DLL は `Lib\` に置く ([build-and-distribution.md](../build-and-distribution.md))
   - `wwwroot\` (`index.html`・`css`・`js`・`_framework`): Client の出力。サーバーが iPhone に配るファイルで、サーバーでは実行されない
-  - 1 つのフォルダにするのは、アドレスを 1 つにするため (パスキーはアドレスに結びつく)。Client を別の置き場に分けない
+  - 1 つのフォルダにするのは、アドレスを 1 つにするため。パスキーはアドレスに結びつく。Client を別の置き場に分けない
 - ソリューションは `MmmToolWeb.slnx`。`MmmTool.slnx` からは参照せず、`MmmToolWeb.*` のプロジェクトを `MmmTool.*` が参照することもない。
 - 機能 (ノート・メッセージ・リマインダー)は、機能ごとに、サーバー側とブラウザ側のプロジェクトを足す
   - 本体 (`Server`・`Client`)に書くのは、プロジェクトの参照と、登録の 1 行ずつだけ
@@ -65,7 +65,7 @@
     - 世代の番号を持たない Cookie (番号を入れる前に発行したもの)は、番号 1 として比べる。配ったとたんに、全員のログインが切れないため。
     - 管理者が、管理ツールの「ログインを無効にする」で番号を上げる ([mmmtooladmin.md](mmmtooladmin.md) の「ユーザー」)
 - **登録用コード**: 8 桁の数字。期限は 30 分で、1 回だけ使える。総当たりは、期限と回数制限で防ぐ。
-  - 管理者が、サーバーの PC で人ごとに出す (`issue-code`)。同じ人に出し直すと、前のコードは使えなくなる
+  - 管理者が、サーバーの PC で人ごとに `issue-code` で出す。同じ人に出し直すと、前のコードは使えなくなる
   - 使えるのは、今日使える状態のユーザー (削除されておらず、使える期間の内)だけ
 - **手続きの途中の状態**: 最初の問い合わせで作った選択肢を、メモリに 5 分だけ置く
   - 完了の呼び出しで 1 回取り出すと消える (同じ呼び出しの再送を通さないため)
@@ -560,7 +560,7 @@
 - 索引は、次の 2 つ
   - `CredentialId` の一意: ログインのとき、識別番号から探す
   - `AppUserId`: 人ごとの一覧
-- 作成者・更新者は、パスキーの持ち主 (`AppUserId`)。本人が登録し、本人がログインで更新するため
+- 作成者・更新者は、パスキーの持ち主の `AppUserId`。本人が登録し、本人がログインで更新するため
 
 ## `AppUserWebAuth` (Web 版の認証の状態)
 
@@ -609,7 +609,7 @@
   - 権限は、ノート・メッセージ・リマインダー・`AppUser`・認証用の表と、ノートの画面に出す作業報告を読むための作業管理の表 (読むだけ)だけ
   - 権限を必要な表だけに絞る考え方は、`MmmBatch` に絞ったログインを作るときと同じ。[database.md](database.md)の「MmmBatch」の項を見る
 - Windows 認証にしない (サーバーを動かしたユーザーが管理者権限のとき、Web アプリが破られると DB 全体を読まれるため)
-- 接続のパスワードは、SDK の `ISecretStore` (実装は `CredentialSecretStore`。サーバーを動かすユーザーの資格情報マネージャーに保存する)に置く。サーバーだけが持ち、画面 (Client)は接続先もパスワードも知らない
+- 接続のパスワードは、SDK の `ISecretStore` (実装は `CredentialSecretStore` で、サーバーを動かすユーザーの資格情報マネージャーに保存する)に置く。サーバーだけが持ち、画面 (Client)は接続先もパスワードも知らない
 
 - 開発用の DB に作る手順は、次の 3 つ
   - SSMS で `master` に対して、ログインを作る。`<パスワード>` は決めた値にする。
@@ -688,7 +688,7 @@
 
 | コマンド | 内容 |
 | --- | --- |
-| `.\MmmToolWeb.Server.exe setup-db` | DB の接続の設定を聞く (サーバー名・データベース名・ユーザー名・パスワード・証明書を信頼するか)。接続を試して、通ったときだけ保存する。パスワードは画面に出さない。Windows 認証は選べない |
+| `.\MmmToolWeb.Server.exe setup-db` | DB の接続の設定として、サーバー名・データベース名・ユーザー名・パスワード・証明書を信頼するかを聞く。接続を試して、通ったときだけ保存する。パスワードは画面に出さない。Windows 認証は選べない |
 | `.\MmmToolWeb.Server.exe issue-code <ログイン名>` | その人の登録用コードを出す。前に出したコードは使えなくなる |
 
 ## 探りの遮断

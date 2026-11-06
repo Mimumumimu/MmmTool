@@ -93,11 +93,11 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <summary>副のボタンがあるか</summary>
     public bool HasSecondary => SecondaryText.Length > 0;
 
-    /// <summary>ログイン名 (初期値は Windows のユーザー名。半角英数字と記号だけのときのみ)</summary>
+    /// <summary>ログイン名で、初期値は Windows のユーザー名。半角英数字と記号だけのときのみ</summary>
     [ObservableProperty]
     public partial string LoginName { get; set; } = "";
 
-    /// <summary>表示名 (新規登録のとき。初期値は Windows のユーザー名)</summary>
+    /// <summary>表示名で、新規登録のとき。初期値は Windows のユーザー名</summary>
     [ObservableProperty]
     public partial string DisplayName { get; set; } = "";
 

@@ -260,7 +260,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     private int RequireUserId()
     {
-        const string Message = "ユーザーが特定されていないため、ノートを使えません (ログインが必要です)。";
+        const string Message = "ユーザーが特定されていないため、ノートを使えません。ログインが必要です。";
         return currentUser.User?.Id ?? throw new DataFileException(Message, new InvalidOperationException(Message));
     }
 

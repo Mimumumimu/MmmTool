@@ -42,7 +42,7 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
         Reminders = reminders;
         Time = time;
         _context = SynchronizationContext.Current
-            ?? throw new InvalidOperationException("ViewModel は UI スレッドで作ってください (変更の通知を、作ったスレッドへ戻して反映するため)。");
+            ?? throw new InvalidOperationException("ViewModel は UI スレッドで作ってください。変更の通知を、作ったスレッドへ戻して反映するためです。");
         _dayWatcher = new DayChangeWatcher(ticker);
         Reminders.Changed += OnRemindersChanged;
     }

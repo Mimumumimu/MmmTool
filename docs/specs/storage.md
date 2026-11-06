@@ -61,7 +61,7 @@
 | まとめて追加で前回選んだ「通知を読み上げる」 | `Reminder.Bulk.IsSpeak` | 真偽。既定は false |
 | まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
 | Backlog の連携用パス | `Backlog.Url` | |
-| サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値 (X・Y・Width・Height)。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
+| サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値で、X・Y・Width・Height。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
 | Web 版通知の送り手の公開鍵 | `WebPush.PublicKey` | MmmBatch の `Data/AppSettings.json` のキー。MmmBatch が起動時に作る。Web 版のサーバーの設定 `Web:PushPublicKey` に写す。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」 |
 | Web 版通知の送り手の連絡先 | `WebPush.Subject` | MmmBatch の `Data/AppSettings.json` のキー。`mailto:` か `https://` で始まる文字列。無ければ `mailto:mmmtool@example.com` |
 | DB の接続の設定 | `Database.Mode`・`Database.Server`・`Database.Name`・`Database.Authentication`・`Database.UserName`・`Database.TrustServerCertificate` | アプリごとの `Data/AppSettings.json` に持つ。MmmToolAdmin も、自分の `Data/AppSettings.json` に持ち、最初の起動で、接続の設定画面で入れる。パスワードは、ここに書かず、資格情報マネージャーに置く |

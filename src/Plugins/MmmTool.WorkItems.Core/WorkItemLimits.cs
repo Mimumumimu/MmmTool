@@ -1,6 +1,6 @@
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>入力の上限 (DB の列の長さと同じ。画面の入力欄にも使う)</summary>
+/// <summary>入力の上限で、DB の列の長さと同じ。画面の入力欄にも使う</summary>
 public static class WorkItemLimits
 {
     /// <summary>名前の最大の長さ</summary>

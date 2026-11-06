@@ -22,10 +22,10 @@ public static class NoteColorPalette
     /// <summary>段階の名前 (濃い順)</summary>
     private static readonly string[] ToneNames = ["濃い", "やや濃い", "やや薄い", "薄い"];
 
-    /// <summary>ライトモードで、背景との間に確保するコントラスト比 (段階ごと。濃い順)</summary>
+    /// <summary>ライトモードで、背景との間に確保するコントラスト比で、段階ごと。濃い順</summary>
     private static readonly double[] LightContrasts = [9.0, 7.0, 5.5, 4.5];
 
-    /// <summary>ダークモードで、背景との間に確保するコントラスト比 (段階ごと。濃い順)</summary>
+    /// <summary>ダークモードで、背景との間に確保するコントラスト比で、段階ごと。濃い順</summary>
     private static readonly double[] DarkContrasts = [4.8, 6.5, 8.5, 11.0];
 
     /// <summary>系統で、名前・色相・彩度。灰色だけ彩度 0</summary>
@@ -47,11 +47,11 @@ public static class NoteColorPalette
     /// <summary>パレットの全部の色 (系統の順、系統の中は濃い順)</summary>
     public static IReadOnlyList<NoteColor> All { get; } = Build();
 
-    /// <summary>1 行に並べる色の数 (段階の数。画面のパレットの列の数)</summary>
+    /// <summary>1 行に並べる色の数で、段階の数。画面のパレットの列の数</summary>
     public static int ToneCount => ToneNames.Length;
 
     /// <summary>ライトモードの値から、パレットの色を探す</summary>
-    /// <param name="hex">色の値 (<c>#RRGGBB</c>。大文字と小文字は区別しない)</param>
+    /// <param name="hex">色の値で、<c>#RRGGBB</c>。大文字と小文字は区別しない</param>
     /// <returns>パレットの色。無ければ null</returns>
     public static NoteColor? TryFind(string hex)
         => All.FirstOrDefault(color => string.Equals(color.Hex, hex, StringComparison.OrdinalIgnoreCase));

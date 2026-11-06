@@ -84,7 +84,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
     private bool _masterEmpty;
 
-    /// <summary>ページを開いている間か (<see cref="InitializeAsync"/> から <see cref="Suspend"/> まで。離れている間は、サービスの変更で表を作らない)</summary>
+    /// <summary>ページを開いている間か。<see cref="InitializeAsync"/> から <see cref="Suspend"/> までで、離れている間は、サービスの変更で表を作らない</summary>
     private bool _active;
 
     /// <summary>開いたときの読み込みが終わり、表を作り終えているか (終わるまでの変更は、全体を作り直す)</summary>
@@ -102,7 +102,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>最後に始めた、日報メモの保存 (作業報告を開く前に、終わりを待つため)</summary>
     private Task _dayNoteSave = Task.CompletedTask;
 
-    /// <summary>表の行 (見えている行を 1 つにならしたもの。木の順)</summary>
+    /// <summary>表の行で、見えている行を 1 つにならしたもの。木の順</summary>
     public ObservableCollection<WorkItemRow> Rows { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
@@ -111,16 +111,16 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>表示する案件を選ぶ画面の ViewModel</summary>
     public ProjectPickerViewModel ProjectPicker { get; }
 
-    /// <summary>入力日 (実績 (日)・備考 (日)・日報メモの日。既定は今日)</summary>
+    /// <summary>入力日で、実績 (日)・備考 (日)・日報メモの日。既定は今日</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DayNotePlaceholder))]
     public partial DateOnly InputDate { get; set; }
 
-    /// <summary>入力日の日報メモ (入力欄の文字。フォーカスが外れたときに保存する)</summary>
+    /// <summary>入力日の日報メモで、入力欄の文字。フォーカスが外れたときに保存する</summary>
     [ObservableProperty]
     public partial string DayNote { get; set; } = "";
 
-    /// <summary>日報メモの入力欄が空のときの薄い文字 (どの日のメモかが分かるよう、入力日つき。曜日は PC の言語に依らず日本語)</summary>
+    /// <summary>日報メモの入力欄が空のときの薄い文字で、どの日のメモかが分かるよう、入力日つき。曜日は PC の言語に依らず日本語</summary>
     public string DayNotePlaceholder => $"{FormatDay(InputDate)} の日報メモ";
 
     /// <summary>入力日の実績の合計の表示</summary>
@@ -131,10 +131,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>日報メモの入力欄の最大の長さ</summary>
     public int DayNoteMaxLength => WorkItemLimits.DayNoteMaxLength;
 
-    /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
+    /// <summary>担当者を扱うか。ローカルモードは false で、担当の列と絞り込みを出さない</summary>
     public bool HasAssignees => _service.HasAssignees;
 
-    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
     public bool CanRefresh => _service.HasAssignees;
 
     /// <summary>自分が担当の作業だけを表示するか</summary>
@@ -600,7 +600,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>行を追加する</summary>
     /// <param name="kind">追加する行の種類</param>
-    /// <param name="target">右クリックした行 (案件・グループなら中に、作業なら同じ階層の次に追加する。案件を追加するときは null)</param>
+    /// <param name="target">右クリックした行で、案件・グループなら中に、作業なら同じ階層の次に追加する。案件を追加するときは null</param>
     /// <returns>追加の完了を表すタスク</returns>
     public async Task AddAsync(WorkRowKind kind, WorkItemRow? target)
     {
@@ -736,8 +736,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>確認してから、行を削除する (論理削除。グループは中身も一緒に)</summary>
-    /// <param name="row">削除する行 (グループまたは作業。案件は、案件の管理の画面で削除する)</param>
+    /// <summary>確認してから、行を削除する。論理削除で、グループは中身も一緒に</summary>
+    /// <param name="row">削除する行で、グループまたは作業。案件は、案件の管理の画面で削除する</param>
     /// <returns>削除の完了を表すタスク</returns>
     public async Task DeleteAsync(WorkItemRow row)
     {
@@ -770,7 +770,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>作業報告の画面を開く (「作業報告」ボタンから。報告日の初期値は、作業管理で開いている日)</summary>
+    /// <summary>作業報告の画面を開く。「作業報告」ボタンから開き、報告日の初期値は、作業管理で開いている日</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
     /// <remarks>日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く。保存は、入力欄のフォーカスが外れたときに始まる。</remarks>
     [RelayCommand]
@@ -1063,7 +1063,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <param name="row">行</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
-    /// <param name="link">新しいリンク (変えないなら null。空文字はリンクを消す)</param>
+    /// <param name="link">新しいリンク。変えないなら null で、空文字はリンクを消す</param>
     /// <returns>更新の完了を表すタスク</returns>
     private async Task UpdateTextAsync(WorkItemRow row, string? name, string? note, string? link = null)
     {
@@ -1401,7 +1401,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>移動先の選択肢に、グループを木の順に足す</summary>
     /// <param name="nodes">並べる行</param>
     /// <param name="projectId">案件の番号</param>
-    /// <param name="excluded">選択肢に出さない行 (移す行。その中も出さない)</param>
+    /// <param name="excluded">選択肢に出さない行で、移す行。その中も出さない</param>
     /// <param name="level">字下げの段</param>
     /// <param name="destinations">足し先</param>
     private static void AddDestinations(IReadOnlyList<WorkNode> nodes, int projectId, WorkKey excluded, int level, List<MoveDestination> destinations)

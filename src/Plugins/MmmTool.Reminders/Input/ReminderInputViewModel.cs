@@ -142,7 +142,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>送信先を選べなくしたときに外した、チェックしていた送信先の番号。宛先を戻したときに、チェックを戻す</summary>
     private HashSet<int>? _stashedChannelIds;
 
-    /// <summary>送信先の選択肢 (自分が登録した送信先と、保存されている送信先。チェックで、複数選べる)</summary>
+    /// <summary>送信先の選択肢で、自分が登録した送信先と、保存されている送信先。チェックで、複数選べる</summary>
     public ObservableCollection<ReminderChannelOption> ChannelOptions { get; } = [];
 
     /// <summary>送信先が 1 つも無いか (送信先の欄を出していて、選べるものが無い)</summary>

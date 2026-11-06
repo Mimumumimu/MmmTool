@@ -1,5 +1,5 @@
--- MmmToolWeb の DB (SQL Server)。dbo スキーマに、パスキーの表 AppUserPasskey と、Web 版の認証の状態の表 AppUserWebAuth を作る。
--- 設計は docs/specs/web.md。何度流しても壊れない (無いものだけを作る)。
+-- MmmToolWeb の DB は SQL Server。dbo スキーマに、パスキーの表 AppUserPasskey と、Web 版の認証の状態の表 AppUserWebAuth を作る。
+-- 設計は docs/specs/web.md。何度流しても壊れないよう、無いものだけを作る。
 -- 使い方: MmmTool の 001_CreateTables.sql を流した DB を選んでから、表を作れる権限のあるユーザーで、全体を実行する。
 
 -- パスキー。1 人が複数持てる。CredentialId は、削除されていない行の間だけ一意。SignCount は 32 ビットの符号なしを入れるので bigint
@@ -32,8 +32,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_AppUserPasskey_AppUse
 CREATE INDEX IX_AppUserPasskey_AppUserId ON dbo.AppUserPasskey (AppUserId) WHERE IsDeleted = 0;
 GO
 
--- Web 版の認証の状態。1 人に 1 行 (行が無い人は、登録用コードが無く、SessionVersion は 1 として扱う)。管理者が最初にコードを出すときに行を作る
--- EnrollmentCodeHash は登録用コードの SHA-256 (16 進)。空文字は有効なコードが無い状態。EnrollmentCodeExpiresAt の 9999-12-31 は、コードが無い
+-- Web 版の認証の状態。1 人に 1 行。行が無い人は、登録用コードが無く、SessionVersion は 1 として扱う。管理者が最初にコードを出すときに行を作る
+-- EnrollmentCodeHash は登録用コードの SHA-256 で、16 進。空文字は有効なコードが無い状態。EnrollmentCodeExpiresAt の 9999-12-31 は、コードが無い
 IF OBJECT_ID(N'dbo.AppUserWebAuth', N'U') IS NULL
 CREATE TABLE dbo.AppUserWebAuth
 (

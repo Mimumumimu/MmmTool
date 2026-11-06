@@ -14,7 +14,7 @@ namespace MmmTool.Notes.Core;
 /// </remarks>
 public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 {
-    /// <summary>曜日の表示 (日曜が先頭。PC の言語に依らず日本語)</summary>
+    /// <summary>曜日の表示で、日曜が先頭。PC の言語に依らず日本語</summary>
     private static readonly string[] Weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
     /// <summary>ページを作る</summary>

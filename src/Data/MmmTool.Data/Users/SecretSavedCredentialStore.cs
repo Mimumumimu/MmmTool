@@ -5,7 +5,7 @@ using MmmTool.Users.Core;
 namespace MmmTool.Data.Users;
 
 /// <summary>
-/// ログイン名とパスワードを、秘密の保管庫 (Windows の資格情報マネージャー。Windows アカウントごと)に覚える。
+/// ログイン名とパスワードを、秘密の保管庫に覚える。保管庫は Windows の資格情報マネージャーで、Windows アカウントごと。
 /// </summary>
 /// <remarks>
 /// 項目の名前は <c>MmmTool.Account.&lt;サーバー名&gt;/&lt;データベース名&gt;</c>。接続先が違うと別の項目になり、互いを上書きしない。

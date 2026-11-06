@@ -15,7 +15,7 @@ public sealed class MainWindowSettingsService(ISettingsStore settings)
     /// <summary>起動時にメイン画面を開くかの設定キー</summary>
     private const string OpenOnStartupKey = "Shell.OpenMainWindowOnStartup";
 
-    /// <summary>起動時にメイン画面を開くか (無ければ開かない。トレイアイコンだけ出す)</summary>
+    /// <summary>起動時にメイン画面を開くか。無ければ開かず、トレイアイコンだけ出す</summary>
     public bool OpenOnStartup => settings.Get(OpenOnStartupKey, false);
 
     /// <summary>× ボタンを押したときの動きの設定キー</summary>

@@ -33,7 +33,7 @@ public sealed record WorkItemRow
     /// <summary>属する案件 (<c>WorkProject.Id</c>)</summary>
     public int ProjectId { get; init; }
 
-    /// <summary>親のグループ (<c>WorkGroup.Id</c>。0 は案件の直下)</summary>
+    /// <summary>親のグループで、<c>WorkGroup.Id</c>。0 は案件の直下</summary>
     public int GroupId { get; init; }
 
     /// <summary>兄弟の中の並び (グループと作業にまたがる 1 つの数)</summary>
@@ -42,13 +42,13 @@ public sealed record WorkItemRow
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>担当者 (<c>AppUser.Id</c>。0 は未割り当て)</summary>
+    /// <summary>担当者で、<c>AppUser.Id</c>。0 は未割り当て</summary>
     public int AssigneeUserId { get; init; }
 
     /// <summary>備考 (無いときは空文字)</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>優先度のコード番号 (コードマスタの区分「優先度」。高 = 1・中 = 2・低 = 3)</summary>
+    /// <summary>優先度のコード番号で、コードマスタの区分「優先度」。高 = 1・中 = 2・低 = 3</summary>
     public int PriorityCodeNo { get; init; } = (int)WorkItemPriority.Normal;
 
     /// <summary>開始日 (ない日は <c>0001-01-01</c>)</summary>
@@ -63,10 +63,10 @@ public sealed record WorkItemRow
     /// <summary>作業報告のどの部分から外すか (0 = 外さない・1 = 予定から外す・2 = 実績と予定から外す)</summary>
     public byte ReportExclusion { get; init; }
 
-    /// <summary>状態のコード番号 (コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4)</summary>
+    /// <summary>状態のコード番号で、コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4</summary>
     public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
 
-    /// <summary>進捗度のコード番号 (コードマスタの区分「進捗度」。%の値は、コードマスタの数値)</summary>
+    /// <summary>進捗度のコード番号で、コードマスタの区分「進捗度」。%の値は、コードマスタの数値</summary>
     public int ProgressCodeNo { get; init; } = WorkCodes.DefaultProgressCodeNo;
 
     /// <summary>予定時間 (0 は予定なし)</summary>

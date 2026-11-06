@@ -9,16 +9,16 @@ namespace MmmTool.Users.Core;
 /// </remarks>
 public sealed record AppUser
 {
-    /// <summary>表示名の最大文字数 (UTF-16 の 1 単位で数える。DB の列の長さと同じ)</summary>
+    /// <summary>表示名の最大文字数で、UTF-16 の 1 単位で数える。DB の列の長さと同じ</summary>
     public const int DisplayNameMaxLength = 50;
 
-    /// <summary>ログイン名の最大文字数 (UTF-16 の 1 単位で数える。DB の列の長さと同じ)</summary>
+    /// <summary>ログイン名の最大文字数で、UTF-16 の 1 単位で数える。DB の列の長さと同じ</summary>
     public const int LoginNameMaxLength = 50;
 
     /// <summary>ログイン名に使えない文字があるときの、画面に出す文言</summary>
     public const string InvalidLoginNameMessage = "ログイン名に使えない文字があります。半角英数字と記号だけで入力してください。";
 
-    /// <summary>ログイン名として使える文字だけでできているか (半角英数字と半角記号。空白は不可。空は false)</summary>
+    /// <summary>ログイン名として使える文字だけでできているか。半角英数字と半角記号で、空白は不可。空は false</summary>
     /// <param name="loginName">調べるログイン名 (前後の空白は呼び出し側で取り除く)</param>
     /// <returns>使えるなら true</returns>
     /// <remarks>新規登録・変更・ログインの入力で使う。</remarks>
@@ -31,7 +31,7 @@ public sealed record AppUser
     /// <summary>表示名</summary>
     public string DisplayName { get; init; } = "";
 
-    /// <summary>ログイン名 (大文字と小文字は区別しない。削除されていないユーザーの間で一意)</summary>
+    /// <summary>ログイン名で、大文字と小文字は区別しない。削除されていないユーザーの間で一意</summary>
     public string LoginName { get; init; } = "";
 
     /// <summary>使い始める日</summary>

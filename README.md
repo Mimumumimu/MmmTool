@@ -194,10 +194,10 @@ CLI補助の定型コマンドは、`Data/CliCommands.json` で編集できま�
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文とグループ。編集画面で保存したときに作成 |
 | `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たら知らせる文字列と、ターミナルへフォーカスも移すか。編集画面で保存したときに作成 |
 | `Data/Links.json` | リンクの構成。無ければ空で作成 |
-| `Data/MmmTool.db` | 作業管理とノートのデータ (SQLite)。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
+| `Data/MmmTool.db` | 作業管理とノートのデータで、SQLite。無ければ最初に使うときに作成。壊れていたら `MmmTool.broken-日時.db` へ名前を変えて残し、作り直す |
 | `Data/Reminders.json` | リマインダー本体 |
 | `Data/ReminderStates.json` | リマインダーの対応状態 |
-| `Data/AppSettings.json` | アプリ共通の設定 (ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md)) |
+| `Data/AppSettings.json` | アプリ共通の設定で、ウィンドウ位置・スヌーズ間隔・読み上げの音量・作業管理の表示の設定・リマインダーのまとめて追加で前回選んだ内容など。キーの一覧は [docs/specs/storage.md](docs/specs/storage.md) にある |
 
 JSON として読めないファイルは、`名前.broken-yyyyMMdd-HHmmss.json` に名前を変えて同じフォルダーに退避し、新しく作り直します。  
 退避したファイルは自動では消えないので、必要な内容を戻したら削除してください。
@@ -312,7 +312,7 @@ dotnet build .\MmmTool.slnx
 | ファイル | 内容 |
 | --- | --- |
 | `Directory.Build.props` | 全プロジェクト共通の設定 (Nullable・XML ドキュメントコメントの検査・コードスタイルのビルド時検査など) |
-| `Directory.Packages.props` | NuGet パッケージのバージョン (中央パッケージ管理。csproj にはバージョンを書きません) |
+| `Directory.Packages.props` | NuGet パッケージのバージョンを持つ中央パッケージ管理で、csproj にはバージョンを書きません |
 | `.editorconfig` | コードスタイル。未使用の using などはビルド時に警告になります |
 
 実行は Visual Studio で `MmmTool.slnx` を開き、`MmmTool` プロジェクト (起動プロファイル「MmmTool」)を F5 で起動します。  
@@ -378,15 +378,15 @@ git submodule update --remote external/MmmSdk
 
 | フォルダー | 内容 |
 | --- | --- |
-| `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層 (`net10.0`)。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Messages`・`Notes`・`Reminders`・`Tools`・`WorkItems` |
+| `src/Plugins/MmmTool.<機能>.Core/` | 機能の、UI に依存しない層で、`net10.0`。保存するデータ・保存先のインターフェース・処理を置き、JSON での保存は `Json/` に置く。機能は `Backlog`・`CliAssist`・`ClipboardTransfer`・`Links`・`Messages`・`Notes`・`Reminders`・`Tools`・`WorkItems` |
 | `src/Plugins/MmmTool.<機能>/` | 機能の WinUI 3 ライブラリ。直下に機能の入口 (`<機能>Plugin`)・起動時の準備などのつなぎ、`Main/` に入口の画面、そのほかの画面は 1 画面 1 フォルダー (View・ViewModel・その画面の Windows 依存の処理)にまとめている |
 | `src/App/MmmTool/Features/` | ホストが持つ機能のフォルダー (`Settings/`・`Users/`・`Database/`) |
 | `src/App/MmmTool/Shell/` | 画面の枠。直下に DI への登録とナビゲーションの型、`Main/` にメインウィンドウ・サイドバー (タスクトレイの仕組みは SDK) |
-| `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch(`MmmBatch.slnx`)。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
+| `src/App/MmmBatch/` と `src/Plugins/MmmBatch.*` | サーバー用のアプリ MmmBatch で、`MmmBatch.slnx` から開く。リマインダーとメッセージを ntfy・Discord・Web 版通知へ送る。外部へ送る処理は、ここだけにあり、MmmTool には入らない |
 | `src/App/MmmToolAdmin/` と `src/Plugins/MmmToolAdmin.*` | サーバーモードの管理ツール MmmToolAdmin で、ソリューションは `MmmToolAdmin.slnx`。ユーザーの一覧と、Web 版の登録用コードの発行と、ユーザーごとの機能の利用 |
 | `src/App/MmmToolWeb/` と `src/Plugins/MmmToolWeb.*` | Web 版 MmmToolWeb で、ソリューションは `MmmToolWeb.slnx`。サーバー (`Server`)と、ブラウザで動く画面 (Blazor WebAssembly の `Client`)から成り、ノートとメッセージとリマインダーを使える。ログインはパスキー (`src/Auth/`) |
 | `src/Data/` | DB のコード。`MmmTool.Data*`(保存先・接続の入力欄)・`MmmBatch.Data.SqlServer`・`MmmToolAdmin.Data.SqlServer`・`MmmToolWeb.Data.SqlServer` |
-| `external/MmmSdk/` | 共有部品 (Git サブモジュール)。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
+| `external/MmmSdk/` | 共有部品で、Git サブモジュール。設定ストア・ウィンドウ位置の保存・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・擬似モーダル・多重起動の防止・タスクトレイ・時刻入力欄・IME 操作・添付の一時保存など |
 | `docs/images/` | この README で使う画像 |
 
 機能を足すときは、`src/Plugins/MmmTool.<機能>.Core/` と `src/Plugins/MmmTool.<機能>/` を作り、`MmmTool` から参照して、`App.xaml.cs` で `AddFeaturePlugin<<機能>Plugin>(order: n)` を 1 行呼びます。  

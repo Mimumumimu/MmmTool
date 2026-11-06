@@ -24,7 +24,7 @@ public static class BacklogLocationParser
 
         if (!BacklogDomains.Any(domain => uri.Host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase)))
         {
-            return BacklogLocationResult.Failure("Backlog の URL ではありません (backlog.jp / backlog.com / backlogtool.com)。");
+            return BacklogLocationResult.Failure("Backlog の URL ではありません。使えるのは backlog.jp / backlog.com / backlogtool.com です。");
         }
 
         // AbsolutePath はエンコードされたまま。区切りの / で分けてから、各セグメントをデコードする

@@ -33,7 +33,7 @@ internal static class SendTableAccess
     /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     public static int RequireUserId(CurrentUser currentUser)
     {
-        const string Message = "ユーザーが特定されていないため、送信の機能を使えません (ログインが必要です)。";
+        const string Message = "ユーザーが特定されていないため、送信の機能を使えません。ログインが必要です。";
         return currentUser.User?.Id ?? throw new DataFileException(Message, new InvalidOperationException(Message));
     }
 }

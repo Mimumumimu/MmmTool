@@ -27,10 +27,10 @@ public static class WorkReportBuilder
     /// <summary>作業報告のテキストを組み立てる</summary>
     /// <param name="data">読んだ内容</param>
     /// <param name="from">実績の開始日 (実績を拾い始める日)</param>
-    /// <param name="reportDate">報告日 (予定の日。実績は、この日より前だけ)</param>
+    /// <param name="reportDate">報告日で、予定の日。実績は、この日より前だけ</param>
     /// <param name="showHours">実績の各作業に、期間内の工数の合計を添えるか</param>
     /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
-    /// <returns>テキスト (行の区切りは CRLF。末尾に改行は付けない)</returns>
+    /// <returns>テキストで、行の区切りは CRLF。末尾に改行は付けない</returns>
     /// <remarks>
     /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを、いちばん最後の「■日報メモ」に、全角スペース 1 つの字下げをつけて出す。実績・予定・保留の中には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
     /// </remarks>
@@ -125,7 +125,7 @@ public static class WorkReportBuilder
 
     /// <summary>備考を、空でない行に分ける</summary>
     /// <param name="note">備考</param>
-    /// <returns>行 (行末の空白を除く。行頭の空白は、書いた人の字下げなので残す。空白だけの行は含まない)</returns>
+    /// <returns>行で、行末の空白を除く。行頭の空白は、書いた人の字下げなので残す。空白だけの行は含まない</returns>
     /// <remarks>改行は、CRLF・CR・LF のどれでも区切る。WinUI の複数行の入力欄は、改行を CR 1 文字で持つことがある。</remarks>
     private static IEnumerable<string> Lines(string note)
         => note.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.TrimEnd()).Where(l => l.Length > 0);
@@ -166,9 +166,9 @@ public static class WorkReportBuilder
         }
     }
 
-    /// <summary>日報メモを、行に分ける (書いたとおり。前後の空行と、行末の空白だけを除く)</summary>
+    /// <summary>日報メモを、行に分ける。書いたとおりで、前後の空行と、行末の空白だけを除く</summary>
     /// <param name="text">日報メモ</param>
-    /// <returns>行 (字下げは残す。途中の空行も残す)</returns>
+    /// <returns>行で、字下げは残す。途中の空行も残す</returns>
     /// <remarks>改行は、CRLF・CR・LF のどれでも区切る。</remarks>
     private static List<string> ManualLines(string text)
     {
@@ -274,11 +274,11 @@ public static class WorkReportBuilder
 
     /// <summary>区画に出す作業 1 件</summary>
     /// <param name="Item">作業</param>
-    /// <param name="Notes">出す備考 (行ごと。重なりを除いた)</param>
+    /// <param name="Notes">出す備考で、行ごと。重なりを除いた</param>
     /// <param name="Hours">添える工数 (添えないなら null)</param>
     private sealed record ReportEntry(WorkItem Item, List<string> Notes, double? Hours);
 
-    /// <summary>木の行の種類 (並びの決めに使う。同じ並び順なら、グループが作業より先)</summary>
+    /// <summary>木の行の種類で、並びの決めに使う。同じ並び順なら、グループが作業より先</summary>
     private enum NodeKind
     {
         /// <summary>案件</summary>

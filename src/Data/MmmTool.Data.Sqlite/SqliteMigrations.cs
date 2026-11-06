@@ -3,7 +3,7 @@ using MmmSdk.Db.Sqlite.Components.Connections;
 namespace MmmTool.Data.Sqlite;
 
 /// <summary>
-/// データベースの版を上げるスクリプト (<c>Sql/NNN_*.sql</c>。埋め込みリソース)を読む。
+/// データベースの版を上げるスクリプトを読む。スクリプトは <c>Sql/NNN_*.sql</c> の埋め込みリソース。
 /// </summary>
 /// <remarks>ファイル名の先頭の数字が版になる。例は <c>001_CreateTables.sql</c> が版 1。集計の作り直しのスクリプト (<c>Sql/Maintenance</c>)は、埋め込まない。</remarks>
 internal static class SqliteMigrations

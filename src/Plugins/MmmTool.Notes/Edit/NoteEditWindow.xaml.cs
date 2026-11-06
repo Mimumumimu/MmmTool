@@ -26,7 +26,7 @@ public sealed partial class NoteEditWindow : Window
     /// <summary>ウィンドウの幅 (DIP)</summary>
     private const double WindowWidth = 640;
 
-    /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む)</summary>
+    /// <summary>ウィンドウの高さで、単位は DIP。タイトルバーを含む</summary>
     private const double WindowHeight = 720;
 
     /// <summary>最小の幅 (DIP)</summary>
@@ -39,7 +39,7 @@ public sealed partial class NoteEditWindow : Window
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
     private const double TitleBarHeight = 32;
 
-    /// <summary>日付の欄の表示の形 (曜日つき。PC の言語に依らず日本語)</summary>
+    /// <summary>日付の欄の表示の形で、曜日つき。PC の言語に依らず日本語</summary>
     private const string DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
 
     /// <summary>閉じたときに結果を返す</summary>

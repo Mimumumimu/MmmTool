@@ -20,7 +20,7 @@ public sealed record WorkRecordRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 = 最初に記録した人 (ユーザーの番号。記録用)</summary>
+    /// <summary>作成者 = 最初に記録した人で、ユーザーの番号。記録用</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
@@ -29,7 +29,7 @@ public sealed record WorkRecordRow
     /// <summary>更新者 (ユーザーの番号)</summary>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>属する案件 (<c>WorkProject.Id</c>。作業の案件)</summary>
+    /// <summary>属する案件で、<c>WorkProject.Id</c>。作業の案件</summary>
     public int ProjectId { get; init; }
 
     /// <summary>作業 (<c>WorkItem.Id</c>)</summary>

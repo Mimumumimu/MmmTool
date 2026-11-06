@@ -188,7 +188,7 @@ public partial class App : Application
         // 保存先の選択の画面は、最後のウィンドウを閉じてアプリごと終了しないよう、メインウィンドウを作るまで隠して残していた。ここで閉じる
         databaseChoice.CloseWindow();
 
-        // DB モードで、ログインできていないとき、ログインの画面を出す (メインウィンドウを作ったあと。作る前に出すと、閉じたときにアプリごと終了しうる)
+        // DB モードで、ログインできていないとき、ログインの画面を出す。メインウィンドウを作ったあとに出し、作る前に出すと、閉じたときにアプリごと終了しうる
         // ログインを済ませないと先へ進ませず、トレイも出さない。ログインせずに閉じたときは、終了する
         if (!await _host.Services.GetRequiredService<SignInPrompt>().ShowIfRequestedAsync())
         {
@@ -200,7 +200,7 @@ public partial class App : Application
         tray.Show();
 
         // メインウィンドウを出すのは、次のとき (ユーザーの登録が済んでから出す)
-        // - 初回の起動 (保存先を選んだとき。トレイだけでは、何も起動していないように見えるため)
+        // - 初回の起動で、保存先を選んだとき。トレイだけでは、何も起動していないように見えるため
         // - 設定で「起動時にメイン画面を開く」がオンのとき (設定ストアは、機能の準備の前に先読み済み)
         if (databaseChoice.HasChosen || _host.Services.GetRequiredService<MainWindowSettingsService>().OpenOnStartup)
         {
@@ -217,7 +217,7 @@ public partial class App : Application
     private async Task ExitAsync()
     {
         _window?.PrepareExit();
-        // 開いているウィンドウ (モーダル・リマインダーのメイン画面など)は、Host が生きているうちに閉じる (閉じる処理が、破棄済みのサービスを触らないように。メインウィンドウは Exit が閉じる)
+        // 開いているウィンドウ (モーダル・リマインダーのメイン画面など)は、Host が生きているうちに閉じる。閉じる処理が、破棄済みのサービスを触らないようにするためで、メインウィンドウは Exit が閉じる
         _host.Services.GetRequiredService<IDialogHost>().CloseAll(_window);
         await _host.StopAsync();
         _host.Dispose();

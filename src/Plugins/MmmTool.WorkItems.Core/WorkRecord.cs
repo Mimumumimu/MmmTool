@@ -7,10 +7,10 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public sealed record WorkRecord
 {
-    /// <summary>番号 (保存先が決める。0 は、まだ保存していない)</summary>
+    /// <summary>番号。保存先が決め、0 は、まだ保存していない</summary>
     public long Id { get; init; }
 
-    /// <summary>属する案件の番号 (作業の案件。選んだ案件に絞って読むため、記録の行にも持つ)</summary>
+    /// <summary>属する案件の番号で、作業の案件。選んだ案件に絞って読むため、記録の行にも持つ</summary>
     public int ProjectId { get; init; }
 
     /// <summary>作業の番号</summary>
@@ -19,7 +19,7 @@ public sealed record WorkRecord
     /// <summary>日付</summary>
     public DateOnly Date { get; init; }
 
-    /// <summary>その日の実績 (時間。0 以上 24 以下)</summary>
+    /// <summary>その日の実績で、時間。0 以上 24 以下</summary>
     public double Hours { get; init; }
 
     /// <summary>その日の備考</summary>

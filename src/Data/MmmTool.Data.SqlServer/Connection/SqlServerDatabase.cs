@@ -55,7 +55,7 @@ public sealed class SqlServerDatabase(SqlServerConnectionFactoryBuilder builder,
         {
             // どのサーバー・どの DB で、どのエラー番号かを残す。呼び出しの流れ (どの機能の処理か)は、例外のスタックトレースに入る
             errorLog?.Write($"データベースの読み書きに失敗 (サーバー: {ex.Server} / データベース: {databaseName} / エラー番号: {ex.Number})", ex);
-            throw new DataFileException($"データベースの読み書きに失敗しました ({ex.Message})。", ex);
+            throw new DataFileException($"データベースの読み書きに失敗しました。{ex.Message}", ex);
         }
     }
 

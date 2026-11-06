@@ -15,7 +15,7 @@ public sealed record Note
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted { get; init; }
 
-    /// <summary>書いた人 (<c>AppUser.Id</c>。ローカルモードは 1)</summary>
+    /// <summary>書いた人で、<c>AppUser.Id</c>。ローカルモードは 1</summary>
     public int AuthorUserId { get; init; }
 
     /// <summary>書いた人だけに見えるか。false は全員に見える。ローカルモードは常に false</summary>
@@ -36,7 +36,7 @@ public sealed record Note
     /// <summary>タイトル</summary>
     public string Title { get; init; } = "";
 
-    /// <summary>本文 (書いたとおりの文字。HTML のタグを含みうる)</summary>
+    /// <summary>本文で、書いたとおりの文字。HTML のタグを含みうる</summary>
     public string Body { get; init; } = "";
 
     /// <summary>更新日時</summary>

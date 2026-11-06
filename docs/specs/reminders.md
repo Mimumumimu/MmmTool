@@ -303,7 +303,7 @@
   - 時刻の順に登録する
 - 登録の失敗は、上部の InfoBar で知らせて閉じない
 
-## 一覧画面 (`ReminderListControl` ＋ `ReminderListViewModel`。置き場は `ReminderListPage` と `ReminderListWindow`)
+## 一覧画面 (`ReminderListControl` ＋ `ReminderListViewModel`、置き場は `ReminderListPage` と `ReminderListWindow`)
 
 - 一覧の中身 (操作行・見出しつきの一覧・エラー)は UserControl の `ReminderListControl`(`List/`)で、ページとウィンドウが共有する
   - タイトル・外側の余白・読み込みは、置く側が受け持つ

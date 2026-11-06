@@ -145,7 +145,7 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `DisplayName` | 文字列 (50) | `nvarchar(50)` | | 表示名 |
-| `LoginName` | 文字列 (50) | `nvarchar(50)` | | ログイン名。大文字と小文字は区別しない。削除されていない行の間だけ一意 (`UX_AppUser_LoginName`。条件つきの一意インデックス) |
+| `LoginName` | 文字列 (50) | `nvarchar(50)` | | ログイン名。大文字と小文字は区別しない。削除されていない行の間だけ一意 (`UX_AppUser_LoginName` で、条件つきの一意インデックス) |
 | `PasswordHash` | 文字列 (200) | `varchar(200)` | 空文字 | 空文字は、管理者の再設定のあとの「新しく決める」状態。パスワードのハッシュで、形は `pbkdf2-sha256$<回数>$<ソルト>$<ハッシュ>` (ソルト・ハッシュは Base64) |
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
 | `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
@@ -194,7 +194,7 @@
   - 備考・リンクは、空文字と `null` を区別しない (空文字で保存し、読むときは `null`)
   - 作成・更新の日時と、作成者・更新者・宛先は、アプリの型に無いので、`FromReminder` では決めない (Repository が入れる)
 
-### `ReminderState`(対応状態。人ごと)
+### `ReminderState`(対応状態で、人ごと)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -377,7 +377,7 @@
 | `Kind` | 整数 (小) | `tinyint` | | 種類。1 対 1 = 1 / グループ = 2 で、1 から 2 の検査 `CK_MessageConversation_Kind` |
 | `Name` | 文字列 (50) | `nvarchar(50)` | 空文字 | 会話の名前。グループの名前で、1 対 1 は空文字 |
 
-- 1 対 1 の会話の重なりとは、同じ 2 人の組に、会話が 2 つできること。これは、DB の索引では防がない。会話を作る処理が、2 人の組ごとの鍵 (`sp_getapplock`)で順番に処理し、`MessageConversationMember` から探して防ぐ ([messages.md](messages.md) の「1 対 1 の会話の作り方」)。
+- 1 対 1 の会話の重なりとは、同じ 2 人の組に、会話が 2 つできること。これは、DB の索引では防がない。会話を作る処理が、2 人の組ごとの鍵 (`sp_getapplock`)で順番に処理し、`MessageConversationMember` から探して防ぐ。詳細は [messages.md](messages.md) の「1 対 1 の会話の作り方」にある。
   - グループは、メンバーが同じで名前の違う会話を、いくつでも作れる
 - 最後のメッセージの番号の列は持たない。人の一覧は、会話ごとに最新の 1 通を `Message` から読んで求める。メッセージを送るたびに、会話の行を更新しなくて済むため。
 - インデックスは、主キーだけ。参加者での引きは、`MessageConversationMember` の索引が受け持つ。
@@ -470,7 +470,7 @@
 - SQLite の型は、下の「型の対応 (作業管理の表)」
 - 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く
 
-#### `WorkProject`(案件マスター。全員で共有する案件の 1 件)
+#### `WorkProject`(案件マスターで、全員で共有する案件の 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -543,7 +543,7 @@
   - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけ
   - `IX_WorkItem_AssigneeUserId_AutoHours (AssigneeUserId)`: 自動入力の設定がある自分の作業を探す。削除されていなくて、`AutoHours > 0` の行だけ。大半の作業は設定が無いので、索引が小さく済む
 
-#### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
+#### `WorkRecord`(日ごとの記録で、作業ごと・日ごとに 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -570,7 +570,7 @@
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
   - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけ
 
-#### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
+#### `WorkDayNote`(日報メモで、1 人 1 日 1 件)
 
 - 作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)
   - 作業報告が、報告日の分を「■日報メモ」に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
@@ -618,7 +618,7 @@
   - SQL Server は、管理者が、DB を選んで流す
 - SQLite の型は、上の「型の対応 (作業管理の表)」
 
-#### `Note`(ノート。期間とタイトルと本文を持つ 1 件)
+#### `Note`(ノートで、期間とタイトルと本文を持つ 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -679,7 +679,7 @@
 | `CodeNo` | 整数 | `int` | | コード番号。区分の中の識別子。利用する行は、この番号を保存する。一度使った番号は、同じ意味のまま変えない。1 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 表示順。小さいほど先。0 以上の検査 |
 | `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数で、進捗度の % など。要らないコードは 0 |
-| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる (例: 「レビュー中」)。初期値は、進捗度の名前をすべて空にする |
+| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる。例は「レビュー中」。初期値は、進捗度の名前をすべて空にする |
 
 - `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`)
   - 論理削除された行も含めて
@@ -964,7 +964,7 @@
 | 整数 (小) | `tinyint` | `INTEGER` (範囲は `CHECK`) |
 | 真偽 | `bit` | `INTEGER` (0 か 1 の `CHECK`) |
 | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `TEXT` (`2026-10-11T14:30:00.123+09:00`) |
-| 日付 | `date` | `TEXT` (`2026-10-11`。ない日は `9999-12-31`。作業の開始日だけ `0001-01-01`) |
+| 日付 | `date` | `TEXT` (`2026-10-11` で、ない日は `9999-12-31`、作業の開始日だけ `0001-01-01`) |
 | 文字列 (n) | `nvarchar(n)` | `TEXT` (長さは `CHECK`) |
 | 長い文字列 (上限なし) | `nvarchar(max)` | `TEXT` |
 | 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` と `AutoHours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |

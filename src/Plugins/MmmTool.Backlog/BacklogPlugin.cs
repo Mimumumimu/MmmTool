@@ -12,7 +12,7 @@ public sealed class BacklogPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
     /// <remarks>
-    /// 保存するデータは、連携用パス (URL。設定ストア)と API キー (秘密の保管庫)だけ。専用のファイルは作らない。
+    /// 保存するデータは、連携用パスの URL (設定ストア)と API キー (秘密の保管庫)だけ。専用のファイルは作らない。
     /// 設定ページでオン・オフできる。オフの間は、サイドバーにも設定ページにも出さない。
     /// </remarks>
     public void Register(IServiceCollection services)

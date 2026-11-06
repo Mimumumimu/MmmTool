@@ -49,7 +49,7 @@ public sealed record ReminderRow
     /// <summary>時刻 (秒は 0)</summary>
     public TimeOnly Time { get; init; }
 
-    /// <summary>曜日指定の曜日 (月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数。JSON と同じ)</summary>
+    /// <summary>曜日指定の曜日で、月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数。JSON と同じ</summary>
     public byte Weekdays { get; init; }
 
     /// <summary>件名</summary>

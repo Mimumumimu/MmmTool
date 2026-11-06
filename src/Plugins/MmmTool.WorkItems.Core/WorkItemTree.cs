@@ -10,7 +10,7 @@ namespace MmmTool.WorkItems.Core;
 /// </remarks>
 public static class WorkItemTree
 {
-    /// <summary>2 つの案件の並びを比べる (名前の順。同じなら番号の順。<see cref="Build"/> の並びと同じ)</summary>
+    /// <summary>2 つの案件の並びを比べる。名前の順で、同じなら番号の順にする。<see cref="Build"/> の並びと同じ</summary>
     /// <param name="nameA">1 つ目の案件の名前</param>
     /// <param name="idA">1 つ目の案件の番号</param>
     /// <param name="nameB">2 つ目の案件の名前</param>
@@ -26,7 +26,7 @@ public static class WorkItemTree
     /// <param name="projects">案件 (論理削除済みは含めない)</param>
     /// <param name="groups">グループ (論理削除済みは含めない)</param>
     /// <param name="items">作業 (論理削除済みは含めない)</param>
-    /// <param name="dayRecords">入力日の記録 (作業ごとに 1 件。人は区別しない)</param>
+    /// <param name="dayRecords">入力日の記録で、作業ごとに 1 件。人は区別しない</param>
     /// <param name="date">入力日 (実績 (日)の計算に使う)</param>
     /// <param name="codes">コードブック (進捗度のコード番号を %の値にするために使う)</param>
     /// <returns>案件の行の並び</returns>
@@ -95,7 +95,7 @@ public static class WorkItemTree
         return roots;
     }
 
-    /// <summary>条件に合わない作業の行を、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <summary>条件に合わない作業の行を、木から外す。表示だけで、集計値は、外す前のまま</summary>
     /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
     /// <param name="keep">残す作業の条件</param>
     /// <remarks>集計 (日付・予定・実績・進捗度・状態)は <see cref="Build"/> で、全部の作業から計算済みなので、外しても変わらない。グループ・案件の行は、中の作業が無くなっても残す。</remarks>
@@ -108,9 +108,9 @@ public static class WorkItemTree
         }
     }
 
-    /// <summary>完了して日がたった作業の行 (と、必要ならグループの行)を、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <summary>完了して日がたった作業の行 (と、必要ならグループの行)を、木から外す。表示だけで、集計値は、外す前のまま</summary>
     /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
-    /// <param name="date">入力日 (完了日がこの日より前のものが対象。入力日に完了した作業は残す)</param>
+    /// <param name="date">入力日で、完了日がこの日より前のものが対象。入力日に完了した作業は残す</param>
     /// <param name="removeGroups">すべて完了して日がたったグループの行も外すか</param>
     /// <remarks>
     /// 案件の行は外さない。グループは、下に作業が 1 件も無いグループ (空)があるときは外さない。空のグループが、親と一緒に見えなくなるのを防ぐため。畳む条件と同じ。
@@ -119,7 +119,7 @@ public static class WorkItemTree
     public static void RemoveFinished(IEnumerable<WorkNode> roots, DateOnly date, bool removeGroups)
         => RemoveFinished(roots, summary => summary.IsFinishedBefore(date), removeGroups);
 
-    /// <summary>完了した作業の行 (と、必要ならグループの行)を、完了日に関わらず、木から外す (表示だけ。集計値は、外す前のまま)</summary>
+    /// <summary>完了した作業の行 (と、必要ならグループの行)を、完了日に関わらず、木から外す。表示だけで、集計値は、外す前のまま</summary>
     /// <param name="roots">案件の行の並び (<see cref="Build"/> の結果)</param>
     /// <param name="removeGroups">すべて完了したグループの行も外すか</param>
     /// <remarks>入力日を持たない画面 (スケジュール)用。今日完了した作業も外す。それ以外は <see cref="RemoveFinished(IEnumerable{WorkNode}, DateOnly, bool)"/> と同じ。</remarks>

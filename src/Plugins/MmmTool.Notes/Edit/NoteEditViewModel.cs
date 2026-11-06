@@ -33,7 +33,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// <remarks>保存したときは true、キャンセルのときは false を渡す。</remarks>
     public event EventHandler<bool>? CloseRequested;
 
-    /// <summary>複数の人で共有するか (DB モード。公開範囲を出す)</summary>
+    /// <summary>複数の人で共有するか。DB モードで、公開範囲を出す</summary>
     public bool IsShared => notes.IsShared;
 
     /// <summary>公開範囲を変えられるか (共有するときの、新規か、書いた人の編集)</summary>
@@ -48,7 +48,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial string Title { get; set; } = "";
 
-    /// <summary>本文 (書いたとおりの文字。右クリックの助けが、書式のタグを入れる)</summary>
+    /// <summary>本文で、書いたとおりの文字。右クリックの助けが、書式のタグを入れる</summary>
     [ObservableProperty]
     public partial string Body { get; set; } = "";
 
@@ -79,7 +79,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [ObservableProperty]
     public partial int PriorityIndex { get; set; } = (int)NotePriority.Normal - PriorityOffset;
 
-    /// <summary>自分だけに表示するか (false は全員。DB モードだけ)</summary>
+    /// <summary>自分だけに表示するか。false は全員で、DB モードだけ</summary>
     [ObservableProperty]
     public partial bool IsPrivate { get; set; }
 
@@ -270,7 +270,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
                 : await notes.UpdateAsync(_target.Id, input);
             if (!saved)
             {
-                SaveError.Show("ノートを保存できませんでした (ほかの人が変更したか、見えなくなった可能性があります)。");
+                SaveError.Show("ノートを保存できませんでした。ほかの人が変更したか、見えなくなった可能性があります。");
                 return;
             }
         }

@@ -10,8 +10,8 @@ public static class DatabaseStorageServiceCollectionExtensions
 {
     /// <summary>機能の保存先を、設定で選んで登録する</summary>
     /// <typeparam name="TService">機能が使う保存先のインターフェース</typeparam>
-    /// <typeparam name="TLocal">ローカルモードの保存先 (SQLite。<c>AddSqliteData</c> が登録したもの)</typeparam>
-    /// <typeparam name="TServer">DB モードの保存先 (SQL Server。<c>AddSqlServerData</c> が登録したもの)</typeparam>
+    /// <typeparam name="TLocal">ローカルモードの保存先で、SQLite。<c>AddSqliteData</c> が登録したもの</typeparam>
+    /// <typeparam name="TServer">DB モードの保存先で、SQL Server。<c>AddSqlServerData</c> が登録したもの</typeparam>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>

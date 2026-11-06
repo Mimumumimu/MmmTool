@@ -6,7 +6,7 @@ using MmmTool.WorkItems.Main;
 namespace MmmTool.WorkItems.Schedule;
 
 /// <summary>スケジュールの表の 1 行 (案件・グループ・作業のどれかを、左の列と、日付の棒に出す形にしたもの)</summary>
-/// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
+/// <param name="key">行の識別で、種類 + 番号。作ったときに決まり、変わらない</param>
 /// <remarks>
 /// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える。スクロールの位置を保つため。
 /// 棒の描画に関わる値が変わったときだけ、<see cref="VisualVersion"/> を進めて、セルに描き直させる。
@@ -26,7 +26,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>作業か</summary>
     public bool IsWork { get; } = key.Kind == WorkRowKind.Work;
 
-    /// <summary>集計の行か (案件・グループ。下の作業から計算した値を出す)</summary>
+    /// <summary>集計の行か。案件・グループで、下の作業から計算した値を出す</summary>
     public bool IsGroup { get; } = key.Kind != WorkRowKind.Work;
 
     /// <summary>字下げの段</summary>
@@ -72,7 +72,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string StatusText { get; private set; } = "";
 
-    /// <summary>進捗度の文字 (例: <c>45%</c>。無ければ空)</summary>
+    /// <summary>進捗度の文字で、例は <c>45%</c>。無ければ空</summary>
     [ObservableProperty]
     public partial string ProgressText { get; private set; } = "";
 
@@ -81,13 +81,13 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string TotalHoursText { get; private set; } = "";
 
-    /// <summary>期限を過ぎた日数 (作業だけ。今日で判定。過ぎていなければ 0)</summary>
+    /// <summary>期限を過ぎた日数で、作業だけ。今日で判定する。過ぎていなければ 0</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOverdue))]
     [NotifyPropertyChangedFor(nameof(OverdueText))]
     public partial int OverdueDays { get; private set; }
 
-    /// <summary>期限切れか (作業だけ。案件・グループには出さない)</summary>
+    /// <summary>期限切れか。作業だけで、案件・グループには出さない</summary>
     public bool IsOverdue => IsWork && OverdueDays > 0;
 
     /// <summary>期限切れの説明 (警告のアイコンに触れたときに出す)</summary>
@@ -96,7 +96,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>予定の棒の最初の日 (無ければ null)</summary>
     public DateOnly? PlanStart { get; private set; }
 
-    /// <summary>予定の棒の最後の日 (期限日。無ければ null)</summary>
+    /// <summary>予定の棒の最後の日で、期限日。無ければ null</summary>
     public DateOnly? PlanEnd { get; private set; }
 
     /// <summary>完了日 (完了の印の位置)</summary>
@@ -157,7 +157,7 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
         ProgressText = summary.Progress is { } percent ? $"{percent}%" : "";
         TotalHoursText = WorkItemRow.FormatHours(summary.ActualTotal > 0 ? summary.ActualTotal : null);
 
-        // 棒は、すべての値を書き換えたあとに、1 回だけ描き直させる (途中の値で描き直さないため。期限切れの枠の付け外しも、ここで見る)
+        // 棒は、すべての値を書き換えたあとに、1 回だけ描き直させる。途中の値で描き直さないためで、期限切れの枠の付け外しも、ここで見る
         var overdueDays = IsWork ? summary.OverdueDays(today) : 0;
         var completedDate = summary.IsFinished ? summary.CompletedDate : null;
         var changed = PlanStart != summary.StartDate

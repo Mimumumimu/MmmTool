@@ -133,7 +133,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// </remarks>
     public ITerminalSession Terminal { get; }
 
-    /// <summary>シェルの作業ディレクトリ (Windows のパス。シェルの再起動時の開始位置でもある)</summary>
+    /// <summary>シェルの作業ディレクトリで、Windows のパス。シェルの再起動時の開始位置でもある</summary>
     /// <remarks>このアプリが送った作業ディレクトリ変更だけを反映する。プロンプトで直接打った <c>cd</c> は反映しない。</remarks>
     public string WorkingDirectory => Terminal.WorkingDirectory;
 

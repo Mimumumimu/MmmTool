@@ -24,7 +24,7 @@ public sealed class FeatureListViewModel : ObservableObject
     /// <summary>画面に出すエラー (オン・オフ・並び順を保存できなかったとき)</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>機能の一覧 (利用者が決めた並び順。ドラッグで並べ替える)</summary>
+    /// <summary>機能の一覧で、利用者が決めた並び順。ドラッグで並べ替える</summary>
     public ObservableCollection<FeatureItem> Features { get; }
 
     /// <summary>オン・オフ・並べ替えができるか (設定ファイルを読めたとき)</summary>
@@ -127,7 +127,7 @@ public sealed class FeatureListViewModel : ObservableObject
     /// <returns>反映の完了を表すタスク</returns>
     /// <remarks>
     /// 画面の状態と実際の状態が同じなら何もしない。初めの表示・下の巻き戻しでも、スイッチの切り替えが通知されるため。
-    /// 取りやめた・保存できなかった (読み込めない・ロックや権限での失敗。画面に出す)ときは、スイッチを実際の状態へ戻す。
+    /// 取りやめた・保存できなかったとき (読み込めない・ロックや権限での失敗は、画面に出す)は、スイッチを実際の状態へ戻す。
     /// </remarks>
     public async Task ToggleFeatureAsync(FeatureItem item)
     {

@@ -20,7 +20,7 @@ public sealed record NoteRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (ユーザーの番号。記録用)</summary>
+    /// <summary>作成者で、ユーザーの番号。記録用</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
@@ -73,7 +73,7 @@ public sealed record NoteRow
         var priority = (NotePriority)Priority;
         if (!Enum.IsDefined(priority))
         {
-            throw new InvalidOperationException($"ノート {Id} の重要度が正しくありません ({Priority})。");
+            throw new InvalidOperationException($"ノート {Id} の重要度が正しくありません。値は {Priority} です。");
         }
 
         return new Note

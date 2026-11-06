@@ -2,11 +2,11 @@ using MmmSdk.Core.Components.DaysOfWeek;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>作業 (入力する行。子を持たない。保存するデータ。保存先に依存しない)</summary>
+/// <summary>作業。入力する行で、子を持たない。保存するデータで、保存先に依存しない</summary>
 /// <remarks>日付・予定時間・完了日の「無い」は null で、保存先では、開始日は <c>0001-01-01</c>、期限日・完了日は <c>9999-12-31</c>、予定時間は 0 に置き換える。</remarks>
 public sealed record WorkItem
 {
-    /// <summary>番号 (保存先が決める。0 は、まだ保存していない)</summary>
+    /// <summary>番号。保存先が決め、0 は、まだ保存していない</summary>
     public int Id { get; init; }
 
     /// <summary>属する案件の番号</summary>
@@ -15,16 +15,16 @@ public sealed record WorkItem
     /// <summary>親のグループの番号 (0 は案件の直下)</summary>
     public int GroupId { get; init; }
 
-    /// <summary>兄弟の中の並び (小さいほど先。グループと作業にまたがる 1 つの数)</summary>
+    /// <summary>兄弟の中の並び。小さいほど先で、グループと作業にまたがる 1 つの数</summary>
     public int SortOrder { get; init; }
 
     /// <summary>名前 (必須)</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>担当者 (ユーザーの番号。0 は未割り当て。作った人が既定の担当になる)</summary>
+    /// <summary>担当者。ユーザーの番号で、0 は未割り当て。作った人が既定の担当になる</summary>
     public int AssigneeUserId { get; init; }
 
-    /// <summary>リンク (URL・フォルダ・ファイルのパス。無いときは空文字)</summary>
+    /// <summary>リンク。URL・フォルダ・ファイルのパスで、無いときは空文字</summary>
     public string Link { get; init; } = "";
 
     /// <summary>作業報告のどの部分から外すか</summary>
@@ -39,7 +39,7 @@ public sealed record WorkItem
     /// <remarks>1 つも選んでいないときと、7 つ全部のときは、毎日。判定は <see cref="WeekdaySet.IsEveryday"/>。</remarks>
     public Weekdays AutoWeekdays { get; init; }
 
-    /// <summary>備考 (作業ごとの共通の備考。永続)</summary>
+    /// <summary>備考。作業ごとの共通の備考で、永続</summary>
     public string Note { get; init; } = "";
 
     /// <summary>優先度 (コードマスタの区分「優先度」のコード番号と同じ値)</summary>
@@ -54,16 +54,16 @@ public sealed record WorkItem
     /// <summary>状態 (コードマスタの区分「状態」のコード番号と同じ値)</summary>
     public WorkItemStatus Status { get; init; } = WorkItemStatus.Open;
 
-    /// <summary>進捗度のコード番号 (コードマスタの区分「進捗度」のコード。%の値は、コードマスタの数値)</summary>
+    /// <summary>進捗度のコード番号。コードマスタの区分「進捗度」のコードで、%の値は、コードマスタの数値</summary>
     public int ProgressCodeNo { get; init; } = WorkCodes.DefaultProgressCodeNo;
 
-    /// <summary>予定時間 (作業ごとの共通の値。無ければ null)</summary>
+    /// <summary>予定時間。作業ごとの共通の値で、無ければ null</summary>
     public double? PlannedHours { get; init; }
 
-    /// <summary>完了日 (状態が完了に変わった入力日。内部の値。完了でなければ null)</summary>
+    /// <summary>完了日。状態が完了に変わった入力日で、内部の値。完了でなければ null</summary>
     public DateOnly? CompletedDate { get; init; }
 
-    /// <summary>実績の累計 (その作業の、全員の、すべての日の実績の合計。記録を保存するたびに、保存先が計算し直して書く)</summary>
+    /// <summary>実績の累計。その作業の、全員の、すべての日の実績の合計で、記録を保存するたびに、保存先が計算し直して書く</summary>
     public double ActualTotalHours { get; init; }
 
     /// <summary>論理削除されているか</summary>

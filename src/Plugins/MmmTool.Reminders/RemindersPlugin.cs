@@ -28,11 +28,11 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddAlwaysOnFeature(RemindersFeature.Key, RemindersFeature.DisplayName,
             provider => provider.IsFeatureAllowed(CodeFeatures.Reminders));
 
-        // 保存先 (JSON。DB に置き換えるために、実体の型でも取り出せるようにする)
+        // 保存先は JSON。DB に置き換えるために、実体の型でも取り出せるようにする
         services.AddSingleton<JsonReminderRepository>();
         services.AddSingleton<IReminderRepository>(provider => provider.GetRequiredService<JsonReminderRepository>());
 
-        // 送信先と送信設定 (DB モードだけで使う。ローカルモードは「使えない」保存先。DB に替えるときは、ホストが、登録のあとで置き換える)
+        // 送信先と送信設定は DB モードだけで使う。ローカルモードは「使えない」保存先で、DB に替えるときは、ホストが、登録のあとで置き換える
         services.AddSingleton<UnavailableNotificationChannelRepository>();
         services.AddSingleton<INotificationChannelRepository>(provider => provider.GetRequiredService<UnavailableNotificationChannelRepository>());
         services.AddSingleton<UnavailableReminderSendSettingRepository>();

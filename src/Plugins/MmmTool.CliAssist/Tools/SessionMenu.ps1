@@ -46,7 +46,7 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
     $labels = @($Items | ForEach-Object { & $Format $_ })
 
     Write-Host $Prompt
-    Write-Host "↑↓:移動  Space:選択/解除  Tab:選択して下へ  a:全選択/全解除  Enter:決定(未選択ならカーソル行)  Esc:$BackLabel  q/Ctrl+C:終了" -ForegroundColor DarkGray
+    Write-Host "↑↓:移動  Space:選択/解除  Tab:選択して下へ  a:全選択/全解除  Enter:決定 (未選択ならカーソル行)  Esc:$BackLabel  q/Ctrl+C:終了" -ForegroundColor DarkGray
     for ($i = 0; $i -le $rows; $i++) { Write-Host '' }
     $top = [Console]::CursorTop - ($rows + 1)
     $oldVisible = [Console]::CursorVisible
@@ -92,7 +92,7 @@ function Read-SelectionMenu([object[]]$Items, [scriptblock]$Format, [string]$Pro
                 'End'       { $cursor = $Items.Count - 1 }
                 'Spacebar'  { if (-not $selected.Add($cursor)) { [void]$selected.Remove($cursor) } }
                 'Tab'       {
-                    # 選択/解除して隣へ進む (Tab=下、Shift+Tab=上)。連続した行を続けて選びやすい
+                    # 選択/解除して隣へ進む。Tab は下、Shift+Tab は上で、連続した行を続けて選びやすい
                     if (-not $selected.Add($cursor)) { [void]$selected.Remove($cursor) }
                     if ($key.Modifiers -band [ConsoleModifiers]::Shift) { if ($cursor -gt 0) { $cursor-- } }
                     elseif ($cursor -lt $Items.Count - 1) { $cursor++ }

@@ -13,7 +13,7 @@ namespace MmmBatch.Data.SqlServer;
 /// </summary>
 public static class SqlServerSendingServiceCollectionExtensions
 {
-    /// <summary>データベース名・ユーザー名の初期値と、パスワードの保存名 (ログインは MmmTool と同じ。保存名は、アプリごとに分ける)</summary>
+    /// <summary>データベース名・ユーザー名の初期値と、パスワードの保存名で、ログインは MmmTool と同じ。保存名は、アプリごとに分ける</summary>
     public static DatabaseSettingsDefaults Defaults { get; } = new("MmmTool", "MmmTool", "MmmBatch.Database");
 
     /// <summary>SQL Server の接続と、送る対象・送信の状況の保存先を登録する</summary>
