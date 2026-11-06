@@ -58,12 +58,14 @@ public static class ApiCaller
     /// <param name="read">成功の応答から、中身を読む処理。</param>
     /// <param name="errorInfo">失敗の理由 (<see cref="ErrorResponse"/>)を読む、機能のソース生成の設定。</param>
     /// <param name="notFoundMessage">見つからないとき、サーバーが理由を返さなかった場合の文。</param>
+    /// <param name="onSignedOut">ログインが切れた (401)ときに呼ぶ処理。ログインの画面へ戻す。画面ごとに書かず、ここで 1 回だけ呼ぶ。</param>
     /// <returns>結果。</returns>
     public static async Task<ApiResult<T>> SendAsync<T>(
         Func<Task<HttpResponseMessage>> send,
         Func<HttpResponseMessage, Task<T?>> read,
         JsonTypeInfo<ErrorResponse> errorInfo,
-        string notFoundMessage)
+        string notFoundMessage,
+        Action onSignedOut)
     {
         try
         {
@@ -71,6 +73,10 @@ public static class ApiCaller
             if (response.IsSuccessStatusCode)
             {
                 return new ApiResult<T>(await read(response), null, ApiFailure.None);
+            }
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                onSignedOut();
             }
             return response.StatusCode switch
             {

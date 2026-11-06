@@ -45,6 +45,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
 
     /// <summary>タイトル</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial string Title { get; set; } = "";
 
     /// <summary>本文 (書いたとおりの文字。右クリックの助けが、書式のタグを入れる)</summary>
@@ -236,7 +237,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
 
     /// <summary>保存して閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>失敗は、閉じずに書いた内容を残して、画面に出す。実施日が期間の外にある間は、押せない。</remarks>
+    /// <remarks>失敗は、閉じずに書いた内容を残して、画面に出す。タイトルが空の間と、実施日が期間の外にある間は、押せない。</remarks>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -286,8 +287,8 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, false);
 
-    /// <summary>保存できる状態か (実施日が期間の外にある間は、保存できない)</summary>
-    private bool CanSave => !IsPeriodErrorOpen;
+    /// <summary>保存できる状態か。タイトルが空の間と、実施日が期間の外にある間は、保存できない。Web 版と同じ</summary>
+    private bool CanSave => !IsPeriodErrorOpen && !string.IsNullOrWhiteSpace(Title);
 
     /// <summary>日付を、知らせの文に入れる形 (<c>yyyy/MM/dd</c>)にする</summary>
     /// <param name="date">日付</param>

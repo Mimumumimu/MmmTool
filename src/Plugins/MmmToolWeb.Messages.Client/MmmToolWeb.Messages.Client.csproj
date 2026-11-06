@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MmmToolWeb.Features.Client\MmmToolWeb.Features.Client.csproj" />
+    <!-- 送れる条件や上限のような、PC 版と共有する決まりを、そのまま使う (AnyCPU のため、ブラウザで動く) -->
+    <ProjectReference Include="..\MmmTool.Messages.Core\MmmTool.Messages.Core.csproj" />
   </ItemGroup>
 
 </Project>

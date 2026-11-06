@@ -2,7 +2,6 @@
 @implements IAsyncDisposable
 @inject RemindersClient Reminders
 @inject BrowserClient Browser
-@inject NavigationManager Navigation
 
 <div class="@(_editorOpen ? "screen with-fab behind" : "screen with-fab")">
     <FeatureHeader Title="リマインダー" Busy="_loading">
@@ -160,8 +159,8 @@
     /// <summary>完了。</summary>
     private List<ReminderTodayItemDto> Done => [.. _todayItems.Where(item => item.Status == DoneStatus)];
 
-    /// <summary>完了を表す対応状態の値。</summary>
-    private const int DoneStatus = 1;
+    /// <summary>完了を表す対応状態の値。API は、対応状態を数で返す。</summary>
+    private const int DoneStatus = (int)ReminderStatus.Done;
 
     protected override async Task OnInitializedAsync()
     {
@@ -174,7 +173,7 @@
             _scrollNo = _highlightNo;
 
             // 送った日が過去なら、今日の対象には出ない。「すべて」を、過去の予定つきで開く
-            if (DateOnly.TryParseExact(OpenDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var sent)
+            if (ApiDay.TryParse(OpenDate, out var sent)
                 && sent < _today)
             {
                 _showAll = true;
@@ -262,7 +261,6 @@
     {
         if (status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return Task.FromResult(true);
         }
         _error = status == ApiFailure.None ? null : message;
@@ -300,7 +298,6 @@
         var result = await Reminders.LoadDetailAsync(item.No);
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)
@@ -356,7 +353,6 @@
         var result = await Reminders.DeleteAsync(target.No);
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         await LoadAsync();
@@ -394,8 +390,8 @@
     /// <summary>対応状態を、画面に出す文字にする。色だけに頼らない。</summary>
     private static string StatusText(int status) => status switch
     {
-        1 => "完了",
-        2 => "スヌーズ",
+        (int)ReminderStatus.Done => "完了",
+        (int)ReminderStatus.Snooze => "スヌーズ",
         _ => "未",
     };
 

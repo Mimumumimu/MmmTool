@@ -88,7 +88,7 @@
             </p>
         }
         <div class="input">
-            <textarea aria-label="メッセージ" rows="1" maxlength="@_bodyMaxLength" @bind="_body" @bind:event="oninput"></textarea>
+            <textarea aria-label="メッセージ" rows="1" maxlength="@MessageLimits.BodyMaxLength" @bind="_body" @bind:event="oninput"></textarea>
             <button type="button" class="primary" @onclick="SendAsync" disabled="@(!CanSend)">送信</button>
         </div>
     </div>
@@ -97,7 +97,6 @@
 @if (_showParticipants)
 {
     <ParticipantsSheet ConversationId="ConversationId" Name="@_title" Readers="_readers" SelfUserId="Store.UserId"
-                       NameMaxLength="_groupNameMax" MaxMembers="_groupMaxMembers"
                        OnClose="CloseParticipants" OnChanged="OnParticipantsChangedAsync" OnLeft="OnLeftAsync" />
 }
 
@@ -141,11 +140,8 @@
     private IReadOnlyList<ReadPositionDto> _readers = [];
     private bool _showParticipants;
     private IReadOnlyList<string>? _readerNames;
-    private int _groupNameMax = 50;
-    private int _groupMaxMembers = 50;
     private PendingGroup? _pendingGroup;
     private bool _watchingVisible;
-    private int _bodyMaxLength = MessageLimitsBody;
     private string _body = "";
     private MessageDto? _replyTo;
     private string? _error;
@@ -166,11 +162,8 @@
     private IAsyncDisposable? _keepBottom;
     private bool _disposed;
 
-    /// <summary>本文の最大の長さの既定。サーバーが返す値で置き換える。</summary>
-    private const int MessageLimitsBody = 1000;
-
-    /// <summary>送れる状態か。送っている最中でなく、本文が空白だけでない。通知先の有無は問わない。サーバーも、本文を確かめる。</summary>
-    private bool CanSend => !_sending && !string.IsNullOrWhiteSpace(_body);
+    /// <summary>送れる状態か。送っている最中でなく、PC 版と共通の決まり (<see cref="MessageDraft.CanSend"/>)で送れる本文。通知先の有無は問わない。サーバーも、本文を確かめる。</summary>
+    private bool CanSend => !_sending && MessageDraft.CanSend(_body);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -300,7 +293,7 @@
         if (Store.NextBase is null)
         {
             await Store.RestoreAsync();
-            _ = NavigateIfSignedOutAsync(Store.LoadAsync());
+            _ = Store.LoadAsync();
         }
         var messagesTask = Messages.LoadMessagesAsync(ConversationId, 0);
         if (version != _loadVersion)
@@ -328,7 +321,6 @@
         _loading = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)
@@ -452,7 +444,6 @@
         }
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return false;
         }
         if (!result.Succeeded)
@@ -542,17 +533,6 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    /// <summary>一覧の読み込みで、ログインが切れていたと分かったら、ログインの画面へ戻す。</summary>
-    /// <param name="loading">一覧の読み込み。</param>
-    /// <returns>確かめ終えたことを表すタスク。</returns>
-    private async Task NavigateIfSignedOutAsync(Task<ApiResult<bool>> loading)
-    {
-        if ((await loading).Status == ApiFailure.SignedOut)
-        {
-            Navigation.NavigateTo("/", forceLoad: true);
-        }
-    }
-
     /// <summary>別の端末でこの会話を抜けたことが届いたとき、会話の一覧へ戻る。</summary>
     /// <param name="conversationId">抜けた会話の番号。</param>
     private Task OnConversationLeftAsync(int conversationId) => InvokeAsync(() =>
@@ -583,21 +563,18 @@
         await Store.MarkReadAsync(ConversationId, _messages);
     });
 
-    /// <summary>入力欄の決まりを取り込む。読めなかったときは、前の値のまま。送るとき、サーバーが同じ決まりで断る。</summary>
-    /// <param name="form">サーバーから読んだ入力欄の決まり。</param>
+    /// <summary>入力欄の状態 (相手に通知が届くか)を取り込む。読めなかったときは、前の値のまま。</summary>
+    /// <param name="form">サーバーから読んだ入力欄の状態。</param>
     /// <returns>取り込みの完了を表すタスク。</returns>
     /// <remarks>相手の状態は、人の一覧の要約と控えにも反映する。一覧の行の注記を、今の値に合わせるため。</remarks>
     private async Task ApplyFormAsync(ApiResult<MessageFormDto> form)
     {
         if (form.Succeeded)
         {
-            _bodyMaxLength = form.Value!.BodyMaxLength;
-            _groupNameMax = form.Value.GroupNameMaxLength;
-            _groupMaxMembers = form.Value.GroupMaxMembers;
             if (ConversationId > 0 || PeerUserId > 0)
             {
                 _peerChecked = true;
-                _peerNotifiable = form.Value.PeerNotifiable;
+                _peerNotifiable = form.Value!.PeerNotifiable;
                 if (ConversationId > 0)
                 {
                     await Store.UpdatePeerNotifiableAsync(ConversationId, _peerNotifiable);
@@ -624,7 +601,6 @@
         _sending = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)

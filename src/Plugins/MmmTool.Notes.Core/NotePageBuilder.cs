@@ -201,10 +201,10 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <returns>文字</returns>
     private static string FormatDate(DateOnly date) => date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture);
 
-    /// <summary>日付を、曜日つき (<c>yyyy/MM/dd (土)</c>)にする</summary>
+    /// <summary>日付を、曜日つき (<c>yyyy/MM/dd (土)</c>)にする。PC 版のページと Web 版の画面が、同じ書き方を使う</summary>
     /// <param name="date">日付</param>
     /// <returns>文字</returns>
-    private static string FormatDay(DateOnly date) => $"{FormatDate(date)} ({Weekdays[(int)date.DayOfWeek]})";
+    public static string FormatDay(DateOnly date) => $"{FormatDate(date)} ({Weekdays[(int)date.DayOfWeek]})";
 
     /// <summary>文字を、HTML の文字に直す</summary>
     /// <param name="text">文字</param>

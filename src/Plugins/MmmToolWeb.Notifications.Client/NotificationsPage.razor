@@ -116,7 +116,6 @@
         var destination = await Notifications.GetDestinationAsync(item);
         if (destination.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return true;
         }
         if (destination.Succeeded && destination.Value!.Path is { Length: > 0 } path && path.StartsWith('/'))
@@ -170,7 +169,6 @@
         _loading = false;
         if (result.Status == ApiFailure.SignedOut || received.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
 

@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- ブラウザ (browser-wasm)で動く Web 版の画面側から参照されるので、x64 専用の共通設定 (Directory.Build.props)から外して AnyCPU にする。参照先の MmmSdk.Core も AnyCPU -->
+    <Platforms>AnyCPU</Platforms>
+    <Platform>AnyCPU</Platform>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
 </Project>

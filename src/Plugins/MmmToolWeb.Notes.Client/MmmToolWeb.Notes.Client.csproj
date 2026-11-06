@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MmmToolWeb.Features.Client\MmmToolWeb.Features.Client.csproj" />
+    <!-- 期間の判定のような、PC 版と共有する決まりを、そのまま使う (AnyCPU のため、ブラウザで動く) -->
+    <ProjectReference Include="..\MmmTool.Notes.Core\MmmTool.Notes.Core.csproj" />
   </ItemGroup>
 
 </Project>

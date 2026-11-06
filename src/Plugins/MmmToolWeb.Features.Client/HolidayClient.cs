@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -65,7 +64,7 @@ public sealed class HolidayClient(HttpClient http)
             var holidays = new Dictionary<DateOnly, string>();
             foreach (var item in items ?? [])
             {
-                if (DateOnly.TryParseExact(item.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                if (ApiDay.TryParse(item.Date, out var date))
                 {
                     holidays[date] = item.Name;
                 }

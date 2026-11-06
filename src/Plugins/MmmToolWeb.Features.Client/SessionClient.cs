@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components;
 namespace MmmToolWeb.Features.Client;
 
 /// <summary>
-/// ログイン状態の操作であるログアウト。機能の画面から使う。
+/// ログイン状態の操作であるログアウトと、ログインが切れたときの戻り。機能の画面と、API を呼ぶ部品から使う。
 /// </summary>
 /// <param name="http">サーバーへの接続。</param>
 /// <param name="navigation">画面の移動。</param>
@@ -19,6 +19,15 @@ public sealed class SessionClient(HttpClient http, NavigationManager navigation,
     {
         await browser.ClearCacheAsync();
         using var response = await http.PostAsync("api/auth/logout", content: null);
-        navigation.NavigateTo("/", forceLoad: true);
+        GoToSignIn();
     }
+
+    /// <summary>
+    /// ログインの画面へ、全体を読み直して戻る。
+    /// </summary>
+    /// <remarks>
+    /// API が 401 を返したときに、<see cref="ApiCaller"/> が呼ぶ。画面は、移動を書かず、<see cref="ApiFailure.SignedOut"/> のとき、失敗の文を出さずに処理を終える。
+    /// 全体を読み直すのは、読み込み済みの内容を、ログインし直したあとの人に見せないため。
+    /// </remarks>
+    public void GoToSignIn() => navigation.NavigateTo("/", forceLoad: true);
 }

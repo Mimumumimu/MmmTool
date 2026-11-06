@@ -1,5 +1,4 @@
 @inject NotesClient Notes
-@inject NavigationManager Navigation
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
@@ -11,7 +10,7 @@
 
     <label class="form-field">
         <span>タイトル</span>
-        <input type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
+        <input type="text" maxlength="@NoteLimits.TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
     </label>
 
     <label class="form-field">
@@ -127,8 +126,13 @@
     /// <summary>実施日が原因で、開始日・終了日を動かしたことの知らせ。</summary>
     private string? _info;
 
-    /// <summary>実施日が、開始日から終了日の外にあるか。未設定は、外ではない。終了日が空のときは、終了日の側は常に中。</summary>
-    private bool IsEventOutOfPeriod => _eventDate is { } date && (date < _start || (_end is { } end && date > end));
+    /// <summary>実施日が、開始日から終了日の外にあるか。未設定は、外ではない。終了日が空のときは、終了日の側は常に中。PC 版と共通の判定 (<see cref="NoteInput.IsEventDateOutOfPeriod"/>)を使う。</summary>
+    private bool IsEventOutOfPeriod => new NoteInput
+    {
+        StartDate = _start,
+        EndDate = _end ?? DateOnly.MaxValue,
+        EventDate = _eventDate ?? DateOnly.MaxValue,
+    }.IsEventDateOutOfPeriod;
 
     /// <summary>警告に出す、実施日の表示。</summary>
     private string EventText => _eventDate?.ToString("yyyy/MM/dd") ?? "";
@@ -249,7 +253,6 @@
                 await OnSaved.InvokeAsync();
                 break;
             case ApiFailure.SignedOut:
-                Navigation.NavigateTo("/", forceLoad: true);
                 break;
             case ApiFailure.NotFound:
                 await OnFailed.InvokeAsync(result.Message ?? "ノートが見つかりません。");

@@ -1,5 +1,4 @@
 @inject RemindersClient Reminders
-@inject NavigationManager Navigation
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
@@ -16,17 +15,17 @@
 
     <label class="form-field">
         <span>件名</span>
-        <input type="text" maxlength="@TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
+        <input type="text" maxlength="@ReminderLimits.TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
     </label>
 
     <label class="form-field">
         <span>備考</span>
-        <textarea rows="4" maxlength="@NoteMaxLength" @bind="_note" @bind:event="oninput"></textarea>
+        <textarea rows="4" maxlength="@ReminderLimits.NoteMaxLength" @bind="_note" @bind:event="oninput"></textarea>
     </label>
 
     <label class="form-field">
         <span>リンク</span>
-        <input type="url" inputmode="url" maxlength="@LinkMaxLength" autocomplete="off" autocapitalize="off" @bind="_link" @bind:event="oninput" />
+        <input type="url" inputmode="url" maxlength="@ReminderLimits.LinkMaxLength" autocomplete="off" autocapitalize="off" @bind="_link" @bind:event="oninput" />
     </label>
 
     <fieldset class="form-group">
@@ -121,7 +120,11 @@
     private string SheetTitle => IsNew ? "リマインダー入力" : "リマインダー編集";
 
     /// <summary>曜日の選択肢。月から日の順で、数は曜日指定の曜日の 1 つのビット。</summary>
-    private static readonly (int Bit, string Name)[] Days = [(1, "月"), (2, "火"), (4, "水"), (8, "木"), (16, "金"), (32, "土"), (64, "日")];
+    private static readonly (int Bit, string Name)[] Days =
+    [
+        ((int)Weekdays.Monday, "月"), ((int)Weekdays.Tuesday, "火"), ((int)Weekdays.Wednesday, "水"), ((int)Weekdays.Thursday, "木"),
+        ((int)Weekdays.Friday, "金"), ((int)Weekdays.Saturday, "土"), ((int)Weekdays.Sunday, "日"),
+    ];
 
     /// <summary>編集するリマインダー。新規のときは null。コピーのときは、コピー元。</summary>
     [Parameter]
@@ -176,12 +179,6 @@
     /// <summary>新規として保存するか。編集は、番号を持つ。</summary>
     private bool IsNew => Source is null || IsCopy;
 
-    private int TitleMaxLength => _options?.TitleMaxLength ?? 200;
-
-    private int NoteMaxLength => _options?.NoteMaxLength ?? 1000;
-
-    private int LinkMaxLength => _options?.LinkMaxLength ?? 2000;
-
     /// <summary>送信先を選べるか。宛先が自分か全員のときだけ。宛先をほかの人にしたリマインダーの通知を、自分の送信先へ送らないため。</summary>
     /// <remarks>選べないときも、選んでいた内容は覚えておく。宛先を戻したら、チェックも戻る。</remarks>
     private bool ChannelsEnabled => _options is not { Targets.Count: > 0 } options || _target == 0 || _target == options.Targets[0].UserId;
@@ -216,7 +213,6 @@
         var options = await Reminders.LoadOptionsAsync(Source?.TargetUserId ?? 0);
         if (options.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (options.Succeeded)
@@ -295,8 +291,8 @@
     /// <summary>曜日の選択の class。土は青、日は赤の文字にする。</summary>
     private static string DayClass(int bit) => bit switch
     {
-        32 => "chip sat",
-        64 => "chip sun",
+        (int)Weekdays.Saturday => "chip sat",
+        (int)Weekdays.Sunday => "chip sun",
         _ => "chip",
     };
 
@@ -357,7 +353,6 @@
                 await OnSaved.InvokeAsync();
                 break;
             case ApiFailure.SignedOut:
-                Navigation.NavigateTo("/", forceLoad: true);
                 break;
             case ApiFailure.NotFound:
                 await OnFailed.InvokeAsync(result.Message ?? "このリマインダーは、見つからないか、ほかの人が先に変えました。");

@@ -2,7 +2,6 @@
 @implements IAsyncDisposable
 @inject NotesClient Notes
 @inject BrowserClient Browser
-@inject NavigationManager Navigation
 
 <HeadContent>
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
@@ -94,7 +93,7 @@
         }
         @if (!_loading && _error is null && _notes.Count == 0)
         {
-            <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>@(_updatedBasis ? "この日に更新したノートはありません" : "この日のノートはありません")</p>
+            <p class="empty"><span class="empty-date">@NotePageBuilder.FormatDay(_day)</span>@(_updatedBasis ? "この日に更新したノートはありません" : "この日のノートはありません")</p>
         }
         @foreach (var note in _notes)
         {
@@ -206,7 +205,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _day = DateOnly.TryParseExact(OpenDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var opened)
+        _day = ApiDay.TryParse(OpenDate, out var opened)
             ? opened
             : await Browser.GetTodayAsync();
         await Browser.ClearUnreadAsync(NoteNoticeKind);
@@ -240,7 +239,6 @@
         _loading = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (result.Succeeded)
@@ -428,7 +426,6 @@
         var result = await Notes.SetDeletedAsync(note.Id, isDeleted);
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         await LoadAsync();

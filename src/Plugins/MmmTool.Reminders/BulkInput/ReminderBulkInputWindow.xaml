@@ -197,7 +197,6 @@
                                                     Grid.Column="1"
                                                     GotFocus="OnJapaneseBoxGotFocus"
                                                     MaxLength="{x:Bind core:ReminderDraft.TitleMaxLength}"
-                                                    PlaceholderText="{x:Bind core:ReminderDraft.DefaultTitle}"
                                                     Text="{x:Bind Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                                 <TextBox
                                                     Grid.Column="2"

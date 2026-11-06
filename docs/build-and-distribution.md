@@ -6,10 +6,15 @@
 
 - ビルドの共通設定 (`Directory.Build.props` / `Directory.Packages.props` / `.editorconfig`)の一般の決まりは、`csharp-dotnet` スキルの「ビルドと発行の設定」に従う。ここには、このリポジトリで決めたことだけを書く。
   - `Directory.Build.props`:
-    - 全プロジェクトを x64 専用にする (`Platforms` と既定の `Platform`)
-      - Core も含めて AnyCPU を使わない
+    - 既定は x64 専用にする (`Platforms` と既定の `Platform`)
       - `-p:Platform` を付けずにビルド・発行しても x64 になる
       - SDK も同じ設定
+      - ブラウザ (browser-wasm)で動く Web 版の画面側と、それが参照するライブラリは、AnyCPU にして、この既定から外す。
+        - 対象: `MmmToolWeb.*.Client`・`MmmToolWeb.Features.Client`・`MmmToolWeb.Client`・各機能の `.Core` (Messages・Notes・Reminders・CodeMaster・DayContent・NotificationChannels・Users)・`MmmSdk.Core`
+        - 書き方: csproj に `Platforms`・`Platform`・`PlatformTarget` を AnyCPU で書き、`.slnx` には、プラットフォームを書かずに登録する。
+        - 理由: ブラウザの `browser-wasm` と、x64 の指定が両立しないため。画面側が、PC 版と共有する決まり (送れる条件・上限など)を、書き写さずに、そのまま使うため。
+        - AnyCPU にしない: アプリ本体の EXE・WinUI の画面・SQL Server や SQLite に触る `MmmTool.Data*` のプロジェクト
+        - 費用: Web 版の配布物が、圧縮後で 2.91 MB から 3.14 MB になった。0.23 MB の増加。
     - Release では .pdb を作らない
   - `.editorconfig`:
     - 1 行の早期 return (`if (x) return;`)は波かっこを省略してよい

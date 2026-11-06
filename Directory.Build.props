@@ -22,7 +22,9 @@
     <CopyDocumentationFileToOutputDirectory>false</CopyDocumentationFileToOutputDirectory>
     <AllowedReferenceRelatedFileExtensions>.pdb;.pri;.dll.config;.exe.config</AllowedReferenceRelatedFileExtensions>
     <!--
-      全プロジェクトを x64 専用にする (Core も含めて AnyCPU を使わない。SDK も同じ設定)。
+      既定は x64 専用にする。SDK も同じ設定。
+      ブラウザで動く Web 版の画面側と、それが参照するライブラリは、csproj の Platforms・Platform・PlatformTarget を AnyCPU にして、この既定から外す。
+      外すのは、MmmToolWeb の画面側と、各機能の .Core と、MmmSdk.Core など。ブラウザの実行環境は browser-wasm。AnyCPU のプロジェクトは、.slnx には、プラットフォームを書かずに登録する。
       Platforms は VS で選べる一覧なので、既定の Platform も x64 にする (-p:Platform を付けないビルド・発行で AnyCPU にならないように)
     -->
     <Platforms>x64</Platforms>

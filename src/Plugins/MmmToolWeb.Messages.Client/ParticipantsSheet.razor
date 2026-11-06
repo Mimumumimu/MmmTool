@@ -1,10 +1,9 @@
 @* グループの参加者のシート。名前の変更・参加者の一覧・人の追加・グループを抜ける。他の人を外す操作は無い。 *@
 @inject MessagesClient Messages
-@inject NavigationManager Navigation
 
 @if (_picking)
 {
-    <MemberPickerSheet Title="人を追加" ConfirmText="追加" People="_people" NameMaxLength="NameMaxLength" MaxMembers="MaxMembers"
+    <MemberPickerSheet Title="人を追加" ConfirmText="追加" People="_people"
                        ExistingCount="@(Readers.Count + 1)" Busy="_busy" OnCancel="CancelPick" OnConfirm="AddAsync" />
 }
 else
@@ -19,7 +18,7 @@ else
 
         <label class="form-label" for="group-rename">グループ名</label>
         <div class="rename">
-            <input id="group-rename" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
+            <input id="group-rename" type="text" maxlength="@MessageLimits.GroupNameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
             <button type="button" @onclick="RenameAsync" disabled="@(!CanRename || _busy)">保存</button>
         </div>
 
@@ -69,14 +68,6 @@ else
     [Parameter]
     public int SelfUserId { get; set; }
 
-    /// <summary>グループの名前の最大の長さ。</summary>
-    [Parameter]
-    public int NameMaxLength { get; set; } = 50;
-
-    /// <summary>グループの参加者の最大の人数。自分を含む。</summary>
-    [Parameter]
-    public int MaxMembers { get; set; } = 50;
-
     /// <summary>閉じたとき。</summary>
     [Parameter]
     public EventCallback OnClose { get; set; }
@@ -89,7 +80,7 @@ else
     [Parameter]
     public EventCallback OnLeft { get; set; }
 
-    private bool CanRename => _name.Trim().Length > 0 && _name.Trim().Length <= NameMaxLength && _name.Trim() != Name;
+    private bool CanRename => MessageDraft.IsValidGroupName(_name) && _name.Trim() != Name;
 
     protected override void OnParametersSet()
     {
@@ -118,7 +109,6 @@ else
         _busy = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)
@@ -162,7 +152,6 @@ else
         _busy = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)

@@ -57,6 +57,15 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
       - `Invalid`: true にすると、誤りの欄として太い枠にする
     - `<label>` で包まない。カレンダーの空きをタップすると、欄を押したことになって、開き直すため。見出しの文字は `<span>` で出す。
     - 土曜・日曜・祝日の線に使う祝日は、`HolidayClient` が、サーバーの `GET /api/holidays` から読む。部品が使うので、機能の側では呼ばない。
+  - ログインが切れたとき (API が 401)は、共通の呼び出しの部品 `ApiCaller` が、`SessionClient.GoToSignIn` でログインの画面へ全体を読み直して戻す。
+    - 機能の API を呼ぶ部品 (`<機能>Client`)は、`SessionClient` を受け取り、`ApiCaller.SendAsync` の最後の引数に `session.GoToSignIn` を渡す。
+    - 画面は、移動を書かない。`ApiFailure.SignedOut` のときは、失敗の文を出さずに処理を終える。
+  - PC 版と共有する決まり (送れる条件・文字数や人数の上限・状態の値・曜日)は、画面側が、機能の `.Core` を参照して、そのまま使う。画面側のコードに、数字や式を書き写さない。
+    - 参照できるのは、Messages・Notes・Reminders の AnyCPU の `.Core`。x64 のままの `.Core` は、ブラウザで動かないので、参照できない。
+    - 画面は、上限を、API の値ではなく、共通の定数から読む。
+    - API が返している上限の項目は、消さない。更新の前に開いたままの画面が、その値から読んで動くため。
+    - 参照を足すときは、その `.Core` と、参照先の `.Core` を、すべて AnyCPU にする。方法は [build-and-distribution.md](build-and-distribution.md) の「ビルドの共通設定」。
+  - 日付を API の要求や通知から開く道に載せる文字 (`yyyy-MM-dd`)は、`ApiDay` で作る・読む。書式を、画面やサーバーに書き写さない。
   - 機能の画面の上のバーは `FeatureHeader` で、ホームへ戻る・名前・操作を持つ。
     - 読み込みや送信を待つ間は、`Busy` に true を渡して、進行バーを出す。
     - 速く終わっても見える最低の時間 (0.4 秒)は、`FeatureHeader` が持つ。

@@ -161,5 +161,9 @@ public sealed record DirectDto(int ConversationId);
 /// <param name="PeerNotifiable">相手の番号を渡したとき、その相手に通知が届くか。番号を渡さないときは true。false のとき、通知が届かないことを案内する。入力欄は止めない。</param>
 /// <param name="GroupNameMaxLength">グループの名前の最大の長さ。</param>
 /// <param name="GroupMaxMembers">グループの参加者の最大の人数。自分を含む。</param>
+/// <remarks>
+/// 上限は、今の画面は使わない。PC 版と共通の <c>MessageLimits</c> を、直接使う。
+/// 上限の項目を残すのは、更新の前に開いたままの画面が、続けて動くため。古い画面は、上限をこの値から読むので、項目が無いと 0 に読んで、入力できなくなる。
+/// </remarks>
 public sealed record MessageFormDto(int BodyMaxLength, bool PeerNotifiable, int GroupNameMaxLength, int GroupMaxMembers);
 

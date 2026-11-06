@@ -7,7 +7,8 @@ namespace MmmToolWeb.Notifications.Client;
 /// サーバーの通知の API (<c>/api/notifications</c>)を呼ぶ。
 /// </summary>
 /// <param name="http">サーバーへの接続。</param>
-public sealed class NotificationsClient(HttpClient http)
+/// <param name="session">ログイン状態の操作。ログインが切れたときに、ログインの画面へ戻すために使う。</param>
+public sealed class NotificationsClient(HttpClient http, SessionClient session)
 {
     /// <summary>通知の API の道。</summary>
     private const string Path = "api/notifications";
@@ -120,6 +121,6 @@ public sealed class NotificationsClient(HttpClient http)
     /// <param name="send">要求を送る処理。</param>
     /// <param name="read">成功の応答から、中身を読む処理。</param>
     /// <returns>結果。</returns>
-    private static Task<ApiResult<T>> CallAsync<T>(Func<Task<HttpResponseMessage>> send, Func<HttpResponseMessage, Task<T?>> read)
-        => ApiCaller.SendAsync(send, read, NotificationsJsonContext.Default.ErrorResponse, NotFoundMessage);
+    private Task<ApiResult<T>> CallAsync<T>(Func<Task<HttpResponseMessage>> send, Func<HttpResponseMessage, Task<T?>> read)
+        => ApiCaller.SendAsync(send, read, NotificationsJsonContext.Default.ErrorResponse, NotFoundMessage, session.GoToSignIn);
 }
