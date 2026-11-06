@@ -66,7 +66,8 @@ public sealed record ReceivedListResponse(IReadOnlyList<ReceivedNotificationDto>
 /// 通知を押したときに開く画面。
 /// </summary>
 /// <param name="Path">開く画面の道。先頭は「/」。行き先が無い種類・開けないときは null。</param>
-public sealed record DestinationResponse(string? Path);
+/// <param name="ReceivedAt">押した通知を受け取った日時。受け取った通知の一覧に出る種類で、その通知が自分のものだったときだけ。それ以外は null。</param>
+public sealed record DestinationResponse(string? Path, DateTimeOffset? ReceivedAt = null);
 
 /// <summary>
 /// 登録を解除する要求。
@@ -75,26 +76,26 @@ public sealed record DestinationResponse(string? Path);
 public sealed record PushRemoveRequest(int Id);
 
 /// <summary>
-/// 受け取り先に選べる送信先 1 件。
+/// 通知先に選べる送信先 1 件。
 /// </summary>
 /// <param name="Id">送信先の番号。</param>
 /// <param name="Name">登録名。</param>
 /// <param name="KindText">種類の名前。ntfy・Discord・Web 版通知のどれか。</param>
 /// <remarks>送る先の値であるトピック名や Webhook の URL は、秘密なので持たない。</remarks>
-public sealed record ReceiveChannelDto(int Id, string Name, string KindText);
+public sealed record NotificationChannelDto(int Id, string Name, string KindText);
 
 /// <summary>
-/// 受け取り先の設定。
+/// 通知先の設定。
 /// </summary>
 /// <param name="Channels">自分が使用者の送信先。</param>
 /// <param name="SelectedChannelId">選んでいる送信先の番号。指定していないときは 0。</param>
-public sealed record ReceiveSettingDto(IReadOnlyList<ReceiveChannelDto> Channels, int SelectedChannelId);
+public sealed record NotificationTargetSettingDto(IReadOnlyList<NotificationChannelDto> Channels, int SelectedChannelId);
 
 /// <summary>
-/// 受け取り先を指定する要求。
+/// 通知先を指定する要求。
 /// </summary>
 /// <param name="ChannelId">指定する送信先の番号。指定を外すときは 0。</param>
-public sealed record ReceiveChannelRequest(int ChannelId);
+public sealed record NotificationChannelRequest(int ChannelId);
 
 /// <summary>
 /// 「通知を受け取る」のオン・オフを持つ機能 1 件と、自分の設定。

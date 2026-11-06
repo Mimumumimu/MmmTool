@@ -1,7 +1,7 @@
 @inject NotificationsClient Notifications
 @inject NavigationManager Navigation
 
-<div class="receive">
+<div class="notification-target">
     @if (_error is not null)
     {
         <p class="result error" role="alert">@_error</p>
@@ -9,11 +9,11 @@
 
     @if (_loaded && _channels.Count == 0)
     {
-        <p class="note" role="status">送信先がありません。MmmTool の設定ページの「送信先」で登録してください。</p>
+        <p class="note" role="status">登録した端末がありません。上の「通知」の節で、この端末を登録してください。</p>
     }
 
     <label class="field">
-        <span>受け取り先</span>
+        <span>通知先</span>
         <select disabled="@(_channels.Count == 0 || _saving)" @onchange="SaveAsync">
             <option value="0" selected="@(_selected == 0)">指定しない</option>
             @foreach (var channel in _channels)
@@ -22,11 +22,11 @@
             }
         </select>
     </label>
-    <p class="note">ほかの人から届いた通知を、この送信先で受け取ります。指定しないと、メッセージは送れません。</p>
+    <p class="note">ほかの人から届いた通知を、選んだ端末で受け取ります。</p>
 </div>
 
 @code {
-    private IReadOnlyList<ReceiveChannelDto> _channels = [];
+    private IReadOnlyList<NotificationChannelDto> _channels = [];
     private int _selected;
     private bool _loaded;
     private bool _saving;
@@ -34,7 +34,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Notifications.LoadReceiveSettingAsync();
+        var result = await Notifications.LoadNotificationTargetSettingAsync();
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
@@ -42,7 +42,7 @@
         }
         if (!result.Succeeded)
         {
-            _error = $"受け取り先を読み込めませんでした: {result.Message}";
+            _error = $"通知先を読み込めませんでした: {result.Message}";
             return;
         }
 
@@ -63,7 +63,7 @@
         _saving = true;
         _error = null;
         StateHasChanged();
-        var result = await Notifications.SaveReceiveChannelAsync(channelId);
+        var result = await Notifications.SaveNotificationChannelAsync(channelId);
         _saving = false;
         if (result.Status == ApiFailure.SignedOut)
         {
@@ -82,5 +82,5 @@
     /// <summary>選択肢に出す文字を作る。「登録名 (種類)」の形。</summary>
     /// <param name="channel">送信先。</param>
     /// <returns>選択肢の文字。</returns>
-    private static string ChannelText(ReceiveChannelDto channel) => $"{channel.Name} ({channel.KindText})";
+    private static string ChannelText(NotificationChannelDto channel) => $"{channel.Name} ({channel.KindText})";
 }

@@ -29,6 +29,7 @@ public sealed class SqlServerReminderSendTargetSource(SqlServerDatabase database
         {
             await using var command = connection.CreateCommand();
             // 送信先の持ち主が、管理者にリマインダーを無効にされているときは、その送信先へ送らない
+            // 宛先が全員でも送信先の持ち主でもないときは、送らない。宛先ではない人の送信先へ、通知が届かないようにするため
             command.CommandText =
                 $"""
                 SELECT r.Id, r.IsDeleted, r.AuthorUserId, r.TargetUserId, r.Date, r.Time, r.Weekdays, r.Title, r.Note, r.Link, r.IsSpeak,
@@ -41,7 +42,8 @@ public sealed class SqlServerReminderSendTargetSource(SqlServerDatabase database
                 LEFT JOIN dbo.AppUser AS u ON u.Id = c.UserId
                 LEFT JOIN dbo.ReminderSendStatus AS t ON t.ReminderId = s.ReminderId AND t.ChannelId = s.ChannelId AND t.Date = @Today
                 LEFT JOIN dbo.ReminderSendStatus AS y ON y.ReminderId = s.ReminderId AND y.ChannelId = s.ChannelId AND y.Date = @Yesterday
-                WHERE s.IsDeleted = 0 AND NOT {FeatureAccessSql.IsDisabled("c.UserId", CodeFeatures.Reminders)}
+                WHERE s.IsDeleted = 0 AND (r.TargetUserId = 0 OR r.TargetUserId = c.UserId)
+                  AND NOT {FeatureAccessSql.IsDisabled("c.UserId", CodeFeatures.Reminders)}
                 ORDER BY r.Id
                 """;
             command.Parameters.Add(new SqlParameter("@Today", SqlDbType.Date) { Value = today.ToDateTime(TimeOnly.MinValue) });

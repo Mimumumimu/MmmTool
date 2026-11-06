@@ -174,20 +174,13 @@ switch (args)
 
 app.Logger.LogInformation("公開アドレス: {Origin}", publicOrigin);
 
-// 順番: 本当の接続元を決める → ブラウザの守りの指定 → アクセスログ → 探りの接続元を断る → DB の失敗の受け止め → 画面のファイル → 守りの記録 → 回数制限 (429 も記録の対象にするため、記録のあと)
+// 順番: 本当の接続元を決める → ブラウザの守りの指定 → アクセスログ → 探りの接続元を断る → DB の失敗の受け止め → 守りの記録 → 回数制限 (429 も記録の対象にするため、記録のあと)
+// 画面のファイルは、下の MapStaticAssets が返す (ほかの道と同じく経路で決まるので、探りの遮断・守りの指定も通る)
 app.UseForwardedHeaders();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseW3CLogging();
 app.UseMiddleware<ProbeGuardMiddleware>();
 app.UseMiddleware<DatabaseErrorMiddleware>();
-app.UseBlazorFrameworkFiles();
-// 画面のファイル (js など)は、使うたびに更新の有無を確かめさせる。端末に古い js が残ったまま、新しい画面と組み合わさらないため
-// 画面の入口 index.html も同じ。「/messages」のような道は、下の MapFallbackToFile が返すので、同じ指定を渡す
-var staticFileOptions = new StaticFileOptions
-{
-    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
-};
-app.UseStaticFiles(staticFileOptions);
 app.UseMiddleware<AuthAuditMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -199,7 +192,13 @@ app.MapAuthEndpoints();
 app.MapDevAuthEndpoints();
 #endif
 app.MapWebFeatures();
-app.MapFallbackToFile("index.html", staticFileOptions);
+// 画面のファイルは、ファイル名に版 (内容の指紋)が付く道で配る。版つきの道は、変わらないので端末に長く覚えさせ、確かめる通信を無くす
+app.MapStaticAssets();
+// 画面の入口 index.html は、版が付かない。「/messages」のような道は、この入口を返す。使うたびに更新の有無を確かめさせ、新しい版のファイル名を知らせる
+app.MapFallbackToFile("index.html", new StaticFileOptions
+{
+    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
+});
 
 app.Run();
 return 0;

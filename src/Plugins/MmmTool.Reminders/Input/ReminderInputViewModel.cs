@@ -127,7 +127,20 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>送信先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ)</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChannelHintVisible))]
     public partial bool IsChannelVisible { get; private set; }
+
+    /// <summary>送信先を選べるか (宛先が自分か全員のときだけ)</summary>
+    /// <remarks>宛先をほかの人にしたリマインダーの通知を、自分の送信先へ送らないため。選べないときも、欄は消さない。高さを変えず、下のボタンが動かないようにするため。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChannelHintVisible))]
+    public partial bool IsChannelEnabled { get; private set; } = true;
+
+    /// <summary>送信先を選べない理由の文を出すか</summary>
+    public bool IsChannelHintVisible => IsChannelVisible && !IsChannelEnabled;
+
+    /// <summary>送信先を選べなくしたときに外した、チェックしていた送信先の番号。宛先を戻したときに、チェックを戻す</summary>
+    private HashSet<int>? _stashedChannelIds;
 
     /// <summary>送信先の選択肢 (自分が登録した送信先と、保存されている送信先。チェックで、複数選べる)</summary>
     public ObservableCollection<ReminderChannelOption> ChannelOptions { get; } = [];
@@ -182,6 +195,12 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             }
 
             HasNoChannels = ChannelOptions.Count == 0;
+
+            // 宛先がほかの人のリマインダーを編集するときは、送信先を選べない状態で始める
+            if (!IsChannelEnabled)
+            {
+                StashAndUncheckChannels();
+            }
         }
         catch (DataFileException ex)
         {
@@ -239,6 +258,42 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             TargetOptions.Add(new ReminderTargetOption(targetId, name));
         }
         SelectedTarget = TargetOptions.First(option => option.UserId == targetId);
+    }
+
+    /// <summary>宛先を変えたとき、送信先を選べるかを決め直す</summary>
+    /// <param name="value">選んだ宛先</param>
+    partial void OnSelectedTargetChanged(ReminderTargetOption? value)
+    {
+        var enabled = value is not { } target || target.UserId == 0 || target.UserId == _reminders.CurrentUserId;
+        if (enabled == IsChannelEnabled)
+        {
+            return;
+        }
+
+        IsChannelEnabled = enabled;
+        if (!enabled)
+        {
+            StashAndUncheckChannels();
+        }
+        else if (_stashedChannelIds is { } stashed)
+        {
+            // 宛先を自分か全員に戻したときは、外す前のチェックに戻す
+            foreach (var option in ChannelOptions)
+            {
+                option.IsChecked = stashed.Contains(option.Id);
+            }
+            _stashedChannelIds = null;
+        }
+    }
+
+    /// <summary>チェックしている送信先を覚えて、すべて外す</summary>
+    private void StashAndUncheckChannels()
+    {
+        _stashedChannelIds = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
+        foreach (var option in ChannelOptions)
+        {
+            option.IsChecked = false;
+        }
     }
 
     /// <summary>入力欄に読み込む</summary>
@@ -327,6 +382,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             _target = saved;
             // 送信先を選んでいるときは、保存のたびに、送信設定を書き直して、更新日時を今に進める。
             // MmmBatch は、更新日時が今日の発動時刻より後なら、今日の分は送らない。保存した時点で、送る時刻がもう過去なら今日は送らず、まだ先なら、その時刻に送る
+            // 宛先が自分でも全員でもないときは、送信先を選べず、チェックは外れている。空で保存して、自分の送信先の設定をすべて外す
             var selected = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
             if (IsChannelVisible && (selected.Count > 0 || !_initialChannelIds.SetEquals(selected)))
             {

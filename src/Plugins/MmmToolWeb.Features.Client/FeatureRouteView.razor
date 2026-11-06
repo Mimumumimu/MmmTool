@@ -1,0 +1,60 @@
+@inject IEnumerable<ClientFeature> Features
+@inject FeatureAvailability Availability
+@inject NavigationManager Navigation
+
+@if (_shown)
+{
+    <RouteView RouteData="RouteData" />
+}
+
+@code {
+    /// <summary>ルーターが決めた、開く画面と道の値。</summary>
+    [Parameter, EditorRequired]
+    public RouteData RouteData { get; set; } = null!;
+
+    /// <summary>画面を出してよいと決まったか。聞き終えるまでは出さない。</summary>
+    private bool _shown;
+
+    /// <summary>今の確かめの番号。道を続けて移ったとき、遅れて届いた古い答えを捨てるため。</summary>
+    private int _version;
+
+    /// <summary>
+    /// 機能の画面は、管理者に使えなくされていれば開かず、ホームへ移る。機能の画面ではない画面 (ホーム・設定など)は、そのまま開く。
+    /// </summary>
+    /// <returns>確かめの完了を表すタスク。</returns>
+    /// <remarks>
+    /// 機能は、画面側のアセンブリで見分ける。サーバーの機能の登録と、画面の機能の登録が、同じアセンブリを指すため。
+    /// 前に聞いた結果があれば、それで決める。アドレスを直接打って開いたときは、前の結果が無いので、聞き終えてから出す。
+    /// 聞けなかったときは、開く。使えない機能の API は、サーバーが断る。
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        var version = ++_version;
+        var page = RouteData.PageType.Assembly;
+        if (!Features.Any(feature => feature.Assembly == page))
+        {
+            _shown = true;
+            return;
+        }
+
+        var available = Availability.FilterRemembered(Features);
+        if (available is null)
+        {
+            _shown = false;
+            available = await Availability.FilterAsync(Features);
+            if (version != _version)
+            {
+                return;
+            }
+        }
+
+        if (available.Any(feature => feature.Assembly == page))
+        {
+            _shown = true;
+            return;
+        }
+
+        _shown = false;
+        Navigation.NavigateTo("/home", replace: true);
+    }
+}

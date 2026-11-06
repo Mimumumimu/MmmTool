@@ -6,7 +6,7 @@ using MmmTool.NotificationChannels.Core;
 namespace MmmBatch.MessageSending.Core;
 
 /// <summary>
-/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の受け取り先へ送る。1 秒おきの仕事。
+/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の通知先へ送る。1 秒おきの仕事。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -151,7 +151,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         var error = "";
         if (target.Channel is null)
         {
-            error = "受け取り先が指定されていません。";
+            error = "通知先が指定されていません。";
         }
         else if (target.Channel.IsDeleted)
         {

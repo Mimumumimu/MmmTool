@@ -15,6 +15,9 @@ public static class WorkReportBuilder
     /// <summary>1 段の字下げ (全角スペース)</summary>
     private const string Indent = "　";
 
+    /// <summary>作業の行の頭に付ける印。1 件の始まりを見分けるため。全角 1 文字</summary>
+    private const string Bullet = "・";
+
     /// <summary>行の区切り</summary>
     private const string NewLine = "\r\n";
 
@@ -29,7 +32,7 @@ public static class WorkReportBuilder
     /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
     /// <returns>テキスト (行の区切りは CRLF。末尾に改行は付けない)</returns>
     /// <remarks>
-    /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを予定の末尾に、書いたとおり出す。実績には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
+    /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを、いちばん最後の「■日報メモ」に、全角スペース 1 つの字下げをつけて出す。実績・予定・保留の中には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
     /// </remarks>
     public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress)
     {
@@ -74,30 +77,29 @@ public static class WorkReportBuilder
             (item.Status.IsReportOnHold() ? onHold : planned).Add(new ReportEntry(item, Distinct([.. Lines(item.Note), .. todayNotes]), null));
         }
 
-        // 日報メモ: 予定の末尾に、報告日の分だけ出す (実績には出さない)
-        var plannedNotes = data.DayNotes.Where(n => n.HasText && n.Date == reportDate).ToList();
+        // 日報メモ: 報告日の分だけ、いちばん最後の独立した区画に出す (実績の期間内のメモは読まない)
+        var dayNoteLines = data.DayNotes.Where(n => n.HasText && n.Date == reportDate).SelectMany(n => ManualLines(n.Note)).ToList();
 
         var builder = new StringBuilder();
         builder.Append("■実績").Append(NewLine);
-        AppendSection(builder, done, projects, groups, codes, showProgress, []);
+        AppendSection(builder, done, projects, groups, codes, showProgress);
         builder.Append(NewLine).Append("■予定").Append(NewLine);
-        AppendSection(builder, planned, projects, groups, codes, showProgress, Indented(plannedNotes.SelectMany(n => ManualLines(n.Note)), 1));
+        AppendSection(builder, planned, projects, groups, codes, showProgress);
         if (onHold.Count > 0)
         {
             builder.Append(NewLine).Append("■保留").Append(NewLine);
-            AppendSection(builder, onHold, projects, groups, codes, showProgress, []);
+            AppendSection(builder, onHold, projects, groups, codes, showProgress);
+        }
+        if (dayNoteLines.Count > 0)
+        {
+            builder.Append(NewLine).Append("■日報メモ").Append(NewLine);
+            foreach (var line in dayNoteLines)
+            {
+                // 作業の行と同じく、見出しより 1 段 (全角スペース 1 つ)字下げする。空の行は、そのまま
+                builder.Append(line.Length == 0 ? line : Indent + line).Append(NewLine);
+            }
         }
         return builder.ToString().TrimEnd('\r', '\n');
-    }
-
-    /// <summary>行を、指定の段数だけ字下げする (空の行は、そのまま)</summary>
-    /// <param name="lines">行</param>
-    /// <param name="depth">字下げの段数 (全角スペース 1 つが 1 段)</param>
-    /// <returns>字下げした行</returns>
-    private static List<string> Indented(IEnumerable<string> lines, int depth)
-    {
-        var indent = string.Concat(Enumerable.Repeat(Indent, depth));
-        return [.. lines.Select(l => l.Length == 0 ? l : indent + l)];
     }
 
     /// <summary>案件・親のグループをたどれるグループだけを返す (削除された案件・グループの中のグループを外す)</summary>
@@ -140,17 +142,11 @@ public static class WorkReportBuilder
     /// <param name="groups">グループ</param>
     /// <param name="codes">コードブック (状態・進捗度の名前を引く)</param>
     /// <param name="showProgress">各作業に、進捗度を添えるか</param>
-    /// <param name="extra">区画の末尾に足す日報メモの行 (字下げ済み。作業があるときは、空行を 1 つ挟む)</param>
-    private static void AppendSection(StringBuilder builder, List<ReportEntry> entries, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, CodeBook codes, bool showProgress, List<string> extra)
+    private static void AppendSection(StringBuilder builder, List<ReportEntry> entries, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, CodeBook codes, bool showProgress)
     {
         if (entries.Count == 0)
         {
-            // 日報メモだけがあるときは、「なし」を出さない
-            if (extra.Count == 0)
-            {
-                builder.Append(EmptyText).Append(NewLine);
-            }
-            AppendExtra(builder, extra);
+            builder.Append(EmptyText).Append(NewLine);
             return;
         }
 
@@ -168,13 +164,6 @@ public static class WorkReportBuilder
             builder.Append('【').Append(root.Name).Append('】').Append(NewLine);
             AppendChildren(builder, root, 1, codes, showProgress);
         }
-
-        // 日報メモは、作業の後ろに、空行を 1 つ挟んで出す
-        if (extra.Count > 0)
-        {
-            builder.Append(NewLine);
-        }
-        AppendExtra(builder, extra);
     }
 
     /// <summary>日報メモを、行に分ける (書いたとおり。前後の空行と、行末の空白だけを除く)</summary>
@@ -193,17 +182,6 @@ public static class WorkReportBuilder
             lines.RemoveAt(lines.Count - 1);
         }
         return lines;
-    }
-
-    /// <summary>日報メモの行を、区画の末尾に書き出す</summary>
-    /// <param name="builder">書き出し先</param>
-    /// <param name="extra">日報メモの行</param>
-    private static void AppendExtra(StringBuilder builder, List<string> extra)
-    {
-        foreach (var line in extra)
-        {
-            builder.Append(line).Append(NewLine);
-        }
     }
 
     /// <summary>作業の親 (案件の行か、グループの行)を、無ければ作って返す</summary>
@@ -275,7 +253,7 @@ public static class WorkReportBuilder
     /// <param name="showProgress">進捗度 (<c>70% (レビュー中)</c> の形)を添えるか</param>
     private static void AppendWork(StringBuilder builder, ReportEntry entry, string indent, int depth, CodeBook codes, bool showProgress)
     {
-        builder.Append(indent).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
+        builder.Append(indent).Append(Bullet).Append(entry.Item.Name).Append('：').Append(WorkCodes.Display(codes, WorkCodes.StatusCategory, (int)entry.Item.Status));
         if (showProgress)
         {
             builder.Append(' ').Append(WorkCodes.Display(codes, WorkCodes.ProgressCategory, entry.Item.ProgressCodeNo));
@@ -284,14 +262,10 @@ public static class WorkReportBuilder
         {
             builder.Append(" [").Append(hours.ToString("0.##", CultureInfo.InvariantCulture)).Append("h]");
         }
-        if (entry.Notes.Count == 1)
-        {
-            // 1 行だけのときは、行頭の字下げを除く (「 - 」のすぐ後ろに続けるため)
-            builder.Append(" - ").Append(entry.Notes[0].TrimStart()).Append(NewLine);
-            return;
-        }
+        // 備考は、1 行でも次の行に出す。作業の行の末尾に続けると、読み飛ばされるため。
+        // 字下げは、作業名の位置 (「・」の幅の分だけ右)より、さらに 1 段深くする。作業名の続きの文に見えず、作業の中身だと分かるため。
         builder.Append(NewLine);
-        var noteIndent = string.Concat(Enumerable.Repeat(Indent, depth + 1));
+        var noteIndent = string.Concat(Enumerable.Repeat(Indent, depth + 2));
         foreach (var note in entry.Notes)
         {
             builder.Append(noteIndent).Append(note).Append(NewLine);

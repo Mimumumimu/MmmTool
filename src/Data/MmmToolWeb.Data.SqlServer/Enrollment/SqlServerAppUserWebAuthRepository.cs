@@ -19,6 +19,9 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
     /// <summary>重複したキー (一意インデックス)のエラー番号</summary>
     private static readonly int[] DuplicateKeyErrors = [2601, 2627];
 
+    /// <summary>行が無い人のログインの世代の番号。列の既定値と同じ</summary>
+    private const int DefaultSessionVersion = 1;
+
     /// <inheritdoc />
     /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
     /// <exception cref="InvalidOperationException">別の操作と重なって、2 回続けて保存できなかった。</exception>
@@ -69,6 +72,64 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
                 """;
             command.Parameters.Add(new SqlParameter("@CodeHash", SqlDbType.VarChar, 64) { Value = codeHash });
             return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as int?;
+        }, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<int> GetSessionVersionAsync(int appUserId, CancellationToken cancellationToken)
+        => database.RunAsync(async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT SessionVersion FROM dbo.AppUserWebAuth WHERE AppUserId = @AppUserId AND IsDeleted = 0";
+            command.Parameters.Add(new SqlParameter("@AppUserId", SqlDbType.Int) { Value = appUserId });
+            return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is int version ? version : DefaultSessionVersion;
+        }, cancellationToken);
+
+    /// <inheritdoc />
+    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="InvalidOperationException">別の操作と重なって、2 回続けて保存できなかった。</exception>
+    public Task<int> IncrementSessionVersionAsync(int appUserId, CancellationToken cancellationToken)
+        => database.RunAsync(async connection =>
+        {
+            // 行があれば番号を足す。無ければ、世代 1 の次の 2 で作る。同時に作る側が重複したときは、もう一度足す側に回る
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                await using var update = connection.CreateCommand();
+                update.CommandText =
+                    """
+                    UPDATE dbo.AppUserWebAuth
+                    SET SessionVersion = SessionVersion + 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = 0
+                    OUTPUT INSERTED.SessionVersion
+                    WHERE AppUserId = @AppUserId AND IsDeleted = 0
+                    """;
+                update.Parameters.Add(new SqlParameter("@AppUserId", SqlDbType.Int) { Value = appUserId });
+                if (await update.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is int updated)
+                {
+                    return updated;
+                }
+
+                await using var insert = connection.CreateCommand();
+                insert.CommandText =
+                    """
+                    INSERT INTO dbo.AppUserWebAuth (CreatedByUserId, UpdatedByUserId, AppUserId, SessionVersion)
+                    OUTPUT INSERTED.SessionVersion
+                    VALUES (0, 0, @AppUserId, @SessionVersion)
+                    """;
+                insert.Parameters.Add(new SqlParameter("@AppUserId", SqlDbType.Int) { Value = appUserId });
+                insert.Parameters.Add(new SqlParameter("@SessionVersion", SqlDbType.Int) { Value = DefaultSessionVersion + 1 });
+                try
+                {
+                    if (await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is int inserted)
+                    {
+                        return inserted;
+                    }
+                }
+                catch (SqlException ex) when (DuplicateKeyErrors.Contains(ex.Number))
+                {
+                    // 同時に別の操作が行を作った。次の回で、足す側に回る
+                }
+            }
+            throw new InvalidOperationException("ログインの世代の番号を上げられませんでした。もう一度実行してください。");
         }, cancellationToken);
 
     /// <summary>その人の行があれば、コードを入れ替える</summary>

@@ -1,0 +1,379 @@
+@inject RemindersClient Reminders
+@inject NavigationManager Navigation
+@inject BrowserClient Browser
+@implements IAsyncDisposable
+
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <header class="sheet-bar">
+        <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
+        <h2 id="sheet-title">@(IsNew ? "リマインダー入力" : "リマインダー編集")</h2>
+        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(!CanSave)">保存</button>
+    </header>
+
+    <div class="sheet-body">
+        @if (_error is not null)
+        {
+            <p class="message" role="alert">@_error</p>
+        }
+
+        @if (!IsNew && Source!.IsDeleted)
+        {
+            <p class="info" role="status">削除済みです。保存すると、削除が取り消されます。</p>
+        }
+
+        <label class="field">
+            <span>件名</span>
+            <input type="text" maxlength="@TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
+        </label>
+
+        <label class="field">
+            <span>備考</span>
+            <textarea rows="4" maxlength="@NoteMaxLength" @bind="_note" @bind:event="oninput"></textarea>
+        </label>
+
+        <label class="field">
+            <span>リンク</span>
+            <input type="url" inputmode="url" maxlength="@LinkMaxLength" autocomplete="off" autocapitalize="off" @bind="_link" @bind:event="oninput" />
+        </label>
+
+        <fieldset class="group">
+            <legend>日付</legend>
+            <div class="segments">
+                <label class="segment">
+                    <input type="radio" name="kind" checked="@(!_byDate)" @onchange="() => _byDate = false" />
+                    <span>曜日で指定</span>
+                </label>
+                <label class="segment">
+                    <input type="radio" name="kind" checked="@_byDate" @onchange="() => _byDate = true" />
+                    <span>日付で指定</span>
+                </label>
+            </div>
+            @if (_byDate)
+            {
+                <input type="date" class="date-input" aria-label="日付" value="@_date.ToString("yyyy-MM-dd")" @onchange="OnDateChanged" />
+            }
+            else
+            {
+                <div class="weekdays" role="group" aria-label="曜日">
+                    @foreach (var (bit, name) in Days)
+                    {
+                        <label class="@DayClass(bit)">
+                            <input type="checkbox" checked="@HasDay(bit)" @onchange="e => ToggleDay(bit, (bool)e.Value!)" />
+                            <span>@name</span>
+                        </label>
+                    }
+                </div>
+                <small class="hint">選ばないときは、毎日です</small>
+            }
+        </fieldset>
+
+        <label class="field time-field">
+            <span>時刻</span>
+            <input type="time" step="60" value="@_time" @onchange="OnTimeChanged" />
+        </label>
+
+        @if (_options is { Targets.Count: > 0 } options)
+        {
+            <label class="field">
+                <span>宛先</span>
+                <select @onchange="OnTargetChanged">
+                    @foreach (var target in options.Targets)
+                    {
+                        <option value="@target.UserId" selected="@(target.UserId == _target)">@target.Name</option>
+                    }
+                </select>
+            </label>
+        }
+
+        @if (_options is not null)
+        {
+            <fieldset class="group" disabled="@(!ChannelsEnabled)">
+                <legend>送信先</legend>
+                @if (!ChannelsEnabled)
+                {
+                    <small class="hint">宛先が自分か全員のときに選べます</small>
+                }
+                else if (_options.Channels.Count == 0)
+                {
+                    <small class="hint">送信先が登録されていません</small>
+                }
+                @foreach (var channel in _options.Channels)
+                {
+                    <label class="check">
+                        <input type="checkbox" checked="@(ChannelsEnabled && _channels.Contains(channel.Id))" @onchange="e => ToggleChannel(channel.Id, (bool)e.Value!)" />
+                        <span>@channel.Label</span>
+                    </label>
+                }
+            </fieldset>
+        }
+
+        <label class="check">
+            <input type="checkbox" @bind="_speak" />
+            <span>PC で読み上げる</span>
+        </label>
+
+        @if (!IsNew)
+        {
+            <div class="sheet-actions">
+                <button type="button" class="text" @onclick="OnCopy" disabled="@_saving">コピーして新規追加</button>
+                <button type="button" class="text danger" @onclick="OnDelete" disabled="@_saving">削除</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>曜日の選択肢。月から日の順で、数は曜日指定の曜日の 1 つのビット。</summary>
+    private static readonly (int Bit, string Name)[] Days = [(1, "月"), (2, "火"), (4, "水"), (8, "木"), (16, "金"), (32, "土"), (64, "日")];
+
+    /// <summary>編集するリマインダー。新規のときは null。コピーのときは、コピー元。</summary>
+    [Parameter]
+    public ReminderDetailDto? Source { get; set; }
+
+    /// <summary>コピーして新規追加か。true のときは、<see cref="Source"/> の内容で始めて、新規として保存する。</summary>
+    [Parameter]
+    public bool IsCopy { get; set; }
+
+    /// <summary>保存できたときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnSaved { get; set; }
+
+    /// <summary>取りやめたときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>リマインダーが見つからなかったときに呼ぶ。ほかの人が先に変えた場合などで、理由を渡す。</summary>
+    [Parameter]
+    public EventCallback<string> OnFailed { get; set; }
+
+    /// <summary>「コピーして新規追加」を押したときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnCopy { get; set; }
+
+    /// <summary>「削除」を押したときに呼ぶ。</summary>
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private string _title = "";
+    private string _note = "";
+    private string _link = "";
+    private string _time = "";
+    private bool _byDate;
+    private DateOnly _date;
+    private int _weekdays;
+    private int _target;
+    private bool _speak;
+    private readonly HashSet<int> _channels = [];
+    private ReminderOptionsResponse? _options;
+    private bool _saving;
+
+    /// <summary>新規で保存したあと、送信先だけ保存できなかったときの、保存したリマインダーの番号。以後の保存は、この番号を更新する。</summary>
+    private int? _createdNo;
+    private string? _error;
+
+    /// <summary>キーボードを除いた見える範囲にシートを合わせる購読。</summary>
+    private IAsyncDisposable? _viewport;
+
+    private bool _disposed;
+
+    /// <summary>新規として保存するか。編集は、番号を持つ。</summary>
+    private bool IsNew => Source is null || IsCopy;
+
+    private int TitleMaxLength => _options?.TitleMaxLength ?? 200;
+
+    private int NoteMaxLength => _options?.NoteMaxLength ?? 1000;
+
+    private int LinkMaxLength => _options?.LinkMaxLength ?? 2000;
+
+    /// <summary>送信先を選べるか。宛先が自分か全員のときだけ。宛先をほかの人にしたリマインダーの通知を、自分の送信先へ送らないため。</summary>
+    /// <remarks>選べないときも、選んでいた内容は覚えておく。宛先を戻したら、チェックも戻る。</remarks>
+    private bool ChannelsEnabled => _options is not { Targets.Count: > 0 } options || _target == 0 || _target == options.Targets[0].UserId;
+
+    /// <summary>保存を押せるか。選択肢を読めていて、件名と時刻が入っているとき。</summary>
+    private bool CanSave => !_saving && _options is not null && !string.IsNullOrWhiteSpace(_title) && !string.IsNullOrWhiteSpace(_time);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _date = await Browser.GetTodayAsync();
+        if (Source is { } source)
+        {
+            _title = source.Title;
+            _note = source.Note;
+            _link = source.Link;
+            _time = source.Time;
+            _speak = source.IsSpeak;
+            _target = source.TargetUserId;
+            _weekdays = source.Weekdays;
+            _channels.UnionWith(source.ChannelIds);
+            if (source.Date is { } date)
+            {
+                _byDate = true;
+                _date = date;
+            }
+        }
+        else
+        {
+            _time = (await Browser.GetNowTimeAsync()).ToString("HH:mm");
+        }
+
+        var options = await Reminders.LoadOptionsAsync(Source?.TargetUserId ?? 0);
+        if (options.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (options.Succeeded)
+        {
+            _options = options.Value;
+
+            // 新規の宛先は、自分。送信先は、この端末が通知を受け取る登録をしていれば、その送信先を最初から選ぶ
+            if (Source is null)
+            {
+                _target = _options!.Targets[0].UserId;
+                await SelectThisDeviceChannelAsync();
+            }
+        }
+        else
+        {
+            _error = options.Message;
+        }
+    }
+
+    /// <summary>この端末が通知を受け取る端末として登録した送信先を、最初から選ぶ。</summary>
+    /// <remarks>登録していない・探せなかったときは、何も選ばない。選んだ内容は、利用者がそのあと変えられる。</remarks>
+    private async Task SelectThisDeviceChannelAsync()
+    {
+        PushStatus status;
+        try
+        {
+            status = await Browser.GetPushStatusAsync();
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // サービスワーカーを登録できないなど。送信先は選ばずに進める
+            return;
+        }
+
+        if (!status.Subscribed || string.IsNullOrEmpty(status.Endpoint))
+        {
+            return;
+        }
+
+        var found = await Reminders.FindThisDeviceAsync(status.Endpoint);
+        if (found.Succeeded && found.Value!.ChannelId > 0 && _options!.Channels.Any(channel => channel.Id == found.Value.ChannelId))
+        {
+            _channels.Add(found.Value.ChannelId);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var viewport = await Browser.WatchSheetViewportAsync();
+        if (_disposed)
+        {
+            await viewport.DisposeAsync();
+            return;
+        }
+        _viewport = viewport;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_viewport is not null)
+        {
+            await _viewport.DisposeAsync();
+        }
+    }
+
+    private bool HasDay(int bit) => (_weekdays & bit) != 0;
+
+    private void ToggleDay(int bit, bool on) => _weekdays = on ? _weekdays | bit : _weekdays & ~bit;
+
+    /// <summary>曜日の選択の class。土は青、日は赤の文字にする。</summary>
+    private static string DayClass(int bit) => bit switch
+    {
+        32 => "chip sat",
+        64 => "chip sun",
+        _ => "chip",
+    };
+
+    private void ToggleChannel(int id, bool on)
+    {
+        if (on)
+        {
+            _channels.Add(id);
+        }
+        else
+        {
+            _channels.Remove(id);
+        }
+    }
+
+    private void OnDateChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        {
+            _date = day;
+        }
+    }
+
+    private void OnTimeChanged(ChangeEventArgs e) => _time = e.Value?.ToString() ?? "";
+
+    private void OnTargetChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var target))
+        {
+            _target = target;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        // 押せない条件は、次の描画まで効かない。続けて 2 回押されても、処理が 2 回動かないよう、先頭で確かめる
+        if (!CanSave)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        var request = new ReminderSaveRequest(
+            _byDate ? _date : null,
+            _byDate ? 0 : _weekdays,
+            _time,
+            _title.Trim(),
+            _note,
+            _link.Trim(),
+            _speak,
+            _target,
+            ChannelsEnabled ? [.. _channels] : []);
+        var result = await Reminders.SaveAsync(_createdNo ?? (IsNew ? null : Source!.No), request);
+        _saving = false;
+        switch (result.Status)
+        {
+            case ApiFailure.None when result.Value!.Warning is { } warning:
+                // リマインダーは保存できたが、送信先を保存できなかった。保存し直したとき、同じリマインダーを更新して、重ねて作らない
+                _createdNo = result.Value.No;
+                _error = warning;
+                break;
+            case ApiFailure.None:
+                await OnSaved.InvokeAsync();
+                break;
+            case ApiFailure.SignedOut:
+                Navigation.NavigateTo("/", forceLoad: true);
+                break;
+            case ApiFailure.NotFound:
+                await OnFailed.InvokeAsync(result.Message ?? "このリマインダーは、見つからないか、ほかの人が先に変えました。");
+                break;
+            default:
+                _error = result.Message;
+                break;
+        }
+    }
+}

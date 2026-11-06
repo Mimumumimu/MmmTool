@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- ブラウザ (browser-wasm)で動くので、x64 専用の共通設定 (Directory.Build.props)から外す (MmmToolWeb.Client と同じ) -->
+    <Platforms>AnyCPU</Platforms>
+    <Platform>AnyCPU</Platform>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmmToolWeb.Features.Client\MmmToolWeb.Features.Client.csproj" />
+  </ItemGroup>
+
+</Project>

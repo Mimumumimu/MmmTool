@@ -36,9 +36,9 @@
                             <span class="time">@conversation.TimeText</span>
                         </span>
                         <span class="preview">@PreviewText(conversation)</span>
-                        @if (!conversation.PeerCanReceive)
+                        @if (!conversation.PeerNotifiable)
                         {
-                            <span class="note">受け取り先が未設定</span>
+                            <span class="note">Web 版通知が未設定です</span>
                         }
                     </a>
                 </li>

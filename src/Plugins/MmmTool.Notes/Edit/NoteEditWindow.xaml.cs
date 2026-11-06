@@ -19,7 +19,7 @@ namespace MmmTool.Notes.Edit;
 /// <remarks>
 /// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。本文を広く書けるようにするため。最大化・最小化はできない。
 /// タイトル帯をドラッグして移動できる。× で閉じたときはキャンセルと同じ。開くたびに作り直す。閉じたウィンドウは再表示できないため。
-/// 本文欄の右クリックで、書式 (太字・斜体・下線・取消線・色)とリンクを、HTML のタグにして足せる。ファイルやフォルダーをドロップすると、リンクが入る。
+/// 本文欄の上のボタンか右クリックで、書式 (太字・斜体・下線・取消線・色)とリンクを、HTML のタグにして足せる。ファイルやフォルダーをドロップすると、リンクが入る。
 /// </remarks>
 public sealed partial class NoteEditWindow : Window
 {
@@ -53,6 +53,19 @@ public sealed partial class NoteEditWindow : Window
 
     /// <summary>選んだ文字に書式を付ける項目 (文字を選んでいるときだけ押せる)</summary>
     private readonly List<MenuFlyoutItemBase> _selectionItems = [];
+
+    /// <summary>文字を選んでいるときだけ押せる、書式のボタン (本文欄の上の列)</summary>
+    private readonly List<Button> _selectionButtons = [];
+
+    /// <summary>書式 (選んだ文字をタグで囲むもの)の定義。右クリックのメニューと、本文欄の上のボタンの両方が、これから作られる</summary>
+    /// <remarks>アイコンは、親を 1 つしか持てないので、使うたびに作る。取り消し線は Symbol の一覧に無いため、Segoe Fluent Icons の字形 (U+EDE0)を FontIcon で指定する。</remarks>
+    private static readonly (string Text, Func<IconElement> CreateIcon, string Tag)[] Formats =
+    [
+        ("太字", () => new SymbolIcon(Symbol.Bold), "b"),
+        ("斜体", () => new SymbolIcon(Symbol.Italic), "i"),
+        ("下線", () => new SymbolIcon(Symbol.Underline), "u"),
+        ("取消線", () => new FontIcon { Glyph = "" }, "s"),
+    ];
 
     /// <summary>色のパネルの見本と、その色 (パネルを開くときに、テーマに合わせて塗る)</summary>
     private readonly List<(Border Swatch, NoteColor Color)> _colorSwatches = [];
@@ -96,6 +109,8 @@ public sealed partial class NoteEditWindow : Window
         BodyBox.SelectionHighlightColorWhenNotFocused = (SolidColorBrush)Application.Current.Resources["AccentFillColorDefaultBrush"];
         _colorFlyout = BuildColorFlyout();
         BodyBox.ContextFlyout = BuildBodyMenu();
+        BuildFormatBar();
+        BodyBox.SelectionChanged += (_, _) => UpdateFormatBar();
         // 文字の貼り付けとは別に、ファイル・フォルダーのドロップを受ける (欄が処理済みにしても、受ける)
         BodyBox.AddHandler(UIElement.DragOverEvent, new DragEventHandler(OnBodyDragOver), true);
         BodyBox.AddHandler(UIElement.DropEvent, new DragEventHandler(OnBodyDrop), true);
@@ -170,10 +185,10 @@ public sealed partial class NoteEditWindow : Window
 
         // 文字の装飾 (このメニューの主役)を、よく使う順に。色は、重要な連絡を目立たせるのに使うので、先頭に置く
         menu.Items.Add(BuildColorItem());
-        AddFormat(menu, "太字", new SymbolIcon(Symbol.Bold), "b");
-        AddFormat(menu, "斜体", new SymbolIcon(Symbol.Italic), "i");
-        AddFormat(menu, "下線", new SymbolIcon(Symbol.Underline), "u");
-        AddFormat(menu, "取消線", null, "s");
+        foreach (var (text, createIcon, tag) in Formats)
+        {
+            AddFormat(menu, text, createIcon(), tag);
+        }
 
         menu.Items.Add(new MenuFlyoutSeparator());
         var link = new MenuFlyoutItem { Text = "リンクを追加", Icon = new SymbolIcon(Symbol.Link) };
@@ -188,6 +203,91 @@ public sealed partial class NoteEditWindow : Window
 
         menu.Opening += OnBodyMenuOpening;
         return menu;
+    }
+
+    /// <summary>本文欄の上に、書式のボタンの列を作る</summary>
+    /// <remarks>
+    /// 並びと名前は、右クリックのメニューと同じ。色・太字・斜体・下線・取消線・リンクを追加の順に並べる。
+    /// 右クリックを知らなくても、書式を付けられるようにするため。名前は、ツールチップに出す。
+    /// </remarks>
+    private void BuildFormatBar()
+    {
+        var color = CreateFormatButton("色", new SymbolIcon(Symbol.FontColor), needsSelection: true);
+        color.Click += (_, _) =>
+        {
+            CaptureSelection();
+            _colorFlyout.ShowAt(color, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
+        };
+
+        foreach (var (text, createIcon, tag) in Formats)
+        {
+            var button = CreateFormatButton(text, createIcon(), needsSelection: true);
+            button.Click += (_, _) =>
+            {
+                CaptureSelection();
+                ReplaceSelection(selected => NoteMarkup.Wrap(selected, tag));
+            };
+        }
+
+        FormatBar.Children.Add(new Border
+        {
+            Width = 1,
+            Height = 20,
+            Margin = new Thickness(4, 0, 4, 0),
+            Background = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+        });
+
+        var link = CreateFormatButton("リンクを追加", new SymbolIcon(Symbol.Link), needsSelection: false);
+        link.Click += (sender, e) =>
+        {
+            CaptureSelection();
+            OnAddLinkClick(sender, e);
+        };
+
+        UpdateFormatBar();
+    }
+
+    /// <summary>書式のボタンを 1 つ作り、列に足す</summary>
+    /// <param name="text">名前 (ツールチップと、読み上げに使う)</param>
+    /// <param name="icon">アイコン</param>
+    /// <param name="needsSelection">文字を選んでいるときだけ押せるか</param>
+    /// <returns>足したボタン</returns>
+    private Button CreateFormatButton(string text, IconElement icon, bool needsSelection)
+    {
+        var button = new Button
+        {
+            Content = icon,
+            Width = 32,
+            Height = 32,
+            Padding = new Thickness(0),
+            Background = new SolidColorBrush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+        };
+        ToolTipService.SetToolTip(button, text);
+        AutomationProperties.SetName(button, text);
+        FormatBar.Children.Add(button);
+        if (needsSelection)
+        {
+            _selectionButtons.Add(button);
+        }
+
+        return button;
+    }
+
+    /// <summary>文字を選んでいるときだけ、書式のボタンを押せるようにする</summary>
+    private void UpdateFormatBar()
+    {
+        foreach (var button in _selectionButtons)
+        {
+            button.IsEnabled = BodyBox.SelectionLength > 0;
+        }
+    }
+
+    /// <summary>本文欄で選んでいる文字を控える (ボタンを押すとフォーカスが移るため、押した時点の選択を使う)</summary>
+    private void CaptureSelection()
+    {
+        _selectionStart = BodyBox.SelectionStart;
+        _selectionLength = BodyBox.SelectionLength;
     }
 
     /// <summary>書式の項目を足す (選んだ文字を、タグで囲む)</summary>
@@ -310,8 +410,7 @@ public sealed partial class NoteEditWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnBodyMenuOpening(object? sender, object e)
     {
-        _selectionStart = BodyBox.SelectionStart;
-        _selectionLength = BodyBox.SelectionLength;
+        CaptureSelection();
 
         foreach (var item in _selectionItems)
         {

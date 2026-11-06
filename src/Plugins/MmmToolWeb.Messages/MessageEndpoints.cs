@@ -94,26 +94,25 @@ internal static class MessageEndpoints
         => Results.Ok(new DirectDto(await repository.FindDirectConversationAsync(userId, cancellationToken)));
 
     /// <summary>
-    /// 入力欄の決まり (本文の最大の長さ)と、自分と相手が送れる状態かを返す。
+    /// 入力欄の決まり (本文の最大の長さ)と、1 対 1 の相手に通知が届くかを返す。
     /// </summary>
     /// <param name="conversationId">開いている会話の番号。サーバーが、会話の参加者であることを確かめて、相手を見つける。省略か 0 のときは、使わない。</param>
     /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。会話の番号があるときは、使わない。</param>
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="currentUser">今のユーザー。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>本文の最大の長さと、自分と相手が受け取り先を指定しているか。自分が入っていない会話は 404。</returns>
+    /// <returns>本文の最大の長さと、相手に通知が届くか。自分が入っていない会話は 404。</returns>
     /// <remarks>相手の状態は、会話の要約の控えが古くなるので、要るたびに DB から読む。</remarks>
     private static async Task<IResult> LoadFormAsync(
         int? conversationId, int? peerUserId, IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
     {
-        // 自分と相手の状態を、1 回の問い合わせで読む
-        if (await repository.GetReceiveStateAsync(conversationId ?? 0, peerUserId ?? 0, cancellationToken) is not { } state)
+        if (await repository.GetPeerNotifyStateAsync(conversationId ?? 0, peerUserId ?? 0, cancellationToken) is not { } state)
         {
             return Results.NotFound(new ErrorResponse("会話が見つかりません。"));
         }
 
         return Results.Ok(new MessageFormDto(
-            MessageLimits.BodyMaxLength, state.SelfCanReceive, state.PeerCanReceive,
+            MessageLimits.BodyMaxLength, state.PeerNotifiable,
             MessageLimits.GroupNameMaxLength, MessageLimits.GroupMaxMembers));
     }
 
@@ -123,7 +122,7 @@ internal static class MessageEndpoints
     /// <param name="q">表示名の先頭の文字。無いときは、全員。</param>
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>受け取り先を指定している人。</returns>
+    /// <returns>通知先を指定している人。</returns>
     private static async Task<IResult> SearchPeopleAsync(string? q, IMessageRepository repository, CancellationToken cancellationToken)
     {
         var people = await repository.SearchPeopleAsync(q ?? "", SearchCount, cancellationToken);
@@ -159,8 +158,6 @@ internal static class MessageEndpoints
         return result.Outcome switch
         {
             SendMessageOutcome.Sent => Results.Ok(new MessageSentDto(result.ConversationId, result.MessageId)),
-            SendMessageOutcome.NoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.NoReceiveTargetMessage)),
-            SendMessageOutcome.SelfNoReceiveTarget => Results.BadRequest(new ErrorResponse(MessageDraft.SelfNoReceiveTargetMessage)),
             SendMessageOutcome.ReplyInvalid => Results.BadRequest(new ErrorResponse("返信元のメッセージが見つかりません。")),
             SendMessageOutcome.GroupInvalid => Results.BadRequest(new ErrorResponse("グループの名前か参加者が正しくありません。")),
             _ => Results.NotFound(new ErrorResponse("会話が見つかりません。")),
@@ -291,7 +288,7 @@ internal static class MessageEndpoints
     /// <returns>API の型。</returns>
     private static ConversationDto ToDto(ConversationSummary conversation, DateTimeOffset now)
         => new(
-            conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerCanReceive,
+            conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerNotifiable,
             conversation.LastMessageId, conversation.LastText, FormatTime(conversation.LastAt, now), conversation.UnreadCount,
             [.. conversation.Readers.Select(reader => new ReadPositionDto(reader.UserId, reader.LastReadMessageId, reader.DisplayName))],
             conversation.LastSenderUserId, conversation.LastSenderName);

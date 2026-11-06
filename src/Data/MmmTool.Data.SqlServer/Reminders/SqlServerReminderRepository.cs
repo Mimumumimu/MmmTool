@@ -146,23 +146,9 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { No = 0 });
-        var id = await WriteAsync(async (connection, transaction, userId) =>
-        {
-            await EnsureAllowedAsync(connection, transaction, userId, row.TargetUserId, cancellationToken).ConfigureAwait(false);
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                INSERT INTO dbo.Reminder
-                    (IsDeleted, CreatedByUserId, UpdatedByUserId, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak)
-                OUTPUT INSERTED.Id
-                VALUES
-                    (@IsDeleted, @UserId, @UserId, @UserId, @TargetUserId, @Date, @Time, @Weekdays, @Title, @Note, @Link, @IsSpeak)
-                """;
-            AddUserParameter(command, userId);
-            AddReminderParameters(command, row);
-            return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-        }, cancellationToken).ConfigureAwait(false);
+        var id = await WriteAsync(
+            (connection, transaction, userId) => ReminderSql.InsertAsync(connection, transaction, userId, row, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
         return (row with { Id = id, CreatedByUserId = _currentUser.Id, AuthorUserId = _currentUser.Id }).ToReminder();
     }
 
@@ -171,46 +157,18 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     public Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder);
-        return WriteAsync(async (connection, transaction, userId) =>
-        {
-            await EnsureAllowedAsync(connection, transaction, userId, row.TargetUserId, cancellationToken).ConfigureAwait(false);
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            // 編集できるのは、宛先が自分・全員宛て・自分が作成したもので、見える人だけ。削除済みを編集すると、復活する。呼ぶ側が IsDeleted を false にして渡す
-            command.CommandText =
-                """
-                UPDATE dbo.Reminder
-                SET IsDeleted = @IsDeleted,
-                    TargetUserId = @TargetUserId, Date = @Date, Time = @Time, Weekdays = @Weekdays,
-                    Title = @Title, Note = @Note, Link = @Link, IsSpeak = @IsSpeak,
-                    UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId)
-                """;
-            AddUserParameter(command, userId);
-            AddReminderParameters(command, row);
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = row.Id });
-            return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
-        }, cancellationToken);
+        // 編集できるのは、宛先が自分・全員宛て・自分が作成したもので、見える人だけ。削除済みを編集すると、復活する。呼ぶ側が IsDeleted を false にして渡す
+        return WriteAsync(
+            (connection, transaction, userId) => ReminderSql.UpdateAsync(connection, transaction, userId, row, cancellationToken),
+            cancellationToken);
     }
 
     /// <inheritdoc />
     /// <remarks>見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる。編集と同じ。見えないときは、対象が無いのと同じで、false を返す。</remarks>
     public Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default)
-        => WriteAsync(async (connection, transaction, userId) =>
-        {
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                UPDATE dbo.Reminder
-                SET IsDeleted = @IsDeleted, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND (TargetUserId IN (0, @UserId) OR AuthorUserId = @UserId)
-                """;
-            AddUserParameter(command, userId);
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = no });
-            command.Parameters.Add(new SqlParameter("@IsDeleted", SqlDbType.Bit) { Value = isDeleted });
-            return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
-        }, cancellationToken);
+        => WriteAsync(
+            (connection, transaction, userId) => ReminderSql.SetDeletedAsync(connection, transaction, userId, no, isDeleted, cancellationToken),
+            cancellationToken);
 
     /// <inheritdoc />
     /// <remarks>DB は、行を消さない方針 (論理削除だけ)なので、できない。画面は、<see cref="CanPurge"/> が false のとき、操作を出さない。</remarks>
@@ -237,7 +195,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             {
                 await using var command = connection.CreateCommand();
                 command.Transaction = transaction;
-                AddUserParameter(command, userId);
+                ReminderSql.AddUserParameter(command, userId);
                 command.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = change.BaseNo });
                 command.CommandText =
                     """
@@ -254,34 +212,6 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             }
             return 0;
         }, cancellationToken);
-    }
-
-    /// <summary>リマインダーを保存してよいか確かめる。管理者が、リマインダーを無効にした人は、保存できず、無効にした人を宛先にもできない</summary>
-    /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">使うトランザクション</param>
-    /// <param name="userId">今のユーザーの番号</param>
-    /// <param name="targetUserId">宛先の人の番号。全員宛ては 0</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>確認の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">今のユーザー、または宛先の人が、リマインダーを無効にされている。メッセージは画面に出せる。</exception>
-    private static async Task EnsureAllowedAsync(SqlConnection connection, SqlTransaction transaction, int userId, int targetUserId, CancellationToken cancellationToken)
-    {
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText =
-            $"""
-            SELECT CASE WHEN {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)} THEN 1
-                        WHEN @TargetUserId > 0 AND {FeatureAccessSql.IsDisabled("@TargetUserId", CodeFeatures.Reminders)} THEN 2
-                        ELSE 0 END
-            """;
-        AddUserParameter(command, userId);
-        command.Parameters.Add(new SqlParameter("@TargetUserId", SqlDbType.Int) { Value = targetUserId });
-        var denied = (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-        if (denied != 0)
-        {
-            var message = denied == 1 ? "リマインダーは、管理者が無効にしているため、保存できません。" : "宛先の人は、リマインダーを使えないため、保存できません。";
-            throw new DataFileException(message, new InvalidOperationException(message));
-        }
     }
 
     /// <summary>読み直しの繰り返しを止める</summary>
@@ -484,8 +414,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         $"SELECT SYSDATETIMEOFFSET(), CASE WHEN {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)} THEN 1 ELSE 0 END";
 
     /// <summary>リマインダー本体の列を選ぶ問い合わせの先頭部分</summary>
-    private const string ReminderSelect =
-        "SELECT Id, IsDeleted, AuthorUserId, TargetUserId, Date, Time, Weekdays, Title, Note, Link, IsSpeak FROM dbo.Reminder";
+    private const string ReminderSelect = ReminderSql.Select;
 
     /// <summary>対応状態の列を選ぶ問い合わせの先頭部分</summary>
     private const string StateSelect = "SELECT Id, ReminderId, Date, Status FROM dbo.ReminderState";
@@ -510,7 +439,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             WHERE UserId = @UserId AND IsDeleted = 0
             ORDER BY Id;
             """;
-        AddUserParameter(command, userId);
+        ReminderSql.AddUserParameter(command, userId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await ReadSnapshotAsync(reader, cancellationToken).ConfigureAwait(false);
     }
@@ -540,7 +469,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             WHERE UserId = @UserId AND IsDeleted = 0 AND UpdatedAt >= @Since
             ORDER BY Id;
             """;
-        AddUserParameter(command, userId);
+        ReminderSql.AddUserParameter(command, userId);
         command.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset, 0) { Value = since, Scale = 3 });
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var snapshot = await ReadSnapshotAsync(reader, cancellationToken).ConfigureAwait(false);
@@ -569,20 +498,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         var reminders = new List<Reminder>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            reminders.Add(new ReminderRow
-            {
-                Id = reader.GetInt32(0),
-                IsDeleted = reader.GetBoolean(1),
-                AuthorUserId = reader.GetInt32(2),
-                TargetUserId = reader.GetInt32(3),
-                Date = DateOnly.FromDateTime(reader.GetDateTime(4)),
-                Time = TimeOnly.FromTimeSpan(reader.GetTimeSpan(5)),
-                Weekdays = reader.GetByte(6),
-                Title = reader.GetString(7),
-                Note = reader.GetString(8),
-                Link = reader.GetString(9),
-                IsSpeak = reader.GetBoolean(10),
-            }.ToReminder());
+            reminders.Add(ReminderSql.ReadReminder(reader));
         }
 
         await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
@@ -671,27 +587,5 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         {
             _lock.Release();
         }
-    }
-
-    /// <summary>今のユーザーの番号のパラメーターを足す</summary>
-    /// <param name="command">足す先のコマンド</param>
-    /// <param name="userId">今のユーザーの番号</param>
-    private static void AddUserParameter(SqlCommand command, int userId)
-        => command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-
-    /// <summary>リマインダー本体の行のパラメーターを足す (番号・作成者・更新者は含まない)</summary>
-    /// <param name="command">足す先のコマンド</param>
-    /// <param name="row">リマインダー本体の行</param>
-    private static void AddReminderParameters(SqlCommand command, ReminderRow row)
-    {
-        command.Parameters.Add(new SqlParameter("@IsDeleted", SqlDbType.Bit) { Value = row.IsDeleted });
-        command.Parameters.Add(new SqlParameter("@TargetUserId", SqlDbType.Int) { Value = row.TargetUserId });
-        command.Parameters.Add(new SqlParameter("@Date", SqlDbType.Date) { Value = row.Date.ToDateTime(TimeOnly.MinValue) });
-        command.Parameters.Add(new SqlParameter("@Time", SqlDbType.Time) { Scale = 0, Value = row.Time.ToTimeSpan() });
-        command.Parameters.Add(new SqlParameter("@Weekdays", SqlDbType.TinyInt) { Value = row.Weekdays });
-        command.Parameters.Add(new SqlParameter("@Title", SqlDbType.NVarChar, 200) { Value = row.Title });
-        command.Parameters.Add(new SqlParameter("@Note", SqlDbType.NVarChar, 1000) { Value = row.Note });
-        command.Parameters.Add(new SqlParameter("@Link", SqlDbType.NVarChar, 2000) { Value = row.Link });
-        command.Parameters.Add(new SqlParameter("@IsSpeak", SqlDbType.Bit) { Value = row.IsSpeak });
     }
 }

@@ -97,6 +97,9 @@
   <!--
     deps.json の、ファイルごとの項目 ("…/名前.dll": { … })に "localPath": "Lib/名前.dll" を足す。
     deps.json は .NET SDK が決まった形で書くので、ファイル名をキーにして文字列で足す (すでに足してあれば何もしない)。
+    環境別の一覧 (runtimeTargets)に載る、マネージドの DLL の項目は飛ばす。これらのファイルは、Lib に移さず、runtimes\ の下に置かれるため。
+    同じ名前のファイルが、Lib の見せかけの版 (lib\)と、環境別の本物の版 (runtimes\)に分かれて載るパッケージ (Microsoft.Data.SqlClient など)で、本物の項目にも Lib の場所を書くと、
+    見せかけの版が読まれ、「この環境では使えない」で止まる。環境ごとに作らない構成 (Web 版の Debug)で起きる。
   -->
   <UsingTask TaskName="AddLocalPathToDepsFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
@@ -111,10 +114,20 @@
         foreach (var file in Files)
         {
             var localPath = (file.GetMetadata("DestinationSubDirectory") + file.GetMetadata("Filename") + file.GetMetadata("Extension")).Replace('\\', '/');
-            var key = "(\"(?:[^\"/]*/)*" + Regex.Escape(Path.GetFileName(localPath)) + "\": \\{)";
+            // 1 つ目の組が「キーの先頭から {」まで、2 つ目の組が、キーの道の部分 (runtimes/win/lib/net9.0/ など)
+            var key = "(\"((?:[^\"/]*/)*)" + Regex.Escape(Path.GetFileName(localPath)) + "\": \\{)";
+            // 環境別の一覧 (runtimeTargets)のマネージドの DLL は、Lib に移さないので、場所を書かない。項目に "rid" があり、"assetType" が "runtime" のもの
+            // 環境を決めて発行したときの deps.json では、同じ道 (runtimes/win/lib/)の DLL が、普通の項目 (runtime)に載り、Lib に置かれるので、そちらには書く
+            Func<Match, bool> inRuntimesLib = m =>
+            {
+                var start = m.Index + m.Length;
+                var close = text.IndexOf('}', start);
+                var body = close < 0 ? "" : text.Substring(start, close - start);
+                return body.Contains("\"rid\"") && Regex.IsMatch(body, "\"assetType\":\\s*\"runtime\"");
+            };
             // 中身が空の項目 ({})と、中身がある項目 ({ "assemblyVersion": … })
-            text = Regex.Replace(text, key + "\\}", "$1 \"localPath\": \"" + localPath + "\" }");
-            text = Regex.Replace(text, key + "(?!\\s*\"localPath\")(?=\\s*\")", "$1\n            \"localPath\": \"" + localPath + "\",");
+            text = Regex.Replace(text, key + "\\}", m => inRuntimesLib(m) ? m.Value : m.Groups[1].Value + " \"localPath\": \"" + localPath + "\" }");
+            text = Regex.Replace(text, key + "(?!\\s*\"localPath\")(?=\\s*\")", m => inRuntimesLib(m) ? m.Value : m.Groups[1].Value + "\n            \"localPath\": \"" + localPath + "\",");
         }
         File.WriteAllText(DepsFile, text);
       ]]></Code>

@@ -29,6 +29,12 @@ internal static class AuthEndpoints
     /// <summary>ログインした日時を入れる値の名前で、UTC の ISO 8601。</summary>
     private const string SignedInAtClaim = "signed_in_at";
 
+    /// <summary>ログインの世代の番号を入れる値の名前。管理者が番号を上げると、前の番号のログインは無効になる。</summary>
+    public const string SessionVersionClaim = "session_version";
+
+    /// <summary>世代の番号を持たないログイン (番号を入れる前に発行したもの)を、扱う番号。行が無い人の番号と同じ。</summary>
+    public const int DefaultSessionVersion = 1;
+
     /// <summary>ログイン状態を覚えておく日数。使うたびに延びる。</summary>
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(90);
 
@@ -218,11 +224,14 @@ internal static class AuthEndpoints
     internal static async Task<ClaimsPrincipal> IssueSessionAsync(HttpContext context, AppUser user)
     {
         var now = DateTimeOffset.UtcNow;
+        var sessionVersion = await context.RequestServices.GetRequiredService<IAppUserWebAuthRepository>()
+            .GetSessionVersionAsync(user.Id, context.RequestAborted);
         var identity = new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.DisplayName),
                 new Claim(SignedInAtClaim, now.ToString("O")),
+                new Claim(SessionVersionClaim, sessionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             ],
             CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);

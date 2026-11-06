@@ -28,8 +28,8 @@ public sealed class MessagesViewState
     /// <summary>開いている会話の名前</summary>
     public string ConversationTitle { get; set; } = "";
 
-    /// <summary>相手が受け取り先を指定しているか</summary>
-    public bool PeerCanReceive { get; set; } = true;
+    /// <summary>相手が通知先を指定しているか</summary>
+    public bool PeerNotifiable { get; set; } = true;
 
     /// <summary>宛先の人を選ぶ画面にしているか</summary>
     public bool IsPickingPerson { get; set; }

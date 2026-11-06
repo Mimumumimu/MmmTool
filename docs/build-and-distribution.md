@@ -294,6 +294,9 @@
   - 書き足しは、JSON を読み書きせず文字列で行う (VS の MSBuild (.NET Framework)でも動くインラインタスクにするため)
     - deps.json は .NET SDK が決まった形で書くので、ファイル名をキーにして足せる
     - すでに足してあれば何もしない (ビルドを繰り返しても二重にならない)
+    - 環境別の一覧 (`runtimeTargets`)に載るマネージドの DLL (項目に `rid` があり、`assetType` が `runtime`)には、書かない。これらは `Lib` に移さず、`runtimes/` の下に置かれる。
+      - 書くと、Web 版の Debug (環境を決めずにビルドする)で、`Microsoft.Data.SqlClient` の見せかけの版 (`lib/`、「この環境では使えない」を投げる)が `Lib` にあり、`runtimes/win/lib/` の本物の項目にも同じ `Lib` の場所が書かれ、見せかけの版が読み込まれる。DB に触る最初の操作で `PlatformNotSupportedException` になる。
+      - 環境を決めて発行したときの `deps.json` では、同じ道 (`runtimes/win/lib/`)の DLL が普通の項目 (`runtime`)に載り、`Lib` に置かれるので、そちらには書く。`rid` で見分ける。
   - 衛星アセンブリ (`MoveSatellitesToLib`)も同じ仕組みで、deps.json の `resources` の項目に `localPath` (`Lib/ja/…`)を書き足す
     - パッケージの言語別リソース (日本語の衛星アセンブリで、例は `Microsoft.Data.SqlClient.resources.dll`)も、EXE の横の言語フォルダー (`ja/`)ではなく `Lib/ja/` に置く
     - SQL Server のドライバー (`Microsoft.Data.SqlClient`)を参照すると、`ja/` が EXE の横にできるため

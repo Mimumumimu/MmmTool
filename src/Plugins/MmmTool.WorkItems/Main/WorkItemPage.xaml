@@ -53,7 +53,7 @@
                 <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
 
-            <Style x:Key="CellDatePickerStyle" TargetType="CalendarDatePicker">
+            <Style x:Key="CellDatePickerStyle" TargetType="CalendarDatePicker" BasedOn="{StaticResource AppCalendarDatePickerStyle}">
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -109,46 +109,77 @@
                         作業報告から外す印は、予定だけを外すときはカレンダーに斜線、実績と予定の両方を外すときは「隠す」。大きさと色は、どの印も同じにする。
                         名前の列の幅は、印がある行の分だけ広げて測る
                     -->
+                    <!--
+                        印を並べた領域は、すき間と右の余白を含めて、クリックしても名前の入力を始めない場所にする。背景を透明で塗り、クリックを受ける。
+                        名前の入力を始めるクリックは、印より左だけ。印が無い行では、領域ごと出さない
+                    -->
                     <StackPanel
-                        Margin="0,0,6,0"
+                        Padding="0,0,6,0"
                         HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
+                        VerticalAlignment="Stretch"
+                        sdk:TreeGridView.NoEditArea="True"
+                        Background="Transparent"
                         Orientation="Horizontal"
-                        Spacing="6">
-                        <FontIcon
+                        Spacing="6"
+                        Visibility="{x:Bind HasMarks, Mode=OneWay}">
+                        <!-- 自動入力の印も、押すと、右クリックの「自動入力…」と同じ入力枠を開く (作業報告から外す印と同じ作り) -->
+                        <Button
+                            Padding="2"
                             VerticalAlignment="Center"
-                            FontSize="14"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="&#xE8EE;"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnAutoEntryMarkClick"
+                            IsTabStop="False"
                             ToolTipService.ToolTip="{x:Bind AutoEntryText, Mode=OneWay}"
-                            Visibility="{x:Bind ShowsAutoEntryMark, Mode=OneWay}" />
-                        <Grid
-                            Width="14"
-                            Height="14"
-                            VerticalAlignment="Center"
-                            ToolTipService.ToolTip="予定に含めない"
-                            Visibility="{x:Bind ShowsPlanExclusionMark, Mode=OneWay}">
+                            Visibility="{x:Bind ShowsAutoEntryMark, Mode=OneWay}">
                             <FontIcon
                                 VerticalAlignment="Center"
                                 FontSize="14"
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Glyph="&#xE787;" />
-                            <!-- 「隠す」と同じ向きの斜線 (左上から右下) -->
-                            <Line
-                                Stroke="{ThemeResource TextFillColorSecondaryBrush}"
-                                StrokeThickness="1.5"
-                                X1="0.5"
-                                X2="13.5"
-                                Y1="0.5"
-                                Y2="13.5" />
-                        </Grid>
-                        <FontIcon
+                                Glyph="&#xE8EE;" />
+                        </Button>
+                        <!--
+                            作業報告から外す印は、押すと、右クリックの「作業報告」と同じ選択肢のメニューを、印の下に開く。
+                            押せることが分かるよう、ボタンにする。普段は背景も枠も無く、カーソルを合わせたときだけ、標準の背景が付く。
+                        -->
+                        <Button
+                            Padding="2"
                             VerticalAlignment="Center"
-                            FontSize="14"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Glyph="&#xED1A;"
-                            ToolTipService.ToolTip="実績・予定に含めない"
-                            Visibility="{x:Bind ShowsFullExclusionMark, Mode=OneWay}" />
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnReportExclusionMarkClick"
+                            IsTabStop="False"
+                            Visibility="{x:Bind ShowsReportExclusionMark, Mode=OneWay}">
+                            <Grid>
+                                <Grid
+                                    Width="14"
+                                    Height="14"
+                                    VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="予定・保留に含めない"
+                                    Visibility="{x:Bind ShowsPlanExclusionMark, Mode=OneWay}">
+                                    <FontIcon
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Glyph="&#xE787;" />
+                                    <!-- 「隠す」と同じ向きの斜線 (左上から右下) -->
+                                    <Line
+                                        Stroke="{ThemeResource TextFillColorSecondaryBrush}"
+                                        StrokeThickness="1.5"
+                                        X1="0.5"
+                                        X2="13.5"
+                                        Y1="0.5"
+                                        Y2="13.5" />
+                                </Grid>
+                                <FontIcon
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Glyph="&#xED1A;"
+                                    ToolTipService.ToolTip="実績・予定・保留に含めない"
+                                    Visibility="{x:Bind ShowsFullExclusionMark, Mode=OneWay}" />
+                            </Grid>
+                        </Button>
                     </StackPanel>
                     <TextBlock
                         FontSize="{x:Bind local:WorkItemOptions.ProjectFontSize}"

@@ -29,7 +29,7 @@ internal static class NotificationEndpoints
         notifications.MapPost("/subscriptions", RegisterAsync);
         notifications.MapPost("/subscriptions/lookup", LookupAsync);
         notifications.MapPost("/subscriptions/remove", RemoveAsync);
-        ReceiveSettingEndpoints.Map(notifications);
+        NotificationTargetSettingEndpoints.Map(notifications);
     }
 
     /// <summary>
@@ -99,11 +99,15 @@ internal static class NotificationEndpoints
     /// </summary>
     /// <param name="item">通知の識別子。「種類:番号」の形。</param>
     /// <param name="destinations">行き先の登録。登録された種類のぶん。</param>
+    /// <param name="sources">受け取った通知の提供元。押した通知を受け取った日時を引くため。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>開く画面の道。行き先が無い種類・開けないときは、道が null。</returns>
+    /// <returns>開く画面の道と、押した通知を受け取った日時。行き先が無い種類・開けないときは、道が null。</returns>
     /// <remarks>メッセージなどの名前は、ここでは持たない。登録が無い種類は、通知の一覧を開く。</remarks>
     private static async Task<IResult> LoadDestinationAsync(
-        string? item, IEnumerable<INotificationDestination> destinations, CancellationToken cancellationToken)
+        string? item,
+        IEnumerable<INotificationDestination> destinations,
+        IEnumerable<IReceivedNotificationSource> sources,
+        CancellationToken cancellationToken)
     {
         if (!TryParseKey(item, out var kind, out var id)
             || destinations.FirstOrDefault(destination => destination.Key == kind) is not { } owner)
@@ -111,7 +115,11 @@ internal static class NotificationEndpoints
             return Results.Ok(new DestinationResponse(null));
         }
 
-        return Results.Ok(new DestinationResponse(await owner.GetPathAsync(id, cancellationToken)));
+        // 一覧に出る種類の通知は、受け取った日時も返す。画面が、別の画面へ移る前に、見た通知の時刻を進めるため
+        var received = sources.FirstOrDefault(source => source.Key == kind) is { } source
+            ? await source.GetAsync(id, cancellationToken)
+            : null;
+        return Results.Ok(new DestinationResponse(await owner.GetPathAsync(id, cancellationToken), received?.ReceivedAt));
     }
 
     /// <summary>
@@ -187,7 +195,7 @@ internal static class NotificationEndpoints
             return Results.Ok(new PushRegisterResponse(existing.Id));
         }
 
-        // 同じ宛先の行が無いときは、覚えていた番号の行を更新する。送り手の鍵が替わって宛先が変わっても、同じ行を使えて、受け取り先の選択が残る
+        // 同じ宛先の行が無いときは、覚えていた番号の行を更新する。送り手の鍵が替わって宛先が変わっても、同じ行を使えて、通知先の選択が残る
         // MmmTool の送信先の一覧で削除された行でも、更新は成功する。登録し直す操作なので、同じ文で削除を戻す。戻さないと、届かない
         if (request.Id > 0 && await channels.UpdateAndRestoreAsync(channel with { Id = request.Id }, cancellationToken))
         {

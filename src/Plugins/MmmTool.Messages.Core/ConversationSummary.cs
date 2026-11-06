@@ -7,7 +7,7 @@ namespace MmmTool.Messages.Core;
 /// <param name="Kind">会話の種類</param>
 /// <param name="Name">画面に出す名前。1 対 1 は相手の表示名、グループは会話の名前</param>
 /// <param name="PeerUserId">1 対 1 の相手の番号。自分との会話は自分の番号。グループは 0</param>
-/// <param name="PeerCanReceive">1 対 1 の相手が、受け取り先を指定しているか。false のとき、入力欄は押せない。グループは true</param>
+/// <param name="PeerNotifiable">1 対 1 の相手に、通知が届くか。false のとき、通知が届かないことを案内する。グループは true</param>
 /// <param name="LastMessageId">最後のメッセージの番号。会話の並びの基準になる</param>
 /// <param name="LastText">最後のメッセージの本文</param>
 /// <param name="LastAt">最後のメッセージを送った日時</param>
@@ -17,7 +17,7 @@ namespace MmmTool.Messages.Core;
 /// <param name="Readers">自分以外の参加者の、名前と読んだ位置。送った人の画面に「既読」を出す元で、グループの参加者の一覧にも使う。自分との会話は空</param>
 /// <remarks>最後のメッセージは、会話の表に持たず、メッセージの表から、会話ごとに最新の 1 通を読んで求める。</remarks>
 public sealed record ConversationSummary(
-    int Id, ConversationKind Kind, string Name, int PeerUserId, bool PeerCanReceive, int LastMessageId, string LastText, DateTimeOffset LastAt,
+    int Id, ConversationKind Kind, string Name, int PeerUserId, bool PeerNotifiable, int LastMessageId, string LastText, DateTimeOffset LastAt,
     int LastSenderUserId, string LastSenderName, int UnreadCount, IReadOnlyList<ReadPosition> Readers)
 {
     /// <summary>同じ内容か。読んだ位置の一覧は、並びと中身で比べる</summary>
@@ -28,7 +28,7 @@ public sealed record ConversationSummary(
     /// </remarks>
     public bool Equals(ConversationSummary? other)
         => other is not null
-        && Id == other.Id && Kind == other.Kind && Name == other.Name && PeerUserId == other.PeerUserId && PeerCanReceive == other.PeerCanReceive
+        && Id == other.Id && Kind == other.Kind && Name == other.Name && PeerUserId == other.PeerUserId && PeerNotifiable == other.PeerNotifiable
         && LastMessageId == other.LastMessageId && LastText == other.LastText && LastAt == other.LastAt
         && LastSenderUserId == other.LastSenderUserId && LastSenderName == other.LastSenderName && UnreadCount == other.UnreadCount
         && (Readers is { } mine && other.Readers is { } theirs ? mine.SequenceEqual(theirs) : ReferenceEquals(Readers, other.Readers));

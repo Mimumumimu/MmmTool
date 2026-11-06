@@ -27,11 +27,21 @@
             <ul class="devices">
                 @foreach (var device in _devices)
                 {
-                    <li>@device.Name</li>
+                    <li>
+                        <span class="name">@device.Name</span>
+                        @if (device.Id == _registeredId)
+                        {
+                            <span class="this">この端末</span>
+                        }
+                        else
+                        {
+                            <button type="button" class="text danger" aria-label="@DeleteLabel(device)" @onclick="() => _deleting = device" disabled="@_working">削除</button>
+                        }
+                    </li>
                 }
             </ul>
         }
-        <p class="muted">登録した端末は、メッセージの受け取り先に選べます。</p>
+        <p class="muted">登録した端末は、通知先に選べます。</p>
     }
 
     @if (CanRegister)
@@ -50,8 +60,15 @@
 @if (_confirmingUnsubscribe)
 {
     <ConfirmDialog Title="この端末の通知を解除しますか?" ConfirmText="解除"
-                   Message="解除すると、この端末には通知が届かなくなります。リマインダーやメッセージの受け取り先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
+                   Message="解除すると、この端末には通知が届かなくなります。通知先やリマインダーの送信先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
                    OnConfirm="ConfirmUnsubscribeAsync" OnCancel="() => _confirmingUnsubscribe = false" />
+}
+
+@if (_deleting is { } target)
+{
+    <ConfirmDialog Title="登録した端末を削除しますか?" Target="@target.Name" ConfirmText="削除"
+                   Message="削除すると、この端末には通知が届かなくなります。通知先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
+                   OnConfirm="ConfirmDeleteAsync" OnCancel="() => _deleting = null" />
 }
 
 @code {
@@ -65,6 +82,9 @@
     private bool _loaded;
     private bool _working;
     private bool _confirmingUnsubscribe;
+
+    /// <summary>削除の確認を出している端末。出していないときは null。</summary>
+    private PushDeviceDto? _deleting;
     private bool _watching;
     private string? _result;
     private bool _resultIsError;
@@ -242,6 +262,42 @@
 
         _working = false;
         ShowResult("この端末の登録を解除しました。", isError: false);
+        await LoadAsync();
+    }
+
+    /// <summary>削除のボタンを、画面を読み上げる人にも区別できるようにする名前。</summary>
+    /// <param name="device">削除する端末。</param>
+    /// <returns>端末の名前を含む名前。</returns>
+    private static string DeleteLabel(PushDeviceDto device) => $"{device.Name} を削除";
+
+    /// <summary>確認で「削除」が押されたとき、確認を閉じて、その端末の登録を削除する。この端末ではない行だけが対象で、サーバーは、自分の行だけを削除する。</summary>
+    private async Task ConfirmDeleteAsync()
+    {
+        var target = _deleting;
+        _deleting = null;
+        // 押した直後は、ボタンが押せない表示に変わる前なので、続けて押された分はここで止める
+        if (target is null || _working)
+        {
+            return;
+        }
+
+        _working = true;
+        _result = null;
+        var result = await Notifications.RemoveAsync(new PushRemoveRequest(target.Id));
+        _working = false;
+        if (result.Status == ApiFailure.SignedOut)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+            return;
+        }
+        if (!result.Succeeded && result.Status != ApiFailure.NotFound)
+        {
+            ShowResult($"削除できませんでした: {result.Message}", isError: true);
+            await LoadAsync();
+            return;
+        }
+
+        ShowResult("端末を削除しました。", isError: false);
         await LoadAsync();
     }
 

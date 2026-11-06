@@ -121,12 +121,30 @@
         }
         if (destination.Succeeded && destination.Value!.Path is { Length: > 0 } path && path.StartsWith('/'))
         {
+            // 別の画面で見た通知が、あとで一覧を開いたときに「未読」で残らないよう、移る前に、見た通知の時刻まで進める
+            if (destination.Value.ReceivedAt is { } receivedAt)
+            {
+                await AdvanceLastOpenedAsync(receivedAt);
+            }
+
             // 履歴に、この入口の画面を残さない。戻ったとき、また移ってしまうため
             Navigation.NavigateTo(path, replace: true);
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>覚えている「最後に見た通知の時刻」を、見た通知の時刻まで進める。戻さない。</summary>
+    /// <param name="receivedAt">見た通知を受け取った日時。</param>
+    /// <remarks>この端末で一度も一覧を開いていないときは、何もしない。そのときは、どの通知も未読にしない決まりのため。</remarks>
+    private async Task AdvanceLastOpenedAsync(DateTimeOffset receivedAt)
+    {
+        if (DateTimeOffset.TryParse(await Browser.GetRememberedAsync(LastOpenedKey), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var opened)
+            && receivedAt > opened)
+        {
+            await Browser.RememberAsync(LastOpenedKey, receivedAt.ToString("o", CultureInfo.InvariantCulture));
+        }
     }
 
     /// <summary>この端末の通知の状態と、サーバーの登録と、受け取った通知を読む。</summary>

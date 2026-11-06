@@ -6,21 +6,16 @@ public enum SendMessageOutcome
     /// <summary>送れた。メッセージと通知の状態を書いた</summary>
     Sent = 0,
 
-    /// <summary>相手が受け取り先を指定していない。何も書かなかった</summary>
-    NoReceiveTarget = 1,
-
     /// <summary>自分が参加していない会話、または相手の人が無い。何も書かなかった</summary>
-    NotMember = 2,
+    /// <remarks>管理者にメッセージを無効にされている人は、無いものとして扱う。</remarks>
+    NotMember = 1,
 
     /// <summary>返信元が、同じ会話のメッセージではない。何も書かなかった</summary>
-    ReplyInvalid = 3,
-
-    /// <summary>送る人が、自分の受け取り先を指定していない。何も書かなかった</summary>
-    SelfNoReceiveTarget = 4,
+    ReplyInvalid = 2,
 
     /// <summary>新しいグループの名前か参加者が正しくない。何も書かなかった</summary>
     /// <remarks>名前が空か長すぎる・自分のほかに参加者がいない・参加者が自分を含めて 50 人を超える・参加者に使えない人がいる。</remarks>
-    GroupInvalid = 5,
+    GroupInvalid = 3,
 }
 
 /// <summary>グループの参加者や名前を変えようとした結果の区分</summary>

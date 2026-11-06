@@ -37,6 +37,16 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// ブラウザの時計の今の時刻を返す。
+    /// </summary>
+    /// <returns>今の時刻で、秒は 0。</returns>
+    public async Task<TimeOnly> GetNowTimeAsync()
+    {
+        var module = await GetModuleAsync();
+        return TimeOnly.ParseExact(await module.InvokeAsync<string>("nowTimeLocal"), "HH:mm");
+    }
+
+    /// <summary>
     /// この端末で覚えている値を返す。
     /// </summary>
     /// <param name="key">値の名前。機能どうしで重ならないよう、機能の名前から始める。</param>
@@ -240,13 +250,25 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
-    /// 全画面のシートを、キーボードを除いた見える範囲に合わせ始める。キーボードを閉じたあとの、画面のずれも戻す。
+    /// 全画面のシートや、画面いっぱいに固定した画面 (会話など)を、キーボードを除いた見える範囲に合わせ始める。キーボードを閉じたあとの、画面のずれも戻す。
     /// </summary>
     /// <returns>閉じると、やめる購読。</returns>
     public async Task<IAsyncDisposable> WatchSheetViewportAsync()
     {
         var module = await GetModuleAsync();
         var handle = await module.InvokeAsync<IJSObjectReference>("watchSheetViewport");
+        return new JsSubscription(handle);
+    }
+
+    /// <summary>
+    /// 要素の高さが縮んでも、一番下近くを見ていたら、一番下を保ち始める。キーボードを出したときや入力欄が伸びたときに、最新のメッセージが押し出されないため。
+    /// </summary>
+    /// <param name="element">スクロールする要素。</param>
+    /// <returns>閉じると、やめる購読。</returns>
+    public async Task<IAsyncDisposable> KeepBottomOnResizeAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        var handle = await module.InvokeAsync<IJSObjectReference>("keepBottomOnResize", element);
         return new JsSubscription(handle);
     }
 

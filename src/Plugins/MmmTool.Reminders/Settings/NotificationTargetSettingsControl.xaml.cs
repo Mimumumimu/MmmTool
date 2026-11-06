@@ -4,15 +4,15 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.Reminders.Settings;
 
-/// <summary>設定ページの「受け取り先」。設定ページに並べる部品で、サーバーモードだけ出る</summary>
-public sealed partial class ReceiveTargetSettingsControl : UserControl
+/// <summary>設定ページの「通知先」。設定ページに並べる部品で、サーバーモードだけ出る</summary>
+public sealed partial class NotificationTargetSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>
-    public ReceiveTargetSettingsViewModel ViewModel { get; }
+    public NotificationTargetSettingsViewModel ViewModel { get; }
 
     /// <summary>部品を作る</summary>
     /// <param name="viewModel">部品の ViewModel</param>
-    public ReceiveTargetSettingsControl(ReceiveTargetSettingsViewModel viewModel)
+    public NotificationTargetSettingsControl(NotificationTargetSettingsViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();

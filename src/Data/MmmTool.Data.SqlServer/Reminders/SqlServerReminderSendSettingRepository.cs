@@ -57,6 +57,39 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
         }, cancellationToken);
     }
 
+    /// <summary>1 件のリマインダーに選んでいる送信先の番号を読む</summary>
+    /// <param name="reminderNo">リマインダーの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>自分が使用者の送信先の番号。選んでいない (または削除済み)ときは空</returns>
+    /// <remarks>Web 版が、編集のために 1 件だけ読む。全リマインダー分を読む <see cref="GetChannelIdsAsync"/> は、PC 版の一覧が使う。</remarks>
+    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    public Task<IReadOnlyList<int>> GetChannelIdsOfAsync(int reminderNo, CancellationToken cancellationToken = default)
+    {
+        var userId = SendTableAccess.RequireUserId(currentUser);
+        return SendTableAccess.RunAsync<IReadOnlyList<int>>(database, async connection =>
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                SELECT s.ChannelId
+                FROM dbo.ReminderSendSetting AS s
+                INNER JOIN dbo.NotificationChannel AS c ON c.Id = s.ChannelId
+                WHERE s.ReminderId = @ReminderId AND s.IsDeleted = 0 AND c.UserId = @UserId
+                ORDER BY s.ChannelId
+                """;
+            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+            command.Parameters.Add(new SqlParameter("@ReminderId", SqlDbType.Int) { Value = reminderNo });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            var channelIds = new List<int>();
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                channelIds.Add(reader.GetInt32(0));
+            }
+            return channelIds;
+        }, cancellationToken);
+    }
+
     /// <inheritdoc />
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
     public Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)

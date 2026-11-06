@@ -7,7 +7,7 @@ using MmmTool.NotificationChannels.Core;
 namespace MmmBatch.NoteSending.Core;
 
 /// <summary>
-/// 他の人が作成・更新したノートを、「ノートの通知を受け取る」がオンの人の受け取り先へ送る。10 秒おきの仕事。
+/// 他の人が作成・更新したノートを、「ノートの通知を受け取る」がオンの人の通知先へ送る。10 秒おきの仕事。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -297,7 +297,7 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
 
             any = true;
 
-            // 送り直す前に、その人が、いまも通知を受け取る人か確かめる。オフにした人・受け取り先を外した人には、送り直さない
+            // 送り直す前に、その人が、いまも通知を受け取る人か確かめる。オフにした人・通知先を外した人には、送り直さない
             var targets = await FindCurrentTargetsAsync(group, cancellationToken).ConfigureAwait(false);
 
             var results = await Task.WhenAll(targets.Select(retry => SendAsync(retry, cancellationToken))).ConfigureAwait(false);
@@ -325,7 +325,7 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
     /// <summary>送り直しの相手が、いまも通知を受け取る人か、まとめて確かめる。送る先が変わっていたら、新しい送る先にする</summary>
     /// <param name="group">送り直しの予定</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送り直す予定。オフにした・受け取り先を外した・管理者が無効にした人の分は含まない。DB を読めなかったときは、全員を前の相手のまま返す。送り直しを、一時的な失敗で捨てないため</returns>
+    /// <returns>送り直す予定。オフにした・通知先を外した・管理者が無効にした人の分は含まない。DB を読めなかったときは、全員を前の相手のまま返す。送り直しを、一時的な失敗で捨てないため</returns>
     /// <remarks>相手の数だけ読まず、全員分を 1 回の問い合わせで読む。</remarks>
     private async Task<List<Retry>> FindCurrentTargetsAsync(List<Retry> group, CancellationToken cancellationToken)
     {
@@ -465,7 +465,7 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
     /// <param name="Change">更新されたノート</param>
     /// <param name="EditorName">更新した人の表示名</param>
     /// <param name="IsCreated">作成の通知か</param>
-    /// <param name="Recipient">通知を受ける人と受け取り先</param>
+    /// <param name="Recipient">通知を受ける人と通知先</param>
     /// <param name="Attempts">これまでに送ろうとした回数</param>
     /// <param name="DueAt">送り直す時刻。最初の送信は使わない</param>
     private sealed record Retry(NoteChange Change, string EditorName, bool IsCreated, NoteRecipient Recipient, int Attempts, DateTimeOffset DueAt);

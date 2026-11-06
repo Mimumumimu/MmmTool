@@ -81,7 +81,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
     /// <summary>作業報告のどの部分から外すか (作業のみ)</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsReportExclusionMark), nameof(ShowsPlanExclusionMark), nameof(ShowsFullExclusionMark))]
+    [NotifyPropertyChangedFor(nameof(ShowsReportExclusionMark), nameof(ShowsPlanExclusionMark), nameof(ShowsFullExclusionMark), nameof(HasMarks))]
     public partial WorkReportExclusion ReportExclusion { get; private set; }
 
     /// <summary>予定に含めない印 (カレンダーに斜線)を、名前のセルに出すか</summary>
@@ -96,7 +96,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>自動入力の時間</summary>
     /// <remarks>作業だけが持つ。0 は自動入力しない。</remarks>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowsAutoEntryMark), nameof(AutoEntryText))]
+    [NotifyPropertyChangedFor(nameof(ShowsAutoEntryMark), nameof(AutoEntryText), nameof(HasMarks))]
     public partial double AutoHours { get; private set; }
 
     /// <summary>自動入力する曜日 (作業だけが持つ)</summary>
@@ -113,6 +113,10 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
 
     /// <summary>名前のセルの右端に出す印の数 (自動入力と、作業報告から外す印)</summary>
     public int MarkCount => (ShowsAutoEntryMark ? 1 : 0) + (ShowsReportExclusionMark ? 1 : 0);
+
+    /// <summary>名前のセルの右端に、印を 1 つでも出すか</summary>
+    /// <remarks>印を並べる領域は、クリックしても名前の入力を始めない場所にするので、印が無い行では、領域ごと出さない。</remarks>
+    public bool HasMarks => MarkCount > 0;
 
     /// <summary>備考 (全文)</summary>
     [ObservableProperty]

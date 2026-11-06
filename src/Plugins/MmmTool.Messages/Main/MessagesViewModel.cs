@@ -160,33 +160,16 @@ public sealed partial class MessagesViewModel(
     [ObservableProperty]
     public partial string ConversationTitle { get; set; } = "";
 
-    /// <summary>入力欄が押せるか。相手が受け取り先を指定しているときだけ</summary>
+    /// <summary>1 対 1 の相手に、通知が届くか。届かなくても送れる</summary>
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
-    [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
-    public partial bool PeerCanReceive { get; set; } = true;
+    [NotifyPropertyChangedFor(nameof(IsPeerNoNotifyVisible))]
+    public partial bool PeerNotifiable { get; set; } = true;
 
-    /// <summary>入力欄を押せるか。自分と相手の両方が受け取り先を指定しているとき</summary>
-    public bool IsInputEnabled => SelfCanReceive && PeerCanReceive;
+    /// <summary>相手に通知が届かないことの案内を出すか</summary>
+    public bool IsPeerNoNotifyVisible => IsConversationOpen && !PeerNotifiable;
 
-    /// <summary>入力欄が押せるか。自分が受け取り先を指定しているときだけ</summary>
-    /// <remarks>送る人も受け取り先を指定していないと送れない。指定は設定ページで行うので、ページが見えるようになったときに読み直す。</remarks>
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendCommand))]
-    [NotifyPropertyChangedFor(nameof(IsNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsSelfNoReceiveTargetVisible))]
-    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
-    public partial bool SelfCanReceive { get; set; } = true;
-
-    /// <summary>「受け取り先が未設定です」の案内を出すか。自分が未設定のときは、自分の案内だけを出す</summary>
-    public bool IsNoReceiveTargetVisible => IsConversationOpen && SelfCanReceive && !PeerCanReceive;
-
-    /// <summary>「自分の受け取り先が未設定です」の案内を出すか</summary>
-    public bool IsSelfNoReceiveTargetVisible => IsConversationOpen && !SelfCanReceive;
-
-    /// <summary>自分の受け取り先が未設定のときの案内の文</summary>
-    public static string SelfNoReceiveTargetText => MessageDraft.SelfNoReceiveTargetMessage;
+    /// <summary>相手に通知が届かないことの案内の文</summary>
+    public static string PeerNoNotifyText => MessageDraft.PeerNoNotifyMessage;
 
     /// <summary>入力した本文</summary>
     [ObservableProperty]
@@ -234,7 +217,7 @@ public sealed partial class MessagesViewModel(
     private int _existingMemberCount;
 
     /// <summary>開いた会話の、相手が受け取れるかを、DB から読み直したか。読み直したあとは、控えの要約の値で上書きしない</summary>
-    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が受け取り先を変えても、控えの要約は古いままになるため。</remarks>
+    /// <remarks>差分の取得は、新しいメッセージのあった会話の要約しか返さないので、相手が通知先を変えても、控えの要約は古いままになるため。</remarks>
     private bool _peerChecked;
 
     /// <summary>これより古いメッセージが、まだあるか</summary>
@@ -296,7 +279,7 @@ public sealed partial class MessagesViewModel(
         if (open)
         {
             opening = OpenAsync(
-                state.ConversationId, state.DraftPeerUserId, state.ConversationTitle, state.PeerCanReceive, state.DraftGroupName, state.DraftGroupMemberIds);
+                state.ConversationId, state.DraftPeerUserId, state.ConversationTitle, state.PeerNotifiable, state.DraftGroupName, state.DraftGroupMemberIds);
             Body = body;
         }
         if (pickPerson)
@@ -331,9 +314,9 @@ public sealed partial class MessagesViewModel(
     /// <param name="value">入力した名前</param>
     partial void OnGroupNameInputChanged(string value) => ConfirmMembersCommand.NotifyCanExecuteChanged();
 
-    /// <summary>相手が受け取り先を指定しているかが変わったら、状態クラスに覚える</summary>
+    /// <summary>相手が通知先を指定しているかが変わったら、状態クラスに覚える</summary>
     /// <param name="value">指定しているか</param>
-    partial void OnPeerCanReceiveChanged(bool value) => state.PeerCanReceive = value;
+    partial void OnPeerNotifiableChanged(bool value) => state.PeerNotifiable = value;
 
     /// <summary>入力中の本文が変わったら、状態クラスに覚える</summary>
     /// <param name="value">本文</param>
@@ -351,22 +334,21 @@ public sealed partial class MessagesViewModel(
         sync.SetViewState(IsConversationOpen ? _conversationId : 0, visible);
         if (visible && IsConversationOpen)
         {
-            // 設定ページで受け取り先を指定して戻ったときに、送れるようにする
-            RefreshSelfCanReceiveAsync().Forget();
-            RefreshPeerCanReceiveAsync().Forget();
+            // 相手が通知先を指定したときに、案内を消す
+            RefreshPeerNotifiableAsync().Forget();
 
             // ウィンドウが隠れている間に届いて、画面に出ていたメッセージを、前面に戻ったここで読んだことにする
             ReportRead();
         }
     }
 
-    /// <summary>開いている 1 対 1 の会話の相手が、受け取り先を指定しているかを、DB から読み直す</summary>
+    /// <summary>開いている 1 対 1 の会話の相手に、通知が届くかを、DB から読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
     /// <remarks>
-    /// 読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。
+    /// 読めなかったときは、前の値のまま。案内が出るかどうかだけで、送れるかは変わらない。
     /// 会話が一覧の要約にまだ無いとき (通知から開いた直後など)は、読まない。要約が入ったときに、<see cref="RefreshConversations"/> がもう一度呼ぶ。
     /// </remarks>
-    private async Task RefreshPeerCanReceiveAsync()
+    private async Task RefreshPeerNotifiableAsync()
     {
         var version = _openVersion;
         var conversationId = _conversationId;
@@ -380,40 +362,20 @@ public sealed partial class MessagesViewModel(
 
         try
         {
-            var canReceive = await repository.CanReceiveAsync(peerUserId);
-            if (version == _openVersion)
+            var receiveState = await repository.GetPeerNotifyStateAsync(conversationId, peerUserId);
+            if (receiveState is not null && version == _openVersion)
             {
                 _peerChecked = true;
-                PeerCanReceive = canReceive;
+                PeerNotifiable = receiveState.PeerNotifiable;
                 if (conversationId > 0)
                 {
-                    await sync.UpdatePeerCanReceiveAsync(conversationId, canReceive);
+                    await sync.UpdatePeerNotifiableAsync(conversationId, receiveState.PeerNotifiable);
                 }
             }
         }
         catch (DataFileException)
         {
-            // 読めなかった。送るときに、サーバーが断る
-        }
-    }
-
-    /// <summary>自分が受け取り先を指定しているかを、DB から読み直す</summary>
-    /// <returns>読み直しの完了を表すタスク</returns>
-    /// <remarks>読めなかったときは、前の値のまま。送るときに、サーバーが同じ決まりで断る。</remarks>
-    private async Task RefreshSelfCanReceiveAsync()
-    {
-        if (sync.UserId <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            SelfCanReceive = await repository.CanReceiveAsync(sync.UserId);
-        }
-        catch (DataFileException)
-        {
-            // 読めなかった。送るときに、サーバーが断る
+            // 読めなかった。案内の出し入れだけなので、前の値のまま
         }
     }
 
@@ -425,7 +387,7 @@ public sealed partial class MessagesViewModel(
     {
         _highlightId = messageId;
         var summary = sync.Conversations.FirstOrDefault(conversation => conversation.Id == conversationId);
-        await OpenAsync(conversationId, 0, summary?.Name ?? "メッセージ", summary?.PeerCanReceive ?? true).ConfigureAwait(true);
+        await OpenAsync(conversationId, 0, summary?.Name ?? "メッセージ", summary?.PeerNotifiable ?? true).ConfigureAwait(true);
     }
 
     /// <summary>人の一覧から、会話を開く</summary>
@@ -442,7 +404,7 @@ public sealed partial class MessagesViewModel(
         }
 
         _highlightId = 0;
-        return OpenAsync(item.Id, 0, item.Name, item.Source.PeerCanReceive);
+        return OpenAsync(item.Id, 0, item.Name, item.Source.PeerNotifiable);
     }
 
     /// <summary>選んだ人との会話を開く。まだ会話が無いときは、空の会話の画面を出す。開けたら、会話の一覧へ戻る</summary>
@@ -455,7 +417,7 @@ public sealed partial class MessagesViewModel(
         {
             var conversationId = await repository.FindDirectConversationAsync(person.Source.UserId);
             _highlightId = 0;
-            await OpenAsync(conversationId, person.Source.UserId, person.DisplayName, peerCanReceive: true);
+            await OpenAsync(conversationId, person.Source.UserId, person.DisplayName, peerNotifiable: true);
             CancelPickPerson();
         }
         catch (DataFileException ex)
@@ -701,7 +663,7 @@ public sealed partial class MessagesViewModel(
             var name = GroupNameInput.Trim();
             _highlightId = 0;
             CancelPickPerson();
-            await OpenAsync(0, 0, name, peerCanReceive: true, name, ids);
+            await OpenAsync(0, 0, name, peerNotifiable: true, name, ids);
             return;
         }
 
@@ -813,12 +775,12 @@ public sealed partial class MessagesViewModel(
     /// <param name="conversationId">会話の番号。まだ会話が無いときは 0</param>
     /// <param name="peerUserId">会話の番号が 0 のとき、1 対 1 の相手の番号</param>
     /// <param name="title">会話の名前</param>
-    /// <param name="peerCanReceive">相手が受け取り先を指定しているか</param>
+    /// <param name="peerNotifiable">相手が通知先を指定しているか</param>
     /// <param name="groupName">会話の番号が 0 のとき、新しいグループの名前。グループでなければ空文字</param>
     /// <param name="groupMemberIds">会話の番号が 0 のとき、新しいグループの参加者の番号。自分は含めない</param>
     /// <returns>開く処理の完了を表すタスク</returns>
     private async Task OpenAsync(
-        int conversationId, int peerUserId, string title, bool peerCanReceive, string groupName = "", IReadOnlyList<int>? groupMemberIds = null)
+        int conversationId, int peerUserId, string title, bool peerNotifiable, string groupName = "", IReadOnlyList<int>? groupMemberIds = null)
     {
         var version = ++_openVersion;
         _conversationId = conversationId;
@@ -831,12 +793,11 @@ public sealed partial class MessagesViewModel(
         state.DraftGroupMemberIds = [.. _draftGroupMemberIds];
         UpdateGroupFlags();
         ConversationTitle = title;
-        PeerCanReceive = peerCanReceive;
+        PeerNotifiable = peerNotifiable;
         IsConversationOpen = true;
         OnPropertyChanged(nameof(SelectedConversation));
-        RefreshSelfCanReceiveAsync().Forget();
         _peerChecked = false;
-        RefreshPeerCanReceiveAsync().Forget();
+        RefreshPeerNotifiableAsync().Forget();
         IsStale = false;
         Body = "";
         ReplyTo = null;
@@ -1044,8 +1005,8 @@ public sealed partial class MessagesViewModel(
         if (!_peerChecked && IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } open)
         {
             // 要約の値は古いことがある。今の値を DB から読み直す
-            PeerCanReceive = open.PeerCanReceive;
-            RefreshPeerCanReceiveAsync().Forget();
+            PeerNotifiable = open.PeerNotifiable;
+            RefreshPeerNotifiableAsync().Forget();
         }
 
         if (IsConversationOpen && _conversationId > 0 && summaries.FirstOrDefault(conversation => conversation.Id == _conversationId) is { } current
@@ -1060,9 +1021,9 @@ public sealed partial class MessagesViewModel(
         OnPropertyChanged(nameof(SelectedConversation));
     }
 
-    /// <summary>送れる状態か。自分と相手が受け取り先を指定していて、本文が空白だけでない</summary>
+    /// <summary>送れる状態か。会話を開いていて、送っている最中でなく、本文が空白だけでない</summary>
     /// <returns>送れるとき true</returns>
-    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(SelfCanReceive, PeerCanReceive, Body);
+    private bool CanSend() => IsConversationOpen && !IsSending && MessageDraft.CanSend(Body);
 
     /// <summary>メッセージを送る。メッセージと通知の状態の行を DB に書く</summary>
     /// <returns>送る処理の完了を表すタスク</returns>
@@ -1080,14 +1041,6 @@ public sealed partial class MessagesViewModel(
             if (result.Outcome != SendMessageOutcome.Sent)
             {
                 Error.Show($"送れませんでした: {OutcomeText(result.Outcome)}");
-                if (result.Outcome == SendMessageOutcome.NoReceiveTarget)
-                {
-                    PeerCanReceive = false;
-                }
-                else if (result.Outcome == SendMessageOutcome.SelfNoReceiveTarget)
-                {
-                    SelfCanReceive = false;
-                }
                 return;
             }
 
@@ -1125,8 +1078,6 @@ public sealed partial class MessagesViewModel(
     /// <returns>理由の文</returns>
     private static string OutcomeText(SendMessageOutcome outcome) => outcome switch
     {
-        SendMessageOutcome.NoReceiveTarget => MessageDraft.NoReceiveTargetMessage,
-        SendMessageOutcome.SelfNoReceiveTarget => MessageDraft.SelfNoReceiveTargetMessage,
         SendMessageOutcome.ReplyInvalid => "返信元のメッセージが見つかりません。",
         SendMessageOutcome.GroupInvalid => "グループの名前か参加者が正しくありません。",
         _ => "会話が見つかりません。",

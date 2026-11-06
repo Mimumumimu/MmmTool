@@ -30,7 +30,7 @@ public interface INoteSendSource
     /// <param name="count">読む最大の人数</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>
-    /// 「ノートの通知を受け取る」がオンで、受け取り先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
+    /// 「ノートの通知を受け取る」がオンで、通知先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
     /// 全員を一度に読まないよう、人数ずつ読む。
     /// </returns>
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
@@ -40,7 +40,7 @@ public interface INoteSendSource
     /// <param name="userIds">調べる人の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>
-    /// <see cref="GetRecipientsAsync"/> と同じ条件を満たす人と、いまの受け取り先。条件を外れた人は含まない。人の番号の順。
+    /// <see cref="GetRecipientsAsync"/> と同じ条件を満たす人と、いまの通知先。条件を外れた人は含まない。人の番号の順。
     /// ノートを最後に更新した人を除く判断はしない。送り直しの予定に入る前に、除いてあるため。
     /// </returns>
     /// <remarks>人の数だけ <see cref="GetRecipientsAsync"/> を呼ぶ代わりに使う。送り直しの前に、相手が条件を満たしているかを確かめるために使う。</remarks>

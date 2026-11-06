@@ -61,19 +61,34 @@
                 MaxLength="{x:Bind core:NoteLimits.TitleMaxLength}"
                 Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-            <!-- 本文。普通の文章で書く。右クリックで、書式やリンクを足せる。ファイルをドロップすると、リンクが入る -->
-            <TextBox
-                x:Name="BodyBox"
-                Grid.Row="1"
-                MinHeight="120"
-                AcceptsReturn="True"
-                AllowDrop="True"
-                FontFamily="BIZ UDGothic, MS Gothic, Consolas"
-                GotFocus="OnJapaneseBoxGotFocus"
-                Header="本文"
-                ScrollViewer.VerticalScrollBarVisibility="Visible"
-                Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                TextWrapping="Wrap" />
+            <!-- 本文。普通の文章で書く。上のボタンか右クリックで、書式やリンクを足せる。ファイルをドロップすると、リンクが入る -->
+            <Grid Grid.Row="1" RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- 書式のボタンの列。ボタンは、右クリックのメニューと同じ定義から、コードで作る。ボタンの左端は、本文欄の枠に合わせる -->
+                <StackPanel
+                    x:Name="FormatBar"
+                    Margin="-4,0,0,0"
+                    Orientation="Horizontal"
+                    Spacing="2" />
+
+                <TextBox
+                    x:Name="BodyBox"
+                    Grid.Row="1"
+                    MinHeight="120"
+                    AcceptsReturn="True"
+                    AllowDrop="True"
+                    AutomationProperties.Name="本文"
+                    FontFamily="BIZ UDGothic, MS Gothic, Consolas"
+                    GotFocus="OnJapaneseBoxGotFocus"
+                    PlaceholderText="本文"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                    Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    TextWrapping="Wrap" />
+            </Grid>
 
             <!-- 期間。終了日が空なら無期限 -->
             <StackPanel

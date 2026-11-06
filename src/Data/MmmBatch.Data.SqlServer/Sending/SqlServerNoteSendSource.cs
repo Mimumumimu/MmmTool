@@ -17,7 +17,7 @@ namespace MmmBatch.Data.SqlServer.Sending;
 /// </summary>
 /// <remarks>
 /// 更新されたノートの読み方は、MmmTool (PC の通知ダイアログ)と共通の <see cref="SqlServerNoteChangeReader"/>。
-/// 通知する相手は、「ノートの通知を受け取る」がオンの人のうち、受け取り先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
+/// 通知する相手は、「ノートの通知を受け取る」がオンの人のうち、通知先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
 /// オンの人は、<c>dbo.AppUserSetting</c> の索引 <c>IX_AppUserSetting_FeatureNo_CategoryNo_CodeNo_Value_UserId</c> で探す。送信先は <c>dbo.NotificationChannel</c> から読む。
 /// 全員を一度に読まないよう、人の番号の順に、指定の人数ずつ読む。
 /// </remarks>
@@ -77,8 +77,8 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
                 SELECT {top}t.UserId, ISNULL(u.DisplayName, N''), c.Id, c.IsDeleted, c.UserId, c.Kind, c.Name, c.Value
                 FROM dbo.AppUserSetting AS t
                 INNER JOIN dbo.AppUserSetting AS s
-                    ON s.UserId = t.UserId AND s.FeatureNo = {ReceiveTarget.FeatureNo} AND s.CategoryNo = {ReceiveTarget.CategoryNo}
-                        AND s.CodeNo = {ReceiveTarget.CodeNo} AND s.IsDeleted = 0
+                    ON s.UserId = t.UserId AND s.FeatureNo = {NotificationTarget.FeatureNo} AND s.CategoryNo = {NotificationTarget.CategoryNo}
+                        AND s.CodeNo = {NotificationTarget.CodeNo} AND s.IsDeleted = 0
                 INNER JOIN dbo.NotificationChannel AS c ON c.Id = TRY_CAST(s.Value AS int) AND c.IsDeleted = 0
                 LEFT JOIN dbo.AppUser AS u ON u.Id = t.UserId
                 WHERE t.FeatureNo = {CodeFeatures.Notes} AND t.CategoryNo = {NotificationFeatureSettings.CategoryNo} AND t.CodeNo = {NotificationFeatureSettings.CodeNo}
