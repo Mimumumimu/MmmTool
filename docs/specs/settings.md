@@ -25,7 +25,8 @@
   - 値の読み書きと画面の状態は、その機能の ViewModel・サービスが持つ (部品の見た目は設定ページと同じ縦並び)
 - 見た目は、Windows 11 の設定アプリと同じ「見出し + カード」にする (ユーザーの決定)
   - PowerToys も同じ現行の形
-  - 区切りの見出しは各部品が先頭に持つ (`App.xaml` の `SettingsSectionHeaderStyle`)
+  - 区切りの見出しは各部品が先頭に持つ (SDK の `AppStyles.xaml` の `SettingsSectionHeaderStyle`)
+  - `AppStyles.xaml` は、各アプリの `App.xaml` が読む
   - 項目は `SettingsCard`(`CommunityToolkit.WinUI.Controls.SettingsControls`)の行にする
   - 左に名前 (`Header`)と説明 (`Description`)を置き、右に操作を置く
   - ページは特定の機能を知らないまま、部品を並べるだけ

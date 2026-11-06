@@ -203,7 +203,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - `IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)
   - 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
 - 入力欄の空のときの薄い文字の色は、アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決める
-  - `App.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの)で、全部の入力欄に効かせる
+  - SDK の `MmmSdk.WinUI/Controls/AppStyles.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの)で、全部の入力欄に効かせる。MmmTool と管理ツールの `App.xaml` が、`XamlControlsResources` の後ろで読む。書き写さない
   - `AppTextBoxStyle` は、`TextBox` の既定のスタイルとして効く
   - 独自のスタイルを付ける `TextBox` は、`AppTextBoxStyle` を `BasedOn` にする
   - 入力欄ごとに `PlaceholderForeground` を指定しない。ページ専用の自作の色も作らない。
