@@ -23,9 +23,6 @@
     - `src/App/MmmToolWeb/Client`: ブラウザで動く Blazor WebAssembly の画面
     - `src/Auth/MmmToolWeb.Auth.Core`: パスキーの手続き
     - `src/Data/MmmToolWeb.Data.SqlServer`: 認証用の表の保存
-- 画面側から `.Core` の判定を使えるようにする
-  - メッセージの「送信」を押せる条件 (本文が空白だけでないこと)が、画面側 (`ConversationPage.razor`)と `MessageDraft.CanSend` の 2 か所にある。
-  - 方向: 判定を 1 か所にして、画面側でも使う。AnyCPU の `.Core` を作るか、判定の結果をサーバーが返す形を、案にして決める。
 
 ## 不具合の調査
 
