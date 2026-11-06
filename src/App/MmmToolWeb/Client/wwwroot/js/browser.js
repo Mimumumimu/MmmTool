@@ -1,3 +1,7 @@
+// iPhone の Safari は、触れた合図 (touchstart)を受ける仕組みが無いと、押している間の見た目 (CSS の :active)を出さないことがある。
+// 何もしない受け手を 1 つ置いて、押している間の見た目を出させる。このファイルを最初に読み込んだときに 1 回だけ置く
+document.addEventListener("touchstart", () => {}, { passive: true });
+
 // ブラウザの時計の今日の日付を、yyyy-MM-dd の形で返す。ブラウザ上の .NET は端末のタイムゾーンを知らないので、ここで決める
 export function todayLocal() {
     const now = new Date();

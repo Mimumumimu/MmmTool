@@ -1,6 +1,7 @@
 @attribute [Route(Route)]
 @implements IAsyncDisposable
 @inject NotesClient Notes
+@inject NotesViewState View
 @inject BrowserClient Browser
 
 <HeadContent>
@@ -14,10 +15,7 @@
 
     <section class="controls" aria-label="表示の条件">
         <div class="day">
-            <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)"><Chevron Left="true" /></button>
             <DatePicker Label="表示する日" Value="_day" OnPicked="OnDayPickedAsync" />
-            <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)"><Chevron /></button>
-            <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
         </div>
         <div class="segments basis" role="radiogroup" aria-label="表示の基準">
             <label class="segment">
@@ -78,7 +76,14 @@
 
     @if (_error is not null)
     {
-        <p class="message" role="alert">@_error</p>
+        <div class="failure" role="alert">
+            <p class="message">@_error</p>
+            <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
+        </div>
+    }
+    @if (_actionError is not null)
+    {
+        <p class="message" role="alert">@_actionError</p>
     }
 
     <main class="cards">
@@ -101,10 +106,6 @@
                 @if (note.IsEventDay)
                 {
                     <div class="event-band">@(note.IsEventToday ? "今日実施" : $"{_day:MM/dd} 実施")</div>
-                }
-                @if (note.Priority >= 4)
-                {
-                    <span class="visually-hidden">重要度 @(note.Priority == 5 ? "最高" : "高")</span>
                 }
                 @if (string.IsNullOrWhiteSpace(note.Body))
                 {
@@ -136,7 +137,12 @@
         }
     </main>
 
-    <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+    <div class="bottom-bar">
+        <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)"><Chevron Left="true" /></button>
+        <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
+        <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)"><Chevron /></button>
+        <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+    </div>
 </div>
 
 @if (_editorOpen)
@@ -161,7 +167,15 @@
     /// <summary>その日に更新したノートを出すか。false は、その日に有効なノート。</summary>
     private bool _updatedBasis;
     private bool _loading = true;
+
+    /// <summary>実際の今日。「今日」を見ている人が、日が変わったあとに戻ったとき、新しい今日で開くために持つ。</summary>
+    private DateOnly _today;
+
+    /// <summary>読み込みの失敗の理由。「もう一度」で読み直せる。</summary>
     private string? _error;
+
+    /// <summary>削除・復元・編集の失敗の理由。読み直しでは直らないので、「もう一度」は付けない。</summary>
+    private string? _actionError;
     private IReadOnlyList<NoteDto> _notes = [];
     private bool _editorOpen;
     private NoteDto? _editing;
@@ -205,9 +219,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _today = await Browser.GetTodayAsync();
+        // 通知から開いた日が先。無ければ前に見ていた日で、今日を見ていたなら新しい今日。それも無ければ今日
         _day = ApiDay.TryParse(OpenDate, out var opened)
             ? opened
-            : await Browser.GetTodayAsync();
+            : View.FollowsToday ? _today : View.Day ?? _today;
+        _updatedBasis = View.UpdatedBasis;
+        _titleOnly = View.TitleOnly;
+        _includeDeleted = View.IncludeDeleted;
         await Browser.ClearUnreadAsync(NoteNoticeKind);
         await LoadAsync();
     }
@@ -228,6 +247,7 @@
     private async Task LoadAsync()
     {
         var version = ++_loadVersion;
+        _actionError = null;
         _loading = true;
         // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
         StateHasChanged();
@@ -369,7 +389,8 @@
 
     private async Task GoTodayAsync()
     {
-        _day = await Browser.GetTodayAsync();
+        _today = await Browser.GetTodayAsync();
+        _day = _today;
         await LoadAsync();
     }
 
@@ -409,7 +430,7 @@
     {
         _editorOpen = false;
         await LoadAsync();
-        _error = message;
+        _actionError = message;
     }
 
     private async Task ConfirmDeleteAsync()
@@ -431,13 +452,20 @@
         await LoadAsync();
         if (!result.Succeeded)
         {
-            _error = result.Message;
+            _actionError = result.Message;
         }
     }
 
     public ValueTask DisposeAsync()
     {
         Browser.BecameVisible -= LoadOnReturnAsync;
+
+        // ホームへ行って戻ったときに、同じ条件で開くために、表示の条件を残す
+        View.Day = _day;
+        View.FollowsToday = _day == _today;
+        View.UpdatedBasis = _updatedBasis;
+        View.TitleOnly = _titleOnly;
+        View.IncludeDeleted = _includeDeleted;
         return ValueTask.CompletedTask;
     }
 }

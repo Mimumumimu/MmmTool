@@ -20,12 +20,6 @@
     color: var(--text);
 }
 
-/* 押している間の反応 */
-.tool:active:not(:disabled),
-.swatch:active {
-    background: var(--border);
-}
-
 .tool[aria-expanded="true"] {
     background: var(--border);
 }

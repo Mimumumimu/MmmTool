@@ -79,6 +79,7 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 枠: `.page` (ホーム・ログイン)・`.screen` (機能の画面)
       - 右下に `.fab` があるときは、`.screen` に `with-fab` を足す。
       - 編集のシートが開いている間は、`.screen` に `behind` を足す。
+    - 画面の下端: `.bottom-bar` は、下端に貼り付ける操作の列。毎日使う操作を左に並べ、主な操作の `.fab` を右端に置く。列の中の `.fab` は浮かべずに並ぶ。列があるときも、`.screen` に `with-fab` を足す。
     - 押せる部品: `.text` (文字だけのボタン)・`.fab` (右下に浮かべる主な操作)・`.check` と `.checks` (チェックの行と、横に並べた行)・`.segments` と `.segment` (横に並べた選択)
       - `.text` には、`.strong` と `.danger` を足せる。
     - 入力の欄: `.form-field` (欄の名前の `span` と入力欄)・`.form-group` (`fieldset`)・`.form-label` (入力欄から離れて置く名前)

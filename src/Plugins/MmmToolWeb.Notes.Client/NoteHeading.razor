@@ -1,5 +1,9 @@
 <div class="title-line">
     <span class="@TitleClass">@Note.Title</span>
+    @if (NotePriorityBadge.Text(Note.Priority) is { } priorityText)
+    {
+        <span class="@(Note.Priority == (int)NotePriority.Highest ? "chip priority highest" : "chip priority")">@priorityText</span>
+    }
     @if (Note.IsUpdatedToday)
     {
         <span class="chip today">今日更新</span>

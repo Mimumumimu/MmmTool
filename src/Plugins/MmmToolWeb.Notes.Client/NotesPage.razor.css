@@ -51,8 +51,19 @@
     margin-top: 0.5rem;
 }
 
-.message {
+/* 読み込みや操作に失敗したとき。理由と、その場の「もう一度」を並べる */
+.failure {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-bottom: 0.75rem;
+}
+
+.failure .message {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
 }
 
 /* 他の機能の内容 (作業報告など)を出すかを選ぶ。押すと開く */
@@ -200,6 +211,19 @@ details[open] > summary.head::after {
     transform: rotate(90deg);
 }
 
+/* 押している間は、見出しの行に薄い灰色を重ねる */
+details > summary.head:active {
+    border-radius: 0.5rem;
+    background-image: linear-gradient(rgba(128, 128, 128, 0.25), rgba(128, 128, 128, 0.25));
+}
+
+/* 「視覚効果を減らす」の設定では、矢印を回さずに切り替える */
+@media (prefers-reduced-motion: reduce) {
+    details > summary.head::after {
+        transition: none;
+    }
+}
+
 /* 本文は、サーバーが組み立てた HTML。ここで作った要素ではないので、::deep で書く */
 .body {
     padding: 0.25rem 0 0.5rem;
@@ -219,14 +243,7 @@ details[open] > summary.head::after {
 .actions {
     display: flex;
     justify-content: flex-end;
+    gap: 0.5rem;
     border-top: 1px solid var(--border);
 }
 
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-}

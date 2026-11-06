@@ -51,6 +51,30 @@
     color: var(--danger);
 }
 
+/* 画面の下端に貼り付ける操作の列。親指が届く位置に、毎日使う操作と主な操作 (.fab)を並べる。ホームバーに隠れないよう、下に安全な余白を取る。.fab は、列の中では浮かべずに並べる */
+.bottom-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 0.5rem calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 0.5rem) calc(env(safe-area-inset-left) + 1rem);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.bottom-bar .fab {
+    position: static;
+    margin-left: auto;
+    box-shadow: none;
+}
+
 /* 右下に浮かべる主な操作。親指で押せる位置に置く */
 .fab {
     position: fixed;
@@ -72,6 +96,10 @@
 @media (display-mode: standalone) {
     .fab {
         bottom: max(0px, env(safe-area-inset-bottom) + 1rem - (100lvh - 100dvh));
+    }
+
+    .bottom-bar {
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom) + 0.5rem - (100lvh - 100dvh));
     }
 }
 

@@ -74,6 +74,15 @@ button {
     font: inherit;
 }
 
+/* 押している間は、地の色を変えずに、薄い灰色を重ねる。地が強調色・危険の色・透明のどれでも、ライトとダークの両方で見える */
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled) {
+    background-image: linear-gradient(rgba(128, 128, 128, 0.25), rgba(128, 128, 128, 0.25));
+}
+
 button.primary {
     background: var(--accent);
     border-color: var(--accent);

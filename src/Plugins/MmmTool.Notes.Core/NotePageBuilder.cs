@@ -138,19 +138,24 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     private static void AppendAction(StringBuilder html, NoteAction action, int noteId, string label)
         => html.Append("<a class=\"action\" href=\"").Append(NoteLinks.ActionUrl(action, noteId)).Append("\">").Append(label).Append("</a>");
 
-    /// <summary>印 (今日の更新・自分だけ・削除済み)を出力に出す</summary>
+    /// <summary>印 (重要度・今日の更新・自分だけ・削除済み)を出力に出す</summary>
     /// <param name="html">出力</param>
     /// <param name="card">カードに出す内容</param>
     /// <param name="isShared">複数の人で共有するか</param>
     private static void AppendBadges(StringBuilder html, NoteCard card, bool isShared)
     {
         var note = card.Note;
-        if (!card.IsUpdatedToday && !note.IsDeleted && !(isShared && note.IsPrivate))
+        var priorityText = NotePriorityBadge.Text((int)note.Priority);
+        if (priorityText is null && !card.IsUpdatedToday && !note.IsDeleted && !(isShared && note.IsPrivate))
         {
             return;
         }
 
         html.Append("<span class=\"badges\">");
+        if (priorityText is not null)
+        {
+            html.Append("<span class=\"badge priority p").Append((int)note.Priority).Append("\">").Append(priorityText).Append("</span>");
+        }
         if (card.IsUpdatedToday)
         {
             html.Append("<span class=\"badge today\">今日更新</span>");
@@ -262,6 +267,8 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             .badges { margin-left:4px; }
             .badge { display:inline-block; margin-left:6px; vertical-align:2px; padding:0 8px; border-radius:10px; font-size:12px; line-height:20px; background:var(--badge); color:var(--badge-text); }
             .badge.today { background:var(--today); color:var(--today-text); }
+            .badge.priority { background:transparent; color:var(--text); border:1px solid var(--p4); line-height:18px; }
+            .badge.priority.p5 { border-color:var(--p5); }
             .body { margin:6px 0 2px 18px; overflow-wrap:anywhere; }
             .body ul, .body ol { margin:4px 0; padding-left:24px; }
 
