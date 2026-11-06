@@ -1,0 +1,334 @@
+/* 画面側の共通のクラス。機能の画面 (Notes・Messages・Reminders・Notifications など)と、ホームやログインが、同じ見た目を 1 か所で持つための CSS。
+   色の名前 (--bg・--accent など)は、本体の app.css の :root に 1 か所で持つ。ここには、クラスだけを書く。
+   画面の CSS (<画面>.razor.css)には、その画面だけの見た目と、余白の違いだけを書く。ここと同じ宣言を、画面の CSS に書き写さない。
+   画面の CSS は、分離の属性が付くので、ここのクラスより強い。余白のような違いは、画面の CSS で上書きできる */
+
+/* ページ・機能の画面の枠 */
+
+.page {
+    box-sizing: border-box;
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 1rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
+}
+
+/* 機能の画面の共通の枠。最大幅・中央寄せ・左右の余白は、ここ 1 か所で決める。上のバー (FeatureHeader)が、左右の余白の 1rem ぶん外へ広がる前提。画面ごとの違い (縦の並び)だけを、各画面の CSS に書く */
+.screen {
+    box-sizing: border-box;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 0 calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1rem) calc(env(safe-area-inset-left) + 1rem);
+}
+
+/* 右下に浮かべる主な操作 (.fab)がある画面。一番下の行が隠れないよう、下をあける */
+.screen.with-fab {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 6rem);
+}
+
+/* 編集のシートが開いている間は、裏の画面を見せない。位置は残る。キーボードで画面がずれても、裏が透けないようにする */
+.screen.behind {
+    visibility: hidden;
+}
+
+/* 押せる部品 */
+
+/* 文字だけのボタン。強調色の文字で、枠も地も無い。押せる範囲は 44 ピクセル以上 */
+.text {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+}
+
+.text.strong {
+    font-weight: 600;
+}
+
+/* 取り返しにくい操作は、文字を危険の色にする */
+.text.danger {
+    color: var(--danger);
+}
+
+/* 右下に浮かべる主な操作。親指で押せる位置に置く */
+.fab {
+    position: fixed;
+    right: calc(env(safe-area-inset-right) + 1rem);
+    bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    z-index: 10;
+    min-width: 2.75rem;
+    min-height: 3.25rem;
+    padding: 0 1.5rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+/* iPhone のホーム画面のアプリは、入力欄を開いたあと、使える高さ (dvh)が画面の高さ (lvh)より縮んだまま戻らないことがある。縮んだ分より下は描かれないので、下へは動かせない。縮んだ分は、すでにホームバーの下に当たるので、余白 (ホームバーの余白と 1rem)から引く。縮んでいなければ、差は 0 */
+@media (display-mode: standalone) {
+    .fab {
+        bottom: max(0px, env(safe-area-inset-bottom) + 1rem - (100lvh - 100dvh));
+    }
+}
+
+/* チェックの行。行の全体を押せる範囲にする。本体の CSS の input は、幅 100% の入力欄の見た目なので、チェックでは、押せる大きさに戻す */
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+.check input {
+    display: inline-block;
+    flex: none;
+    width: 1.5rem;
+    min-height: 0;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+}
+
+/* チェックの行を、横に並べて、入りきらなければ折り返す */
+.checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    margin-top: 0.5rem;
+}
+
+/* 横に並べた選択のセグメントは、div.segments の中に、label.segment (input[type=radio] と span)を並べる。個数は問わず、等分する */
+.segments {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.segment {
+    position: relative;
+    display: block;
+    text-align: center;
+}
+
+.segment + .segment {
+    border-left: 1px solid var(--border);
+}
+
+.segment input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+}
+
+.segment span {
+    display: block;
+    min-height: 2.75rem;
+    line-height: 2.75rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.segment input:checked + span {
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+}
+
+.segment input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* 入力の欄 */
+
+/* 欄の名前と入力欄。名前 (span)は欄の上に常に出す。長さを決めたいときは、使う側で max-width を決める */
+.form-field {
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.form-field > span,
+.form-group > legend {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
+    font-size: 1rem;
+}
+
+.form-field textarea {
+    resize: vertical;
+    line-height: 1.6;
+}
+
+/* 入力欄から離れて置く、欄の名前。label の for で、入力欄と結ぶ */
+.form-label {
+    display: block;
+    margin: 0.75rem 0 0.25rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+/* 欄のまとまりの fieldset。見出しは legend に書く */
+.form-group {
+    min-width: 0;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 0;
+}
+
+/* 文字の見せ方 */
+
+/* 欄の下の、薄い補足 */
+.hint {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+/* 薄い文字 */
+.muted {
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+/* 節の見出しの上や下に置く、薄い小さな見出し */
+.caption {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 400;
+}
+
+/* 何もないときの表示 */
+.empty {
+    margin: 1.5rem 0;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* 失敗の文 */
+.message {
+    margin: 0 0 1rem;
+    color: var(--danger);
+}
+
+/* 知らせの帯。枠と地を付けて、本文と区別する */
+.info {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+}
+
+/* 操作の結果の帯。失敗のときは .error を足して、文字を危険の色にする */
+.result {
+    margin: 0.75rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    overflow-wrap: anywhere;
+}
+
+.result.error {
+    color: var(--danger);
+}
+
+/* 一覧と、一覧の中の枠 */
+
+.list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.list li + li {
+    margin-top: 0.5rem;
+}
+
+/* 一覧の 1 件の枠。余白は、使う側で必要なら上書きする */
+.card {
+    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+/* 通知を押して開いたものは、枠を強調色にする */
+.card.selected {
+    border-color: var(--accent);
+    outline: 1px solid var(--accent);
+}
+
+/* 完了と削除済みは、薄くする */
+.card.finished,
+.card.deleted {
+    opacity: 0.6;
+}
+
+/* 裏の画面を暗くする幕。置き方は、.center (中央に出すダイアログ)か .bottom (下から出すシート)で決める。.front は、ほかのシートより前に出す */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.backdrop.center {
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.backdrop.bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.backdrop.front {
+    z-index: 40;
+}
+
+/* 下から出るシートの箱。幅・余白・高さは、使う側で決める。ホームバーに隠れないよう、下の余白は使う側で取る */
+.bottom-panel {
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: 1rem 1rem 0 0;
+    background: var(--surface);
+    color: var(--text);
+}

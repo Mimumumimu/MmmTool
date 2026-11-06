@@ -12,7 +12,7 @@
 
     @if (_loaded && !IsRegistered)
     {
-        <p class="hint" role="status">
+        <p class="info" role="status">
             この端末は通知を受け取りません。
             <a href="settings">設定で、この端末を登録してください</a>
         </p>
@@ -21,7 +21,7 @@
     @if (_loaded)
     {
         <section class="block">
-            <h2>受け取った通知</h2>
+            <h2 class="caption">受け取った通知</h2>
             @if (_receivedError is not null)
             {
                 <p class="result error" role="alert">@_receivedError</p>
@@ -207,7 +207,7 @@
 
     /// <summary>通知 1 件の見た目の区分。未読と、押して開いた通知を、見分ける。</summary>
     private string ItemClass(ReceivedNotificationDto notification)
-        => $"item{(IsUnread(notification) ? " unread" : "")}{(notification.Key == Item ? " selected" : "")}";
+        => $"card item{(IsUnread(notification) ? " unread" : "")}{(notification.Key == Item ? " selected" : "")}";
 
     /// <summary>通知のリンクを、押して開ける形か。http と https だけ。パソコンのファイルの場所は、iPhone では開けない。</summary>
     private static bool IsOpenableLink(string? link)

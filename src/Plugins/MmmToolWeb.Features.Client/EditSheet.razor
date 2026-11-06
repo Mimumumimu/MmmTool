@@ -1,0 +1,41 @@
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <header class="sheet-bar">
+        <button type="button" class="text" @onclick="OnCancel" disabled="@CancelDisabled">キャンセル</button>
+        <h2 id="sheet-title">@Title</h2>
+        <button type="button" class="text strong" @onclick="OnConfirm" disabled="@ConfirmDisabled">@ConfirmText</button>
+    </header>
+
+    <div class="sheet-body">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>シートの名前。上のバーの中央に出し、読み上げにも使う。</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    /// <summary>確定するボタンの名前。</summary>
+    [Parameter]
+    public string ConfirmText { get; set; } = "保存";
+
+    /// <summary>キャンセルを押したときの処理。シートを閉じるのは呼び出し側。</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>確定するボタンを押したときの処理。シートを閉じるのは呼び出し側。</summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnConfirm { get; set; }
+
+    /// <summary>true のとき、キャンセルを押せなくする。保存中など。</summary>
+    [Parameter]
+    public bool CancelDisabled { get; set; }
+
+    /// <summary>true のとき、確定するボタンを押せなくする。保存中や、入力が足りないとき。</summary>
+    [Parameter]
+    public bool ConfirmDisabled { get; set; }
+
+    /// <summary>シートの中身。入力欄を、スクロールする本体に並べる。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -17,7 +17,7 @@ else
             <p class="result error" role="alert">@_error</p>
         }
 
-        <label class="field" for="group-rename">グループ名</label>
+        <label class="form-label" for="group-rename">グループ名</label>
         <div class="rename">
             <input id="group-rename" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
             <button type="button" @onclick="RenameAsync" disabled="@(!CanRename || _busy)">保存</button>
@@ -25,10 +25,10 @@ else
 
         <h2>参加者 @(Readers.Count + 1) 人</h2>
         <ul class="list" aria-label="参加者">
-            <li class="member">自分</li>
+            <li class="card member">自分</li>
             @foreach (var reader in Readers)
             {
-                <li class="member">@reader.DisplayName</li>
+                <li class="card member">@reader.DisplayName</li>
             }
         </ul>
 
@@ -38,16 +38,9 @@ else
 
     @if (_confirmLeave)
     {
-        <div class="backdrop">
-            <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="leave-title">
-                <h2 id="leave-title">グループを抜けますか？</h2>
-                <p>抜けると、このグループのメッセージを読めなくなります。もう一度入るには、参加者に追加してもらう必要があります。</p>
-                <div class="buttons">
-                    <button type="button" @onclick="CancelLeave">キャンセル</button>
-                    <button type="button" class="danger-fill" @onclick="LeaveAsync">抜ける</button>
-                </div>
-            </div>
-        </div>
+        <ConfirmDialog Title="グループを抜けますか？" ConfirmText="抜ける"
+                       Message="抜けると、このグループのメッセージを読めなくなります。もう一度入るには、参加者に追加してもらう必要があります。"
+                       OnConfirm="LeaveAsync" OnCancel="CancelLeave" />
     }
 }
 

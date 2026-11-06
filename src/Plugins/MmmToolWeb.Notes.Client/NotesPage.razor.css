@@ -22,27 +22,6 @@
     }
 }
 
-.screen {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 6rem);
-}
-
-/* 編集のシートが開いている間は、裏の画面を見せない。位置は残る。キーボードで画面がずれても、裏が透けないようにする */
-.screen.behind {
-    visibility: hidden;
-}
-
-.text {
-    min-height: 2.75rem;
-    padding: 0 0.75rem;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-}
-
-.text.danger {
-    color: var(--danger);
-}
-
 .icon {
     display: grid;
     place-items: center;
@@ -72,33 +51,8 @@
     margin-top: 0.5rem;
 }
 
-.options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 1.25rem;
-    margin-top: 0.5rem;
-}
-
-.option {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 2.75rem;
-}
-
-.option input {
-    display: inline-block;
-    flex: none;
-    width: 1.5rem;
-    min-height: 0;
-    height: 1.5rem;
-    margin: 0;
-    padding: 0;
-}
-
 .message {
-    margin: 0 0 0.75rem;
-    color: var(--danger);
+    margin-bottom: 0.75rem;
 }
 
 /* 他の機能の内容 (作業報告など)を出すかを選ぶ。押すと開く */
@@ -128,10 +82,7 @@
 
 /* 他の機能の内容の枠。ノートのカードと同じ見た目で、文は等幅のフォントで出す */
 .frame {
-    padding: 0.5rem 0.75rem 0.25rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
+    padding-bottom: 0.25rem;
 }
 
 .frame .title {
@@ -153,12 +104,6 @@
     gap: 0.5rem;
 }
 
-.empty {
-    margin: 1rem 0 0;
-    text-align: center;
-    color: var(--muted);
-}
-
 .empty-date {
     display: block;
     margin-bottom: 0.25rem;
@@ -167,10 +112,7 @@
 
 .card {
     position: relative;
-    padding: 0.5rem 0.75rem 0.25rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
+    padding-bottom: 0.25rem;
 }
 
 .card.p5 {
@@ -227,10 +169,6 @@
     }
 }
 
-.card.deleted {
-    opacity: 0.6;
-}
-
 .head {
     display: block;
     padding: 0.25rem 1.5rem 0.25rem 0;
@@ -282,21 +220,6 @@ details[open] > summary.head::after {
     display: flex;
     justify-content: flex-end;
     border-top: 1px solid var(--border);
-}
-
-.fab {
-    position: fixed;
-    right: calc(env(safe-area-inset-right) + 1rem);
-    bottom: calc(env(safe-area-inset-bottom) + 1rem);
-    z-index: 10;
-    min-height: 3.25rem;
-    padding: 0 1.5rem;
-    border: 0;
-    border-radius: 999px;
-    background: var(--accent);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    color: var(--accent-text);
-    font-weight: 600;
 }
 
 .visually-hidden {

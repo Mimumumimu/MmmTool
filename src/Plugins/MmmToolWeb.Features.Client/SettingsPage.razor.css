@@ -10,3 +10,8 @@
     margin: 0 0 0.75rem;
     font-size: 1.05rem;
 }
+
+/* 節の中身は、機能の部品が出す要素なので、::deep で書く。節の中の操作の結果の帯は、上ではなく下に余白を取る */
+.section ::deep .result {
+    margin: 0 0 0.75rem;
+}

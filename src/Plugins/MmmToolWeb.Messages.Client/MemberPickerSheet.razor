@@ -6,7 +6,7 @@
 
     @if (ShowName)
     {
-        <label class="field" for="group-name">グループ名</label>
+        <label class="form-label" for="group-name">グループ名</label>
         <input id="group-name" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
     }
 
@@ -26,7 +26,7 @@
         @foreach (var person in People)
         {
             <li>
-                <label class="row">
+                <label class="card check">
                     <input type="checkbox" checked="@_selected.Contains(person.UserId)" @onchange="e => Toggle(person.UserId, e.Value is true)" />
                     <span>@person.DisplayName</span>
                 </label>

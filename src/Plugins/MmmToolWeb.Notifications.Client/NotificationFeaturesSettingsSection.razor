@@ -9,7 +9,7 @@
 
     @foreach (var feature in _features)
     {
-        <label class="option">
+        <label class="check">
             <input type="checkbox" role="switch" checked="@feature.IsOn" disabled="@_saving"
                    @onchange="e => SaveAsync(feature, (bool)e.Value!)" />
             <span>@feature.Name</span>

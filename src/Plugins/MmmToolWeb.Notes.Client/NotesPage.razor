@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
 </HeadContent>
 
-<div class="@(_editorOpen ? "screen behind" : "screen")">
+<div class="@(_editorOpen ? "screen with-fab behind" : "screen with-fab")">
     <FeatureHeader Title="ノート" Busy="_loading">
         <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
     </FeatureHeader>
@@ -30,12 +30,12 @@
                 <span>更新日</span>
             </label>
         </div>
-        <div class="options">
-            <label class="option">
+        <div class="checks">
+            <label class="check">
                 <input type="checkbox" role="switch" checked="@_titleOnly" @onchange="e => _titleOnly = (bool)e.Value!" />
                 <span>タイトルだけ</span>
             </label>
-            <label class="option">
+            <label class="check">
                 <input type="checkbox" checked="@_includeDeleted" @onchange="OnIncludeDeletedChangedAsync" />
                 <span>削除したものも表示</span>
             </label>
@@ -47,14 +47,14 @@
                 @foreach (var source in _sources)
                 {
                     <div class="source">
-                        <label class="option">
+                        <label class="check">
                             <input type="checkbox" checked="@source.Enabled" @onchange="e => OnSourceEnabledChangedAsync(source, (bool)e.Value!)" />
                             <span>@source.Title</span>
                         </label>
                         @if (source.Enabled)
                         {
                             <div class="source-detail">
-                                <label class="option">
+                                <label class="check">
                                     <input type="checkbox" checked="@source.Everyone" @onchange="e => OnSourceEveryoneChangedAsync(source, (bool)e.Value!)" />
                                     <span>全員の分も出す</span>
                                 </label>
@@ -64,7 +64,7 @@
                                 </div>
                                 @foreach (var option in source.Options)
                                 {
-                                    <label class="option">
+                                    <label class="check">
                                         <input type="checkbox" checked="@source.On.Contains(option.Key)" @onchange="e => OnSourceOptionChangedAsync(source, option.Key, (bool)e.Value!)" />
                                         <span>@option.Label</span>
                                     </label>
@@ -85,7 +85,7 @@
     <main class="cards">
         @foreach (var frame in _frames)
         {
-            <section class="frame">
+            <section class="card frame">
                 <details open="@(!_titleOnly)">
                     <summary class="head"><span class="title">@frame.Title</span></summary>
                     <pre class="frame-text">@frame.Text</pre>

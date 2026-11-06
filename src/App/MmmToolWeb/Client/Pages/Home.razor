@@ -16,7 +16,7 @@
     {
         @if (UnavailableReason is not null)
         {
-            <p class="notice" role="status">@UnavailableReason</p>
+            <p class="info" role="status">@UnavailableReason</p>
         }
 
         <button type="button" class="primary" @onclick="LoginAsync" disabled="@_busy">パスキーでログイン</button>

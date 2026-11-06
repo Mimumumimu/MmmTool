@@ -5,28 +5,8 @@
     min-height: 100dvh;
 }
 
-.result {
-    margin: 0.75rem 0 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    overflow-wrap: anywhere;
-}
-
-.result.error {
-    color: var(--danger);
-}
-
 .block {
     margin-top: 1.5rem;
-}
-
-.block h2 {
-    margin: 0 0 0.5rem;
-    color: var(--muted);
-    font-size: 0.8125rem;
-    font-weight: 400;
 }
 
 .block p {
@@ -34,21 +14,12 @@
     overflow-wrap: anywhere;
 }
 
-.muted {
-    color: var(--muted);
-    font-size: 0.875rem;
-}
-
-/* この端末が通知を受け取れないときの案内。設定の画面へ移る操作を添える */
-.hint {
+/* この端末が通知を受け取れないときの案内。設定の画面へ移る操作を添える。帯の見た目は、共通の .info */
+.info {
     margin: 0.75rem 0 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
 }
 
-.hint a {
+.info a {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
@@ -61,23 +32,14 @@
     list-style: none;
 }
 
+/* 通知 1 件。枠と余白と、押して開いた通知の強調は、共通の .card */
 .item {
     margin-bottom: 0.75rem;
-    padding: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
 }
 
 /* 未読は、左の太い線と「未読」の文字で示す。色だけに頼らない */
 .item.unread {
     border-left: 0.25rem solid var(--accent);
-}
-
-/* 通知を押して開いたものは、枠を強調色にする */
-.item.selected {
-    border-color: var(--accent);
-    outline: 1px solid var(--accent);
 }
 
 .meta {

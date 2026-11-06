@@ -9,14 +9,14 @@
     }
     else
     {
-        <span class="empty">日付を選ぶ</span>
+        <span class="placeholder">日付を選ぶ</span>
     }
 </button>
 
 @if (_open)
 {
-    <div class="picker-back" @onclick="CloseAsync">
-        <div class="picker" role="dialog" aria-modal="true" aria-label="日付を選ぶ" tabindex="-1" @ref="_dialog"
+    <div class="backdrop bottom front" @onclick="CloseAsync">
+        <div class="bottom-panel picker" role="dialog" aria-modal="true" aria-label="日付を選ぶ" tabindex="-1" @ref="_dialog"
              @onclick:stopPropagation="true" @onkeydown="OnKeyDownAsync">
             <div class="nav">
                 <button type="button" class="step" aria-label="前の月" @onclick="() => MoveMonthAsync(-1)"><Chevron Left="true" /></button>

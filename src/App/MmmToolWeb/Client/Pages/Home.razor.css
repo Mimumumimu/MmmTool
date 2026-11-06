@@ -4,18 +4,12 @@
     color: var(--muted);
 }
 
-/* パスキーを使えない理由。使える人には出ない */
-.notice {
-    margin: 0 0 1rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
+/* ログインや登録の失敗の文。直前の部品との間を、上下とも 1rem あける */
+.message {
+    margin: 1rem 0;
 }
 
-/* 登録の枠の見出しの下の説明。文字は 12 ピクセルを下回らない */
+/* 登録の枠の見出しの下の説明。文字の見た目は、共通の .hint。段落なので、下に余白を取る */
 .hint {
     margin: 0 0 0.5rem;
-    color: var(--muted);
-    font-size: 0.85rem;
 }

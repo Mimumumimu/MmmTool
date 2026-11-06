@@ -14,10 +14,10 @@
 
     @if (_loaded)
     {
-        <h3>この端末</h3>
+        <h3 class="caption">この端末</h3>
         <p>@StatusText</p>
 
-        <h3>登録済みの端末</h3>
+        <h3 class="caption">登録済みの端末</h3>
         @if (_devices.Count == 0)
         {
             <p class="muted">登録した端末はありません。</p>

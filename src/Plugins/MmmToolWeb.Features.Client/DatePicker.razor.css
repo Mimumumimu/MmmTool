@@ -25,47 +25,22 @@
     border: 2px solid var(--danger);
 }
 
-.trigger .empty {
+.trigger .placeholder {
     color: var(--muted);
 }
 
-/* カレンダーは、画面の下から出す。片手の親指が届く位置で、押せる範囲を 44 ピクセル以上にするため。ライトとダークの両方の値を持つ */
-.picker-back {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-}
-
+/* カレンダーは、画面の下から出す。片手の親指が届く位置で、押せる範囲を 44 ピクセル以上にするため。幕と箱の共通の見た目は、.backdrop.bottom.front と .bottom-panel。土曜と日曜の色は、本体の app.css の --saturday と --sunday */
 .picker {
     /* 並べる順を、CSS の order で入れ替えるため、縦の並びにする */
     display: flex;
     flex-direction: column;
-    /* 土曜は青、日曜と祝日は赤。PC 版のカレンダーの日の下の線と同じ色 */
-    --saturday: #1e5ac8;
-    --sunday: #c42b1c;
-    box-sizing: border-box;
-    width: 100%;
     max-width: 24rem;
     padding: 1rem 1rem calc(env(safe-area-inset-bottom) + 0.75rem);
-    border-radius: 1rem 1rem 0 0;
-    background: var(--surface);
-    color: var(--text);
     outline: none;
     /* 横向きの iPhone のように高さが足りないときは、シートの中でスクロールする。裏の画面は動かさない */
     max-height: calc(100dvh - 1rem);
     overflow-y: auto;
     overscroll-behavior: contain;
-}
-
-@media (prefers-color-scheme: dark) {
-    .picker {
-        --saturday: #78aaff;
-        --sunday: #ff99a4;
-    }
 }
 
 /* 月を移る行。押せる部品の間は 8 ピクセルあける */
@@ -192,12 +167,4 @@
     display: flex;
     justify-content: space-between;
     margin-top: 0.5rem;
-}
-
-.text {
-    min-height: 2.75rem;
-    padding: 0 0.75rem;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
 }

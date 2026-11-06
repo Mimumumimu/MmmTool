@@ -1,0 +1,49 @@
+/* 画面全体を覆う入力のシート。ホーム画面のアプリで、ノッチとホームバーに隠れないように、安全な余白を取る */
+.sheet {
+    position: fixed;
+    /* 上端と高さは、js/keyboard.js が、キーボードを除いた見える範囲に合わせる。値が無いときは、画面いっぱい */
+    top: var(--sheet-top, 0);
+    left: 0;
+    right: 0;
+    height: var(--sheet-height, 100%);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overscroll-behavior: contain;
+}
+
+.sheet-bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: calc(env(safe-area-inset-top) + 1rem) calc(env(safe-area-inset-right) + 0.5rem) 0.25rem calc(env(safe-area-inset-left) + 0.5rem);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.sheet-bar h2 {
+    margin: 0;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.sheet-bar .text:first-child {
+    justify-self: start;
+}
+
+.sheet-bar .text:last-child {
+    justify-self: end;
+}
+
+.sheet-body {
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 1rem calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + 1.5rem) calc(env(safe-area-inset-left) + 1rem);
+}

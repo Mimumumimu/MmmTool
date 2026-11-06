@@ -61,5 +61,24 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 読み込みや送信を待つ間は、`Busy` に true を渡して、進行バーを出す。
     - 速く終わっても見える最低の時間 (0.4 秒)は、`FeatureHeader` が持つ。
   - ホームは `/home` で、ログインのあとは常にここへ移る。ログアウトは `SessionClient`。
-  - 色は、`app.css` の名前つきの色 (`--bg`・`--surface`・`--text`・`--muted`・`--accent`・`--accent-text`・`--border`・`--danger`・`--disabled`)を使う。
+  - 色は、`app.css` の名前つきの色 (`--bg`・`--surface`・`--text`・`--muted`・`--accent`・`--accent-text`・`--border`・`--danger`・`--disabled`・`--danger-fill`・`--danger-fill-text`・`--saturday`・`--sunday`)を使う。
     - 押せない部品の文字は `--disabled`
+    - 色の値は、`app.css` の `:root` に、ライトとダークの両方を 1 回だけ書く。画面の CSS に、同じ意味の色を書き写さない。
+  - 共通のクラスは、`MmmToolWeb.Features.Client` の `wwwroot/css/features.css` にある。画面の `<画面>.razor.css` には、その画面だけの見た目と、余白の違いだけを書く。同じ宣言を書き写さない。
+    - 共通のクラスは、機能を足しても増やさず、そのまま使う。足りないときは、`features.css` に足して、全部の画面で使えるようにする。
+    - 枠: `.page` (ホーム・ログイン)・`.screen` (機能の画面)
+      - 右下に `.fab` があるときは、`.screen` に `with-fab` を足す。
+      - 編集のシートが開いている間は、`.screen` に `behind` を足す。
+    - 押せる部品: `.text` (文字だけのボタン)・`.fab` (右下に浮かべる主な操作)・`.check` と `.checks` (チェックの行と、横に並べた行)・`.segments` と `.segment` (横に並べた選択)
+      - `.text` には、`.strong` と `.danger` を足せる。
+    - 入力の欄: `.form-field` (欄の名前の `span` と入力欄)・`.form-group` (`fieldset`)・`.form-label` (入力欄から離れて置く名前)
+    - 文字と帯: `.hint` (欄の下の補足)・`.muted`・`.caption` (薄い小さな見出し)・`.empty` (何もないとき)・`.message` (失敗の文)・`.info` (知らせの帯)・`.result` と `.result.error` (操作の結果の帯)
+    - 一覧: `.list`・`.card` (1 件の枠)
+      - `.card` には、`.selected`・`.finished`・`.deleted` を足せる。
+    - 幕と箱: `.backdrop` (`.center`・`.bottom`・`.front`)・`.bottom-panel`
+    - 同じ名前で意味の違うクラスを、画面の CSS に作らない。`.field`・`.hint` を別の意味で使って、共通のクラスと混ざった前例がある。
+  - 構造のある部品は、`Features.Client` の部品を使う。
+    - `FeatureHeader` (上のバー)・`SheetFrame` (全画面のシート)・`EditSheet` (入力のシート)・`ConfirmDialog` (取り返しにくい操作の確認)・`Chevron` (山形)・`DatePicker`
+      - `SheetFrame` の上のバーは、`FeatureHeader` を使う。
+      - `EditSheet` は、左にキャンセル・右に確定を置き、キーボードを出すと高さが縮む。
+    - 確認のダイアログや、山形の SVG を、画面の側に作らない。

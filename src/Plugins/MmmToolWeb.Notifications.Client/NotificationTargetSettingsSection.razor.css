@@ -1,47 +1,8 @@
-/* 設定の画面の「通知先」の節。通知先を選ぶ */
-.result {
-    margin: 0 0 0.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    overflow-wrap: anywhere;
-}
-
-.result.error {
-    color: var(--danger);
-}
-
-.field {
-    display: block;
+/* 設定の画面の「通知先」の節。通知先を選ぶ。選ぶ欄と、その下の補足は近くに置くので、欄の下の余白を詰める。段落の補足は、下の余白を持たせない */
+.form-field {
     margin-bottom: 0.5rem;
 }
 
-.field > span {
-    display: block;
-    margin-bottom: 0.25rem;
-    color: var(--muted);
-    font-size: 0.8125rem;
-}
-
-.field select {
-    box-sizing: border-box;
-    display: block;
-    width: 100%;
-    min-height: 2.75rem;
-    margin: 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    color: var(--text);
-    font: inherit;
-    /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
-    font-size: 1rem;
-}
-
-.note {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.8125rem;
+.hint {
+    margin-bottom: 0;
 }

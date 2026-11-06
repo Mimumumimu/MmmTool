@@ -9,10 +9,10 @@
 
     @if (_loaded && _channels.Count == 0)
     {
-        <p class="note" role="status">登録した端末がありません。上の「通知」の節で、この端末を登録してください。</p>
+        <p class="hint" role="status">登録した端末がありません。上の「通知」の節で、この端末を登録してください。</p>
     }
 
-    <label class="field">
+    <label class="form-field">
         <span>通知先</span>
         <select disabled="@(_channels.Count == 0 || _saving)" @onchange="SaveAsync">
             <option value="0" selected="@(_selected == 0)">指定しない</option>
@@ -22,7 +22,7 @@
             }
         </select>
     </label>
-    <p class="note">ほかの人から届いた通知を、選んだ端末で受け取ります。</p>
+    <p class="hint">ほかの人から届いた通知を、選んだ端末で受け取ります。</p>
 </div>
 
 @code {

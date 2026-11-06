@@ -3,91 +3,89 @@
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
-<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-    <header class="sheet-bar">
-        <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
-        <h2 id="sheet-title">@(Note is null ? "新規ノート" : "ノートの編集")</h2>
-        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)">保存</button>
-    </header>
+<EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="CannotSave" OnCancel="OnCancel" OnConfirm="SaveAsync">
+    @if (_error is not null)
+    {
+        <p class="message" role="alert">@_error</p>
+    }
 
-    <div class="sheet-body">
-        @if (_error is not null)
-        {
-            <p class="message" role="alert">@_error</p>
-        }
+    <label class="form-field">
+        <span>タイトル</span>
+        <input type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
+    </label>
 
-        <label class="field">
-            <span>タイトル</span>
-            <input type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
-        </label>
+    <label class="form-field">
+        <span>本文</span>
+        <textarea rows="10" @bind="_body" @bind:event="oninput"></textarea>
+    </label>
 
-        <label class="field">
-            <span>本文</span>
-            <textarea rows="10" @bind="_body" @bind:event="oninput"></textarea>
-        </label>
-
-        <div class="dates">
-            <div class="field">
-                <span>開始日</span>
-                <DatePicker Label="開始日" Value="_start" Invalid="IsEventOutOfPeriod" OnPicked="OnStartPicked" />
-            </div>
-
-            <div class="field">
-                <span>終了日</span>
-                <DatePicker Label="終了日" Value="_end" Invalid="IsEventOutOfPeriod" OnPicked="OnEndPicked" />
-                <div class="end-footer">
-                    <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
-                </div>
-                @if (_end is null)
-                {
-                    <small class="hint">空のときは無期限です</small>
-                }
-            </div>
+    <div class="dates">
+        <div class="form-field">
+            <span>開始日</span>
+            <DatePicker Label="開始日" Value="_start" Invalid="IsEventOutOfPeriod" OnPicked="OnStartPicked" />
         </div>
 
-        <div class="dates">
-            <div class="field">
-                <span>実施日</span>
-                <DatePicker Label="実施日" Value="_eventDate" Invalid="IsEventOutOfPeriod" OnPicked="OnEventPicked" />
-                <div class="end-footer">
-                    <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
-                </div>
+        <div class="form-field">
+            <span>終了日</span>
+            <DatePicker Label="終了日" Value="_end" Invalid="IsEventOutOfPeriod" OnPicked="OnEndPicked" />
+            <div class="end-footer">
+                <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
             </div>
+            @if (_end is null)
+            {
+                <small class="hint">空のときは無期限です</small>
+            }
         </div>
-
-        @if (IsEventOutOfPeriod)
-        {
-            <p class="alert" role="alert">実施日 (@EventText)が期間の外です。開始日・終了日か実施日を直してください。</p>
-        }
-        else if (_info is not null)
-        {
-            <p class="info" role="status">@_info</p>
-        }
-
-        <fieldset class="priority">
-            <legend>重要度</legend>
-            <div class="segments">
-                @foreach (var (value, label) in Priorities)
-                {
-                    <label class="segment">
-                        <input type="radio" name="priority" checked="@(_priority == value)" @onchange="() => _priority = value" />
-                        <span>@label</span>
-                    </label>
-                }
-            </div>
-        </fieldset>
-
-        @if (Note is null || Note.IsMine)
-        {
-            <label class="check">
-                <input type="checkbox" @bind="_private" />
-                <span>自分だけに表示</span>
-            </label>
-        }
     </div>
-</div>
+
+    <div class="dates">
+        <div class="form-field">
+            <span>実施日</span>
+            <DatePicker Label="実施日" Value="_eventDate" Invalid="IsEventOutOfPeriod" OnPicked="OnEventPicked" />
+            <div class="end-footer">
+                <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
+            </div>
+        </div>
+    </div>
+
+    @if (IsEventOutOfPeriod)
+    {
+        <p class="alert" role="alert">実施日 (@EventText)が期間の外です。開始日・終了日か実施日を直してください。</p>
+    }
+    else if (_info is not null)
+    {
+        <p class="info" role="status">@_info</p>
+    }
+
+    <fieldset class="form-group">
+        <legend>重要度</legend>
+        <div class="segments">
+            @foreach (var (value, label) in Priorities)
+            {
+                <label class="segment">
+                    <input type="radio" name="priority" checked="@(_priority == value)" @onchange="() => _priority = value" />
+                    <span>@label</span>
+                </label>
+            }
+        </div>
+    </fieldset>
+
+    @if (Note is null || Note.IsMine)
+    {
+        <label class="check">
+            <input type="checkbox" @bind="_private" />
+            <span>自分だけに表示</span>
+        </label>
+    }
+</EditSheet>
 
 @code {
+    /// <summary>シートの名前。新規か編集かで変える。</summary>
+    private string SheetTitle => Note is null ? "新規ノート" : "ノートの編集";
+
+    /// <summary>保存できないとき true。保存中と、タイトルが空のときと、実施日が期間の外のとき。</summary>
+    private bool CannotSave => _saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod;
+
     /// <summary>重要度の選択肢。左が低く、右が高い。</summary>
     private static readonly (int Value, string Label)[] Priorities = [(1, "最低"), (2, "低"), (3, "中"), (4, "高"), (5, "最高")];
 
