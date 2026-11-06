@@ -18,7 +18,7 @@ namespace MmmTool.Data.SqlServer.Messages;
 /// </summary>
 /// <remarks>
 /// 読むたびに DB から読む。操作した人は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
-/// 通知の状態を変えるのは MmmBatch で、ここは行を足すだけ。受け取り先の送信先の値は、読まない。
+/// 通知の状態を変えるのは MmmBatch で、ここは行を足すだけ。通知先の送信先の値は、読まない。
 /// 差分の取得は、会話の数に関係なく、<c>MessageDelivery (UserId, UpdatedAt)</c>・<c>Message (SenderUserId, UpdatedAt)</c>・
 /// <c>MessageConversationMember (UserId, UpdatedAt)</c> の索引 3 回で読む。
 /// 読んだ位置を書くときは、同じ会話のほかの参加者の行の更新日時も進めるので、3 つ目の索引が、読んだ位置の変わりも届ける。
@@ -54,11 +54,11 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// 人の番号を表す式は、<c>{0}</c> に入れる。
     /// 通知の状態の行を書く相手を決めることと、相手に通知が届かないことの案内に使う。送れるかどうかには使わない。
     /// </remarks>
-    private static readonly string ReceiveTargetExists =
+    private static readonly string NotificationTargetExists =
         $$"""
         (EXISTS (SELECT 1 FROM dbo.AppUserSetting AS s
                 INNER JOIN dbo.NotificationChannel AS nc ON nc.Id = TRY_CAST(s.Value AS int) AND nc.IsDeleted = 0
-                WHERE s.UserId = {0} AND s.FeatureNo = {{ReceiveTarget.FeatureNo}} AND s.CategoryNo = {{ReceiveTarget.CategoryNo}} AND s.CodeNo = {{ReceiveTarget.CodeNo}} AND s.IsDeleted = 0)
+                WHERE s.UserId = {0} AND s.FeatureNo = {{NotificationTarget.FeatureNo}} AND s.CategoryNo = {{NotificationTarget.CategoryNo}} AND s.CodeNo = {{NotificationTarget.CodeNo}} AND s.IsDeleted = 0)
             AND NOT {{MessagesDisabled}})
         """;
 
@@ -219,7 +219,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
-    public Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default)
+    public Task<bool?> CanNotifyPeerAsync(int conversationId, CancellationToken cancellationToken = default)
     {
         var me = SendTableAccess.RequireUserId(currentUser);
         return SendTableAccess.RunAsync<bool?>(database, async connection =>
@@ -227,7 +227,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             await using var command = connection.CreateCommand();
             command.CommandText =
                 $"""
-                SELECT c.Kind, CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
+                SELECT c.Kind, CASE WHEN {string.Format(CultureInfo.InvariantCulture, NotificationTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
                 FROM dbo.MessageConversation AS c
                 INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
                 OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
@@ -247,12 +247,12 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
     /// <inheritdoc />
     /// <remarks>
-    /// 会話の番号があるときは、<see cref="CanPeerReceiveAsync"/> と同じ決まりで相手を見つける。グループは、相手が 1 人に決まらないので true。
+    /// 会話の番号があるときは、<see cref="CanNotifyPeerAsync"/> と同じ決まりで相手を見つける。グループは、相手が 1 人に決まらないので true。
     /// </remarks>
-    public Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default)
+    public Task<MessagePeerNotifyState?> GetPeerNotifyStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default)
     {
         var me = SendTableAccess.RequireUserId(currentUser);
-        return SendTableAccess.RunAsync<MessageReceiveState?>(database, async connection =>
+        return SendTableAccess.RunAsync<MessagePeerNotifyState?>(database, async connection =>
         {
             await using var command = connection.CreateCommand();
             if (conversationId > 0)
@@ -260,7 +260,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 command.CommandText =
                     $"""
                     SELECT c.Kind,
-                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
+                           CASE WHEN {string.Format(CultureInfo.InvariantCulture, NotificationTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END
                     FROM dbo.MessageConversation AS c
                     INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
                     OUTER APPLY (SELECT TOP 1 mm.UserId FROM dbo.MessageConversationMember AS mm
@@ -274,7 +274,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 command.CommandText =
                     $"""
                     SELECT CAST({DirectKind} AS tinyint),
-                           CASE WHEN @Peer <= 0 OR {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "@Peer")} THEN 1 ELSE 0 END
+                           CASE WHEN @Peer <= 0 OR {string.Format(CultureInfo.InvariantCulture, NotificationTargetExists, "@Peer")} THEN 1 ELSE 0 END
                     """;
                 command.Parameters.Add(Int("@Peer", peerUserId));
             }
@@ -284,7 +284,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             {
                 return null;
             }
-            return new MessageReceiveState(reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1);
+            return new MessagePeerNotifyState(reader.GetByte(0) != DirectKind || reader.GetInt32(1) == 1);
         }, cancellationToken);
     }
 
@@ -398,7 +398,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
         // 通知の状態の行は、通知が届く人 (通知先を指定していて、その送信先が削除されていない人)には「送信待ち」、届かない人には「送らなかった」で書く
         // 届かない人にも行を書くのは、画面と PC の通知ダイアログが、自分宛の新着を、この行で見つけるため。「送らなかった」にするのは、MmmBatch が、通知先が無い失敗を、送り直しの上限まで出し続けないため
-        var notifiable = await ReadUserIdsWhereAsync(connection, transaction, recipients, ReceiveTargetExists, cancellationToken).ConfigureAwait(false);
+        var notifiable = await ReadUserIdsWhereAsync(connection, transaction, recipients, NotificationTargetExists, cancellationToken).ConfigureAwait(false);
         var notifiableIds = recipients.Where(notifiable.Contains).ToList();
 
         if (replyToMessageId > 0 && !await MessageInConversationExistsAsync(connection, transaction, conversationId, replyToMessageId, excludeSystem: true, cancellationToken).ConfigureAwait(false))
@@ -473,7 +473,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         command.CommandText =
             $"""
             SELECT c.Id, c.Kind, c.Name, ISNULL(peer.UserId, @Me), ISNULL(pu.DisplayName, N''),
-                CASE WHEN {string.Format(CultureInfo.InvariantCulture, ReceiveTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END,
+                CASE WHEN {string.Format(CultureInfo.InvariantCulture, NotificationTargetExists, "ISNULL(peer.UserId, @Me)")} THEN 1 ELSE 0 END,
                 lastMessage.Id, lastMessage.Body, lastMessage.CreatedAt, unread.Cnt, lastMessage.SenderUserId, ISNULL(lsu.DisplayName, N'')
             FROM dbo.MessageConversation AS c
             INNER JOIN dbo.MessageConversationMember AS mine ON mine.ConversationId = c.Id AND mine.UserId = @Me AND mine.IsDeleted = 0
@@ -1075,7 +1075,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <returns>条件を満たす人の番号</returns>
     /// <remarks>
     /// 番号は JSON の 1 つのパラメーターで渡し、<c>OPENJSON</c> で行にする。人数が多くても、パラメーターの数の上限 (2100)に当たらない。
-    /// 人ごとに問い合わせを流さないための部品で、条件は <see cref="ReceiveTargetExists"/>・<see cref="MessagesDisabled"/>・<see cref="UserUsable"/> を使う。
+    /// 人ごとに問い合わせを流さないための部品で、条件は <see cref="NotificationTargetExists"/>・<see cref="MessagesDisabled"/>・<see cref="UserUsable"/> を使う。
     /// </remarks>
     private static async Task<HashSet<int>> ReadUserIdsWhereAsync(
         SqlConnection connection, SqlTransaction? transaction, IReadOnlyCollection<int> userIds, string condition, CancellationToken cancellationToken)

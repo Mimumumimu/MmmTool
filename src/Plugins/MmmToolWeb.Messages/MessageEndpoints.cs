@@ -106,13 +106,13 @@ internal static class MessageEndpoints
     private static async Task<IResult> LoadFormAsync(
         int? conversationId, int? peerUserId, IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)
     {
-        if (await repository.GetReceiveStateAsync(conversationId ?? 0, peerUserId ?? 0, cancellationToken) is not { } state)
+        if (await repository.GetPeerNotifyStateAsync(conversationId ?? 0, peerUserId ?? 0, cancellationToken) is not { } state)
         {
             return Results.NotFound(new ErrorResponse("会話が見つかりません。"));
         }
 
         return Results.Ok(new MessageFormDto(
-            MessageLimits.BodyMaxLength, state.PeerCanReceive,
+            MessageLimits.BodyMaxLength, state.PeerNotifiable,
             MessageLimits.GroupNameMaxLength, MessageLimits.GroupMaxMembers));
     }
 
@@ -122,7 +122,7 @@ internal static class MessageEndpoints
     /// <param name="q">表示名の先頭の文字。無いときは、全員。</param>
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>受け取り先を指定している人。</returns>
+    /// <returns>通知先を指定している人。</returns>
     private static async Task<IResult> SearchPeopleAsync(string? q, IMessageRepository repository, CancellationToken cancellationToken)
     {
         var people = await repository.SearchPeopleAsync(q ?? "", SearchCount, cancellationToken);
@@ -288,7 +288,7 @@ internal static class MessageEndpoints
     /// <returns>API の型。</returns>
     private static ConversationDto ToDto(ConversationSummary conversation, DateTimeOffset now)
         => new(
-            conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerCanReceive,
+            conversation.Id, conversation.Kind == ConversationKind.Direct, conversation.Name, conversation.PeerUserId, conversation.PeerNotifiable,
             conversation.LastMessageId, conversation.LastText, FormatTime(conversation.LastAt, now), conversation.UnreadCount,
             [.. conversation.Readers.Select(reader => new ReadPositionDto(reader.UserId, reader.LastReadMessageId, reader.DisplayName))],
             conversation.LastSenderUserId, conversation.LastSenderName);

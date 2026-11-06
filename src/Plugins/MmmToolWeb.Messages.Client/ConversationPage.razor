@@ -76,7 +76,7 @@
     </ol>
 
     <div class="composer">
-        @if (!_peerCanReceive)
+        @if (!_peerNotifiable)
         {
             <p class="notice" role="status">@PeerNoNotifyNotice</p>
         }
@@ -135,7 +135,7 @@
     private bool _loadingOlder;
     private bool _sending;
     private bool _hasMore;
-    private bool _peerCanReceive = true;
+    private bool _peerNotifiable = true;
     private bool _peerChecked;
     private bool _isDirect = true;
     private IReadOnlyList<ReadPositionDto> _readers = [];
@@ -255,7 +255,7 @@
         _error = null;
         _highlightId = TryParseItem(Item);
         _peerChecked = false;
-        _peerCanReceive = true;
+        _peerNotifiable = true;
 
         // 会話を続けて開いたとき、古い会話の読み込みの結果が、新しい会話の表示と控えを上書きしないよう、読み込みごとに番号を進める
         var version = ++_loadVersion;
@@ -376,7 +376,7 @@
         StateHasChanged();
     }
 
-    /// <summary>人の一覧から、この会話の名前と、相手の受け取り先の有無を取り込む。</summary>
+    /// <summary>人の一覧から、この会話の名前と、相手の通知先の有無を取り込む。</summary>
     private void ApplySummary()
     {
         if (Store.Conversations.FirstOrDefault(conversation => conversation.Id == ConversationId) is { } conversation)
@@ -386,8 +386,8 @@
             _readers = conversation.Readers ?? [];
             if (!_peerChecked)
             {
-                // 一覧の控えの値は、相手が受け取り先を変えても古いまま。サーバーから読み直したあとは、使わない
-                _peerCanReceive = conversation.PeerCanReceive;
+                // 一覧の控えの値は、相手が通知先を変えても古いまま。サーバーから読み直したあとは、使わない
+                _peerNotifiable = conversation.PeerNotifiable;
             }
         }
     }
@@ -563,7 +563,7 @@
         }
     });
 
-    /// <summary>人の一覧が変わったとき、相手の受け取り先の有無を取り込む。</summary>
+    /// <summary>人の一覧が変わったとき、相手の通知先の有無を取り込む。</summary>
     private Task OnConversationsChangedAsync() => InvokeAsync(() =>
     {
         if (ConversationId > 0)
@@ -573,7 +573,7 @@
         }
     });
 
-    /// <summary>アプリが裏から戻ったときに、差分と、自分が送れる状態かを読み直す。設定で受け取り先を指定して戻ったときに、送れるようにする。</summary>
+    /// <summary>アプリが裏から戻ったときに、差分と、自分が送れる状態かを読み直す。設定で通知先を指定して戻ったときに、送れるようにする。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(async () =>
     {
         await ApplyFormAsync(await Messages.LoadFormAsync(ConversationId, PeerUserId));
@@ -597,10 +597,10 @@
             if (ConversationId > 0 || PeerUserId > 0)
             {
                 _peerChecked = true;
-                _peerCanReceive = form.Value.PeerCanReceive;
+                _peerNotifiable = form.Value.PeerNotifiable;
                 if (ConversationId > 0)
                 {
-                    await Store.UpdatePeerCanReceiveAsync(ConversationId, _peerCanReceive);
+                    await Store.UpdatePeerNotifiableAsync(ConversationId, _peerNotifiable);
                 }
             }
         }

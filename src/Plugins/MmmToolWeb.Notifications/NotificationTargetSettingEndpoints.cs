@@ -7,22 +7,22 @@ using MmmToolWeb.Notifications.Client;
 namespace MmmToolWeb.Notifications;
 
 /// <summary>
-/// 受け取り先と、機能ごとの「通知を受け取る」の API。<c>/api/notifications</c> の下に置く。
+/// 通知先と、機能ごとの「通知を受け取る」の API。<c>/api/notifications</c> の下に置く。
 /// </summary>
 /// <remarks>
-/// 通知の機能は機能番号を持たないので、管理者がメッセージやノートを無効にした人も、受け取り先を直せる。
-/// 受け取り先は共通の設定で、番号は <see cref="ReceiveTarget"/> にある。「通知を受け取る」のオン・オフは、<see cref="INotificationFeatureSetting"/> に登録された機能の分だけ読み書きする。
+/// 通知の機能は機能番号を持たないので、管理者がメッセージやノートを無効にした人も、通知先を直せる。
+/// 通知先は共通の設定で、番号は <see cref="NotificationTarget"/> にある。「通知を受け取る」のオン・オフは、<see cref="INotificationFeatureSetting"/> に登録された機能の分だけ読み書きする。
 /// </remarks>
-internal static class ReceiveSettingEndpoints
+internal static class NotificationTargetSettingEndpoints
 {
     /// <summary>
-    /// 受け取り先と「通知を受け取る」の API を登録する。
+    /// 通知先と「通知を受け取る」の API を登録する。
     /// </summary>
     /// <param name="notifications">登録先の <c>/api/notifications</c>。</param>
     public static void Map(RouteGroupBuilder notifications)
     {
-        notifications.MapGet("/receive-channel", LoadReceiveSettingAsync);
-        notifications.MapPut("/receive-channel", SaveReceiveSettingAsync);
+        notifications.MapGet("/notification-channel", LoadNotificationTargetSettingAsync);
+        notifications.MapPut("/notification-channel", SaveNotificationTargetSettingAsync);
         notifications.MapGet("/features", LoadFeaturesAsync);
         notifications.MapPut("/features", SaveFeatureAsync);
     }
@@ -34,29 +34,29 @@ internal static class ReceiveSettingEndpoints
     /// <param name="settings">ユーザーごとの設定の保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>送信先の一覧と、選んでいる送信先の番号。送る先の値は含めない。選んでいる送信先が一覧に無いときは 0。</returns>
-    private static async Task<IResult> LoadReceiveSettingAsync(
+    private static async Task<IResult> LoadNotificationTargetSettingAsync(
         INotificationChannelRepository channels, IAppUserSettingRepository settings, CancellationToken cancellationToken)
     {
         var list = await ListChannelsAsync(channels, cancellationToken);
-        var saved = await settings.GetAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo, cancellationToken);
+        var saved = await settings.GetAsync(NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo, cancellationToken);
         var selected = int.TryParse(saved, CultureInfo.InvariantCulture, out var id) && list.Any(channel => channel.Id == id) ? id : 0;
-        return Results.Ok(new ReceiveSettingDto(list, selected));
+        return Results.Ok(new NotificationTargetSettingDto(list, selected));
     }
 
     /// <summary>
-    /// 受け取り先を指定する。0 なら、指定を外す。
+    /// 通知先を指定する。0 なら、指定を外す。
     /// </summary>
     /// <param name="request">指定する送信先。</param>
     /// <param name="channels">送信先の保存先。</param>
     /// <param name="settings">ユーザーごとの設定の保存先。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>成功なら 204。自分が使用者でない送信先の番号は 400。</returns>
-    private static async Task<IResult> SaveReceiveSettingAsync(
-        ReceiveChannelRequest request, INotificationChannelRepository channels, IAppUserSettingRepository settings, CancellationToken cancellationToken)
+    private static async Task<IResult> SaveNotificationTargetSettingAsync(
+        NotificationChannelRequest request, INotificationChannelRepository channels, IAppUserSettingRepository settings, CancellationToken cancellationToken)
     {
         if (request.ChannelId == 0)
         {
-            await settings.ClearAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo, cancellationToken);
+            await settings.ClearAsync(NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo, cancellationToken);
             return Results.NoContent();
         }
 
@@ -67,7 +67,7 @@ internal static class ReceiveSettingEndpoints
         }
 
         await settings.SetAsync(
-            ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo, request.ChannelId.ToString(CultureInfo.InvariantCulture), cancellationToken);
+            NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo, request.ChannelId.ToString(CultureInfo.InvariantCulture), cancellationToken);
         return Results.NoContent();
     }
 
@@ -123,10 +123,10 @@ internal static class ReceiveSettingEndpoints
     /// <param name="cancellationToken">キャンセルの通知。</param>
     /// <returns>送信先。番号の順。</returns>
     /// <remarks>ntfy と Discord は、通知先に選べない。PC には通知ダイアログがあるので、通知先は、スマホの通知のためだけにある。保存の検査も、この一覧を使うので、選べない種類の番号は断る。</remarks>
-    private static async Task<IReadOnlyList<ReceiveChannelDto>> ListChannelsAsync(INotificationChannelRepository channels, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<NotificationChannelDto>> ListChannelsAsync(INotificationChannelRepository channels, CancellationToken cancellationToken)
     {
         var summaries = await channels.GetSummariesAsync(NotificationChannelKind.WebPush, cancellationToken);
         var kindText = NotificationChannelKinds.ToText(NotificationChannelKind.WebPush);
-        return [.. summaries.OrderBy(summary => summary.Id).Select(summary => new ReceiveChannelDto(summary.Id, summary.Name, kindText))];
+        return [.. summaries.OrderBy(summary => summary.Id).Select(summary => new NotificationChannelDto(summary.Id, summary.Name, kindText))];
     }
 }

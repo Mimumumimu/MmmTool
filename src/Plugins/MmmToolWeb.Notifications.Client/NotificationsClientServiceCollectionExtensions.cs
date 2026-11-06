@@ -28,7 +28,7 @@ public static class NotificationsClientServiceCollectionExtensions
                 typeof(NotificationsPage).Assembly,
                 typeof(NotificationsSettingsSection),
                 [
-                    new ClientSettingsSection("通知先", typeof(ReceiveTargetSettingsSection)),
+                    new ClientSettingsSection("通知先", typeof(NotificationTargetSettingsSection)),
                     new ClientSettingsSection("通知を受け取る機能", typeof(NotificationFeaturesSettingsSection)),
                 ]));
     }

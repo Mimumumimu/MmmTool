@@ -67,7 +67,7 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddTransient<ReminderSettingsViewModel>();
         services.AddSettingsSection<ReminderSettingsControl>(RemindersFeature.Key);
 
-        // 設定ページの「送信先」「受け取り先」「通知を受け取る機能」は、機能に属さない共通の節。ホストが AddNotificationSettings で並び順を渡して登録する
+        // 設定ページの「送信先」「通知先」「通知を受け取る機能」は、機能に属さない共通の節。ホストが AddNotificationSettings で並び順を渡して登録する
 
         // サイドバーの「リマインダー」で、一覧。ウィンドウの一覧と中身を共有する。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
         services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);

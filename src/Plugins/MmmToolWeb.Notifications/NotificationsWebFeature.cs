@@ -26,7 +26,7 @@ public sealed class NotificationsWebFeature : IWebFeature
         // 保存先は、要求ごとに作る。今のユーザー (送信先の使用者)が、要求ごとに違うため
         services.AddScoped<INotificationChannelRepository, SqlServerNotificationChannelRepository>();
 
-        // 受け取り先と、「通知を受け取る」のオン・オフの保存先。要求ごとに作る
+        // 通知先と、「通知を受け取る」のオン・オフの保存先。要求ごとに作る
         services.AddScoped<IAppUserSettingRepository, SqlServerAppUserSettingRepository>();
 
         services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Insert(0, NotificationsJsonContext.Default));

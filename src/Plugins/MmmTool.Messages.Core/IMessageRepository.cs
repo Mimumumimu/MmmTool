@@ -68,16 +68,16 @@ public interface IMessageRepository
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>相手に通知が届くとき true。グループは、相手が 1 人に決まらないので true。自分が入っていない会話・無い会話は null。自分との会話は、自分の状態</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    Task<bool?> CanPeerReceiveAsync(int conversationId, CancellationToken cancellationToken = default);
+    Task<bool?> CanNotifyPeerAsync(int conversationId, CancellationToken cancellationToken = default);
 
     /// <summary>入力欄の近くに、相手に通知が届かないことを知らせるための、相手の状態を調べる</summary>
     /// <param name="conversationId">開いている会話の番号。0 のときは使わない</param>
     /// <param name="peerUserId">まだ会話が無いときの、1 対 1 の相手の番号。0 のときは、相手を決めない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>相手の状態。会話の番号があるときは、<see cref="CanPeerReceiveAsync"/> と同じ決まりで相手を決める。自分が入っていない会話・無い会話は null</returns>
+    /// <returns>相手の状態。会話の番号があるときは、<see cref="CanNotifyPeerAsync"/> と同じ決まりで相手を決める。自分が入っていない会話・無い会話は null</returns>
     /// <remarks>会話の番号が無く、相手も決まっていないときの相手の状態は true。</remarks>
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    Task<MessageReceiveState?> GetReceiveStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default);
+    Task<MessagePeerNotifyState?> GetPeerNotifyStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>メッセージを送る</summary>
     /// <param name="target">送り先。既にある会話・1 対 1 の相手・新しいグループのどれか</param>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="MmmTool.Reminders.Settings.ReceiveTargetSettingsControl"
+    x:Class="MmmTool.Reminders.Settings.NotificationTargetSettingsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -23,7 +23,7 @@
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:ReceiveTargetItem">
+                <DataTemplate x:DataType="local:NotificationTargetItem">
                     <controls:SettingsCard Description="ほかの人から届いた通知を、選んだ端末で受け取ります。選べるのは、Web 版の「通知」で登録した端末です。" Header="{x:Bind Name}">
                         <ComboBox
                             Width="280"

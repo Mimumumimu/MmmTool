@@ -18,8 +18,8 @@ namespace MmmBatch.Data.SqlServer.Sending;
 /// <remarks>
 /// 行を足すのは MmmTool と Web 版。ここは読んで、状態を変えるだけ。読むたびに DB から読む。
 /// MmmBatch はユーザーではないので、更新者は 0。更新日時は DB サーバーの時計で書く。複数の MmmBatch の時計のずれを入れないため。
-/// 送る先は、通知を受ける人の受け取り先 (<c>dbo.AppUserSetting</c>)から読み、その送信先の値 (<c>dbo.NotificationChannel</c>)を読む。送るため。
-/// 受け取り先を指定していない人の分は、送る先が null になる。
+/// 送る先は、通知を受ける人の通知先 (<c>dbo.AppUserSetting</c>)から読み、その送信先の値 (<c>dbo.NotificationChannel</c>)を読む。送るため。
+/// 通知先を指定していない人の分は、送る先が null になる。
 /// <c>dbo.Message.UpdatedAt</c> は更新しない。画面に通知の状態を出さないため、端末の差分の取得に、状態の変わりを届ける必要が無い。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
@@ -34,8 +34,8 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
         FROM dbo.MessageDelivery AS d
         INNER JOIN dbo.Message AS m ON m.Id = d.MessageId
         LEFT JOIN dbo.MessageConversation AS cv ON cv.Id = m.ConversationId
-        LEFT JOIN dbo.AppUserSetting AS s ON s.UserId = d.UserId AND s.FeatureNo = {{ReceiveTarget.FeatureNo}} AND s.CategoryNo = {{ReceiveTarget.CategoryNo}}
-            AND s.CodeNo = {{ReceiveTarget.CodeNo}} AND s.IsDeleted = 0
+        LEFT JOIN dbo.AppUserSetting AS s ON s.UserId = d.UserId AND s.FeatureNo = {{NotificationTarget.FeatureNo}} AND s.CategoryNo = {{NotificationTarget.CategoryNo}}
+            AND s.CodeNo = {{NotificationTarget.CodeNo}} AND s.IsDeleted = 0
         LEFT JOIN dbo.NotificationChannel AS c ON c.Id = TRY_CAST(s.Value AS int)
         LEFT JOIN dbo.AppUser AS ru ON ru.Id = d.UserId
         LEFT JOIN dbo.AppUser AS su ON su.Id = m.SenderUserId

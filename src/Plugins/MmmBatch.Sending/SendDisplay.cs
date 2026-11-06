@@ -30,7 +30,7 @@ public static class SendDisplay
     /// <remarks>送る先の値は秘密なので、出さない。</remarks>
     public static string RecipientText(string ownerName, NotificationChannelKind kind, string name)
     {
-        // 登録名が空のとき、送信先が無い (受け取り先を指定していない)ので、ユーザー名だけを出す
+        // 登録名が空のとき、送信先が無い (通知先を指定していない)ので、ユーザー名だけを出す
         if (name.Length == 0)
         {
             return ownerName;

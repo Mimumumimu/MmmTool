@@ -126,9 +126,6 @@
   - 洗い出しは `py -I ~/.claude/tools/check-rules.py --parens <ファイル>...`。1 行ずつ違反の場所が出る
   - 新しく書く行は、ファイルを編集した直後の自動チェックが止める。直すのは、既存の行だけ
   - アプリ・SDK の両方のリポジトリが対象
-- 通知先のコードの名前を、画面の言葉にそろえる
-  - 画面の言葉は「通知先」だが、コードの名前は `ReceiveTarget`・`ReceiveChannel`・`NoReceiveTarget` などのまま。約 50 ファイル・185 行。
-  - 方向: `NotificationTarget` 系に改める。名前は、利用者に見えない。
 - MmmBatch を MmmToolBatch に改名する
   - アプリの名前を MmmTool・MmmToolWeb とそろえるため
   - 直す範囲は、フォルダ・プロジェクト・名前空間・文書・DB のログイン名

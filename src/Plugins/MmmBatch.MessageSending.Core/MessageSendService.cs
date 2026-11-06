@@ -6,7 +6,7 @@ using MmmTool.NotificationChannels.Core;
 namespace MmmBatch.MessageSending.Core;
 
 /// <summary>
-/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の受け取り先へ送る。1 秒おきの仕事。
+/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の通知先へ送る。1 秒おきの仕事。
 /// </summary>
 /// <remarks>
 /// <para>

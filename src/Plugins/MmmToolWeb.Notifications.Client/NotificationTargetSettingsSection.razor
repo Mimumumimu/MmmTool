@@ -1,7 +1,7 @@
 @inject NotificationsClient Notifications
 @inject NavigationManager Navigation
 
-<div class="receive">
+<div class="notification-target">
     @if (_error is not null)
     {
         <p class="result error" role="alert">@_error</p>
@@ -26,7 +26,7 @@
 </div>
 
 @code {
-    private IReadOnlyList<ReceiveChannelDto> _channels = [];
+    private IReadOnlyList<NotificationChannelDto> _channels = [];
     private int _selected;
     private bool _loaded;
     private bool _saving;
@@ -34,7 +34,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Notifications.LoadReceiveSettingAsync();
+        var result = await Notifications.LoadNotificationTargetSettingAsync();
         if (result.Status == ApiFailure.SignedOut)
         {
             Navigation.NavigateTo("/", forceLoad: true);
@@ -63,7 +63,7 @@
         _saving = true;
         _error = null;
         StateHasChanged();
-        var result = await Notifications.SaveReceiveChannelAsync(channelId);
+        var result = await Notifications.SaveNotificationChannelAsync(channelId);
         _saving = false;
         if (result.Status == ApiFailure.SignedOut)
         {
@@ -82,5 +82,5 @@
     /// <summary>選択肢に出す文字を作る。「登録名 (種類)」の形。</summary>
     /// <param name="channel">送信先。</param>
     /// <returns>選択肢の文字。</returns>
-    private static string ChannelText(ReceiveChannelDto channel) => $"{channel.Name} ({channel.KindText})";
+    private static string ChannelText(NotificationChannelDto channel) => $"{channel.Name} ({channel.KindText})";
 }

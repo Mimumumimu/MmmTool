@@ -13,16 +13,16 @@ namespace MmmTool.Reminders.Settings;
 /// <param name="store">ユーザーごとの設定の保存先</param>
 /// <param name="channels">送信先の保存先。自分が使用者の送信先を読む</param>
 /// <remarks>
-/// 受け取り先は、どの機能にも属さない共通の設定で、番号は <see cref="ReceiveTarget"/> にある。メッセージやノートの名前は持たない。
+/// 通知先は、どの機能にも属さない共通の設定で、番号は <see cref="NotificationTarget"/> にある。メッセージやノートの名前は持たない。
 /// 選んだ操作の直後に保存する。保存に失敗したときは、エラーを出して、保存済みの選択に戻す。
 /// </remarks>
-public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository store, INotificationChannelRepository channels)
+public sealed class NotificationTargetSettingsViewModel(IAppUserSettingRepository store, INotificationChannelRepository channels)
 {
     /// <summary>DB モード (サーバーモード)か。false のときは、部品を出さない</summary>
     public bool IsAvailable { get; } = store.IsAvailable && channels.IsAvailable;
 
     /// <summary>並べる選択。読み込んだあとは 1 件</summary>
-    public ObservableCollection<ReceiveTargetItem> Items { get; } = [];
+    public ObservableCollection<NotificationTargetItem> Items { get; } = [];
 
     /// <summary>読み込み・保存のエラー</summary>
     public ErrorState Error { get; } = new();
@@ -39,15 +39,15 @@ public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository sto
         Error.Clear();
         try
         {
-            var options = new List<ReceiveChannelOption> { ReceiveChannelOption.None };
+            var options = new List<NotificationChannelOption> { NotificationChannelOption.None };
             // 通知先に選べるのは、Web 版通知の送信先だけ。ntfy と Discord は選べない (PC には通知ダイアログがあり、通知先はスマホの通知のためだけにある)
             options.AddRange((await channels.GetChannelsAsync(includeDeleted: false))
                 .Where(channel => channel.Kind == NotificationChannelKind.WebPush)
-                .Select(ReceiveChannelOption.From));
+                .Select(NotificationChannelOption.From));
 
-            var saved = await store.GetAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo);
-            var item = new ReceiveTargetItem(options, SaveAsync) { IsLoading = true };
-            item.Selected = options.FirstOrDefault(option => int.TryParse(saved, CultureInfo.InvariantCulture, out var id) && option.ChannelId == id) ?? ReceiveChannelOption.None;
+            var saved = await store.GetAsync(NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo);
+            var item = new NotificationTargetItem(options, SaveAsync) { IsLoading = true };
+            item.Selected = options.FirstOrDefault(option => int.TryParse(saved, CultureInfo.InvariantCulture, out var id) && option.ChannelId == id) ?? NotificationChannelOption.None;
             item.IsLoading = false;
 
             Items.Clear();
@@ -62,17 +62,17 @@ public sealed class ReceiveTargetSettingsViewModel(IAppUserSettingRepository sto
     /// <summary>選んだ送信先を保存する。指定しないときは、設定を外す</summary>
     /// <param name="item">選択が変わった項目</param>
     /// <returns>保存の完了を表すタスク</returns>
-    private async Task SaveAsync(ReceiveTargetItem item)
+    private async Task SaveAsync(NotificationTargetItem item)
     {
         try
         {
             if (item.Selected is { ChannelId: > 0 } selected)
             {
-                await store.SetAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo, selected.ChannelId.ToString(CultureInfo.InvariantCulture));
+                await store.SetAsync(NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo, selected.ChannelId.ToString(CultureInfo.InvariantCulture));
             }
             else
             {
-                await store.ClearAsync(ReceiveTarget.FeatureNo, ReceiveTarget.CategoryNo, ReceiveTarget.CodeNo);
+                await store.ClearAsync(NotificationTarget.FeatureNo, NotificationTarget.CategoryNo, NotificationTarget.CodeNo);
             }
             Error.Clear();
         }

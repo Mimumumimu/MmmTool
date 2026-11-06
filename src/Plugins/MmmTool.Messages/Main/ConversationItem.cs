@@ -27,8 +27,8 @@ public sealed class ConversationItem(ConversationSummary source, int myUserId)
     /// <summary>最後のメッセージの日時。今日なら「HH:mm」、それ以外は「M/d HH:mm」</summary>
     public string TimeText { get; } = MessageTimeText.Format(source.LastAt);
 
-    /// <summary>相手が受け取り先を指定していないときの案内。指定しているときは空文字</summary>
-    public string NoteText { get; } = source.PeerCanReceive ? "" : MessageDraft.PeerNoNotifyListText;
+    /// <summary>相手が通知先を指定していないときの案内。指定しているときは空文字</summary>
+    public string NoteText { get; } = source.PeerNotifiable ? "" : MessageDraft.PeerNoNotifyListText;
 
     /// <summary>案内を出すか</summary>
     public bool HasNote => NoteText.Length > 0;

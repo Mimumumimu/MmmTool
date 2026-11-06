@@ -9,7 +9,7 @@ namespace MmmTool.CodeMaster.Core;
 /// </remarks>
 public static class CodeFeatures
 {
-    /// <summary>共通。どの機能にも属さない設定 (通知の受け取り先など)の機能番号。ユーザーごとの設定 (<c>AppUserSetting</c>)だけが使う</summary>
+    /// <summary>共通。どの機能にも属さない設定 (通知先など)の機能番号。ユーザーごとの設定 (<c>AppUserSetting</c>)だけが使う</summary>
     public const int Common = 0;
 
     /// <summary>作業管理</summary>

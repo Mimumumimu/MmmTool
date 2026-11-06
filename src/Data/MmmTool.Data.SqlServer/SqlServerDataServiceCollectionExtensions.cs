@@ -69,7 +69,7 @@ public static class SqlServerDataServiceCollectionExtensions
                 ? provider.GetRequiredService<SqlServerMessageRepository>()
                 : provider.GetRequiredService<UnavailableMessageRepository>());
 
-        // ユーザーごとの設定 (メッセージの受け取り先など)も、DB モードだけ
+        // ユーザーごとの設定 (メッセージの通知先など)も、DB モードだけ
         services.AddSingleton<SqlServerAppUserSettingRepository>();
         services.AddSingleton<IAppUserSettingRepository>(provider =>
             provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
