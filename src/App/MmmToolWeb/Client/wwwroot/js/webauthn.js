@@ -1,6 +1,6 @@
 // WebAuthn (パスキー)をブラウザで呼ぶ。サーバーとは Base64URL の文字列でやり取りし、ブラウザには ArrayBuffer で渡す
 
-import { base64UrlToBytes, deviceName as browserDeviceName, isStandalone as browserIsStandalone } from './browser.js';
+import { base64UrlToBytes, deviceName as browserDeviceName, isStandalone as browserIsStandalone, needsHomeScreen as browserNeedsHomeScreen } from './browser.js';
 
 function fromBase64Url(text) {
     return base64UrlToBytes(text).buffer;
@@ -80,6 +80,11 @@ export function isSupported() {
 /** ホーム画面のアプリとして開いているか。 */
 export function isStandalone() {
     return browserIsStandalone();
+}
+
+/** iPhone か iPad で、ホーム画面に追加していないか。 */
+export function needsHomeScreen() {
+    return browserNeedsHomeScreen();
 }
 
 /** 端末の呼び名。通知の宛先の登録名と同じ決め方にするため、js/browser.js のものを使う。端末に古い画面が残っていても呼ばれるので、名前は消さない。 */

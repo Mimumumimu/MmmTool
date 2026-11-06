@@ -1,0 +1,300 @@
+@inject BrowserClient Browser
+@inject HolidayClient Holidays
+
+<button type="button" class="@TriggerClass" @ref="_trigger" aria-haspopup="dialog" aria-expanded="@(_open ? "true" : "false")"
+        aria-label="@TriggerLabel" @onclick="OpenAsync">
+    @if (Value is { } value)
+    {
+        @DateText(value)
+    }
+    else
+    {
+        <span class="empty">日付を選ぶ</span>
+    }
+</button>
+
+@if (_open)
+{
+    <div class="picker-back" @onclick="CloseAsync">
+        <div class="picker" role="dialog" aria-modal="true" aria-label="日付を選ぶ" tabindex="-1" @ref="_dialog"
+             @onclick:stopPropagation="true" @onkeydown="OnKeyDownAsync">
+            <div class="nav">
+                <button type="button" class="step" aria-label="前の月" @onclick="() => MoveMonthAsync(-1)"><Chevron Left="true" /></button>
+                <select aria-label="年" @onchange="OnYearChangedAsync">
+                    @for (var year = FirstYear; year <= LastYear; year++)
+                    {
+                        <option value="@year" selected="@(year == _view.Year)">@year 年</option>
+                    }
+                </select>
+                <select aria-label="月" @onchange="OnMonthChangedAsync">
+                    @for (var month = 1; month <= 12; month++)
+                    {
+                        <option value="@month" selected="@(month == _view.Month)">@month 月</option>
+                    }
+                </select>
+                <button type="button" class="step" aria-label="次の月" @onclick="() => MoveMonthAsync(1)"><Chevron /></button>
+            </div>
+
+            <div class="week" aria-hidden="true">
+                @for (var i = 0; i < 7; i++)
+                {
+                    <span class="@WeekdayClass((DayOfWeek)i)">@WeekdayNames[i]</span>
+                }
+            </div>
+
+            <div class="days">
+                @for (var blank = 0; blank < LeadingBlanks; blank++)
+                {
+                    <span></span>
+                }
+                @for (var day = 1; day <= DaysInView; day++)
+                {
+                    var date = new DateOnly(_view.Year, _view.Month, day);
+                    <button type="button" class="@DayClass(date)" aria-label="@DayLabel(date)"
+                            aria-current="@(date == _today ? "date" : null)" aria-pressed="@(date == Value ? "true" : null)"
+                            @onclick="() => PickAsync(date)">
+                        @day
+                    </button>
+                }
+            </div>
+
+            @if (MonthHolidays.Count > 0)
+            {
+                <ul class="holidays" aria-label="この月の祝日">
+                    @foreach (var holiday in MonthHolidays)
+                    {
+                        <li>@holiday.Key.Day 日 @holiday.Value</li>
+                    }
+                </ul>
+            }
+
+            <div class="actions">
+                <button type="button" class="text" @onclick="PickTodayAsync">今日</button>
+                <button type="button" class="text" @onclick="CloseAsync">閉じる</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>曜日の見出しと、日付の文字に添える曜日。日曜から始める。</summary>
+    private static readonly string[] WeekdayNames = ["日", "月", "火", "水", "木", "金", "土"];
+
+    /// <summary>年の選択に出す、いちばん古い年。表示中の年が、これより前のときは、その年から出す。</summary>
+    private const int DefaultFirstYear = 1990;
+
+    /// <summary>年の選択に出す、いちばん新しい年。表示中の年が、これより先のときは、その年まで出す。</summary>
+    private const int DefaultLastYear = 2100;
+
+    /// <summary>選んでいる日。未設定のときは null。</summary>
+    [Parameter]
+    public DateOnly? Value { get; set; }
+
+    /// <summary>日を選んだとき、または「今日」を押したときに呼ぶ。選ぶと、カレンダーは閉じる。</summary>
+    [Parameter]
+    public EventCallback<DateOnly> OnPicked { get; set; }
+
+    /// <summary>欄の名前で、開始日など。欄の名前を別に出していないときに渡す。読み上げのために、選んでいる日と合わせて伝える。</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>true のとき、欄を、エラーの色の太い枠にする。</summary>
+    [Parameter]
+    public bool Invalid { get; set; }
+
+    private ElementReference _trigger;
+    private ElementReference _dialog;
+    private bool _open;
+    private bool _focusDialog;
+
+    /// <summary>カレンダーが見せている月の 1 日。</summary>
+    private DateOnly _view;
+
+    /// <summary>ブラウザの時計の今日。カレンダーを開いたときに決める。</summary>
+    private DateOnly _today;
+
+    /// <summary>祝日。読めるまでは空。見せている月の祝日だけを使う。</summary>
+    private IReadOnlyDictionary<DateOnly, string> _holidays = new Dictionary<DateOnly, string>();
+
+    /// <summary>開くときに、祝日を読み終えるのを待つ、いちばん長い時間。遅い回線でも、押したらすぐ開くため。</summary>
+    private static readonly TimeSpan OpenWait = TimeSpan.FromMilliseconds(300);
+
+    private string TriggerClass => Invalid ? "trigger invalid" : "trigger";
+
+    /// <summary>欄を読み上げるときの名前。欄の名前が渡されていないときは、null。</summary>
+    private string? TriggerLabel => Label is null ? null : $"{Label} {(Value is { } value ? DateText(value) : "未設定")}";
+
+    private int FirstYear => Math.Min(DefaultFirstYear, _view.Year);
+
+    private int LastYear => Math.Max(DefaultLastYear, _view.Year);
+
+    private int DaysInView => DateTime.DaysInMonth(_view.Year, _view.Month);
+
+    /// <summary>月の 1 日の前に並べる空きの数。日曜が先頭の列。</summary>
+    private int LeadingBlanks => (int)_view.DayOfWeek;
+
+    /// <summary>見せている月の祝日を、日付の順に返す。</summary>
+    private List<KeyValuePair<DateOnly, string>> MonthHolidays
+        => [.. _holidays.Where(holiday => holiday.Key.Year == _view.Year && holiday.Key.Month == _view.Month).OrderBy(holiday => holiday.Key)];
+
+    /// <summary>欄に出す日付の文字。</summary>
+    private static string DateText(DateOnly date) => $"{date:yyyy/MM/dd} ({WeekdayNames[(int)date.DayOfWeek]})";
+
+    /// <summary>曜日の見出しの class。土曜は青、日曜は赤。</summary>
+    private static string WeekdayClass(DayOfWeek day) => day switch
+    {
+        DayOfWeek.Saturday => "saturday",
+        DayOfWeek.Sunday => "sunday",
+        _ => "",
+    };
+
+    /// <summary>日の class。土曜は青、日曜と祝日は赤の線を付ける。選んでいる日は枠と太字で、今日は塗りと太字で示す。</summary>
+    private string DayClass(DateOnly date)
+    {
+        var classes = new List<string> { "day" };
+        if (date.DayOfWeek == DayOfWeek.Sunday || _holidays.ContainsKey(date))
+        {
+            classes.Add("sunday");
+        }
+        else if (date.DayOfWeek == DayOfWeek.Saturday)
+        {
+            classes.Add("saturday");
+        }
+        if (date == Value)
+        {
+            classes.Add("selected");
+        }
+        if (date == _today)
+        {
+            classes.Add("today");
+        }
+        return string.Join(' ', classes);
+    }
+
+    /// <summary>日を読み上げるときの文。祝日は、名前を添える。</summary>
+    private string DayLabel(DateOnly date)
+        => _holidays.TryGetValue(date, out var name)
+            ? $"{date.Year}年{date.Month}月{date.Day}日 {WeekdayNames[(int)date.DayOfWeek]}曜日 {name}"
+            : $"{date.Year}年{date.Month}月{date.Day}日 {WeekdayNames[(int)date.DayOfWeek]}曜日";
+
+    private async Task OpenAsync()
+    {
+        _today = await Browser.GetTodayAsync();
+        var start = Value ?? _today;
+        _view = new DateOnly(start.Year, start.Month, 1);
+
+        // 祝日を先に読んでから開く。開いたあとに祝日の一覧が現れて、シートの上の端が動かないため。読み込みが遅いときは、待たずに開く
+        await LoadHolidaysAsync(OpenWait);
+        _open = true;
+        _focusDialog = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 表示した直後に、今の年の祝日を読み始める。押されたときには、読み終えていて、すぐ開けるため
+        if (firstRender)
+        {
+            _ = Holidays.GetYearAsync(Value?.Year ?? DateTime.UtcNow.Year);
+        }
+
+        // 開いたら、カレンダーの中へフォーカスを移す。キーボードで操作でき、Escape で閉じられる
+        if (_focusDialog && _open)
+        {
+            _focusDialog = false;
+            await _dialog.FocusAsync();
+        }
+    }
+
+    /// <summary>見せている年の祝日を読む。前の年と次の年も、先に読み始める。</summary>
+    /// <param name="waitAtMost">読み終えるのを待つ、いちばん長い時間。間に合わなければ、先に進み、読み終えたら祝日を出す。null のときは、読み終えるまで待つ。</param>
+    /// <remarks>
+    /// 12 月と 1 月の間で月を移ったとき、読み終えるまで一覧が空になり、そのあと現れて、上の端が動くため、前後の年も先に読む。
+    /// 読めた年は <see cref="HolidayClient"/> が覚えているので、毎回呼んでも、2 回目からは待たない。読めなかった年は、呼ぶたびに読み直す。
+    /// </remarks>
+    private async Task LoadHolidaysAsync(TimeSpan? waitAtMost = null)
+    {
+        var year = _view.Year;
+        var current = Holidays.GetYearAsync(year);
+        if (year > 1)
+        {
+            _ = Holidays.GetYearAsync(year - 1);
+        }
+        if (year < 9999)
+        {
+            _ = Holidays.GetYearAsync(year + 1);
+        }
+
+        if (waitAtMost is { } limit && await Task.WhenAny(current, Task.Delay(limit)) != current)
+        {
+            _ = ShowWhenReadyAsync(year, current);
+            return;
+        }
+        UseHolidays(year, await current);
+    }
+
+    /// <summary>間に合わずに先に開いたあと、読み終えたら、祝日を出す。</summary>
+    /// <param name="year">読んでいる年。</param>
+    /// <param name="pending">読み込み中の祝日。</param>
+    private async Task ShowWhenReadyAsync(int year, Task<IReadOnlyDictionary<DateOnly, string>> pending)
+    {
+        if (UseHolidays(year, await pending))
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>読んだ祝日を使う。読んでいる間に別の年へ移っていたら、使わない。</summary>
+    /// <param name="year">読んだ年。</param>
+    /// <param name="holidays">読んだ祝日。</param>
+    /// <returns>使ったとき true。</returns>
+    private bool UseHolidays(int year, IReadOnlyDictionary<DateOnly, string> holidays)
+    {
+        if (year != _view.Year)
+        {
+            return false;
+        }
+        _holidays = holidays;
+        return true;
+    }
+
+    private async Task MoveMonthAsync(int months)
+    {
+        _view = _view.AddMonths(months);
+        await LoadHolidaysAsync();
+    }
+
+    private async Task OnYearChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var year) && year is >= 1 and <= 9999)
+        {
+            _view = new DateOnly(year, _view.Month, 1);
+            await LoadHolidaysAsync();
+        }
+    }
+
+    private async Task OnMonthChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var month) && month is >= 1 and <= 12)
+        {
+            _view = new DateOnly(_view.Year, month, 1);
+            await LoadHolidaysAsync();
+        }
+    }
+
+    private async Task PickAsync(DateOnly date)
+    {
+        await CloseAsync();
+        await OnPicked.InvokeAsync(date);
+    }
+
+    private Task PickTodayAsync() => PickAsync(_today);
+
+    /// <summary>カレンダーを閉じて、フォーカスを欄に戻す。</summary>
+    private async Task CloseAsync()
+    {
+        _open = false;
+        await _trigger.FocusAsync();
+    }
+
+    private Task OnKeyDownAsync(KeyboardEventArgs e) => e.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+}

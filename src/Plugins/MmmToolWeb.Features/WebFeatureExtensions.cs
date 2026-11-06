@@ -32,7 +32,7 @@ public static class WebFeatureExtensions
     /// <remarks>
     /// 機能の API は、<c>/api</c> の下にまとめ、ログインしている人だけが呼べるようにする。機能ごとに、付け忘れないため。
     /// 機能番号 (<see cref="IWebFeature.FeatureNo"/>)がある機能は、管理者に無効にされた人からの呼び出しを断る。断る処理は、ここで 1 回だけ付ける。
-    /// 使えない機能の一覧 <c>/api/features/disabled</c> も、ここで登録する。
+    /// 使えない機能の一覧 <c>/api/features/disabled</c> と、日付を選ぶカレンダーが使う祝日の一覧 <c>/api/holidays</c> も、ここで登録する。
     /// </remarks>
     public static IEndpointRouteBuilder MapWebFeatures(this IEndpointRouteBuilder app)
     {
@@ -45,6 +45,7 @@ public static class WebFeatureExtensions
 
         api.MapGet("/features/disabled", (CurrentUser currentUser, FeatureAccessService access, CancellationToken cancellationToken)
             => GetDisabledClientAssembliesAsync(features, currentUser, access, cancellationToken));
+        api.MapHolidays();
         return app;
     }
 

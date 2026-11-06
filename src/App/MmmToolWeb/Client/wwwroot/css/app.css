@@ -35,6 +35,8 @@ body {
     color: var(--text);
     font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
     line-height: 1.6;
+    /* 素早い 2 回のタップを、iPhone が拡大の操作と受け取らないようにする。前の月・前の日のような連打する操作で、画面が拡大するため。親に付けると、中のすべての要素に効く。2 本指の拡大は残る */
+    touch-action: manipulation;
 }
 
 .page {
@@ -67,23 +69,6 @@ h2 {
     margin-top: 2rem;
 }
 
-.facts {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    padding: 0.75rem 1rem;
-    margin: 1rem 0;
-}
-
-.facts dt {
-    color: var(--muted);
-    font-size: 0.85rem;
-}
-
-.facts dd {
-    margin: 0 0 0.5rem;
-}
-
 button {
     min-height: 2.75rem;
     padding: 0 1.25rem;
@@ -113,28 +98,6 @@ textarea:disabled {
 button.primary:disabled {
     color: var(--accent-text);
     opacity: 0.4;
-}
-
-/* iPhone の日付入力は、標準の見た目のままだと、幅を決めても最低限の幅があり、枠をはみ出す。標準の見た目を外して、幅を守らせる。タップすると、標準の日付の選択が開く */
-input[type="date"] {
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-input[type="date"]::-webkit-date-and-time-value {
-    text-align: center;
-}
-
-/* 標準の見た目を外した iPhone の日付入力は、中の文字が枠の上に寄る。入力欄を縦の中央寄せの並びにして、文字の高さも決める */
-input[type="date"] {
-    display: flex;
-    align-items: center;
-    line-height: 1.5;
-}
-
-input[type="date"]::-webkit-date-and-time-value {
-    min-height: 1.5em;
-    margin: 0;
 }
 
 input {

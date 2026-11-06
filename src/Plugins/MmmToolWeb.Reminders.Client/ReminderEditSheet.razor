@@ -50,7 +50,9 @@
             </div>
             @if (_byDate)
             {
-                <input type="date" class="date-input" aria-label="日付" value="@_date.ToString("yyyy-MM-dd")" @onchange="OnDateChanged" />
+                <div class="date-field">
+                    <DatePicker Label="日付" Value="_date" OnPicked="OnDatePicked" />
+                </div>
             }
             else
             {
@@ -315,13 +317,7 @@
         }
     }
 
-    private void OnDateChanged(ChangeEventArgs e)
-    {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
-        {
-            _date = day;
-        }
-    }
+    private void OnDatePicked(DateOnly day) => _date = day;
 
     private void OnTimeChanged(ChangeEventArgs e) => _time = e.Value?.ToString() ?? "";
 

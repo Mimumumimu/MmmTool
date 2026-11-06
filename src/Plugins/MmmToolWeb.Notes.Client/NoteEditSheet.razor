@@ -27,14 +27,14 @@
         </label>
 
         <div class="dates">
-            <label class="field">
+            <div class="field">
                 <span>開始日</span>
-                <input type="date" class="@InvalidClass" value="@_start.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
-            </label>
+                <DatePicker Label="開始日" Value="_start" Invalid="IsEventOutOfPeriod" OnPicked="OnStartPicked" />
+            </div>
 
             <div class="field">
                 <span>終了日</span>
-                <input type="date" class="@InvalidClass" aria-label="終了日" value="@(_end?.ToString("yyyy-MM-dd"))" @onchange="OnEndChanged" />
+                <DatePicker Label="終了日" Value="_end" Invalid="IsEventOutOfPeriod" OnPicked="OnEndPicked" />
                 <div class="end-footer">
                     <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
                 </div>
@@ -48,7 +48,7 @@
         <div class="dates">
             <div class="field">
                 <span>実施日</span>
-                <input type="date" class="@InvalidClass" aria-label="実施日" value="@(_eventDate?.ToString("yyyy-MM-dd"))" @onchange="OnEventChanged" />
+                <DatePicker Label="実施日" Value="_eventDate" Invalid="IsEventOutOfPeriod" OnPicked="OnEventPicked" />
                 <div class="end-footer">
                     <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
                 </div>
@@ -135,9 +135,6 @@
     /// <summary>警告に出す、実施日の表示。</summary>
     private string EventText => _eventDate?.ToString("yyyy/MM/dd") ?? "";
 
-    /// <summary>期間の外の警告が出ている間、3 つの日付の欄に付ける class。</summary>
-    private string InvalidClass => IsEventOutOfPeriod ? "invalid" : "";
-
     protected override void OnInitialized()
     {
         if (Note is { } note)
@@ -182,30 +179,24 @@
     }
 
     /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
-    private void OnStartChanged(ChangeEventArgs e)
+    private void OnStartPicked(DateOnly day)
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        _info = null;
+        _start = day;
+        if (_end is { } end && end < day)
         {
-            _info = null;
-            _start = day;
-            if (_end is { } end && end < day)
-            {
-                _end = day;
-            }
+            _end = day;
         }
     }
 
     /// <summary>終了日を変えたとき、開始日より前になるなら、開始日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
-    private void OnEndChanged(ChangeEventArgs e)
+    private void OnEndPicked(DateOnly day)
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        _info = null;
+        _end = day;
+        if (day < _start)
         {
-            _info = null;
-            _end = day;
-            if (day < _start)
-            {
-                _start = day;
-            }
+            _start = day;
         }
     }
 
@@ -217,15 +208,9 @@
     }
 
     /// <summary>実施日を変えたとき、期間の外ならば、開始日・終了日を動かして合わせる。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
-    private void OnEventChanged(ChangeEventArgs e)
+    private void OnEventPicked(DateOnly day)
     {
         _info = null;
-        if (!DateOnly.TryParse(e.Value?.ToString(), out var day))
-        {
-            _eventDate = null;
-            return;
-        }
-
         _eventDate = day;
         var messages = new List<string>();
         if (day < _start)

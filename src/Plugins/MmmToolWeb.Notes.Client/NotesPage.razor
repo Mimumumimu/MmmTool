@@ -15,9 +15,9 @@
 
     <section class="controls" aria-label="表示の条件">
         <div class="day">
-            <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)">‹</button>
-            <input type="date" aria-label="表示する日" value="@_day.ToString("yyyy-MM-dd")" @onchange="OnDayChangedAsync" />
-            <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)">›</button>
+            <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)"><Chevron Left="true" /></button>
+            <DatePicker Label="表示する日" Value="_day" OnPicked="OnDayPickedAsync" />
+            <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)"><Chevron /></button>
             <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
         </div>
         <div class="segments basis" role="radiogroup" aria-label="表示の基準">
@@ -58,10 +58,10 @@
                                     <input type="checkbox" checked="@source.Everyone" @onchange="e => OnSourceEveryoneChangedAsync(source, (bool)e.Value!)" />
                                     <span>全員の分も出す</span>
                                 </label>
-                                <label class="source-from">
+                                <div class="source-from">
                                     <span>実績の開始日</span>
-                                    <input type="date" value="@DateText(source.From)" @onchange="e => OnSourceFromChangedAsync(source, e)" />
-                                </label>
+                                    <DatePicker Label="実績の開始日" Value="source.From" OnPicked="from => OnSourceFromPickedAsync(source, from)" />
+                                </div>
                                 @foreach (var option in source.Options)
                                 {
                                     <label class="option">
@@ -192,9 +192,6 @@
         /// <summary>選んでいる選択肢の識別。</summary>
         public HashSet<string> On { get; } = [.. dto.Options.Where(o => o.Default).Select(o => o.Key)];
     }
-
-    /// <summary>日付の入力欄に渡す文字。</summary>
-    private static string DateText(DateOnly day) => day.ToString("yyyy-MM-dd");
 
     /// <summary>カードの class。重要度ごとの帯と、実施日の目立たせ方と、削除済みの薄い表示に使う。</summary>
     private static string CardClass(NoteDto note)
@@ -346,13 +343,8 @@
         return LoadFramesAsync();
     }
 
-    private Task OnSourceFromChangedAsync(SourceState source, ChangeEventArgs e)
+    private Task OnSourceFromPickedAsync(SourceState source, DateOnly from)
     {
-        if (!DateOnly.TryParse(e.Value?.ToString(), out var from))
-        {
-            return Task.CompletedTask;
-        }
-
         // 期間の終わり (表示する日)以降は選べない。前日までに直す
         source.From = from >= _day ? _day.AddDays(-1) : from;
         return LoadFramesAsync();
@@ -383,14 +375,10 @@
         await LoadAsync();
     }
 
-    private Task OnDayChangedAsync(ChangeEventArgs e)
+    private Task OnDayPickedAsync(DateOnly day)
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
-        {
-            _day = day;
-            return LoadAsync();
-        }
-        return Task.CompletedTask;
+        _day = day;
+        return LoadAsync();
     }
 
     private Task OnIncludeDeletedChangedAsync(ChangeEventArgs e)

@@ -97,11 +97,6 @@
     line-height: 1.6;
 }
 
-/* 実施日が期間の外のとき、原因の日付の欄を、エラーの色の太い枠にする */
-.field input.invalid {
-    border: 2px solid var(--danger);
-}
-
 /* 期間の外の強い警告。直すまで出続け、保存を押せなくする */
 .alert {
     margin: 0 0 1rem;

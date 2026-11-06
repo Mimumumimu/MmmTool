@@ -41,11 +41,15 @@ export function isStandalone() {
     return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
 }
 
+// iPhone か iPad で、ホーム画面に追加していないか。通知とパスキーは、ここで開くと使えない。パソコンのブラウザは、ホーム画面が無いので、false
+export function needsHomeScreen() {
+    return /iPhone|iPad/.test(navigator.userAgent) && !isStandalone();
+}
+
 // 通知の状態。unsupported = この環境では使えない / needs-home-screen = iPhone でホーム画面に追加していない / denied = 許可が拒否されている / ready = 登録できる
 // subscribed は、このブラウザが今、宛先を持っているか。endpoint は、その宛先の URL で、持っていないときは null。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
 export async function getPushStatus() {
-    const isIos = /iPhone|iPad/.test(navigator.userAgent);
-    if (isIos && !isStandalone()) {
+    if (needsHomeScreen()) {
         return { state: "needs-home-screen", subscribed: false, endpoint: null };
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {

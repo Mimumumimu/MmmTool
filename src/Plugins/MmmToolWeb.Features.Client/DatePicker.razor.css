@@ -1,0 +1,203 @@
+/* 日付の欄。ほかの入力欄と同じ見た目で、押すとカレンダーが下から出る。外側の余白は 0 で、間隔は使う側が決める。iPhone の日付入力と同じく、文字は中央に置く */
+.trigger {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    /* 16px 未満だと、iPhone が入力のたびに画面を拡大する */
+    font-size: 1rem;
+    text-align: center;
+    /* 開始日と終了日を横に並べたとき、狭い画面でも折り返さず、はみ出す分は省く */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 期間の外のような、直すまで残る誤りの欄。エラーの色の太い枠にする */
+.trigger.invalid {
+    border: 2px solid var(--danger);
+}
+
+.trigger .empty {
+    color: var(--muted);
+}
+
+/* カレンダーは、画面の下から出す。片手の親指が届く位置で、押せる範囲を 44 ピクセル以上にするため。ライトとダークの両方の値を持つ */
+.picker-back {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.picker {
+    /* 並べる順を、CSS の order で入れ替えるため、縦の並びにする */
+    display: flex;
+    flex-direction: column;
+    /* 土曜は青、日曜と祝日は赤。PC 版のカレンダーの日の下の線と同じ色 */
+    --saturday: #1e5ac8;
+    --sunday: #c42b1c;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 24rem;
+    padding: 1rem 1rem calc(env(safe-area-inset-bottom) + 0.75rem);
+    border-radius: 1rem 1rem 0 0;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    /* 横向きの iPhone のように高さが足りないときは、シートの中でスクロールする。裏の画面は動かさない */
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (prefers-color-scheme: dark) {
+    .picker {
+        --saturday: #78aaff;
+        --sunday: #ff99a4;
+    }
+}
+
+/* 月を移る行。押せる部品の間は 8 ピクセルあける */
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.step {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+}
+
+.nav select {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 1rem;
+}
+
+.week,
+.days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+/* 月によって週が 5 行のことも 6 行のこともあるので、いつも 6 行分の高さにする。月を移っても、ヘッダーと格子の位置が動かない */
+.days {
+    grid-template-rows: repeat(6, 2.75rem);
+}
+
+.week {
+    margin-bottom: 0.25rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.week .saturday {
+    color: var(--saturday);
+}
+
+.week .sunday {
+    color: var(--sunday);
+}
+
+/* 1 日。1 日分の幅は、縦向きの iPhone で約 51 ピクセルあり、押せる範囲の 44 ピクセルを満たす */
+.day {
+    position: relative;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 0.75rem;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+}
+
+/* 押している間の反応。今日の塗りと区別するため、別の色にする */
+.day:active {
+    background: var(--accent-soft);
+}
+
+/* 土曜と日曜と祝日は、色だけでなく、日の下の線でも示す */
+.day.saturday::after,
+.day.sunday::after {
+    content: "";
+    position: absolute;
+    right: 30%;
+    bottom: 0.25rem;
+    left: 30%;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.day.saturday::after {
+    background: var(--saturday);
+}
+
+.day.sunday::after {
+    background: var(--sunday);
+}
+
+/* 今日は薄い塗りと太字で、選んでいる日は枠と太字で示す。線の色を隠さないため、選んだ日も塗りつぶさない。文字は本文の色のままにして、塗りの上でも読める濃さを保つ */
+.day.today {
+    background: var(--pressed);
+    font-weight: 700;
+}
+
+.day.selected {
+    border-color: var(--accent);
+    font-weight: 700;
+}
+
+/* その月の祝日の名前。祝日は日の下の線だけでは名前が分からないため、文字でも出す。
+   シートは画面の下に付いているので、祝日の数で増減しても、動くのは上だけで、ヘッダーと格子の位置は変わらない。
+   読み上げの順は、格子の後ろのままにして、見た目だけを、いちばん上に出す */
+.holidays {
+    order: -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1rem;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    list-style: none;
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+}
+
+.text {
+    min-height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+}

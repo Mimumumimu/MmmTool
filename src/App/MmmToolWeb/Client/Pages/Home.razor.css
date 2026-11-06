@@ -1,0 +1,21 @@
+/* 見出しの下の、ログインの案内 */
+.lead {
+    margin: 0 0 1.5rem;
+    color: var(--muted);
+}
+
+/* パスキーを使えない理由。使える人には出ない */
+.notice {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+/* 登録の枠の見出しの下の説明。文字は 12 ピクセルを下回らない */
+.hint {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+}

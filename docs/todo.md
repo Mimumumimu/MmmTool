@@ -23,15 +23,10 @@
     - `src/App/MmmToolWeb/Client`: ブラウザで動く Blazor WebAssembly の画面
     - `src/Auth/MmmToolWeb.Auth.Core`: パスキーの手続き
     - `src/Data/MmmToolWeb.Data.SqlServer`: 認証用の表の保存
-- ログイン画面の文言を、本番の形に直す
-- リマインダーの Web 画面の「すべて」は、見えるリマインダーを全件読む。PC 版の一覧と同じ読み方
-  - 方向: 日付で区切って続きを読む形にする。画面の操作が変わるので、作る前に、案をユーザーと決める。
-- ノートの Web 画面の日付入力に、土曜と日曜と祝日の色を付ける
-  - PC 版のカレンダーには、日の下に線を付けた。Web 版は、ブラウザ標準の日付入力 (`<input type="date">`)を使っていて、開いたカレンダーの日ごとの色を、ページ側から変えられない。
-  - 方向: 色を付けるには、自作のカレンダーの部品が要る。作る前に、案をユーザーと決める。
 - 独自ドメインへ替えるとき: パスキーは、アドレスに結びつくため、全員が登録し直す
 - 画面側の共通の CSS を 1 か所にまとめる
   - 文字のボタン (`.text`)・メッセージ (`.message`)などが、`NotesPage.razor.css` と `NoteEditSheet.razor.css` に書き写されている。`.text` は同じ内容で、`.message` は下の余白だけ違う。
+  - `.text` は、`DatePicker.razor.css` にも書き写されている。補足の薄い字 (`.hint`)は、`Home.razor.css` と `ReminderEditSheet.razor.css` にある。
   - 方向: `MmmToolWeb.Features.Client` に共通の CSS か部品を置き、機能の画面は、それを使う。
 - 画面側から `.Core` の判定を使えるようにする
   - メッセージの「送信」を押せる条件 (本文が空白だけでないこと)が、画面側 (`ConversationPage.razor`)と `MessageDraft.CanSend` の 2 か所にある。
@@ -54,23 +49,6 @@
     - `SetForegroundWindow=True` なのに後ろに残る: 前面化のあとに、通知を閉じる `CloseAfterClick` か作り直しの `Present` が、前面を奪っている。順序を見直す。
   - 直したら、計測のコードとログを消し、`BringToFront` に戻す。
   - 閉じている画面を新しく開く経路は `Activate()` だけで `BringToFront` を通らない。docs/specs/reminders.md の「前面に出すのは SDK の `BringToFront`」と食い違うので、直すときにそろえる。
-
-- 次の動きがおかしいときに、先に疑う変更
-  - 簡単に試せない動きなので、症状が出たときに、原因の見当をつけるために残す。
-  - 原因が分かって直したら、その動きの項目を消す。
-  - 2 台の PC (または PC と Web 版)で、片方から追加・編集・削除・完了・「未」への戻しをしても、もう片方に反映されない
-    - 関係する変更: リマインダーの毎分の読み出しを、差分にした。`SqlServerReminderRepository` の `ReadChangesAsync` と `Merge`。
-    - 関係する変更: 「未」に戻すとき、行の削除をやめ、`Status` を 0 にした。`SetStatesAsync` と、0 を許す形にした `ReminderState` の `Status` の検査。
-    - 症状の見当: 片方の変更が、もう片方に出ない。または、30 分ほどたつと直る。
-    - 症状の見当: 宛先を替えられた行が、消えない。30 回ごとの全件の読み直し `FullReloadEvery` が、効いていない。
-    - 症状の見当: 「未」に戻そうとすると、保存できない。`Status` の検査が 0 を許さない古い DB。
-  - 失敗する送信先 (宛先を壊したもの)で送っても、送り直されない
-    - 関係する変更: `SqlServerMessageSendStore.SkipDisabledAndGetSendableAsync` が、待ち時間を SQL の条件にした。待ち時間の表は `SendRetryPolicy` から作って `@FailedWaits` で渡す。
-    - 関係する変更: 送る権利を、20 件ずつまとめて取る `TryClaimManyAsync`。
-    - 症状の見当: 失敗した通知が、いつまでも送り直されない。または、待ち時間を待たずに、回数が上限まで進む。
-  - 通知の端末を登録し直しても、通知が届かない
-    - 関係する変更: `UpdateAndRestoreAsync`。更新と削除の取り消しを、1 文にした。`NotificationEndpoints.RegisterAsync` が使う。
-    - 症状の見当: 削除した端末を登録し直しても、使える状態に戻らない。
 
 ## そのうち (方向だけ)
 

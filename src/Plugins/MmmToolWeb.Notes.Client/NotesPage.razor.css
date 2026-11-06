@@ -49,8 +49,6 @@
     flex: none;
     width: 2.75rem;
     padding: 0;
-    font-size: 1.5rem;
-    line-height: 1;
 }
 
 .controls {
@@ -63,11 +61,10 @@
     gap: 0.25rem;
 }
 
-.day input[type="date"] {
+/* 日付の欄 (共通の DatePicker)は、前の日と次の日のボタンの間の幅を使う */
+.day ::deep .trigger {
     flex: 1;
     min-width: 0;
-    margin: 0;
-    text-align: center;
 }
 
 /* 表示の基準の切り替え。共通のセグメントを、日付の行の下に置く */
@@ -124,10 +121,9 @@
     min-height: 2.75rem;
 }
 
-.source-from input {
+.source-from ::deep .trigger {
     flex: 1;
     min-width: 0;
-    margin: 0;
 }
 
 /* 他の機能の内容の枠。ノートのカードと同じ見た目で、文は等幅のフォントで出す */

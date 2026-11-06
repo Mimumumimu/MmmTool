@@ -49,6 +49,14 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 前面への復帰: `StartWatchingVisibilityAsync` と `BecameVisible`
     - 端末の記憶 (`localStorage`): `GetRememberedAsync` と `RememberAsync`。名前は、機能の名前から始める。
     - 最初から文が入っている入力欄のカーソルを先頭に置く: `PlaceCaretAtStartAsync` (`browser.js` の `placeCaretAtStart`)
+  - 日付を入れる欄は、`<input type="date">` ではなく `DatePicker` を使う。仕様は [specs/web.md](specs/web.md) の「日付の選択 (Web 版)」。
+    - 渡すのは次の 4 つ。
+      - `Value`: 選んでいる日で、未設定は null
+      - `OnPicked`: 日を選んだときの処理
+      - `Label`: 欄の名前
+      - `Invalid`: true にすると、誤りの欄として太い枠にする
+    - `<label>` で包まない。カレンダーの空きをタップすると、欄を押したことになって、開き直すため。見出しの文字は `<span>` で出す。
+    - 土曜・日曜・祝日の線に使う祝日は、`HolidayClient` が、サーバーの `GET /api/holidays` から読む。部品が使うので、機能の側では呼ばない。
   - 機能の画面の上のバーは `FeatureHeader` で、ホームへ戻る・名前・操作を持つ。
     - 読み込みや送信を待つ間は、`Busy` に true を渡して、進行バーを出す。
     - 速く終わっても見える最低の時間 (0.4 秒)は、`FeatureHeader` が持つ。

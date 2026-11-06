@@ -50,11 +50,11 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserC
         using var start = await http.PostAsJsonAsync("api/auth/enroll/start", new EnrollStartRequest(code, await browser.DeviceNameAsync()));
         if (start.StatusCode == HttpStatusCode.Forbidden)
         {
-            return AuthResult.Fail("登録用コードが違うか、期限が切れています。");
+            return AuthResult.Fail("登録用コードが違うか、期限が切れています。管理者に新しいコードを頼んでください。");
         }
         if (!start.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"登録を始められませんでした。エラー番号は {(int)start.StatusCode} です。");
+            return Failed("登録", start.StatusCode);
         }
         var ceremony = await start.Content.ReadFromJsonAsync<CeremonyStartResponse>();
         var credential = await browser.CreateAsync(ceremony!.Options);
@@ -66,7 +66,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserC
             "api/auth/enroll/finish", new EnrollFinishRequest(code, ceremony.CeremonyId, credential.Value));
         if (!finish.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"登録を完了できませんでした。エラー番号は {(int)finish.StatusCode} です。");
+            return Failed("登録", finish.StatusCode);
         }
 
         await ClearCacheAsync();
@@ -91,7 +91,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserC
         return response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => AuthResult.Fail("今使えるユーザーが見つかりません。"),
-            _ => AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)response.StatusCode} です。"),
+            _ => Failed("ログイン", response.StatusCode),
         };
     }
 
@@ -105,7 +105,7 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserC
         using var start = await http.PostAsync("api/auth/login/start", content: null);
         if (!start.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"ログインを始められませんでした。エラー番号は {(int)start.StatusCode} です。");
+            return Failed("ログイン", start.StatusCode);
         }
         var ceremony = await start.Content.ReadFromJsonAsync<CeremonyStartResponse>();
         var credential = await browser.GetAsync(ceremony!.Options);
@@ -117,12 +117,21 @@ public sealed class AuthClient(HttpClient http, PasskeyBrowser browser, BrowserC
             "api/auth/login/finish", new LoginFinishRequest(ceremony.CeremonyId, credential.Value));
         if (!finish.IsSuccessStatusCode)
         {
-            return AuthResult.Fail($"ログインできませんでした。エラー番号は {(int)finish.StatusCode} です。");
+            return Failed("ログイン", finish.StatusCode);
         }
 
         await ClearCacheAsync();
         return AuthResult.Success;
     }
+
+    /// <summary>
+    /// サーバーが失敗を返したときの、画面に出す文を作る。
+    /// </summary>
+    /// <param name="action">できなかった操作。「ログイン」か「登録」。</param>
+    /// <param name="status">サーバーが返した状態。管理者が原因を調べる手がかりとして、番号を文に入れる。</param>
+    /// <returns>失敗の結果。</returns>
+    private static AuthResult Failed(string action, HttpStatusCode status)
+        => AuthResult.Fail($"{action}できませんでした。もう一度試してください。続くときは管理者に、エラー番号 {(int)status} を伝えてください。");
 
     /// <summary>
     /// ログインできたとき、この端末の控え (メッセージなど)を捨てる。
