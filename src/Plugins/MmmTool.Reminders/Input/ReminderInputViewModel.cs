@@ -369,7 +369,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             Date = IsDateSpecified && Date is { } date ? ReminderDates.ToDateValue(date.DateTime) : ReminderDates.NoDate,
             Weekdays = IsDateSpecified ? Weekdays.None : SelectedWeekdays,
             Time = ReminderDates.ToTimeValue(new TimeOnly(Math.Clamp(Hour, 0, 23), Math.Clamp(Minute, 0, 59))),
-            Note = string.IsNullOrWhiteSpace(Note) ? null : Note,
+            // 複数行の入力欄は改行を \r で返す。Web 版の入力欄 (textarea)が返す \n に保存の形をそろえる。\r\n にしないのは、1 つの改行が 2 文字になり、列の長さを超えうるため
+            Note = string.IsNullOrWhiteSpace(Note) ? null : Note.ReplaceLineEndings("\n"),
             Link = string.IsNullOrWhiteSpace(Link) ? null : Link.Trim(),
             IsSpeak = IsSpeak,
             TargetUserId = SelectedTarget?.UserId ?? _target?.TargetUserId ?? 0,
