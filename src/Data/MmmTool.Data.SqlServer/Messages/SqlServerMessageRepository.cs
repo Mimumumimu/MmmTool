@@ -114,13 +114,15 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         var me = SendTableAccess.RequireUserId(currentUser);
         return SendTableAccess.RunAsync(database, async connection =>
         {
-            var baseTime = await ReadNowAsync(connection, cancellationToken).ConfigureAwait(false);
-
-            // 自分宛の新着、自分が送ったメッセージの変わり、システムメッセージを、それぞれ索引 1 回で読む
-            // 抜けた会話のメッセージは、抜けるときに自分宛の通知の行が「送らなかった」に変わっても、届けない
-            await using var messageCommand = connection.CreateCommand();
-            messageCommand.CommandText =
+            // 基準の日時、メッセージの変わり、参加者の行の変わりを、1 回の通信で 3 つの結果として受け取る
+            // 基準の日時を先に読むので、データより前の時計になる。読んでいる間に確定した書き込みを、次の回が取りこぼさない
+            await using var command = connection.CreateCommand();
+            command.CommandText =
                 $"""
+                SELECT SYSDATETIMEOFFSET();
+
+                -- 自分宛の新着、自分が送ったメッセージの変わり、システムメッセージを、それぞれ索引 1 回で読む
+                -- 抜けた会話のメッセージは、抜けるときに自分宛の通知の行が「送らなかった」に変わっても、届けない
                 WITH Changed AS (
                     SELECT d.MessageId AS Id FROM dbo.MessageDelivery AS d WHERE d.UserId = @Me AND d.UpdatedAt > @Since
                     UNION
@@ -130,23 +132,28 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
                 {MessageSelect}
                 WHERE m.IsDeleted = 0 AND m.Id IN (SELECT Id FROM Changed)
                     AND EXISTS (SELECT 1 FROM dbo.MessageConversationMember AS mm WHERE mm.ConversationId = m.ConversationId AND mm.UserId = @Me AND mm.IsDeleted = 0)
-                ORDER BY m.Id
-                """;
-            messageCommand.Parameters.Add(Int("@Me", me));
-            messageCommand.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset) { Value = since });
-            var messages = await ReadMessagesAsync(messageCommand, cancellationToken).ConfigureAwait(false);
+                ORDER BY m.Id;
 
-            // 自分が新しく入った会話と、読んだ位置が変わった会話は、読んだ位置を書く人が、ほかの参加者の行の更新日時を進める
-            // 削除済みの行は、自分が抜けた会話。抜けたあとにまた入った会話は、新しい行があるので、抜けた扱いにしない
-            var conversationIds = new HashSet<int>(messages.Select(message => message.ConversationId));
+                -- 自分が新しく入った会話と、読んだ位置が変わった会話は、読んだ位置を書く人が、ほかの参加者の行の更新日時を進める
+                -- 削除済みの行は、自分が抜けた会話。抜けたあとにまた入った会話は、新しい行があるので、抜けた扱いにしない
+                SELECT ConversationId, IsDeleted FROM dbo.MessageConversationMember WHERE UserId = @Me AND UpdatedAt > @Since;
+                """;
+            command.Parameters.Add(Int("@Me", me));
+            command.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset) { Value = since });
+
+            DateTimeOffset baseTime;
+            IReadOnlyList<ChatMessage> messages;
             var deletedIds = new HashSet<int>();
-            await using var memberCommand = connection.CreateCommand();
-            memberCommand.CommandText =
-                "SELECT ConversationId, IsDeleted FROM dbo.MessageConversationMember WHERE UserId = @Me AND UpdatedAt > @Since";
-            memberCommand.Parameters.Add(Int("@Me", me));
-            memberCommand.Parameters.Add(new SqlParameter("@Since", SqlDbType.DateTimeOffset) { Value = since });
-            await using (var reader = await memberCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            HashSet<int> conversationIds;
+            await using (var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
+                await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                baseTime = reader.GetDateTimeOffset(0);
+                await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+                messages = await ReadMessagesAsync(reader, cancellationToken).ConfigureAwait(false);
+                await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+
+                conversationIds = new HashSet<int>(messages.Select(message => message.ConversationId));
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     (reader.GetBoolean(1) ? deletedIds : conversationIds).Add(reader.GetInt32(0));
@@ -647,8 +654,17 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <returns>読んだメッセージ。問い合わせの並びのまま</returns>
     private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(SqlCommand command, CancellationToken cancellationToken)
     {
-        var messages = new List<ChatMessage>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadMessagesAsync(reader, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>開いた読み取りの、いまの結果から、メッセージを読む</summary>
+    /// <param name="reader">いまの結果の列の並びが <see cref="MessageSelect"/> と同じ読み取り</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>読んだメッセージ。問い合わせの並びのまま。読み取りは、この結果の終わりまで進む</returns>
+    private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(SqlDataReader reader, CancellationToken cancellationToken)
+    {
+        var messages = new List<ChatMessage>();
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             messages.Add(new ChatMessage(

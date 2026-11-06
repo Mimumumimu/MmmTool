@@ -38,7 +38,7 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <param name="time">現在時刻の提供元</param>
     /// <param name="ticker">毎分の合図</param>
     public ReminderMainViewModel(
-        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, IClipboardService clipboard, TimeProvider time, IMinuteTicker ticker)
+        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, IClipboardService clipboard, TimeProvider time, ITicker ticker)
         : base(reminders, time, ticker)
     {
         _monitor = monitor;

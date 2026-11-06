@@ -1,3 +1,4 @@
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.Messages.Cache;
 using MmmTool.Messages.Core;
@@ -11,14 +12,16 @@ namespace MmmTool.Messages;
 /// <remarks>
 /// サーバーを通さず、PC が DB を、場面ごとの間隔で読む。間隔はどれも仮。
 /// 会話を開いていて、ウィンドウが前面にあるときは 2 秒、それ以外でアプリが動いている間は 10 秒。
-/// 読むのは、どの場面も同じ差分の取得で、会話の数に関係なく、索引 3 回。人の一覧は、読んだ結果から作り直す。
+/// 読む時刻は、アプリ全体で 1 つの <see cref="ITicker"/> の間隔の合図 (<see cref="TickTiming.Interval"/>)で決める。自分ではタイマーを持たない。
+/// 読むのは、どの場面も同じ差分の取得で、会話の数に関係なく、索引 4 回。人の一覧は、読んだ結果から作り直す。
 /// 起動直後は、まず端末の控え (<see cref="MessageCacheStore"/>)から出し、続けて差分を読む。控えは、いつでも作り直せる。
 /// 読んだ結果は、任意のスレッドから通知する。画面は、UI スレッドに切り替えて使う。
 /// </remarks>
 /// <param name="repository">会話とメッセージの保存先</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <param name="cache">端末の控え</param>
-public sealed class MessageSyncService(IMessageRepository repository, CurrentUser currentUser, MessageCacheStore cache) : IDisposable
+/// <param name="ticker">定期処理の合図</param>
+public sealed class MessageSyncService(IMessageRepository repository, CurrentUser currentUser, MessageCacheStore cache, ITicker ticker) : IDisposable
 {
     /// <summary>会話を開いていて、ウィンドウが前面にあるときの間隔。仮</summary>
     private static readonly TimeSpan FrontInterval = TimeSpan.FromSeconds(2);
@@ -29,17 +32,18 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>読む処理を、同時に 2 つ走らせないための鍵</summary>
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    /// <summary>待ち時間の途中で、すぐ読みたいとき、ループを起こす</summary>
-    private readonly SemaphoreSlim _wake = new(0);
-
     /// <summary>通知ダイアログに出した、他の人のメッセージの番号。同じメッセージを、続けて出さない</summary>
     private readonly HashSet<int> _notified = [];
 
     /// <summary>この PC から DB に書いた、会話ごとの読んだ位置の最大。同じ位置を何度も書かないため</summary>
     private readonly Dictionary<int, int> _reportedRead = [];
 
-    /// <summary>ループを止めるための取り消し</summary>
-    private CancellationTokenSource? _cancellation;
+    /// <summary>読む処理を止めるための取り消し。破棄で取り消す</summary>
+    private readonly CancellationTokenSource _cancellation = new();
+
+    /// <summary>読む時刻の合図の登録。<see cref="Start"/> の前は null</summary>
+    /// <remarks>アプリの起動時に 1 回だけ入れる。画面の状態を伝える側は、入る前なら何もしない。</remarks>
+    private volatile ITickSubscription? _subscription;
 
     /// <summary>いま開いている会話の番号。開いていなければ 0</summary>
     private int _openConversationId;
@@ -80,21 +84,26 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <summary>自分が会話を抜けたことが届いた。引数は会話の番号。任意のスレッドから発火する</summary>
     public event Action<int>? ConversationLeft;
 
-    /// <summary>読み続けるループを始める</summary>
+    /// <summary>読み続ける合図の登録を始める</summary>
     /// <param name="isEnabled">機能がオンか。オフの間は読まない</param>
-    /// <remarks>アプリの起動時に 1 回だけ呼ぶ。</remarks>
+    /// <remarks>
+    /// アプリの起動時に 1 回だけ呼ぶ。登録した直後には読まず、最初の間隔のあとから読む。
+    /// 予想外の失敗 (バグ)は、<see cref="ITicker"/> がアプリの受け皿に渡す。読めない失敗 (<see cref="DataFileException"/>)は、<see cref="LastError"/> に残して、失敗として伝える。
+    /// 失敗が続くと、<see cref="ITicker"/> が次の合図までの時間を延ばす。会話を開いたとき (<see cref="SetViewState"/>)は、延ばしている間もすぐ読む。
+    /// </remarks>
     public void Start(Func<bool> isEnabled)
     {
         ArgumentNullException.ThrowIfNull(isEnabled);
 
-        if (_cancellation is not null)
+        if (_subscription is not null)
         {
             return;
         }
 
-        _cancellation = new CancellationTokenSource();
         var token = _cancellation.Token;
-        _ = Task.Run(() => RunLoopAsync(isEnabled, token), token);
+        _subscription = ticker.Subscribe(
+            async _ => await TrySyncAsync(token).ConfigureAwait(false) ? TickResult.Done : TickResult.Failed,
+            new TickOptions { Timing = TickTiming.Interval, Interval = IntervalFor(inFront: false), IsActive = isEnabled });
     }
 
     /// <summary>画面の状態を伝える。間隔を決めるために使う</summary>
@@ -106,9 +115,15 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         var becameActive = inFront && openConversationId > 0 && !(_inFront && _openConversationId == openConversationId);
         _openConversationId = openConversationId;
         _inFront = inFront;
+        if (_subscription is not { } subscription)
+        {
+            return;
+        }
+
+        subscription.SetInterval(IntervalFor(inFront && openConversationId > 0));
         if (becameActive)
         {
-            _wake.Release();
+            subscription.WakeNow();
         }
     }
 
@@ -201,13 +216,20 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読む処理の完了を表すタスク。読めなかったときは <see cref="LastError"/> に残す</returns>
     public async Task SyncAsync(CancellationToken cancellationToken = default)
+        => await TrySyncAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>差分を 1 回読んで、読めたかを返す</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>DB から読めなかった (<see cref="DataFileException"/>)ときだけ false。保存先が使えないとき、ログインの前は、読むものが無いので true</returns>
+    private async Task<bool> TrySyncAsync(CancellationToken cancellationToken)
     {
+        var read = true;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!repository.IsAvailable || !currentUser.IsIdentified)
             {
-                return;
+                return true;
             }
 
             await SyncCoreAsync(currentUser.Id, cancellationToken).ConfigureAwait(false);
@@ -216,6 +238,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         catch (DataFileException ex)
         {
             LastError = ex.Message;
+            read = false;
         }
         finally
         {
@@ -223,6 +246,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
         }
 
         Synced?.Invoke();
+        return read;
     }
 
     /// <summary>会話のメッセージを、新しい順に読む</summary>
@@ -253,51 +277,16 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     /// <inheritdoc />
     public void Dispose()
     {
-        _cancellation?.Cancel();
-        _cancellation?.Dispose();
-        _gate.Dispose();
-        _wake.Dispose();
+        _subscription?.Dispose();
+        _cancellation.Cancel();
+        _cancellation.Dispose();
+        // _gate は破棄しない。読んでいる最中の処理が、終わるときに解放するため。破棄すると、アプリの終了のたびに、解放が失敗して異常終了の画面が出る。プロセスの終了で消える。
     }
 
-    /// <summary>読み続けるループ</summary>
-    /// <param name="isEnabled">機能がオンか</param>
-    /// <param name="cancellationToken">止めるためのトークン</param>
-    /// <returns>ループの完了を表すタスク</returns>
-    private async Task RunLoopAsync(Func<bool> isEnabled, CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var interval = _inFront && _openConversationId > 0 ? FrontInterval : BackgroundInterval;
-            try
-            {
-                await _wake.WaitAsync(interval, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (!isEnabled())
-            {
-                continue;
-            }
-
-            try
-            {
-                await SyncAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                // 予想外の失敗でも、ループを止めない。止めると、新着が静かに届かなくなる。画面の読み込みのエラーに出して、次の回にもう一度読む
-                LastError = $"予想外のエラー: {ex.Message}";
-                Synced?.Invoke();
-            }
-        }
-    }
+    /// <summary>画面の状態から、読む間隔を決める</summary>
+    /// <param name="inFront">会話を開いていて、ウィンドウが前面にあるか</param>
+    /// <returns>前面なら <see cref="FrontInterval"/>、それ以外は <see cref="BackgroundInterval"/></returns>
+    private static TimeSpan IntervalFor(bool inFront) => inFront ? FrontInterval : BackgroundInterval;
 
     /// <summary>読んで、人の一覧と控えに取り込み、届いたメッセージを知らせる</summary>
     /// <param name="me">自分の番号</param>

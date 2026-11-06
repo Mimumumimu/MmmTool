@@ -98,7 +98,7 @@
 ## 監視 (`ReminderMonitor`、Singleton)
 
 - 役割分担
-  - 毎分の合図は、アプリ全体で 1 つの SDK の `IMinuteTicker` から受け取る。自分ではタイマーを持たない ([architecture.md](../architecture.md) の「毎分の処理」)
+  - 毎分の合図は、アプリ全体で 1 つの SDK の `ITicker` から受け取る。自分ではタイマーを持たない ([architecture.md](../architecture.md) の「定期処理」)
   - 通知する項目の判定は `ReminderEvaluator`(時刻・タイマー・設定に依存しない純粋な判定)
   - `ReminderMonitor` はそれらをつなぎ、スヌーズの通知時刻を覚える
   - スヌーズ間隔は `ReminderSettingsService` から読む (設定ストアに直接触れない)

@@ -1,5 +1,5 @@
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
-using MmmSdk.Core.Utilities;
 using MmmTool.CodeMaster.Core;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
@@ -7,11 +7,12 @@ using MmmTool.Users.Core;
 namespace MmmTool.Notes.Core;
 
 /// <summary>
-/// 他の人が作成・更新したノートを、アプリが動いている間、一定の間隔で探して、知らせる。PC の通知ダイアログ用。
+/// 他の人が作成・更新したノートを、アプリが動いている間、毎分 1 回探して、知らせる。PC の通知ダイアログ用。
 /// </summary>
 /// <param name="notes">ノートの保存先</param>
 /// <param name="settings">ユーザーごとの設定の保存先 (自分の「ノートの通知を受け取る」を読む)</param>
 /// <param name="time">現在時刻の取得元</param>
+/// <param name="ticker">定期処理の合図</param>
 /// <remarks>
 /// <para>
 /// 通知の元は、ノートの更新日時。変更の履歴も、通知のための行も、DB に持たない。基準の時刻はメモリだけに持ち、ファイルにも DB にも書かない。
@@ -24,19 +25,19 @@ namespace MmmTool.Notes.Core;
 /// 知らせる処理 (<c>notify</c>)は、スレッドプールのスレッドから呼ぶ。画面を触るときは、UI スレッドに切り替える。
 /// </para>
 /// </remarks>
-public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepository settings, TimeProvider time) : IDisposable
+public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepository settings, TimeProvider time, ITicker ticker) : IDisposable
 {
-    /// <summary>読む間隔</summary>
-    public static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
-
     /// <summary>確定が遅れた書き込みを取りこぼさないために、基準から戻して読む時間</summary>
     public static readonly TimeSpan Overlap = TimeSpan.FromSeconds(10);
 
     /// <summary>覚えた「知らせ済み」を捨てる古さ。戻して読む範囲より十分に長い</summary>
     private static readonly TimeSpan SeenKeep = TimeSpan.FromMinutes(5);
 
-    /// <summary>監視を止めるためのトークンの元</summary>
+    /// <summary>読む処理を止めるための取り消し。破棄で取り消す</summary>
     private readonly CancellationTokenSource _stop = new();
+
+    /// <summary>毎分の合図の登録。始める前は null</summary>
+    private ITickSubscription? _subscription;
 
     /// <summary>知らせ済みのノート (ノートの番号 → 知らせた更新日時)</summary>
     private readonly Dictionary<int, DateTimeOffset> _seen = [];
@@ -64,47 +65,45 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
         }
         _started = true;
 
-        // 予想外の失敗 (壊れた行を読んだときなど)は、監視が黙って止まらないよう、アプリの受け皿に渡す
-        Task.Run(() => RunAsync(isEnabled, notify, _stop.Token)).Forget();
+        // 毎分 1 回、端末ごとにずらした秒で読む。始めた直後にも 1 回読み、最初の基準を決める
+        // 予想外の失敗 (壊れた行を読んだときなど)は、監視が黙って止まらないよう、合図の仕組みがアプリの受け皿に渡す
+        var token = _stop.Token;
+        _subscription = ticker.Subscribe(
+            _ => CheckAsync(notify, token),
+            new TickOptions { Timing = TickTiming.Staggered, RunImmediately = true, IsActive = isEnabled });
     }
 
     /// <summary>監視を止める</summary>
     public void Dispose()
     {
+        _subscription?.Dispose();
         _stop.Cancel();
         _stop.Dispose();
     }
 
-    /// <summary>周期ごとに読んで、他の人の作成・更新があれば知らせる</summary>
-    /// <param name="isEnabled">ノートの機能がオンか</param>
+    /// <summary>読んで、他の人の作成・更新があれば知らせる</summary>
     /// <param name="notify">知らせる処理</param>
     /// <param name="cancellationToken">監視を止めるトークン</param>
-    /// <returns>監視を止めるまでの完了を表すタスク</returns>
-    private async Task RunAsync(Func<bool> isEnabled, Action<IReadOnlyList<NoteNotice>> notify, CancellationToken cancellationToken)
+    /// <returns>読む処理の結果を表すタスク。DB に届かなかったときは失敗で、続くと次の合図までの時間が延びる。保存先が自分だけのとき、設定を読めないとき、ログインの前は、読むものが無いので成功</returns>
+    private async Task<TickResult> CheckAsync(Action<IReadOnlyList<NoteNotice>> notify, CancellationToken cancellationToken)
     {
-        using var timer = new PeriodicTimer(Interval, time);
-        try
+        if (!notes.IsShared || !settings.IsAvailable)
         {
-            do
-            {
-                if (isEnabled() && notes.IsShared && settings.IsAvailable
-                    && await TryReadAsync(cancellationToken).ConfigureAwait(false) is { Count: > 0 } found)
-                {
-                    notify(found);
-                }
-            }
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false));
+            return TickResult.Done;
         }
-        catch (OperationCanceledException)
+
+        var (result, found) = await TryReadAsync(cancellationToken).ConfigureAwait(false);
+        if (found is { Count: > 0 })
         {
-            // 監視を止めた
+            notify(found);
         }
+        return result;
     }
 
     /// <summary>1 回読んで、知らせるものを決める</summary>
     /// <param name="cancellationToken">監視を止めるトークン</param>
-    /// <returns>知らせるもの。読めなかったとき (ログインの前・接続できない)は null</returns>
-    private async Task<IReadOnlyList<NoteNotice>?> TryReadAsync(CancellationToken cancellationToken)
+    /// <returns>結果と、知らせるもの。DB に届かなかったときは失敗。ログインの前は、成功で、知らせるものは無い</returns>
+    private async Task<(TickResult Result, IReadOnlyList<NoteNotice>? Found)> TryReadAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -115,7 +114,7 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
             {
                 _floor = (await notes.GetChangesAsync(null, today, cancellationToken).ConfigureAwait(false)).ServerNow;
                 _cursor = _floor;
-                return null;
+                return (TickResult.Done, null);
             }
 
             var read = await notes.GetChangesAsync(cursor - Overlap, today, cancellationToken).ConfigureAwait(false);
@@ -133,14 +132,19 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
             }
             Prune(_cursor.Value);
 
-            return fresh.Count == 0 || !isOn
+            return (TickResult.Done, fresh.Count == 0 || !isOn
                 ? null
-                : [.. fresh.Select(change => new NoteNotice(change, change.EditorName, IsCreated: change.CreatedAt > cursor))];
+                : [.. fresh.Select(change => new NoteNotice(change, change.EditorName, IsCreated: change.CreatedAt > cursor))]);
         }
-        catch (Exception ex) when (ex is DataFileException or InvalidOperationException)
+        catch (DataFileException)
         {
-            // ログインの前・接続できない。基準は進めず、次の周期でやり直す
-            return null;
+            // 接続できない。基準は進めず、次の周期でやり直す。失敗として伝え、続くと間隔を延ばす
+            return (TickResult.Failed, null);
+        }
+        catch (InvalidOperationException)
+        {
+            // ログインの前。DB に届かなかったのではないので、失敗にしない。基準は進めず、次の周期でやり直す
+            return (TickResult.Done, null);
         }
     }
 

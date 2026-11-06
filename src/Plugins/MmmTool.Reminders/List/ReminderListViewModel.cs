@@ -34,7 +34,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <param name="time">現在時刻の提供元</param>
     /// <param name="ticker">毎分の合図</param>
     public ReminderListViewModel(
-        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time, IMinuteTicker ticker)
+        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time, ITicker ticker)
         : base(reminders, time, ticker)
     {
         _dialogs = dialogs;

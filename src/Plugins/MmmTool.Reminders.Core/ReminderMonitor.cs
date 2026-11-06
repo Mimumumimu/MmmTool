@@ -13,10 +13,10 @@ namespace MmmTool.Reminders.Core;
 /// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する。
-/// 毎分の合図は、アプリ全体で 1 つの <see cref="IMinuteTicker"/> から受け取る。通知する項目の判定は <see cref="ReminderEvaluator"/> が行う。ここはそれらをつなぎ、スヌーズの通知時刻を覚える。
+/// 毎分の合図は、アプリ全体で 1 つの <see cref="ITicker"/> から受け取る。通知する項目の判定は <see cref="ReminderEvaluator"/> が行う。ここはそれらをつなぎ、スヌーズの通知時刻を覚える。
 /// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる。通知 UI に依存しないため。
 /// </remarks>
-public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, IMinuteTicker ticker, TimeProvider timeProvider) : IDisposable
+public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, ITicker ticker, TimeProvider timeProvider) : IDisposable
 {
     /// <summary>通知のタイトル</summary>
     private const string NotificationTitle = "リマインダー";
@@ -25,7 +25,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     private readonly Lock _gate = new();
 
     /// <summary>毎分の合図の登録。開始前・破棄後は null</summary>
-    private IMinuteTickSubscription? _subscription;
+    private ITickSubscription? _subscription;
 
     /// <summary>通知を表示するコールバック</summary>
     private Action<string, IReadOnlyList<NotificationItem>, string?>? _notify;
@@ -53,7 +53,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
             _notify = notify;
         }
 
-        var subscription = ticker.Subscribe(CheckAsync, new MinuteTickOptions { RunImmediately = true, IsActive = isActive });
+        var subscription = ticker.Subscribe(CheckAsync, new TickOptions { RunImmediately = true, IsActive = isActive });
         lock (_gate)
         {
             _subscription = subscription;
@@ -78,14 +78,14 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
 
         lock (_gate)
         {
-            _lastSnoozeNotifiedMinute = MinuteScheduler.TruncateToMinute(now);
+            _lastSnoozeNotifiedMinute = MinuteTime.TruncateToMinute(now);
         }
     }
 
     /// <summary>監視を止める</summary>
     public void Dispose()
     {
-        IMinuteTickSubscription? subscription;
+        ITickSubscription? subscription;
         lock (_gate)
         {
             if (_disposed)
@@ -111,7 +111,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
             return;
         }
 
-        var minute = MinuteScheduler.TruncateToMinute(now);
+        var minute = MinuteTime.TruncateToMinute(now);
         Action<string, IReadOnlyList<NotificationItem>, string?>? notify;
         ReminderEvaluation evaluation;
         lock (_gate)

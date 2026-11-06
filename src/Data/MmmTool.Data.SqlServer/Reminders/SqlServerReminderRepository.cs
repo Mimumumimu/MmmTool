@@ -53,10 +53,10 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     private readonly TimeProvider _time;
 
     /// <summary>毎分の合図</summary>
-    private readonly IMinuteTicker _ticker;
+    private readonly ITicker _ticker;
 
     /// <summary>ほかの PC の変更を読み直す合図の登録。最初の読み込みの前は null</summary>
-    private IMinuteTickSubscription? _poll;
+    private ITickSubscription? _poll;
 
     /// <summary>読み書きと、読み直しを順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -98,7 +98,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <param name="time">現在の日付を知るための時計</param>
     /// <param name="ticker">毎分の合図。ほかの PC の変更を、毎分 1 回読み直すのに使う</param>
     public SqlServerReminderRepository(
-        SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, IMinuteTicker ticker)
+        SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, ITicker ticker)
     {
         _database = database;
         _currentUser = currentUser;
@@ -248,26 +248,28 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <summary>読み直して、変わっていれば <see cref="ExternalChanged"/> で知らせる</summary>
-    /// <returns>読み直しの完了を表すタスク</returns>
-    private async Task ReloadAndNotifyAsync()
+    /// <returns>読み直しの結果を表すタスク。読めなかった (読み込みの失敗が残っている)ときは失敗で、続くと次の合図までの時間が延びる</returns>
+    private async Task<TickResult> ReloadAndNotifyAsync()
     {
         bool changed;
+        TickResult result;
         try
         {
             await _lock.WaitAsync(_stop.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            return;
+            return TickResult.Done;
         }
 
         try
         {
             changed = await ReloadAsync(_stop.Token).ConfigureAwait(false);
+            result = _loadError is null ? TickResult.Done : TickResult.Failed;
         }
         catch (OperationCanceledException)
         {
-            return;
+            return TickResult.Done;
         }
         finally
         {
@@ -278,6 +280,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         {
             ExternalChanged?.Invoke(this, EventArgs.Empty);
         }
+        return result;
     }
 
     /// <summary>最初の読み込みと、読み直しの繰り返しを、まだなら始める</summary>
@@ -300,7 +303,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             await ReloadAsync(cancellationToken).ConfigureAwait(false);
             _started = true;
             // ほかの PC の変更は、毎分 1 回読み直す。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来るので、ずらした合図で受ける
-            _poll = _ticker.Subscribe(_ => ReloadAndNotifyAsync(), new MinuteTickOptions { Timing = MinuteTickTiming.Staggered });
+            _poll = _ticker.Subscribe(_ => ReloadAndNotifyAsync(), new TickOptions { Timing = TickTiming.Staggered });
         }
         finally
         {

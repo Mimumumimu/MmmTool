@@ -15,10 +15,10 @@ namespace MmmTool.Notes.Core;
 /// 同じ日に何度か起動すると、そのたびに知らせる。人ごとの既読の記録は持たない。
 /// 知らせる処理 (<c>notify</c>)は、スレッドプールのスレッドから呼ぶ。画面を触るときは、UI スレッドに切り替える。
 /// </remarks>
-public sealed class NoteEventMonitor(NoteService notes, IMinuteTicker ticker) : IDisposable
+public sealed class NoteEventMonitor(NoteService notes, ITicker ticker) : IDisposable
 {
     /// <summary>毎分の合図の登録。始める前は null</summary>
-    private IMinuteTickSubscription? _subscription;
+    private ITickSubscription? _subscription;
 
     /// <summary>始めたか</summary>
     private bool _started;
@@ -46,7 +46,7 @@ public sealed class NoteEventMonitor(NoteService notes, IMinuteTicker ticker) : 
         // 予想外の失敗 (壊れた行を読んだときなど)は、監視が黙って止まらないよう、合図の仕組みがアプリの受け皿に渡す
         _subscription = ticker.Subscribe(
             _ => CheckAsync(notify),
-            new MinuteTickOptions { Timing = MinuteTickTiming.Staggered, RunImmediately = true, IsActive = isEnabled });
+            new TickOptions { Timing = TickTiming.Staggered, RunImmediately = true, IsActive = isEnabled });
     }
 
     /// <summary>監視を止める</summary>
@@ -54,13 +54,18 @@ public sealed class NoteEventMonitor(NoteService notes, IMinuteTicker ticker) : 
 
     /// <summary>日付が変わったかを見て、変わっていたら知らせる</summary>
     /// <param name="notify">知らせる処理</param>
-    /// <returns>確認の完了を表すタスク</returns>
-    private async Task CheckAsync(Action<IReadOnlyList<Note>> notify)
+    /// <returns>確認の結果を表すタスク。読めなかったときは失敗で、続くと次の合図までの時間が延びる</returns>
+    private async Task<TickResult> CheckAsync(Action<IReadOnlyList<Note>> notify)
     {
         var today = notes.Today;
-        if (_notifiedDay == today || await TryLoadAsync().ConfigureAwait(false) is not { } found)
+        if (_notifiedDay == today)
         {
-            return;
+            return TickResult.Done;
+        }
+
+        if (await TryLoadAsync().ConfigureAwait(false) is not { } found)
+        {
+            return TickResult.Failed;
         }
 
         _notifiedDay = today;
@@ -68,6 +73,7 @@ public sealed class NoteEventMonitor(NoteService notes, IMinuteTicker ticker) : 
         {
             notify(found);
         }
+        return TickResult.Done;
     }
 
     /// <summary>今日が実施日のノートを読む</summary>

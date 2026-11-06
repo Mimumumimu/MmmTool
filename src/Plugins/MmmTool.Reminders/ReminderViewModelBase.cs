@@ -37,7 +37,7 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     /// <param name="time">現在時刻の提供元</param>
     /// <param name="ticker">毎分の合図 (日付の監視に使う)</param>
     /// <exception cref="InvalidOperationException">UI スレッド以外で作った。変更の通知を戻す先が無いため。</exception>
-    protected ReminderViewModelBase(ReminderService reminders, TimeProvider time, IMinuteTicker ticker)
+    protected ReminderViewModelBase(ReminderService reminders, TimeProvider time, ITicker ticker)
     {
         Reminders = reminders;
         Time = time;

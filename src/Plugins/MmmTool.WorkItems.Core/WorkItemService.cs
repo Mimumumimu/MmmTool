@@ -21,7 +21,7 @@ namespace MmmTool.WorkItems.Core;
 /// 操作は 1 つずつ順に行う。同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う。
 /// <see cref="StartPolling"/> は UI スレッドから呼ぶ。差分の取得は、呼んだ UI スレッドに戻して動かすので、<see cref="Changed"/> も UI スレッドから発火する。
 /// </remarks>
-public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings, IMinuteTicker ticker)
+public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings, ITicker ticker)
 {
     /// <summary>手動で取得した直後に、自動の取得が重ならないよう、直前の取得から空ける時間</summary>
     private static readonly TimeSpan PollMinimumGap = TimeSpan.FromSeconds(30);
@@ -79,7 +79,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private DateTimeOffset? _baseline;
 
     /// <summary>定期的な差分の取得の、毎分の合図の登録 (動いていなければ null)</summary>
-    private IMinuteTickSubscription? _poll;
+    private ITickSubscription? _poll;
 
     /// <summary>自動入力を試し終えた (作業の番号, 日付)</summary>
     /// <remarks>同じ日に、同じ作業へ何度も問い合わせないため。日付が替わると捨てる。設定を変えた作業の分は、すぐ外す。</remarks>
@@ -243,7 +243,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         // 毎分 1 回、端末ごとにずらした秒で取る。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来る
         _poll = ticker.Subscribe(
             _ => PollOnceAsync(),
-            new MinuteTickOptions { Timing = MinuteTickTiming.Staggered, MinimumGap = PollMinimumGap, OnCallerContext = true });
+            new TickOptions { Timing = TickTiming.Staggered, MinimumGap = PollMinimumGap, OnCallerContext = true });
     }
 
     /// <summary>定期的な取得を、この画面の分だけ止める (使う画面がなくなったら、取得を止める)</summary>
@@ -347,16 +347,18 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>差分を取り込む (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>取り込みの完了を表すタスク</returns>
-    private async Task TryRefreshAsync(CancellationToken cancellationToken)
+    /// <returns>取り込みの完了を表すタスク。読めなかったときは false</returns>
+    private async Task<bool> TryRefreshAsync(CancellationToken cancellationToken)
     {
         try
         {
             await RefreshAsync(cancellationToken);
+            return true;
         }
         catch (DataFileException ex)
         {
             RefreshFailed?.Invoke(this, ex.Message);
+            return false;
         }
     }
 
@@ -1280,31 +1282,34 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private const string RemovedMessage = "この行は、すでに削除されています。";
 
     /// <summary>毎分の合図で、差分の取得を 1 回行う</summary>
-    /// <returns>取得の完了を表すタスク</returns>
-    private async Task PollOnceAsync()
+    /// <returns>取得の結果を表すタスク。どちらかが読めなかったときは失敗で、続くと次の合図までの時間が延びる</returns>
+    private async Task<TickResult> PollOnceAsync()
     {
-        await TryRefreshAsync(CancellationToken.None);
-        await TryAddAutoEntriesOnNewDayAsync(CancellationToken.None);
+        var refreshed = await TryRefreshAsync(CancellationToken.None);
+        var added = await TryAddAutoEntriesOnNewDayAsync(CancellationToken.None);
+        return refreshed && added ? TickResult.Done : TickResult.Failed;
     }
 
     /// <summary>ページを開いたまま日付が替わったとき、自動入力を行う (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>確認の完了を表すタスク</returns>
+    /// <returns>確認の完了を表すタスク。読み書きできなかったときは false</returns>
     /// <remarks>一度も自動入力を行っていないとき (作業管理のページを開いていないとき)は、何もしない。ページを開かない日は休みとして扱うため。</remarks>
-    private async Task TryAddAutoEntriesOnNewDayAsync(CancellationToken cancellationToken)
+    private async Task<bool> TryAddAutoEntriesOnNewDayAsync(CancellationToken cancellationToken)
     {
         if (_autoDate == default || _autoDate == Today)
         {
-            return;
+            return true;
         }
 
         try
         {
             await AddAutoEntriesAsync(cancellationToken);
+            return true;
         }
         catch (DataFileException ex)
         {
             RefreshFailed?.Invoke(this, ex.Message);
+            return false;
         }
     }
 

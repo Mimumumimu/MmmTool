@@ -34,7 +34,7 @@ namespace MmmTool.Notes.Main;
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
-    DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state, IMinuteTicker ticker) : ObservableObject, IDisposable
+    DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state, ITicker ticker) : ObservableObject, IDisposable
 {
     /// <summary>手動で読み直した直後に、自動の読み直しが重ならないよう、直前の読み直しから空ける時間</summary>
     private static readonly TimeSpan RefreshMinimumGap = TimeSpan.FromSeconds(30);
@@ -53,7 +53,7 @@ public sealed partial class NotesViewModel(
     private CancellationTokenSource? _contentChange;
 
     /// <summary>ほかの人の更新を読み直す、毎分の合図の登録 (見えていないときと、保存先が自分だけのときは null)</summary>
-    private IMinuteTickSubscription? _refreshSubscription;
+    private ITickSubscription? _refreshSubscription;
 
     /// <summary>今、表示しているカード</summary>
     private IReadOnlyList<NoteCard> _cards = [];
@@ -214,8 +214,8 @@ public sealed partial class NotesViewModel(
 
         // 毎分 1 回、端末ごとにずらした秒で読み直す。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来る
         _refreshSubscription = ticker.Subscribe(
-            _ => ReloadAsync(preserveState: true),
-            new MinuteTickOptions { Timing = MinuteTickTiming.Staggered, MinimumGap = RefreshMinimumGap, OnCallerContext = true });
+            async _ => await ReloadAsync(preserveState: true) ? TickResult.Done : TickResult.Failed,
+            new TickOptions { Timing = TickTiming.Staggered, MinimumGap = RefreshMinimumGap, OnCallerContext = true });
     }
 
     /// <summary>出せる内容を、機能のオン・オフに合わせて作り直す (変わったときだけ)</summary>
@@ -450,9 +450,9 @@ public sealed partial class NotesViewModel(
 
     /// <summary>表示する日のノートを読み込んで、ページを作り直す</summary>
     /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は、先頭から表示する)</param>
-    /// <returns>読み込みと表示の完了を表すタスク</returns>
+    /// <returns>読み込みと表示の完了を表すタスク。DB から読めなかったときは false。もっと新しい読み込みに替わって捨てたときは true</returns>
     /// <remarks>失敗は、画面に出す。続けられる失敗なので、今の表示は変えない。読み直しの結果が前と同じなら、ページを作り直さない。</remarks>
-    private async Task ReloadAsync(bool preserveState)
+    private async Task<bool> ReloadAsync(bool preserveState)
     {
         var version = ++_version;
         var state = preserveState && Surface is { } surface ? await surface.CaptureStateAsync() : null;
@@ -465,7 +465,7 @@ public sealed partial class NotesViewModel(
         catch (DataFileException ex)
         {
             Error.Show($"ノートを読み込めませんでした: {ex.Message}");
-            return;
+            return false;
         }
 
         // 他の機能の内容が読めなくても、ノートは出す (失敗は画面に出す)
@@ -486,7 +486,7 @@ public sealed partial class NotesViewModel(
         // 待っている間に、もっと新しい読み込みが始まっていたら、この結果は捨てる
         if (version != _version)
         {
-            return;
+            return true;
         }
 
         Error.Clear();
@@ -498,10 +498,11 @@ public sealed partial class NotesViewModel(
         var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, Basis, state?.OpenIds, state?.KnownIds), frames);
         if (preserveState && html == _lastHtml)
         {
-            return;
+            return frameError is null;
         }
 
         _lastHtml = html;
         Surface?.Show(html, state?.ScrollTop ?? 0, NoteLinks.CollectHrefs(html));
+        return frameError is null;
     }
 }
