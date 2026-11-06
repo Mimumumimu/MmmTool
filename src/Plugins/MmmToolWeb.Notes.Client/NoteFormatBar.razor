@@ -1,0 +1,173 @@
+@inject BrowserClient Browser
+
+@* 本文の入力欄の書式の列。EditSheet の Footer に渡して、キーボードのすぐ上に貼り付ける。
+   ボタンを押しても入力欄から選択が外れないよう、押した瞬間の既定の動作であるフォーカスの移動を止める。
+   並びと名前は、PC 版のノートの書式の列と同じで、色・太字・斜体・下線・取消線・リンクを追加の順 *@
+<div class="format">
+    @if (_panel == Panel.Color)
+    {
+        <div class="panel" @onmousedown:preventDefault>
+            @* 縦が濃さで上が濃く、横が色の種類。PC 版の色のパネルと同じ並びで、押した丸の色が、そのまま付く。左端の「標準」は、色を外す *@
+            <div class="palette" role="group" aria-label="色">
+                <button type="button" class="text reset" @onclick="ResetColorAsync">標準</button>
+                @foreach (var color in NoteColorPalette.All)
+                {
+                    var picked = color;
+                    <button type="button" class="swatch" aria-label="@picked.Name" @onclick="() => PickColorAsync(picked)">
+                        <span class="@SwatchClass(picked.Index)" aria-hidden="true">●</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+    else if (_panel == Panel.Link)
+    {
+        <div class="panel link-panel" role="group" aria-label="リンクを追加">
+            <label class="form-field">
+                <span>リンク名</span>
+                <input type="text" autocomplete="off" @bind="_linkName" @bind:event="oninput" />
+                <small class="hint">省略すると、リンク先を表示します</small>
+            </label>
+            <label class="form-field">
+                <span>リンク先</span>
+                <input type="url" inputmode="url" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" @bind="_linkTarget" @bind:event="oninput" />
+                <small class="hint">http:// か https:// で始まる URL</small>
+            </label>
+            <div class="actions">
+                <button type="button" class="text" @onclick="CloseLinkAsync">キャンセル</button>
+                <button type="button" class="text strong" @onclick="AddLinkAsync" disabled="@(!IsLinkTargetValid)">追加</button>
+            </div>
+        </div>
+    }
+
+    <div class="bar" role="toolbar" aria-label="書式" @onmousedown:preventDefault>
+        <button type="button" class="tool" aria-label="色" aria-expanded="@(_panel == Panel.Color ? "true" : "false")" disabled="@(!HasSelection)" @onclick="ToggleColor">
+            <span class="mark color-mark" aria-hidden="true">A</span>
+        </button>
+        <button type="button" class="tool" aria-label="太字" disabled="@(!HasSelection)" @onclick='() => WrapAsync("b")'>
+            <span class="mark bold-mark" aria-hidden="true">B</span>
+        </button>
+        <button type="button" class="tool" aria-label="斜体" disabled="@(!HasSelection)" @onclick='() => WrapAsync("i")'>
+            <span class="mark italic-mark" aria-hidden="true">I</span>
+        </button>
+        <button type="button" class="tool" aria-label="下線" disabled="@(!HasSelection)" @onclick='() => WrapAsync("u")'>
+            <span class="mark underline-mark" aria-hidden="true">U</span>
+        </button>
+        <button type="button" class="tool" aria-label="取消線" disabled="@(!HasSelection)" @onclick='() => WrapAsync("s")'>
+            <span class="mark strike-mark" aria-hidden="true">S</span>
+        </button>
+        <span class="divider" aria-hidden="true"></span>
+        <button type="button" class="tool" aria-label="リンクを追加" aria-expanded="@(_panel == Panel.Link ? "true" : "false")" @onclick="OpenLinkAsync">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+        </button>
+    </div>
+</div>
+
+@code {
+    /// <summary>開いているパネル。</summary>
+    private enum Panel
+    {
+        None,
+        Color,
+        Link,
+    }
+
+    /// <summary>書式を付ける本文の入力欄。</summary>
+    [Parameter, EditorRequired]
+    public ElementReference Target { get; set; }
+
+    /// <summary>入力欄で文字を選んでいるか。色・太字・斜体・下線・取消線は、選んでいるときだけ押せる。</summary>
+    [Parameter]
+    public bool HasSelection { get; set; }
+
+    /// <summary>リンクの入力を開いた・閉じたときに呼ぶ。入力に移ると入力欄を離れるので、呼び出し側が、列を出し続ける判断に使う。</summary>
+    [Parameter]
+    public EventCallback<bool> OnLinkOpenChanged { get; set; }
+
+    private Panel _panel;
+
+    private string _linkName = "";
+    private string _linkTarget = "";
+
+    /// <summary>リンクの入力を開いた時点で選んでいた範囲の始め。入力に移っても、この位置に入れる。</summary>
+    private int _linkStart;
+
+    /// <summary>リンクの入力を開いた時点で選んでいた範囲の終わり。</summary>
+    private int _linkEnd;
+
+    /// <summary>リンク先として使える文字か。PC 版と同じ判定で、iPhone ではファイルを開けないので、file: は使えない。</summary>
+    private bool IsLinkTargetValid
+        => NoteLinks.TryNormalizeHref(_linkTarget, out var href) && !href.StartsWith("file:", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>色の見本の文字に付けるクラス。本文の色のクラス (nc と番号)をそのまま使い、ライトとダークの色を、本文の表示と同じ値にする。</summary>
+    private static string SwatchClass(int index) => $"nc{index}";
+
+    private void ToggleColor()
+    {
+        _panel = _panel == Panel.Color ? Panel.None : Panel.Color;
+    }
+
+    /// <summary>選んだ文字を、タグで囲む。</summary>
+    private async Task WrapAsync(string tag)
+    {
+        _panel = Panel.None;
+        await ApplyAsync(selected => NoteMarkup.Wrap(selected, tag));
+    }
+
+    /// <summary>選んだ文字を、パレットの色のタグで囲む。</summary>
+    private async Task PickColorAsync(NoteColor color)
+    {
+        _panel = Panel.None;
+        await ApplyAsync(selected => NoteMarkup.WrapColor(selected, color));
+    }
+
+    /// <summary>選んだ文字の色を外す。</summary>
+    private async Task ResetColorAsync()
+    {
+        _panel = Panel.None;
+        await ApplyAsync(NoteMarkup.RemoveColor);
+    }
+
+    /// <summary>入力欄で選んでいる文字を、変換した文字に置き換える。選んでいなければ、何もしない。</summary>
+    private async Task ApplyAsync(Func<string, string> transform)
+    {
+        var (start, end, selected) = await Browser.GetSelectionAsync(Target);
+        if (start >= end)
+        {
+            return;
+        }
+        await Browser.ReplaceRangeAsync(Target, start, end, transform(selected));
+    }
+
+    /// <summary>リンクの入力を開く。選んでいる文字があれば、リンク名の初期値にする。</summary>
+    private async Task OpenLinkAsync()
+    {
+        var (start, end, selected) = await Browser.GetSelectionAsync(Target);
+        _linkStart = start;
+        _linkEnd = end;
+        _linkName = selected;
+        _linkTarget = "";
+        _panel = Panel.Link;
+        await OnLinkOpenChanged.InvokeAsync(true);
+    }
+
+    private async Task CloseLinkAsync()
+    {
+        _panel = Panel.None;
+        await OnLinkOpenChanged.InvokeAsync(false);
+    }
+
+    /// <summary>リンクを、開いた時点で選んでいた範囲に入れる。</summary>
+    private async Task AddLinkAsync()
+    {
+        // 押せない条件は、次の描画まで効かない。続けて 2 回押されても、2 回入らないよう、先頭で確かめる
+        if (_panel != Panel.Link || !IsLinkTargetValid)
+        {
+            return;
+        }
+
+        _panel = Panel.None;
+        await Browser.ReplaceRangeAsync(Target, _linkStart, _linkEnd, NoteMarkup.Link(_linkName, _linkTarget));
+        await OnLinkOpenChanged.InvokeAsync(false);
+    }
+}

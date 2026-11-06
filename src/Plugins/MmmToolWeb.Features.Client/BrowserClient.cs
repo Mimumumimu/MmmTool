@@ -329,6 +329,47 @@ public sealed class BrowserClient(IJSRuntime js) : IAsyncDisposable
     }
 
     /// <summary>
+    /// 入力欄で選んでいる範囲と、選んでいる文字を返す。
+    /// </summary>
+    /// <param name="element">入力欄。</param>
+    /// <returns>選び始めの位置・選び終わりの位置・選んでいる文字。選んでいないときは、2 つの位置が同じで、文字は空。</returns>
+    /// <remarks>位置は、入力欄の値の位置。入力欄は改行を <c>\n</c> に直すので、画面側が持つ元の文字から切り出さず、ブラウザが返す文字を使う。</remarks>
+    public async Task<(int Start, int End, string Text)> GetSelectionAsync(ElementReference element)
+    {
+        var module = await GetModuleAsync();
+        var selection = await module.InvokeAsync<JsonElement>("getSelection", element);
+        return (selection[0].GetInt32(), selection[1].GetInt32(), selection[2].GetString() ?? "");
+    }
+
+    /// <summary>
+    /// 入力欄の範囲を文字に置き換え、置き換えた文字を選び直す。入力の知らせも出して、画面の値に反映させる。
+    /// </summary>
+    /// <param name="element">入力欄。</param>
+    /// <param name="start">置き換える範囲の始めの位置。</param>
+    /// <param name="end">置き換える範囲の終わりの位置。</param>
+    /// <param name="text">置き換える文字。</param>
+    /// <returns>置き換えたことを表すタスク。</returns>
+    public async Task ReplaceRangeAsync(ElementReference element, int start, int end, string text)
+    {
+        var module = await GetModuleAsync();
+        await module.InvokeVoidAsync("replaceRange", element, start, end, text);
+    }
+
+    /// <summary>
+    /// 入力欄で、文字を選んでいるかが変わったことを、受け始める。
+    /// </summary>
+    /// <param name="element">入力欄。</param>
+    /// <param name="onChanged">選んでいるかが変わったときの処理。選んでいるかは、<see cref="GetSelectionAsync"/> で読む。</param>
+    /// <returns>閉じると、やめる購読。</returns>
+    public async Task<IAsyncDisposable> WatchHasSelectionAsync(ElementReference element, Func<Task> onChanged)
+    {
+        var module = await GetModuleAsync();
+        var callback = new JsCallback(onChanged);
+        var handle = await module.InvokeAsync<IJSObjectReference>("watchHasSelection", element, callback.Reference);
+        return new JsSubscription(handle, callback);
+    }
+
+    /// <summary>
     /// ブラウザ側から呼ばれる。前面に戻ったことを知らせる。
     /// </summary>
     /// <returns>知らせ終えたことを表すタスク。</returns>

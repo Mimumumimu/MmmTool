@@ -2,7 +2,7 @@
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
-<EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="CannotSave" OnCancel="OnCancel" OnConfirm="SaveAsync">
+<EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="CannotSave" OnCancel="OnCancel" OnConfirm="SaveAsync" Footer="@(IsFormatBarVisible ? FormatBar : null)">
     @if (_error is not null)
     {
         <p class="message" role="alert">@_error</p>
@@ -15,7 +15,7 @@
 
     <label class="form-field">
         <span>本文</span>
-        <textarea rows="10" @bind="_body" @bind:event="oninput"></textarea>
+        <textarea @ref="_bodyBox" rows="10" @bind="_body" @bind:event="oninput" @onfocus="OnBodyFocusAsync" @onblur="() => _bodyFocused = false"></textarea>
     </label>
 
     <div class="dates">
@@ -79,6 +79,12 @@
 </EditSheet>
 
 @code {
+    /// <summary>キーボードのすぐ上に貼り付ける、書式の列。</summary>
+    private RenderFragment FormatBar => @<NoteFormatBar Target="_bodyBox" HasSelection="_hasSelection" OnLinkOpenChanged="OnLinkOpenChanged" />;
+
+    /// <summary>書式の列を出すか。本文に触れている間と、リンクの入力を開いている間。リンクの入力に移ると、本文から離れるため。</summary>
+    private bool IsFormatBarVisible => _bodyFocused || _linkOpen;
+
     /// <summary>シートの名前。新規か編集かで変える。</summary>
     private string SheetTitle => Note is null ? "新規ノート" : "ノートの編集";
 
@@ -118,8 +124,23 @@
     private bool _saving;
     private string? _error;
 
+    /// <summary>本文の入力欄。書式の列が、選んだ文字を読み書きする。</summary>
+    private ElementReference _bodyBox;
+
+    /// <summary>本文の入力欄に触れているか。</summary>
+    private bool _bodyFocused;
+
+    /// <summary>リンクの入力を開いているか。</summary>
+    private bool _linkOpen;
+
+    /// <summary>本文で文字を選んでいるか。</summary>
+    private bool _hasSelection;
+
     /// <summary>キーボードを除いた見える範囲にシートを合わせる購読。</summary>
     private IAsyncDisposable? _viewport;
+
+    /// <summary>本文で文字を選んでいるかが変わったことの購読。</summary>
+    private IAsyncDisposable? _selectionWatch;
 
     private bool _disposed;
 
@@ -169,6 +190,14 @@
             return;
         }
         _viewport = viewport;
+
+        var selectionWatch = await Browser.WatchHasSelectionAsync(_bodyBox, OnSelectionChangedAsync);
+        if (_disposed)
+        {
+            await selectionWatch.DisposeAsync();
+            return;
+        }
+        _selectionWatch = selectionWatch;
     }
 
     public async ValueTask DisposeAsync()
@@ -178,7 +207,33 @@
         {
             await _viewport.DisposeAsync();
         }
+        if (_selectionWatch is not null)
+        {
+            await _selectionWatch.DisposeAsync();
+        }
     }
+
+    /// <summary>本文に触れたとき、書式の列を出し、選んでいる文字があるかを読み直す。</summary>
+    private async Task OnBodyFocusAsync()
+    {
+        _bodyFocused = true;
+        await RefreshSelectionAsync();
+    }
+
+    /// <summary>本文で文字を選んでいるかが変わったとき、書式のボタンを押せるかを合わせる。</summary>
+    private async Task OnSelectionChangedAsync()
+    {
+        await RefreshSelectionAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshSelectionAsync()
+    {
+        var (start, end, _) = await Browser.GetSelectionAsync(_bodyBox);
+        _hasSelection = start != end;
+    }
+
+    private void OnLinkOpenChanged(bool open) => _linkOpen = open;
 
     /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
     private void OnStartPicked(DateOnly day)

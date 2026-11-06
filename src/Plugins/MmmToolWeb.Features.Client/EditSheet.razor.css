@@ -36,6 +36,16 @@
     justify-self: end;
 }
 
+/* 下端に貼り付ける列。書式のボタンなどを置く。シートの高さはキーボードを除いた範囲に合うので、キーボードのすぐ上に来る。キーボードが出ている間だけ置く前提で、ホームバーの余白は取らず、左右の安全な余白だけ取る */
+.sheet-footer {
+    flex: none;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.25rem calc(env(safe-area-inset-right) + 0.5rem) 0.25rem calc(env(safe-area-inset-left) + 0.5rem);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+}
+
 .sheet-body {
     flex: 1;
     overflow-x: hidden;

@@ -8,6 +8,13 @@
     <div class="sheet-body">
         @ChildContent
     </div>
+
+    @if (Footer is not null)
+    {
+        <div class="sheet-footer">
+            @Footer
+        </div>
+    }
 </div>
 
 @code {
@@ -38,4 +45,8 @@
     /// <summary>シートの中身。入力欄を、スクロールする本体に並べる。</summary>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>シートの下端に貼り付ける列。キーボードを出すと、キーボードのすぐ上に来る。無いときは、何も出さない。</summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
 }

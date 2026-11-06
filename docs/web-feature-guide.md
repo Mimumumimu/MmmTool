@@ -49,6 +49,7 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 前面への復帰: `StartWatchingVisibilityAsync` と `BecameVisible`
     - 端末の記憶 (`localStorage`): `GetRememberedAsync` と `RememberAsync`。名前は、機能の名前から始める。
     - 最初から文が入っている入力欄のカーソルを先頭に置く: `PlaceCaretAtStartAsync` (`browser.js` の `placeCaretAtStart`)
+    - 入力欄の選んだ範囲を読む・置き換える・選んだかの変化を受ける: `GetSelectionAsync`・`ReplaceRangeAsync`・`WatchHasSelectionAsync`。ノートの書式の列が使う。
   - 日付を入れる欄は、`<input type="date">` ではなく `DatePicker` を使う。仕様は [specs/web.md](specs/web.md) の「日付の選択 (Web 版)」。
     - 渡すのは次の 4 つ。
       - `Value`: 選んでいる日で、未設定は null
@@ -89,5 +90,5 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
   - 構造のある部品は、`Features.Client` の部品を使う。
     - `FeatureHeader` (上のバー)・`SheetFrame` (全画面のシート)・`EditSheet` (入力のシート)・`ConfirmDialog` (取り返しにくい操作の確認)・`Chevron` (山形)・`DatePicker`
       - `SheetFrame` の上のバーは、`FeatureHeader` を使う。
-      - `EditSheet` は、左にキャンセル・右に確定を置き、キーボードを出すと高さが縮む。
+      - `EditSheet` は、左にキャンセル・右に確定を置き、キーボードを出すと高さが縮む。`Footer` に渡した列は、下端に貼り付き、キーボードのすぐ上に来る。
     - 確認のダイアログや、山形の SVG を、画面の側に作らない。
