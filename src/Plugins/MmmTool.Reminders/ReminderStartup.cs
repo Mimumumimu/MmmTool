@@ -14,6 +14,7 @@ namespace MmmTool.Reminders;
 /// <param name="notifications">通知ダイアログの表示</param>
 /// <param name="speech">読み上げ</param>
 /// <param name="reminderWindows">リマインダーのメイン画面を開く</param>
+/// <param name="features">機能のオン・オフと、管理者による無効の状態</param>
 /// <remarks>
 /// 監視はタイマーのスレッドから通知を求めてくるので、UI スレッドに切り替えて通知ダイアログを出し、読み上げ対象があれば一緒に読み上げる。
 /// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く。発動済みの未対応はスヌーズに進む。
@@ -22,7 +23,8 @@ public sealed class ReminderStartup(
     ReminderMonitor monitor,
     INotificationDialogService notifications,
     ISpeechService speech,
-    ReminderWindowService reminderWindows) : IStartupTask
+    ReminderWindowService reminderWindows,
+    IFeatureStatus features) : IStartupTask
 {
     /// <summary>通知ダイアログの節の、送り元のキー</summary>
     private const string NotificationSourceKey = "Reminders";
@@ -50,7 +52,9 @@ public sealed class ReminderStartup(
                     {
                         speech.SpeakAsync(speechText).Forget();
                     }
-                }));
+                }),
+            // 管理者に無効にされた人では、判定しない。保存先は最初に読むまで動かないので、起動時から無効の人は、DB も読まない
+            () => features.IsEnabled(RemindersFeature.Key));
         return Task.CompletedTask;
     }
 }

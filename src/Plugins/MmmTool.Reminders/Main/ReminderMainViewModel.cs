@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Paths;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.WinUI.Components.Clipboards;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.Reminders.Core;
@@ -35,9 +36,10 @@ public sealed partial class ReminderMainViewModel : ReminderViewModelBase
     /// <param name="opener">リンクを開く処理</param>
     /// <param name="clipboard">クリップボード</param>
     /// <param name="time">現在時刻の提供元</param>
+    /// <param name="ticker">毎分の合図</param>
     public ReminderMainViewModel(
-        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, IClipboardService clipboard, TimeProvider time)
-        : base(reminders, time)
+        ReminderService reminders, ReminderMonitor monitor, IReminderDialogService dialogs, IDialogService confirmDialogs, IPathOpener opener, IClipboardService clipboard, TimeProvider time, IMinuteTicker ticker)
+        : base(reminders, time, ticker)
     {
         _monitor = monitor;
         _dialogs = dialogs;

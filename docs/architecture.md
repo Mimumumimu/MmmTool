@@ -40,7 +40,7 @@
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装で、`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite` がある。SDK の `MmmSdk.Db.<種類>` を参照する。保存先の選び方は、「DI と起動」の「保存先」に書く |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 `MmmSdk.Db.SqlServer`。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
-| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
+| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分の合図 (`IMinuteTicker`)・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | Win32 の宣言は CsWin32 でここに集める。共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理) |
 
 ## 参照の向きと置き場所
@@ -232,7 +232,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - Host を作る前の失敗も拾うため
   - DI にも登録する (トレイが使う)
 - `try/catch` を書けない場所 (`async void`・タイマー・待たれないタスク)の例外は、`AttachTo` の安全網が、同じ処理 (ログ → ダイアログ → 終了)で受ける
-  - 例: SDK の `MinuteScheduler` の毎分の処理
+  - 例: SDK の `MinuteTicker` が動かす、毎分の処理
 - 待たずに走らせるタスクは、`_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`(SDK の `MmmSdk.Core.Utilities`)にする
   - 捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる (いつ落ちるか読めない)
   - `Forget` は、失敗した時点で未処理例外にして、安全網が受ける
@@ -240,6 +240,25 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - `OnLaunched` は、起動が途中で止まって気づけなくならないよう、`try/catch` で包んで報告する。読み込みの失敗など、起動を止めたくない例外は、各機能の `IStartupTask` の中で受ける。
 - トレイの `WndProc` は、`[UnmanagedCallersOnly]` から例外が抜けるとログも残らず落ちるため、中で `try/catch` して報告する。異常終了のときは、トレイのアイコンも外す。
 - 詳細は `external/MmmSdk/README.md`「エラーのログと、復旧できないエラーの処理」
+
+## 毎分の処理
+
+- 毎分で足りる定期処理は、機能が自分でタイマーを持たず、SDK の `IMinuteTicker` に登録する。タイマーはアプリ全体で 1 つ
+  - 機能が 10 個に増えても、タイマーは 1 つのままで、ホストに機能の名前を書かない。登録は、機能の中の 1 行
+  - 合図は、登録した全員に同時に渡し、戻りを待たない。前の処理が続いている処理には、その回の合図を渡さずに飛ばす
+  - 処理の失敗は、`IMinuteTicker` が未処理例外の受け皿へ渡す。`Forget` と同じ扱い
+- 合図は 2 種類ある
+  - `OnTheMinute`: 毎分 00 秒に、全員へ渡す。リマインダーの判定・日付の変わりの監視向け
+  - `Staggered`: 毎分 1 回、登録ごとに決めた 1 秒から 59 秒の秒に渡す。DB を読み直す処理向け
+  - DB の読み直しを 00 秒にそろえない。全員の端末が、同じ 1 秒にサーバーへ読みに来るため
+- 登録の条件 (`MinuteTickOptions`)
+  - `IsActive`: 合図のたびに確かめる。機能のオン・オフや、管理者による無効は、起動後にも変わるため。管理者に無効にされたリマインダーの判定が止まるのも、これによる
+  - `OnCallerContext`: UI スレッドで状態を持つ処理を、登録した UI スレッドへ戻して動かす
+  - `MinimumGap` と `MarkRan`: 手動で取り込んだ直後に、自動の取り込みを重ねない
+- 画面や ViewModel が登録するときは、返ってきた控え (`IMinuteTickSubscription`)を、閉じるときに必ず `Dispose` する (解除しないと、中央のタイマーが持ち続けて、メモリが漏れる)
+- 移していない処理は、間隔が毎分ではないもの
+  - メッセージの取り込みは 2 秒と 10 秒、ノートの変更の監視は 10 秒
+  - MmmBatch の `BatchMonitor` は 1 秒
 
 ## 保存
 

@@ -1,9 +1,9 @@
 using MmmSdk.Core.Components.DaysOfWeek;
 using MmmSdk.Core.Components.Holidays;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
-using MmmSdk.Core.Utilities;
 
 namespace MmmTool.WorkItems.Core;
 
@@ -14,16 +14,17 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="policy">更新してよいかの判定</param>
 /// <param name="time">現在の時刻を知るための時計</param>
 /// <param name="settings">この PC の設定 (選んだ案件の番号を残す)</param>
+/// <param name="ticker">毎分の合図 (他の人の更新を取りに行くのに使う)</param>
 /// <remarks>
 /// 名前・日付・時間の範囲の入力の確認、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
 /// 予測できる入力の誤りは、例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。保存の失敗は <see cref="DataFileException"/>。
 /// 操作は 1 つずつ順に行う。同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う。
-/// <see cref="StartPolling"/> は UI スレッドから呼ぶ。待ちの続きが UI スレッドに戻るので、<see cref="Changed"/> も UI スレッドから発火する。
+/// <see cref="StartPolling"/> は UI スレッドから呼ぶ。差分の取得は、呼んだ UI スレッドに戻して動かすので、<see cref="Changed"/> も UI スレッドから発火する。
 /// </remarks>
-public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings)
+public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings, IMinuteTicker ticker)
 {
-    /// <summary>他の人の更新を取りに行く間隔</summary>
-    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
+    /// <summary>手動で取得した直後に、自動の取得が重ならないよう、直前の取得から空ける時間</summary>
+    private static readonly TimeSpan PollMinimumGap = TimeSpan.FromSeconds(30);
 
     /// <summary>差分の取得で、基準の時刻から戻して読む長さ (確定前だった更新の取りこぼしを避ける)</summary>
     private static readonly TimeSpan PollOverlap = TimeSpan.FromSeconds(60);
@@ -77,11 +78,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>差分の取得の基準の時刻 (保存先が返した、いちばん新しい更新日時。まだ無ければ null)</summary>
     private DateTimeOffset? _baseline;
 
-    /// <summary>定期的な差分の取得を止めるためのトークン源 (動いていなければ null)</summary>
-    private CancellationTokenSource? _pollCts;
-
-    /// <summary>定期的な差分の取得の間隔を待つタイマー (手動で取得したとき、数え直す)</summary>
-    private readonly RestartableTimer _pollTimer = new(PollInterval);
+    /// <summary>定期的な差分の取得の、毎分の合図の登録 (動いていなければ null)</summary>
+    private IMinuteTickSubscription? _poll;
 
     /// <summary>自動入力を試し終えた (作業の番号, 日付)</summary>
     /// <remarks>同じ日に、同じ作業へ何度も問い合わせないため。日付が替わると捨てる。設定を変えた作業の分は、すぐ外す。</remarks>
@@ -237,13 +235,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     public void StartPolling()
     {
         _pollUsers++;
-        if (_pollCts is not null)
+        if (_poll is not null)
         {
             return;
         }
 
-        _pollCts = new CancellationTokenSource();
-        PollAsync(_pollCts.Token).Forget();
+        // 毎分 1 回、端末ごとにずらした秒で取る。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来る
+        _poll = ticker.Subscribe(
+            _ => PollOnceAsync(),
+            new MinuteTickOptions { Timing = MinuteTickTiming.Staggered, MinimumGap = PollMinimumGap, OnCallerContext = true });
     }
 
     /// <summary>定期的な取得を、この画面の分だけ止める (使う画面がなくなったら、取得を止める)</summary>
@@ -258,9 +258,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             return;
         }
 
-        _pollCts?.Cancel();
-        _pollCts?.Dispose();
-        _pollCts = null;
+        _poll?.Dispose();
+        _poll = null;
     }
 
     /// <summary>スケジュールの実績 (表示する案件の、すべての日の記録)を、保存先から読み込む</summary>
@@ -337,12 +336,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>取り込みの完了を表すタスク</returns>
     /// <remarks>
-    /// 定期的な取得 (<see cref="PollInterval"/>)と同じ取り込みを、間隔を待たずに行う。直後に自動の取り込みが重ならないよう、間隔は数え直す。
+    /// 定期的な取得と同じ取り込みを、合図を待たずに行う。直後に自動の取り込みが重ならないよう、今取ったことを合図の仕組みに覚えさせる。
     /// 失敗は、定期的な取得と同じく <see cref="RefreshFailed"/> で知らせる。UI スレッドから呼ぶ。
     /// </remarks>
     public async Task RefreshNowAsync(CancellationToken cancellationToken = default)
     {
-        _pollTimer.Restart();
+        _poll?.MarkRan();
         await TryRefreshAsync(cancellationToken);
     }
 
@@ -1280,23 +1279,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>行が見つからないときのメッセージ</summary>
     private const string RemovedMessage = "この行は、すでに削除されています。";
 
-    /// <summary>定期的な差分の取得を繰り返す</summary>
-    /// <param name="cancellationToken">止めるためのトークン</param>
-    /// <returns>繰り返しの完了を表すタスク</returns>
-    private async Task PollAsync(CancellationToken cancellationToken)
+    /// <summary>毎分の合図で、差分の取得を 1 回行う</summary>
+    /// <returns>取得の完了を表すタスク</returns>
+    private async Task PollOnceAsync()
     {
-        try
-        {
-            while (await _pollTimer.WaitForNextTickAsync(cancellationToken))
-            {
-                await TryRefreshAsync(cancellationToken);
-                await TryAddAutoEntriesOnNewDayAsync(cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 止められた
-        }
+        await TryRefreshAsync(CancellationToken.None);
+        await TryAddAutoEntriesOnNewDayAsync(CancellationToken.None);
     }
 
     /// <summary>ページを開いたまま日付が替わったとき、自動入力を行う (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>

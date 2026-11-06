@@ -9,13 +9,14 @@ namespace MmmTool.Reminders.Core;
 /// </summary>
 /// <param name="reminders">リマインダーの読み書き</param>
 /// <param name="settings">リマインダー用の設定 (スヌーズの再通知間隔)</param>
+/// <param name="ticker">毎分の合図</param>
 /// <param name="timeProvider">現在時刻・タイマーの提供元</param>
 /// <remarks>
 /// アプリ起動時に <see cref="Start"/> し、ウィンドウの表示有無に関わらず動き続ける。開始直後に 1 回、以後はシステム時刻の毎分 00 秒に判定する。
-/// タイマーの管理は <see cref="MinuteScheduler"/>、通知する項目の判定は <see cref="ReminderEvaluator"/> が行う。ここはそれらをつなぎ、スヌーズの通知時刻を覚える。
+/// 毎分の合図は、アプリ全体で 1 つの <see cref="IMinuteTicker"/> から受け取る。通知する項目の判定は <see cref="ReminderEvaluator"/> が行う。ここはそれらをつなぎ、スヌーズの通知時刻を覚える。
 /// 通知の表示は <see cref="Start"/> で受け取ったコールバックに任せる。通知 UI に依存しないため。
 /// </remarks>
-public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, TimeProvider timeProvider) : IDisposable
+public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsService settings, IMinuteTicker ticker, TimeProvider timeProvider) : IDisposable
 {
     /// <summary>通知のタイトル</summary>
     private const string NotificationTitle = "リマインダー";
@@ -23,8 +24,8 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     /// <summary>状態を守るロック</summary>
     private readonly Lock _gate = new();
 
-    /// <summary>毎分 00 秒の呼び出し</summary>
-    private readonly MinuteScheduler _scheduler = new(timeProvider);
+    /// <summary>毎分の合図の登録。開始前・破棄後は null</summary>
+    private IMinuteTickSubscription? _subscription;
 
     /// <summary>通知を表示するコールバック</summary>
     private Action<string, IReadOnlyList<NotificationItem>, string?>? _notify;
@@ -38,8 +39,9 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
 
     /// <summary>監視を始める</summary>
     /// <param name="notify">通知を表示するコールバックで、引数はタイトル・項目・読み上げる文。読み上げ対象が無ければ文は null。タイマーのスレッドから呼ぶので、UI スレッドへの切り替えは渡す側で行う</param>
+    /// <param name="isActive">今、判定してよいか。合図のたびに確かめ、false なら今回を飛ばす。管理者に機能を無効にされた人や、機能をオフにした人では、判定しない。null なら常に判定する</param>
     /// <exception cref="InvalidOperationException">すでに開始している。</exception>
-    public void Start(Action<string, IReadOnlyList<NotificationItem>, string?> notify)
+    public void Start(Action<string, IReadOnlyList<NotificationItem>, string?> notify, Func<bool>? isActive = null)
     {
         lock (_gate)
         {
@@ -51,7 +53,11 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
             _notify = notify;
         }
 
-        _scheduler.Start(CheckAsync);
+        var subscription = ticker.Subscribe(CheckAsync, new MinuteTickOptions { RunImmediately = true, IsActive = isActive });
+        lock (_gate)
+        {
+            _subscription = subscription;
+        }
     }
 
     /// <summary>発動済みで未対応のリマインダーを、今日のスヌーズにする</summary>
@@ -79,6 +85,7 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
     /// <summary>監視を止める</summary>
     public void Dispose()
     {
+        IMinuteTickSubscription? subscription;
         lock (_gate)
         {
             if (_disposed)
@@ -87,8 +94,10 @@ public sealed class ReminderMonitor(ReminderService reminders, ReminderSettingsS
             }
             _disposed = true;
             _notify = null;
+            subscription = _subscription;
+            _subscription = null;
         }
-        _scheduler.Dispose();
+        subscription?.Dispose();
     }
 
     /// <summary>今の分の発動対象を判定して、あれば通知する</summary>
