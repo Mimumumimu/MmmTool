@@ -31,7 +31,7 @@ public sealed partial class ProjectPickerViewModel(WorkItemService service) : Ob
     /// <summary>表示中の案件が 0 件のときの案内 (検索語が空で、「非表示の案件も表示」がオフ)</summary>
     private const string NoSelectedText = "表示中の案件がありません。「非表示の案件も表示」で、非表示の案件を出せます";
 
-    /// <summary>読み込んだあとに外した案件の数 (外すと +1、入れ直すと -1。続きを読む位置のずれを直すため)</summary>
+    /// <summary>読み込んだあとに外した案件の数で、外すと +1、入れ直すと -1。続きを読む位置のずれを直すため</summary>
     private int _selectionShift;
 
     /// <summary>今の検索の番号 (古い検索の結果を捨てるため)</summary>
@@ -50,7 +50,7 @@ public sealed partial class ProjectPickerViewModel(WorkItemService service) : Ob
     [ObservableProperty]
     public partial string Query { get; set; } = "";
 
-    /// <summary>非表示の案件も一覧に出すか (既定はオフ。オフのときは、表示している案件だけを出す)</summary>
+    /// <summary>非表示の案件も一覧に出すか。既定はオフで、オフのときは、表示している案件だけを出す</summary>
     [ObservableProperty]
     public partial bool ShowHidden { get; set; }
 

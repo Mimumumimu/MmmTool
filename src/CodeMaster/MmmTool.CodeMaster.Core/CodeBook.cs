@@ -11,7 +11,7 @@ public sealed class CodeBook
     private readonly Dictionary<(int FeatureNo, int CategoryNo, int CodeNo), CodeMasterEntry> _entries;
 
     /// <summary>コードブックを作る</summary>
-    /// <param name="entries">コードマスタの件 (論理削除された件を含んでよい。同じキーがあれば、あとのものが勝つ)</param>
+    /// <param name="entries">コードマスタの件で、論理削除された件を含んでよい。同じキーがあれば、あとのものが勝つ</param>
     public CodeBook(IEnumerable<CodeMasterEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);

@@ -33,103 +33,130 @@
                 Text="{x:Bind ViewModel.WindowTitle, Mode=OneWay}" />
         </Grid>
 
-        <!-- 入力欄 -->
-        <StackPanel
+        <!-- 入力欄の 2 列。左は毎回出る欄で、この列の高さがウィンドウの高さを決める。右は備考と、モードによって出入りする欄 -->
+        <Grid
             Grid.Row="1"
             Padding="24,16,24,0"
-            Spacing="12">
+            ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-            <!-- 件名。エラーの行は場所を空けておく (出たり消えたりで下の欄が動かないように) -->
-            <StackPanel Spacing="4">
-                <TextBox
-                    x:Name="TitleBox"
-                    GotFocus="OnJapaneseBoxGotFocus"
-                    Header="件名"
-                    MaxLength="{x:Bind core:ReminderLimits.TitleMaxLength}"
-                    Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <TextBlock
-                    MinHeight="16"
-                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Text="{x:Bind ViewModel.TitleError, Mode=OneWay}" />
-            </StackPanel>
+            <!-- 左の列: いつ・何を -->
+            <StackPanel Grid.Column="0" Spacing="12">
 
-            <!-- 発動の指定 (日付指定 / 曜日指定) -->
-            <StackPanel Spacing="4">
-                <ToggleSwitch Header="日付を指定する" IsOn="{x:Bind ViewModel.IsDateSpecified, Mode=TwoWay}" />
-
-                <!-- 日付指定と曜日指定を同じ場所に出す。高さは高いほうに合わせる (切り替えで下の欄が動かないように) -->
-                <Grid x:Name="DateArea">
-                    <CalendarDatePicker
-                        x:Name="DatePanel"
-                        VerticalAlignment="Top"
-                        Date="{x:Bind ViewModel.Date, Mode=TwoWay}"
-                        DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}({dayofweek.abbreviated})"
-                        Visibility="{x:Bind ViewModel.IsDateSpecified, Mode=OneWay}" />
-
-                    <StackPanel
-                        x:Name="WeekdayPanel"
-                        VerticalAlignment="Top"
-                        Spacing="6"
-                        Visibility="{x:Bind ViewModel.IsWeekdaySpecified, Mode=OneWay}">
-                        <daysofweek:WeekdayPicker Value="{x:Bind ViewModel.SelectedWeekdays, Mode=TwoWay}" />
-                        <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Style="{StaticResource CaptionTextBlockStyle}"
-                            Text="曜日を選ばない場合は毎日通知します。" />
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
-
-            <!-- 時刻 (24 時間。1 つの枠に「時 : 分」) -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="時刻" />
-                <controls:TimeInputBox Hour="{x:Bind ViewModel.Hour, Mode=TwoWay}" Minute="{x:Bind ViewModel.Minute, Mode=TwoWay}" />
-            </StackPanel>
-
-            <TextBox
-                GotFocus="OnJapaneseBoxGotFocus"
-                Header="備考"
-                MaxLength="{x:Bind core:ReminderLimits.NoteMaxLength}"
-                Text="{x:Bind ViewModel.Note, Mode=TwoWay}" />
-
-            <TextBox
-                GotFocus="OnLinkBoxGotFocus"
-                Header="リンク"
-                InputScope="Url"
-                MaxLength="{x:Bind core:ReminderLimits.LinkMaxLength}"
-                PlaceholderText="URL / ファイル / フォルダーのパス"
-                Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
-
-            <ToggleSwitch Header="通知を読み上げる" IsOn="{x:Bind ViewModel.IsSpeak, Mode=TwoWay}" />
-
-            <!-- 宛先 (DB モードで、今のユーザーを特定できているときだけ) -->
-            <ComboBox
-                HorizontalAlignment="Stretch"
-                DisplayMemberPath="Name"
-                Header="宛先"
-                ItemsSource="{x:Bind ViewModel.TargetOptions}"
-                SelectedItem="{x:Bind ViewModel.SelectedTarget, Mode=TwoWay}"
-                Visibility="{x:Bind ViewModel.IsTargetVisible}" />
-
-            <!-- 送信先 (DB モードで、送信先を読み込めたときだけ。送る処理は MmmBatch が行う) -->
-            <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsChannelVisible, Mode=OneWay}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="送信先" />
-                    <!-- 宛先が自分でも全員でもないときの理由。同じ行に出して、高さを変えない -->
+                <!-- 件名。エラーの行は場所を空けておく (出たり消えたりで下の欄が動かないように) -->
+                <StackPanel Spacing="4">
+                    <TextBox
+                        x:Name="TitleBox"
+                        GotFocus="OnJapaneseBoxGotFocus"
+                        Header="件名"
+                        MaxLength="{x:Bind core:ReminderLimits.TitleMaxLength}"
+                        Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="宛先が自分か全員のときに選べます"
-                        Visibility="{x:Bind ViewModel.IsChannelHintVisible, Mode=OneWay}" />
+                        MinHeight="16"
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.TitleError, Mode=OneWay}" />
                 </StackPanel>
-                <!-- 一覧の高さは、3 行 x 32 + 枠 2 で固定。4 個以上のときは、一覧の中だけがスクロールする -->
-                <reminders:ReminderChannelPicker
-                    Height="98"
-                    IsEnabled="{x:Bind ViewModel.IsChannelEnabled, Mode=OneWay}"
-                    IsEmpty="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}"
-                    Options="{x:Bind ViewModel.ChannelOptions}" />
+
+                <!-- 発動の指定 (日付指定 / 曜日指定) -->
+                <StackPanel Spacing="4">
+                    <ToggleSwitch Header="日付を指定する" IsOn="{x:Bind ViewModel.IsDateSpecified, Mode=TwoWay}" />
+
+                    <!-- 日付指定と曜日指定を同じ場所に出す。高さは高いほうに合わせる (切り替えで下の欄が動かないように) -->
+                    <Grid x:Name="DateArea">
+                        <CalendarDatePicker
+                            x:Name="DatePanel"
+                            VerticalAlignment="Top"
+                            Date="{x:Bind ViewModel.Date, Mode=TwoWay}"
+                            DateFormat="{}{year.full}/{month.integer(2)}/{day.integer(2)}({dayofweek.abbreviated})"
+                            Visibility="{x:Bind ViewModel.IsDateSpecified, Mode=OneWay}" />
+
+                        <StackPanel
+                            x:Name="WeekdayPanel"
+                            VerticalAlignment="Top"
+                            Spacing="6"
+                            Visibility="{x:Bind ViewModel.IsWeekdaySpecified, Mode=OneWay}">
+                            <daysofweek:WeekdayPicker Value="{x:Bind ViewModel.SelectedWeekdays, Mode=TwoWay}" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="曜日を選ばない場合は毎日通知します。" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 時刻は 24 時間で、1 つの枠に「時 : 分」を入れる -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="時刻" />
+                    <controls:TimeInputBox Hour="{x:Bind ViewModel.Hour, Mode=TwoWay}" Minute="{x:Bind ViewModel.Minute, Mode=TwoWay}" />
+                </StackPanel>
+
+                <ToggleSwitch Header="通知を読み上げる" IsOn="{x:Bind ViewModel.IsSpeak, Mode=TwoWay}" />
             </StackPanel>
-        </StackPanel>
+
+            <!-- 右の列: 備考が余った高さを受け持つ。下の欄 (リンク・宛先・送信先)は、出ないモードでも、間隔が残らないよう 1 つの StackPanel にまとめる -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBox
+                    x:Name="NoteBox"
+                    Grid.Row="0"
+                    VerticalAlignment="Stretch"
+                    AcceptsReturn="True"
+                    GotFocus="OnJapaneseBoxGotFocus"
+                    Header="備考"
+                    MaxLength="{x:Bind core:ReminderLimits.NoteMaxLength}"
+                    ScrollViewer.VerticalScrollBarVisibility="Visible"
+                    Text="{x:Bind ViewModel.Note, Mode=TwoWay}"
+                    TextWrapping="Wrap" />
+
+                <StackPanel
+                    Grid.Row="1"
+                    Margin="0,12,0,0"
+                    Spacing="12">
+                    <TextBox
+                        GotFocus="OnLinkBoxGotFocus"
+                        Header="リンク"
+                        InputScope="Url"
+                        MaxLength="{x:Bind core:ReminderLimits.LinkMaxLength}"
+                        PlaceholderText="URL / ファイル / フォルダーのパス"
+                        Text="{x:Bind ViewModel.Link, Mode=TwoWay}" />
+
+                    <!-- 宛先 (DB モードで、今のユーザーを特定できているときだけ) -->
+                    <ComboBox
+                        HorizontalAlignment="Stretch"
+                        DisplayMemberPath="Name"
+                        Header="宛先"
+                        ItemsSource="{x:Bind ViewModel.TargetOptions}"
+                        SelectedItem="{x:Bind ViewModel.SelectedTarget, Mode=TwoWay}"
+                        Visibility="{x:Bind ViewModel.IsTargetVisible}" />
+
+                    <!-- 送信先は、DB モードで送信先を読み込めたときだけ出す。送る処理は MmmBatch が行う -->
+                    <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsChannelVisible, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="送信先" />
+                            <!-- 宛先が自分でも全員でもないときの理由。同じ行に出して、高さを変えない -->
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="宛先が自分か全員のときに選べます"
+                                Visibility="{x:Bind ViewModel.IsChannelHintVisible, Mode=OneWay}" />
+                        </StackPanel>
+                        <!-- 一覧の高さは、3 行 x 32 + 枠 2 で固定。4 個以上のときは、一覧の中だけがスクロールする -->
+                        <reminders:ReminderChannelPicker
+                            Height="98"
+                            IsEnabled="{x:Bind ViewModel.IsChannelEnabled, Mode=OneWay}"
+                            IsEmpty="{x:Bind ViewModel.HasNoChannels, Mode=OneWay}"
+                            Options="{x:Bind ViewModel.ChannelOptions}" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
 
         <!-- 操作ボタン (Windows の流儀で、肯定を左・キャンセルを右に) -->
         <StackPanel

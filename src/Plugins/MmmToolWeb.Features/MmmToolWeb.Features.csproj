@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Users\MmmTool.Users.Core\MmmTool.Users.Core.csproj" />
+    <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.Core\MmmSdk.Core.csproj" />
   </ItemGroup>
 
   <!-- ASP.NET Core の部品を使うので、Web 用の SDK と同じ using を足す -->

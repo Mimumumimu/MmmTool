@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmTool.NotificationChannels.Core;
@@ -31,9 +32,10 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <param name="reminderDialogs">入力画面を開く</param>
     /// <param name="channels">送信先の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
+    /// <param name="ticker">毎分の合図</param>
     public ReminderListViewModel(
-        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time)
-        : base(reminders, time)
+        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time, ITicker ticker)
+        : base(reminders, time, ticker)
     {
         _dialogs = dialogs;
         _reminderDialogs = reminderDialogs;

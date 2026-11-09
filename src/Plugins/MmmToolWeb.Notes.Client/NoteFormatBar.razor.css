@@ -1,0 +1,130 @@
+/* 書式の列。押せる部品は 44 ピクセル四方で、間は 8 ピクセルあける。6 つのボタンと区切り線で、約 313 ピクセル。縦向きの iPhone の幅 (393)から、左右の余白を引いた約 361 ピクセルに収まる */
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tool {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+}
+
+.tool[aria-expanded="true"] {
+    background: var(--border);
+}
+
+/* 押せないボタン。本体の指定より強くするため、クラスも含めて書く */
+button.tool:disabled {
+    color: var(--disabled);
+}
+
+.tool svg {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* 文字のアイコン。それぞれの書式の見た目を、そのまま文字に出す */
+.mark {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.bold-mark {
+    font-weight: 700;
+}
+
+.italic-mark {
+    font-style: italic;
+}
+
+.underline-mark {
+    text-decoration: underline;
+}
+
+.strike-mark {
+    text-decoration: line-through;
+}
+
+/* 色のアイコンは、文字の下に太い線を引く。線の色は文字と同じで、押せないときは薄くなる */
+.color-mark {
+    text-decoration: underline;
+    text-decoration-thickness: 0.2rem;
+    text-underline-offset: 0.2rem;
+}
+
+.divider {
+    flex: none;
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border);
+}
+
+/* 色とリンクのパネル。列のすぐ上に出す */
+.panel {
+    padding: 0.5rem 0 0.75rem;
+}
+
+/* 色の格子。縦が濃さで上が濃い 4 段、横が色の種類。幅に入りきらないぶんは、横にスクロールする。8 列目が少し見えて、続きがあると分かる */
+.palette {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(4, 2.75rem);
+    grid-auto-columns: 2.75rem;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+/* 左端の「標準」は、4 段分の高さの 1 つのボタンにする */
+.palette .reset {
+    grid-row: 1 / -1;
+    width: 2.75rem;
+    min-width: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+    writing-mode: vertical-rl;
+}
+
+.swatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    background: transparent;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.link-panel .form-field {
+    margin-bottom: 0.5rem;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}

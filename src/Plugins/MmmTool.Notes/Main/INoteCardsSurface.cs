@@ -12,6 +12,6 @@ public interface INoteCardsSurface
     /// <summary>ページを表示する (表示中なら、作り直す)</summary>
     /// <param name="html">ページの HTML</param>
     /// <param name="scrollTop">表示したあとの、上端からのスクロールの位置 (CSS のピクセル)</param>
-    /// <param name="allowedLinks">開いてよいリンク先 (今のページに出したリンクだけ。<see cref="MmmTool.Notes.Core.NoteLinks.CollectHrefs"/>)</param>
+    /// <param name="allowedLinks">開いてよいリンク先で、今のページに出したリンクだけ。集めるのは <see cref="MmmTool.Notes.Core.NoteLinks.CollectHrefs"/></param>
     void Show(string html, double scrollTop, IReadOnlySet<string> allowedLinks);
 }

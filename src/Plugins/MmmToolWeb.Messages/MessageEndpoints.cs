@@ -101,7 +101,7 @@ internal static class MessageEndpoints
     /// <param name="repository">会話とメッセージの保存先。</param>
     /// <param name="currentUser">今のユーザー。</param>
     /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>本文の最大の長さと、相手に通知が届くか。自分が入っていない会話は 404。</returns>
+    /// <returns>相手に通知が届くかと、各上限。上限は、更新の前に開いたままの画面のために返す。自分が入っていない会話は 404。</returns>
     /// <remarks>相手の状態は、会話の要約の控えが古くなるので、要るたびに DB から読む。</remarks>
     private static async Task<IResult> LoadFormAsync(
         int? conversationId, int? peerUserId, IMessageRepository repository, CurrentUser currentUser, CancellationToken cancellationToken)

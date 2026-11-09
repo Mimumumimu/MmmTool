@@ -18,7 +18,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     /// <param name="kind">種類</param>
     /// <param name="name">表示名</param>
     /// <param name="path">開くパス</param>
-    /// <param name="children">子要素 (フォルダのとき。それ以外は null)</param>
+    /// <param name="children">子要素で、フォルダのとき。それ以外は null</param>
     /// <remarks>生成は <see cref="CreateLink"/> などから行う。</remarks>
     private LinkTreeItem(LinkNodeKind kind, string name, string path, ObservableCollection<LinkTreeItem>? children)
     {

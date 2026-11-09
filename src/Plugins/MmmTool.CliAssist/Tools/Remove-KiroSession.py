@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Kiro CLI の会話履歴を選んで削除する (WSL・Linux 版)。
+"""Kiro CLI の会話履歴を選んで削除する。WSL・Linux 版。
 
 Remove-KiroSession.ps1 (Windows 版)と同じ流れ・同じ操作にしている。直すときは両方を直す。
 
-ターミナル内で完結する (別ウィンドウなし)。
+ターミナル内で完結し、別ウィンドウは出さない。
   1. 作業フォルダの一覧から選ぶ
   2. 選んだフォルダ内のセッションを選ぶ
   3. 確認のうえ、削除 → 2 に戻る (q で終了するまで繰り返せる)
 
 一覧の取得と削除は、kiro-cli の公式コマンド (chat --list-sessions / --delete-session)で行う。
-Kiro の削除は戻せない (ごみ箱へは送らない)。
+Kiro の削除は戻せない。ごみ箱へは送らない。
 
 操作: ↑↓ 移動 / Space 選択・解除 / Tab 選択・解除して下へ (Shift+Tab は上へ) / a 全選択・全解除 / Enter 決定 (未選択ならカーソル行)
       Backspace Esc 1 つ前に戻る / q 終了
@@ -17,7 +17,7 @@ Kiro の削除は戻せない (ごみ箱へは送らない)。
 
 --all を付けると手順 2 を省略し、選んだフォルダの全セッションを対象にする。
 --what-if を付けると、削除せず対象を表示するだけ。
-Kiro で開いているセッションは消さないこと (先に閉じる)。
+Kiro で開いているセッションは消さないこと。先に閉じておく。
 """
 
 import argparse
@@ -40,7 +40,7 @@ KIRO_TIMEOUT_SECONDS = 60
 def run_kiro(kiro_args, message):
     """kiro-cli を動かして標準出力を返す。エラー出力は捨てる (結果は一覧の取り直しで確かめる)
 
-    動いている間は、スピナーと message を出す (kiro-cli は応答に時間がかかり、何も出さないと止まって見えるため)。
+    動いている間は、スピナーと message を出す。kiro-cli は応答に時間がかかり、何も出さないと止まって見えるため。
     """
     with spinner(message):
         result = subprocess.run(
@@ -183,7 +183,7 @@ def main():
             step = 3
         else:
             print()
-            print(f"{len(targets)} 件を削除します (戻せません)。")
+            print(f"{len(targets)} 件を削除します。戻せません。")
             for target in targets:
                 print(f"  {format_time(target['updated'])} | {target['title']}")
 
@@ -206,7 +206,7 @@ def main():
                 remain_ids = {s["id"] for g in groups for s in g["sessions"]}
                 failed = [t for t in targets if t["id"] in remain_ids]
                 if failed:
-                    print(f"{YELLOW}{len(failed)} 件を削除できませんでした (Kiro で開いていないか確認してください)。{RESET}")
+                    print(f"{YELLOW}{len(failed)} 件を削除できませんでした。Kiro で開いていないか確認してください。{RESET}")
                     for target in failed:
                         print(f"  {format_time(target['updated'])} | {target['title']}")
                 if len(failed) < len(targets):

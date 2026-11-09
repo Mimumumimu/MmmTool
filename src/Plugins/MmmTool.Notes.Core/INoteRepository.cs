@@ -74,7 +74,7 @@ public interface INoteRepository
     /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">保存できなかった。</exception>
     Task<bool> UpdateAsync(int id, NoteInput input, CancellationToken cancellationToken = default);
 
-    /// <summary>ノートを削除する・復元する (論理削除。行は消さない)</summary>
+    /// <summary>ノートを削除する・復元する。論理削除で、行は消さない</summary>
     /// <param name="id">ノートの番号</param>
     /// <param name="isDeleted">削除するなら true、復元するなら false</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>

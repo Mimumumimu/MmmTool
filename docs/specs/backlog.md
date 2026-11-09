@@ -32,7 +32,7 @@ Backlog の共有ファイル (ファイル画面の URL で示すフォルダ�
     - 公開する可能性があり、Data フォルダーは EXE の横にあるため、フォルダーを人に渡す・バックアップに入れるだけでキーが漏れる
 - 名前 (`BacklogSettingsService.ApiKeySecretName`)は、決めたら変えない (変えると、保存済みのキーを読めなくなる)
 
-## 連携用パス (URL)の解析 (`BacklogLocationParser`。Core)
+## 連携用パス (URL)の解析 (`BacklogLocationParser`、Core)
 
 - 形は `https://{domain}/file/{projectKey}/{エンコード済みフォルダーパス}`
   - 分けた結果は `BacklogLocation`(ドメイン・プロジェクトキー・フォルダーパス)
@@ -42,7 +42,7 @@ Backlog の共有ファイル (ファイル画面の URL で示すフォルダ�
   - プロジェクトキー・フォルダーパスの各セグメントは、URL デコードして持つ (フォルダーパスは `/` でつなぎ、ルートは空)
 - 予測できる失敗なので、例外にせず、結果の `Error`(画面に出す文)で返す
 
-## 通信 (`BacklogClient`。Core)
+## 通信 (`BacklogClient`、Core)
 
 - `HttpClient` はアプリ全体で 1 つ
   - `BacklogClient` を Singleton にし、自分で持つ

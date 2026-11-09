@@ -1,8 +1,8 @@
--- MmmTool のローカルの DB (SQLite。Data/MmmTool.db)。作業管理の 5 つの表と、コードマスタを作る。
--- 設計は docs/specs/work-items.md と docs/specs/database.md。何度流しても壊れない (無いものだけを作る)。
+-- MmmTool のローカルの DB は SQLite で、Data/MmmTool.db。作業管理の 5 つの表と、コードマスタを作る。
+-- 設計は docs/specs/work-items.md と docs/specs/database.md。何度流しても壊れないよう、無いものだけを作る。
 -- アプリが、データベースを開くとき、PRAGMA user_version より新しい番号のスクリプトを順に実行する。
--- 型: 日時は TEXT (2026-10-11T14:30:00.123+09:00。同じ時差なら文字の大小が前後になる)、日付は TEXT (2026-10-11。ない日は 9999-12-31)、
---     時間は REAL (合計は書くたびに ROUND(…, 2) で丸める)、真偽は INTEGER (0 か 1)。外部キーは使わない。NULL は使わない。
+-- 型: 日時は TEXT で 2026-10-11T14:30:00.123+09:00 の形で、同じ時差なら文字の大小が前後になる。日付は TEXT で 2026-10-11 の形で、ない日は 9999-12-31。
+--     時間は REAL で、合計は書くたびに ROUND(…, 2) で丸める。真偽は INTEGER で、値は 0 か 1。外部キーは使わない。NULL は使わない。
 
 -- 案件マスター。全員で共有する案件の 1 件。Link は URL・フォルダ・ファイルのパス (無いときは空文字)
 CREATE TABLE IF NOT EXISTS WorkProject
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS WorkGroup
 -- 選んだ案件の中身の読み込み・差分の取得 (論理削除された行も含む)
 CREATE INDEX IF NOT EXISTS IX_WorkGroup_ProjectId_UpdatedAt ON WorkGroup (ProjectId, UpdatedAt);
 
--- 作業。GroupId の 0 は案件の直下。AssigneeUserId の 0 は未割り当て。日付のない日は 9999-12-31 (開始日は 0001-01-01)、PlannedHours の 0 は予定なし、CompletedDate の 9999-12-31 は未完了
+-- 作業。GroupId の 0 は案件の直下。AssigneeUserId の 0 は未割り当て。日付のない日は 9999-12-31、開始日だけ 0001-01-01、PlannedHours の 0 は予定なし、CompletedDate の 9999-12-31 は未完了
 -- ActualTotalHours は、その作業の全員の記録の合計 (記録を保存するたびに計算し直して書く)
 -- PriorityCodeNo・StatusCodeNo・ProgressCodeNo は、コードマスタ (CodeMaster)のコード番号 (区分 3・1・2)
 CREATE TABLE IF NOT EXISTS WorkItem
@@ -75,10 +75,10 @@ CREATE INDEX IF NOT EXISTS IX_WorkItem_ProjectId_UpdatedAt ON WorkItem (ProjectI
 -- 案件の完了の計算 (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_ProjectId_CompletedDate ON WorkItem (ProjectId, CompletedDate) WHERE IsDeleted = 0;
 
--- 作業報告の実績・予定 (担当が自分の作業を探す。削除されていない行だけ)
+-- 作業報告の実績・予定で、担当が自分の作業を探す。削除されていない行だけ
 CREATE INDEX IF NOT EXISTS IX_WorkItem_AssigneeUserId_StatusCodeNo ON WorkItem (AssigneeUserId, StatusCodeNo) WHERE IsDeleted = 0;
 
--- 日ごとの記録。作業ごと・日ごとに 1 件 (人は区別しない)。ProjectId は作業の案件 (選んだ案件に絞って読むため)
+-- 日ごとの記録。作業ごと・日ごとに 1 件で、人は区別しない。ProjectId は作業の案件で、選んだ案件に絞って読むため
 CREATE TABLE IF NOT EXISTS WorkRecord
 (
     Id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS WorkRecord
     Note            TEXT    NOT NULL DEFAULT '' CHECK (length(Note) <= 1000)
 );
 
--- 作業ごと・日ごとに 1 件 (同じ日に入れ直したときは、この行を使い回す。論理削除された行も含めて一意)。作業の累計の計算し直しにも使う
+-- 作業ごと・日ごとに 1 件。同じ日に入れ直したときは、この行を使い回し、論理削除された行も含めて一意にする。作業の累計の計算し直しにも使う
 CREATE UNIQUE INDEX IF NOT EXISTS UX_WorkRecord_WorkItemId_Date ON WorkRecord (WorkItemId, Date);
 
 -- その日の記録の読み込み (削除されていない行だけ)
@@ -103,9 +103,9 @@ CREATE INDEX IF NOT EXISTS IX_WorkRecord_ProjectId_Date ON WorkRecord (ProjectId
 -- 差分の取得 (論理削除された行も含む)
 CREATE INDEX IF NOT EXISTS IX_WorkRecord_ProjectId_UpdatedAt ON WorkRecord (ProjectId, UpdatedAt);
 
--- コードマスタ。(FeatureNo, CategoryNo, CodeNo) で 1 件。FeatureNo は機能番号 (台帳は MmmTool.CodeMaster.Core の CodeFeatures)、
--- CategoryNo は機能の中の区分 (コードの種類)、CodeNo は区分の中の識別子 (一度使った番号は、同じ意味のまま変えない)
--- NumericValue は計算に使う数 (進捗度の % など。要らないコードは 0)、Name の「ない」は空文字
+-- コードマスタ。(FeatureNo, CategoryNo, CodeNo) で 1 件。FeatureNo は機能番号で、台帳は MmmTool.CodeMaster.Core の CodeFeatures、
+-- CategoryNo は機能の中の区分でコードの種類、CodeNo は区分の中の識別子で、一度使った番号は、同じ意味のまま変えない
+-- NumericValue は計算に使う数で、進捗度の % など。要らないコードは 0、Name の「ない」は空文字
 CREATE TABLE IF NOT EXISTS CodeMaster
 (
     Id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,8 +128,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS UX_CodeMaster_FeatureNo_CategoryNo_CodeNo ON C
 -- 機能ごとの読み込み・差分の取得 (論理削除された行も含む)
 CREATE INDEX IF NOT EXISTS IX_CodeMaster_FeatureNo_UpdatedAt ON CodeMaster (FeatureNo, UpdatedAt);
 
--- 初期値 (作業管理 = 機能番号 2)。作成者・更新者は 1 (ローカルのユーザー)。無いコードだけを入れる
--- 区分 1: 状態 (未対応・作業予定・作業中・完了) / 区分 2: 進捗度 (コード番号 1〜11 が 0%〜100%。名前は、すべて空) / 区分 3: 優先度
+-- 初期値は作業管理 = 機能番号 2。作成者・更新者は 1 で、ローカルのユーザー。無いコードだけを入れる
+-- 区分 1: 状態 (未対応・作業予定・作業中・完了) / 区分 2: 進捗度 (コード番号 1〜11 が 0%〜100% で、名前は、すべて空) / 区分 3: 優先度
 INSERT INTO CodeMaster (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, FeatureNo, CategoryNo, CodeNo, SortOrder, NumericValue, Name)
 SELECT 0,
        strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours') || '+09:00', 1,

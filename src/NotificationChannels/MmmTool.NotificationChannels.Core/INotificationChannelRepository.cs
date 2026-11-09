@@ -54,7 +54,7 @@ public interface INotificationChannelRepository
     Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default);
 
     /// <summary>自分が登録した送信先を、同じ番号の内容で置き換える</summary>
-    /// <param name="channel">置き換える内容 (<see cref="NotificationChannel.Id"/> で対象を決める。区分は変えない)</param>
+    /// <param name="channel">置き換える内容で、<see cref="NotificationChannel.Id"/> で対象を決める。区分は変えない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があって置き換えたとき true (無い・自分が登録したものでないとき false)</returns>
     /// <exception cref="ArgumentException">登録名・値が空か長すぎる。</exception>

@@ -116,14 +116,15 @@
 | `WorkItem` | 作業管理の作業 |
 | `WorkRecord` | 作業管理の日ごとの記録。作業ごと・日ごとに 1 件 |
 | `WorkDayNote` | 作業管理の日報メモ。作業に結びつかない、その人の 1 日分の記入。1 人 1 日 1 件 |
-| `Note` | ノート。期間 (開始日・終了日)・タイトル・本文・重要度・公開範囲を持つ ([notes.md](notes.md)) |
+| `Note` | ノート。期間 (開始日・終了日)・実施日・タイトル・本文・重要度・公開範囲を持つ ([notes.md](notes.md)) |
+| `NoteAttribute` | ノートの追加の値。ノート・種類・枝番ごとに、値を 1 行で持つ縦持ちの表。ほかの実施日から使う ([notes.md](notes.md)) |
 | `CodeMaster` | コードマスタ。選択肢などの、番号と名前と数値の組で、全員で共通。作業管理の状態・進捗度・優先度から使う ([work-items.md](work-items.md)の「コードマスタ」) |
 
 - `NotificationChannel`・`ReminderSendSetting`・`ReminderSendStatus`・`MessageDelivery` の 4 つは、外部への送信のための表で、DB モードだけで使う ([mmmbatch.md](mmmbatch.md))
 - `MessageConversation`・`MessageConversationMember`・`Message` も、DB モードだけで使う。ローカルモードにはユーザーの特定が無く、会話の相手がいないため。
 - `AppUserSetting` は、送信のための表ではなく、ユーザーごとの設定の汎用の表。ユーザーの特定があるのは DB モードだけなので、SQL Server だけに作り、SQLite と JSON には作らない。
   - ローカルモードの JSON には、送信の項目を持たない
-- 作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ
+- 作業管理の 5 つの表 (`WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`)と、ノートの表 `Note`・`NoteAttribute`、コードマスタの表 `CodeMaster` は、ローカルモードは SQLite、DB モードは SQL Server で、同じ設計の表を持つ
   - 列は、下の「列」の「作業管理の表 (5 つ)」と「コードマスタの表」に書く (表の定義書)
   - 読み書きは [work-items.md](work-items.md) の「データ」
   - 型の対応は、下の「型の対応 (作業管理の表)」
@@ -145,7 +146,7 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時 |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者 (`AppUser.Id`)で、0 以上の検査 |
 | `DisplayName` | 文字列 (50) | `nvarchar(50)` | | 表示名 |
-| `LoginName` | 文字列 (50) | `nvarchar(50)` | | ログイン名。大文字と小文字は区別しない。削除されていない行の間だけ一意 (`UX_AppUser_LoginName`。条件つきの一意インデックス) |
+| `LoginName` | 文字列 (50) | `nvarchar(50)` | | ログイン名。大文字と小文字は区別しない。削除されていない行の間だけ一意 (`UX_AppUser_LoginName` で、条件つきの一意インデックス) |
 | `PasswordHash` | 文字列 (200) | `varchar(200)` | 空文字 | 空文字は、管理者の再設定のあとの「新しく決める」状態。パスワードのハッシュで、形は `pbkdf2-sha256$<回数>$<ソルト>$<ハッシュ>` (ソルト・ハッシュは Base64) |
 | `ValidFrom` | 日付 | `date` | | 使い始める日 |
 | `ValidTo` | 日付 | `date` | `9999-12-31` | 使い終わる日で、その日を含む。終わりがなければ `9999-12-31` |
@@ -194,7 +195,7 @@
   - 備考・リンクは、空文字と `null` を区別しない (空文字で保存し、読むときは `null`)
   - 作成・更新の日時と、作成者・更新者・宛先は、アプリの型に無いので、`FromReminder` では決めない (Repository が入れる)
 
-### `ReminderState`(対応状態。人ごと)
+### `ReminderState`(対応状態で、人ごと)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -377,7 +378,7 @@
 | `Kind` | 整数 (小) | `tinyint` | | 種類。1 対 1 = 1 / グループ = 2 で、1 から 2 の検査 `CK_MessageConversation_Kind` |
 | `Name` | 文字列 (50) | `nvarchar(50)` | 空文字 | 会話の名前。グループの名前で、1 対 1 は空文字 |
 
-- 1 対 1 の会話の重なりとは、同じ 2 人の組に、会話が 2 つできること。これは、DB の索引では防がない。会話を作る処理が、2 人の組ごとの鍵 (`sp_getapplock`)で順番に処理し、`MessageConversationMember` から探して防ぐ ([messages.md](messages.md) の「1 対 1 の会話の作り方」)。
+- 1 対 1 の会話の重なりとは、同じ 2 人の組に、会話が 2 つできること。これは、DB の索引では防がない。会話を作る処理が、2 人の組ごとの鍵 (`sp_getapplock`)で順番に処理し、`MessageConversationMember` から探して防ぐ。詳細は [messages.md](messages.md) の「1 対 1 の会話の作り方」にある。
   - グループは、メンバーが同じで名前の違う会話を、いくつでも作れる
 - 最後のメッセージの番号の列は持たない。人の一覧は、会話ごとに最新の 1 通を `Message` から読んで求める。メッセージを送るたびに、会話の行を更新しなくて済むため。
 - インデックスは、主キーだけ。参加者での引きは、`MessageConversationMember` の索引が受け持つ。
@@ -470,7 +471,7 @@
 - SQLite の型は、下の「型の対応 (作業管理の表)」
 - 各表は、上から、主キー・共通ヘッダー・中身の列の順に、全部の列を書く
 
-#### `WorkProject`(案件マスター。全員で共有する案件の 1 件)
+#### `WorkProject`(案件マスターで、全員で共有する案件の 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -543,7 +544,7 @@
   - `IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId (StatusCodeNo, CompletedDate, AssigneeUserId)`: ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す。削除されていない行だけ
   - `IX_WorkItem_AssigneeUserId_AutoHours (AssigneeUserId)`: 自動入力の設定がある自分の作業を探す。削除されていなくて、`AutoHours > 0` の行だけ。大半の作業は設定が無いので、索引が小さく済む
 
-#### `WorkRecord`(日ごとの記録。作業ごと・日ごとに 1 件)
+#### `WorkRecord`(日ごとの記録で、作業ごと・日ごとに 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -570,7 +571,7 @@
   - `IX_WorkRecord_ProjectId_UpdatedAt (ProjectId, UpdatedAt)`: 差分 (論理削除された行も含む)
   - `IX_WorkRecord_Date_WorkItemId (Date, WorkItemId)`: ノートの「全員」の人の一覧で、期間内に記録がある作業を日付から探す。削除されていない行だけ
 
-#### `WorkDayNote`(日報メモ。1 人 1 日 1 件)
+#### `WorkDayNote`(日報メモで、1 人 1 日 1 件)
 
 - 作業に結びつかない、その人の 1 日分の記入 (打ち合わせなど)
   - 作業報告が、報告日の分を「■日報メモ」に出す ([work-items.md](work-items.md) の「日報メモ」・[work-report.md](work-report.md))
@@ -613,12 +614,14 @@
 
 - ローカルモードの SQLite と、DB モードの SQL Server で、同じ設計の表を持つ
 - 使い方は [notes.md](notes.md)
-- 作成用のスクリプトは、SQLite が `003_AddNote.sql`、SQL Server が `001_CreateTables.sql`
+- `Note` の作成用のスクリプトは、SQLite が `003_AddNote.sql`、SQL Server が `001_CreateTables.sql`
   - SQLite は、開くとき版を 3 に上げて作る
   - SQL Server は、管理者が、DB を選んで流す
+- `NoteAttribute` は、SQLite が `Sql/schema.sql` に書き足し、起動時の点検が作る。SQL Server が `014_AddNoteAttribute.sql`。
+  - 理由: 1 度コミットしたスクリプトを変えない決まりのため。SQLite の表の追加は、番号つきのスクリプトに書かず、`schema.sql` に書く。
 - SQLite の型は、上の「型の対応 (作業管理の表)」
 
-#### `Note`(ノート。期間とタイトルと本文を持つ 1 件)
+#### `Note`(ノートで、期間とタイトルと本文を持つ 1 件)
 
 | 列 | 型 | SQL Server | 既定値 | 内容 |
 | --- | --- | --- | --- | --- |
@@ -632,7 +635,7 @@
 | `IsPrivate` | 真偽 | `bit` | 0 | 公開範囲。0 は全員、1 は書いた人だけ。ローカルモードは常に 0 |
 | `StartDate` | 日付 | `date` | | 開始日 |
 | `EndDate` | 日付 | `date` | `9999-12-31` | 終了日。空 (無期限)は `9999-12-31`。`StartDate` 以上の検査 |
-| `EventDate` | 日付 | `date` | `9999-12-31` | 実施日。空 (未設定)は `9999-12-31`。未設定でないときは、`StartDate` 以上かつ `EndDate` 以下の検査。位置は `EndDate` の次。SQL Server は `001_CreateTables.sql` がこの位置で作り、SQLite は `Sql/schema.sql` との点検が足す (列の位置は決められず、末尾のまま) |
+| `EventDate` | 日付 | `date` | `9999-12-31` | 実施日で、ノート全体の日。空 (未設定)は `9999-12-31`。ほかの実施日は `NoteAttribute` に持つ。未設定でないときは、`StartDate` 以上かつ `EndDate` 以下の検査。位置は `EndDate` の次。SQL Server は `001_CreateTables.sql` がこの位置で作り、SQLite は `Sql/schema.sql` との点検が足す (列の位置は決められず、末尾のまま) |
 | `Priority` | 整数 (小) | `tinyint` | 3 | 重要度。最低 = 1 / 低 = 2 / 中 = 3 / 高 = 4 / 最高 = 5 (数が大きいほど重要で、1 から 5 の検査) |
 | `Title` | 文字列 (100) | `nvarchar(100)` | | タイトル。1 文字以上。画面の上限 (`NoteLimits`)と同じ長さ |
 | `Body` | 長い文字列 (上限なし) | `nvarchar(max)` | 空文字 | 長さの上限を決めず、列の最大までで、`CHECK` も付けない。本文は、書いたとおりの文字で、HTML のタグを含みうる |
@@ -645,7 +648,7 @@
   - 終了日を先頭にするのは、過去に終わった大量のノートを、読むたびに走査しないため
   - 論理削除された行も含める (「削除したものも表示」が読むため)
 - インデックスは、もう 1 つ、`IX_Note_UpdatedAt (UpdatedAt)`
-  - 前回読んだ時刻の後に更新されたノートを、全件を調べずに探して、他の人の作成・更新の通知に使うため。MmmBatch も PC 版も、10 秒おきに読む。
+  - 前回読んだ時刻の後に更新されたノートを、全件を調べずに探して、他の人の作成・更新の通知に使うため。MmmBatch は 10 秒おき、PC 版は毎分 1 回読む。
   - 画面の「更新日」の表示 ([notes.md](notes.md) の「表示の基準」)が、その日の 0 時から翌日の 0 時までの範囲を、この索引で絞るため。PC 版も Web 版も読む。
   - 通知は DB モードだけだが、ノートの表は SQL Server と SQLite で同じ設計なので、両方に入れる
   - 論理削除された行も含める
@@ -655,6 +658,51 @@
   - SQL Server と SQLite の両方に、同じ名前・同じ列で入れる
 - 一意制約は付けない (同じタイトル・期間のノートを複数置ける)
 - 書いた人の存在は、アプリが検査する (外部キーは付けない)
+
+#### `NoteAttribute`(ノートの追加の値で、1 行に 1 つの値を持つ縦持ち)
+
+ノートに付く、追加の値を、1 行に 1 つ持つ縦持ちの表。`AppUserSetting` の `UserId` を、ノートの番号に置き換えた作り。
+
+| 列 | 型 | SQL Server | 既定値 | 内容 |
+| --- | --- | --- | --- | --- |
+| `Id` | 自動採番の整数 | `int IDENTITY(1,1)` | | 主キー |
+| `IsDeleted` | 真偽 | `bit` | 0 | 論理削除。値を外したときに 1 にする |
+| `CreatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 作成日時 (SQLite はアプリが書く) |
+| `CreatedByUserId` | 整数 | `int` | | 作成者の `AppUser.Id` (ローカルは 1)で、記録用。検索・結合には使わない。0 以上の検査 |
+| `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時で、SQL Server は DB の時計、SQLite はアプリが書く |
+| `UpdatedByUserId` | 整数 | `int` | | 更新者の `AppUser.Id`。記録用で、検索の条件・索引には使わない。0 以上の検査 |
+| `NoteId` | 整数 | `int` | | 親の `Note.Id`。業務の列。1 以上の検査。**列の並び: 共通ヘッダーの次、`CategoryNo` の前** |
+| `CategoryNo` | 整数 | `int` | | 種類の番号。1 = ほかの実施日で、値は日付。1 以上の検査 |
+| `CodeNo` | 整数 | `int` | | 枝番。同じ種類の値が複数あるとき、値ごとに別の番号にする。ほかの実施日では、日付の順の位置で、1 番目が 1。1 以上の検査 |
+| `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、日付は `2026-11-17` の形 (`yyyy-MM-dd`)で書く。この形なら、文字列のまま、日付の順に並び、等しいかも比べられる |
+
+- 行は、削除済みも含めて、`(NoteId, CategoryNo, CodeNo)` で 1 行だけ
+- ほかの実施日の保存は、日付を日付の順に並べて、枝番 1 から順に書き直す
+  - 1 番目の日付を枝番 1 の行、2 番目を枝番 2 の行に書く。枝番の順と日付の順が、いつも同じになる。
+  - 行があって、日付か削除の状態が違うものは、日付を書き直して `IsDeleted` を 0 にする。行が無い枝番は足す。日付も状態も同じ行は、触らない。
+  - 日付の数より後ろの枝番で、削除されていない行は、`IsDeleted` を 1 にする。物理削除はしない。
+  - 理由: 削除済みの行を使い回すので、行の数は、そのノートで同時に持った日付の最大の数で止まる。日付が入れ替わるたびに行が増え続けたり、枝番と日付の順が散らばったりしない。
+  - 枝番は、他の表から指されず、日付の順の位置を表すだけなので、行の日付を書き直して使い回しても困らない。
+- ノートの追加の値は、種類ごとに列や表を足さず、行で持つ。値の種類が増えても、列が増えないため。
+  - 日付ごとの内容や備考を持たせるときは、種類の番号を足し、同じ枝番の行を 1 組にする。
+- 複数の値は、カンマでつないだ文字列にせず、枝番を分けた行にする (1 つだけ足す・外す操作を、行の追加と論理削除で行うため)
+- 種類の番号の一覧は、列の検査にしない。種類を足すたびに、表を直さないため。
+- 日付が期間の中にあることと、同じ日が重ならないことは、アプリが検査する (外部キーも付けない)
+- 日付の足す・外す操作は、親の `Note` の `UpdatedAt` と `UpdatedByUserId` を、同じトランザクションで更新する。
+  - 理由: 他の人の作成・更新の通知が、`Note.UpdatedAt` を基準に探すため。日付だけの変更も拾う。
+- 一意のインデックスは、`UX_NoteAttribute_NoteId_CategoryNo_CodeNo (NoteId, CategoryNo, CodeNo)`。論理削除された行も含める。
+  - ノートごとの値を読む問い合わせと、同じ枝番が重ならないことを守るため
+  - 論理削除された行も含めるのは、保存のとき、そのノートの行を、削除済みも含めて番号で探して、使い回すため。削除済みの行も、同じ枝番の行は 1 行だけなので、含めても一意は守れる。
+- もう 1 つのインデックスは、`IX_NoteAttribute_CategoryNo_Value_NoteId (CategoryNo, Value, NoteId)`。`IsDeleted = 0` の行だけ。
+  - 実際の今日がほかの実施日のノートを、全件を調べずに探して、通知ダイアログに出すため
+  - SQL Server と SQLite の両方に、同じ名前・同じ列で入れる
+- ノートを読むときは、ノートの問い合わせとは別に、読んだ `NoteId` の分を 1 回の問い合わせでまとめて読む (ノートごとに 1 回ずつ読まない)
+  - 結合しない理由: ノートの本文 `Body` は長く、日付の行の数だけ同じ本文を運ぶことになるため
+- 「今日が実施日のノート」の問い合わせ (`INoteRepository.GetOnEventDateAsync`)は、`Note.EventDate = その日` のノートの番号と、`NoteAttribute` に `CategoryNo = 1` かつ `Value = その日` の行があるノートの番号を、`UNION` で集めて、ノートを読む。
+  - 理由: 2 つの表をまたぐ `OR` にすると、ノートの表を走査しうる。`UNION` の枝ごとなら、`IX_Note_EventDate` と `IX_NoteAttribute_CategoryNo_Value_NoteId` が、それぞれ使える。
+  - 呼ぶのは、PC 版の通知ダイアログが使う `NoteService.LoadEventsTodayAsync` だけ。カードを目立たせるかは、ノートと一緒に読んだ `OtherEventDates` から、`Note.IsEventOn` で決める。Web 版の API も、同じ `NoteService.LoadAsync` が決めた結果を返す。
+- 見えるかどうかは、親のノートの条件 (`IsPrivate`・`AuthorUserId`)で決まる。この表に、公開範囲の列は持たない。
+- MmmBatch は、この表を読まない。
 
 ### コードマスタの表
 
@@ -679,7 +727,7 @@
 | `CodeNo` | 整数 | `int` | | コード番号。区分の中の識別子。利用する行は、この番号を保存する。一度使った番号は、同じ意味のまま変えない。1 以上の検査 |
 | `SortOrder` | 整数 | `int` | 0 | 表示順。小さいほど先。0 以上の検査 |
 | `NumericValue` | 整数 | `int` | 0 | 数値。計算に使う数で、進捗度の % など。要らないコードは 0 |
-| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる (例: 「レビュー中」)。初期値は、進捗度の名前をすべて空にする |
+| `Name` | 文字列 (100) | `nvarchar(100)` | 空文字 | 名前。進捗度は説明だけで、% は数値から組み立てる。例は「レビュー中」。初期値は、進捗度の名前をすべて空にする |
 
 - `(FeatureNo, CategoryNo, CodeNo)` を一意にする (`UX_CodeMaster_FeatureNo_CategoryNo_CodeNo`)
   - 論理削除された行も含めて
@@ -763,7 +811,7 @@
 ## Repository の動き (`SqlServerReminderRepository`)
 
 - 読みはメモリから返す
-  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに全件読み、そのあとは 1 分ごとに、前回より後に更新された行だけを読んで、メモリに重ねる
+  - 見える分 (宛先が自分・全員宛て・自分が作成したリマインダーと、自分の対応状態)を、最初に使うときに全件読み、そのあとは毎分 1 回、端末ごとにずらした秒に、前回より後に更新された行だけを読んで、メモリに重ねる
     - 基準は、前回の読み出しを始めたときの DB の時計。そこから 10 秒戻して読む (更新が確定するのが遅れた書き込みを、取りこぼさないため)
     - 行は消さない (論理削除で、「未」は `Status` が 0)ので、削除や「未」に戻した変わりも、更新日時で届く
     - 次のときは、全件を読み直す: 最初・ユーザーが替わったとき・管理者がリマインダーを無効にした (または有効に戻した)とき・差分を 30 回続けたとき
@@ -964,7 +1012,7 @@
 | 整数 (小) | `tinyint` | `INTEGER` (範囲は `CHECK`) |
 | 真偽 | `bit` | `INTEGER` (0 か 1 の `CHECK`) |
 | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | `TEXT` (`2026-10-11T14:30:00.123+09:00`) |
-| 日付 | `date` | `TEXT` (`2026-10-11`。ない日は `9999-12-31`。作業の開始日だけ `0001-01-01`) |
+| 日付 | `date` | `TEXT` (`2026-10-11` で、ない日は `9999-12-31`、作業の開始日だけ `0001-01-01`) |
 | 文字列 (n) | `nvarchar(n)` | `TEXT` (長さは `CHECK`) |
 | 長い文字列 (上限なし) | `nvarchar(max)` | `TEXT` |
 | 時間 (小数 2 桁) | `decimal(p,2)` (`Hours` と `AutoHours` は `decimal(4,2)`、`PlannedHours` は `decimal(6,2)`、`ActualTotalHours` は `decimal(12,2)`) | `REAL` |

@@ -30,7 +30,7 @@
 | `src/Plugins/MmmToolAdmin.CodeMaster` | `net10.0-windows10.0.19041.0` | 共通設定に並ぶ設定の部品「選択肢」で、コードマスタの名前を編集できる区分を並べる。並べる部品と編集ウィンドウは、`MmmTool.CodeMaster` と共有する。編集できる区分は、プラグインに 1 行ずつ足す |
 | `src/Plugins/MmmToolAdmin.Users` | `net10.0-windows10.0.19041.0` | MmmToolAdmin の機能「ユーザー」で、ユーザーの一覧と、登録用コードの発行のページを持つ |
 | `src/Data/MmmBatch.Data.SqlServer` | `net10.0` | MmmTool には参照させない。MmmBatch が使う DB の実装で、`ReminderSendStatus` と、送る対象を読む問い合わせ、メッセージの通知の状態 `MessageDelivery` の読み出しと更新を持つ |
-| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` | 機能の、UI に依存しない処理 (Entity・Repository・サービス)を持ち、Windows / WinUI を参照しない。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |
+| `src/Plugins/MmmTool.<機能>.Core` | `net10.0` (Messages・Notes・Reminders は AnyCPU) | 機能の、UI に依存しない処理 (Entity・Repository・サービス)を持ち、Windows / WinUI を参照しない。Messages・Notes・Reminders の `.Core` は、Web 版の画面側 (ブラウザ)が、判定と上限を共有するために参照するので、AnyCPU にする。参照先の `CodeMaster.Core`・`DayContent.Core`・`NotificationChannels.Core`・`Users.Core`・`MmmSdk.Core` も AnyCPU。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー。`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定を持つ。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
 | `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)と、名前を編集する保存先の口 (`ICodeMasterRepository`)・編集できる区分の登録 (`CodeCategoryEditor`)を持つ。依存は SDK の Core だけ。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
@@ -40,7 +40,7 @@
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装で、`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite` がある。SDK の `MmmSdk.Db.<種類>` を参照する。保存先の選び方は、「DI と起動」の「保存先」に書く |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 `MmmSdk.Db.SqlServer`。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
-| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・毎分のスケジューラー・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
+| `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・定期処理の合図 (`ITicker`)・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | Win32 の宣言は CsWin32 でここに集める。共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理) |
 
 ## 参照の向きと置き場所
@@ -203,7 +203,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - `IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)
   - 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
 - 入力欄の空のときの薄い文字の色は、アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決める
-  - `App.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの)で、全部の入力欄に効かせる
+  - SDK の `MmmSdk.WinUI/Controls/AppStyles.xaml` の `AppTextBoxStyle` (既定の `TextBox` のスタイルに `PlaceholderForeground` を足したもの)で、全部の入力欄に効かせる。MmmTool と管理ツールの `App.xaml` が、`XamlControlsResources` の後ろで読む。書き写さない
   - `AppTextBoxStyle` は、`TextBox` の既定のスタイルとして効く
   - 独自のスタイルを付ける `TextBox` は、`AppTextBoxStyle` を `BasedOn` にする
   - 入力欄ごとに `PlaceholderForeground` を指定しない。ページ専用の自作の色も作らない。
@@ -232,7 +232,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - Host を作る前の失敗も拾うため
   - DI にも登録する (トレイが使う)
 - `try/catch` を書けない場所 (`async void`・タイマー・待たれないタスク)の例外は、`AttachTo` の安全網が、同じ処理 (ログ → ダイアログ → 終了)で受ける
-  - 例: SDK の `MinuteScheduler` の毎分の処理
+  - 例: SDK の `Ticker` が動かす、定期処理
 - 待たずに走らせるタスクは、`_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`(SDK の `MmmSdk.Core.Utilities`)にする
   - 捨てると、失敗が誰にも見えず、ガベージコレクションのときに初めて分かる (いつ落ちるか読めない)
   - `Forget` は、失敗した時点で未処理例外にして、安全網が受ける
@@ -240,6 +240,35 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - `OnLaunched` は、起動が途中で止まって気づけなくならないよう、`try/catch` で包んで報告する。読み込みの失敗など、起動を止めたくない例外は、各機能の `IStartupTask` の中で受ける。
 - トレイの `WndProc` は、`[UnmanagedCallersOnly]` から例外が抜けるとログも残らず落ちるため、中で `try/catch` して報告する。異常終了のときは、トレイのアイコンも外す。
 - 詳細は `external/MmmSdk/README.md`「エラーのログと、復旧できないエラーの処理」
+
+## 定期処理
+
+- 時間で繰り返す処理は、機能が自分でタイマーを持たず、SDK の `ITicker` に登録する。タイマーはアプリ全体で 1 つ
+  - 機能が 10 個に増えても、タイマーは 1 つのままで、ホストに機能の名前を書かない。登録は、機能の中の 1 行
+  - タイマーは、登録のうち、いちばん早く来る時刻に掛け直す単発のタイマー。毎秒起きる固定のタイマーにしない (登録が毎分だけなら、1 分に 1 回しか起きない)
+  - 合図は、時刻が来た登録にだけ渡し、戻りを待たない。前の処理が続いている処理には、その回の合図を渡さずに飛ばす
+  - 処理の失敗は、`ITicker` が未処理例外の受け皿へ渡す。`Forget` と同じ扱い。予想外の失敗 (バグ)を、処理の中で受けて回り続けない。起こると分かっている失敗 (`DataFileException`)は、処理の中で受けて画面に出す
+- 合図は 3 種類ある (`TickTiming`)
+  - `OnTheMinute`: 毎分 00 秒に、全員へ渡す。リマインダーの判定・日付の変わりの監視向け
+  - `Staggered`: 毎分 1 回、登録ごとに決めた 1 秒から 59 秒の秒に渡す。DB を読み直す処理向け
+  - `Interval`: 前に渡した時刻から、決めた間隔がたつたびに渡す。1 秒以上。1 分より短い周期の処理向け。登録のあとで、`SetInterval` で間隔を変えられ、`WakeNow` ですぐ動かせる
+  - DB の読み直しを 00 秒にそろえない。全員の端末が、同じ 1 秒にサーバーへ読みに来るため
+- 登録の条件 (`TickOptions`)
+  - `IsActive`: 合図のたびに確かめる。機能のオン・オフや、管理者による無効は、起動後にも変わるため。管理者に無効にされたリマインダーの判定が止まるのも、これによる
+  - `OnCallerContext`: UI スレッドで状態を持つ処理を、登録した UI スレッドへ戻して動かす
+  - `MinimumGap` と `MarkRan`: 手動で取り込んだ直後に、自動の取り込みを重ねない
+- DB を読む処理は、結果を `TickResult` で返す登録 (`Subscribe(Func<DateTime, Task<TickResult>>)`)にして、DB に届かなかったときだけ `Failed` を返す。続くと `Ticker` が間隔を延ばす
+  - 延ばし方: 失敗のたびに、次の合図までの時間を 2 倍にする。延ばす前の時間は、`Interval` なら今の間隔、毎分の合図なら 1 分。上限は 5 分 (仮)
+  - 全員の端末が、障害から戻ったときに同じ時刻にそろわないよう、延ばした時間の半分から全部のうちのどこかに、ばらつかせる
+  - `Done` で元に戻る。ログインの前・読むものが無い・機能がオフは、DB に届かなかったのではないので `Done`
+  - 飛ばした回 (`IsActive` が false・前の処理が続いている・`MinimumGap` が足りない)は、延ばす状態を変えない
+  - `WakeNow` (メッセージの会話を開いたとき)は、延ばしている間もすぐ動かす。利用者の操作のため
+  - 延ばさない処理: リマインダーの判定 (00 秒)・日付の監視。DB に届かない失敗が無いため
+  - `ITicker` の処理が `Failed` を返す条件は、起こると分かっている失敗 (`DataFileException`)だけ。予想外の失敗は、これまでどおり未処理例外の受け皿へ渡す
+- 画面や ViewModel が登録するときは、返ってきた控え (`ITickSubscription`)を、閉じるときに必ず `Dispose` する (解除しないと、中央のタイマーが持ち続けて、メモリが漏れる)
+- `ITicker` に載っている処理: リマインダーの判定・DB の読み直し・日付の監視、ノートのイベントと変更の監視、作業管理の差分、メッセージの取り込み (前面で会話を開いているとき 2 秒、それ以外 10 秒の `Interval`)
+- MmmBatch の `BatchMonitor` は載せない。仕事を 1 つずつ登録順に動かし、画面の「再送」と同じ鍵を共有して、同時に送らない作りで、`ITicker` の「登録ごとに別々に動かす」とは動きが違うため。
+- Web 版 (MmmToolWeb)のサーバーの定期処理 (拒否一覧の整理・メッセージの変更の監視・SSE の見張り)は、`BackgroundService` で動かし、`ITicker` には載せない。サーバーの常駐処理は、Generic Host の標準の仕組みで動かすため。
 
 ## 保存
 

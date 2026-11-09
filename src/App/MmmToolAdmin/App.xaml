@@ -7,16 +7,9 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <!-- アプリ共通のスタイル。XamlControlsResources の後ろに置く -->
+                <ResourceDictionary Source="ms-appx:///MmmSdk.WinUI/Controls/AppStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <!-- 入力欄の空のときの薄い文字は、MmmTool と同じ標準の色に決める。独自のスタイルを付ける TextBox は、AppTextBoxStyle を BasedOn にする -->
-            <Style x:Key="AppTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
-                <Setter Property="PlaceholderForeground" Value="{ThemeResource TextFillColorDisabledBrush}" />
-            </Style>
-            <Style TargetType="TextBox" BasedOn="{StaticResource AppTextBoxStyle}" />
-            <!-- 区切りの見出し。MmmTool の設定ページと共有する部品が使う。カードの上に、少し間を空ける -->
-            <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-                <Setter Property="Margin" Value="1,20,0,4" />
-            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

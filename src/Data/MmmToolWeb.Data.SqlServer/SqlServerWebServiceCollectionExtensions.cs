@@ -15,7 +15,7 @@ namespace MmmToolWeb.Data.SqlServer;
 /// </summary>
 public static class SqlServerWebServiceCollectionExtensions
 {
-    /// <summary>データベース名・ユーザー名の初期値と、パスワードの保存名 (ログインは Web 版専用の <c>MmmToolWeb</c>。保存名は、アプリごとに分ける)</summary>
+    /// <summary>データベース名・ユーザー名の初期値と、パスワードの保存名で、ログインは Web 版専用の <c>MmmToolWeb</c>。保存名は、アプリごとに分ける</summary>
     public static DatabaseSettingsDefaults Defaults { get; } = new("MmmTool", "MmmToolWeb", "MmmToolWeb.Database");
 
     /// <summary>SQL Server の接続と、ユーザー・パスキー・登録用コードの保存先を登録する</summary>

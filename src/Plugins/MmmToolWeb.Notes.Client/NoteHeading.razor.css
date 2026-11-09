@@ -30,6 +30,16 @@
     color: var(--accent);
 }
 
+/* 重要度の印。色だけで伝えないため、文字を添える。枠の色は、カードの左の帯と同じ (画面の CSS の変数) */
+.chip.priority {
+    border-color: var(--band-high);
+    color: var(--text);
+}
+
+.chip.priority.highest {
+    border-color: var(--band-highest);
+}
+
 .meta {
     display: flex;
     flex-wrap: wrap;

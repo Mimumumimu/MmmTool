@@ -9,7 +9,7 @@ namespace MmmTool.Notes.Main;
 /// <summary>ノートのページで、サイドバーに出す。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
 public sealed partial class NotesPage : Page
 {
-    /// <summary>ページが載っている画面 (見える・見えないの変化を受けるため。載っていない間は null)</summary>
+    /// <summary>ページが載っている画面で、見える・見えないの変化を受けるため。載っていない間は null</summary>
     private XamlRoot? _root;
 
     /// <summary>読み直している (見えている)状態か</summary>

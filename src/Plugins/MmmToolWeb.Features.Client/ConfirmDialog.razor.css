@@ -1,23 +1,4 @@
-/* 取り返しにくい操作の確認。実行するボタンは赤系にして、普通の強調色と区別する。ライトとダークの両方の値を持つ */
-.dialog-back {
-    --danger-fill: #b3261e;
-    --danger-fill-text: #ffffff;
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.5);
-}
-
-@media (prefers-color-scheme: dark) {
-    .dialog-back {
-        --danger-fill: #f2b8b5;
-        --danger-fill-text: #601410;
-    }
-}
-
+/* 取り返しにくい操作の確認。裏の幕は、共通の .backdrop.center。実行するボタンは赤系にして、普通の強調色と区別する。赤系の地と文字の色は、本体の app.css の --danger-fill と --danger-fill-text */
 .dialog {
     box-sizing: border-box;
     width: 100%;

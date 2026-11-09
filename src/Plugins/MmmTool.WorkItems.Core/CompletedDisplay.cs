@@ -1,6 +1,6 @@
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>完了して日がたった作業の見え方 (上のバーの「完了」の選択。値は、選択肢の並びと同じ)</summary>
+/// <summary>完了して日がたった作業の見え方。上のバーの「完了」の選択で、値は、選択肢の並びと同じ</summary>
 public enum CompletedDisplay
 {
     /// <summary>表示: 隠さない</summary>

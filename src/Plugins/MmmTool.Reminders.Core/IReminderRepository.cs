@@ -70,7 +70,7 @@ public interface IReminderRepository
     /// <param name="no">対象のリマインダーの番号</param>
     /// <param name="isDeleted">削除済みにするか (false なら解除)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>対象があれば true (すでに同じ値のときも true。このときは何も書かない)</returns>
+    /// <returns>対象があれば true。すでに同じ値のときも true で、このときは何も書かない</returns>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
     Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default);
 

@@ -24,6 +24,9 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <summary>同じ予定があるときの、行の下の文</summary>
     private const string DuplicateMessage = "同じ予定があるため、追加しません。";
 
+    /// <summary>件名が空のときの、行の下の文</summary>
+    private const string TitleRequiredMessage = "件名を入力してください。";
+
     /// <summary>鳴らす時刻がすでに過ぎているときの、行の下の文</summary>
     private const string PastMessage = "時刻が過ぎているため、すぐに通知します。";
 
@@ -43,6 +46,9 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
 
     /// <summary>追加するリマインダー (一覧のうち、重ならない行)</summary>
     private List<Reminder> _toAdd = [];
+
+    /// <summary>件名が空の行があるか。ある間は、登録を押せない</summary>
+    private bool _hasBlankTitle;
 
     /// <summary>保存したが、送信設定をまだ書いていないリマインダーの番号</summary>
     /// <remarks>
@@ -322,8 +328,8 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     }
 
     /// <summary>登録できるか</summary>
-    /// <returns>追加する会議があれば true</returns>
-    private bool CanRegister() => _toAdd.Count > 0;
+    /// <returns>追加する会議があり、件名が空の行が無いとき true</returns>
+    private bool CanRegister() => _toAdd.Count > 0 && !_hasBlankTitle;
 
     /// <summary>保存せずに閉じる</summary>
     [RelayCommand]
@@ -353,10 +359,18 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         var lead = SelectedLead.Minutes;
 
         _toAdd = [];
+        _hasBlankTitle = false;
         HashSet<(int Date, int Time, string Title)> seen = [.. _existing];
         foreach (var entry in Entries)
         {
             var draft = new ReminderDraft(entry.StartTime, entry.Title, entry.Link);
+            if (!draft.HasTitle)
+            {
+                entry.Note = TitleRequiredMessage;
+                _hasBlankTitle = true;
+                continue;
+            }
+
             var reminder = draft.ToReminder(date, lead, _reminders.CurrentUserId, IsSpeak);
             var time = draft.Resolve(lead).Time;
             if (!seen.Add(KeyOf(reminder)))

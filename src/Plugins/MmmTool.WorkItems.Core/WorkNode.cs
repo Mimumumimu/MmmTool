@@ -1,6 +1,6 @@
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>木構造の 1 つの行 (案件・グループ・作業のどれか。子・集計値を持つ)</summary>
+/// <summary>木構造の 1 つの行で、案件・グループ・作業のどれか。子・集計値を持つ</summary>
 /// <param name="key">行の識別 (種類 + 番号)</param>
 public sealed class WorkNode(WorkKey key)
 {

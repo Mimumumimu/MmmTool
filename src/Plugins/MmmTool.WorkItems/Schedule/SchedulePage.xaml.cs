@@ -9,7 +9,7 @@ using MmmTool.WorkItems.ViewOptions;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>スケジュールのページ (作業の予定と実績を、日付を横に並べて見る。サイドバーでは作業管理の子)</summary>
+/// <summary>スケジュールのページで、作業の予定と実績を、日付を横に並べて見る。サイドバーでは作業管理の子</summary>
 /// <remarks>
 /// 表 <see cref="TreeGridView"/> の左に、名前・担当・実績・状態・進捗を固定して置き、右の 1 つの広い列に、<see cref="ScheduleTimelineCell"/> で日付の棒を行ごとに描く。
 /// 日付の軸が変わったとき (範囲・単位)は、広い列の幅と見出しを作り直す。単位を変えたときは、見ている範囲の中央の日付を保つ。
@@ -37,7 +37,7 @@ public sealed partial class SchedulePage : Page
     /// <summary>単位を変えたときに、見ている範囲の中央に保つ日付 (軸が作り直されたら、その日付へ動かす)</summary>
     private DateOnly? _anchor;
 
-    /// <summary>保つ日付を置く位置 (見える範囲の左端からの割合。今日を基準にするときは <see cref="TodayRatio"/>、見ている範囲の中央を保つときは 0.5)</summary>
+    /// <summary>保つ日付を置く位置で、見える範囲の左端からの割合。今日を基準にするときは <see cref="TodayRatio"/>、見ている範囲の中央を保つときは 0.5</summary>
     private double _anchorRatio = 0.5;
 
     /// <summary>マウスカーソルを処理待ちの形にする口</summary>
@@ -121,7 +121,7 @@ public sealed partial class SchedulePage : Page
         ActualThemeChanged += (_, _) => RefreshTimeline();
     }
 
-    /// <summary>読み込み中は、ウィンドウ全体のマウスカーソルを砂時計にする (サイドバーを押した直後は、マウスがサイドバーの上にあるため。終わったら、元に戻す)</summary>
+    /// <summary>読み込み中は、ウィンドウ全体のマウスカーソルを砂時計にする。サイドバーを押した直後は、マウスがサイドバーの上にあるためで、終わったら、元に戻す</summary>
     private void ApplyLoadingCursor()
     {
         if (ViewModel.IsLoading)

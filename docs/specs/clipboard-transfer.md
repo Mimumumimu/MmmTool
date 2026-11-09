@@ -39,7 +39,7 @@
 - 日時は、時差つきの ISO 8601 にする
   - `DateTimeOffset` で持つので、別のタイムゾーンの PC で復元しても、同じ時刻になる
 
-## 処理 (`ClipboardTransferService`。Core。状態を持たない)
+## 処理 (`ClipboardTransferService`、Core、状態を持たない)
 
 - **送信 (`EncodeAsync`)**: ファイルのパスの一覧を JSON にする。存在するファイルだけが対象で、フォルダー・存在しないパスは除く。送れるファイルが 1 つも無ければエラー。
   - 同じ名前のファイルが 2 つ以上あれば、名前を挙げてエラー

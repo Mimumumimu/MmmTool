@@ -52,7 +52,7 @@ public sealed class NotesPlugin : IFeaturePlugin
         services.AddSingleton<NotesViewState>();
         services.AddTransient<NotesViewModel>();
 
-        // アイコンは Segoe Fluent Icons の QuickNote (E70B。付箋とペン)
+        // アイコンは Segoe Fluent Icons の QuickNote で、コードは E70B の付箋とペン
         services.AddNavigationPage<NotesPage>(NotesFeature.DisplayName, "", NavigationArea.Top, NotesFeature.Key, canDetach: true);
     }
 }

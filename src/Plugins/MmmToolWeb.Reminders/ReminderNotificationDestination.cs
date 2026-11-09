@@ -1,6 +1,6 @@
-using System.Globalization;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.NotificationChannels.Core;
+using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Reminders;
 
@@ -29,6 +29,6 @@ public sealed class ReminderNotificationDestination(SqlServerReminderWebReposito
             return RemindersPath;
         }
 
-        return $"{RemindersPath}?no={notified.ReminderNo}&date={notified.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+        return $"{RemindersPath}?no={notified.ReminderNo}&date={ApiDay.ToText(notified.Date)}";
     }
 }

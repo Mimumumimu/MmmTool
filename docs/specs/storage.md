@@ -39,7 +39,7 @@
 | `Data/CliQuickMessages.json` | CLI補助の入力欄に出す、よく使う文 (文は `label` 省略可・`text`、グループは `label`・`items`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何も出さず、編集画面で保存したときに作る |
 | `Data/CliFocusTriggers.json` | CLI補助で、ターミナルの出力に出たら知らせる文字列 (`text`)と、ターミナルへフォーカスも移すか (`moveToTerminal`・真偽値・項目が無ければ `true`) | ローカル専用。編集画面 (CLI補助)で書くか、手で書く。無ければ何もせず、編集画面で保存したときに作る |
 | `Data/Links.json` | リンクの構成 | ローカル専用。ID なしの入れ子。無ければ空で生成 |
-| `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・日報メモ (自分の分で、表 `WorkDayNote` の `UserId`・`Date`・`Note`)・コードマスタ (状態・進捗度・優先度の選択肢)・ノート (表 `Note` の期間・実施日 `EventDate`・タイトル・本文・重要度) | SQLite で、ローカルモードの保存先。DB モードでは SQL Server に保存するので使わない。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`・`CodeMaster`・`Note` の 7 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す。詳細は [work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」・ノートは [notes.md](notes.md) |
+| `Data/MmmTool.db` | 作業管理の案件・グループ・作業 (リンクは、各行の `Link` 列)・日ごとの記録・日報メモ (自分の分で、表 `WorkDayNote` の `UserId`・`Date`・`Note`)・コードマスタ (状態・進捗度・優先度の選択肢)・ノート (表 `Note` の期間・実施日 `EventDate`・タイトル・本文・重要度と、表 `NoteAttribute` のほかの実施日) | SQLite で、ローカルモードの保存先。DB モードでは SQL Server に保存するので使わない。表は `WorkProject`・`WorkGroup`・`WorkItem`・`WorkRecord`・`WorkDayNote`・`CodeMaster`・`Note`・`NoteAttribute` の 8 つ。削除は論理削除で残る。無ければ最初に使うときに作り、版を上げる。壊れていたら `MmmTool.broken-yyyyMMdd-HHmmss.db` へ名前を変えて残し、作り直す。詳細は [work-items.md](work-items.md)・[database.md](database.md) の「SQLite の場合」・ノートは [notes.md](notes.md) |
 | `Data/Reminders.json` | リマインダー | ローカルモードの保存先で、ID あり。DB モードでは使わない (SQL Server に保存する) |
 | `Data/ReminderStates.json` | リマインダーの日ごとの対応状態 | 同上 |
 | `Data/AppSettings.json` | 設定 (キー → 値の辞書) | SDK の設定ストア。キーは下の「AppSettings.json のキー」 |
@@ -61,7 +61,7 @@
 | まとめて追加で前回選んだ「通知を読み上げる」 | `Reminder.Bulk.IsSpeak` | 真偽。既定は false |
 | まとめて追加で前回選んだ送信先 | `Reminder.Bulk.ChannelIds` | 送信先の番号をカンマでつないだ文字列で、例は `1,5`。無ければ選ばない |
 | Backlog の連携用パス | `Backlog.Url` | |
-| サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値 (X・Y・Width・Height)。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
+| サイドバーから外したウィンドウの大きさ | `WindowBounds.DetachedPage.<項目のキー>` | 位置と大きさの 4 つの値で、X・Y・Width・Height。外したウィンドウは、大きさだけ使う。詳細は [tray-and-main.md](tray-and-main.md) |
 | Web 版通知の送り手の公開鍵 | `WebPush.PublicKey` | MmmBatch の `Data/AppSettings.json` のキー。MmmBatch が起動時に作る。Web 版のサーバーの設定 `Web:PushPublicKey` に写す。詳細は [mmmbatch.md](mmmbatch.md) の「Web 版通知」 |
 | Web 版通知の送り手の連絡先 | `WebPush.Subject` | MmmBatch の `Data/AppSettings.json` のキー。`mailto:` か `https://` で始まる文字列。無ければ `mailto:mmmtool@example.com` |
 | DB の接続の設定 | `Database.Mode`・`Database.Server`・`Database.Name`・`Database.Authentication`・`Database.UserName`・`Database.TrustServerCertificate` | アプリごとの `Data/AppSettings.json` に持つ。MmmToolAdmin も、自分の `Data/AppSettings.json` に持ち、最初の起動で、接続の設定画面で入れる。パスワードは、ここに書かず、資格情報マネージャーに置く |

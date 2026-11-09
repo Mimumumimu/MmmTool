@@ -14,13 +14,13 @@ public sealed record WorkDayNoteRow
     /// <summary>主キー (<c>int</c>)</summary>
     public int Id { get; init; }
 
-    /// <summary>論理削除されているか (この表の操作では使わない。常に false)</summary>
+    /// <summary>論理削除されているかで、この表の操作では使わない。常に false</summary>
     public bool IsDeleted { get; init; }
 
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (ユーザーの番号。記録用)</summary>
+    /// <summary>作成者で、ユーザーの番号。記録用</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
@@ -29,7 +29,7 @@ public sealed record WorkDayNoteRow
     /// <summary>更新者 (ユーザーの番号)</summary>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>持ち主 (<c>AppUser.Id</c>。ローカルモードは 1)</summary>
+    /// <summary>持ち主で、<c>AppUser.Id</c>。ローカルモードは 1</summary>
     public int UserId { get; init; }
 
     /// <summary>日付</summary>

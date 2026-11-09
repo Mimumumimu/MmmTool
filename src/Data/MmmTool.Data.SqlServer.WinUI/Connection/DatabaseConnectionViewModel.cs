@@ -84,7 +84,7 @@ public sealed partial class DatabaseConnectionViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PasswordHeader), nameof(PasswordPlaceholder))]
     public partial bool HasPassword { get; private set; }
 
-    /// <summary>パスワードの欄の薄い表示 (登録済みなら、伏せ字。本物のパスワードではなく、入力すると消える)</summary>
+    /// <summary>パスワードの欄の薄い表示で、登録済みなら、伏せ字。本物のパスワードではなく、入力すると消える</summary>
     public string PasswordPlaceholder => HasPassword ? "●●●●●●●●" : "";
 
     /// <summary>パスワードの欄の見出し (登録済みなら、変えるときだけ入力することを添える)</summary>

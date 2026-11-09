@@ -44,7 +44,7 @@ public sealed partial class FeatureListControl : UserControl
     }
 
     /// <summary>機能のスイッチが切り替わったときの処理</summary>
-    /// <param name="sender">イベントの送信元 (スイッチ。データの行を持つ)</param>
+    /// <param name="sender">イベントの送信元で、スイッチ。データの行を持つ</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
     /// 利用者が操作したスイッチだけを扱う。並べ替えや「既定の順に戻す」で行の部品が使い回されると、別の行の状態のままスイッチの切り替えが通知されるため、フォーカスもポインターも無いスイッチは無視する。

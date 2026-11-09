@@ -13,7 +13,7 @@
 
         <TextBlock Style="{StaticResource TitleTextBlockStyle}" Text="リマインダー" />
 
-        <!-- 一覧の中身 (ウィンドウと共有する ReminderListControl。コードで入れる。最初の読み込みが済むまで隠す) -->
+        <!-- 一覧の中身で、ウィンドウと共有する ReminderListControl。コードで入れる。最初の読み込みが済むまで隠す -->
         <Border
             x:Name="ListHost"
             Grid.Row="1"

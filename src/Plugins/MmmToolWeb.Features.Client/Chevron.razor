@@ -1,0 +1,15 @@
+<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="@Path" /></svg>
+
+@code {
+    /// <summary>右向きの山形。ホーム画面の行の右端と同じ形。24 × 24 の枠の SVG の path で、線で描く。</summary>
+    private const string RightPath = "M9.5 6l6 6-6 6";
+
+    /// <summary>左向きの山形。右向きを左右に反転した形。</summary>
+    private const string LeftPath = "M14.5 6l-6 6 6 6";
+
+    /// <summary>true のとき前へ・戻るの左向きで、false のとき次への右向き。</summary>
+    [Parameter]
+    public bool Left { get; set; }
+
+    private string Path => Left ? LeftPath : RightPath;
+}

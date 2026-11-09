@@ -29,7 +29,7 @@ public sealed record WorkGroupRow
     /// <summary>属する案件 (<c>WorkProject.Id</c>)</summary>
     public int ProjectId { get; init; }
 
-    /// <summary>親のグループ (<c>WorkGroup.Id</c>。0 は案件の直下)</summary>
+    /// <summary>親のグループで、<c>WorkGroup.Id</c>。0 は案件の直下</summary>
     public int ParentGroupId { get; init; }
 
     /// <summary>兄弟の中の並び (グループと作業にまたがる 1 つの数)</summary>

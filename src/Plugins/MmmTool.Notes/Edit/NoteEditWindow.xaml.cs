@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using MmmSdk.Core.Components.Hosting;
+using MmmSdk.WinUI.Components.DaysOfWeek;
 using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
@@ -23,23 +24,23 @@ namespace MmmTool.Notes.Edit;
 /// </remarks>
 public sealed partial class NoteEditWindow : Window
 {
-    /// <summary>ウィンドウの幅 (DIP)</summary>
-    private const double WindowWidth = 640;
+    /// <summary>ウィンドウの幅で、単位は DIP。横長の 2 列にして、縦横の比を黄金比に近づける</summary>
+    private const double WindowWidth = 1000;
 
-    /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む)</summary>
-    private const double WindowHeight = 720;
+    /// <summary>ウィンドウの高さで、単位は DIP。タイトルバーを含む</summary>
+    private const double WindowHeight = 640;
 
-    /// <summary>最小の幅 (DIP)</summary>
-    private const double MinimumWidth = 520;
+    /// <summary>最小の幅で、単位は DIP。右の列は内容の幅 (期間の行が最も広い)で、本文の列が縮む。本文の列に、300 ほどを残す幅</summary>
+    private const double MinimumWidth = 800;
 
-    /// <summary>最小の高さ (DIP)</summary>
-    private const double MinimumHeight = 650;
+    /// <summary>最小の高さで、単位は DIP。右の列が切れない高さ。InfoBar は左の列の本文が縮んで場所を空けるので、右の列は InfoBar に左右されない</summary>
+    private const double MinimumHeight = 560;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>
     /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
     private const double TitleBarHeight = 32;
 
-    /// <summary>日付の欄の表示の形 (曜日つき。PC の言語に依らず日本語)</summary>
+    /// <summary>日付の欄の表示の形で、曜日つき。PC の言語に依らず日本語</summary>
     private const string DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
 
     /// <summary>閉じたときに結果を返す</summary>
@@ -130,11 +131,13 @@ public sealed partial class NoteEditWindow : Window
 
         _modal.SetOwner(owner);
         var scale = this.GetDpiScale();
-        // 画面が小さい (フル HD の 125% など)ときは、作業領域に収まる高さまで抑える。最小の高さも、その分下げる
+        // 画面が小さい (フル HD の 150% など)ときは、作業領域に収まる幅と高さまで抑える。最小の大きさも、その分下げる
+        var width = Math.Min(WindowWidth, _modal.GetAvailableWidthDip());
         var height = Math.Min(WindowHeight, _modal.GetAvailableHeightDip());
+        var minimumWidth = Math.Min(MinimumWidth, width);
         var minimumHeight = Math.Min(MinimumHeight, height);
-        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(minimumHeight * scale)));
-        this.ResizeClientDip(WindowWidth, height - TitleBarHeight, _modal.OwnerScale, roundUp: true);
+        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(minimumWidth * scale), (int)(minimumHeight * scale)));
+        this.ResizeClientDip(width, height - TitleBarHeight, _modal.OwnerScale, roundUp: true);
         _modal.CenterOnOwner();
 
         _modal.Show();
@@ -145,30 +148,104 @@ public sealed partial class NoteEditWindow : Window
     /// <returns>開始日・終了日・実施日の欄</returns>
     private CalendarDatePicker[] PeriodPickers() => [StartDatePicker, EndDatePicker, EventDatePicker];
 
-    /// <summary>期間の外の警告が出ている間、3 つの日付の欄の枠を、エラーの色にする</summary>
+    /// <summary>期間の外の警告が出ている間、開始日・終了日の欄の枠を、エラーの色にする。実施日の欄は、実施日が外れているときだけ</summary>
     /// <param name="sender">ViewModel</param>
     /// <param name="e">変わったプロパティの情報</param>
-    /// <remarks>どの欄が原因かを、警告の文と別に、欄そのものでも分かるようにする。</remarks>
+    /// <remarks>どの欄が原因かを、警告の文と別に、欄そのものでも分かるようにする。ほかの実施日は、外れた行の文字をエラーの色にする。</remarks>
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(NoteEditViewModel.IsPeriodErrorOpen))
+        if (e.PropertyName is nameof(NoteEditViewModel.IsPeriodErrorOpen))
         {
-            return;
+            MarkInvalid(StartDatePicker, ViewModel.IsPeriodErrorOpen);
+            MarkInvalid(EndDatePicker, ViewModel.IsPeriodErrorOpen);
         }
+        else if (e.PropertyName is nameof(NoteEditViewModel.IsEventDateInvalid))
+        {
+            MarkInvalid(EventDatePicker, ViewModel.IsEventDateInvalid);
+        }
+    }
 
-        foreach (var picker in PeriodPickers())
+    /// <summary>日付の欄の枠を、エラーの色にする・元に戻す</summary>
+    /// <param name="picker">日付の欄</param>
+    /// <param name="isInvalid">エラーの色にするか</param>
+    private static void MarkInvalid(CalendarDatePicker picker, bool isInvalid)
+    {
+        if (isInvalid)
         {
-            if (ViewModel.IsPeriodErrorOpen)
-            {
-                picker.BorderBrush = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-                picker.BorderThickness = new Thickness(2);
-            }
-            else
-            {
-                picker.ClearValue(Control.BorderBrushProperty);
-                picker.ClearValue(Control.BorderThicknessProperty);
-            }
+            picker.BorderBrush = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+            picker.BorderThickness = new Thickness(2);
         }
+        else
+        {
+            picker.ClearValue(Control.BorderBrushProperty);
+            picker.ClearValue(Control.BorderThicknessProperty);
+        }
+    }
+
+    /// <summary>ほかの実施日の行の文字の色。期間の外のときは、エラーの色</summary>
+    /// <param name="isInvalid">期間の外か</param>
+    /// <returns>文字の色</returns>
+    public static Brush ForegroundOf(bool isInvalid)
+        => (Brush)Application.Current.Resources[isInvalid ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];
+
+    /// <summary>「実施日を追加」を押したら、カレンダーを開く。日を押すたびに、入る・外れるが切り替わり、「閉じる」まで開いたままにする</summary>
+    /// <param name="sender">ボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 開くたびに作り直す。実施日の日を押せない日にする印を、開くときの実施日に合わせるため。
+    /// 開いたときに見せる月は、いつも今日の月。これから足す日を選ぶカレンダーで、既にある日の月を見せないため。
+    /// 土曜・日曜・祝日の線は、日付の欄のカレンダーと同じ。開いただけでは、何も入れない。
+    /// </remarks>
+    private void OnAddOtherEventDateClick(object sender, RoutedEventArgs e)
+    {
+        var calendar = new CalendarView
+        {
+            SelectionMode = CalendarViewSelectionMode.Multiple,
+            Language = "ja-JP",
+        };
+        foreach (var item in ViewModel.OtherEventDates)
+        {
+            calendar.SelectedDates.Add(new DateTimeOffset(item.Date.ToDateTime(TimeOnly.MinValue)));
+        }
+        calendar.SetDisplayDate(DateTimeOffset.Now);
+
+        // 土曜は青、日曜と祝日は赤の線を、日の下に付ける。日付の欄のカレンダーと同じ色
+        CalendarHolidayColoring.SetIsEnabled(calendar, true);
+
+        // 実施日の日は、同じ日を入れられないので、押せない日にする
+        var eventDay = ViewModel.EventDate?.Date;
+        calendar.CalendarViewDayItemChanging += (_, args) => args.Item.IsBlackout = eventDay is { } day && args.Item.Date.Date == day;
+        calendar.SelectedDatesChanged += (_, args) =>
+        {
+            foreach (var added in args.AddedDates)
+            {
+                ViewModel.AddOtherEventDate(DateOnly.FromDateTime(added.Date));
+            }
+            foreach (var removed in args.RemovedDates)
+            {
+                ViewModel.RemoveOtherEventDate(DateOnly.FromDateTime(removed.Date));
+            }
+        };
+
+        // 複数選べることを、カレンダーの上の 1 行で伝える。終わらせるボタンは「完了」で、強調色にする (日を押した時点で入っているので、「閉じる」ではキャンセルに見える)
+        var hint = new TextBlock
+        {
+            Text = "日を押して、何日でも追加できます。もう一度押すと外れます。",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 296,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        };
+        var flyout = new Flyout();
+        var done = new Button
+        {
+            Content = "完了",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+        };
+        done.Click += (_, _) => flyout.Hide();
+        flyout.Content = new StackPanel { Spacing = 8, Children = { hint, calendar, done } };
+        flyout.ShowAt(AddOtherDateButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
     }
 
     /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする (日本語の入力が多いため)</summary>

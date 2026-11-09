@@ -32,7 +32,7 @@ public static class SendingCoreServiceCollectionExtensions
         services.AddSingleton<INotifier, WebPushNotifier>();
         // 端末の登録に要る公開鍵は、最初の送信より前に要るので、起動時に作る
         services.AddStartupTask<WebPushKeyStartup>();
-        // ログのファイルに書きながら、起動してから送った分をメモリにも持つ (画面の「履歴」用。ファイルは読まない)
+        // ログのファイルに書きながら、起動してから送った分をメモリにも持つ。画面の「履歴」用で、ファイルは読まない
         services.AddSingleton(new RecentSendLog(new FileSendLog(logDirectory)));
         services.AddSingleton<ISendLog>(provider => provider.GetRequiredService<RecentSendLog>());
         services.AddSingleton<ISendHistory>(provider => provider.GetRequiredService<RecentSendLog>());

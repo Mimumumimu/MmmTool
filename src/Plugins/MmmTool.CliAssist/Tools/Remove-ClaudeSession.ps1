@@ -3,7 +3,7 @@
   Claude Code の会話履歴 (~/.claude/projects 配下の .jsonl)を選んでごみ箱へ移動する。
 
 .DESCRIPTION
-  ターミナル内で完結する (別ウィンドウなし)。
+  ターミナル内で完結し、別ウィンドウは出さない。
   1. プロジェクトの一覧から選ぶ
   2. 選んだプロジェクト内のセッションを選ぶ
   3. 確認のうえ、ごみ箱へ移動 → 1 に戻る (q で終了するまで繰り返せる)
@@ -14,7 +14,7 @@
 
   -All を付けると手順 2 を省略し、選んだプロジェクトの全セッションを対象にする。
   -WhatIf を付けると、削除せず対象を表示するだけ。
-  Claude Code で開いているセッションは消さないこと (先に閉じる)。
+  Claude Code で開いているセッションは消さないこと。先に閉じておく。
 #>
 [CmdletBinding()]
 param(
@@ -45,7 +45,7 @@ function Get-FirstUserMessage([string]$Path) {
     return '(発言なし)'
 }
 
-# /resume に出るタイトル (custom-title 行の最後のもの。無ければ ai-title 行の最後のもの)。どちらも無ければ最初のユーザー発言
+# /resume に出るタイトル。custom-title 行の最後のもので、無ければ ai-title 行の最後のもの。どちらも無ければ最初のユーザー発言
 function Get-SessionTitle([string]$Path) {
     $title = $null
     # 1 行ずつ文字列で探す (Select-String はパイプラインを通るので、大きいファイルでは遅い)

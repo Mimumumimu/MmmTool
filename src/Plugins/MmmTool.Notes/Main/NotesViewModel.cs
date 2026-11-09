@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Paths;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
@@ -25,17 +26,18 @@ namespace MmmTool.Notes.Main;
 /// <param name="settings">この PC の設定の保存先 (他の機能の内容を出すか・選択肢を覚える)</param>
 /// <param name="features">機能のオン・オフ (オフの機能の内容は出さない)</param>
 /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
+/// <param name="ticker">毎分の合図 (ほかの人の更新の読み直しに使う)</param>
 /// <remarks>
-/// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を <see cref="RefreshInterval"/> ごとに読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
+/// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を毎分 1 回、端末ごとにずらした秒に読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
 /// 他の機能の内容 (作業報告など)が変わったときは、その機能からの通知で、すぐ読み直す。見えている間だけ購読する。
 /// 読み直しでページを作り直すときは、読んでいる位置と、開いているカードを保つ。日付・切り替えを変えたときは、先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
-    DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state) : ObservableObject, IDisposable
+    DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state, ITicker ticker) : ObservableObject, IDisposable
 {
-    /// <summary>ほかの人の更新を読み直す間隔</summary>
-    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
+    /// <summary>手動で読み直した直後に、自動の読み直しが重ならないよう、直前の読み直しから空ける時間</summary>
+    private static readonly TimeSpan RefreshMinimumGap = TimeSpan.FromSeconds(30);
 
     /// <summary>他の機能の内容が変わってから、読み直すまでの待ち時間</summary>
     /// <remarks>表のセルを続けて直したときなど、通知が続けて来るので、まとめて 1 回だけ読み直す。</remarks>
@@ -50,8 +52,8 @@ public sealed partial class NotesViewModel(
     /// <summary>通知のあとの読み直しを、取り消すためのトークンの元 (待っていないときは null)</summary>
     private CancellationTokenSource? _contentChange;
 
-    /// <summary>読み直しの間隔を待つタイマー (手動で読み直したとき、数え直す)</summary>
-    private readonly RestartableTimer _refreshTimer = new(RefreshInterval);
+    /// <summary>ほかの人の更新を読み直す、毎分の合図の登録 (見えていないときと、保存先が自分だけのときは null)</summary>
+    private ITickSubscription? _refreshSubscription;
 
     /// <summary>今、表示しているカード</summary>
     private IReadOnlyList<NoteCard> _cards = [];
@@ -173,7 +175,7 @@ public sealed partial class NotesViewModel(
     private async Task RefreshAsync()
     {
         Error.Clear();
-        _refreshTimer.Restart();
+        _refreshSubscription?.MarkRan();
         await ReloadAsync(preserveState: true);
     }
 
@@ -204,22 +206,16 @@ public sealed partial class NotesViewModel(
         await ReloadAsync(preserveState: false);
 
         // 保存先が自分だけのときは、ほかの人の更新が無いので、定期の読み直しは要らない。内容の変更は、通知で反映する
-        if (!notes.IsShared)
+        // 最初の読み込みの間にページが見えなくなったときは、登録しない
+        if (!notes.IsShared || _refreshing != source)
         {
             return;
         }
 
-        try
-        {
-            while (await _refreshTimer.WaitForNextTickAsync(source.Token))
-            {
-                await ReloadAsync(preserveState: true);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // ページが見えなくなった (読み直しを止める)
-        }
+        // 毎分 1 回、端末ごとにずらした秒で読み直す。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来る
+        _refreshSubscription = ticker.Subscribe(
+            async _ => await ReloadAsync(preserveState: true) ? TickResult.Done : TickResult.Failed,
+            new TickOptions { Timing = TickTiming.Staggered, MinimumGap = RefreshMinimumGap, OnCallerContext = true });
     }
 
     /// <summary>出せる内容を、機能のオン・オフに合わせて作り直す (変わったときだけ)</summary>
@@ -270,6 +266,8 @@ public sealed partial class NotesViewModel(
         _refreshing?.Cancel();
         _refreshing?.Dispose();
         _refreshing = null;
+        _refreshSubscription?.Dispose();
+        _refreshSubscription = null;
         UnwatchContents();
     }
 
@@ -430,7 +428,7 @@ public sealed partial class NotesViewModel(
     {
         if (!await notes.SetDeletedAsync(note.Id, isDeleted))
         {
-            Error.Show("ノートを変更できませんでした (ほかの人がすでに変更したか、見えなくなった可能性があります)。");
+            Error.Show("ノートを変更できませんでした。ほかの人がすでに変更したか、見えなくなった可能性があります。");
         }
         await ReloadAsync(preserveState: true);
     }
@@ -452,9 +450,9 @@ public sealed partial class NotesViewModel(
 
     /// <summary>表示する日のノートを読み込んで、ページを作り直す</summary>
     /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は、先頭から表示する)</param>
-    /// <returns>読み込みと表示の完了を表すタスク</returns>
+    /// <returns>読み込みと表示の完了を表すタスク。DB から読めなかったときは false。もっと新しい読み込みに替わって捨てたときは true</returns>
     /// <remarks>失敗は、画面に出す。続けられる失敗なので、今の表示は変えない。読み直しの結果が前と同じなら、ページを作り直さない。</remarks>
-    private async Task ReloadAsync(bool preserveState)
+    private async Task<bool> ReloadAsync(bool preserveState)
     {
         var version = ++_version;
         var state = preserveState && Surface is { } surface ? await surface.CaptureStateAsync() : null;
@@ -467,7 +465,7 @@ public sealed partial class NotesViewModel(
         catch (DataFileException ex)
         {
             Error.Show($"ノートを読み込めませんでした: {ex.Message}");
-            return;
+            return false;
         }
 
         // 他の機能の内容が読めなくても、ノートは出す (失敗は画面に出す)
@@ -488,7 +486,7 @@ public sealed partial class NotesViewModel(
         // 待っている間に、もっと新しい読み込みが始まっていたら、この結果は捨てる
         if (version != _version)
         {
-            return;
+            return true;
         }
 
         Error.Clear();
@@ -500,10 +498,11 @@ public sealed partial class NotesViewModel(
         var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, Basis, state?.OpenIds, state?.KnownIds), frames);
         if (preserveState && html == _lastHtml)
         {
-            return;
+            return frameError is null;
         }
 
         _lastHtml = html;
         Surface?.Show(html, state?.ScrollTop ?? 0, NoteLinks.CollectHrefs(html));
+        return frameError is null;
     }
 }

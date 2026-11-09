@@ -46,7 +46,7 @@
 | --- | --- |
 | `src/App/MmmBatch` | ホスト。Host の構築・起動と終了の順序・メインウィンドウ (サイドバーを載せる)・DB の接続の設定画面を持つ。個々の機能の名前を持たない (機能のプラグインを `AddFeaturePlugin` で 1 行ずつ登録するだけ) |
 | `src/Plugins/MmmBatch.Sending.Core` | 機能に共通の処理 (UI に依存しない)を持つ: 送る口 `INotifier`・ntfy と Discord と Web 版通知の実装・送信のログ (`ISendLog`)・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口 `BatchAlertService`・送り直しの決まり `SendRetryPolicy` (回数の上限と待ち時間を持ち、機能どうしで参照し合わずに、同じ決まりを使うため) |
-| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品 (仕事の変更を受けて読み直す ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`)。読み込みの失敗の InfoBar `ConnectionErrorBar` と、接続の設定を開く操作を持つ基底 `DatabaseViewModelBase` は、MmmToolAdmin と共有するので、`MmmTool.Data.SqlServer.WinUI` にある |
+| `src/Plugins/MmmBatch.Sending` | 機能ごとの状態の文字列と一覧の列は、各機能の画面に置く。機能に共通の画面の部品は、仕事の変更を受けて読み直す ViewModel の基底 `SendViewModelBase`・履歴の ViewModel の基底 `SendHistoryViewModel`・画面に出す共通の文字列 `SendDisplay`。読み込みの失敗の InfoBar `ConnectionErrorBar` と、接続の設定を開く操作を持つ基底 `DatabaseViewModelBase` は、MmmToolAdmin と共有するので、`MmmTool.Data.SqlServer.WinUI` にある |
 | `src/Plugins/MmmBatch.ReminderSending.Core` / `src/Plugins/MmmBatch.ReminderSending` | プラグインは `ReminderSendingPlugin`。リマインダーの送信 (仕事 (毎分)・送る対象・`ReminderSendStatus` の保存先のインターフェース)と、そのページ (「今日」「履歴」) |
 | `src/Plugins/MmmBatch.MessageSending.Core` / `src/Plugins/MmmBatch.MessageSending` | プラグインは `MessageSendingPlugin`。メッセージの送信 (仕事 (1 秒おき)・`IMessageSendStore`)と、そのページ (「最近の依頼」「履歴」) |
 | `src/Plugins/MmmBatch.NoteSending.Core` / `src/Plugins/MmmBatch.NoteSending` | プラグインは `NoteSendingPlugin`。ノートの送信と、そのページを持つ。送信は、10 秒おきの仕事・基準の時刻と送った分を覚えるメモリ・ノートと送る相手を読む口からなる。ページは「履歴」だけ。DB には書かない |
@@ -184,7 +184,7 @@
 ## ノートの送信
 
 - 他の人が作成・更新したノートを、「ノートの通知を受け取る」がオンの人の通知先へ送る。通知する条件と内容は [notes.md](notes.md) の「他の人の作成・更新の通知」を見る。
-- `NoteSendingPlugin` が登録する 10 秒おきの仕事として行う。PC 版の通知ダイアログと同じ間隔で、更新から送るまで、最大で約 10 秒かかる。
+- `NoteSendingPlugin` が登録する 10 秒おきの仕事として行う。更新から送るまで、最大で約 10 秒かかる。PC 版の通知ダイアログは毎分 1 回読むので、間隔が違う。
   - ノートの通知は、書いたらすぐ届く必要がないため。メッセージの 1 秒より長くして、DB を読む回数を減らす。
 - DB に書かない。通知の状態の表も、送った記録も、持たない。
   - 理由: 止まっていた間の更新は送らない仕様で、記録を残して続きから送る必要がないため。MmmBatch の DB の権限は、読み取りだけで足りる。

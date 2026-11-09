@@ -6,12 +6,12 @@
 
     @if (ShowName)
     {
-        <label class="field" for="group-name">グループ名</label>
-        <input id="group-name" type="text" maxlength="@NameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
+        <label class="form-label" for="group-name">グループ名</label>
+        <input id="group-name" type="text" maxlength="@MessageLimits.GroupNameMaxLength" autocomplete="off" @bind="_name" @bind:event="oninput" />
     }
 
     <p class="count">参加者 @SelectedCount 人</p>
-    <p class="limit">自分を含めて @MaxMembers 人までです</p>
+    <p class="limit">@LimitText</p>
     @if (Reason.Length > 0)
     {
         <p class="reason" role="status">@Reason</p>
@@ -26,7 +26,7 @@
         @foreach (var person in People)
         {
             <li>
-                <label class="row">
+                <label class="card check">
                     <input type="checkbox" checked="@_selected.Contains(person.UserId)" @onchange="e => Toggle(person.UserId, e.Value is true)" />
                     <span>@person.DisplayName</span>
                 </label>
@@ -55,14 +55,6 @@
     [Parameter, EditorRequired]
     public IReadOnlyList<PersonDto> People { get; set; } = [];
 
-    /// <summary>グループの名前の最大の長さ。</summary>
-    [Parameter]
-    public int NameMaxLength { get; set; } = 50;
-
-    /// <summary>グループの参加者の最大の人数。自分を含む。</summary>
-    [Parameter]
-    public int MaxMembers { get; set; } = 50;
-
     /// <summary>すでに入っている人数。自分を含む。新しいグループは 1。</summary>
     [Parameter]
     public int ExistingCount { get; set; } = 1;
@@ -81,17 +73,20 @@
 
     private int SelectedCount => _selected.Count;
 
-    private bool NameIsValid => !ShowName || (_name.Trim().Length > 0 && _name.Trim().Length <= NameMaxLength);
+    private bool NameIsValid => !ShowName || MessageDraft.IsValidGroupName(_name);
 
-    private bool CountIsValid => SelectedCount >= 1 && ExistingCount + SelectedCount <= MaxMembers;
+    private bool CountIsValid => SelectedCount >= 1 && ExistingCount + SelectedCount <= MessageLimits.GroupMaxMembers;
 
     private bool CanConfirm => NameIsValid && CountIsValid;
+
+    /// <summary>人数の上限の案内。入力欄の下と、確定できない理由で、同じ文を使う。</summary>
+    private static string LimitText => $"自分を含めて {MessageLimits.GroupMaxMembers} 人までです";
 
     /// <summary>確定を押せない理由。押せるときは空文字。</summary>
     private string Reason
         => !NameIsValid ? "グループ名を入れてください"
         : SelectedCount == 0 ? "参加者を選んでください"
-        : ExistingCount + SelectedCount > MaxMembers ? $"自分を含めて {MaxMembers} 人までです"
+        : ExistingCount + SelectedCount > MessageLimits.GroupMaxMembers ? LimitText
         : "";
 
     private void Toggle(int userId, bool selected)

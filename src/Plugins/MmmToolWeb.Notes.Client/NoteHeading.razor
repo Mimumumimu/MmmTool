@@ -1,5 +1,9 @@
 <div class="title-line">
     <span class="@TitleClass">@Note.Title</span>
+    @if (NotePriorityBadge.Text(Note.Priority) is { } priorityText)
+    {
+        <span class="@(Note.Priority == (int)NotePriority.Highest ? "chip priority highest" : "chip priority")">@priorityText</span>
+    }
     @if (Note.IsUpdatedToday)
     {
         <span class="chip today">今日更新</span>
@@ -31,7 +35,7 @@
     [Parameter, EditorRequired]
     public NoteDto Note { get; set; } = null!;
 
-    /// <summary>画面が表示している日。実施日が、この日より後のときだけ、実施日を小さく出す。</summary>
+    /// <summary>画面が表示している日。実施日とほかの実施日のうち、この日より後で、いちばん近い 1 日を小さく出す。</summary>
     [Parameter, EditorRequired]
     public DateOnly Day { get; set; }
 
@@ -43,8 +47,8 @@
         ? $"{Note.StartDate:yyyy/MM/dd} ～ {end:yyyy/MM/dd}"
         : $"{Note.StartDate:yyyy/MM/dd} ～";
 
-    /// <summary>これから来る実施日の表示。同じ年は、年を省く。当日は帯で示し、過ぎたあと・未設定のときは null。</summary>
-    private string? UpcomingEvent => Note.EventDate is { } date && date > Day
+    /// <summary>これから来る実施日の表示。実施日とほかの実施日を合わせて、いちばん近い 1 日。同じ年は、年を省く。当日は帯で示し、過ぎたあと・未設定のときは null。</summary>
+    private string? UpcomingEvent => NoteEventDates.NextAfter(Note.EventDate, Note.OtherEventDates, Day) is { } date
         ? (date.Year == Day.Year ? $"{date:MM/dd}" : $"{date:yyyy/MM/dd}")
         : null;
 }

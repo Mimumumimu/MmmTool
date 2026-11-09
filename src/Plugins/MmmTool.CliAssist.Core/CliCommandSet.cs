@@ -30,7 +30,7 @@ public sealed class CliCommandSet
         List<string> problems = [];
         if (!string.IsNullOrWhiteSpace(Environment) && CliCommandNode.Parse<CliEnvironment>(Environment) is null)
         {
-            problems.Add($"environment「{Environment}」は使えません ({AllowedValues(Enum.GetNames<CliEnvironment>())} のどれかを書きます)。Windows として動かします。");
+            problems.Add($"environment「{Environment}」は使えません。{AllowedValues(Enum.GetNames<CliEnvironment>())} のどれかを書きます。Windows として動かします。");
         }
         CheckNodes(Shell, "シェル", problems);
         CheckNodes(Session, "AI セッション", problems);
@@ -80,7 +80,7 @@ public sealed class CliCommandSet
     /// <param name="allowed">使える値 (列挙型の名前)</param>
     /// <returns>ユーザーに見せるメッセージ</returns>
     private static string InvalidValueMessage(string where, string property, string value, string[] allowed)
-        => $"「{where}」の {property}「{value}」は使えません ({AllowedValues(allowed)} のどれかを書きます)。この設定は無視します。";
+        => $"「{where}」の {property}「{value}」は使えません。{AllowedValues(allowed)} のどれかを書きます。この設定は無視します。";
 
     /// <summary>使える値を、JSON に書く形で並べる</summary>
     /// <param name="allowed">使える値 (列挙型の名前)</param>

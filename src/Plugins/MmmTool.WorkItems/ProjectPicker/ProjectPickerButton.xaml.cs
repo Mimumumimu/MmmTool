@@ -11,7 +11,7 @@ namespace MmmTool.WorkItems.ProjectPicker;
 /// </remarks>
 public sealed partial class ProjectPickerButton : UserControl
 {
-    /// <summary>案件を選ぶ画面の ViewModel (<see cref="Attach"/> で渡す。渡すまでは null)</summary>
+    /// <summary>案件を選ぶ画面の ViewModel で、<see cref="Attach"/> で渡す。渡すまでは null</summary>
     public ProjectPickerViewModel Picker { get; private set; } = null!;
 
     /// <summary>ボタンを作る</summary>

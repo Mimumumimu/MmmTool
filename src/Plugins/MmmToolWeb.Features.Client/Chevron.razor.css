@@ -1,0 +1,10 @@
+/* 線で描く山形。色は、置いた部品の文字の色に従う。太さは、ホーム画面の行の右端の矢印と同じ */
+.chevron {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}

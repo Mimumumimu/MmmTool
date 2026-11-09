@@ -35,14 +35,15 @@ public abstract class ReminderViewModelBase : ObservableObject, IDisposable
     /// <summary>ViewModel を作り、保存内容の変更の購読を始める</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="time">現在時刻の提供元</param>
+    /// <param name="ticker">毎分の合図 (日付の監視に使う)</param>
     /// <exception cref="InvalidOperationException">UI スレッド以外で作った。変更の通知を戻す先が無いため。</exception>
-    protected ReminderViewModelBase(ReminderService reminders, TimeProvider time)
+    protected ReminderViewModelBase(ReminderService reminders, TimeProvider time, ITicker ticker)
     {
         Reminders = reminders;
         Time = time;
         _context = SynchronizationContext.Current
-            ?? throw new InvalidOperationException("ViewModel は UI スレッドで作ってください (変更の通知を、作ったスレッドへ戻して反映するため)。");
-        _dayWatcher = new DayChangeWatcher(time);
+            ?? throw new InvalidOperationException("ViewModel は UI スレッドで作ってください。変更の通知を、作ったスレッドへ戻して反映するためです。");
+        _dayWatcher = new DayChangeWatcher(ticker);
         Reminders.Changed += OnRemindersChanged;
     }
 

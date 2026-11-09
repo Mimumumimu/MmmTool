@@ -16,7 +16,7 @@ using MmmTool.WorkItems.Settings;
 
 namespace MmmTool.WorkItems;
 
-/// <summary>作業管理の入口 (サービス・ページ・ダイアログを登録する。保存先は、ホストが設定で選んで登録する)</summary>
+/// <summary>作業管理の入口で、サービス・ページ・ダイアログを登録する。保存先は、ホストが設定で選んで登録する</summary>
 public sealed class WorkItemsPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
@@ -30,7 +30,7 @@ public sealed class WorkItemsPlugin : IFeaturePlugin
         services.AddFeature(WorkItemsFeature.Key, WorkItemsFeature.DisplayName,
             availableWhen: provider => provider.IsFeatureAllowed(CodeFeatures.WorkItems));
 
-        // 更新してよいかの判定 (今は誰でも更新できる。担当者・リーダーだけに絞る実装は、この行を差し替える)
+        // 更新してよいかの判定で、誰でも更新できる。担当者・リーダーだけに絞る実装は、この行を差し替える
         services.AddSingleton<IWorkItemEditPolicy, AnyoneCanEdit>();
 
         // 最後に読み込み・保存した内容と、変更の通知 (Changed)を、ページ・起動時の読み込みで共有するため、アプリ全体で 1 つ

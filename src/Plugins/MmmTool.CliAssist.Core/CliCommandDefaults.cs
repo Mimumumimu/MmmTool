@@ -21,8 +21,8 @@ public static class CliCommandDefaults
     /// <remarks>Kiro の CLI には Claude Code の <c>/init</c> にあたるコマンドが無いので、Kiro の IDE の「Generate Steering Docs」と同じ 3 つのファイルを作るよう頼む。</remarks>
     private const string KiroSteeringPrompt =
         "このプロジェクトを調べて、Kiro の steering ファイルを .kiro/steering/ に作成してください。"
-        + "product.md (プロダクトの目的・利用者・主な機能)、tech.md (技術スタック・よく使うビルドやテストのコマンド)、"
-        + "structure.md (フォルダ構成・命名などの決まり)の 3 つです。";
+        + "作るのは次の 3 つです。product.md はプロダクトの目的・利用者・主な機能、tech.md は技術スタック・よく使うビルドやテストのコマンド、"
+        + "structure.md はフォルダ構成・命名などの決まりです。";
 
     /// <summary>既定の定型コマンドを作る</summary>
     /// <param name="setup">初期設定 (環境・使うツール)</param>
@@ -91,7 +91,7 @@ public static class CliCommandDefaults
     };
 
     /// <summary>会話履歴の削除の補助スクリプトを動かすコマンドを作る</summary>
-    /// <param name="scriptName">スクリプトの名前 (拡張子なし。<c>Assets/Tools/</c> の <c>.ps1</c> と <c>.py</c> の組)</param>
+    /// <param name="scriptName">スクリプトの名前で、拡張子なし。<c>Assets/Tools/</c> の <c>.ps1</c> と <c>.py</c> の組</param>
     /// <param name="environment">コマンドを動かす環境</param>
     /// <returns>ターミナルへ送るコマンド文字列</returns>
     private static string RemoveSessionCommand(string scriptName, CliEnvironment environment) => environment switch

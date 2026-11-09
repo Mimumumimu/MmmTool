@@ -188,7 +188,7 @@ public sealed class ReminderService
             .Select(reminder => reminder.No)
             .ToList();
         _timeWarning = invalidTimeNos.Count > 0
-            ? $"時刻が正しくないリマインダーがあります (番号 {string.Join("、", invalidTimeNos)})。通知されません。編集して直してください。"
+            ? $"時刻が正しくないリマインダーがあります。番号は {string.Join("、", invalidTimeNos)} です。通知されません。編集して直してください。"
             : null;
     }
 }

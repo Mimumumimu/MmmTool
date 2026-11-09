@@ -18,7 +18,7 @@ public static class WorkRowValues
     /// <summary>アプリの日付 (無ければ null)を、行の日付にする</summary>
     /// <param name="date">日付。無ければ null</param>
     /// <param name="name">項目の名前 (エラーのメッセージに使う)</param>
-    /// <param name="none">「ない」を表す値 (既定は <see cref="NoDate"/>。開始日は <see cref="NoStartDate"/>)</param>
+    /// <param name="none">「ない」を表す値で、既定は <see cref="NoDate"/>。開始日は <see cref="NoStartDate"/></param>
     /// <returns>行の日付 (ない日は <paramref name="none"/>)</returns>
     /// <exception cref="ArgumentException"><paramref name="none"/> は「ない」を表すので、日付には使えない。</exception>
     public static DateOnly FromDate(DateOnly? date, string name, DateOnly? none = null)
@@ -29,13 +29,13 @@ public static class WorkRowValues
             return noneValue;
         }
         return date.Value == noneValue
-            ? throw new ArgumentException($"{name}に {noneValue:yyyy-MM-dd} は使えません (日付なしを表す値のため)。", nameof(date))
+            ? throw new ArgumentException($"{name}に {noneValue:yyyy-MM-dd} は使えません。日付なしを表す値のためです。", nameof(date))
             : date.Value;
     }
 
     /// <summary>行の日付を、アプリの日付にする</summary>
     /// <param name="date">行の日付</param>
-    /// <param name="none">「ない」を表す値 (既定は <see cref="NoDate"/>。開始日は <see cref="NoStartDate"/>)</param>
+    /// <param name="none">「ない」を表す値で、既定は <see cref="NoDate"/>。開始日は <see cref="NoStartDate"/></param>
     /// <returns>日付。ない日 (<paramref name="none"/>)は null</returns>
     public static DateOnly? ToDate(DateOnly date, DateOnly? none = null) => date == (none ?? NoDate) ? null : date;
 
@@ -49,7 +49,7 @@ public static class WorkRowValues
     {
         if (double.IsNaN(hours) || hours < 0 || hours > max)
         {
-            throw new ArgumentException($"{name}は 0 以上 {max} 以下にしてください (指定: {hours})。", nameof(hours));
+            throw new ArgumentException($"{name}は 0 以上 {max} 以下にしてください。指定は {hours} です。", nameof(hours));
         }
         return Math.Round((decimal)hours, 2, MidpointRounding.AwayFromZero);
     }
@@ -65,7 +65,7 @@ public static class WorkRowValues
     {
         if (value.Length > maxLength)
         {
-            throw new ArgumentException($"{name}は {maxLength} 文字までです (指定: {value.Length} 文字)。", nameof(value));
+            throw new ArgumentException($"{name}は {maxLength} 文字までです。指定は {value.Length} 文字です。", nameof(value));
         }
         return required && value.Length == 0 ? throw new ArgumentException($"{name}が空です。", nameof(value)) : value;
     }

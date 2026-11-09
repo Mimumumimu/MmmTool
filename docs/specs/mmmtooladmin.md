@@ -65,7 +65,7 @@
   - 人 × 機能の表にしない。人が増えると、表が成り立たないため。
   - 機能の一覧は、`MmmTool.Users.Core` の `ManagedFeatures` (機能番号の台帳 `CodeFeatures` の番号と、名前と、選べる状態)から作る。管理ツールのホストに、機能の名前を書かない。機能を足すときは、台帳に 1 行足す。
   - 対象は、DB を使う機能の、ノート・作業管理・リマインダー・メッセージ。DB を使わない機能は、対象にしない。
-  - 選べるのは「有効」と「無効」。「読み取り専用」は、強制を作るまで選ばせない。選んでも有効と同じ動きになるため。強制は [todo.md](../todo.md) にある。
+  - 選べるのは「有効」と「無効」。「読み取り専用」は選ばせない。強制を作らないので、選んでも有効と同じ動きになるため。
 - 保存先は、[database.md](database.md) の `AppUserAdminSetting` の区分 1。行が無い人は、有効
   - 値は 0 = 無効・1 = 有効・2 = 読み取り専用。3 つの値を、最初から保存できる。
   - 更新者の列には、0 が入る。管理ツールは、ユーザーを特定しないため。
@@ -105,4 +105,4 @@
 - 並べる部品 `CodeMasterSettingsControl` と編集ウィンドウは、MmmTool の設定ページの「選択肢」と同じものを使う。詳細は [settings.md](settings.md) の「選択肢」。見出し「選択肢」も、同じものが出る。
 - 編集できる区分は、プラグイン `MmmToolAdmin.CodeMaster` に 1 行ずつ足す。作業管理の「進捗度の名前」は、`WorkCodes.ProgressNameEditor` を使い、MmmTool の設定ページと同じ定義にする。
 - MmmTool は、DB モードでは、名前を編集しない。保存先は、編集できない `UnavailableCodeMasterRepository` のままにする。DB モードの名前は、管理ツールだけが直す。
-- 管理ツールの `App.xaml` に、共有の部品が使う見出しのスタイル `SettingsSectionHeaderStyle` と、入力欄の標準のスタイルを持つ。MmmTool の `App.xaml` と同じ内容。
+- 管理ツールの `App.xaml` は、共有の部品が使う見出しのスタイル `SettingsSectionHeaderStyle` と、入力欄の標準のスタイルを、SDK の `AppStyles.xaml` から読む。MmmTool の `App.xaml` と同じファイルを読み、管理ツールには書き写さない。

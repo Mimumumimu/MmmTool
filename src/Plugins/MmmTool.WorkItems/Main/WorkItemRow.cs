@@ -5,7 +5,7 @@ using MmmTool.WorkItems.Core;
 namespace MmmTool.WorkItems.Main;
 
 /// <summary>表の 1 行 (案件・グループ・作業のどれかを、表の列に出す形にしたもの)</summary>
-/// <param name="key">行の識別 (種類 + 番号。作ったときに決まり、変わらない)</param>
+/// <param name="key">行の識別で、種類 + 番号。作ったときに決まり、変わらない</param>
 /// <remarks>
 /// 表に出している間は同じ行を使い回し、内容が変わったときは <see cref="Update"/> で値だけを書き換える。入力欄の位置・フォーカスを保つため。
 /// 案件・グループの日付・予定時間・実績・進捗度は、下の作業から計算した値の表示で、入力はできない。
@@ -21,7 +21,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>種類</summary>
     public WorkRowKind Kind => Key.Kind;
 
-    /// <summary>集計の行か (案件・グループ。下の作業から計算した値を出す)</summary>
+    /// <summary>集計の行か。案件・グループで、下の作業から計算した値を出す</summary>
     public bool IsGroup { get; } = key.Kind != WorkRowKind.Work;
 
     /// <summary>作業の行か</summary>
@@ -34,7 +34,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>案件か</summary>
     public bool IsProject { get; } = key.Kind == WorkRowKind.Project;
 
-    /// <summary>行に重ねる色 (案件は青の半透明。触れない作業は灰色の半透明。ほかは重ねない)</summary>
+    /// <summary>行に重ねる色で、案件は青の半透明。触れない作業は灰色の半透明。ほかは重ねない</summary>
     /// <remarks>色の値は、スケジュールの表と共通の <see cref="WorkRowTints"/> が持つ。</remarks>
     public Windows.UI.Color? RowTint => IsProject
         ? WorkRowTints.Project
@@ -43,7 +43,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>案件の中のグループか</summary>
     public bool IsSubGroup { get; } = key.Kind == WorkRowKind.Group;
 
-    /// <summary>完了して日がたった作業で、触れないか (作業のみ。完了日が入力日より前)</summary>
+    /// <summary>完了して日がたった作業で、触れないか。作業のみで、完了日が入力日より前</summary>
     /// <remarks>入力日を完了日に戻すと、触れる。行の背景は灰色にする。色は <see cref="RowTint"/> で決まる。</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RowTint))]
@@ -71,7 +71,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string Name { get; private set; } = "";
 
-    /// <summary>リンク (URL・フォルダ・ファイルのパス。無いときは空)</summary>
+    /// <summary>リンク。URL・フォルダ・ファイルのパスで、無いときは空</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasLink))]
     public partial string Link { get; private set; } = "";
@@ -131,11 +131,11 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string PriorityText { get; private set; } = "";
 
-    /// <summary>担当者 (ユーザーの番号。作業のみ。0 は未割り当て)</summary>
+    /// <summary>担当者。ユーザーの番号で、作業のみ。0 は未割り当て</summary>
     [ObservableProperty]
     public partial int AssigneeUserId { get; private set; }
 
-    /// <summary>担当者の表示名 (作業のみ。未割り当ては空)</summary>
+    /// <summary>担当者の表示名で、作業のみ。未割り当ては空</summary>
     [ObservableProperty]
     public partial string AssigneeText { get; private set; } = "";
 
@@ -147,10 +147,10 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string ProgressCellText { get; private set; } = "";
 
-    /// <summary>予定が空のとき、入力の手がかりの文字を出すか (作業のみ。触れない作業には、入力できないので出さない)</summary>
+    /// <summary>予定が空のとき、入力の手がかりの文字を出すか。作業のみで、触れない作業には、入力できないので出さない</summary>
     public bool PlannedHintVisible => IsWork && !IsLocked && PlannedText.Length == 0;
 
-    /// <summary>入力日の実績が空のとき、入力の手がかりの文字を出すか (作業のみ。触れない作業には、入力できないので出さない)</summary>
+    /// <summary>入力日の実績が空のとき、入力の手がかりの文字を出すか。作業のみで、触れない作業には、入力できないので出さない</summary>
     public bool ActualDayHintVisible => IsWork && !IsLocked && ActualDayText.Length == 0;
 
     /// <summary>優先度の選択位置 (選択肢から外れたコードは -1)</summary>
@@ -165,26 +165,26 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial int ProgressIndex { get; private set; }
 
-    /// <summary>選択欄の選択肢 (コードマスタから作った一覧。行どうしで共有する)</summary>
+    /// <summary>選択欄の選択肢で、コードマスタから作った一覧。行どうしで共有する</summary>
     public WorkChoices Choices { get; private set; } = new(MmmTool.CodeMaster.Core.CodeBook.Empty);
 
-    /// <summary>グループの進捗度の表示 (計算値。無ければ空)</summary>
+    /// <summary>グループの進捗度の表示で、計算値。無ければ空</summary>
     [ObservableProperty]
     public partial string ProgressText { get; private set; } = "";
 
-    /// <summary>開始日 (<c>yyyy/MM/dd</c>。無ければ空。グループは計算値)</summary>
+    /// <summary>開始日で、<c>yyyy/MM/dd</c>。無ければ空。グループは計算値</summary>
     [ObservableProperty]
     public partial string StartText { get; private set; } = "";
 
-    /// <summary>開始日 (日付の選択欄の値。無ければ null)</summary>
+    /// <summary>開始日で、日付の選択欄の値。無ければ null</summary>
     [ObservableProperty]
     public partial DateTimeOffset? StartValue { get; private set; }
 
-    /// <summary>期限日 (日付の選択欄の値。無ければ null)</summary>
+    /// <summary>期限日で、日付の選択欄の値。無ければ null</summary>
     [ObservableProperty]
     public partial DateTimeOffset? DueValue { get; private set; }
 
-    /// <summary>期限を過ぎた日数 (作業のみ。未完了で期限日が入力日より前のとき。過ぎていなければ 0)</summary>
+    /// <summary>期限を過ぎた日数で、作業のみ。未完了で期限日が入力日より前のとき。過ぎていなければ 0</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOverdue))]
     [NotifyPropertyChangedFor(nameof(IsDueNormal))]
@@ -200,15 +200,15 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>期限切れのアイコンのツールチップ (「3 日超過」)</summary>
     public string OverdueTip => $"{OverdueDays} 日超過";
 
-    /// <summary>期限日 (<c>yyyy/MM/dd</c>。無ければ空。グループは計算値)</summary>
+    /// <summary>期限日で、<c>yyyy/MM/dd</c>。無ければ空。グループは計算値</summary>
     [ObservableProperty]
     public partial string DueText { get; private set; } = "";
 
-    /// <summary>完了日 (<c>yyyy/MM/dd</c>。完了していなければ空。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ)</summary>
+    /// <summary>完了日で、<c>yyyy/MM/dd</c>。完了していなければ空。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ</summary>
     [ObservableProperty]
     public partial string CompletedText { get; private set; } = "";
 
-    /// <summary>予定時間 (無ければ空。グループは計算値)</summary>
+    /// <summary>予定時間で、無ければ空。グループは計算値</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PlannedHintVisible))]
     public partial string PlannedText { get; private set; } = "";
@@ -217,7 +217,7 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     [ObservableProperty]
     public partial string ActualTotalText { get; private set; } = "";
 
-    /// <summary>入力日の実績 (0 なら空。グループは計算値)</summary>
+    /// <summary>入力日の実績で、0 なら空。グループは計算値</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActualDayHintVisible))]
     public partial string ActualDayText { get; private set; } = "";
@@ -236,11 +236,11 @@ public sealed partial class WorkItemRow(WorkKey key) : ObservableObject, IProjec
     /// <param name="level">字下げの段</param>
     /// <param name="hasChildren">表に出す子を持つか (開閉ボタンを出すか)</param>
     /// <param name="isExpanded">開いているか</param>
-    /// <param name="dayRecord">入力日の記録 (作業のみ。無ければ null)</param>
-    /// <param name="choices">選択欄の選択肢 (優先度・状態・進捗度。グループの状態・進捗度の表示にも使う)</param>
-    /// <param name="assigneeText">担当者の表示名 (作業のみ。未割り当ては空)</param>
+    /// <param name="dayRecord">入力日の記録で、作業のみ。無ければ null</param>
+    /// <param name="choices">選択欄の選択肢で、優先度・状態・進捗度。グループの状態・進捗度の表示にも使う</param>
+    /// <param name="assigneeText">担当者の表示名で、作業のみ。未割り当ては空</param>
     /// <param name="isLocked">完了して日がたった作業で、触れないか (作業のみ)</param>
-    /// <param name="overdueDays">期限を過ぎた日数 (作業のみ。過ぎていなければ 0)</param>
+    /// <param name="overdueDays">期限を過ぎた日数で、作業のみ。過ぎていなければ 0</param>
     public void Update(
         WorkNode node,
         int level,

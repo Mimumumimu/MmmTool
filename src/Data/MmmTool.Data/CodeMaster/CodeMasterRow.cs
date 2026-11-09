@@ -17,13 +17,13 @@ public sealed record CodeMasterRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (ユーザーの番号。0 は特定のユーザーではない)</summary>
+    /// <summary>作成者で、ユーザーの番号。0 は特定のユーザーではない</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (ユーザーの番号。0 は特定のユーザーではない)</summary>
+    /// <summary>更新者で、ユーザーの番号。0 は特定のユーザーではない</summary>
     public int UpdatedByUserId { get; init; }
 
     /// <summary>機能番号</summary>

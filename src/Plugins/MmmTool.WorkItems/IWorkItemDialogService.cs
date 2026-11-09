@@ -4,7 +4,7 @@ namespace MmmTool.WorkItems;
 public interface IWorkItemDialogService
 {
     /// <summary>移動先のグループか案件を選ぶダイアログを開く</summary>
-    /// <param name="destinations">選べる移動先 (選んでいる案件と、その中のグループ。木の順)</param>
+    /// <param name="destinations">選べる移動先で、選んでいる案件と、その中のグループ。木の順</param>
     /// <returns>選ばれた移動先。キャンセルなら null</returns>
     Task<Move.MoveDestination?> PickDestinationAsync(IReadOnlyList<Move.MoveDestination> destinations);
 

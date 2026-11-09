@@ -6,7 +6,7 @@
 @inject IEnumerable<IUnreadCountSource> Sources
 @implements IDisposable
 
-<main class="home">
+<main class="page">
     <div class="top">
         <h1>ホーム</h1>
         <a class="settings" href="settings" aria-label="設定">
@@ -26,7 +26,7 @@
                     {
                         <span class="count" role="img" aria-label="未読 @unread 件">@(unread > MaxShownCount ? $"{MaxShownCount}+" : unread.ToString())</span>
                     }
-                    <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="@ChevronPath" /></svg>
+                    <Chevron />
                 </a>
             }
         </nav>
@@ -100,9 +100,6 @@
     });
 
     public void Dispose() => Browser.BecameVisible -= LoadUnreadOnReturnAsync;
-
-    /// <summary>行の右端の「›」の形。24 × 24 の枠の SVG の path で、線で描く。</summary>
-    private const string ChevronPath = "M9.5 6l6 6-6 6";
 
     /// <summary>設定の歯車のアイコンの形。24 × 24 の枠の SVG の path。</summary>
     private const string SettingsIconPath =

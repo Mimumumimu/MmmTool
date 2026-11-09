@@ -22,9 +22,9 @@ public sealed partial class ReminderBulkEntry(ReminderBulkSlot slot) : Observabl
     public partial int Minute { get; set; } = slot.Time.Minute;
 
     /// <summary>件名。行が増えたときは「会議」が入っている</summary>
-    /// <remarks>空にしても、登録のとき「会議」になる。</remarks>
+    /// <remarks>空にすると、登録できない。入れ直すまで、登録を押せない。</remarks>
     [ObservableProperty]
-    public partial string Title { get; set; } = ReminderDraft.DefaultTitle;
+    public partial string Title { get; set; } = ReminderDraft.InitialTitle;
 
     /// <summary>リンク。空のままなら付けない</summary>
     [ObservableProperty]

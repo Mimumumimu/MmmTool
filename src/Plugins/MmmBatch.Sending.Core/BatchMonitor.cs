@@ -146,7 +146,7 @@ public sealed class BatchMonitor(IEnumerable<IBatchJob> jobs, ISendLog log, Batc
     /// <summary>次の区切りの時刻を求める</summary>
     /// <param name="now">今の日時 (ローカル)</param>
     /// <param name="interval">仕事の間隔</param>
-    /// <returns>今より後の、間隔の区切り (間隔の倍数の時刻。毎分の仕事なら次の 00 秒)</returns>
+    /// <returns>今より後の、間隔の区切りで、間隔の倍数の時刻。毎分の仕事なら次の 00 秒</returns>
     private static DateTime NextBoundary(DateTime now, TimeSpan interval)
         => new((now.Ticks / interval.Ticks + 1) * interval.Ticks, now.Kind);
 

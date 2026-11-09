@@ -5,7 +5,7 @@
 @inject BrowserClient Browser
 @inject NavigationManager Navigation
 
-<div class="screen">
+<div class="screen with-fab">
     <FeatureHeader Title="メッセージ" Busy="@_loading" />
 
     @if (_error is not null)
@@ -24,7 +24,7 @@
             @foreach (var conversation in Store.Conversations)
             {
                 <li>
-                    <a class="row" href="@ConversationPath(conversation)">
+                    <a class="card row" href="@ConversationPath(conversation)">
                         <span class="line">
                             <span class="who">
                                 @if (Store.IsUnread(conversation))
@@ -51,8 +51,7 @@
 
 @if (_creatingGroup)
 {
-    <MemberPickerSheet Title="新しいグループ" ConfirmText="次へ" ShowName="true" People="GroupCandidates" NameMaxLength="_groupNameMax" MaxMembers="_groupMaxMembers"
-                       OnCancel="CancelPick" OnConfirm="StartGroup" />
+    <MemberPickerSheet Title="新しいグループ" ConfirmText="次へ" ShowName="true" People="GroupCandidates"                       OnCancel="CancelPick" OnConfirm="StartGroup" />
 }
 else if (_picking)
 {
@@ -68,7 +67,7 @@ else if (_picking)
             @if (_peopleLoaded)
             {
                 <li>
-                    <button type="button" class="row" @onclick="BeginGroup">
+                    <button type="button" class="card row" @onclick="BeginGroup">
                         <span class="name">新しいグループ</span>
                     </button>
                 </li>
@@ -76,7 +75,7 @@ else if (_picking)
             @foreach (var person in _people)
             {
                 <li>
-                    <button type="button" class="row" @onclick="() => OpenPersonAsync(person)">
+                    <button type="button" class="card row" @onclick="() => OpenPersonAsync(person)">
                         <span class="name">@person.DisplayName</span>
                     </button>
                 </li>
@@ -98,8 +97,6 @@ else if (_picking)
     private bool _peopleLoaded;
     private bool _opening;
     private bool _creatingGroup;
-    private int _groupNameMax = 50;
-    private int _groupMaxMembers = 50;
     private IReadOnlyList<PersonDto> _people = [];
 
     /// <summary>新しいグループの参加者に選べる人。自分は含めない。</summary>
@@ -157,7 +154,6 @@ else if (_picking)
         _loading = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
 
@@ -177,7 +173,6 @@ else if (_picking)
         var result = await Messages.SearchPeopleAsync("");
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!_picking)
@@ -204,17 +199,8 @@ else if (_picking)
         _people = [];
     }
 
-    /// <summary>新しいグループを作る画面に進む。名前の上限と人数の上限は、サーバーが返す値を使う。</summary>
-    private async Task BeginGroup()
-    {
-        var form = await Messages.LoadFormAsync(0, 0);
-        if (form.Succeeded)
-        {
-            _groupNameMax = form.Value!.GroupNameMaxLength;
-            _groupMaxMembers = form.Value.GroupMaxMembers;
-        }
-        _creatingGroup = true;
-    }
+    /// <summary>新しいグループを作る画面に進む。名前の上限と人数の上限は、PC 版と共通の <see cref="MessageLimits"/> を、そのシートが使う。</summary>
+    private void BeginGroup() => _creatingGroup = true;
 
     /// <summary>名前と参加者が決まったら、空のグループの会話の画面を出す。会話は、最初の送信で作る。</summary>
     /// <param name="pick">グループの名前と、選んだ人の番号。</param>
@@ -241,7 +227,6 @@ else if (_picking)
             var result = await Messages.FindDirectAsync(person.UserId);
             if (result.Status == ApiFailure.SignedOut)
             {
-                Navigation.NavigateTo("/", forceLoad: true);
                 return;
             }
             if (!result.Succeeded)

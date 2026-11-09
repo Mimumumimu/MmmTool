@@ -1,9 +1,9 @@
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダー の、機能としての識別 (キーと表示名。オフにできないので、サイドバー・設定の並び順だけに使う)</summary>
+/// <summary>リマインダー の、機能としての識別で、キーと表示名。オフにできないので、サイドバー・設定の並び順だけに使う</summary>
 public static class RemindersFeature
 {
-    /// <summary>機能のキー (設定ファイルの並び順にも使う。変えると、保存済みの並び順から外れる)</summary>
+    /// <summary>機能のキー。設定ファイルの並び順にも使うので、変えると、保存済みの並び順から外れる</summary>
     public const string Key = "Reminders";
 
     /// <summary>設定ページに出す機能の名前</summary>

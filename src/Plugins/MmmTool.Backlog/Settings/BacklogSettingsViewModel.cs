@@ -16,7 +16,7 @@ public sealed class BacklogSettingsViewModel
     /// <summary>画面に出すエラー (API キーを読めなかった・保存できなかったとき)</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>入力欄の最初の値 (保存済みの API キー。登録が無ければ空)</summary>
+    /// <summary>入力欄の最初の値で、保存済みの API キー。登録が無ければ空</summary>
     public string InitialApiKey => _savedApiKey;
 
     /// <summary>保存済みの API キーを読み込む</summary>

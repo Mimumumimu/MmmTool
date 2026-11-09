@@ -88,13 +88,13 @@ public sealed class ScheduleTimelineCell : Canvas
         typeof(ScheduleTimelineCell),
         new PropertyMetadata(null, (d, e) => ((ScheduleTimelineCell)d).OnRowChanged((ScheduleRow?)e.OldValue, (ScheduleRow?)e.NewValue)));
 
-    /// <summary>土曜の背景 (このセルが持つ。図形は、軸が変わったときだけ作り直す)</summary>
+    /// <summary>土曜の背景で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
     private readonly Path _saturdays = new();
 
-    /// <summary>日曜・祝日の背景 (このセルが持つ。図形は、軸が変わったときだけ作り直す)</summary>
+    /// <summary>日曜・祝日の背景で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
     private readonly Path _sundays = new();
 
-    /// <summary>日付の区切りの線 (このセルが持つ。図形は、軸が変わったときだけ作り直す)</summary>
+    /// <summary>日付の区切りの線で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
     private readonly Path _lines = new() { StrokeThickness = 1 };
 
     /// <summary>休みの日の背景と日付の線の図形を作った軸 (違う軸になったら、図形を作り直す)</summary>
@@ -246,7 +246,7 @@ public sealed class ScheduleTimelineCell : Canvas
         Children.Add(line);
     }
 
-    /// <summary>予定の棒 (開始日から期限日まで。1 色)を足す</summary>
+    /// <summary>予定の棒を足す。開始日から期限日までで、1 色</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
@@ -287,7 +287,7 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>実績の棒 (連続した日ごと。日の単位では、日ごとの時間の数字入り)を足す</summary>
+    /// <summary>実績の棒を足す。連続した日ごとで、日の単位では、日ごとの時間の数字入り</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>

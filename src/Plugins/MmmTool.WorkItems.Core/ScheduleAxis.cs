@@ -27,7 +27,7 @@ public sealed record ScheduleAxis(DateOnly Start, DateOnly End, ScheduleUnit Uni
         };
     }
 
-    /// <summary>1 日の幅 (単位ごとの固定の値。日は数字が入る幅、週・月は狭い)</summary>
+    /// <summary>1 日の幅。単位ごとの固定の値で、日は数字が入る幅、週・月は狭い</summary>
     public double DayWidth => Unit switch
     {
         ScheduleUnit.Day => 40,
@@ -41,7 +41,7 @@ public sealed record ScheduleAxis(DateOnly Start, DateOnly End, ScheduleUnit Uni
     /// <summary>軸の幅</summary>
     public double Width => DayCount * DayWidth;
 
-    /// <summary>実績の時間を、日ごとに数字で出すか (日の単位だけ。週・月は幅が足りない)</summary>
+    /// <summary>実績の時間を、日ごとに数字で出すか。日の単位だけで、週・月は幅が足りない</summary>
     public bool ShowsHours => Unit == ScheduleUnit.Day;
 
     /// <summary>曜日・祝日の背景を出すか (月の単位は、1 日が細すぎて見分けられないので出さない)</summary>

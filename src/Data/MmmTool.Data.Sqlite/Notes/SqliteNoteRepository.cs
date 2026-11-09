@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using MmmSdk.Db.Sqlite.Components.Connections;
 using MmmTool.Data.Notes;
@@ -64,26 +65,140 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     /// <returns>ノートと名前で、並びは不定</returns>
     private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, (string Name, object Value)[] parameters, CancellationToken cancellationToken)
         => RunAsync<IReadOnlyList<NoteWithNames>>(
-            async connection => [.. (await SqliteQueries.QueryAsync(
-                connection,
-                null,
-                $"SELECT {Columns} FROM Note WHERE {condition} AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
-                parameters,
-                reader => new NoteWithNames(ReadRow(reader).ToNote(), "", ""),
-                cancellationToken).ConfigureAwait(false))],
+            async connection =>
+            {
+                var rows = await SqliteQueries.QueryAsync(
+                    connection,
+                    null,
+                    $"SELECT {Columns} FROM Note WHERE {condition} AND (@includeDeleted = 1 OR IsDeleted = 0) AND (IsPrivate = 0 OR AuthorUserId = @me)",
+                    parameters,
+                    ReadRow,
+                    cancellationToken).ConfigureAwait(false);
+
+                // ほかの実施日は、読んだノートの番号の分を、1 回の問い合わせでまとめて読む。SQL Server と同じ形
+                var dates = await ReadOtherEventDatesAsync(connection, [.. rows.Select(row => row.Id)], cancellationToken).ConfigureAwait(false);
+                return [.. rows.Select(row => new NoteWithNames(row.ToNote(DatesOf(dates, row.Id)), "", ""))];
+            },
             cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default)
         => RunAsync<IReadOnlyList<Note>>(
-            async connection => [.. (await SqliteQueries.QueryAsync(
-                connection,
-                null,
-                $"SELECT {Columns} FROM Note WHERE EventDate = @day AND IsDeleted = 0 AND (IsPrivate = 0 OR AuthorUserId = @me)",
-                [("@day", day), ("@me", LocalUserId)],
-                reader => ReadRow(reader).ToNote(),
-                cancellationToken).ConfigureAwait(false))],
+            async connection =>
+            {
+                // 実施日か、ほかの実施日のどちらかがその日のノート。番号を UNION で集める。SQL Server と同じ形で、枝ごとに索引が使える
+                var rows = await SqliteQueries.QueryAsync(
+                    connection,
+                    null,
+                    $"SELECT {Columns} FROM Note WHERE Id IN (SELECT Id FROM Note WHERE EventDate = @day UNION SELECT NoteId FROM NoteAttribute WHERE CategoryNo = @category AND Value = @dayText AND IsDeleted = 0) AND IsDeleted = 0 AND (IsPrivate = 0 OR AuthorUserId = @me)",
+                    [("@day", day), ("@category", (long)NoteAttributeKind.OtherEventDate), ("@dayText", NoteOtherEventDates.ToValue(day)), ("@me", LocalUserId)],
+                    ReadRow,
+                    cancellationToken).ConfigureAwait(false);
+                var dates = await ReadOtherEventDatesAsync(connection, [.. rows.Select(row => row.Id)], cancellationToken).ConfigureAwait(false);
+                return (IReadOnlyList<Note>)[.. rows.Select(row => row.ToNote(DatesOf(dates, row.Id)))];
+            },
             cancellationToken);
+
+    /// <summary>ノートの番号の分の、ほかの実施日を、1 回の問い合わせでまとめて読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="noteIds">ノートの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートの番号ごとの、日付の順の一覧。ほかの実施日が無いノートは、含まない</returns>
+    private static async Task<Dictionary<int, IReadOnlyList<DateOnly>>> ReadOtherEventDatesAsync(SqliteConnection connection, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<int, IReadOnlyList<DateOnly>>();
+        if (noteIds.Count == 0)
+        {
+            return result;
+        }
+
+        // 番号は json_each で渡す。引数を 1 つずつ並べると、1 回の問い合わせで渡せる数を超えうるため
+        var rows = await SqliteQueries.QueryAsync(
+            connection,
+            null,
+            "SELECT NoteId, Value FROM NoteAttribute WHERE CategoryNo = @category AND IsDeleted = 0 AND NoteId IN (SELECT value FROM json_each(@ids))",
+            [("@category", (long)NoteAttributeKind.OtherEventDate), ("@ids", JsonSerializer.Serialize(noteIds))],
+            reader => (NoteId: reader.GetInt32(0), Value: reader.GetString(1)),
+            cancellationToken).ConfigureAwait(false);
+
+        foreach (var group in rows.GroupBy(row => row.NoteId))
+        {
+            result[group.Key] = NoteOtherEventDates.ToDates(group.Select(row => row.Value));
+        }
+        return result;
+    }
+
+    /// <summary>枝番と日付の組を、json_each で渡す JSON にする</summary>
+    /// <param name="items">枝番と日付の組</param>
+    /// <returns>JSON の文字</returns>
+    private static string ToJson(IReadOnlyList<(int CodeNo, DateOnly Day)> items)
+        => JsonSerializer.Serialize(items.Select(item => new { codeNo = item.CodeNo, value = NoteOtherEventDates.ToValue(item.Day) }));
+
+    /// <summary>ノートの番号に合う、ほかの実施日を取り出す</summary>
+    /// <param name="dates"><see cref="ReadOtherEventDatesAsync"/> の結果</param>
+    /// <param name="noteId">ノートの番号</param>
+    /// <returns>日付の順の一覧。無ければ空</returns>
+    private static IReadOnlyList<DateOnly> DatesOf(Dictionary<int, IReadOnlyList<DateOnly>> dates, int noteId)
+        => dates.TryGetValue(noteId, out var list) ? list : [];
+
+    /// <summary>ノートのほかの実施日を、新しい日付の一覧に合わせて書く</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">ノートを書いているトランザクション</param>
+    /// <param name="noteId">ノートの番号</param>
+    /// <param name="dates">保存したい日付の一覧</param>
+    /// <param name="now">更新日時</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書き終わったことを表すタスク</returns>
+    /// <remarks>
+    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。SQL Server と同じ形。
+    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
+    /// </remarks>
+    private static async Task WriteOtherEventDatesAsync(SqliteConnection connection, SqliteTransaction transaction, int noteId, IReadOnlyList<DateOnly> dates, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var existing = await SqliteQueries.QueryAsync(
+            connection,
+            transaction,
+            "SELECT CodeNo, Value, IsDeleted FROM NoteAttribute WHERE NoteId = @noteId AND CategoryNo = @category",
+            [("@noteId", (long)noteId), ("@category", (long)NoteAttributeKind.OtherEventDate)],
+            reader => new NoteAttributeRow(reader.GetInt32(0), reader.GetString(1), reader.GetInt64(2) != 0),
+            cancellationToken).ConfigureAwait(false);
+
+        var changes = NoteOtherEventDates.Diff([.. existing], dates);
+        if (changes.IsEmpty)
+        {
+            return;
+        }
+
+        await SqliteQueries.ExecuteAsync(
+            connection,
+            transaction,
+            """
+            UPDATE NoteAttribute
+            SET Value = (SELECT json_extract(j.value, '$.value') FROM json_each(@update) AS j WHERE json_extract(j.value, '$.codeNo') = NoteAttribute.CodeNo),
+                IsDeleted = 0, UpdatedAt = @now, UpdatedByUserId = @user
+            WHERE NoteId = @noteId AND CategoryNo = @category
+              AND CodeNo IN (SELECT json_extract(j.value, '$.codeNo') FROM json_each(@update) AS j);
+
+            UPDATE NoteAttribute
+            SET IsDeleted = 1, UpdatedAt = @now, UpdatedByUserId = @user
+            WHERE NoteId = @noteId AND CategoryNo = @category
+              AND CodeNo IN (SELECT value FROM json_each(@delete));
+
+            INSERT INTO NoteAttribute (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, NoteId, CategoryNo, CodeNo, Value)
+            SELECT 0, @now, @user, @now, @user, @noteId, @category, json_extract(j.value, '$.codeNo'), json_extract(j.value, '$.value')
+            FROM json_each(@insert) AS j;
+            """,
+            [
+                ("@now", now),
+                ("@user", LocalUserId),
+                ("@noteId", (long)noteId),
+                ("@category", (long)NoteAttributeKind.OtherEventDate),
+                ("@delete", JsonSerializer.Serialize(changes.Delete)),
+                ("@update", ToJson(changes.Update)),
+                ("@insert", ToJson(changes.Insert)),
+            ],
+            cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
@@ -103,6 +218,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
                     "INSERT INTO Note (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body) VALUES (0, @now, @user, @now, @user, @user, @private, @start, @end, @eventDate, @priority, @title, @body) RETURNING Id",
                     [("@now", now), ("@user", LocalUserId), ("@private", false), ("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body)],
                     cancellationToken).ConfigureAwait(false));
+                await WriteOtherEventDatesAsync(connection, transaction, id, input.OtherEventDates, now, cancellationToken).ConfigureAwait(false);
                 saved = new Note
                 {
                     Id = id,
@@ -110,6 +226,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
                     StartDate = input.StartDate,
                     EndDate = input.EndDate,
                     EventDate = input.EventDate,
+                    OtherEventDates = [.. input.OtherEventDates.Order()],
                     Priority = input.Priority,
                     Title = input.Title,
                     Body = input.Body,
@@ -128,13 +245,22 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         NoteRow.Validate(input);
 
         var changed = 0;
+        var now = time.GetUtcNow();
         await RunInTransactionAsync(
-            async (connection, transaction) => changed = await SqliteQueries.ExecuteAsync(
-                connection,
-                transaction,
-                "UPDATE Note SET StartDate = @start, EndDate = @end, EventDate = @eventDate, Priority = @priority, Title = @title, Body = @body, UpdatedAt = @now, UpdatedByUserId = @user WHERE Id = @id",
-                [("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body), ("@now", time.GetUtcNow()), ("@user", LocalUserId), ("@id", id)],
-                cancellationToken).ConfigureAwait(false),
+            async (connection, transaction) =>
+            {
+                // ノートの更新日時と更新者は、ほかの実施日だけを直したときも動かす。SQL Server と同じ形
+                changed = await SqliteQueries.ExecuteAsync(
+                    connection,
+                    transaction,
+                    "UPDATE Note SET StartDate = @start, EndDate = @end, EventDate = @eventDate, Priority = @priority, Title = @title, Body = @body, UpdatedAt = @now, UpdatedByUserId = @user WHERE Id = @id",
+                    [("@start", input.StartDate), ("@end", input.EndDate), ("@eventDate", input.EventDate), ("@priority", (long)input.Priority), ("@title", input.Title), ("@body", input.Body), ("@now", now), ("@user", LocalUserId), ("@id", id)],
+                    cancellationToken).ConfigureAwait(false);
+                if (changed > 0)
+                {
+                    await WriteOtherEventDatesAsync(connection, transaction, id, input.OtherEventDates, now, cancellationToken).ConfigureAwait(false);
+                }
+            },
             cancellationToken).ConfigureAwait(false);
         return changed > 0;
     }

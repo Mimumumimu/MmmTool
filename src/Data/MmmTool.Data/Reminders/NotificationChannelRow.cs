@@ -53,7 +53,7 @@ public sealed record NotificationChannelRow
 
         if (!Enum.IsDefined(channel.Kind))
         {
-            throw new ArgumentException($"送信先の区分が正しくありません ({(int)channel.Kind})。", nameof(channel));
+            throw new ArgumentException($"送信先の区分が正しくありません。値は {(int)channel.Kind} です。", nameof(channel));
         }
         if (string.IsNullOrWhiteSpace(channel.Name) || channel.Name.Length > NotificationChannelRules.NameMaxLength)
         {
@@ -82,7 +82,7 @@ public sealed record NotificationChannelRow
         var kind = (NotificationChannelKind)Kind;
         if (!Enum.IsDefined(kind))
         {
-            throw new InvalidOperationException($"送信先 {Id} の区分が正しくありません ({Kind})。");
+            throw new InvalidOperationException($"送信先 {Id} の区分が正しくありません。値は {Kind} です。");
         }
 
         return new NotificationChannel

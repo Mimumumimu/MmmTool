@@ -69,7 +69,7 @@ public static class ProjectBlockRows
     /// <summary>案件のかたまりを、案件の名前の順の位置へ差し込む</summary>
     /// <typeparam name="TRow">行の型</typeparam>
     /// <param name="rows">表に渡している行の一覧</param>
-    /// <param name="block">差し込む行 (先頭が案件の行。上から順)</param>
+    /// <param name="block">差し込む行で、先頭が案件の行。上から順</param>
     public static void Insert<TRow>(IList<TRow> rows, IReadOnlyList<TRow> block)
         where TRow : class, IProjectBlockRow
     {

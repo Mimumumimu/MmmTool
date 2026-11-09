@@ -25,6 +25,6 @@ public sealed record SendLogEntry(
     DateTimeOffset At, int ReminderId, string Title, string OwnerName, int ChannelId, NotificationChannelKind ChannelKind, string ChannelName,
     int Attempt, SendStatus Status, string Error, string Source = SendLogEntry.LegacySource, string SenderName = "")
 {
-    /// <summary>機能のキーを持たない古い行の、機能のキー (リマインダーの値と同じ。ログのファイルには、この文字列で残っている)</summary>
+    /// <summary>機能のキーを持たない古い行の、機能のキーで、リマインダーの値と同じ。ログのファイルには、この文字列で残っている</summary>
     public const string LegacySource = "Reminder";
 }

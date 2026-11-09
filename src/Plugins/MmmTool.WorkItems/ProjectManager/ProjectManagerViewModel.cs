@@ -155,7 +155,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>確認してから、案件を削除する (論理削除。中のグループ・作業も)</summary>
+    /// <summary>確認してから、案件を削除する。論理削除で、中のグループ・作業も</summary>
     /// <param name="item">一覧の 1 件</param>
     /// <returns>削除の完了を表すタスク</returns>
     public async Task DeleteAsync(ProjectManagerItem item)

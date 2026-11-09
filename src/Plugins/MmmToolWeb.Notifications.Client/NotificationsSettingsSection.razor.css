@@ -1,32 +1,7 @@
 /* 設定の画面の「通知」の節。この端末の状態と、登録済みの端末と、登録・解除の操作を縦に並べる */
-.result {
-    margin: 0 0 0.75rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    overflow-wrap: anywhere;
-}
-
-.result.error {
-    color: var(--danger);
-}
-
-.device h3 {
-    margin: 0 0 0.5rem;
-    color: var(--muted);
-    font-size: 0.8125rem;
-    font-weight: 400;
-}
-
 .device p {
     margin: 0 0 0.75rem;
     overflow-wrap: anywhere;
-}
-
-.muted {
-    color: var(--muted);
-    font-size: 0.875rem;
 }
 
 /* 登録済みの端末の一覧。行の右に、この端末の印か、削除のボタンを置く。行の全体は押せない */
@@ -60,16 +35,8 @@
     font-size: 0.875rem;
 }
 
-/* 文字だけのボタン。ノートの画面の「削除」と同じ作り */
 .devices .text {
     flex: none;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-}
-
-.devices .text.danger {
-    color: var(--danger);
 }
 
 /* 登録と解除の操作は、横いっぱいの主なボタン。一覧の中の削除のボタンには効かせない */

@@ -50,9 +50,7 @@
     <Project Path="src/Plugins/MmmTool.Links/MmmTool.Links.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/Plugins/MmmTool.Reminders.Core/MmmTool.Reminders.Core.csproj" />
     <Project Path="src/Plugins/MmmTool.Reminders/MmmTool.Reminders.csproj">
       <Platform Project="x64" />
     </Project>
@@ -68,15 +66,11 @@
     <Project Path="src/Plugins/MmmTool.Tools/MmmTool.Tools.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/Plugins/MmmTool.Messages.Core/MmmTool.Messages.Core.csproj" />
     <Project Path="src/Plugins/MmmTool.Messages/MmmTool.Messages.csproj">
       <Platform Project="x64" />
     </Project>
-    <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/Plugins/MmmTool.Notes.Core/MmmTool.Notes.Core.csproj" />
     <Project Path="src/Plugins/MmmTool.Notes/MmmTool.Notes.csproj">
       <Platform Project="x64" />
     </Project>
@@ -149,27 +143,19 @@
     </Project>
   </Folder>
   <Folder Name="/CodeMaster/">
-    <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/CodeMaster/MmmTool.CodeMaster.Core/MmmTool.CodeMaster.Core.csproj" />
     <Project Path="src/CodeMaster/MmmTool.CodeMaster/MmmTool.CodeMaster.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/DayContent/">
-    <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/DayContent/MmmTool.DayContent.Core/MmmTool.DayContent.Core.csproj" />
   </Folder>
   <Folder Name="/NotificationChannels/">
-    <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj" />
   </Folder>
   <Folder Name="/Users/">
-    <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj" />
   </Folder>
   <Folder Name="/Data/">
     <Project Path="src/Data/MmmTool.Data/MmmTool.Data.csproj">
@@ -195,9 +181,7 @@
     </Project>
   </Folder>
   <Folder Name="/MmmSdk/">
-    <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj">
-      <Platform Project="x64" />
-    </Project>
+    <Project Path="external/MmmSdk/MmmSdk.Core/MmmSdk.Core.csproj" />
     <Project Path="external/MmmSdk/MmmSdk.Db.Sqlite/MmmSdk.Db.Sqlite.csproj">
       <Platform Project="x64" />
     </Project>

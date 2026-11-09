@@ -84,7 +84,7 @@ public sealed partial class AccountEditWindow : Window
         }
     }
 
-    /// <summary>表示名の入力欄にフォーカスが来たら IME をオンにする (日本語の入力が多いため。ログイン名は英数字が多いので、オンにしない)</summary>
+    /// <summary>表示名の入力欄にフォーカスが来たら IME をオンにする。日本語の入力が多いためで、ログイン名は英数字が多いので、オンにしない</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnValueBoxGotFocus(object sender, RoutedEventArgs e)

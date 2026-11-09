@@ -124,7 +124,7 @@ public static class ScheduleHeader
         return label;
     }
 
-    /// <summary>日の単位の、1 日ぶんの見出し (日付と曜日。土曜は青、日曜と祝日は赤。どちらも日付と曜日の両方。今日は印を付ける)を足す</summary>
+    /// <summary>日の単位の、1 日ぶんの見出しを足す。日付と曜日を出し、土曜は青、日曜と祝日は赤で、どちらも日付と曜日の両方。今日は印を付ける</summary>
     /// <param name="canvas">見出し</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
@@ -176,7 +176,7 @@ public static class ScheduleHeader
         canvas.Children.Add(weekday);
     }
 
-    /// <summary>見出しの高さの区切りの線 (行の線と同じ位置。行の線は高さが行の高さなので、見出しの高さに伸ばす)</summary>
+    /// <summary>見出しの高さの区切りの線で、行の線と同じ位置。行の線は高さが行の高さなので、見出しの高さに伸ばす</summary>
     /// <param name="visual">日付の軸</param>
     /// <returns>線の図形</returns>
     private static Geometry LinesOfHeader(ScheduleAxisVisual visual)

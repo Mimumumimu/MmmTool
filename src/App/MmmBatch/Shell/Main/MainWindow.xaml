@@ -27,7 +27,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- サイドバーと、選んだ機能のページ (SDK の NavigationHost。コードで入れる) -->
+        <!-- サイドバーと、選んだ機能のページで、SDK の NavigationHost。コードで入れる -->
         <Border x:Name="ContentHost" Grid.Row="1" />
     </Grid>
 </Window>

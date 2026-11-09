@@ -49,9 +49,47 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 前面への復帰: `StartWatchingVisibilityAsync` と `BecameVisible`
     - 端末の記憶 (`localStorage`): `GetRememberedAsync` と `RememberAsync`。名前は、機能の名前から始める。
     - 最初から文が入っている入力欄のカーソルを先頭に置く: `PlaceCaretAtStartAsync` (`browser.js` の `placeCaretAtStart`)
+    - 入力欄の選んだ範囲を読む・置き換える・選んだかの変化を受ける: `GetSelectionAsync`・`ReplaceRangeAsync`・`WatchHasSelectionAsync`。ノートの書式の列が使う。
+  - 日付を入れる欄は、`<input type="date">` ではなく `DatePicker` を使う。仕様は [specs/web.md](specs/web.md) の「日付の選択 (Web 版)」。
+    - 渡すのは次の 4 つ。
+      - `Value`: 選んでいる日で、未設定は null
+      - `OnPicked`: 日を選んだときの処理
+      - `Label`: 欄の名前
+      - `Invalid`: true にすると、誤りの欄として太い枠にする
+    - `<label>` で包まない。カレンダーの空きをタップすると、欄を押したことになって、開き直すため。見出しの文字は `<span>` で出す。
+    - 土曜・日曜・祝日の線に使う祝日は、`HolidayClient` が、サーバーの `GET /api/holidays` から読む。部品が使うので、機能の側では呼ばない。
+  - ログインが切れたとき (API が 401)は、共通の呼び出しの部品 `ApiCaller` が、`SessionClient.GoToSignIn` でログインの画面へ全体を読み直して戻す。
+    - 機能の API を呼ぶ部品 (`<機能>Client`)は、`SessionClient` を受け取り、`ApiCaller.SendAsync` の最後の引数に `session.GoToSignIn` を渡す。
+    - 画面は、移動を書かない。`ApiFailure.SignedOut` のときは、失敗の文を出さずに処理を終える。
+  - PC 版と共有する決まり (送れる条件・文字数や人数の上限・状態の値・曜日)は、画面側が、機能の `.Core` を参照して、そのまま使う。画面側のコードに、数字や式を書き写さない。
+    - 参照できるのは、Messages・Notes・Reminders の AnyCPU の `.Core`。x64 のままの `.Core` は、ブラウザで動かないので、参照できない。
+    - 画面は、上限を、API の値ではなく、共通の定数から読む。
+    - API が返している上限の項目は、消さない。更新の前に開いたままの画面が、その値から読んで動くため。
+    - 参照を足すときは、その `.Core` と、参照先の `.Core` を、すべて AnyCPU にする。方法は [build-and-distribution.md](build-and-distribution.md) の「ビルドの共通設定」。
+  - 日付を API の要求や通知から開く道に載せる文字 (`yyyy-MM-dd`)は、`ApiDay` で作る・読む。書式を、画面やサーバーに書き写さない。
   - 機能の画面の上のバーは `FeatureHeader` で、ホームへ戻る・名前・操作を持つ。
     - 読み込みや送信を待つ間は、`Busy` に true を渡して、進行バーを出す。
     - 速く終わっても見える最低の時間 (0.4 秒)は、`FeatureHeader` が持つ。
   - ホームは `/home` で、ログインのあとは常にここへ移る。ログアウトは `SessionClient`。
-  - 色は、`app.css` の名前つきの色 (`--bg`・`--surface`・`--text`・`--muted`・`--accent`・`--accent-text`・`--border`・`--danger`・`--disabled`)を使う。
+  - 色は、`app.css` の名前つきの色 (`--bg`・`--surface`・`--text`・`--muted`・`--accent`・`--accent-text`・`--border`・`--danger`・`--disabled`・`--danger-fill`・`--danger-fill-text`・`--saturday`・`--sunday`)を使う。
     - 押せない部品の文字は `--disabled`
+    - 色の値は、`app.css` の `:root` に、ライトとダークの両方を 1 回だけ書く。画面の CSS に、同じ意味の色を書き写さない。
+  - 共通のクラスは、`MmmToolWeb.Features.Client` の `wwwroot/css/features.css` にある。画面の `<画面>.razor.css` には、その画面だけの見た目と、余白の違いだけを書く。同じ宣言を書き写さない。
+    - 共通のクラスは、機能を足しても増やさず、そのまま使う。足りないときは、`features.css` に足して、全部の画面で使えるようにする。
+    - 枠: `.page` (ホーム・ログイン)・`.screen` (機能の画面)
+      - 右下に `.fab` があるときは、`.screen` に `with-fab` を足す。
+      - 編集のシートが開いている間は、`.screen` に `behind` を足す。
+    - 画面の下端: `.bottom-bar` は、下端に貼り付ける操作の列。毎日使う操作を左に並べ、主な操作の `.fab` を右端に置く。列の中の `.fab` は浮かべずに並ぶ。列があるときも、`.screen` に `with-fab` を足す。
+    - 押せる部品: `.text` (文字だけのボタン)・`.fab` (右下に浮かべる主な操作)・`.check` と `.checks` (チェックの行と、横に並べた行)・`.segments` と `.segment` (横に並べた選択)
+      - `.text` には、`.strong` と `.danger` を足せる。
+    - 入力の欄: `.form-field` (欄の名前の `span` と入力欄)・`.form-group` (`fieldset`)・`.form-label` (入力欄から離れて置く名前)
+    - 文字と帯: `.hint` (欄の下の補足)・`.muted`・`.caption` (薄い小さな見出し)・`.empty` (何もないとき)・`.message` (失敗の文)・`.info` (知らせの帯)・`.result` と `.result.error` (操作の結果の帯)
+    - 一覧: `.list`・`.card` (1 件の枠)
+      - `.card` には、`.selected`・`.finished`・`.deleted` を足せる。
+    - 幕と箱: `.backdrop` (`.center`・`.bottom`・`.front`)・`.bottom-panel`
+    - 同じ名前で意味の違うクラスを、画面の CSS に作らない。`.field`・`.hint` を別の意味で使って、共通のクラスと混ざった前例がある。
+  - 構造のある部品は、`Features.Client` の部品を使う。
+    - `FeatureHeader` (上のバー)・`SheetFrame` (全画面のシート)・`EditSheet` (入力のシート)・`ConfirmDialog` (取り返しにくい操作の確認)・`Chevron` (山形)・`DatePicker`
+      - `SheetFrame` の上のバーは、`FeatureHeader` を使う。
+      - `EditSheet` は、左にキャンセル・右に確定を置き、キーボードを出すと高さが縮む。`Footer` に渡した列は、下端に貼り付き、キーボードのすぐ上に来る。
+    - 確認のダイアログや、山形の SVG を、画面の側に作らない。

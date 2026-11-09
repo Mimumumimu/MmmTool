@@ -14,7 +14,7 @@ namespace MmmTool.Notes.Core;
 /// </remarks>
 public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 {
-    /// <summary>曜日の表示 (日曜が先頭。PC の言語に依らず日本語)</summary>
+    /// <summary>曜日の表示で、日曜が先頭。PC の言語に依らず日本語</summary>
     private static readonly string[] Weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
     /// <summary>ページを作る</summary>
@@ -138,19 +138,24 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     private static void AppendAction(StringBuilder html, NoteAction action, int noteId, string label)
         => html.Append("<a class=\"action\" href=\"").Append(NoteLinks.ActionUrl(action, noteId)).Append("\">").Append(label).Append("</a>");
 
-    /// <summary>印 (今日の更新・自分だけ・削除済み)を出力に出す</summary>
+    /// <summary>印 (重要度・今日の更新・自分だけ・削除済み)を出力に出す</summary>
     /// <param name="html">出力</param>
     /// <param name="card">カードに出す内容</param>
     /// <param name="isShared">複数の人で共有するか</param>
     private static void AppendBadges(StringBuilder html, NoteCard card, bool isShared)
     {
         var note = card.Note;
-        if (!card.IsUpdatedToday && !note.IsDeleted && !(isShared && note.IsPrivate))
+        var priorityText = NotePriorityBadge.Text((int)note.Priority);
+        if (priorityText is null && !card.IsUpdatedToday && !note.IsDeleted && !(isShared && note.IsPrivate))
         {
             return;
         }
 
         html.Append("<span class=\"badges\">");
+        if (priorityText is not null)
+        {
+            html.Append("<span class=\"badge priority p").Append((int)note.Priority).Append("\">").Append(priorityText).Append("</span>");
+        }
         if (card.IsUpdatedToday)
         {
             html.Append("<span class=\"badge today\">今日更新</span>");
@@ -171,7 +176,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <param name="isShared">複数の人で共有するか</param>
     /// <param name="day">表示する日</param>
     /// <returns>項目ごとの文字。期間・実施日・作成者・更新の順で、項目の間の区切りは CSS が付ける</returns>
-    /// <remarks>実施日は、設定があり、表示する日より後のときだけ小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
+    /// <remarks>実施日は、実施日とほかの実施日を合わせて、表示する日より後で、いちばん近い 1 日だけを小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
     private static List<string> Meta(NoteCard card, bool isShared, DateOnly day)
     {
         var note = card.Note;
@@ -179,11 +184,11 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         {
             note.IsOpenEnded ? $"{FormatDate(note.StartDate)} ～" : $"{FormatDate(note.StartDate)} ～ {FormatDate(note.EndDate)}",
         };
-        if (note.HasEventDate && note.EventDate > day)
+        if (note.NextEventAfter(day) is { } next)
         {
-            var text = note.EventDate.Year == day.Year
-                ? note.EventDate.ToString("MM/dd", CultureInfo.InvariantCulture)
-                : FormatDate(note.EventDate);
+            var text = next.Year == day.Year
+                ? next.ToString("MM/dd", CultureInfo.InvariantCulture)
+                : FormatDate(next);
             parts.Add($"実施 {text}");
         }
         if (isShared)
@@ -201,10 +206,10 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <returns>文字</returns>
     private static string FormatDate(DateOnly date) => date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture);
 
-    /// <summary>日付を、曜日つき (<c>yyyy/MM/dd (土)</c>)にする</summary>
+    /// <summary>日付を、曜日つき (<c>yyyy/MM/dd (土)</c>)にする。PC 版のページと Web 版の画面が、同じ書き方を使う</summary>
     /// <param name="date">日付</param>
     /// <returns>文字</returns>
-    private static string FormatDay(DateOnly date) => $"{FormatDate(date)} ({Weekdays[(int)date.DayOfWeek]})";
+    public static string FormatDay(DateOnly date) => $"{FormatDate(date)} ({Weekdays[(int)date.DayOfWeek]})";
 
     /// <summary>文字を、HTML の文字に直す</summary>
     /// <param name="text">文字</param>
@@ -262,6 +267,8 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             .badges { margin-left:4px; }
             .badge { display:inline-block; margin-left:6px; vertical-align:2px; padding:0 8px; border-radius:10px; font-size:12px; line-height:20px; background:var(--badge); color:var(--badge-text); }
             .badge.today { background:var(--today); color:var(--today-text); }
+            .badge.priority { background:transparent; color:var(--text); border:1px solid var(--p4); line-height:18px; }
+            .badge.priority.p5 { border-color:var(--p5); }
             .body { margin:6px 0 2px 18px; overflow-wrap:anywhere; }
             .body ul, .body ol { margin:4px 0; padding-left:24px; }
 

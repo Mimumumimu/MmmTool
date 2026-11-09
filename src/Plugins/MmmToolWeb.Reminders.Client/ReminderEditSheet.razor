@@ -1,130 +1,130 @@
 @inject RemindersClient Reminders
-@inject NavigationManager Navigation
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
-<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-    <header class="sheet-bar">
-        <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
-        <h2 id="sheet-title">@(IsNew ? "リマインダー入力" : "リマインダー編集")</h2>
-        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(!CanSave)">保存</button>
-    </header>
+<EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="@(!CanSave)" OnCancel="OnCancel" OnConfirm="SaveAsync">
+    @if (_error is not null)
+    {
+        <p class="message" role="alert">@_error</p>
+    }
 
-    <div class="sheet-body">
-        @if (_error is not null)
-        {
-            <p class="message" role="alert">@_error</p>
-        }
+    @if (!IsNew && Source!.IsDeleted)
+    {
+        <p class="info" role="status">削除済みです。保存すると、削除が取り消されます。</p>
+    }
 
-        @if (!IsNew && Source!.IsDeleted)
-        {
-            <p class="info" role="status">削除済みです。保存すると、削除が取り消されます。</p>
-        }
+    <label class="form-field">
+        <span>件名</span>
+        <input type="text" maxlength="@ReminderLimits.TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
+    </label>
 
-        <label class="field">
-            <span>件名</span>
-            <input type="text" maxlength="@TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
-        </label>
+    <label class="form-field">
+        <span>備考</span>
+        <textarea rows="4" maxlength="@ReminderLimits.NoteMaxLength" @bind="_note" @bind:event="oninput"></textarea>
+    </label>
 
-        <label class="field">
-            <span>備考</span>
-            <textarea rows="4" maxlength="@NoteMaxLength" @bind="_note" @bind:event="oninput"></textarea>
-        </label>
+    <label class="form-field">
+        <span>リンク</span>
+        <input type="url" inputmode="url" maxlength="@ReminderLimits.LinkMaxLength" autocomplete="off" autocapitalize="off" @bind="_link" @bind:event="oninput" />
+    </label>
 
-        <label class="field">
-            <span>リンク</span>
-            <input type="url" inputmode="url" maxlength="@LinkMaxLength" autocomplete="off" autocapitalize="off" @bind="_link" @bind:event="oninput" />
-        </label>
-
-        <fieldset class="group">
-            <legend>日付</legend>
-            <div class="segments">
-                <label class="segment">
-                    <input type="radio" name="kind" checked="@(!_byDate)" @onchange="() => _byDate = false" />
-                    <span>曜日で指定</span>
-                </label>
-                <label class="segment">
-                    <input type="radio" name="kind" checked="@_byDate" @onchange="() => _byDate = true" />
-                    <span>日付で指定</span>
-                </label>
-            </div>
-            @if (_byDate)
-            {
-                <input type="date" class="date-input" aria-label="日付" value="@_date.ToString("yyyy-MM-dd")" @onchange="OnDateChanged" />
-            }
-            else
-            {
-                <div class="weekdays" role="group" aria-label="曜日">
-                    @foreach (var (bit, name) in Days)
-                    {
-                        <label class="@DayClass(bit)">
-                            <input type="checkbox" checked="@HasDay(bit)" @onchange="e => ToggleDay(bit, (bool)e.Value!)" />
-                            <span>@name</span>
-                        </label>
-                    }
-                </div>
-                <small class="hint">選ばないときは、毎日です</small>
-            }
-        </fieldset>
-
-        <label class="field time-field">
-            <span>時刻</span>
-            <input type="time" step="60" value="@_time" @onchange="OnTimeChanged" />
-        </label>
-
-        @if (_options is { Targets.Count: > 0 } options)
-        {
-            <label class="field">
-                <span>宛先</span>
-                <select @onchange="OnTargetChanged">
-                    @foreach (var target in options.Targets)
-                    {
-                        <option value="@target.UserId" selected="@(target.UserId == _target)">@target.Name</option>
-                    }
-                </select>
+    <fieldset class="form-group">
+        <legend>日付</legend>
+        <div class="segments">
+            <label class="segment">
+                <input type="radio" name="kind" checked="@(!_byDate)" @onchange="() => _byDate = false" />
+                <span>曜日で指定</span>
             </label>
-        }
-
-        @if (_options is not null)
+            <label class="segment">
+                <input type="radio" name="kind" checked="@_byDate" @onchange="() => _byDate = true" />
+                <span>日付で指定</span>
+            </label>
+        </div>
+        @if (_byDate)
         {
-            <fieldset class="group" disabled="@(!ChannelsEnabled)">
-                <legend>送信先</legend>
-                @if (!ChannelsEnabled)
+            <div class="date-field">
+                <DatePicker Label="日付" Value="_date" OnPicked="OnDatePicked" />
+            </div>
+        }
+        else
+        {
+            <div class="weekdays" role="group" aria-label="曜日">
+                @foreach (var (bit, name) in Days)
                 {
-                    <small class="hint">宛先が自分か全員のときに選べます</small>
-                }
-                else if (_options.Channels.Count == 0)
-                {
-                    <small class="hint">送信先が登録されていません</small>
-                }
-                @foreach (var channel in _options.Channels)
-                {
-                    <label class="check">
-                        <input type="checkbox" checked="@(ChannelsEnabled && _channels.Contains(channel.Id))" @onchange="e => ToggleChannel(channel.Id, (bool)e.Value!)" />
-                        <span>@channel.Label</span>
+                    <label class="@DayClass(bit)">
+                        <input type="checkbox" checked="@HasDay(bit)" @onchange="e => ToggleDay(bit, (bool)e.Value!)" />
+                        <span>@name</span>
                     </label>
                 }
-            </fieldset>
-        }
-
-        <label class="check">
-            <input type="checkbox" @bind="_speak" />
-            <span>PC で読み上げる</span>
-        </label>
-
-        @if (!IsNew)
-        {
-            <div class="sheet-actions">
-                <button type="button" class="text" @onclick="OnCopy" disabled="@_saving">コピーして新規追加</button>
-                <button type="button" class="text danger" @onclick="OnDelete" disabled="@_saving">削除</button>
             </div>
+            <small class="hint">選ばないときは、毎日です</small>
         }
-    </div>
-</div>
+    </fieldset>
+
+    <label class="form-field time-field">
+        <span>時刻</span>
+        <input type="time" step="60" value="@_time" @onchange="OnTimeChanged" />
+    </label>
+
+    @if (_options is { Targets.Count: > 0 } options)
+    {
+        <label class="form-field">
+            <span>宛先</span>
+            <select @onchange="OnTargetChanged">
+                @foreach (var target in options.Targets)
+                {
+                    <option value="@target.UserId" selected="@(target.UserId == _target)">@target.Name</option>
+                }
+            </select>
+        </label>
+    }
+
+    @if (_options is not null)
+    {
+        <fieldset class="form-group" disabled="@(!ChannelsEnabled)">
+            <legend>送信先</legend>
+            @if (!ChannelsEnabled)
+            {
+                <small class="hint">宛先が自分か全員のときに選べます</small>
+            }
+            else if (_options.Channels.Count == 0)
+            {
+                <small class="hint">送信先が登録されていません</small>
+            }
+            @foreach (var channel in _options.Channels)
+            {
+                <label class="check">
+                    <input type="checkbox" checked="@(ChannelsEnabled && _channels.Contains(channel.Id))" @onchange="e => ToggleChannel(channel.Id, (bool)e.Value!)" />
+                    <span>@channel.Label</span>
+                </label>
+            }
+        </fieldset>
+    }
+
+    <label class="check">
+        <input type="checkbox" @bind="_speak" />
+        <span>PC で読み上げる</span>
+    </label>
+
+    @if (!IsNew)
+    {
+        <div class="sheet-actions">
+            <button type="button" class="text" @onclick="OnCopy" disabled="@_saving">コピーして新規追加</button>
+            <button type="button" class="text danger" @onclick="OnDelete" disabled="@_saving">削除</button>
+        </div>
+    }
+</EditSheet>
 
 @code {
+    /// <summary>シートの名前。新規か編集かで変える。</summary>
+    private string SheetTitle => IsNew ? "リマインダー入力" : "リマインダー編集";
+
     /// <summary>曜日の選択肢。月から日の順で、数は曜日指定の曜日の 1 つのビット。</summary>
-    private static readonly (int Bit, string Name)[] Days = [(1, "月"), (2, "火"), (4, "水"), (8, "木"), (16, "金"), (32, "土"), (64, "日")];
+    private static readonly (int Bit, string Name)[] Days =
+    [
+        ((int)Weekdays.Monday, "月"), ((int)Weekdays.Tuesday, "火"), ((int)Weekdays.Wednesday, "水"), ((int)Weekdays.Thursday, "木"),
+        ((int)Weekdays.Friday, "金"), ((int)Weekdays.Saturday, "土"), ((int)Weekdays.Sunday, "日"),
+    ];
 
     /// <summary>編集するリマインダー。新規のときは null。コピーのときは、コピー元。</summary>
     [Parameter]
@@ -179,12 +179,6 @@
     /// <summary>新規として保存するか。編集は、番号を持つ。</summary>
     private bool IsNew => Source is null || IsCopy;
 
-    private int TitleMaxLength => _options?.TitleMaxLength ?? 200;
-
-    private int NoteMaxLength => _options?.NoteMaxLength ?? 1000;
-
-    private int LinkMaxLength => _options?.LinkMaxLength ?? 2000;
-
     /// <summary>送信先を選べるか。宛先が自分か全員のときだけ。宛先をほかの人にしたリマインダーの通知を、自分の送信先へ送らないため。</summary>
     /// <remarks>選べないときも、選んでいた内容は覚えておく。宛先を戻したら、チェックも戻る。</remarks>
     private bool ChannelsEnabled => _options is not { Targets.Count: > 0 } options || _target == 0 || _target == options.Targets[0].UserId;
@@ -219,7 +213,6 @@
         var options = await Reminders.LoadOptionsAsync(Source?.TargetUserId ?? 0);
         if (options.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (options.Succeeded)
@@ -298,8 +291,8 @@
     /// <summary>曜日の選択の class。土は青、日は赤の文字にする。</summary>
     private static string DayClass(int bit) => bit switch
     {
-        32 => "chip sat",
-        64 => "chip sun",
+        (int)Weekdays.Saturday => "chip sat",
+        (int)Weekdays.Sunday => "chip sun",
         _ => "chip",
     };
 
@@ -315,13 +308,7 @@
         }
     }
 
-    private void OnDateChanged(ChangeEventArgs e)
-    {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
-        {
-            _date = day;
-        }
-    }
+    private void OnDatePicked(DateOnly day) => _date = day;
 
     private void OnTimeChanged(ChangeEventArgs e) => _time = e.Value?.ToString() ?? "";
 
@@ -366,7 +353,6 @@
                 await OnSaved.InvokeAsync();
                 break;
             case ApiFailure.SignedOut:
-                Navigation.NavigateTo("/", forceLoad: true);
                 break;
             case ApiFailure.NotFound:
                 await OnFailed.InvokeAsync(result.Message ?? "このリマインダーは、見つからないか、ほかの人が先に変えました。");

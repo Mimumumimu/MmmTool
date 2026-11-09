@@ -1,3 +1,7 @@
+// iPhone の Safari は、触れた合図 (touchstart)を受ける仕組みが無いと、押している間の見た目 (CSS の :active)を出さないことがある。
+// 何もしない受け手を 1 つ置いて、押している間の見た目を出させる。このファイルを最初に読み込んだときに 1 回だけ置く
+document.addEventListener("touchstart", () => {}, { passive: true });
+
 // ブラウザの時計の今日の日付を、yyyy-MM-dd の形で返す。ブラウザ上の .NET は端末のタイムゾーンを知らないので、ここで決める
 export function todayLocal() {
     const now = new Date();
@@ -41,11 +45,15 @@ export function isStandalone() {
     return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
 }
 
+// iPhone か iPad で、ホーム画面に追加していないか。通知とパスキーは、ここで開くと使えない。パソコンのブラウザは、ホーム画面が無いので、false
+export function needsHomeScreen() {
+    return /iPhone|iPad/.test(navigator.userAgent) && !isStandalone();
+}
+
 // 通知の状態。unsupported = この環境では使えない / needs-home-screen = iPhone でホーム画面に追加していない / denied = 許可が拒否されている / ready = 登録できる
 // subscribed は、このブラウザが今、宛先を持っているか。endpoint は、その宛先の URL で、持っていないときは null。画面を開いたとき、サービスワーカーも登録しておく (押したときの待ちを短くするため)
 export async function getPushStatus() {
-    const isIos = /iPhone|iPad/.test(navigator.userAgent);
-    if (isIos && !isStandalone()) {
+    if (needsHomeScreen()) {
         return { state: "needs-home-screen", subscribed: false, endpoint: null };
     }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
@@ -413,4 +421,49 @@ export function watchSheetViewport() {
 // id の要素を、画面の中ほどに出す。通知を押して開いたメッセージの位置まで、スクロールするため
 export function scrollIntoViewById(id) {
     document.getElementById(id)?.scrollIntoView({ block: "center" });
+}
+
+// 入力欄で選んでいる範囲 (開始と終了の位置)と、選んでいる文字を返す。ノートの書式のボタンが使う
+// 入力欄の値は改行を \n に直すので、位置と文字は、同じ値から取る
+export function getSelection(element) {
+    return [element.selectionStart, element.selectionEnd, element.value.substring(element.selectionStart, element.selectionEnd)];
+}
+
+// 入力欄の範囲を文字に置き換え、置き換えた文字を選び直す。入力の知らせも出して、画面の @bind に新しい値を渡す
+export function replaceRange(element, start, end, text) {
+    element.focus({ preventScroll: true });
+    element.setRangeText(text, start, end, "select");
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+// 入力欄で、文字を選んでいるかが変わったとき、.NET の Invoke を呼ぶ。dispose で購読をやめる
+// iPhone の Safari は document に、ほかのブラウザは入力欄に、selectionchange を出すので、両方で受ける
+export function watchHasSelection(element, dotNetRef) {
+    let last = element.selectionStart !== element.selectionEnd;
+    const handler = () => {
+        if (document.activeElement !== element) {
+            return;
+        }
+        const now = element.selectionStart !== element.selectionEnd;
+        if (now !== last) {
+            last = now;
+            dotNetRef.invokeMethodAsync("Invoke");
+        }
+    };
+    // 入力欄を離れている間は、選びが変わった知らせを受けないので、戻ったときに読み直して、ずれを残さない
+    const resync = () => {
+        last = element.selectionStart !== element.selectionEnd;
+    };
+    document.addEventListener("selectionchange", handler);
+    element.addEventListener("selectionchange", handler);
+    element.addEventListener("select", handler);
+    element.addEventListener("focus", resync);
+    return {
+        dispose() {
+            document.removeEventListener("selectionchange", handler);
+            element.removeEventListener("selectionchange", handler);
+            element.removeEventListener("select", handler);
+            element.removeEventListener("focus", resync);
+        },
+    };
 }

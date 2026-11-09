@@ -95,7 +95,7 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     [ObservableProperty]
     public partial string? NameError { get; private set; }
 
-    /// <summary>ntfy のトピック名 (最初は自動で作ったもの。自分で決めてもよい)</summary>
+    /// <summary>ntfy のトピック名で、最初は自動で作ったもの。自分で決めてもよい</summary>
     [ObservableProperty]
     public partial string NtfyTopic { get; set; } = "";
 

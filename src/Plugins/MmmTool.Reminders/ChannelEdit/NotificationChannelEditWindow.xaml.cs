@@ -16,7 +16,7 @@ public sealed partial class NotificationChannelEditWindow : Window
     /// <summary>ウィンドウの幅 (DIP)</summary>
     private const double WindowWidth = 480;
 
-    /// <summary>ウィンドウの高さ (DIP。タイトルバーを含む)</summary>
+    /// <summary>ウィンドウの高さで、単位は DIP。タイトルバーを含む</summary>
     private const double WindowHeight = 480;
 
     /// <summary>タイトルバーの高さ (DIP)</summary>

@@ -27,7 +27,7 @@
                 Text="リマインダー一覧" />
         </Grid>
 
-        <!-- 一覧の中身 (ページと共有する ReminderListControl。コードで入れる) -->
+        <!-- 一覧の中身で、ページと共有する ReminderListControl。コードで入れる -->
         <Border
             x:Name="ListHost"
             Grid.Row="1"

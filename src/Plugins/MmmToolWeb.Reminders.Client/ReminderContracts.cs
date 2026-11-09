@@ -130,6 +130,10 @@ public sealed record ReminderChannelOptionDto(int Id, string Label);
 /// <param name="TitleMaxLength">件名の最大文字数。</param>
 /// <param name="NoteMaxLength">備考の最大文字数。</param>
 /// <param name="LinkMaxLength">リンクの最大文字数。</param>
+/// <remarks>
+/// 文字数の上限は、今の画面は使わない。PC 版と共通の <c>ReminderLimits</c> を、直接使う。
+/// 上限の項目を残すのは、更新の前に開いたままの画面が、続けて動くため。古い画面は、上限をこの値から読むので、項目が無いと 0 に読んで、入力できなくなる。
+/// </remarks>
 public sealed record ReminderOptionsResponse(
     IReadOnlyList<ReminderTargetOptionDto> Targets,
     IReadOnlyList<ReminderChannelOptionDto> Channels,

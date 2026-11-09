@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
 using MmmSdk.Core.Utilities;
 using MmmTool.CodeMaster.Core;
@@ -33,9 +34,6 @@ namespace MmmTool.Data.SqlServer.Reminders;
 /// </remarks>
 public sealed class SqlServerReminderRepository : IReminderRepository, IDisposable
 {
-    /// <summary>ほかの PC の変更を読み直す間隔の既定値</summary>
-    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(1);
-
     /// <summary>差分の読み出しで、前回の基準より戻して読む時間。更新が確定するのが遅れた書き込みを、取りこぼさないため</summary>
     private static readonly TimeSpan DiffOverlap = TimeSpan.FromSeconds(10);
 
@@ -54,8 +52,11 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>現在の日付を知るための時計</summary>
     private readonly TimeProvider _time;
 
-    /// <summary>ほかの PC の変更を読み直す間隔</summary>
-    private readonly TimeSpan _pollInterval;
+    /// <summary>毎分の合図</summary>
+    private readonly ITicker _ticker;
+
+    /// <summary>ほかの PC の変更を読み直す合図の登録。最初の読み込みの前は null</summary>
+    private ITickSubscription? _poll;
 
     /// <summary>読み書きと、読み直しを順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
@@ -95,15 +96,15 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <param name="currentUser">今のユーザー</param>
     /// <param name="signIn">ログイン (起動時にログインできなかったとき、読み直しのたびに、覚えているログイン名とパスワードで、もう一度試す)</param>
     /// <param name="time">現在の日付を知るための時計</param>
-    /// <param name="pollInterval">ほかの PC の変更を読み直す間隔。省略すると 1 分</param>
+    /// <param name="ticker">毎分の合図。ほかの PC の変更を、毎分 1 回読み直すのに使う</param>
     public SqlServerReminderRepository(
-        SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, TimeSpan? pollInterval = null)
+        SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, ITicker ticker)
     {
         _database = database;
         _currentUser = currentUser;
         _signIn = signIn;
         _time = time;
-        _pollInterval = pollInterval ?? DefaultPollInterval;
+        _ticker = ticker;
         _currentUser.Changed += OnCurrentUserChanged;
     }
 
@@ -174,7 +175,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <remarks>DB は、行を消さない方針 (論理削除だけ)なので、できない。画面は、<see cref="CanPurge"/> が false のとき、操作を出さない。</remarks>
     /// <exception cref="NotSupportedException">常に。呼ぶ側のバグ。</exception>
     public Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("DB モードでは、完全削除はできません (論理削除だけです)。");
+        => throw new NotSupportedException("DB モードでは、完全削除はできません。論理削除だけです。");
 
     /// <inheritdoc />
     /// <remarks>
@@ -224,6 +225,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         }
 
         _currentUser.Changed -= OnCurrentUserChanged;
+        _poll?.Dispose();
         _stop.Cancel();
         _stop.Dispose();
     }
@@ -246,26 +248,28 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <summary>読み直して、変わっていれば <see cref="ExternalChanged"/> で知らせる</summary>
-    /// <returns>読み直しの完了を表すタスク</returns>
-    private async Task ReloadAndNotifyAsync()
+    /// <returns>読み直しの結果を表すタスク。読めなかった (読み込みの失敗が残っている)ときは失敗で、続くと次の合図までの時間が延びる</returns>
+    private async Task<TickResult> ReloadAndNotifyAsync()
     {
         bool changed;
+        TickResult result;
         try
         {
             await _lock.WaitAsync(_stop.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            return;
+            return TickResult.Done;
         }
 
         try
         {
             changed = await ReloadAsync(_stop.Token).ConfigureAwait(false);
+            result = _loadError is null ? TickResult.Done : TickResult.Failed;
         }
         catch (OperationCanceledException)
         {
-            return;
+            return TickResult.Done;
         }
         finally
         {
@@ -276,6 +280,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         {
             ExternalChanged?.Invoke(this, EventArgs.Empty);
         }
+        return result;
     }
 
     /// <summary>最初の読み込みと、読み直しの繰り返しを、まだなら始める</summary>
@@ -297,44 +302,12 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             }
             await ReloadAsync(cancellationToken).ConfigureAwait(false);
             _started = true;
-            PollAsync(_stop.Token).Forget();
+            // ほかの PC の変更は、毎分 1 回読み直す。00 秒にそろえると、全員の端末が同じ 1 秒に DB へ読みに来るので、ずらした合図で受ける
+            _poll = _ticker.Subscribe(_ => ReloadAndNotifyAsync(), new TickOptions { Timing = TickTiming.Staggered });
         }
         finally
         {
             _lock.Release();
-        }
-    }
-
-    /// <summary>一定の間隔で読み直して、変わっていれば <see cref="ExternalChanged"/> で知らせる</summary>
-    /// <param name="cancellationToken">止めるためのトークン (保存先の破棄で止まる)</param>
-    /// <returns>繰り返しの完了を表すタスク</returns>
-    private async Task PollAsync(CancellationToken cancellationToken)
-    {
-        using var timer = new PeriodicTimer(_pollInterval);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-            {
-                bool changed;
-                await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    changed = await ReloadAsync(cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    _lock.Release();
-                }
-
-                if (changed)
-                {
-                    ExternalChanged?.Invoke(this, EventArgs.Empty);
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 破棄で止まった
         }
     }
 
@@ -349,7 +322,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             if (!_currentUser.IsIdentified
                 && await _signIn.TrySignInWithSavedAsync(DateOnly.FromDateTime(_time.GetLocalNow().DateTime), cancellationToken).ConfigureAwait(false) is null)
             {
-                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません (ログインが必要です)。");
+                return SetLoadError("ユーザーが特定されていないため、リマインダーを読み込めず、保存もできません。ログインが必要です。");
             }
 
             var userId = _currentUser.Id;
@@ -388,7 +361,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         }
         catch (DataFileException ex)
         {
-            return SetLoadError($"データベースから読み込めませんでした (最後に読めた内容を使っています)。{ex.Message}");
+            return SetLoadError($"データベースから読み込めませんでした。最後に読めた内容を使っています。{ex.Message}");
         }
     }
 
@@ -566,7 +539,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             {
                 // ログインできない理由 (DB に届かない・ログインしていない)は、読み込みの失敗と同じ
                 throw new DataFileException(
-                    _loadError ?? "ユーザーが特定されていないため、保存できません (ログインが必要です)。",
+                    _loadError ?? "ユーザーが特定されていないため、保存できません。ログインが必要です。",
                     new InvalidOperationException("今のユーザーが特定されていません。"));
             }
 

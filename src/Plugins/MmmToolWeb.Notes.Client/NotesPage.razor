@@ -1,24 +1,21 @@
 @attribute [Route(Route)]
 @implements IAsyncDisposable
 @inject NotesClient Notes
+@inject NotesViewState View
 @inject BrowserClient Browser
-@inject NavigationManager Navigation
 
 <HeadContent>
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
 </HeadContent>
 
-<div class="@(_editorOpen ? "screen behind" : "screen")">
+<div class="@(_editorOpen ? "screen with-fab behind" : "screen with-fab")">
     <FeatureHeader Title="ノート" Busy="_loading">
         <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
     </FeatureHeader>
 
     <section class="controls" aria-label="表示の条件">
         <div class="day">
-            <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)">‹</button>
-            <input type="date" aria-label="表示する日" value="@_day.ToString("yyyy-MM-dd")" @onchange="OnDayChangedAsync" />
-            <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)">›</button>
-            <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
+            <DatePicker Label="表示する日" Value="_day" OnPicked="OnDayPickedAsync" />
         </div>
         <div class="segments basis" role="radiogroup" aria-label="表示の基準">
             <label class="segment">
@@ -30,12 +27,12 @@
                 <span>更新日</span>
             </label>
         </div>
-        <div class="options">
-            <label class="option">
+        <div class="checks">
+            <label class="check">
                 <input type="checkbox" role="switch" checked="@_titleOnly" @onchange="e => _titleOnly = (bool)e.Value!" />
                 <span>タイトルだけ</span>
             </label>
-            <label class="option">
+            <label class="check">
                 <input type="checkbox" checked="@_includeDeleted" @onchange="OnIncludeDeletedChangedAsync" />
                 <span>削除したものも表示</span>
             </label>
@@ -47,24 +44,24 @@
                 @foreach (var source in _sources)
                 {
                     <div class="source">
-                        <label class="option">
+                        <label class="check">
                             <input type="checkbox" checked="@source.Enabled" @onchange="e => OnSourceEnabledChangedAsync(source, (bool)e.Value!)" />
                             <span>@source.Title</span>
                         </label>
                         @if (source.Enabled)
                         {
                             <div class="source-detail">
-                                <label class="option">
+                                <label class="check">
                                     <input type="checkbox" checked="@source.Everyone" @onchange="e => OnSourceEveryoneChangedAsync(source, (bool)e.Value!)" />
                                     <span>全員の分も出す</span>
                                 </label>
-                                <label class="source-from">
+                                <div class="source-from">
                                     <span>実績の開始日</span>
-                                    <input type="date" value="@DateText(source.From)" @onchange="e => OnSourceFromChangedAsync(source, e)" />
-                                </label>
+                                    <DatePicker Label="実績の開始日" Value="source.From" OnPicked="from => OnSourceFromPickedAsync(source, from)" />
+                                </div>
                                 @foreach (var option in source.Options)
                                 {
-                                    <label class="option">
+                                    <label class="check">
                                         <input type="checkbox" checked="@source.On.Contains(option.Key)" @onchange="e => OnSourceOptionChangedAsync(source, option.Key, (bool)e.Value!)" />
                                         <span>@option.Label</span>
                                     </label>
@@ -79,13 +76,20 @@
 
     @if (_error is not null)
     {
-        <p class="message" role="alert">@_error</p>
+        <div class="failure" role="alert">
+            <p class="message">@_error</p>
+            <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
+        </div>
+    }
+    @if (_actionError is not null)
+    {
+        <p class="message" role="alert">@_actionError</p>
     }
 
     <main class="cards">
         @foreach (var frame in _frames)
         {
-            <section class="frame">
+            <section class="card frame">
                 <details open="@(!_titleOnly)">
                     <summary class="head"><span class="title">@frame.Title</span></summary>
                     <pre class="frame-text">@frame.Text</pre>
@@ -94,7 +98,7 @@
         }
         @if (!_loading && _error is null && _notes.Count == 0)
         {
-            <p class="empty"><span class="empty-date">@_day.ToString("yyyy/MM/dd")</span>@(_updatedBasis ? "この日に更新したノートはありません" : "この日のノートはありません")</p>
+            <p class="empty"><span class="empty-date">@NotePageBuilder.FormatDay(_day)</span>@(_updatedBasis ? "この日に更新したノートはありません" : "この日のノートはありません")</p>
         }
         @foreach (var note in _notes)
         {
@@ -102,10 +106,6 @@
                 @if (note.IsEventDay)
                 {
                     <div class="event-band">@(note.IsEventToday ? "今日実施" : $"{_day:MM/dd} 実施")</div>
-                }
-                @if (note.Priority >= 4)
-                {
-                    <span class="visually-hidden">重要度 @(note.Priority == 5 ? "最高" : "高")</span>
                 }
                 @if (string.IsNullOrWhiteSpace(note.Body))
                 {
@@ -137,7 +137,12 @@
         }
     </main>
 
-    <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+    <div class="bottom-bar">
+        <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)"><Chevron Left="true" /></button>
+        <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
+        <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)"><Chevron /></button>
+        <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+    </div>
 </div>
 
 @if (_editorOpen)
@@ -162,7 +167,15 @@
     /// <summary>その日に更新したノートを出すか。false は、その日に有効なノート。</summary>
     private bool _updatedBasis;
     private bool _loading = true;
+
+    /// <summary>実際の今日。「今日」を見ている人が、日が変わったあとに戻ったとき、新しい今日で開くために持つ。</summary>
+    private DateOnly _today;
+
+    /// <summary>読み込みの失敗の理由。「もう一度」で読み直せる。</summary>
     private string? _error;
+
+    /// <summary>削除・復元・編集の失敗の理由。読み直しでは直らないので、「もう一度」は付けない。</summary>
+    private string? _actionError;
     private IReadOnlyList<NoteDto> _notes = [];
     private bool _editorOpen;
     private NoteDto? _editing;
@@ -193,9 +206,6 @@
         public HashSet<string> On { get; } = [.. dto.Options.Where(o => o.Default).Select(o => o.Key)];
     }
 
-    /// <summary>日付の入力欄に渡す文字。</summary>
-    private static string DateText(DateOnly day) => day.ToString("yyyy-MM-dd");
-
     /// <summary>カードの class。重要度ごとの帯と、実施日の目立たせ方と、削除済みの薄い表示に使う。</summary>
     private static string CardClass(NoteDto note)
         => $"card p{note.Priority}{(note.IsEventDay ? " event" : "")}{(note.IsDeleted ? " deleted" : "")}";
@@ -209,9 +219,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _day = DateOnly.TryParseExact(OpenDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var opened)
+        _today = await Browser.GetTodayAsync();
+        // 通知から開いた日が先。無ければ前に見ていた日で、今日を見ていたなら新しい今日。それも無ければ今日
+        _day = ApiDay.TryParse(OpenDate, out var opened)
             ? opened
-            : await Browser.GetTodayAsync();
+            : View.FollowsToday ? _today : View.Day ?? _today;
+        _updatedBasis = View.UpdatedBasis;
+        _titleOnly = View.TitleOnly;
+        _includeDeleted = View.IncludeDeleted;
         await Browser.ClearUnreadAsync(NoteNoticeKind);
         await LoadAsync();
     }
@@ -232,6 +247,7 @@
     private async Task LoadAsync()
     {
         var version = ++_loadVersion;
+        _actionError = null;
         _loading = true;
         // 裏から戻ったときの読み直しでも、進行バーが出るように、待つ前に画面へ反映する
         StateHasChanged();
@@ -243,7 +259,6 @@
         _loading = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (result.Succeeded)
@@ -346,13 +361,8 @@
         return LoadFramesAsync();
     }
 
-    private Task OnSourceFromChangedAsync(SourceState source, ChangeEventArgs e)
+    private Task OnSourceFromPickedAsync(SourceState source, DateOnly from)
     {
-        if (!DateOnly.TryParse(e.Value?.ToString(), out var from))
-        {
-            return Task.CompletedTask;
-        }
-
         // 期間の終わり (表示する日)以降は選べない。前日までに直す
         source.From = from >= _day ? _day.AddDays(-1) : from;
         return LoadFramesAsync();
@@ -379,18 +389,15 @@
 
     private async Task GoTodayAsync()
     {
-        _day = await Browser.GetTodayAsync();
+        _today = await Browser.GetTodayAsync();
+        _day = _today;
         await LoadAsync();
     }
 
-    private Task OnDayChangedAsync(ChangeEventArgs e)
+    private Task OnDayPickedAsync(DateOnly day)
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
-        {
-            _day = day;
-            return LoadAsync();
-        }
-        return Task.CompletedTask;
+        _day = day;
+        return LoadAsync();
     }
 
     private Task OnIncludeDeletedChangedAsync(ChangeEventArgs e)
@@ -423,7 +430,7 @@
     {
         _editorOpen = false;
         await LoadAsync();
-        _error = message;
+        _actionError = message;
     }
 
     private async Task ConfirmDeleteAsync()
@@ -440,19 +447,25 @@
         var result = await Notes.SetDeletedAsync(note.Id, isDeleted);
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         await LoadAsync();
         if (!result.Succeeded)
         {
-            _error = result.Message;
+            _actionError = result.Message;
         }
     }
 
     public ValueTask DisposeAsync()
     {
         Browser.BecameVisible -= LoadOnReturnAsync;
+
+        // ホームへ行って戻ったときに、同じ条件で開くために、表示の条件を残す
+        View.Day = _day;
+        View.FollowsToday = _day == _today;
+        View.UpdatedBasis = _updatedBasis;
+        View.TitleOnly = _titleOnly;
+        View.IncludeDeleted = _includeDeleted;
         return ValueTask.CompletedTask;
     }
 }

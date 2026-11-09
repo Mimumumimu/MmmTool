@@ -44,7 +44,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>ページを開いている間か (離れている間は、サービスの変更で表を作り直さない)</summary>
     private bool _active;
 
-    /// <summary>続いている、開いたときの読み込みの数 (1 つ以上の間は、途中のサービスの変更で、表を作り直さない。ページの出し入れで、重なることがある)</summary>
+    /// <summary>続いている、開いたときの読み込みの数で、1 つ以上の間は、途中のサービスの変更で、表を作り直さない。ページの出し入れで、重なることがある</summary>
     private int _loadCount;
 
     /// <summary>他の人の更新の取得を、このページが始めているか (二重に始めない・止め損なわない)</summary>
@@ -56,7 +56,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
     private bool _masterEmpty;
 
-    /// <summary>表の行 (見えている行を 1 つにならしたもの。木の順)</summary>
+    /// <summary>表の行で、見えている行を 1 つにならしたもの。木の順</summary>
     public ObservableCollection<ScheduleRow> Rows { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
@@ -65,10 +65,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>表示する案件を選ぶ画面の ViewModel (作業管理と同じ設定を使う)</summary>
     public ProjectPickerViewModel ProjectPicker { get; }
 
-    /// <summary>担当者を扱うか (ローカルモードは false。担当の列と絞り込みを出さない)</summary>
+    /// <summary>担当者を扱うか。ローカルモードは false で、担当の列と絞り込みを出さない</summary>
     public bool HasAssignees => _service.HasAssignees;
 
-    /// <summary>更新ボタンを出すか (他の人の更新がある DB モードだけ。ローカルモードは false)</summary>
+    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
     public bool CanRefresh => _service.HasAssignees;
 
     /// <summary>自分が担当の作業だけを表示するか (作業管理と同じ設定)</summary>
@@ -104,10 +104,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>今日の日付</summary>
     public DateOnly Today => _service.Today;
 
-    /// <summary>今の日付の軸 (範囲と単位。まだ作っていなければ null)</summary>
+    /// <summary>今の日付の軸で、範囲と単位。まだ作っていなければ null</summary>
     public ScheduleAxisVisual? Axis { get; private set; }
 
-    /// <summary>日付の軸が変わった (範囲・単位が変わった。列の幅と見出しを作り直すため)</summary>
+    /// <summary>日付の軸が変わった。範囲・単位が変わったときで、列の幅と見出しを作り直すため</summary>
     public event EventHandler? AxisChanged;
 
     /// <summary>行の塊 (案件 1 つぶん)を、差し込んだ・抜いた (表に、行の一覧を付け直させるため)</summary>
@@ -306,7 +306,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない。行の出し入れが多いので、砂時計を出す)</summary>
+    /// <summary>「完了」の選択が変わったら、表を作り直す。読み込みは、やり直さない。行の出し入れが多いので、砂時計を出す</summary>
     /// <param name="value">選択肢の番号</param>
     partial void OnCompletedIndexChanged(int value)
     {
@@ -473,7 +473,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>完了した作業の見え方 (選択肢の番号から求める。範囲外の値は「非表示」)</summary>
+    /// <summary>完了した作業の見え方で、選択肢の番号から求める。範囲外の値は「非表示」</summary>
     private CompletedDisplay Completed => Enum.IsDefined((CompletedDisplay)CompletedIndex) ? (CompletedDisplay)CompletedIndex : CompletedDisplay.Hidden;
 
     /// <summary>行が無いときの案内を、今の行に合わせる</summary>

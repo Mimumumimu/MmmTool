@@ -4,7 +4,6 @@
 @inject NotificationsClient Notifications
 @inject PushRegistration Registration
 @inject BrowserClient Browser
-@inject NavigationManager Navigation
 
 <div class="device">
     @if (_result is not null)
@@ -14,10 +13,10 @@
 
     @if (_loaded)
     {
-        <h3>この端末</h3>
+        <h3 class="caption">この端末</h3>
         <p>@StatusText</p>
 
-        <h3>登録済みの端末</h3>
+        <h3 class="caption">登録済みの端末</h3>
         @if (_devices.Count == 0)
         {
             <p class="muted">登録した端末はありません。</p>
@@ -136,7 +135,6 @@
         var result = await Notifications.LoadAsync();
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
 
@@ -195,7 +193,6 @@
 
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded)
@@ -247,7 +244,6 @@
             if (result.Status == ApiFailure.SignedOut)
             {
                 _working = false;
-                Navigation.NavigateTo("/", forceLoad: true);
                 return;
             }
             if (!result.Succeeded && result.Status != ApiFailure.NotFound)
@@ -287,7 +283,6 @@
         _working = false;
         if (result.Status == ApiFailure.SignedOut)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
             return;
         }
         if (!result.Succeeded && result.Status != ApiFailure.NotFound)

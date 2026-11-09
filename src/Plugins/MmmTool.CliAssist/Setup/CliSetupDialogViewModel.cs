@@ -6,7 +6,7 @@ namespace MmmTool.CliAssist.Setup;
 /// <summary>CLI補助の初期設定ダイアログの ViewModel</summary>
 public sealed partial class CliSetupDialogViewModel : ObservableObject
 {
-    /// <summary>選んでいる環境の番号 (0 = Windows、1 = WSL。<see cref="CliEnvironment"/> の値と同じ)</summary>
+    /// <summary>選んでいる環境の番号で、0 = Windows、1 = WSL。<see cref="CliEnvironment"/> の値と同じ</summary>
     /// <remarks>ラジオボタンの並び (<c>RadioButtons.SelectedIndex</c>)とつなぐため、番号で持つ。</remarks>
     [ObservableProperty]
     public partial int EnvironmentIndex { get; set; }

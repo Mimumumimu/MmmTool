@@ -156,6 +156,12 @@ internal static class NoteEndpoints
     /// <returns>成功なら 204。入力が正しくないときは 400。見えない・無いときは 404。</returns>
     private static async Task<IResult> UpdateAsync(int id, NoteSaveRequest request, NoteService service, CancellationToken cancellationToken)
     {
+        // ほかの実施日を知らない古い画面からの保存は断る。そのまま保存すると、ノートのほかの実施日が、空で上書きされるため
+        if (request.OtherEventDates is null)
+        {
+            return Results.BadRequest(new ErrorResponse("画面が古いため保存できません。読み込み直してください。"));
+        }
+
         var input = ToInput(request);
         if (input.Validate() is { } error)
         {
@@ -222,6 +228,7 @@ internal static class NoteEndpoints
             note.StartDate,
             note.IsOpenEnded ? null : note.EndDate,
             note.HasEventDate ? note.EventDate : null,
+            note.OtherEventDates,
             card.IsEventDay,
             card.IsEventToday,
             note.IsPrivate,
@@ -247,5 +254,6 @@ internal static class NoteEndpoints
         StartDate = request.StartDate,
         EndDate = request.EndDate ?? DateOnly.MaxValue,
         EventDate = request.EventDate ?? DateOnly.MaxValue,
+        OtherEventDates = request.OtherEventDates ?? [],
     };
 }

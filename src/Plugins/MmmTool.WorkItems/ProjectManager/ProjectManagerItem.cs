@@ -29,7 +29,7 @@ public sealed partial class ProjectManagerItem(WorkProjectEntry entry) : Observa
     [ObservableProperty]
     public partial string Name { get; set; } = entry.Name;
 
-    /// <summary>名前を入力中か (普段は文字だけを出し、クリックしたときだけ入力欄にする。入力中の新しい行は、最初から入力中)</summary>
+    /// <summary>名前を入力中か。普段は文字だけを出し、クリックしたときだけ入力欄にする。入力中の新しい行は、最初から入力中</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLabel))]
     public partial bool IsEditing { get; set; } = IsNewInitial(entry);

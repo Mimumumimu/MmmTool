@@ -26,7 +26,7 @@ internal static class NotifierHttp
             }
 
             throw response.StatusCode == HttpStatusCode.TooManyRequests
-                ? new SendFailedException($"{serviceName} の送信の制限に達しました (しばらくしてから送り直します)。")
+                ? new SendFailedException($"{serviceName} の送信の制限に達しました。しばらくしてから送り直します。")
                 : new SendFailedException($"{serviceName} が {(int)response.StatusCode} を返しました。");
         }
         catch (HttpRequestException ex)

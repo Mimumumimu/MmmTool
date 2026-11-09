@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net.Http.Json;
 using MmmToolWeb.Features.Client;
 
@@ -8,7 +7,8 @@ namespace MmmToolWeb.Notes.Client;
 /// サーバーのノートの API (<c>/api/notes</c>)を呼ぶ。
 /// </summary>
 /// <param name="http">サーバーへの接続。</param>
-public sealed class NotesClient(HttpClient http)
+/// <param name="session">ログイン状態の操作。ログインが切れたときに、ログインの画面へ戻すために使う。</param>
+public sealed class NotesClient(HttpClient http, SessionClient session)
 {
     /// <summary>ノートの API の道。</summary>
     private const string Path = "api/notes";
@@ -30,7 +30,7 @@ public sealed class NotesClient(HttpClient http)
     /// <returns>ノートの一覧。</returns>
     public Task<ApiResult<NoteListResponse>> LoadAsync(DateOnly day, bool updated, bool includeDeleted)
         => SendAsync(
-            () => http.GetAsync($"{Path}?day={FormatDay(day)}&basis={(updated ? "updated" : "period")}&includeDeleted={(includeDeleted ? "true" : "false")}"),
+            () => http.GetAsync($"{Path}?day={ApiDay.ToText(day)}&basis={(updated ? "updated" : "period")}&includeDeleted={(includeDeleted ? "true" : "false")}"),
             async response => await response.Content.ReadFromJsonAsync(NotesJsonContext.Default.NoteListResponse));
 
     /// <summary>
@@ -40,7 +40,7 @@ public sealed class NotesClient(HttpClient http)
     /// <returns>出せる内容の一覧。</returns>
     public Task<ApiResult<DayContentSourceListResponse>> LoadContentSourcesAsync(DateOnly day)
         => SendAsync(
-            () => http.GetAsync($"{Path}/contents?day={FormatDay(day)}"),
+            () => http.GetAsync($"{Path}/contents?day={ApiDay.ToText(day)}"),
             async response => await response.Content.ReadFromJsonAsync(NotesJsonContext.Default.DayContentSourceListResponse));
 
     /// <summary>
@@ -55,13 +55,8 @@ public sealed class NotesClient(HttpClient http)
     public Task<ApiResult<DayContentFramesResponse>> LoadContentAsync(string key, DateOnly day, DateOnly from, bool everyone, IEnumerable<string> onKeys)
         => SendAsync(
             () => http.GetAsync(
-                $"{Path}/contents/{Uri.EscapeDataString(key)}?day={FormatDay(day)}&from={FormatDay(from)}&everyone={(everyone ? "true" : "false")}&on={Uri.EscapeDataString(string.Join(',', onKeys))}"),
+                $"{Path}/contents/{Uri.EscapeDataString(key)}?day={ApiDay.ToText(day)}&from={ApiDay.ToText(from)}&everyone={(everyone ? "true" : "false")}&on={Uri.EscapeDataString(string.Join(',', onKeys))}"),
             async response => await response.Content.ReadFromJsonAsync(NotesJsonContext.Default.DayContentFramesResponse));
-
-    /// <summary>日付を、要求に使う文字にする。</summary>
-    /// <param name="day">日。</param>
-    /// <returns><c>yyyy-MM-dd</c> の文字。</returns>
-    private static string FormatDay(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// ノートを保存する。
@@ -94,6 +89,6 @@ public sealed class NotesClient(HttpClient http)
     /// <param name="send">要求を送る処理。</param>
     /// <param name="read">成功の応答から、中身を読む処理。</param>
     /// <returns>結果。</returns>
-    private static Task<ApiResult<T>> SendAsync<T>(Func<Task<HttpResponseMessage>> send, Func<HttpResponseMessage, Task<T?>> read)
-        => ApiCaller.SendAsync(send, read, NotesJsonContext.Default.ErrorResponse, NotFoundMessage);
+    private Task<ApiResult<T>> SendAsync<T>(Func<Task<HttpResponseMessage>> send, Func<HttpResponseMessage, Task<T?>> read)
+        => ApiCaller.SendAsync(send, read, NotesJsonContext.Default.ErrorResponse, NotFoundMessage, session.GoToSignIn);
 }

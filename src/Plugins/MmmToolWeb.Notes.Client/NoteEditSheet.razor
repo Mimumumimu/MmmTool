@@ -1,93 +1,121 @@
 @inject NotesClient Notes
-@inject NavigationManager Navigation
 @inject BrowserClient Browser
 @implements IAsyncDisposable
 
-<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-    <header class="sheet-bar">
-        <button type="button" class="text" @onclick="OnCancel" disabled="@_saving">キャンセル</button>
-        <h2 id="sheet-title">@(Note is null ? "新規ノート" : "ノートの編集")</h2>
-        <button type="button" class="text strong" @onclick="SaveAsync" disabled="@(_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)">保存</button>
-    </header>
+<EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="CannotSave" OnCancel="OnCancel" OnConfirm="SaveAsync" Footer="@(IsFormatBarVisible ? FormatBar : null)">
+    @if (_error is not null)
+    {
+        <p class="message" role="alert">@_error</p>
+    }
 
-    <div class="sheet-body">
-        @if (_error is not null)
-        {
-            <p class="message" role="alert">@_error</p>
-        }
+    <label class="form-field">
+        <span>タイトル</span>
+        <input type="text" maxlength="@NoteLimits.TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
+    </label>
 
-        <label class="field">
-            <span>タイトル</span>
-            <input type="text" maxlength="100" autocomplete="off" @bind="_title" @bind:event="oninput" />
-        </label>
+    <label class="form-field">
+        <span>本文</span>
+        <textarea @ref="_bodyBox" rows="10" @bind="_body" @bind:event="oninput" @onfocus="OnBodyFocusAsync" @onblur="() => _bodyFocused = false"></textarea>
+    </label>
 
-        <label class="field">
-            <span>本文</span>
-            <textarea rows="10" @bind="_body" @bind:event="oninput"></textarea>
-        </label>
-
-        <div class="dates">
-            <label class="field">
-                <span>開始日</span>
-                <input type="date" class="@InvalidClass" value="@_start.ToString("yyyy-MM-dd")" @onchange="OnStartChanged" />
-            </label>
-
-            <div class="field">
-                <span>終了日</span>
-                <input type="date" class="@InvalidClass" aria-label="終了日" value="@(_end?.ToString("yyyy-MM-dd"))" @onchange="OnEndChanged" />
-                <div class="end-footer">
-                    <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
-                </div>
-                @if (_end is null)
-                {
-                    <small class="hint">空のときは無期限です</small>
-                }
-            </div>
+    <div class="dates">
+        <div class="form-field">
+            <span>開始日</span>
+            <DatePicker Label="開始日" Value="_start" Invalid="HasPeriodError" OnPicked="OnStartPicked" />
         </div>
 
-        <div class="dates">
-            <div class="field">
-                <span>実施日</span>
-                <input type="date" class="@InvalidClass" aria-label="実施日" value="@(_eventDate?.ToString("yyyy-MM-dd"))" @onchange="OnEventChanged" />
-                <div class="end-footer">
-                    <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
-                </div>
+        <div class="form-field">
+            <span>終了日</span>
+            <DatePicker Label="終了日" Value="_end" Invalid="HasPeriodError" OnPicked="OnEndPicked" />
+            <div class="end-footer">
+                <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
+            </div>
+            @if (_end is null)
+            {
+                <small class="hint">空のときは無期限です</small>
+            }
+        </div>
+    </div>
+
+    <div class="dates">
+        <div class="form-field">
+            <span>実施日</span>
+            <DatePicker Label="実施日" Value="_eventDate" Invalid="IsEventOutOfPeriod" OnPicked="OnEventPicked" />
+            <div class="end-footer">
+                <button type="button" class="text" @onclick="OnEventCleared" disabled="@(_eventDate is null)">クリア</button>
             </div>
         </div>
+    </div>
 
-        @if (IsEventOutOfPeriod)
+    <div class="other-dates">
+        <div class="other-header">
+            <span>ほかの実施日</span>
+            <DatePicker Multiple="true" TriggerText="実施日を追加" Selected="_others" Disabled="_eventDate" OnToggled="OnOtherToggled" />
+        </div>
+        @if (_others.Count == 0)
         {
-            <p class="alert" role="alert">実施日 (@EventText)が期間の外です。開始日・終了日か実施日を直してください。</p>
+            <p class="empty">なし</p>
         }
-        else if (_info is not null)
+        else
         {
-            <p class="info" role="status">@_info</p>
-        }
-
-        <fieldset class="priority">
-            <legend>重要度</legend>
-            <div class="segments">
-                @foreach (var (value, label) in Priorities)
+            <ul class="other-list">
+                @foreach (var day in _others)
                 {
-                    <label class="segment">
-                        <input type="radio" name="priority" checked="@(_priority == value)" @onchange="() => _priority = value" />
-                        <span>@label</span>
-                    </label>
+                    <li class="@(IsOutOfPeriod(day) ? "invalid" : null)">
+                        <span>@DateText(day)</span>
+                        <button type="button" class="remove" aria-label="@(DateText(day) + " を削除")" @onclick="() => OnOtherRemoved(day)">
+                            <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" /></svg>
+                        </button>
+                    </li>
                 }
-            </div>
-        </fieldset>
-
-        @if (Note is null || Note.IsMine)
-        {
-            <label class="check">
-                <input type="checkbox" @bind="_private" />
-                <span>自分だけに表示</span>
-            </label>
+            </ul>
         }
     </div>
-</div>
+
+    @if (PeriodErrorText is { } periodError)
+    {
+        <p class="alert" role="alert">@periodError</p>
+    }
+    else if (_info is not null)
+    {
+        <p class="info" role="status">@_info</p>
+    }
+
+    <fieldset class="form-group">
+        <legend>重要度</legend>
+        <div class="segments">
+            @foreach (var (value, label) in Priorities)
+            {
+                <label class="segment">
+                    <input type="radio" name="priority" checked="@(_priority == value)" @onchange="() => _priority = value" />
+                    <span>@label</span>
+                </label>
+            }
+        </div>
+    </fieldset>
+
+    @if (Note is null || Note.IsMine)
+    {
+        <label class="check">
+            <input type="checkbox" @bind="_private" />
+            <span>自分だけに表示</span>
+        </label>
+    }
+</EditSheet>
 
 @code {
+    /// <summary>キーボードのすぐ上に貼り付ける、書式の列。</summary>
+    private RenderFragment FormatBar => @<NoteFormatBar Target="_bodyBox" HasSelection="_hasSelection" OnLinkOpenChanged="OnLinkOpenChanged" />;
+
+    /// <summary>書式の列を出すか。本文に触れている間と、リンクの入力を開いている間。リンクの入力に移ると、本文から離れるため。</summary>
+    private bool IsFormatBarVisible => _bodyFocused || _linkOpen;
+
+    /// <summary>シートの名前。新規か編集かで変える。</summary>
+    private string SheetTitle => Note is null ? "新規ノート" : "ノートの編集";
+
+    /// <summary>保存できないとき true。保存中と、タイトルが空のときと、実施日かほかの実施日が期間の外のとき。</summary>
+    private bool CannotSave => _saving || string.IsNullOrWhiteSpace(_title) || HasPeriodError;
+
     /// <summary>重要度の選択肢。左が低く、右が高い。</summary>
     private static readonly (int Value, string Label)[] Priorities = [(1, "最低"), (2, "低"), (3, "中"), (4, "高"), (5, "最高")];
 
@@ -118,25 +146,66 @@
     private DateOnly _start;
     private DateOnly? _end;
     private DateOnly? _eventDate;
+
+    /// <summary>ほかの実施日。日付の順に並べる。</summary>
+    private List<DateOnly> _others = [];
     private bool _saving;
     private string? _error;
 
+    /// <summary>本文の入力欄。書式の列が、選んだ文字を読み書きする。</summary>
+    private ElementReference _bodyBox;
+
+    /// <summary>本文の入力欄に触れているか。</summary>
+    private bool _bodyFocused;
+
+    /// <summary>リンクの入力を開いているか。</summary>
+    private bool _linkOpen;
+
+    /// <summary>本文で文字を選んでいるか。</summary>
+    private bool _hasSelection;
+
     /// <summary>キーボードを除いた見える範囲にシートを合わせる購読。</summary>
     private IAsyncDisposable? _viewport;
+
+    /// <summary>本文で文字を選んでいるかが変わったことの購読。</summary>
+    private IAsyncDisposable? _selectionWatch;
 
     private bool _disposed;
 
     /// <summary>実施日が原因で、開始日・終了日を動かしたことの知らせ。</summary>
     private string? _info;
 
-    /// <summary>実施日が、開始日から終了日の外にあるか。未設定は、外ではない。終了日が空のときは、終了日の側は常に中。</summary>
-    private bool IsEventOutOfPeriod => _eventDate is { } date && (date < _start || (_end is { } end && date > end));
+    /// <summary>実施日が、開始日から終了日の外にあるか。未設定は、外ではない。終了日が空のときは、終了日の側は常に中。PC 版と共通の判定 (<see cref="NoteInput.IsEventDateOutOfPeriod"/>)を使う。</summary>
+    private bool IsEventOutOfPeriod => new NoteInput
+    {
+        StartDate = _start,
+        EndDate = _end ?? DateOnly.MaxValue,
+        EventDate = _eventDate ?? DateOnly.MaxValue,
+    }.IsEventDateOutOfPeriod;
 
-    /// <summary>警告に出す、実施日の表示。</summary>
-    private string EventText => _eventDate?.ToString("yyyy/MM/dd") ?? "";
+    /// <summary>実施日かほかの実施日が、開始日から終了日の外にあるか。開始日・終了日の欄の枠と、保存できるかに使う。</summary>
+    private bool HasPeriodError => IsEventOutOfPeriod || _others.Any(IsOutOfPeriod);
 
-    /// <summary>期間の外の警告が出ている間、3 つの日付の欄に付ける class。</summary>
-    private string InvalidClass => IsEventOutOfPeriod ? "invalid" : "";
+    /// <summary>日付が、開始日から終了日の外にあるか。PC 版と共通の判定 (<see cref="NoteInput.IsOutOfPeriod"/>)を使う。</summary>
+    private bool IsOutOfPeriod(DateOnly day) => new NoteInput { StartDate = _start, EndDate = _end ?? DateOnly.MaxValue }.IsOutOfPeriod(day);
+
+    /// <summary>期間の外の警告の文。実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。外れていなければ null。</summary>
+    private string? PeriodErrorText
+    {
+        get
+        {
+            if (IsEventOutOfPeriod && _eventDate is { } eventDate)
+            {
+                return $"実施日 ({eventDate:yyyy/MM/dd})が期間の外です。開始日・終了日か実施日を直してください。";
+            }
+            return _others.Where(IsOutOfPeriod).Select(day => (DateOnly?)day).FirstOrDefault() is { } other
+                ? $"ほかの実施日 ({other:yyyy/MM/dd})が期間の外です。開始日・終了日かほかの実施日を直してください。"
+                : null;
+        }
+    }
+
+    /// <summary>日付の欄と同じ、曜日つきの表示。</summary>
+    private static string DateText(DateOnly date) => $"{date:yyyy/MM/dd} ({"日月火水木金土"[(int)date.DayOfWeek]})";
 
     protected override void OnInitialized()
     {
@@ -149,6 +218,7 @@
             _start = note.StartDate;
             _end = note.EndDate;
             _eventDate = note.EventDate;
+            _others = [.. note.OtherEventDates.Order()];
         }
         else
         {
@@ -170,6 +240,14 @@
             return;
         }
         _viewport = viewport;
+
+        var selectionWatch = await Browser.WatchHasSelectionAsync(_bodyBox, OnSelectionChangedAsync);
+        if (_disposed)
+        {
+            await selectionWatch.DisposeAsync();
+            return;
+        }
+        _selectionWatch = selectionWatch;
     }
 
     public async ValueTask DisposeAsync()
@@ -179,33 +257,53 @@
         {
             await _viewport.DisposeAsync();
         }
+        if (_selectionWatch is not null)
+        {
+            await _selectionWatch.DisposeAsync();
+        }
     }
 
-    /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
-    private void OnStartChanged(ChangeEventArgs e)
+    /// <summary>本文に触れたとき、書式の列を出し、選んでいる文字があるかを読み直す。</summary>
+    private async Task OnBodyFocusAsync()
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        _bodyFocused = true;
+        await RefreshSelectionAsync();
+    }
+
+    /// <summary>本文で文字を選んでいるかが変わったとき、書式のボタンを押せるかを合わせる。</summary>
+    private async Task OnSelectionChangedAsync()
+    {
+        await RefreshSelectionAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshSelectionAsync()
+    {
+        var (start, end, _) = await Browser.GetSelectionAsync(_bodyBox);
+        _hasSelection = start != end;
+    }
+
+    private void OnLinkOpenChanged(bool open) => _linkOpen = open;
+
+    /// <summary>開始日を変えたとき、終了日より後になるなら、終了日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
+    private void OnStartPicked(DateOnly day)
+    {
+        _info = null;
+        _start = day;
+        if (_end is { } end && end < day)
         {
-            _info = null;
-            _start = day;
-            if (_end is { } end && end < day)
-            {
-                _end = day;
-            }
+            _end = day;
         }
     }
 
     /// <summary>終了日を変えたとき、開始日より前になるなら、開始日を同じ日に合わせる。実施日は動かさず、期間の外に出たときは警告を出す。</summary>
-    private void OnEndChanged(ChangeEventArgs e)
+    private void OnEndPicked(DateOnly day)
     {
-        if (DateOnly.TryParse(e.Value?.ToString(), out var day))
+        _info = null;
+        _end = day;
+        if (day < _start)
         {
-            _info = null;
-            _end = day;
-            if (day < _start)
-            {
-                _start = day;
-            }
+            _start = day;
         }
     }
 
@@ -217,16 +315,57 @@
     }
 
     /// <summary>実施日を変えたとき、期間の外ならば、開始日・終了日を動かして合わせる。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
-    private void OnEventChanged(ChangeEventArgs e)
+    /// <remarks>ほかの実施日にある日にしようとしたときは、先に入っていた日が勝つので、実施日を変えず、重複を知らせる。</remarks>
+    private void OnEventPicked(DateOnly day)
     {
         _info = null;
-        if (!DateOnly.TryParse(e.Value?.ToString(), out var day))
+        if (_others.Contains(day))
         {
-            _eventDate = null;
+            _info = "実施日が重複しています";
             return;
         }
 
         _eventDate = day;
+        _info = ExtendPeriodTo(day);
+    }
+
+    /// <summary>ほかの実施日を、押すたびに、入れる・外すを切り替える。</summary>
+    /// <remarks>実施日と同じ日は、先に入っていた日が勝つので入れない。期間の外の日は、開始日・終了日を動かして合わせる。</remarks>
+    private void OnOtherToggled(DateOnly day)
+    {
+        _info = null;
+        if (_eventDate == day)
+        {
+            return;
+        }
+
+        if (_others.Remove(day))
+        {
+            return;
+        }
+        if (_others.Count >= NoteLimits.OtherEventDatesMaxCount)
+        {
+            _info = $"ほかの実施日は {NoteLimits.OtherEventDatesMaxCount} 日までです";
+            return;
+        }
+
+        _others.Add(day);
+        _others.Sort();
+        _info = ExtendPeriodTo(day);
+    }
+
+    /// <summary>ほかの実施日を、一覧から外す。</summary>
+    private void OnOtherRemoved(DateOnly day)
+    {
+        _info = null;
+        _others.Remove(day);
+    }
+
+    /// <summary>日が期間の外ならば、開始日・終了日を動かして、その日を含める。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
+    /// <param name="day">実施日か、ほかの実施日。</param>
+    /// <returns>動かしたときの知らせ。動かさなかったときは null。</returns>
+    private string? ExtendPeriodTo(DateOnly day)
+    {
         var messages = new List<string>();
         if (day < _start)
         {
@@ -238,7 +377,7 @@
             _end = day;
             messages.Add($"終了日を {day:yyyy/MM/dd} に伸ばしました。");
         }
-        _info = messages.Count > 0 ? string.Concat(messages) : null;
+        return messages.Count > 0 ? string.Concat(messages) : null;
     }
 
     /// <summary>実施日をクリアして、未設定にする。</summary>
@@ -251,14 +390,14 @@
     private async Task SaveAsync()
     {
         // 押せない条件は、次の描画まで効かない。続けて 2 回押されても、処理が 2 回動かないよう、先頭で確かめる
-        if (_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)
+        if (_saving || string.IsNullOrWhiteSpace(_title) || HasPeriodError)
         {
             return;
         }
 
         _saving = true;
         _error = null;
-        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate));
+        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate, [.. _others]));
         _saving = false;
         switch (result.Status)
         {
@@ -266,7 +405,6 @@
                 await OnSaved.InvokeAsync();
                 break;
             case ApiFailure.SignedOut:
-                Navigation.NavigateTo("/", forceLoad: true);
                 break;
             case ApiFailure.NotFound:
                 await OnFailed.InvokeAsync(result.Message ?? "ノートが見つかりません。");

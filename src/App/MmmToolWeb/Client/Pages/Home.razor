@@ -5,14 +5,8 @@
 @inject NavigationManager Navigation
 
 <main class="page">
-    <h1>ログインの確認</h1>
-
-    <dl class="facts">
-        <dt>ホーム画面のアプリとして開いている</dt>
-        <dd>@(_standalone ? "はい" : "いいえ")</dd>
-        <dt>パスキーが使えるブラウザ</dt>
-        <dd>@(_supported ? "はい" : "いいえ")</dd>
-    </dl>
+    <h1>MmmTool</h1>
+    <p class="lead">パスキーでログインします。</p>
 
     @if (_loading || _me is not null)
     {
@@ -20,10 +14,16 @@
     }
     else
     {
+        @if (UnavailableReason is not null)
+        {
+            <p class="info" role="status">@UnavailableReason</p>
+        }
+
         <button type="button" class="primary" @onclick="LoginAsync" disabled="@_busy">パスキーでログイン</button>
 
         <section class="enroll">
             <h2>この端末のパスキーを登録</h2>
+            <p class="hint">管理者から受け取った 8 桁のコードを入れます。</p>
             <label>
                 登録用コード
                 <input type="text" inputmode="numeric" autocomplete="off" @bind="_code" @bind:event="oninput" />
@@ -52,7 +52,7 @@
 @code {
     private bool _loading = true;
     private bool _busy;
-    private bool _standalone;
+    private bool _needsHomeScreen;
     private bool _supported;
     private string _code = string.Empty;
     private string? _message;
@@ -61,9 +61,14 @@
     private string _devLoginName = string.Empty;
 #endif
 
+    /// <summary>パスキーを使えない理由。使えるときは <c>null</c>。ブラウザが対応していないときを先に出す。ホーム画面の案内は、iPhone と iPad だけに出す。</summary>
+    private string? UnavailableReason => !_supported
+        ? "このブラウザではパスキーを使えません。"
+        : _needsHomeScreen ? "ホーム画面に追加したアプリから開いてください。" : null;
+
     protected override async Task OnInitializedAsync()
     {
-        _standalone = await Passkeys.IsStandaloneAsync();
+        _needsHomeScreen = await Passkeys.NeedsHomeScreenAsync();
         _supported = await Passkeys.IsSupportedAsync();
         _me = await Auth.GetMeAsync();
         _loading = false;

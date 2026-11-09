@@ -97,7 +97,7 @@
                 表示用の外側の Border は、空のセルでも、クリックを受けるための透明な背景
             -->
 
-            <!-- 名前 (木構造の列。字下げと開閉ボタンは表が付ける) -->
+            <!-- 名前。木構造の列で、字下げと開閉ボタンは表が付ける -->
             <DataTemplate x:Key="NameCell" x:DataType="local:WorkItemRow">
                 <Grid>
                     <TextBlock
@@ -330,7 +330,7 @@
                     TextAlignment="Right" />
             </DataTemplate>
 
-            <!-- 完了日。作業・グループとも入力できない (作業は、状態が完了に変わった入力日。グループ・案件は、下の作業の完了日の最大値で、完了したときだけ) -->
+            <!-- 完了日。作業・グループとも入力できない。作業は、状態が完了に変わった入力日で、グループ・案件は、下の作業の完了日の最大値で、完了したときだけ -->
             <DataTemplate x:Key="CompletedCell" x:DataType="local:WorkItemRow">
                 <TextBlock
                     Style="{StaticResource CellTextStyle}"
@@ -513,7 +513,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 見出しと、ページ全体の操作の入口。作業報告 (毎日使う)と、案件の管理 (案件の追加・名前の変更・削除。案件は全員で共有するので、行のない所の右クリックでは作らない) -->
+        <!-- 見出しと、ページ全体の操作の入口。作業報告 (毎日使う)と、案件の管理 (案件の追加・名前の変更・削除)で、案件は全員で共有するので、行のない所の右クリックでは作らない -->
         <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

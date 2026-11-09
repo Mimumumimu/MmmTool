@@ -170,7 +170,7 @@ public sealed class ReminderSendService(
         var today = DateOnly.FromDateTime(now);
         var current = await statuses.GetAsync(target.Reminder.No, target.Channel.Id, today, cancellationToken).ConfigureAwait(false);
 
-        // まだ時刻が来ていない予定は、送るだけ (今日の送信の状況は作らない。時刻になれば、予定どおり送られる)
+        // まだ時刻が来ていない予定は、送るだけ。今日の送信の状況は作らず、時刻になれば、予定どおり送られる
         if (current is null && IsPlanned(target, today) && target.Reminder.Time > ReminderDates.ToTimeValue(now))
         {
             await SendWithoutStatusAsync(target, cancellationToken).ConfigureAwait(false);

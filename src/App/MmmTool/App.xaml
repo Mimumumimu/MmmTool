@@ -9,22 +9,14 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
+                <!-- アプリ共通のスタイル。XamlControlsResources の後ろに置く -->
+                <ResourceDictionary Source="ms-appx:///MmmSdk.WinUI/Controls/AppStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            <!-- 入力欄の空のときの薄い文字は、アプリで 1 つの標準の色 (TextFillColorDisabledBrush)に決める。入力欄ごとには指定せず、既定の TextBox のスタイルで全体に効かせる。独自のスタイルを付ける TextBox は、AppTextBoxStyle を BasedOn にする (色の名前 (TextControlPlaceholderForeground)の上書きは、効かなかった) -->
-            <Style x:Key="AppTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
-                <Setter Property="PlaceholderForeground" Value="{ThemeResource TextFillColorDisabledBrush}" />
-            </Style>
-            <Style TargetType="TextBox" BasedOn="{StaticResource AppTextBoxStyle}" />
             <!-- 日付の選択欄のカレンダーは、日の下に、土曜は青、日曜と祝日は赤の線を付ける。選択欄ごとには指定せず、既定のスタイルで全体に効かせる。独自のスタイルを付ける CalendarDatePicker は、AppCalendarDatePickerStyle を BasedOn にする。このスタイル自体には BasedOn を付けない (DefaultCalendarDatePickerStyle というキーは WinUI に無く、付けると起動時に落ちる) -->
             <Style x:Key="AppCalendarDatePickerStyle" TargetType="CalendarDatePicker">
                 <Setter Property="sdk:CalendarHolidayColoring.IsEnabled" Value="True" />
             </Style>
             <Style TargetType="CalendarDatePicker" BasedOn="{StaticResource AppCalendarDatePickerStyle}" />
-            <!-- 設定ページの区切りの見出し (各部品の先頭に置く。カードの上に、少し間を空ける) -->
-            <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-                <Setter Property="Margin" Value="1,20,0,4" />
-            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

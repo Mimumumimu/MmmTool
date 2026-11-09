@@ -1,6 +1,6 @@
-using System.Globalization;
 using MmmTool.Notes.Core;
 using MmmTool.NotificationChannels.Core;
+using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Notes;
 
@@ -31,6 +31,6 @@ public sealed class NoteNotificationDestination(INoteRepository repository, Time
             return NotesPath;
         }
 
-        return $"{NotesPath}?date={note.DayToOpen(today).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
+        return $"{NotesPath}?date={ApiDay.ToText(note.DayToOpen(today))}";
     }
 }

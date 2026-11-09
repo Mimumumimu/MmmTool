@@ -4,7 +4,7 @@ namespace MmmTool.Reminders.Core;
 /// まとめて追加で選んだ、会議 1 件の下書き。
 /// </summary>
 /// <param name="StartTime">会議の開始時刻</param>
-/// <param name="Title">件名。空のときは <see cref="DefaultTitle"/> として扱う</param>
+/// <param name="Title">件名。空のままでは登録できない (<see cref="HasTitle"/>)</param>
 /// <param name="Link">リンク。空のときは付けない</param>
 /// <remarks>
 /// 鳴らす時刻と、開始時刻を足した件名は、何分前に鳴らすかによって決まるので、<see cref="Resolve"/> で求める。
@@ -12,8 +12,12 @@ namespace MmmTool.Reminders.Core;
 /// </remarks>
 public sealed record ReminderDraft(TimeOnly StartTime, string? Title, string? Link)
 {
-    /// <summary>件名が空のときの件名</summary>
-    public const string DefaultTitle = "会議";
+    /// <summary>行が増えたときに入れる件名。入れるだけで、空にしたときの代わりにはしない</summary>
+    public const string InitialTitle = "会議";
+
+    /// <summary>件名が入っているか</summary>
+    /// <value>空白だけではないとき true。登録できるのは、true のときだけ</value>
+    public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
 
     /// <summary>開始時刻を件名の後ろに足す文字の最大文字数 (空白 + <c>(HH:mm 開始)</c>)</summary>
     private const int StartSuffixMaxLength = 12;
@@ -32,7 +36,7 @@ public sealed record ReminderDraft(TimeOnly StartTime, string? Title, string? Li
     /// </remarks>
     public (TimeOnly Time, string Title) Resolve(int leadMinutes)
     {
-        var title = string.IsNullOrWhiteSpace(Title) ? DefaultTitle : Title.Trim();
+        var title = (Title ?? "").Trim();
         if (leadMinutes <= 0)
         {
             return (StartTime, title);

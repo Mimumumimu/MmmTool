@@ -5,7 +5,7 @@ namespace MmmTool.Notes.Core;
 /// </summary>
 /// <param name="Day">表示する日</param>
 /// <param name="IsDark">ダークモードか</param>
-/// <param name="IsShared">複数の人で共有するか (DB モード。作成者・更新者・「自分だけ」の印を出す)</param>
+/// <param name="IsShared">複数の人で共有するか。DB モードで、作成者・更新者・「自分だけ」の印を出す</param>
 /// <param name="TitleOnly">「タイトルだけ」か (false は「全文」)</param>
 /// <param name="Basis">その日にどのノートを出すかの基準。ノートが無いときの文に使う</param>
 /// <param name="OpenIds">開いた状態にするカードの番号。null なら、「全文」は全部、「タイトルだけ」は全部閉じる</param>

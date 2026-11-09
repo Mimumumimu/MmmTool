@@ -24,10 +24,10 @@ namespace MmmTool.WorkItems.Report;
 /// </remarks>
 public sealed partial class WorkReportViewModel(WorkItemService service, ISettingsStore settings, IClipboardService clipboard) : ObservableObject
 {
-    /// <summary>「実績に時間を出す」の選択を残す設定のキー (この PC の設定。真偽)</summary>
+    /// <summary>「実績に時間を出す」の選択を残す設定のキーで、この PC の設定。真偽</summary>
     public const string ShowHoursKey = WorkReportDayContentSource.ShowHoursKey;
 
-    /// <summary>「進捗度を出す」の選択を残す設定のキー (この PC の設定。真偽。既定はオン)</summary>
+    /// <summary>「進捗度を出す」の選択を残す設定のキーで、この PC の設定。真偽。既定はオン</summary>
     public const string ShowProgressKey = WorkReportDayContentSource.ShowProgressKey;
 
     /// <summary>今の読み込みの番号 (古い結果を捨てるため)</summary>
@@ -48,11 +48,11 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>報告日 (予定の日。実績は、この日より前だけ)</summary>
+    /// <summary>報告日で、予定の日。実績は、この日より前だけ</summary>
     [ObservableProperty]
     public partial DateOnly ReportDate { get; set; }
 
-    /// <summary>実績の開始日 (実績を拾い始める日。報告日より前)</summary>
+    /// <summary>実績の開始日で、実績を拾い始める日。報告日より前</summary>
     [ObservableProperty]
     public partial DateOnly FromDate { get; set; }
 
@@ -68,7 +68,7 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
     [ObservableProperty]
     public partial string PreviewText { get; private set; } = "";
 
-    /// <summary>コピーした直後か (「コピーしました」を出す。内容が変わるまで)</summary>
+    /// <summary>コピーした直後か。「コピーしました」を出し、内容が変わるまで続ける</summary>
     [ObservableProperty]
     public partial bool IsCopied { get; set; }
 

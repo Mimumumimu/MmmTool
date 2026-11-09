@@ -9,7 +9,7 @@ namespace MmmTool.Notes.Core;
 /// </remarks>
 public static class NoteLinks
 {
-    /// <summary>表示ページの仮想ホスト名 (実在しない名前。<c>.invalid</c> は、実在しないことが決まっている)</summary>
+    /// <summary>表示ページの仮想ホスト名で、実在しない名前。<c>.invalid</c> は、実在しないことが決まっている</summary>
     public const string PageHost = "notes.mmmtool.invalid";
 
     /// <summary>表示ページの URL</summary>

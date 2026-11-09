@@ -60,7 +60,7 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     public string? LastError { get; private set; }
 
     /// <summary>送るものがあれば、送る</summary>
-    /// <param name="now">今の日時 (ローカル。メッセージは日付・時刻を見ないので使わない)</param>
+    /// <param name="now">今の日時で、ローカル。メッセージは日付・時刻を見ないので使わない</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>

@@ -603,7 +603,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <returns>今のユーザーの番号</returns>
     /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
     private int RequireUser()
-        => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません (ログインが必要です)。", new InvalidOperationException("今のユーザーが特定されていません。"));
+        => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません。ログインが必要です。", new InvalidOperationException("今のユーザーが特定されていません。"));
 
     /// <summary>接続を開いて、処理を実行する</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
@@ -699,7 +699,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>案件の中身 (案件の行・グループ・作業)と、必要ならコードマスタを、1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="projectIds">案件の番号 (JSON の 1 つのパラメーターで渡す)</param>
-    /// <param name="exclude">その番号を除くか (表示しない案件を除いて読むとき true。番号を指定して読むときは false)</param>
+    /// <param name="exclude">その番号を除くか。表示しない案件を除いて読むとき true で、番号を指定して読むときは false</param>
     /// <param name="withMaster">コードマスタも読むか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、コードマスタは空)</returns>
@@ -728,7 +728,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <summary>案件の番号が、パラメーター <c>@projects</c> (JSON の配列)に、含まれる (または含まれない)という条件</summary>
     /// <param name="alias">表の別名</param>
     /// <param name="column">案件の番号の列</param>
-    /// <param name="exclude">含まれないものに絞るか (表示しない案件を除くとき true。番号を指定して読むときは false)</param>
+    /// <param name="exclude">含まれないものに絞るか。表示しない案件を除くとき true で、番号を指定して読むときは false</param>
     /// <returns>条件の SQL</returns>
     private static string ProjectFilter(string alias, string column, bool exclude)
         => $"{alias}.{column} {(exclude ? "NOT IN" : "IN")} (SELECT ProjectId FROM OPENJSON(@projects) WITH (ProjectId int '$'))";

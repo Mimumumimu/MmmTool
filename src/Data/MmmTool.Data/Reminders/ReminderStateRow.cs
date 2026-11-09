@@ -23,7 +23,7 @@ public sealed record ReminderStateRow
     /// <remarks>DB の既定値で入る。<see cref="FromReminderState"/> では決めない。</remarks>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人)</summary>
+    /// <summary>作成者で、<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人</summary>
     /// <remarks>アプリの型 (<see cref="ReminderState"/>)に無いので、<see cref="FromReminderState"/> では決めない。Repository が入れる。</remarks>
     public int CreatedByUserId { get; init; }
 
@@ -31,11 +31,11 @@ public sealed record ReminderStateRow
     /// <remarks>更新の SQL の中で、DB サーバーの時計を使って書く。<see cref="FromReminderState"/> では決めない。</remarks>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人)</summary>
+    /// <summary>更新者で、<c>AppUser.Id</c>。<see cref="UserId"/> と同じ人</summary>
     /// <remarks>アプリの型に無いので、<see cref="FromReminderState"/> では決めない。Repository が入れる。</remarks>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>対応するリマインダー (<c>Reminder.Id</c>。<see cref="ReminderState.BaseNo"/>)</summary>
+    /// <summary>対応するリマインダーで、<c>Reminder.Id</c>。<see cref="ReminderState.BaseNo"/></summary>
     public int ReminderId { get; init; }
 
     /// <summary>状態を持つ人 (<c>AppUser.Id</c>)</summary>

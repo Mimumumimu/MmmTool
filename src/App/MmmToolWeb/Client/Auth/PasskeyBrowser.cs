@@ -35,10 +35,10 @@ public sealed class PasskeyBrowser(IJSRuntime js) : IAsyncDisposable
     public async Task<bool> IsSupportedAsync() => await (await ModuleAsync()).InvokeAsync<bool>("isSupported");
 
     /// <summary>
-    /// ホーム画面のアプリとして開いているかを返す。
+    /// iPhone か iPad で、ホーム画面に追加していないかを返す。
     /// </summary>
-    /// <returns>ホーム画面のアプリなら <c>true</c>。</returns>
-    public async Task<bool> IsStandaloneAsync() => await (await ModuleAsync()).InvokeAsync<bool>("isStandalone");
+    /// <returns>ホーム画面に追加していない iPhone か iPad なら <c>true</c>。パソコンのブラウザは <c>false</c>。</returns>
+    public async Task<bool> NeedsHomeScreenAsync() => await (await ModuleAsync()).InvokeAsync<bool>("needsHomeScreen");
 
     /// <summary>
     /// 端末の呼び名を返す。

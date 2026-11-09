@@ -14,7 +14,7 @@ namespace MmmTool.WorkItems.Schedule;
 /// </remarks>
 public sealed class ScheduleAxisVisual(ScheduleAxis axis)
 {
-    /// <summary>行の高さ (表の行の高さと同じ。図形の高さに使う)</summary>
+    /// <summary>行の高さで、表の行の高さと同じ。図形の高さに使う</summary>
     public const double RowHeight = 36;
 
     /// <summary>土曜の背景の位置 (遅延して数える)</summary>
@@ -29,11 +29,11 @@ public sealed class ScheduleAxisVisual(ScheduleAxis axis)
     /// <summary>日付の軸</summary>
     public ScheduleAxis Axis { get; } = axis;
 
-    /// <summary>土曜の背景の図形を作る (連続した日は 1 つの長方形にまとめる。月の単位は空)</summary>
+    /// <summary>土曜の背景の図形を作る。連続した日は 1 つの長方形にまとめ、月の単位は空</summary>
     /// <returns>新しい図形 (呼ぶ側の <c>Path</c> が持つ)</returns>
     public Geometry CreateSaturdays() => Rectangles(_saturdayRects ?? CountOffDays().Saturdays);
 
-    /// <summary>日曜・祝日の背景の図形を作る (連続した日は 1 つの長方形にまとめる。月の単位は空)</summary>
+    /// <summary>日曜・祝日の背景の図形を作る。連続した日は 1 つの長方形にまとめ、月の単位は空</summary>
     /// <returns>新しい図形 (呼ぶ側の <c>Path</c> が持つ)</returns>
     public Geometry CreateSundays() => Rectangles(_sundayRects ?? CountOffDays().Sundays);
 
@@ -63,7 +63,7 @@ public sealed class ScheduleAxisVisual(ScheduleAxis axis)
     }
 
     /// <summary>休みの日の背景の位置を、土曜と、日曜・祝日に分けて数える (結果は持ち、次からは数え直さない)</summary>
-    /// <returns>土曜の長方形の並びと、日曜・祝日の長方形の並び (連続した同じ種類の日を 1 つにまとめたもの。月の単位は、どちらも空)</returns>
+    /// <returns>土曜の長方形の並びと、日曜・祝日の長方形の並びで、連続した同じ種類の日を 1 つにまとめたもの。月の単位は、どちらも空</returns>
     private (IReadOnlyList<Windows.Foundation.Rect> Saturdays, IReadOnlyList<Windows.Foundation.Rect> Sundays) CountOffDays()
     {
         var saturdays = new List<Windows.Foundation.Rect>();
