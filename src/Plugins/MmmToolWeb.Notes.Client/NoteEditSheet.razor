@@ -21,12 +21,12 @@
     <div class="dates">
         <div class="form-field">
             <span>開始日</span>
-            <DatePicker Label="開始日" Value="_start" Invalid="IsEventOutOfPeriod" OnPicked="OnStartPicked" />
+            <DatePicker Label="開始日" Value="_start" Invalid="HasPeriodError" OnPicked="OnStartPicked" />
         </div>
 
         <div class="form-field">
             <span>終了日</span>
-            <DatePicker Label="終了日" Value="_end" Invalid="IsEventOutOfPeriod" OnPicked="OnEndPicked" />
+            <DatePicker Label="終了日" Value="_end" Invalid="HasPeriodError" OnPicked="OnEndPicked" />
             <div class="end-footer">
                 <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
             </div>
@@ -47,9 +47,34 @@
         </div>
     </div>
 
-    @if (IsEventOutOfPeriod)
+    <div class="other-dates">
+        <div class="other-header">
+            <span>ほかの実施日</span>
+            <DatePicker Multiple="true" TriggerText="実施日を追加" Selected="_others" Disabled="_eventDate" OnToggled="OnOtherToggled" />
+        </div>
+        @if (_others.Count == 0)
+        {
+            <p class="empty">なし</p>
+        }
+        else
+        {
+            <ul class="other-list">
+                @foreach (var day in _others)
+                {
+                    <li class="@(IsOutOfPeriod(day) ? "invalid" : null)">
+                        <span>@DateText(day)</span>
+                        <button type="button" class="remove" aria-label="@(DateText(day) + " を削除")" @onclick="() => OnOtherRemoved(day)">
+                            <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" /></svg>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (PeriodErrorText is { } periodError)
     {
-        <p class="alert" role="alert">実施日 (@EventText)が期間の外です。開始日・終了日か実施日を直してください。</p>
+        <p class="alert" role="alert">@periodError</p>
     }
     else if (_info is not null)
     {
@@ -88,8 +113,8 @@
     /// <summary>シートの名前。新規か編集かで変える。</summary>
     private string SheetTitle => Note is null ? "新規ノート" : "ノートの編集";
 
-    /// <summary>保存できないとき true。保存中と、タイトルが空のときと、実施日が期間の外のとき。</summary>
-    private bool CannotSave => _saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod;
+    /// <summary>保存できないとき true。保存中と、タイトルが空のときと、実施日かほかの実施日が期間の外のとき。</summary>
+    private bool CannotSave => _saving || string.IsNullOrWhiteSpace(_title) || HasPeriodError;
 
     /// <summary>重要度の選択肢。左が低く、右が高い。</summary>
     private static readonly (int Value, string Label)[] Priorities = [(1, "最低"), (2, "低"), (3, "中"), (4, "高"), (5, "最高")];
@@ -121,6 +146,9 @@
     private DateOnly _start;
     private DateOnly? _end;
     private DateOnly? _eventDate;
+
+    /// <summary>ほかの実施日。日付の順に並べる。</summary>
+    private List<DateOnly> _others = [];
     private bool _saving;
     private string? _error;
 
@@ -155,8 +183,29 @@
         EventDate = _eventDate ?? DateOnly.MaxValue,
     }.IsEventDateOutOfPeriod;
 
-    /// <summary>警告に出す、実施日の表示。</summary>
-    private string EventText => _eventDate?.ToString("yyyy/MM/dd") ?? "";
+    /// <summary>実施日かほかの実施日が、開始日から終了日の外にあるか。開始日・終了日の欄の枠と、保存できるかに使う。</summary>
+    private bool HasPeriodError => IsEventOutOfPeriod || _others.Any(IsOutOfPeriod);
+
+    /// <summary>日付が、開始日から終了日の外にあるか。PC 版と共通の判定 (<see cref="NoteInput.IsOutOfPeriod"/>)を使う。</summary>
+    private bool IsOutOfPeriod(DateOnly day) => new NoteInput { StartDate = _start, EndDate = _end ?? DateOnly.MaxValue }.IsOutOfPeriod(day);
+
+    /// <summary>期間の外の警告の文。実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。外れていなければ null。</summary>
+    private string? PeriodErrorText
+    {
+        get
+        {
+            if (IsEventOutOfPeriod && _eventDate is { } eventDate)
+            {
+                return $"実施日 ({eventDate:yyyy/MM/dd})が期間の外です。開始日・終了日か実施日を直してください。";
+            }
+            return _others.Where(IsOutOfPeriod).Select(day => (DateOnly?)day).FirstOrDefault() is { } other
+                ? $"ほかの実施日 ({other:yyyy/MM/dd})が期間の外です。開始日・終了日かほかの実施日を直してください。"
+                : null;
+        }
+    }
+
+    /// <summary>日付の欄と同じ、曜日つきの表示。</summary>
+    private static string DateText(DateOnly date) => $"{date:yyyy/MM/dd} ({"日月火水木金土"[(int)date.DayOfWeek]})";
 
     protected override void OnInitialized()
     {
@@ -169,6 +218,7 @@
             _start = note.StartDate;
             _end = note.EndDate;
             _eventDate = note.EventDate;
+            _others = [.. note.OtherEventDates.Order()];
         }
         else
         {
@@ -265,10 +315,57 @@
     }
 
     /// <summary>実施日を変えたとき、期間の外ならば、開始日・終了日を動かして合わせる。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
+    /// <remarks>ほかの実施日にある日にしようとしたときは、先に入っていた日が勝つので、実施日を変えず、重複を知らせる。</remarks>
     private void OnEventPicked(DateOnly day)
     {
         _info = null;
+        if (_others.Contains(day))
+        {
+            _info = "実施日が重複しています";
+            return;
+        }
+
         _eventDate = day;
+        _info = ExtendPeriodTo(day);
+    }
+
+    /// <summary>ほかの実施日を、押すたびに、入れる・外すを切り替える。</summary>
+    /// <remarks>実施日と同じ日は、先に入っていた日が勝つので入れない。期間の外の日は、開始日・終了日を動かして合わせる。</remarks>
+    private void OnOtherToggled(DateOnly day)
+    {
+        _info = null;
+        if (_eventDate == day)
+        {
+            return;
+        }
+
+        if (_others.Remove(day))
+        {
+            return;
+        }
+        if (_others.Count >= NoteLimits.OtherEventDatesMaxCount)
+        {
+            _info = $"ほかの実施日は {NoteLimits.OtherEventDatesMaxCount} 日までです";
+            return;
+        }
+
+        _others.Add(day);
+        _others.Sort();
+        _info = ExtendPeriodTo(day);
+    }
+
+    /// <summary>ほかの実施日を、一覧から外す。</summary>
+    private void OnOtherRemoved(DateOnly day)
+    {
+        _info = null;
+        _others.Remove(day);
+    }
+
+    /// <summary>日が期間の外ならば、開始日・終了日を動かして、その日を含める。終了日が空 (無期限)のときは、終了日は動かさない。</summary>
+    /// <param name="day">実施日か、ほかの実施日。</param>
+    /// <returns>動かしたときの知らせ。動かさなかったときは null。</returns>
+    private string? ExtendPeriodTo(DateOnly day)
+    {
         var messages = new List<string>();
         if (day < _start)
         {
@@ -280,7 +377,7 @@
             _end = day;
             messages.Add($"終了日を {day:yyyy/MM/dd} に伸ばしました。");
         }
-        _info = messages.Count > 0 ? string.Concat(messages) : null;
+        return messages.Count > 0 ? string.Concat(messages) : null;
     }
 
     /// <summary>実施日をクリアして、未設定にする。</summary>
@@ -293,14 +390,14 @@
     private async Task SaveAsync()
     {
         // 押せない条件は、次の描画まで効かない。続けて 2 回押されても、処理が 2 回動かないよう、先頭で確かめる
-        if (_saving || string.IsNullOrWhiteSpace(_title) || IsEventOutOfPeriod)
+        if (_saving || string.IsNullOrWhiteSpace(_title) || HasPeriodError)
         {
             return;
         }
 
         _saving = true;
         _error = null;
-        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate));
+        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate, [.. _others]));
         _saving = false;
         switch (result.Status)
         {

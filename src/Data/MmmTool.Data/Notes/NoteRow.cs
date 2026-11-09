@@ -66,9 +66,10 @@ public sealed record NoteRow
     }
 
     /// <summary>DB の行から、アプリの型にする</summary>
+    /// <param name="otherEventDates">ほかの実施日で、<c>NoteAttribute</c> の行から読んだ日付の順の一覧。省くと、無し</param>
     /// <returns>ノート</returns>
     /// <exception cref="InvalidOperationException">重要度が、定義にない値で、バグか、手で直した値。</exception>
-    public Note ToNote()
+    public Note ToNote(IReadOnlyList<DateOnly>? otherEventDates = null)
     {
         var priority = (NotePriority)Priority;
         if (!Enum.IsDefined(priority))
@@ -85,6 +86,7 @@ public sealed record NoteRow
             StartDate = StartDate,
             EndDate = EndDate,
             EventDate = EventDate,
+            OtherEventDates = otherEventDates ?? [],
             Priority = priority,
             Title = Title,
             Body = Body,

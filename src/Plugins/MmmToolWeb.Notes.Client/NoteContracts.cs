@@ -11,7 +11,8 @@ namespace MmmToolWeb.Notes.Client;
 /// <param name="StartDate">開始日。</param>
 /// <param name="EndDate">終了日。無期限のときは null。</param>
 /// <param name="EventDate">実施日。未設定のときは null。</param>
-/// <param name="IsEventDay">表示する日が、実施日か。カードを目立たせる。</param>
+/// <param name="OtherEventDates">ほかの実施日。日付の順で、無いときは空。</param>
+/// <param name="IsEventDay">表示する日が、実施日かほかの実施日のどれかか。カードを目立たせる。</param>
 /// <param name="IsEventToday">表示する日が、実際の今日でもあるか。帯の文言を決める。</param>
 /// <param name="IsPrivate">書いた人だけに見えるか。</param>
 /// <param name="IsDeleted">削除されているか。</param>
@@ -29,6 +30,7 @@ public sealed record NoteDto(
     DateOnly StartDate,
     DateOnly? EndDate,
     DateOnly? EventDate,
+    IReadOnlyList<DateOnly> OtherEventDates,
     bool IsEventDay,
     bool IsEventToday,
     bool IsPrivate,
@@ -92,7 +94,8 @@ public sealed record DayContentFramesResponse(IReadOnlyList<DayContentFrameDto> 
 /// <param name="StartDate">開始日。</param>
 /// <param name="EndDate">終了日。無期限のときは null。</param>
 /// <param name="EventDate">実施日。未設定のときは null。開始日から終了日の間に限る。</param>
-public sealed record NoteSaveRequest(string Title, string Body, int Priority, bool IsPrivate, DateOnly StartDate, DateOnly? EndDate, DateOnly? EventDate);
+/// <param name="OtherEventDates">ほかの実施日。省くと無し。開始日から終了日の間に限り、実施日と同じ日・同じ日の重なりは入れられない。</param>
+public sealed record NoteSaveRequest(string Title, string Body, int Priority, bool IsPrivate, DateOnly StartDate, DateOnly? EndDate, DateOnly? EventDate, IReadOnlyList<DateOnly>? OtherEventDates = null);
 
 /// <summary>
 /// ノートを削除する・復元する要求。

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using MmmSdk.Core.Components.Storage;
 using MmmTool.Data.Notes;
@@ -71,30 +72,93 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         var userId = RequireUserId();
         return RunAsync<IReadOnlyList<NoteWithNames>>(async connection =>
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                $"""
-                SELECT {QualifiedColumns("n")}, ISNULL(a.DisplayName, N''), ISNULL(u.DisplayName, N'')
-                FROM dbo.Note AS n
-                LEFT JOIN dbo.AppUser AS a ON a.Id = n.AuthorUserId
-                LEFT JOIN dbo.AppUser AS u ON u.Id = n.UpdatedByUserId
-                WHERE {condition}
-                  AND (@IncludeDeleted = 1 OR n.IsDeleted = 0)
-                  AND (n.IsPrivate = 0 OR n.AuthorUserId = @UserId)
-                """;
-            addParameters(command);
-            command.Parameters.Add(new SqlParameter("@IncludeDeleted", SqlDbType.Bit) { Value = includeDeleted });
-            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            var notes = new List<NoteWithNames>();
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            var rows = new List<(NoteRow Row, string AuthorName, string UpdatedByName)>();
+            await using (var command = connection.CreateCommand())
             {
-                notes.Add(new NoteWithNames(ReadRow(reader).ToNote(), reader.GetString(14), reader.GetString(15)));
+                command.CommandText =
+                    $"""
+                    SELECT {QualifiedColumns("n")}, ISNULL(a.DisplayName, N''), ISNULL(u.DisplayName, N'')
+                    FROM dbo.Note AS n
+                    LEFT JOIN dbo.AppUser AS a ON a.Id = n.AuthorUserId
+                    LEFT JOIN dbo.AppUser AS u ON u.Id = n.UpdatedByUserId
+                    WHERE {condition}
+                      AND (@IncludeDeleted = 1 OR n.IsDeleted = 0)
+                      AND (n.IsPrivate = 0 OR n.AuthorUserId = @UserId)
+                    """;
+                addParameters(command);
+                command.Parameters.Add(new SqlParameter("@IncludeDeleted", SqlDbType.Bit) { Value = includeDeleted });
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    rows.Add((ReadRow(reader), reader.GetString(14), reader.GetString(15)));
+                }
             }
-            return notes;
+
+            // ほかの実施日は、読んだノートの番号の分を、1 回の問い合わせでまとめて読む (本文を、日付の行の数だけ運ばないため、結合しない)
+            var dates = await ReadOtherEventDatesAsync(connection, [.. rows.Select(item => item.Row.Id)], cancellationToken).ConfigureAwait(false);
+            return [.. rows.Select(item => new NoteWithNames(item.Row.ToNote(DatesOf(dates, item.Row.Id)), item.AuthorName, item.UpdatedByName))];
         }, cancellationToken);
     }
+
+    /// <summary>ノートの番号の分の、ほかの実施日を、1 回の問い合わせでまとめて読む</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="noteIds">ノートの番号</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>ノートの番号ごとの、日付の順の一覧。ほかの実施日が無いノートは、含まない</returns>
+    private static async Task<Dictionary<int, IReadOnlyList<DateOnly>>> ReadOtherEventDatesAsync(SqlConnection connection, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<int, IReadOnlyList<DateOnly>>();
+        if (noteIds.Count == 0)
+        {
+            return result;
+        }
+
+        await using var command = connection.CreateCommand();
+
+        // 番号は OPENJSON で渡す。引数を 1 つずつ並べると、1 回の問い合わせで渡せる 2100 個を超えうるため
+        command.CommandText =
+            """
+            SELECT NoteId, Value
+            FROM dbo.NoteAttribute
+            WHERE CategoryNo = @Category AND IsDeleted = 0
+              AND NoteId IN (SELECT CAST([value] AS int) FROM OPENJSON(@Ids))
+            """;
+        command.Parameters.Add(new SqlParameter("@Category", SqlDbType.Int) { Value = NoteAttributeKind.OtherEventDate });
+        command.Parameters.Add(new SqlParameter("@Ids", SqlDbType.NVarChar, -1) { Value = JsonSerializer.Serialize(noteIds) });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+        var values = new Dictionary<int, List<string>>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var noteId = reader.GetInt32(0);
+            if (!values.TryGetValue(noteId, out var list))
+            {
+                list = [];
+                values[noteId] = list;
+            }
+            list.Add(reader.GetString(1));
+        }
+
+        foreach (var (noteId, list) in values)
+        {
+            result[noteId] = NoteOtherEventDates.ToDates(list);
+        }
+        return result;
+    }
+
+    /// <summary>枝番と日付の組を、OPENJSON で渡す JSON にする</summary>
+    /// <param name="items">枝番と日付の組</param>
+    /// <returns>JSON の文字</returns>
+    private static string ToJson(IReadOnlyList<(int CodeNo, DateOnly Day)> items)
+        => JsonSerializer.Serialize(items.Select(item => new { codeNo = item.CodeNo, value = NoteOtherEventDates.ToValue(item.Day) }));
+
+    /// <summary>ノートの番号に合う、ほかの実施日を取り出す</summary>
+    /// <param name="dates"><see cref="ReadOtherEventDatesAsync"/> の結果</param>
+    /// <param name="noteId">ノートの番号</param>
+    /// <returns>日付の順の一覧。無ければ空</returns>
+    private static IReadOnlyList<DateOnly> DatesOf(Dictionary<int, IReadOnlyList<DateOnly>> dates, int noteId)
+        => dates.TryGetValue(noteId, out var list) ? list : [];
 
     /// <inheritdoc />
     /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
@@ -103,24 +167,33 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         var userId = RequireUserId();
         return RunAsync<IReadOnlyList<Note>>(async connection =>
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                $"""
-                SELECT {Columns}
-                FROM dbo.Note
-                WHERE EventDate = @Day AND IsDeleted = 0
-                  AND (IsPrivate = 0 OR AuthorUserId = @UserId)
-                """;
-            command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
-            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-
-            var notes = new List<Note>();
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            var rows = new List<NoteRow>();
+            await using (var command = connection.CreateCommand())
             {
-                notes.Add(ReadRow(reader).ToNote());
+                // 実施日か、ほかの実施日のどちらかがその日のノート。番号を UNION で集める。枝ごとに、IX_Note_EventDate と IX_NoteAttribute_CategoryNo_Value_NoteId の索引が使えるため (OR で 2 つの表をまたぐと、ノートの表を走査しうる)
+                command.CommandText =
+                    $"""
+                    SELECT {Columns}
+                    FROM dbo.Note
+                    WHERE Id IN (SELECT Id FROM dbo.Note WHERE EventDate = @Day
+                                 UNION
+                                 SELECT NoteId FROM dbo.NoteAttribute WHERE CategoryNo = @Category AND Value = @DayText AND IsDeleted = 0)
+                      AND IsDeleted = 0
+                      AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                    """;
+                command.Parameters.Add(new SqlParameter("@Day", SqlDbType.Date) { Value = day.ToDateTime(TimeOnly.MinValue) });
+                command.Parameters.Add(new SqlParameter("@Category", SqlDbType.Int) { Value = NoteAttributeKind.OtherEventDate });
+                command.Parameters.Add(new SqlParameter("@DayText", SqlDbType.NVarChar, 200) { Value = NoteOtherEventDates.ToValue(day) });
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    rows.Add(ReadRow(reader));
+                }
             }
-            return notes;
+
+            var dates = await ReadOtherEventDatesAsync(connection, [.. rows.Select(row => row.Id)], cancellationToken).ConfigureAwait(false);
+            return [.. rows.Select(row => row.ToNote(DatesOf(dates, row.Id)))];
         }, cancellationToken);
     }
 
@@ -164,30 +237,42 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         var userId = RequireUserId();
         return RunAsync(async connection =>
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                INSERT INTO dbo.Note (CreatedByUserId, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body)
-                OUTPUT INSERTED.Id, INSERTED.UpdatedAt
-                VALUES (@UserId, @UserId, @UserId, @IsPrivate, @StartDate, @EndDate, @EventDate, @Priority, @Title, @Body)
-                """;
-            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-            AddInputParameters(command, input);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            // ノートとほかの実施日は、1 つのトランザクションで書く。途中で止まっても、日付だけが抜けたノートが残らないため
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            int id;
+            DateTimeOffset updatedAt;
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText =
+                    """
+                    INSERT INTO dbo.Note (CreatedByUserId, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body)
+                    OUTPUT INSERTED.Id, INSERTED.UpdatedAt
+                    VALUES (@UserId, @UserId, @UserId, @IsPrivate, @StartDate, @EndDate, @EventDate, @Priority, @Title, @Body)
+                    """;
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                AddInputParameters(command, input);
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                id = reader.GetInt32(0);
+                updatedAt = reader.GetDateTimeOffset(1);
+            }
 
-            await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            await WriteOtherEventDatesAsync(connection, transaction, id, userId, input.OtherEventDates, cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return new Note
             {
-                Id = reader.GetInt32(0),
+                Id = id,
                 AuthorUserId = userId,
                 IsPrivate = input.IsPrivate,
                 StartDate = input.StartDate,
                 EndDate = input.EndDate,
                 EventDate = input.EventDate,
+                OtherEventDates = [.. input.OtherEventDates.Order()],
                 Priority = input.Priority,
                 Title = input.Title,
                 Body = input.Body,
-                UpdatedAt = reader.GetDateTimeOffset(1),
+                UpdatedAt = updatedAt,
                 UpdatedByUserId = userId,
             };
         }, cancellationToken);
@@ -202,20 +287,94 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         var userId = RequireUserId();
         return RunAsync(async connection =>
         {
-            await using var command = connection.CreateCommand();
-            command.CommandText =
-                """
-                UPDATE dbo.Note
-                SET IsPrivate = CASE WHEN AuthorUserId = @UserId THEN @IsPrivate ELSE IsPrivate END,
-                    StartDate = @StartDate, EndDate = @EndDate, EventDate = @EventDate, Priority = @Priority, Title = @Title, Body = @Body,
-                    UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
-                WHERE Id = @Id AND (IsPrivate = 0 OR AuthorUserId = @UserId)
-                """;
-            command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
-            command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
-            AddInputParameters(command, input);
-            return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) > 0;
+            // ノートの更新日時と更新者は、ほかの実施日だけを直したときも動く。他の人の更新の通知が、日付だけの変更も拾うため
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText =
+                    """
+                    UPDATE dbo.Note
+                    SET IsPrivate = CASE WHEN AuthorUserId = @UserId THEN @IsPrivate ELSE IsPrivate END,
+                        StartDate = @StartDate, EndDate = @EndDate, EventDate = @EventDate, Priority = @Priority, Title = @Title, Body = @Body,
+                        UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+                    WHERE Id = @Id AND (IsPrivate = 0 OR AuthorUserId = @UserId)
+                    """;
+                command.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+                command.Parameters.Add(new SqlParameter("@Id", SqlDbType.Int) { Value = id });
+                AddInputParameters(command, input);
+                if (await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 0)
+                {
+                    return false;
+                }
+            }
+
+            await WriteOtherEventDatesAsync(connection, transaction, id, userId, input.OtherEventDates, cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return true;
         }, cancellationToken);
+    }
+
+    /// <summary>ノートのほかの実施日を、新しい日付の一覧に合わせて書く</summary>
+    /// <param name="connection">開いた接続</param>
+    /// <param name="transaction">ノートを書いているトランザクション</param>
+    /// <param name="noteId">ノートの番号</param>
+    /// <param name="userId">操作した人の番号</param>
+    /// <param name="dates">保存したい日付の一覧</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>書き終わったことを表すタスク</returns>
+    /// <remarks>
+    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。日付ごとに問い合わせない。
+    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
+    /// </remarks>
+    private static async Task WriteOtherEventDatesAsync(SqlConnection connection, SqlTransaction transaction, int noteId, int userId, IReadOnlyList<DateOnly> dates, CancellationToken cancellationToken)
+    {
+        var existing = new List<NoteAttributeRow>();
+        await using (var read = connection.CreateCommand())
+        {
+            read.Transaction = transaction;
+            read.CommandText = "SELECT CodeNo, Value, IsDeleted FROM dbo.NoteAttribute WHERE NoteId = @NoteId AND CategoryNo = @Category";
+            read.Parameters.Add(new SqlParameter("@NoteId", SqlDbType.Int) { Value = noteId });
+            read.Parameters.Add(new SqlParameter("@Category", SqlDbType.Int) { Value = NoteAttributeKind.OtherEventDate });
+            await using var reader = await read.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                existing.Add(new NoteAttributeRow(reader.GetInt32(0), reader.GetString(1), reader.GetBoolean(2)));
+            }
+        }
+
+        var changes = NoteOtherEventDates.Diff(existing, dates);
+        if (changes.IsEmpty)
+        {
+            return;
+        }
+
+        await using var write = connection.CreateCommand();
+        write.Transaction = transaction;
+        write.CommandText =
+            """
+            UPDATE a
+            SET a.Value = j.Value, a.IsDeleted = 0, a.UpdatedAt = SYSDATETIMEOFFSET(), a.UpdatedByUserId = @UserId
+            FROM dbo.NoteAttribute AS a
+            INNER JOIN OPENJSON(@Update) WITH (CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j ON j.CodeNo = a.CodeNo
+            WHERE a.NoteId = @NoteId AND a.CategoryNo = @Category;
+
+            UPDATE dbo.NoteAttribute
+            SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @UserId
+            WHERE NoteId = @NoteId AND CategoryNo = @Category
+              AND CodeNo IN (SELECT CAST([value] AS int) FROM OPENJSON(@Delete));
+
+            INSERT INTO dbo.NoteAttribute (CreatedByUserId, UpdatedByUserId, NoteId, CategoryNo, CodeNo, Value)
+            SELECT @UserId, @UserId, @NoteId, @Category, j.CodeNo, j.Value
+            FROM OPENJSON(@Insert) WITH (CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j;
+            """;
+        write.Parameters.Add(new SqlParameter("@UserId", SqlDbType.Int) { Value = userId });
+        write.Parameters.Add(new SqlParameter("@NoteId", SqlDbType.Int) { Value = noteId });
+        write.Parameters.Add(new SqlParameter("@Category", SqlDbType.Int) { Value = NoteAttributeKind.OtherEventDate });
+        write.Parameters.Add(new SqlParameter("@Delete", SqlDbType.NVarChar, -1) { Value = JsonSerializer.Serialize(changes.Delete) });
+        write.Parameters.Add(new SqlParameter("@Update", SqlDbType.NVarChar, -1) { Value = ToJson(changes.Update) });
+        write.Parameters.Add(new SqlParameter("@Insert", SqlDbType.NVarChar, -1) { Value = ToJson(changes.Insert) });
+        await write.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

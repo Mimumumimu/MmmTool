@@ -6,4 +6,7 @@ public static class NoteLimits
 {
     /// <summary>タイトルの最大文字数</summary>
     public const int TitleMaxLength = 100;
+
+    /// <summary>1 つのノートに入れられる、ほかの実施日の最大の数。Web 版の API が、上限のない一覧を受け取らないための値</summary>
+    public const int OtherEventDatesMaxCount = 366;
 }

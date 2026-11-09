@@ -3,7 +3,11 @@
 
 <button type="button" class="@TriggerClass" @ref="_trigger" aria-haspopup="dialog" aria-expanded="@(_open ? "true" : "false")"
         aria-label="@TriggerLabel" @onclick="OpenAsync">
-    @if (Value is { } value)
+    @if (Multiple)
+    {
+        @TriggerText
+    }
+    else if (Value is { } value)
     {
         @DateText(value)
     }
@@ -18,6 +22,11 @@
     <div class="backdrop bottom front" @onclick="CloseAsync">
         <div class="bottom-panel picker" role="dialog" aria-modal="true" aria-label="日付を選ぶ" tabindex="-1" @ref="_dialog"
              @onclick:stopPropagation="true" @onkeydown="OnKeyDownAsync">
+            @if (Multiple)
+            {
+                <p class="multi-hint">日を押して、何日でも追加できます。もう一度押すと外れます。</p>
+            }
+
             <div class="nav">
                 <button type="button" class="step" aria-label="前の月" @onclick="() => MoveMonthAsync(-1)"><Chevron Left="true" /></button>
                 <select aria-label="年" @onchange="OnYearChangedAsync">
@@ -51,8 +60,8 @@
                 {
                     var date = new DateOnly(_view.Year, _view.Month, day);
                     <button type="button" class="@DayClass(date)" aria-label="@DayLabel(date)"
-                            aria-current="@(date == _today ? "date" : null)" aria-pressed="@(date == Value ? "true" : null)"
-                            @onclick="() => PickAsync(date)">
+                            aria-current="@(date == _today ? "date" : null)" aria-pressed="@(IsSelected(date) ? "true" : null)"
+                            disabled="@IsDisabled(date)" @onclick="() => PickAsync(date)">
                         @day
                     </button>
                 }
@@ -69,8 +78,8 @@
             }
 
             <div class="actions">
-                <button type="button" class="text" @onclick="PickTodayAsync">今日</button>
-                <button type="button" class="text" @onclick="CloseAsync">閉じる</button>
+                <button type="button" class="text" disabled="@IsDisabled(_today)" @onclick="PickTodayAsync">今日</button>
+                <button type="button" class="@(Multiple ? "primary" : "text")" @onclick="CloseAsync">@(Multiple ? "完了" : "閉じる")</button>
             </div>
         </div>
     </div>
@@ -90,9 +99,29 @@
     [Parameter]
     public DateOnly? Value { get; set; }
 
-    /// <summary>日を選んだとき、または「今日」を押したときに呼ぶ。選ぶと、カレンダーは閉じる。</summary>
+    /// <summary>日を選んだとき、または「今日」を押したときに呼ぶ。選ぶと、カレンダーは閉じる。複数選択のときは呼ばない。</summary>
     [Parameter]
     public EventCallback<DateOnly> OnPicked { get; set; }
+
+    /// <summary>true のとき、複数選択のモード。日を押すたびに、その日が入る・外れるが切り替わり、カレンダーは閉じない。欄は、<see cref="TriggerText"/> の文字のボタンになる。</summary>
+    [Parameter]
+    public bool Multiple { get; set; }
+
+    /// <summary>複数選択のときの、ボタンの文字。</summary>
+    [Parameter]
+    public string TriggerText { get; set; } = "";
+
+    /// <summary>複数選択のときの、選んでいる日。枠と太字で示す。</summary>
+    [Parameter]
+    public IReadOnlyCollection<DateOnly>? Selected { get; set; }
+
+    /// <summary>複数選択のときの、押せない日。ほかで使っていて、重ねて入れられない日。薄い字にして、押しても反応しない。</summary>
+    [Parameter]
+    public DateOnly? Disabled { get; set; }
+
+    /// <summary>複数選択のときに、日を押したら呼ぶ。入れるか外すかは、呼んだ側が、選んでいる日を見て決める。</summary>
+    [Parameter]
+    public EventCallback<DateOnly> OnToggled { get; set; }
 
     /// <summary>欄の名前で、開始日など。欄の名前を別に出していないときに渡す。読み上げのために、選んでいる日と合わせて伝える。</summary>
     [Parameter]
@@ -119,7 +148,14 @@
     /// <summary>開くときに、祝日を読み終えるのを待つ、いちばん長い時間。遅い回線でも、押したらすぐ開くため。</summary>
     private static readonly TimeSpan OpenWait = TimeSpan.FromMilliseconds(300);
 
-    private string TriggerClass => Invalid ? "trigger invalid" : "trigger";
+    /// <summary>欄の class。複数選択のときは、ほかの文字のボタンと同じ見た目の「text」にする。</summary>
+    private string TriggerClass => Multiple ? "text" : Invalid ? "trigger invalid" : "trigger";
+
+    /// <summary>その日を選んでいるか。複数選択のときは選んでいる日の中に、そうでないときは <see cref="Value"/> と同じ日。</summary>
+    private bool IsSelected(DateOnly date) => Multiple ? Selected?.Contains(date) == true : date == Value;
+
+    /// <summary>その日が押せないか。複数選択のときだけ、<see cref="Disabled"/> の日。</summary>
+    private bool IsDisabled(DateOnly date) => Multiple && Disabled == date;
 
     /// <summary>欄を読み上げるときの名前。欄の名前が渡されていないときは、null。</summary>
     private string? TriggerLabel => Label is null ? null : $"{Label} {(Value is { } value ? DateText(value) : "未設定")}";
@@ -160,13 +196,17 @@
         {
             classes.Add("saturday");
         }
-        if (date == Value)
+        if (IsSelected(date))
         {
             classes.Add("selected");
         }
         if (date == _today)
         {
             classes.Add("today");
+        }
+        if (IsDisabled(date))
+        {
+            classes.Add("unavailable");
         }
         return string.Join(' ', classes);
     }
@@ -180,7 +220,9 @@
     private async Task OpenAsync()
     {
         _today = await Browser.GetTodayAsync();
-        var start = Value ?? _today;
+
+        // 開いたときに見せる月は、選んでいる日の月で、無ければ今日の月。複数選択のときは、日を足すためのカレンダーなので、いつも今日の月。PC 版と同じ決まり
+        var start = Multiple ? _today : Value ?? _today;
         _view = new DateOnly(start.Year, start.Month, 1);
 
         // 祝日を先に読んでから開く。開いたあとに祝日の一覧が現れて、シートの上の端が動かないため。読み込みが遅いときは、待たずに開く
@@ -283,6 +325,16 @@
 
     private async Task PickAsync(DateOnly date)
     {
+        // 複数選択のときは、閉じずに、入れる・外すの切り替えを、呼んだ側に任せる。押せない日は何もしない
+        if (Multiple)
+        {
+            if (!IsDisabled(date))
+            {
+                await OnToggled.InvokeAsync(date);
+            }
+            return;
+        }
+
         await CloseAsync();
         await OnPicked.InvokeAsync(date);
     }

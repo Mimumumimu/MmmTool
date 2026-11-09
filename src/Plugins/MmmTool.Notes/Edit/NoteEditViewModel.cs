@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,7 +15,9 @@ namespace MmmTool.Notes.Edit;
 /// <remarks>
 /// 開始日と終了日は、一方を変えて前後が逆になったら、もう一方を同じ日に合わせる。終了日は、空にできて、空は無期限。
 /// 実施日は、空にできて、空は未設定。期間の外に入れたら、開始日・終了日を動かして合わせる。終了日が空のときは、終了日は動かさない。
-/// 開始日・終了日を動かして、実施日が期間の外に出たときは、実施日を動かさず、警告を出して保存できなくする。
+/// ほかの実施日 (複数)も同じ決まりで、期間の外に入れたら期間を合わせ、期間を動かして外れたときは、動かさず、警告を出して保存できなくする。
+/// 開始日・終了日を動かして、実施日かほかの実施日が期間の外に出たときは、その日を動かさず、警告を出して保存できなくする。
+/// 同じ日は、先に入っていた日が勝つ。実施日を、ほかの実施日にある日にしようとしたときは、実施日を元の日に戻して知らせる。
 /// 公開範囲を変えられるのは、書いた人だけ。ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため。
 /// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
@@ -64,9 +67,20 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [ObservableProperty]
     public partial DateTimeOffset? EventDate { get; set; }
 
-    /// <summary>実施日が期間の外にあるという警告を出しているか (出している間は保存できない)</summary>
+    /// <summary>ほかの実施日の一覧で、日付の順に並ぶ。「✕」で 1 行ずつ外せる</summary>
+    public ObservableCollection<OtherEventDateItem> OtherEventDates { get; } = [];
+
+    /// <summary>ほかの実施日が 1 つも無いか (一覧の枠に「なし」を出す)</summary>
+    [ObservableProperty]
+    public partial bool IsOtherEventDatesEmpty { get; private set; } = true;
+
+    /// <summary>実施日か、ほかの実施日が期間の外にあるという警告を出しているか (出している間は保存できない)</summary>
     [ObservableProperty]
     public partial bool IsPeriodErrorOpen { get; private set; }
+
+    /// <summary>実施日が期間の外にあるか。実施日の欄の枠を、エラーの色にする</summary>
+    [ObservableProperty]
+    public partial bool IsEventDateInvalid { get; private set; }
 
     /// <summary>期間の外の警告の文</summary>
     [ObservableProperty]
@@ -106,6 +120,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
                 StartDate = ToOffset(defaultStartDate);
                 EndDate = null;
                 EventDate = null;
+                SetOtherEventDates([]);
                 PriorityIndex = (int)NotePriority.Normal - PriorityOffset;
                 IsPrivate = false;
             }
@@ -117,6 +132,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
                 StartDate = ToOffset(note.StartDate);
                 EndDate = note.IsOpenEnded ? null : ToOffset(note.EndDate);
                 EventDate = note.HasEventDate ? ToOffset(note.EventDate) : null;
+                SetOtherEventDates(note.OtherEventDates);
                 PriorityIndex = (int)note.Priority - PriorityOffset;
                 IsPrivate = note.IsPrivate;
             }
@@ -166,23 +182,104 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     }
 
     /// <summary>実施日を変えたら、期間の外のときは、開始日・終了日を動かして合わせる</summary>
-    /// <param name="value">新しい実施日</param>
-    /// <remarks>開始日より前なら開始日を早め、終了日より後なら終了日を伸ばす。終了日が空 (無期限)のときは、終了日は動かさない。動かしたときは、知らせる。</remarks>
-    partial void OnEventDateChanged(DateTimeOffset? value)
+    /// <param name="oldValue">変える前の実施日</param>
+    /// <param name="newValue">新しい実施日</param>
+    /// <remarks>
+    /// 開始日より前なら開始日を早め、終了日より後なら終了日を伸ばす。終了日が空 (無期限)のときは、終了日は動かさない。動かしたときは、知らせる。
+    /// ほかの実施日にある日にしようとしたときは、先に入っていた日が勝つので、実施日を元の日に戻して、重複を知らせる。
+    /// </remarks>
+    partial void OnEventDateChanged(DateTimeOffset? oldValue, DateTimeOffset? newValue)
     {
         if (!_syncingDates)
         {
             AdjustInfo.Clear();
-            if (value is { } eventDate)
+            if (newValue is { } eventDate)
             {
+                if (OtherEventDates.Any(item => item.Date == DateOnly.FromDateTime(eventDate.Date)))
+                {
+                    _syncingDates = true;
+                    try
+                    {
+                        EventDate = oldValue;
+                    }
+                    finally
+                    {
+                        _syncingDates = false;
+                    }
+                    AdjustInfo.Show("実施日が重複しています");
+                    UpdatePeriodError();
+                    return;
+                }
                 AdjustPeriodToEvent(eventDate);
             }
         }
         UpdatePeriodError();
     }
 
+    /// <summary>ほかの実施日を、一覧に足す</summary>
+    /// <param name="day">足す日</param>
+    /// <remarks>
+    /// 実施日と同じ日と、一覧にある日は、先に入っていた日が勝つので、足さない。期間の外の日は、開始日・終了日を動かして合わせて、知らせる。
+    /// 一覧は、日付の順に並べる。
+    /// </remarks>
+    public void AddOtherEventDate(DateOnly day)
+    {
+        if ((EventDate is { } eventDate && DateOnly.FromDateTime(eventDate.Date) == day) || OtherEventDates.Any(item => item.Date == day))
+        {
+            return;
+        }
+        if (OtherEventDates.Count >= NoteLimits.OtherEventDatesMaxCount)
+        {
+            AdjustInfo.Show($"ほかの実施日は {NoteLimits.OtherEventDatesMaxCount} 日までです");
+            return;
+        }
+
+        var index = 0;
+        while (index < OtherEventDates.Count && OtherEventDates[index].Date < day)
+        {
+            index++;
+        }
+        OtherEventDates.Insert(index, new OtherEventDateItem(day, RemoveOtherEventDate));
+        IsOtherEventDatesEmpty = false;
+
+        AdjustInfo.Clear();
+        AdjustPeriodToEvent(ToOffset(day));
+        UpdatePeriodError();
+    }
+
+    /// <summary>ほかの実施日を、一覧から外す</summary>
+    /// <param name="day">外す日</param>
+    public void RemoveOtherEventDate(DateOnly day)
+    {
+        if (OtherEventDates.FirstOrDefault(item => item.Date == day) is { } item)
+        {
+            RemoveOtherEventDate(item);
+        }
+    }
+
+    /// <summary>ほかの実施日の 1 行を、一覧から外す</summary>
+    /// <param name="item">外す行</param>
+    private void RemoveOtherEventDate(OtherEventDateItem item)
+    {
+        OtherEventDates.Remove(item);
+        IsOtherEventDatesEmpty = OtherEventDates.Count == 0;
+        UpdatePeriodError();
+    }
+
+    /// <summary>ほかの実施日の一覧を、渡された日付で置き換える (読み込むとき)</summary>
+    /// <param name="days">日付</param>
+    private void SetOtherEventDates(IEnumerable<DateOnly> days)
+    {
+        OtherEventDates.Clear();
+        foreach (var day in days.Order())
+        {
+            OtherEventDates.Add(new OtherEventDateItem(day, RemoveOtherEventDate));
+        }
+        IsOtherEventDatesEmpty = OtherEventDates.Count == 0;
+    }
+
     /// <summary>実施日が期間の外のとき、開始日・終了日を動かして、実施日を含める</summary>
-    /// <param name="eventDate">実施日</param>
+    /// <param name="eventDate">実施日か、ほかの実施日</param>
     private void AdjustPeriodToEvent(DateTimeOffset eventDate)
     {
         var messages = new List<string>();
@@ -211,21 +308,37 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         }
     }
 
-    /// <summary>実施日が期間の外にあるかを調べて、警告と、保存できるかを合わせる</summary>
+    /// <summary>実施日とほかの実施日が期間の外にあるかを調べて、警告と、外れた行の印と、保存できるかを合わせる</summary>
+    /// <remarks>警告の文は、実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。</remarks>
     private void UpdatePeriodError()
     {
-        if (EventDate is { } eventDate && StartDate is { } start && (eventDate.Date < start.Date || (EndDate is { } end && eventDate.Date > end.Date)))
+        IsEventDateInvalid = EventDate is { } eventDate && IsOutOfPeriod(eventDate);
+        foreach (var item in OtherEventDates)
         {
-            PeriodErrorMessage = $"実施日 ({FormatDate(eventDate)})が期間の外です。開始日・終了日か実施日を直してください。";
-            IsPeriodErrorOpen = true;
+            item.IsInvalid = StartDate is not null && IsOutOfPeriod(ToOffset(item.Date));
+        }
+
+        if (IsEventDateInvalid && EventDate is { } outEvent)
+        {
+            PeriodErrorMessage = $"実施日 ({FormatDate(outEvent)})が期間の外です。開始日・終了日か実施日を直してください。";
+        }
+        else if (OtherEventDates.FirstOrDefault(item => item.IsInvalid) is { } outOther)
+        {
+            PeriodErrorMessage = $"ほかの実施日 ({outOther.Date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)})が期間の外です。開始日・終了日かほかの実施日を直してください。";
         }
         else
         {
             PeriodErrorMessage = "";
-            IsPeriodErrorOpen = false;
         }
+        IsPeriodErrorOpen = PeriodErrorMessage.Length > 0;
         SaveCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>日付が、開始日から終了日の外にあるか (終了日が空は、終了日の側は常に中)</summary>
+    /// <param name="date">調べる日</param>
+    /// <returns>外なら true。開始日が空のときは false</returns>
+    private bool IsOutOfPeriod(DateTimeOffset date)
+        => StartDate is { } start && (date.Date < start.Date || (EndDate is { } end && date.Date > end.Date));
 
     /// <summary>終了日をクリアする (無期限にする)</summary>
     [RelayCommand]
@@ -256,6 +369,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
             StartDate = DateOnly.FromDateTime(start.Date),
             EndDate = EndDate is { } end ? DateOnly.FromDateTime(end.Date) : DateOnly.MaxValue,
             EventDate = EventDate is { } eventDate ? DateOnly.FromDateTime(eventDate.Date) : DateOnly.MaxValue,
+            OtherEventDates = [.. OtherEventDates.Select(item => item.Date)],
         };
         if (input.Validate() is { } error)
         {

@@ -147,6 +147,20 @@
     font-weight: 700;
 }
 
+/* 複数選択のときの説明の 1 行。祝日の一覧 (order: -1) よりも上の、いちばん上に出す */
+.multi-hint {
+    order: -2;
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+/* 複数選択のときの、押せない日。ノートの実施日のように、重ねて入れられない日で、文字を薄くして、押しても反応しない */
+.day:disabled {
+    opacity: 0.4;
+}
+
 /* その月の祝日の名前。祝日は日の下の線だけでは名前が分からないため、文字でも出す。
    シートは画面の下に付いているので、祝日の数で増減しても、動くのは上だけで、ヘッダーと格子の位置は変わらない。
    読み上げの順は、格子の後ろのままにして、見た目だけを、いちばん上に出す */
@@ -167,4 +181,11 @@
     display: flex;
     justify-content: space-between;
     margin-top: 0.5rem;
+}
+
+/* 複数選択の「完了」。本体の CSS の button.primary は幅 100% なので、「今日」の横では、中身の幅に戻す。戻さないと、「完了」だけが伸びる */
+.actions .primary {
+    width: auto;
+    min-width: 5rem;
+    padding: 0 1rem;
 }

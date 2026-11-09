@@ -133,6 +133,21 @@ CREATE TABLE IF NOT EXISTS Note
     Body            TEXT    NOT NULL DEFAULT ''
 );
 
+-- ノートの追加の値。1 行に 1 つの値を持つ縦持ち。CategoryNo は値の種類で、1 はほかの実施日。ほかの実施日の Value は yyyy-MM-dd の日付。CodeNo は同じ種類の中の枝番
+CREATE TABLE IF NOT EXISTS NoteAttribute
+(
+    Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    IsDeleted       INTEGER NOT NULL DEFAULT 0 CHECK (IsDeleted IN (0, 1)),
+    CreatedAt       TEXT    NOT NULL,
+    CreatedByUserId INTEGER NOT NULL CHECK (CreatedByUserId >= 0),
+    UpdatedAt       TEXT    NOT NULL,
+    UpdatedByUserId INTEGER NOT NULL CHECK (UpdatedByUserId >= 0),
+    NoteId          INTEGER NOT NULL CHECK (NoteId >= 1),
+    CategoryNo      INTEGER NOT NULL CHECK (CategoryNo >= 1),
+    CodeNo          INTEGER NOT NULL CHECK (CodeNo >= 1),
+    Value           TEXT    NOT NULL DEFAULT '' CHECK (length(Value) <= 200)
+);
+
 -- 案件の差分の取得
 CREATE INDEX IF NOT EXISTS IX_WorkProject_UpdatedAt ON WorkProject (UpdatedAt);
 
@@ -174,6 +189,12 @@ CREATE INDEX IF NOT EXISTS IX_Note_EventDate ON Note (EventDate);
 
 -- 前回読んだ時刻の後に更新されたノートを探す。他の人の作成・更新の通知に使う。SQL Server と同じ名前・同じ列。論理削除された行も含める
 CREATE INDEX IF NOT EXISTS IX_Note_UpdatedAt ON Note (UpdatedAt);
+
+-- ノートの追加の値を、ノートごと・種類ごと・枝番ごとに 1 行にする。論理削除された行も含めて一意で、削除済みも含めて番号から探すのにも使う。SQL Server と同じ名前・同じ列
+CREATE UNIQUE INDEX IF NOT EXISTS UX_NoteAttribute_NoteId_CategoryNo_CodeNo ON NoteAttribute (NoteId, CategoryNo, CodeNo);
+
+-- 実際の今日と表示する日がほかの実施日のノートを、全件を走査せずに探す。削除されていない行だけ。SQL Server と同じ名前・同じ列
+CREATE INDEX IF NOT EXISTS IX_NoteAttribute_CategoryNo_Value_NoteId ON NoteAttribute (CategoryNo, Value, NoteId) WHERE IsDeleted = 0;
 
 -- ノートの「全員」の人の一覧で、予定と期間内に完了した作業の担当者を、表を読まずに探す (削除されていない行だけ)
 CREATE INDEX IF NOT EXISTS IX_WorkItem_StatusCodeNo_CompletedDate_AssigneeUserId ON WorkItem (StatusCodeNo, CompletedDate, AssigneeUserId) WHERE IsDeleted = 0;

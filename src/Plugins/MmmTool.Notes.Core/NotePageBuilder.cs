@@ -176,7 +176,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <param name="isShared">複数の人で共有するか</param>
     /// <param name="day">表示する日</param>
     /// <returns>項目ごとの文字。期間・実施日・作成者・更新の順で、項目の間の区切りは CSS が付ける</returns>
-    /// <remarks>実施日は、設定があり、表示する日より後のときだけ小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
+    /// <remarks>実施日は、実施日とほかの実施日を合わせて、表示する日より後で、いちばん近い 1 日だけを小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
     private static List<string> Meta(NoteCard card, bool isShared, DateOnly day)
     {
         var note = card.Note;
@@ -184,11 +184,11 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         {
             note.IsOpenEnded ? $"{FormatDate(note.StartDate)} ～" : $"{FormatDate(note.StartDate)} ～ {FormatDate(note.EndDate)}",
         };
-        if (note.HasEventDate && note.EventDate > day)
+        if (note.NextEventAfter(day) is { } next)
         {
-            var text = note.EventDate.Year == day.Year
-                ? note.EventDate.ToString("MM/dd", CultureInfo.InvariantCulture)
-                : FormatDate(note.EventDate);
+            var text = next.Year == day.Year
+                ? next.ToString("MM/dd", CultureInfo.InvariantCulture)
+                : FormatDate(next);
             parts.Add($"実施 {text}");
         }
         if (isShared)

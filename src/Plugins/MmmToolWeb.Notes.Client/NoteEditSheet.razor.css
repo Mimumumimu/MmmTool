@@ -29,3 +29,67 @@
     padding-right: 0;
     white-space: nowrap;
 }
+
+/* ほかの実施日。見出しと追加のボタンを 1 行に置き、下に日付の一覧を縦に並べる。一覧は高さを固定せず、シートの中で伸ばす。全画面のシートの中に、もう 1 つスクロールの枠を作らないため */
+.other-dates {
+    margin-bottom: 1rem;
+}
+
+.other-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+/* 一覧と、空のときの「なし」は、日付の欄と同じ枠と角丸にする */
+.empty,
+.other-list {
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+.empty {
+    padding: 0.75rem;
+    color: var(--muted);
+}
+
+.other-list {
+    padding: 0;
+    list-style: none;
+}
+
+/* 1 行の高さは 44 ピクセル以上。「✕」を押せる範囲と同じ */
+.other-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 2.75rem;
+    padding-left: 0.75rem;
+}
+
+.other-list li + li {
+    border-top: 1px solid var(--border);
+}
+
+/* 期間の外の日。色だけでなく、太字でも示す */
+.other-list li.invalid {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+/* 「✕」。押せる範囲は 44 × 44 ピクセル以上で、見た目の大きさは小さいまま */
+.remove {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
