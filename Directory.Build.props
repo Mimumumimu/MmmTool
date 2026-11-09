@@ -5,7 +5,7 @@
   -->
   <PropertyGroup>
     <!-- 製品のバージョンで、形は major.minor.patch。ファイル・アセンブリのバージョンはここから自動で 4 桁になる -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- XML ドキュメントコメントの検査で、書き漏れ・参照切れを警告にする。未使用 using の検査 (IDE0005)にも必要 -->
