@@ -201,6 +201,21 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<double> GetMyDayHoursAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => RunAsync(
+            async connection =>
+            {
+                var value = await ScalarAsync(
+                    connection,
+                    null,
+                    "SELECT SUM(r.Hours) FROM dbo.WorkRecord r WHERE r.Date = @date AND r.IsDeleted = 0 AND r.WorkItemId IN (SELECT w.Id FROM dbo.WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)",
+                    [("@date", date), ("@me", UserId)],
+                    cancellationToken).ConfigureAwait(false);
+                return value is null or DBNull ? 0 : WorkActualTotal.Calculate([Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)]);
+            },
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<WorkItem>> LoadAutoEntryItemsAsync(CancellationToken cancellationToken = default)
         => RunAsync<IReadOnlyList<WorkItem>>(
             connection => QueryAsync(

@@ -106,6 +106,17 @@ public interface IWorkItemRepository
     /// <exception cref="DataFileException">読み込みに失敗した。</exception>
     Task<DateOnly?> GetLatestRecordedDateAsync(DateOnly before, CancellationToken cancellationToken = default);
 
+    /// <summary>ある日に、自分が担当の作業へ入った工数の合計を読む (勤務の時間帯の元)</summary>
+    /// <param name="date">日付</param>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>工数の合計で、小数 2 桁の時間。無ければ 0</returns>
+    /// <remarks>
+    /// 表示しない案件も含め、作業ごとの記録をすべて足す。画面の表示の設定には従わない。実績と予定から外す作業 (<see cref="WorkItem.ReportExclusion"/>)も含める。働いた時間は、報告に出すかとは別のため。
+    /// 人で絞るのは作業の担当者 <see cref="WorkItem.AssigneeUserId"/> だけで、記録を付けた人は問わない。論理削除された作業と記録は除く。インデックスは <c>(Date, WorkItemId)</c>。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    Task<double> GetMyDayHoursAsync(DateOnly date, CancellationToken cancellationToken = default);
+
     /// <summary>基準の時刻より後に更新された行を読む</summary>
     /// <param name="since">基準の時刻 (この時刻以後に更新された行を返す)</param>
     /// <param name="date">記録を読む日</param>

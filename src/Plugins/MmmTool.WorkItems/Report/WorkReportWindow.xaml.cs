@@ -10,7 +10,7 @@ namespace MmmTool.WorkItems.Report;
 
 /// <summary>作業報告のウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。最大化・最小化はできない。
+/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられ、最大化もできる。最大化は、最大化ボタンかタイトル帯のダブルクリックで行う。最小化はできない。
 /// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class WorkReportWindow : Window
@@ -74,7 +74,7 @@ public sealed partial class WorkReportWindow : Window
 
         _modal.SetOwner(owner);
         var scale = _modal.OwnerScale;
-        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)));
+        this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(MinimumWidth * scale), (int)(MinimumHeight * scale)), isMaximizable: true);
         this.ResizeClientDip(InitialWidth, InitialHeight, scale);
         _modal.CenterOnOwner();
 

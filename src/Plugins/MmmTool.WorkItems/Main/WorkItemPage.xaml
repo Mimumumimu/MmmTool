@@ -581,6 +581,13 @@
                     AutomationProperties.Name="入力日の実績の合計"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Text="{x:Bind ViewModel.DayTotalText, Mode=OneWay}" />
+                <!-- 入力日の勤務の時間帯。9:00 始業・昼休み 60 分で計算する。実績の合計とは別で、表示の設定に従わず、自分の担当の全案件の工数から作る -->
+                <TextBlock
+                    Margin="8,0,0,0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="入力日の勤務の時間帯"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.DayWorkSpanText, Mode=OneWay}" />
             </StackPanel>
 
             <StackPanel

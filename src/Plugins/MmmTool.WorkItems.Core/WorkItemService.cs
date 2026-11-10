@@ -439,6 +439,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             .Select(r => r.Hours));
     }
 
+    /// <summary>読んでいる日に、自分が担当の作業へ入った工数の合計を、保存先から読む</summary>
+    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
+    /// <returns>工数の合計で、小数 2 桁の時間</returns>
+    /// <remarks>勤務の時間帯の元。表示しない案件も含め、画面の表示の設定には従わない。メモリの内容は使わず、毎回読む。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    public Task<double> GetMyDayHoursAsync(CancellationToken cancellationToken = default)
+        => repository.GetMyDayHoursAsync(Day, cancellationToken);
+
     /// <summary>スケジュールに出す内容を作る</summary>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
     /// <param name="completed">完了した作業の見え方。作業管理の「過去の完了」とは別に選び、今日完了した作業も隠す</param>

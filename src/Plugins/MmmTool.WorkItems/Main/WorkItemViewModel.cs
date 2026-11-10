@@ -128,6 +128,14 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial string DayTotalText { get; private set; } = "";
 
+    /// <summary>入力日の勤務の時間帯の表示で、9:00 ～ 21:30 の形。実績が無いときは空</summary>
+    /// <remarks>表示する案件や「自分の担当だけ」に依らず、自分の担当の全案件の工数から作る。</remarks>
+    [ObservableProperty]
+    public partial string DayWorkSpanText { get; private set; } = "";
+
+    /// <summary>勤務の時間帯の更新の通し番号 (古い読み込みの結果を捨てるため)</summary>
+    private int _workSpanVersion;
+
     /// <summary>日報メモの入力欄の最大の長さ</summary>
     public int DayNoteMaxLength => WorkItemLimits.DayNoteMaxLength;
 
@@ -1268,6 +1276,34 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     {
         var total = _service.BuildDayTotal(MineOnly);
         DayTotalText = $"実績合計 {WorkItemRow.FormatHours(total)} 時間 ({WorkItemRow.FormatHoursAndMinutes(total)})";
+        _ = UpdateDayWorkSpanAsync();
+    }
+
+    /// <summary>入力日の勤務の時間帯を、保存先から読んだ、自分の担当の全案件の工数の合計から作り直す</summary>
+    /// <returns>更新の完了を表すタスク</returns>
+    /// <remarks>
+    /// 実績の合計 (表示の設定に従う)とは別に読む。「9 時から働いて何時まで」は自分 1 人の時間で、表示の設定で変わってはいけないため。
+    /// 続けて呼ばれたときは、最後の呼び出しの結果だけを反映する。
+    /// </remarks>
+    private async Task UpdateDayWorkSpanAsync()
+    {
+        var version = ++_workSpanVersion;
+        try
+        {
+            var hours = await _service.GetMyDayHoursAsync();
+            if (version == _workSpanVersion)
+            {
+                DayWorkSpanText = WorkDaySpan.Format(hours);
+            }
+        }
+        catch (DataFileException ex)
+        {
+            if (version == _workSpanVersion)
+            {
+                DayWorkSpanText = "";
+                Error.Show(ex.Message);
+            }
+        }
     }
 
     /// <summary>日付を、曜日つきの表示にする</summary>

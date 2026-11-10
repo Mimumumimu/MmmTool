@@ -192,6 +192,21 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<double> GetMyDayHoursAsync(DateOnly date, CancellationToken cancellationToken = default)
+        => RunAsync(
+            async connection =>
+            {
+                var value = await ScalarAsync(
+                    connection,
+                    null,
+                    "SELECT SUM(r.Hours) FROM WorkRecord r WHERE r.Date = @date AND r.IsDeleted = 0 AND r.WorkItemId IN (SELECT w.Id FROM WorkItem w WHERE w.IsDeleted = 0 AND w.AssigneeUserId = @me)",
+                    [("@date", date), ("@me", UserId)],
+                    cancellationToken).ConfigureAwait(false);
+                return value is null or DBNull ? 0 : WorkActualTotal.Calculate([Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture)]);
+            },
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<WorkItem>> LoadAutoEntryItemsAsync(CancellationToken cancellationToken = default)
         => RunAsync<IReadOnlyList<WorkItem>>(
             connection => QueryAsync(
