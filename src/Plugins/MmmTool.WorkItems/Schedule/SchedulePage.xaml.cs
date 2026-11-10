@@ -101,10 +101,15 @@ public sealed partial class SchedulePage : Page
         // 案件 1 つぶんの行の塊を差し込む・抜いたあとは、表に行を付け直させる (見える範囲に、行が作り直されないことがあるため)
         ViewModel.RowsBlockChanged += (_, _) =>
         {
+            ApplyTotalRow();
             FitTextColumns();
             TimelineGrid.RebindRows();
         };
-        ViewModel.Rebuilt += (_, _) => FitTextColumns();
+        ViewModel.Rebuilt += (_, _) =>
+        {
+            ApplyTotalRow();
+            FitTextColumns();
+        };
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(ScheduleViewModel.IsLoading))
@@ -166,11 +171,15 @@ public sealed partial class SchedulePage : Page
             CellTemplate = (DataTemplate)Resources[templateKey],
         };
 
+    /// <summary>総合計の行を、表の上に固定して出す。行が 1 つも無い間は、出さない</summary>
+    /// <remarks>行が無い間は、表に案内だけを出すため。</remarks>
+    private void ApplyTotalRow() => TimelineGrid.PinnedTopRows = ViewModel.IsEmpty ? [] : [ViewModel.TotalRow];
+
     /// <summary>実績と状態の列の幅を、見出しと、いちばん長い文字に合わせる</summary>
-    /// <remarks>幅が変わったときだけ、表に列を付け直させる。</remarks>
+    /// <remarks>幅が変わったときだけ、表に列を付け直させる。実績は、総合計の行の数字も含めて測る。</remarks>
     private void FitTextColumns()
     {
-        var changed = FitColumn(_hoursColumn, ViewModel.Rows.Select(row => row.TotalHoursText));
+        var changed = FitColumn(_hoursColumn, ViewModel.Rows.Select(row => row.TotalHoursText).Append(ViewModel.TotalRow.TotalHoursText));
         changed |= FitColumn(_statusColumn, ViewModel.Rows.Select(row => row.StatusText));
         if (changed)
         {

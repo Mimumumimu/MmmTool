@@ -68,7 +68,7 @@ public static class ScheduleActuals
     /// <summary>日ごとの時間を、最初の日から最後の日までの 1 本の棒にまとめる</summary>
     /// <param name="days">日付の順の、日ごとの時間 (1 日以上)</param>
     /// <returns>棒の並び。1 本だけで、実績の無い日は時間 0</returns>
-    private static List<ScheduleActualRun> Runs(SortedDictionary<DateOnly, decimal> days)
+    internal static List<ScheduleActualRun> Runs(SortedDictionary<DateOnly, decimal> days)
     {
         var start = days.Keys.First();
         var hours = new List<double>();

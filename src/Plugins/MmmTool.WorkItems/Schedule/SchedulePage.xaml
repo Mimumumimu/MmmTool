@@ -65,6 +65,12 @@
                             Style="{StaticResource ValueTextStyle}"
                             Text="{x:Bind Name, Mode=OneWay}"
                             Visibility="{x:Bind IsSubGroup}" />
+                        <!-- 総合計の行。案件の青と区別して、標準の文字の色の太字にする -->
+                        <TextBlock
+                            FontWeight="Bold"
+                            Style="{StaticResource ValueTextStyle}"
+                            Text="{x:Bind Name, Mode=OneWay}"
+                            Visibility="{x:Bind IsTotal}" />
                     </Grid>
                     <!-- 共通の備考がある行だけ。触れると、備考を出す (長い備考は、320 文字で切る) -->
                     <FontIcon
@@ -119,7 +125,7 @@
                 </StackPanel>
             </DataTemplate>
 
-            <!-- 工数は、作業管理の表の実績 (累計)と同じ値。数字なので右に寄せる。案件・グループは計算値の色 -->
+            <!-- 工数は、作業管理の表の実績 (累計)と同じ値。数字なので右に寄せる。案件・グループは計算値の色。総合計は、名前と同じ太字 -->
             <DataTemplate x:Key="TotalHoursCell" x:DataType="local:ScheduleRow">
                 <Grid>
                     <TextBlock
@@ -131,7 +137,13 @@
                         HorizontalAlignment="Right"
                         Style="{StaticResource CellTextStyle}"
                         Text="{x:Bind TotalHoursText, Mode=OneWay}"
-                        Visibility="{x:Bind IsGroup}" />
+                        Visibility="{x:Bind IsComputedRow}" />
+                    <TextBlock
+                        HorizontalAlignment="Right"
+                        FontWeight="Bold"
+                        Style="{StaticResource ValueTextStyle}"
+                        Text="{x:Bind TotalHoursText, Mode=OneWay}"
+                        Visibility="{x:Bind IsTotal}" />
                 </Grid>
             </DataTemplate>
 

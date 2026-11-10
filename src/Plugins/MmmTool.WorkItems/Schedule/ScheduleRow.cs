@@ -29,6 +29,17 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
     /// <summary>集計の行か。案件・グループで、下の作業から計算した値を出す</summary>
     public bool IsGroup { get; } = key.Kind != WorkRowKind.Work;
 
+    /// <summary>総合計の行か。表示している案件を合わせた実績を出す行で、表の上に固定する</summary>
+    public bool IsTotal { get; private init; }
+
+    /// <summary>案件・グループの行か。総合計の行は含まない。計算値の色で出すセルを決める</summary>
+    public bool IsComputedRow => IsGroup && !IsTotal;
+
+    /// <summary>総合計の行を作る</summary>
+    /// <returns>総合計の行。値は <see cref="UpdateTotal"/> で入れる</returns>
+    /// <remarks>案件・グループ・作業のどれでもないので、行の識別は既定値のままで、使わない。集計の行として出す。</remarks>
+    public static ScheduleRow CreateTotal() => new(default) { IsTotal = true, Name = "総合計" };
+
     /// <summary>字下げの段</summary>
     [ObservableProperty]
     public partial int Level { get; private set; }
@@ -173,6 +184,25 @@ public sealed partial class ScheduleRow(WorkKey key) : ObservableObject, IProjec
         PlanStart = summary.StartDate;
         PlanEnd = summary.DueDate;
         CompletedDate = completedDate;
+        Runs = runs;
+        Axis = axis;
+        Today = today;
+        if (changed)
+        {
+            VisualVersion++;
+        }
+    }
+
+    /// <summary>総合計の行の値を書き換える</summary>
+    /// <param name="totalHours">表示している案件の、実績の時間の合計 (全期間)</param>
+    /// <param name="runs">表示している案件の実績を、日ごとに足した実績の棒</param>
+    /// <param name="axis">日付の軸</param>
+    /// <param name="today">今日</param>
+    /// <remarks>出すのは、実績の合計と、日ごとの実績の棒だけ。予定の棒・状態・進捗・完了日は持たない。</remarks>
+    public void UpdateTotal(double totalHours, IReadOnlyList<ScheduleActualRun> runs, ScheduleAxisVisual axis, DateOnly today)
+    {
+        TotalHoursText = WorkItemRow.FormatHours(totalHours > 0 ? totalHours : null);
+        var changed = !ReferenceEquals(Axis, axis) || Today != today || !SameRuns(Runs, runs);
         Runs = runs;
         Axis = axis;
         Today = today;

@@ -59,6 +59,19 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>表の行で、見えている行を 1 つにならしたもの。木の順</summary>
     public ObservableCollection<ScheduleRow> Rows { get; } = [];
 
+    /// <summary>総合計の行で、表示している案件を合わせた実績を出す。表の上に固定する</summary>
+    /// <remarks>
+    /// 合わせるのは、「表示する案件」で選んでいる案件。案件の行の合計と同じく、「自分の担当だけ」と「完了」で隠した作業も含めて、全員の作業から計算する。
+    /// </remarks>
+    public ScheduleRow TotalRow { get; } = ScheduleRow.CreateTotal();
+
+    /// <summary>総合計の値 (案件の出し入れに合わせて、足し引きする)</summary>
+    private readonly ScheduleTotal _total = new();
+
+    /// <summary>総合計に足してある、案件ごとの実績の合計と実績の棒</summary>
+    /// <remarks>案件を表示から外したとき、足したときと同じ値を、総合計から引くために持つ。</remarks>
+    private readonly Dictionary<int, (double Hours, IReadOnlyList<ScheduleActualRun> Runs)> _projectTotals = [];
+
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
@@ -343,10 +356,14 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
 
         var target = new List<ScheduleRow>();
         var alive = new HashSet<WorkKey>();
+        _projectTotals.Clear();
+        _total.Clear();
         foreach (var root in snapshot.Roots)
         {
             Visit(root, 0, snapshot, target, alive);
+            AddProjectTotal(root, snapshot);
         }
+        UpdateTotalRow();
 
         TreeGridRowSync.Sync(Rows, target);
         foreach (var key in _rowByKey.Keys.Where(key => !alive.Contains(key)).ToList())
@@ -361,6 +378,30 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
             AxisChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    /// <summary>案件の実績の合計と実績の棒を、総合計に足す</summary>
+    /// <param name="project">案件の行 (合計は、隠した作業も含めて計算済み)</param>
+    /// <param name="snapshot">スケジュールに出す内容 (実績の棒を引く)</param>
+    private void AddProjectTotal(WorkNode project, ScheduleSnapshot snapshot)
+    {
+        RemoveProjectTotal(project.Key.Id);
+        var added = (project.Summary.ActualTotal, snapshot.Actuals.TryGetValue(project.Key, out var runs) ? runs : []);
+        _projectTotals[project.Key.Id] = added;
+        _total.Add(added.Item1, added.Item2);
+    }
+
+    /// <summary>足してあった案件の分を、総合計から引く (足していない案件なら、何もしない)</summary>
+    /// <param name="projectId">案件の番号</param>
+    private void RemoveProjectTotal(int projectId)
+    {
+        if (_projectTotals.Remove(projectId, out var removed))
+        {
+            _total.Remove(removed.Hours, removed.Runs);
+        }
+    }
+
+    /// <summary>総合計の行を、今の総合計の値に合わせる</summary>
+    private void UpdateTotalRow() => TotalRow.UpdateTotal(_total.Hours, _total.Runs(), Axis!, _service.Today);
 
     /// <summary>木の行から、表の行を使い回しで作り、見えている行を、木の順に並べる</summary>
     /// <param name="node">木の行</param>
@@ -441,6 +482,8 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         {
             _rowByKey.Remove(row.Key);
         }
+        RemoveProjectTotal(projectId);
+        UpdateTotalRow();
         UpdateEmptyState();
         RowsBlockChanged?.Invoke(this, EventArgs.Empty);
         return true;
@@ -468,6 +511,8 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         Visit(snapshot.Roots[0], 0, snapshot, target, []);
 
         ProjectBlockRows.Insert(Rows, target);
+        AddProjectTotal(snapshot.Roots[0], snapshot);
+        UpdateTotalRow();
         UpdateEmptyState();
         RowsBlockChanged?.Invoke(this, EventArgs.Empty);
         return true;
