@@ -31,6 +31,7 @@ namespace MmmTool.Notes.Main;
 /// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を毎分 1 回、端末ごとにずらした秒に読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
 /// 他の機能の内容 (作業報告など)が変わったときは、その機能からの通知で、すぐ読み直す。見えている間だけ購読する。
 /// 読み直しでページを作り直すときは、読んでいる位置と、開いているカードを保つ。日付・切り替えを変えたときは、先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
+/// ほかのページから戻ったときも読み直すが、日・基準・切り替えが前回の表示と同じなら、位置と開いているカードを保つ。
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
@@ -60,6 +61,10 @@ public sealed partial class NotesViewModel(
 
     /// <summary>最後に表示したページの HTML (読み直して、同じなら、作り直さない)</summary>
     private string _lastHtml = "";
+
+    /// <summary>最後に表示したときの、日・基準・切り替え</summary>
+    /// <remarks>見えるようになったとき、同じなら位置を保つために使う。まだ表示していないときは null。</remarks>
+    private ShownKey? _shownKey;
 
     /// <summary>読み込みの順番 (古い読み込みの結果を捨てるため)</summary>
     private int _version;
@@ -190,6 +195,16 @@ public sealed partial class NotesViewModel(
         }
     }
 
+    /// <summary>今の日・基準・切り替え</summary>
+    private ShownKey CurrentKey => new(Day, Basis, IsTitleOnly, ShowDeleted);
+
+    /// <summary>表示の内容を決める、日・基準・切り替え (変わったら先頭から表示し直す組)</summary>
+    /// <param name="Day">表示する日</param>
+    /// <param name="Basis">どのノートを出すかの基準</param>
+    /// <param name="IsTitleOnly">「タイトルだけ」か</param>
+    /// <param name="ShowDeleted">削除したものも出すか</param>
+    private readonly record struct ShownKey(DateOnly Day, NoteBasis Basis, bool IsTitleOnly, bool ShowDeleted);
+
     /// <summary>ページが見えるようになった (表示し、読み直しを始める)</summary>
     /// <returns>最初の表示の完了を表すタスク</returns>
     public async Task ResumeAsync()
@@ -203,7 +218,8 @@ public sealed partial class NotesViewModel(
         // 見えていない間に、作業報告の窓などが同じ設定を変えているかもしれない。続く読み込みで反映する
         SyncSourceSettings();
         WatchContents();
-        await ReloadAsync(preserveState: false);
+        // ほかのページを見て戻ってきただけ (日・基準・切り替えが前回の表示と同じ)なら、読んでいた位置と開いているカードを保つ
+        await ReloadAsync(preserveState: _shownKey == CurrentKey);
 
         // 保存先が自分だけのときは、ほかの人の更新が無いので、定期の読み直しは要らない。内容の変更は、通知で反映する
         // 最初の読み込みの間にページが見えなくなったときは、登録しない
@@ -495,6 +511,7 @@ public sealed partial class NotesViewModel(
             Error.Show(frameError);
         }
         _cards = cards;
+        _shownKey = CurrentKey;
         var html = pageBuilder.Build(cards, new NotePageOptions(Day, IsDark, notes.IsShared, IsTitleOnly, Basis, state?.OpenIds, state?.KnownIds), frames);
         if (preserveState && html == _lastHtml)
         {
