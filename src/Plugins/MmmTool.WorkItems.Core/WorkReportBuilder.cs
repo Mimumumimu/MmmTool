@@ -7,7 +7,7 @@ namespace MmmTool.WorkItems.Core;
 /// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
 /// <remarks>
 /// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。保留は、状態が保留で、予定に含めない印が無い作業で、1 件も無ければ区画を出さない。
+/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。保留は、状態が保留で、予定に含めない印が無い作業で、1 件も無いか、切り替え (<c>showOnHold</c>)がオフなら区画を出さない。
 /// 並びは画面に表示している順で、案件は名前順、グループと作業は同じ親の下の並び順。画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
@@ -30,11 +30,12 @@ public static class WorkReportBuilder
     /// <param name="reportDate">報告日で、予定の日。実績は、この日より前だけ</param>
     /// <param name="showHours">実績の各作業に、期間内の工数の合計を添えるか</param>
     /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
+    /// <param name="showOnHold">保留の区画 (■保留)を出すか。オフなら、保留の作業があっても区画ごと出さない</param>
     /// <returns>テキストで、行の区切りは CRLF。末尾に改行は付けない</returns>
     /// <remarks>
     /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを、いちばん最後の「■日報メモ」に、全角スペース 1 つの字下げをつけて出す。実績・予定・保留の中には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
     /// </remarks>
-    public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress)
+    public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress, bool showOnHold)
     {
         ArgumentNullException.ThrowIfNull(data);
         var codes = new CodeBook(data.Content.Codes);
@@ -85,7 +86,7 @@ public static class WorkReportBuilder
         AppendSection(builder, done, projects, groups, codes, showProgress);
         builder.Append(NewLine).Append("■予定").Append(NewLine);
         AppendSection(builder, planned, projects, groups, codes, showProgress);
-        if (onHold.Count > 0)
+        if (showOnHold && onHold.Count > 0)
         {
             builder.Append(NewLine).Append("■保留").Append(NewLine);
             AppendSection(builder, onHold, projects, groups, codes, showProgress);

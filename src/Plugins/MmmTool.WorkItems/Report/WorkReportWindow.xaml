@@ -34,7 +34,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる。範囲の日付は、左が始まり・右が終わり。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度)は 2 行目に置く -->
+            <!-- 条件。1 行目は、実績の開始日 (実績を拾い始める日)から報告日 (予定の日)までを、左から右に、過去から未来の順で並べる。範囲の日付は、左が始まり・右が終わり。曜日つきで日付の選択が長くなったので、出力の選択 (時間・進捗度・保留)は 2 行目に置く -->
             <StackPanel Grid.Row="0" Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <TextBlock VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="実績の開始日" />
@@ -44,7 +44,7 @@
                     <CalendarDatePicker x:Name="ReportDatePicker" DateChanged="OnReportDateChanged" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <!-- 並びは、出力の行の並び (状態 → 進捗度 → 時間)に合わせる -->
+                    <!-- 並びは、出力の行の並び (状態 → 進捗度 → 時間)に合わせ、区画を切り替える「保留を表示」を最後に置く -->
                     <CheckBox
                         MinWidth="0"
                         Content="進捗度表示"
@@ -53,6 +53,11 @@
                         MinWidth="0"
                         Content="実績に時間を出す"
                         IsChecked="{x:Bind ViewModel.ShowHours, Mode=TwoWay}" />
+                    <!-- 設定には覚えない。開くたびにオンから始まり、今回だけ外したいときに手でオフにする -->
+                    <CheckBox
+                        MinWidth="0"
+                        Content="保留を表示"
+                        IsChecked="{x:Bind ViewModel.ShowOnHold, Mode=TwoWay}" />
                 </StackPanel>
             </StackPanel>
 

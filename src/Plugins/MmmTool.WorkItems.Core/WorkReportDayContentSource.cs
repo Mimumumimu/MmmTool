@@ -9,7 +9,7 @@ namespace MmmTool.WorkItems.Core;
 /// <param name="repository">作業管理の保存先</param>
 /// <remarks>
 /// 文は <see cref="WorkReportBuilder"/> が作る。作業報告の窓と同じ形で、期間の終わりが報告日、始まりが実績の開始日。
-/// 選択肢のキーは、作業報告の窓が覚える設定のキーと同じにして、選択を共有する。
+/// 選択肢のキーは、作業報告の窓が覚える設定のキーと同じにして、選択を共有する。作業報告の窓の「保留を表示」は、ここには出さず、保留は常に出す。
 /// </remarks>
 public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayContentSource
 {
@@ -67,7 +67,8 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
             from,
             to,
             options.GetValueOrDefault(ShowHoursKey, false),
-            options.GetValueOrDefault(ShowProgressKey, true));
+            options.GetValueOrDefault(ShowProgressKey, true),
+            showOnHold: true);
     }
 
     /// <inheritdoc />
@@ -79,6 +80,6 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
         var reports = await repository.LoadReportsAsync(from, to, userIds, cancellationToken).ConfigureAwait(false);
         var showHours = options.GetValueOrDefault(ShowHoursKey, false);
         var showProgress = options.GetValueOrDefault(ShowProgressKey, true);
-        return reports.ToDictionary(report => report.Key, report => WorkReportBuilder.Build(report.Value, from, to, showHours, showProgress));
+        return reports.ToDictionary(report => report.Key, report => WorkReportBuilder.Build(report.Value, from, to, showHours, showProgress, showOnHold: true));
     }
 }

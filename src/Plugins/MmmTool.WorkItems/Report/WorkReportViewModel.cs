@@ -19,7 +19,7 @@ namespace MmmTool.WorkItems.Report;
 /// <remarks>
 /// 報告日の既定は、作業管理の入力日。実績の開始日の既定は、報告日より前で、担当が自分の作業に工数が入った日か、作業を完了にした日の、直近の日で、無ければ前日。
 /// 報告日を変えたとき、実績の開始日は常に、新しい報告日の既定に付け替える。これは連動で、手で変えた実績の開始日も、報告日を変えると戻る。実績の開始日だけを変えたときは、そのまま残す。報告日以降にならないよう、前日までに直す。
-/// 保存先から読むのは、実績の開始日・報告日が変わったときだけ。「実績に時間を出す」「進捗度を出す」が変わったときは、読んだ内容から作り直す。
+/// 保存先から読むのは、実績の開始日・報告日が変わったときだけ。「実績に時間を出す」「進捗度を出す」「保留を表示」が変わったときは、読んだ内容から作り直す。「保留を表示」は設定に覚えず、開くたびにオンから始める。
 /// 内容の規則は <see cref="WorkReportBuilder"/>。画面の表示の設定 (隠した行・表示する案件)には従わない。
 /// </remarks>
 public sealed partial class WorkReportViewModel(WorkItemService service, ISettingsStore settings, IClipboardService clipboard) : ObservableObject
@@ -63,6 +63,10 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
     /// <summary>実績と予定の各作業に、進捗度を添えるか</summary>
     [ObservableProperty]
     public partial bool ShowProgress { get; set; }
+
+    /// <summary>保留の区画 (■保留)を出すか。既定はオンで、設定には覚えない (除外したいときだけ、そのつど手でオフにする)</summary>
+    [ObservableProperty]
+    public partial bool ShowOnHold { get; set; } = true;
 
     /// <summary>プレビュー (報告のテキスト)</summary>
     [ObservableProperty]
@@ -179,6 +183,10 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
         Rebuild();
     }
 
+    /// <summary>「保留を表示」が変わったら、読んだ内容から作り直す (設定には残さない)</summary>
+    /// <param name="value">新しい値</param>
+    partial void OnShowOnHoldChanged(bool value) => Rebuild();
+
     /// <summary>実績の開始日を、コードで設定する (手で変えたことにしない)</summary>
     /// <param name="value">設定する日</param>
     private void SetFrom(DateOnly value)
@@ -232,7 +240,7 @@ public sealed partial class WorkReportViewModel(WorkItemService service, ISettin
             return;
         }
         IsCopied = false;
-        PreviewText = WorkReportBuilder.Build(_data, _dataDates.From, _dataDates.Report, ShowHours, ShowProgress);
+        PreviewText = WorkReportBuilder.Build(_data, _dataDates.From, _dataDates.Report, ShowHours, ShowProgress, ShowOnHold);
         CanCopy = true;
     }
 
