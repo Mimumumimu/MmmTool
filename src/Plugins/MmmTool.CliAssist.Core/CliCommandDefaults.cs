@@ -84,7 +84,9 @@ public static class CliCommandDefaults
                 Leaf("新規チャット", "/clear", focus: FocusTarget.Input),
                 Leaf("読み込みファイル一覧", "/context"),
                 Leaf("会話要約 (コンテキスト圧縮)", "/compact"),
-                Leaf("CLAUDE.md を作成", "/init")),
+                Leaf("CLAUDE.md を作成", "/init"),
+                // CLAUDE.md・スキルなどの、古い書き方・存在しない参照・矛盾を調べる (修正は頼むまで適用されない)
+                Leaf("CLAUDE.md とスキルの点検", "/doctor prompt-audit")),
             // 一覧から選ぶ操作になるので、キー操作できるようターミナルへ
             Leaf("モデル切替", "/model", focus: FocusTarget.Terminal),
             Leaf("会話履歴と再開", "/resume", focus: FocusTarget.Terminal),

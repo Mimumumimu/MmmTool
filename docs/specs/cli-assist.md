@@ -204,6 +204,7 @@ CLI補助機能の仕様。
   | 読み込みファイル一覧 | `/context` | `/context` | |
   | 会話要約 (コンテキスト圧縮) | `/compact` | `/compact` | |
   | CLAUDE.md を作成 / steering を作成 | `/init` | 作成を頼む文 | Kiro の CLI に `/init` は無いので、`.kiro/steering/` に product.md・tech.md・structure.md (Kiro の IDE の「Generate Steering Docs」と同じ 3 つ)を作るよう頼む文を送る (ユーザーの決定) |
+  | CLAUDE.md とスキルの点検 | `/doctor prompt-audit` | (無し) | CLAUDE.md・スキル・rules などの、古い書き方・存在しない参照・矛盾を調べ、修正案を出す。頼むまでファイルは変わらない。Claude Code v2.1.283 以降。Kiro の公式ドキュメント (Slash commands の CLI の一覧・Steering)に同じ働きのコマンドが見つからないので、Kiro には足さない (下の「Kiro のコマンド」) |
   | モデル切替 | `/model` | `/model` | |
   | 会話履歴と再開 | `/resume` | `/chat` | |
   | コスト確認 / 使用量の確認 | `/cost` | `/usage` | Kiro は料金・残りクレジットを出す |
@@ -627,6 +628,12 @@ CLI補助のページは、サイドバーから別のウィンドウに外せ�
   - 新規チャットは `/chat new`(Kiro の `/clear` は、同じ会話のまま中身を消すだけで、Claude Code の `/clear` とは働きが違う)
   - CLAUDE.md の作成 (`/init`)にあたるコマンドは Kiro の CLI に無いので、「steering を作成」として、`.kiro/steering/` に product.md・tech.md・structure.md を作るよう頼む文を送る (ユーザーの決定)
     - Kiro の IDE の「Generate Steering Docs」と同じ 3 つのファイルで、`/init` と同じ目的を果たす
+  - 「CLAUDE.md とスキルの点検」(`/doctor prompt-audit`)にあたる Kiro のコマンドは、公式ドキュメントの Slash commands (CLI)と Steering のページには見つからないので、足さない
+    - `/config` (読み込まれた steering などの確認)と `/context show` (読み込まれるファイルの確認)は、一覧を見るだけで、古さ・存在しない参照・矛盾は調べない
+    - `/spec analyze_requirements` は矛盾と曖昧さを調べるが、対象は spec の requirements.md だけで、steering・AGENTS.md・スキルは調べない
+    - 確かめた範囲: Steering・Context・Skills・Custom agents のページ、Slash commands の全文、CLI 3.1.0 から 3.2.1 のリリースノート。読んでいないのは、CLI のコマンド一覧 (`kiro-cli diagnostic`)と、3.0 以前のリリースノート
+    - Kiro 自身の文書も、古さや参照の確認は「定期的に自分で見直す」としていて、コマンドにはなっていない
+    - steering の点検を頼む文を送る項目も足さない (ユーザーの決定)
   - 会話履歴の削除は、Claude Code と同じ操作の補助スクリプト (`Remove-KiroSession`)にする (ユーザーの決定)
     - 詳細は [cli-history-cleanup.md](cli-history-cleanup.md)
     - Kiro 自身の一覧 (`--resume-picker`)は、いまのフォルダの履歴しか出ず、Ctrl+D で 1 件ずつ消すので、全フォルダの履歴をまとめて選んで消せない
