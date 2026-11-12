@@ -11,6 +11,7 @@ namespace MmmTool.Notes.Core;
 /// <param name="settings">ユーザーごとの設定の保存先 (自分の「ノートの通知を受け取る」を読む)</param>
 /// <param name="time">現在時刻の取得元</param>
 /// <param name="ticker">定期処理の合図</param>
+/// <param name="currentUser">今のユーザー (ログインの前かを読む前に確かめる)</param>
 /// <remarks>
 /// <para>
 /// PC の通知ダイアログ用。
@@ -19,7 +20,7 @@ namespace MmmTool.Notes.Core;
 /// 通知の元はノートの更新日時。
 /// 変更の履歴も、通知のための行も、DB に持たない。
 /// 基準の時刻はメモリだけに持ち、ファイルにも DB にも書かない。
-/// 始めたときのデータベースサーバーの時刻が最初の基準で、止まっていた間 (アプリが動いていなかった間)の更新は通知しない。
+/// 最初に読んだときのデータベースサーバーの時刻が最初の基準で、止まっていた間 (アプリが動いていなかった間と、ログインの前)の更新は通知しない。
 /// 基準は確定が遅れた書き込みを取りこぼさないよう <see cref="Overlap"/> 戻して読む。
 /// 同じノートの同じ更新日時は 1 回しか知らせない。
 /// 自分の編集は読んだ更新者の番号を見て、ここで外す。
@@ -31,7 +32,7 @@ namespace MmmTool.Notes.Core;
 /// 画面を触るときは UI スレッドに切り替える。
 /// </para>
 /// </remarks>
-public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepository settings, TimeProvider time, ITicker ticker) : IDisposable
+public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepository settings, TimeProvider time, ITicker ticker, CurrentUser currentUser) : IDisposable
 {
     /// <summary>確定が遅れた書き込みを取りこぼさないために基準から戻して読む時間</summary>
     public static readonly TimeSpan Overlap = TimeSpan.FromSeconds(10);
@@ -111,7 +112,8 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
     /// </returns>
     private async Task<TickResult> CheckAsync(Action<IReadOnlyList<NoteNotice>> notify, CancellationToken cancellationToken)
     {
-        if (!notes.IsShared || !settings.IsAvailable)
+        // ローカルモード・設定を読めないとき・ログインの前は、読むものが無い。DB に届かなかったのではないので、失敗にしない。基準は決めず、次の周期でやり直す
+        if (!notes.IsShared || !settings.IsAvailable || !currentUser.IsIdentified)
         {
             return TickResult.Done;
         }
@@ -129,7 +131,6 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
     /// <returns>
     /// 結果と、知らせるもの。
     /// DB に届かなかったときは失敗。
-    /// ログインの前は成功で、知らせるものは無い。
     /// </returns>
     private async Task<(TickResult Result, IReadOnlyList<NoteNotice>? Found)> TryReadAsync(CancellationToken cancellationToken)
     {
@@ -168,11 +169,6 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
         {
             // 接続できない。基準は進めず、次の周期でやり直す。失敗として伝え、続くと間隔を延ばす
             return (TickResult.Failed, null);
-        }
-        catch (InvalidOperationException)
-        {
-            // ログインの前。DB に届かなかったのではないので、失敗にしない。基準は進めず、次の周期でやり直す
-            return (TickResult.Done, null);
         }
     }
 
