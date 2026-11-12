@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using MmmBatch.Sending.Core;
 using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 using MmmTool.Notes.Core;
 using MmmTool.NotificationChannels.Core;
 
@@ -74,7 +75,7 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
     private readonly Dictionary<NotificationChannelKind, INotifier> _notifiers = notifiers.ToDictionary(notifier => notifier.Kind);
 
     /// <summary>送る予定に入れた分</summary>
-    private readonly Dictionary<int, DateTimeOffset> _seen = [];
+    private readonly SeenChanges<int> _seen = new(SeenKeep);
 
     /// <summary>送る予定</summary>
     /// <remarks>ノートごとに 1 件で、先頭から 1 グループずつ送って、後ろに回す。</remarks>
@@ -91,15 +92,12 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
     /// <summary>送り直しの予定を守るロック</summary>
     private readonly Lock _retryGate = new();
 
-    /// <summary>始めたときのデータベースサーバーの時刻</summary>
+    /// <summary>読む基準の時刻</summary>
     /// <remarks>
-    /// これ以前の更新は送らない
-    /// 始める前は null
+    /// 始めたときのデータベースサーバーの時刻から、読むたびに進む。
+    /// 始めたときの時刻より前の更新は送らない。
     /// </remarks>
-    private DateTimeOffset? _floor;
-
-    /// <summary>次に読む基準</summary>
-    private DateTimeOffset _cursor;
+    private readonly ChangeWatermark _watermark = new(Overlap);
 
     /// <inheritdoc />
     public string Name => "ノートの送信";
@@ -140,12 +138,10 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
         try
         {
             var today = DateOnly.FromDateTime(now);
-            if (_floor is null)
+            if (!_watermark.IsStarted)
             {
                 // 最初の 1 回は、基準にするデータベースサーバーの時刻だけを受け取る。始める前の更新は、送らない
-                var start = (await source.GetChangesAsync(null, today, cancellationToken).ConfigureAwait(false)).ServerNow;
-                _floor = start;
-                _cursor = start;
+                _watermark.Start((await source.GetChangesAsync(null, today, cancellationToken).ConfigureAwait(false)).ServerNow);
             }
             else
             {
@@ -185,12 +181,12 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
     /// </exception>
     private async Task EnqueueChangesAsync(DateOnly today, CancellationToken cancellationToken)
     {
-        var previous = _cursor;
-        var read = await source.GetChangesAsync(previous - Overlap, today, cancellationToken).ConfigureAwait(false);
-        foreach (var change in read.Changes.Where(change => change.UpdatedAt > _floor && !IsSeen(change)))
+        var previous = _watermark.Cursor!.Value;
+        var read = await source.GetChangesAsync(_watermark.Since, today, cancellationToken).ConfigureAwait(false);
+        foreach (var change in read.Changes.Where(change => _watermark.IsAfterFloor(change.UpdatedAt) && !_seen.IsSeen(change.Id, change.UpdatedAt)))
         {
             var editorName = change.EditorName;
-            _seen[change.Id] = change.UpdatedAt;
+            _seen.Remember(change.Id, change.UpdatedAt);
             var isCreated = change.CreatedAt > previous;
             if (_pendingByNote.TryGetValue(change.Id, out var node))
             {
@@ -206,23 +202,8 @@ public sealed class NoteSendService(INoteSendSource source, IEnumerable<INotifie
             }
         }
 
-        _cursor = read.ServerNow > previous ? read.ServerNow : previous;
-        Prune();
-    }
-
-    /// <summary>この更新をすでに送る予定に入れたか</summary>
-    /// <param name="change">更新されたノート</param>
-    /// <returns>同じノートの、同じかそれより新しい更新日時を、入れ済みなら true。</returns>
-    private bool IsSeen(NoteChange change) => _seen.TryGetValue(change.Id, out var seen) && seen >= change.UpdatedAt;
-
-    /// <summary>基準より十分に古い「入れた分」を捨てる</summary>
-    /// <remarks>メモリを増やし続けないため</remarks>
-    private void Prune()
-    {
-        foreach (var id in _seen.Where(pair => pair.Value < _cursor - SeenKeep).Select(pair => pair.Key).ToList())
-        {
-            _seen.Remove(id);
-        }
+        _watermark.Advance(read.ServerNow);
+        _seen.Prune(_watermark.Cursor!.Value);
     }
 
     /// <summary>送る予定を先頭のノートから 1 グループずつ、時間の目安の範囲で送る</summary>

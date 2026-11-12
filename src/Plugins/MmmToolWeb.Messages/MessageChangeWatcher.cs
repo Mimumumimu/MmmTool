@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 using MmmTool.Data.SqlServer.Messages;
 using MmmTool.Messages.Core;
 
@@ -26,14 +27,20 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
     /// <remarks>戻して読む時間より長くする</remarks>
     private static readonly TimeSpan RememberTime = MessageSync.Lookback + TimeSpan.FromSeconds(20);
 
-    /// <summary>知らせ済みの更新された行の種類と番号と更新日時と知らせた相手</summary>
+    /// <summary>知らせ済みの更新された行の種類と番号と知らせた相手</summary>
     /// <remarks>古いものから捨てる</remarks>
-    private readonly Dictionary<(bool IsReadPosition, int RowId, DateTimeOffset UpdatedAt, int UserId), DateTimeOffset> _seen = [];
+    private readonly SeenChanges<(bool IsReadPosition, int RowId, int UserId)> _seen = new(RememberTime);
+
+    /// <summary>読む基準の時刻</summary>
+    /// <remarks>
+    /// DB の時計の日時で、読むたびに進む。
+    /// 誰も接続していない間は決まっていない。
+    /// </remarks>
+    private readonly ChangeWatermark _watermark = new(MessageSync.Lookback);
 
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        DateTimeOffset? baseTime = null;
         using var timer = new PeriodicTimer(PollInterval);
         try
         {
@@ -42,17 +49,17 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
                 if (!hub.HasSubscribers)
                 {
                     // 誰も接続していない間の更新は、端末がつないだときの読み直しで拾う
-                    baseTime = null;
+                    _watermark.Set(null);
                     continue;
                 }
 
                 try
                 {
                     // 基準は、DB の時計の日時。まだ読んでいないときは、少し前から読む。つないだ直後の知らせで、端末が読み直すので、取りこぼさない
-                    var since = baseTime is { } known ? MessageSync.SinceOf(known) : DateTimeOffset.UtcNow - TimeSpan.FromSeconds(30);
+                    var since = _watermark.IsStarted ? _watermark.Since : DateTimeOffset.UtcNow - TimeSpan.FromSeconds(30);
                     var (changes, now) = await reader.ReadAsync(since, stoppingToken).ConfigureAwait(false);
                     Notify(changes, now);
-                    baseTime = now;
+                    _watermark.Set(now);
                 }
                 catch (DataFileException ex)
                 {
@@ -75,16 +82,15 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
         var users = new HashSet<int>();
         foreach (var change in changes)
         {
-            if (_seen.TryAdd((change.IsReadPosition, change.RowId, change.UpdatedAt, change.UserId), now))
+            var key = (change.IsReadPosition, change.RowId, change.UserId);
+            if (!_seen.IsSeen(key, change.UpdatedAt))
             {
+                _seen.Remember(key, change.UpdatedAt);
                 users.Add(change.UserId);
             }
         }
         hub.Notify(users);
 
-        foreach (var key in _seen.Where(pair => now - pair.Value > RememberTime).Select(pair => pair.Key).ToList())
-        {
-            _seen.Remove(key);
-        }
+        _seen.Prune(now);
     }
 }

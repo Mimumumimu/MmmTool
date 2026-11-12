@@ -1,5 +1,6 @@
 using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 using MmmTool.Messages.Cache;
 using MmmTool.Messages.Core;
 using MmmTool.Users.Core;
@@ -69,13 +70,15 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
     private int _userId;
 
     /// <summary>次の差分の取得の基準にする日時</summary>
-    /// <remarks>まだ読んでいなければ null</remarks>
-    private DateTimeOffset? _nextBase;
+    /// <remarks>まだ読んでいなければ決まっていない</remarks>
+    private readonly ChangeWatermark _nextBase = new(MessageSync.Lookback);
 
     /// <summary>起動して最初に読んだ日時</summary>
     /// <remarks>
     /// DB の時計
     /// これより前に送られたメッセージは通知ダイアログに出さない
+    /// <see cref="ChangeWatermark"/> の下限に寄せない。
+    /// 更新日時を「より後」で比べる下限と違い、作成日時を「以上」で比べて、境目が違うため。
     /// </remarks>
     private DateTimeOffset? _sessionStart;
 
@@ -196,7 +199,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             }
 
             _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { PeerNotifiable = peerNotifiable } : conversation)];
-            if (_nextBase is { } known)
+            if (_nextBase.Cursor is { } known)
             {
                 await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
             }
@@ -252,7 +255,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             }
 
             _conversations = [.. _conversations.Select(conversation => conversation.Id == conversationId ? conversation with { UnreadCount = 0 } : conversation)];
-            if (_nextBase is { } known)
+            if (_nextBase.Cursor is { } known)
             {
                 await cache.WriteListAsync(CachedConversationList.Create(_userId, known, _conversations), cancellationToken).ConfigureAwait(false);
             }
@@ -386,26 +389,26 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
                 await cache.ClearAsync(cancellationToken).ConfigureAwait(false);
             }
             _userId = me;
-            _nextBase = null;
+            _nextBase.Set(null);
             _sessionStart = null;
             _conversations = [];
             _notified.Clear();
             _reportedRead.Clear();
         }
 
-        if (_nextBase is null && await cache.ReadListAsync(me, cancellationToken).ConfigureAwait(false) is { } cached)
+        if (!_nextBase.IsStarted && await cache.ReadListAsync(me, cancellationToken).ConfigureAwait(false) is { } cached)
         {
             // 最初に、控えから出す。続けて、差分を読む。古い形の控えは、読み込みの時点で捨てられている
-            _nextBase = cached.NextBase;
+            _nextBase.Set(cached.NextBase);
             _conversations = cached.Conversations;
             Synced?.Invoke();
         }
 
         MessageSyncResult result;
         IReadOnlyList<ConversationSummary> previous = [];
-        if (_nextBase is { } known)
+        if (_nextBase.IsStarted)
         {
-            result = await repository.GetChangesAsync(MessageSync.SinceOf(known), cancellationToken).ConfigureAwait(false);
+            result = await repository.GetChangesAsync(_nextBase.Since, cancellationToken).ConfigureAwait(false);
             previous = _conversations;
             _conversations = Merge(_conversations, result.Conversations);
         }
@@ -422,7 +425,7 @@ public sealed class MessageSyncService(IMessageRepository repository, CurrentUse
             await cache.WriteMessagesAsync(me, leftId, [], cancellationToken).ConfigureAwait(false);
         }
 
-        _nextBase = result.NextBase;
+        _nextBase.Set(result.NextBase);
         _sessionStart ??= result.NextBase;
         await cache.WriteListAsync(CachedConversationList.Create(me, result.NextBase, _conversations), cancellationToken).ConfigureAwait(false);
 

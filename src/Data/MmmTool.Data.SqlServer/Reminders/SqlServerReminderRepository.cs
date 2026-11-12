@@ -97,11 +97,8 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     private volatile string? _loadError;
 
     /// <summary>前回の読み出しを始めたときの DB の時計の日時</summary>
-    /// <remarks>
-    /// 差分の読み出しの基準
-    /// まだ読んでいなければ null
-    /// </remarks>
-    private DateTimeOffset? _readAt;
+    /// <remarks>差分の読み出しの基準で、まだ読んでいなければ決まっていない。</remarks>
+    private readonly ChangeWatermark _readAt = new(DiffOverlap);
 
     /// <summary>前回の読み出しで、管理者にリマインダーを無効にされていたか</summary>
     private bool _wasDisabled;
@@ -393,12 +390,12 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             var userId = _currentUser.Id;
 
             // 最初・人が替わったとき・一定の回数ごと・無効の状態が変わったときは、全件を読む。それ以外は、前回より後に更新された行だけを読む
-            var needsFull = _readAt is null || _loadedUserId != userId || _diffReads >= FullReloadEvery;
+            var needsFull = !_readAt.IsStarted || _loadedUserId != userId || _diffReads >= FullReloadEvery;
             Snapshot? snapshot = null;
             if (!needsFull)
             {
                 snapshot = await _database
-                    .RunAsync(connection => ReadChangesAsync(connection, userId, _readAt!.Value - DiffOverlap, _wasDisabled, cancellationToken), cancellationToken)
+                    .RunAsync(connection => ReadChangesAsync(connection, userId, _readAt.Since, _wasDisabled, cancellationToken), cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -418,7 +415,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
             var changed = !snapshot.Reminders.SequenceEqual(_reminders) || !snapshot.States.SequenceEqual(_states) || _loadError is not null;
             _reminders = snapshot.Reminders;
             _states = snapshot.States;
-            _readAt = snapshot.ReadAt;
+            _readAt.Set(snapshot.ReadAt);
             _wasDisabled = snapshot.Disabled;
             _loadedUserId = userId;
             _loadError = null;

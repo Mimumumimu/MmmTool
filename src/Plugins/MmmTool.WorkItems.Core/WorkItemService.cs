@@ -3,6 +3,7 @@ using MmmSdk.Core.Components.Holidays;
 using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Settings;
 using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.WorkItems.Core;
@@ -90,9 +91,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>その日の自分の日報メモ</summary>
     private WorkDayNote? _dayNote;
 
-    /// <summary>差分の取得の基準の時刻で、保存先が返した、いちばん新しい更新日時</summary>
-    /// <remarks>まだ無ければ null</remarks>
-    private DateTimeOffset? _baseline;
+    /// <summary>差分の取得の基準の時刻</summary>
+    /// <remarks>
+    /// 保存先が返した、いちばん新しい更新日時。
+    /// まだ無ければ全件を読む。
+    /// </remarks>
+    private readonly ChangeWatermark _baseline = new(PollOverlap);
 
     /// <summary>定期的な差分の取得の毎分の合図の登録</summary>
     private ITickSubscription? _poll;
@@ -221,14 +225,14 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             // 基準の時刻が変わるので、持っていたスケジュールの記録は捨てる (スケジュールが、あとから読み直す)
             _scheduleRecords.Clear();
             _holdsScheduleRecords = false;
-            _baseline = new DateTimeOffset?[]
+            _baseline.Set(new DateTimeOffset?[]
             {
                 data.Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 data.Groups.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 data.Items.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 data.Codes.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
                 records.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),
-            }.Max();
+            }.Max());
             IsLoaded = true;
             _status.Succeeded(repository.RecoveryMessage, keepPreviousRecoveryMessage: true);
         }
@@ -359,12 +363,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
                 return;
             }
 
-            var since = _baseline is { } baseline ? baseline - PollOverlap : DateTimeOffset.MinValue;
-            var changes = await repository.GetChangesAsync(since, _day, _holdsScheduleRecords, _hidden, cancellationToken);
+            var changes = await repository.GetChangesAsync(_baseline.Since, _day, _holdsScheduleRecords, _hidden, cancellationToken);
             changed = await ApplyChangesAsync(changes, cancellationToken);
-            if (changes.MaxUpdatedAt is { } max && (_baseline is null || max > _baseline))
+            if (changes.MaxUpdatedAt is { } max)
             {
-                _baseline = max;
+                _baseline.Advance(max);
             }
         }
         finally

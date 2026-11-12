@@ -1,3 +1,5 @@
+using MmmSdk.Core.Utilities;
+
 namespace MmmTool.Messages.Core;
 
 /// <summary>メッセージの差分の取得の決まり</summary>
@@ -22,5 +24,5 @@ public static class MessageSync
     /// <summary>基準の日時から次の差分を取る日時を求める</summary>
     /// <param name="baseTime">前回の結果の次の基準の日時</param>
     /// <returns>この日時より後に更新された行を読む</returns>
-    public static DateTimeOffset SinceOf(DateTimeOffset baseTime) => baseTime - Lookback;
+    public static DateTimeOffset SinceOf(DateTimeOffset baseTime) => ChangeWatermark.SinceOf(baseTime, Lookback);
 }

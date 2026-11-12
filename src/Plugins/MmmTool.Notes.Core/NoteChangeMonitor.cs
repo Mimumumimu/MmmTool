@@ -1,5 +1,6 @@
 using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Components.Storage;
+using MmmSdk.Core.Utilities;
 using MmmTool.CodeMaster.Core;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Users.Core;
@@ -50,21 +51,17 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
     private ITickSubscription? _subscription;
 
     /// <summary>知らせ済みのノート</summary>
-    private readonly Dictionary<int, DateTimeOffset> _seen = [];
+    private readonly SeenChanges<int> _seen = new(SeenKeep);
 
     /// <summary>始めたか</summary>
     private bool _started;
 
-    /// <summary>次に読む基準</summary>
+    /// <summary>読む基準の時刻</summary>
     /// <remarks>
     /// 始めたときのデータベースサーバーの時刻から、読むたびに進む。
-    /// 始める前は null。
+    /// 始めたときの時刻より前の更新は知らせない。
     /// </remarks>
-    private DateTimeOffset? _cursor;
-
-    /// <summary>始めたときのデータベースサーバーの時刻</summary>
-    /// <remarks>これ以前の更新は知らせない</remarks>
-    private DateTimeOffset _floor;
+    private readonly ChangeWatermark _watermark = new(Overlap);
 
     /// <summary>監視を始める</summary>
     /// <param name="isEnabled">
@@ -139,27 +136,26 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
             var today = DateOnly.FromDateTime(time.GetLocalNow().DateTime);
 
             // 最初の 1 回は、基準にするデータベースサーバーの時刻だけを受け取る。始める前の更新は、知らせない
-            if (_cursor is not { } cursor)
+            if (_watermark.Cursor is not { } cursor)
             {
-                _floor = (await notes.GetChangesAsync(null, today, cancellationToken).ConfigureAwait(false)).ServerNow;
-                _cursor = _floor;
+                _watermark.Start((await notes.GetChangesAsync(null, today, cancellationToken).ConfigureAwait(false)).ServerNow);
                 return (TickResult.Done, null);
             }
 
-            var read = await notes.GetChangesAsync(cursor - Overlap, today, cancellationToken).ConfigureAwait(false);
+            var read = await notes.GetChangesAsync(_watermark.Since, today, cancellationToken).ConfigureAwait(false);
             var me = notes.CurrentUserId;
             var fresh = read.Changes
-                .Where(change => change.UpdatedAt > _floor && change.EditorUserId != me && !IsSeen(change))
+                .Where(change => _watermark.IsAfterFloor(change.UpdatedAt) && change.EditorUserId != me && !_seen.IsSeen(change.Id, change.UpdatedAt))
                 .ToList();
 
             // DB を読む処理を、すべて終えてから、基準と「知らせ済み」を進める。途中で読めなかったときは進めず、次の周期で、同じ更新をもう一度読む
             var isOn = fresh.Count == 0 || await IsOnAsync(cancellationToken).ConfigureAwait(false);
-            _cursor = read.ServerNow > cursor ? read.ServerNow : cursor;
+            _watermark.Advance(read.ServerNow);
             foreach (var change in read.Changes)
             {
-                _seen[change.Id] = change.UpdatedAt;
+                _seen.Remember(change.Id, change.UpdatedAt);
             }
-            Prune(_cursor.Value);
+            _seen.Prune(_watermark.Cursor!.Value);
 
             return (TickResult.Done, fresh.Count == 0 || !isOn
                 ? null
@@ -169,23 +165,6 @@ public sealed class NoteChangeMonitor(INoteRepository notes, IAppUserSettingRepo
         {
             // 接続できない。基準は進めず、次の周期でやり直す。失敗として伝え、続くと間隔を延ばす
             return (TickResult.Failed, null);
-        }
-    }
-
-    /// <summary>この更新をすでに知らせたか</summary>
-    /// <param name="change">更新されたノート</param>
-    /// <returns>同じノートの、同じかそれより新しい更新日時を読み済みなら true。</returns>
-    /// <remarks>読んだ</remarks>
-    private bool IsSeen(NoteChange change) => _seen.TryGetValue(change.Id, out var seen) && seen >= change.UpdatedAt;
-
-    /// <summary>基準より十分に古い「知らせ済み」を捨てる</summary>
-    /// <param name="cursor">今の基準</param>
-    /// <remarks>メモリを増やし続けないため</remarks>
-    private void Prune(DateTimeOffset cursor)
-    {
-        foreach (var id in _seen.Where(pair => pair.Value < cursor - SeenKeep).Select(pair => pair.Key).ToList())
-        {
-            _seen.Remove(id);
         }
     }
 

@@ -20,10 +20,10 @@
 | `src/Plugins/MmmToolWeb.WorkItems` | `net10.0` (ASP.NET Core) | 作業管理の Web 版のサーバー側。画面と API は持たず、ノートの画面に作業報告を出すための提供元 `WorkReportDayContentSource` を登録するだけ。読みは、MmmTool と同じ `MmmTool.WorkItems.Core` と `MmmTool.Data.SqlServer` を使う |
 | `src/Plugins/MmmToolWeb.Messages` / `src/Plugins/MmmToolWeb.Messages.Client` | `net10.0` (ASP.NET Core) / `net10.0` (Razor クラスライブラリ・AnyCPU) | メッセージの Web 版のサーバー側の API と、ブラウザ側の画面・API の型。宛先の読み出しと依頼の保存は、MmmTool と同じ `MmmTool.Messages.Core` と `MmmTool.Data.SqlServer` を使う。外部へ送る処理は無い |
 | `src/Auth/MmmToolWeb.Auth.Core` / `src/Data/MmmToolWeb.Data.SqlServer` | `net10.0` | MmmTool は参照しない。Web 版のパスキーの手続き (画面に依存しない) / Web 版の認証用の表の保存 (SQL Server だけ) |
-| `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホストで、別のソリューション `MmmBatch.slnx` にある。リマインダーとメッセージの送信 (ntfy・Discord・Web 版通知)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
+| `src/App/MmmBatch` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーで動かし続けるバッチ処理のホストで、別のソリューション `MmmBatch.slnx` にある。リマインダー・メッセージ・ノートの送信 (ntfy・Discord・Web 版通知)を持つ。仕様は [specs/mmmbatch.md](specs/mmmbatch.md) |
 | `src/Plugins/MmmBatch.Sending.Core` / `src/Plugins/MmmBatch.Sending` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の、機能に共通の部分で、送る口・ntfy / Discord・送信のログ・仕事を動かす監視 `BatchMonitor`・仕事の口 `IBatchJob`・通知の窓口と、機能に共通の画面の部品を持つ。**外部へ送る処理は、MmmBatch のプロジェクトだけに置く** (MmmTool は参照しない) |
 | `src/Plugins/MmmBatch.ReminderSending(.Core)` / `src/Plugins/MmmBatch.MessageSending(.Core)` / `src/Plugins/MmmBatch.NoteSending(.Core)` | `net10.0` / `net10.0-windows10.0.19041.0` | MmmBatch の機能 (バッチ処理)ごとのプラグイン。定期の仕事・ページ (サイドバーの項目)・DI 登録の入口を持つ。ホストは機能の名前を持たないので、機能が増えたら、このプラグインを足す。`MmmTool.Reminders.Core`・`MmmTool.Messages.Core`・`MmmTool.Notes.Core`・`MmmTool.NotificationChannels.Core` の型は使うが、`MmmTool.Reminders` などの画面は参照しない。機能のプラグインどうしは参照しない |
-| `src/App/MmmToolAdmin` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーモードの管理ツールのホストで、別のソリューション `MmmToolAdmin.slnx` にある。いまは機能を持たない雛形で、機能は `AddFeaturePlugin` の 1 行で足す。仕様は [specs/mmmtooladmin.md](specs/mmmtooladmin.md) |
+| `src/App/MmmToolAdmin` | `net10.0-windows10.0.19041.0`(WinUI 3) | サーバーモードの管理ツールのホストで、別のソリューション `MmmToolAdmin.slnx` にある。機能は、ユーザー・共通設定・選択肢 (コードマスタ)の 3 つで、`AddFeaturePlugin` の 1 行で足す。仕様は [specs/mmmtooladmin.md](specs/mmmtooladmin.md) |
 | `src/Data/MmmTool.Data.SqlServer.WinUI` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | DB の接続の入力欄 (`DatabaseConnectionForm` と ViewModel)と、接続の設定画面を開く口 `IConnectionSettingsDialogService`・登録 `AddConnectionSettingsDialog`・DB を読む画面の ViewModel の基底 `DatabaseViewModelBase`・読み込みの失敗の帯 `ConnectionErrorBar` を持ち、MmmTool・MmmBatch・MmmToolAdmin で共有する (入力欄は SQL Server の接続に依存するので、`MmmTool.Data.SqlServer` の隣に置く) |
 | `src/Data/MmmToolAdmin.Data.SqlServer` | `net10.0` | MmmToolAdmin の DB の登録の入口 `AddMmmToolAdminSqlServer`。ログインとパスワードの保存名は MmmTool と同じにして、ユーザーと登録用コードの保存先を登録する |
 | `src/Plugins/MmmToolAdmin.CommonSettings` | `net10.0-windows10.0.19041.0` | MmmToolAdmin の機能「共通設定」で、各機能が登録した設定の部品を並べるページを持つ。個々の部品を知らない |
@@ -155,10 +155,11 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - `AddMmmSdkCore`: JSON の保存・設定ストア・位置保存・パスを開く処理 (先に登録する)
   - `AddMmmSdkWinUI`: 通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・クリップボード・秘密の保存・読み上げ
 - 機能の並び順は、`AddFeaturePlugin<T>(order: n)` の値 (小さいほど先)で決まる
-  - 値は、CLI補助 1 → ノート 2 → 作業管理 3 → リマインダー 4 → メッセージ 5 → リンク 6 → クリップボード転送 7 → Backlog 8 → ツール 9
+  - 値は、作業管理 1 → ノート 2 → CLI補助 3 → リマインダー 4 → メッセージ 5 → リンク 6 → クリップボード転送 7 → Backlog 8 → ツール 9
   - サイドバーの項目・設定の「機能」の一覧・設定の部品が、この値の順に並ぶ
   - トレイメニューの項目だけは、別の値 `trayOrder` の順に並ぶ。上から リマインダー → リンク → 終了で、同じ値は登録順。
-  - 起動時の準備だけは、順序に依存するものがあるので、登録した順 (CLI補助 → クリップボード転送 → リマインダー → Backlog → リンク → 作業管理)に実行する
+  - 起動時の準備だけは、順序に依存するものがあるので、登録した順に実行する
+    - ホストの準備 (`AddShell` → `AddUserSignIn`)が先で、そのあとに機能が `App.ConfigureServices` で登録した順 (作業管理 → ノート → CLI補助 → リマインダー → メッセージ → リンク)
 - 開くたびに作るウィンドウ (`IDisposable` の ViewModel を持つもの)は、`IServiceScopeFactory` で作ったスコープから解決し、閉じたらスコープを破棄する (ルートのプロバイダーから解決した `IDisposable` の Transient は、Host の破棄まで保持され続けるため)
 - サイドバーのページも、ページごとのスコープから解決する (SDK の `PageProvider`)
   - オフにできる機能のページは、オフにしたときにスコープを破棄し、`PseudoConsoleSession` などを解放する
@@ -199,7 +200,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - SDK の `NavigationHostViewModel` が登録から項目を作り、`NavigationHost` が `PageProvider`(初回に DI から作ってキャッシュ)からページを受け取る
   - ホストのウィンドウ (MmmTool の `MainWindow`・MmmBatch の `MainWindow`)は、`NavigationHost` を載せるだけ (同じ部品を、2 つのアプリに写さないため)
 - 起動時の準備 (`IStartupTask`): `App.OnLaunched` で、`TrayIcon` を解決したあと・`MainWindow` を作る前に、UI スレッドで `FeatureService.StartAsync` が、オンの機能の分だけ登録順に待つ
-  - 順は、共通の設定ファイルの先読み → CLI補助の利用状態の読み込み → リマインダー監視の開始 → リンクの先読み → 作業管理の読み込み
+  - 順は、共通の設定ファイルの先読み (`SettingsStoreStartup`) → 音の維持 (`AudioKeepAliveStartup`) → ユーザーの特定 (`UserStartup`、DB モード) → 機能の使用可否の読み込み (`FeatureAccessStartup`) → 作業管理の読み込み → ノートのイベントと変更の監視の開始 → CLI補助の利用状態の読み込み → リマインダー監視の開始 → メッセージの取り込みの開始 → リンクの先読み
   - `IHostedService` にしない (Host が内部で `ConfigureAwait(false)` を使うため、UI スレッドで動く保証が無い)
   - 起動時の準備で起動を止めたくない例外 (読み込みの失敗など)は、`<機能>Startup` の中で受け止め、画面を開いたときに知らせる
 - 入力欄の空のときの薄い文字の色は、アプリで 1 つ (標準の無効時の文字色 `TextFillColorDisabledBrush`)に決める
@@ -265,6 +266,9 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - `WakeNow` (メッセージの会話を開いたとき)は、延ばしている間もすぐ動かす。利用者の操作のため
   - 延ばさない処理: リマインダーの判定 (00 秒)・日付の監視。DB に届かない失敗が無いため
   - `ITicker` の処理が `Failed` を返す条件は、起こると分かっている失敗 (`DataFileException`)だけ。予想外の失敗は、これまでどおり未処理例外の受け皿へ渡す
+- 「前回より後に更新された行だけを読む」差分の読み出しは、基準の時刻と読み済みの記録を機能が自分で持たず、SDK の `ChangeWatermark` と `SeenChanges<TKey>` を使う
+  - 戻す時間は、機能が決めて渡す
+  - 理由: 機能ごとに同じ処理を書くと、片方を直しても他方が直らないため
 - 画面や ViewModel が登録するときは、返ってきた控え (`ITickSubscription`)を、閉じるときに必ず `Dispose` する (解除しないと、中央のタイマーが持ち続けて、メモリが漏れる)
 - `ITicker` に載っている処理: リマインダーの判定・DB の読み直し・日付の監視、ノートのイベントと変更の監視、作業管理の差分、メッセージの取り込み (前面で会話を開いているとき 2 秒、それ以外 10 秒の `Interval`)
 - MmmBatch の `BatchMonitor` は載せない。仕事を 1 つずつ登録順に動かし、画面の「再送」と同じ鍵を共有して、同時に送らない作りで、`ITicker` の「登録ごとに別々に動かす」とは動きが違うため。
