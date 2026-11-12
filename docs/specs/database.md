@@ -178,7 +178,8 @@
   - `IX_Reminder_AuthorUserId (AuthorUserId)`: 自分が作ったもの
   - 見える範囲は、この 2 つの条件を合わせる
   - `IX_Reminder_UpdatedAt (UpdatedAt)`: 毎分の読み直しを、前回より後に更新された行だけにする差分の取得のため。共通の列で索引に使ってよいのは、`UpdatedAt` だけ
-  - 削除済みも含めて持つ (「削除済みを表示」のため)
+  - 上の 3 つは、削除済みも含めて持つ (「削除済みを表示」のため)
+  - `IX_Reminder_Date_Time_Weekdays (Date, Time, Weekdays) WHERE IsDeleted = 0`: MmmBatch が毎分、今日発動し時刻が範囲にあるリマインダーだけを探すため。削除されていない行だけを持つ。日付を先頭にして、過去の日付の 1 回きりのリマインダーを読まない
 - 曜日の列は、ドメインの `[Flags]`(`Weekdays`)と JSON と同じ数をそのまま持つ (変換が要らない)
 - 件名・備考・リンクの長さ (200・1000・2000)は、アプリの `ReminderLimits` (入力画面の `MaxLength`)と同じ数にそろえる
   - 長くするときは、`ReminderLimits` と列の両方を変える
@@ -359,6 +360,8 @@
 - インデックス `IX_ReminderSendStatus_ChannelId_SentAt (ChannelId, SentAt DESC)` を、業務の列だけで作る
   - Web 版の「受け取った通知」の一覧が、自分の送信先に届いたリマインダーを、送った日時の新しい順に読むため
   - この表は掃除されず増え続けるので、送信先で絞り、新しい順に先頭から読めるようにする
+- インデックス `IX_ReminderSendStatus_Date_Status_Attempts (Date, Status, Attempts, ReminderId, ChannelId)` を、業務の列だけで作る
+  - MmmBatch が毎分、今日と昨日の送り終えていない行 (送信中のまま止まった・失敗で回数が上限に満たない)だけを探すため
 - ログではなく状態で、「送ったか」の判断に使う
   - 画面の「今日」(今日の送信予定)は、この表から読む
   - 送った経過 (再送・送り直しのたびに 1 行増える)は、この表ではなく、MmmBatch のローカルのログに残す ([mmmbatch.md](mmmbatch.md)の「送信のログ」)
@@ -948,6 +951,8 @@
     - `NotificationChannel.Kind` は 1 から 3、`ReminderState.Status` は 0 から 2、`AppUserSetting.FeatureNo` は 0 以上
   - MmmBatch 側の `src/Data/MmmBatch.Data.SqlServer/Sql/001_CreateTables.sql` の 1 本は、送信の状況の表 `ReminderSendStatus` と、索引 `IX_ReminderSendStatus_ChannelId_SentAt` を作る
     - MmmTool の `001_CreateTables.sql` を流した DB に流す。1.0.0 のあとの変更は、次の番号 `003` から書く。
+    - `003_AddReminderSendStatusRetryIndex.sql` が、送り直す対象を探す索引 `IX_ReminderSendStatus_Date_Status_Attempts` を足す。キーは日付・状態・回数・リマインダー・送信先。
+  - MmmTool の `015_AddReminderTimeIndex.sql` が、`Reminder` に、MmmBatch が送る日付と時刻の範囲を探す索引 `IX_Reminder_Date_Time_Weekdays` を足す。削除されていない行だけで、SQLite にはリマインダーの表が無いので足さない。
   - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
   - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
     - 普段は使わない
@@ -969,8 +974,13 @@
     - パスワードの保存名だけは、アプリごとに分ける (`MmmBatch.Database`)
       - 同じ Windows アカウントで、ログインを変えたときに、お互いのパスワードを上書きしないため
     - 権限を、MmmBatch に必要な表だけに絞りたいときは、別のログイン `MmmBatch` を作る
-      - その権限は、`Reminder`・`NotificationChannel`・`ReminderSendSetting` の `SELECT` と、`ReminderSendStatus` の `SELECT`・`INSERT`・`UPDATE` (リマインダーや送信先は、読むだけで書かない)
-      - ノートの送信が読む表は、`Note`・`AppUser`・`AppUserSetting`・`AppUserAdminSetting` で、どれも `SELECT` だけ。ノートの送信は、DB に書かない。
+      - その権限は、MmmBatch の送信の機能ごとに、読む表と書く表を合わせたもの
+        - リマインダーの送信は、`Reminder`・`NotificationChannel`・`ReminderSendSetting` を読み、`ReminderSendStatus` には `SELECT`・`INSERT`・`UPDATE` を付ける。リマインダーや送信先は書かない。
+        - メッセージの送信は、`Message`・`MessageConversation` を読み、`MessageDelivery` には `SELECT`・`UPDATE` を付ける。
+        - ノートの送信は、`Note` を読む。DB には書かない。
+        - 3 つの送信が共通で読む表は、送信先の持ち主を引く `AppUser` と、管理者が機能を無効にしていないかの判定に使う `AppUserAdminSetting`。
+        - `AppUserSetting` は、メッセージとノートの送信が読む。リマインダーの送信は読まない。
+        - 送信の機能を足したら、その機能が読む表と書く表を、この一覧と下の SQL に足す。足さないと、別のログインに絞った環境でその機能の送信が止まる。
       - 作る SQL は次のとおり
       - 作ったら、MmmBatch の接続の設定で、ユーザー名を `MmmBatch` に直す
 
@@ -979,10 +989,22 @@
     CREATE LOGIN [MmmBatch] WITH PASSWORD = N'<パスワード>', CHECK_POLICY = OFF, DEFAULT_DATABASE = [MmmTool];
     -- 対象の DB を選んで実行 (MmmTool の 001 と、MmmBatch の 001 の作成用の SQL を流したあと)
     CREATE USER [MmmBatch] FOR LOGIN [MmmBatch];
-    GRANT SELECT ON dbo.Reminder TO [MmmBatch];
+    -- 共通: 送信先の持ち主と、機能の無効の判定
+    GRANT SELECT ON dbo.AppUser TO [MmmBatch];
+    GRANT SELECT ON dbo.AppUserAdminSetting TO [MmmBatch];
     GRANT SELECT ON dbo.NotificationChannel TO [MmmBatch];
+    -- メッセージとノートの送信が読む、ユーザーごとの設定
+    GRANT SELECT ON dbo.AppUserSetting TO [MmmBatch];
+    -- リマインダーの送信
+    GRANT SELECT ON dbo.Reminder TO [MmmBatch];
     GRANT SELECT ON dbo.ReminderSendSetting TO [MmmBatch];
     GRANT SELECT, INSERT, UPDATE ON dbo.ReminderSendStatus TO [MmmBatch];
+    -- メッセージの送信
+    GRANT SELECT ON dbo.Message TO [MmmBatch];
+    GRANT SELECT ON dbo.MessageConversation TO [MmmBatch];
+    GRANT SELECT, UPDATE ON dbo.MessageDelivery TO [MmmBatch];
+    -- ノートの送信
+    GRANT SELECT ON dbo.Note TO [MmmBatch];
     ```
 
   - パスワードポリシー (`CHECK_POLICY`)は適用しない (ユーザーの判断で、意図した仕様のため、指摘しない)

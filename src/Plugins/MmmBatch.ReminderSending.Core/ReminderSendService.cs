@@ -17,6 +17,17 @@ namespace MmmBatch.ReminderSending.Core;
 /// 取りこぼすより、重複を許す側に倒す。
 /// </para>
 /// <para>
+/// 毎分読むのは仕事の残っている行だけ。
+/// 新しく送るものは前回の範囲の終わりから今までに時刻が来たリマインダーだけを読む。
+/// 送り直すものは送り終えていない今日と昨日の送信の状況だけを読む。
+/// 送信設定の全件を毎分読むことはしない。
+/// 範囲の記憶はこのサービスのメモリに持つ。
+/// 起動した直後と日付が変わった直後は 0:00 から読んで止まっていた間の分に追いつく。
+/// 読み書きに失敗した回は範囲を進めず次の回が同じ範囲から読み直す。
+/// 範囲を過ぎてから時刻を過去に直したリマインダーを、その日は送らない。
+/// 付けた時点で過ぎている分をすぐ送らないため。
+/// </para>
+/// <para>
 /// 宛先・対応状態 (完了・スヌーズ)は見ない。
 /// 送信は登録した人が選んだ送信先へ、時刻に一度だけ送るもので、人ごとの対応状態とは別。
 /// 起動した直後の実行でも今日の時刻を過ぎた分を送る。
@@ -35,6 +46,17 @@ public sealed class ReminderSendService(
 {
     /// <summary>区分ごとの外部へ送る口</summary>
     private readonly Dictionary<NotificationChannelKind, INotifier> _notifiers = notifiers.ToDictionary(notifier => notifier.Kind);
+
+    /// <summary>前回の実行で新しく送るものを読み終えた日</summary>
+    /// <remarks>
+    /// まだ読んでいなければ null
+    /// 今日と違えば 0:00 から読み直す
+    /// </remarks>
+    private DateOnly? _scannedDate;
+
+    /// <summary>前回の実行で新しく送るものを読み終えた範囲の終わりの時刻</summary>
+    /// <remarks><see cref="_scannedDate"/> の日の分</remarks>
+    private TimeOnly _scannedThrough;
 
     /// <inheritdoc />
     public string Name => "リマインダーの送信";
@@ -71,18 +93,18 @@ public sealed class ReminderSendService(
 
         try
         {
-            // 送る対象と、今日・昨日の送信の状況を、1 回の問い合わせで読む
-            var targets = await source.GetTargetsAsync(today, cancellationToken).ConfigureAwait(false);
-
-            var due = targets
-                .Where(state => IsDue(state.Target, today, nowTime))
+            // 新しく送るもの: 前回の範囲の終わりから今までに時刻が来たものだけを読む。起動した直後と日付が変わった直後は、0:00 から追いつく
+            var through = new TimeOnly(now.Hour, now.Minute);
+            TimeOnly? after = _scannedDate == today ? _scannedThrough : null;
+            var due = (await source.GetDueTargetsAsync(today, after, through, cancellationToken).ConfigureAwait(false))
+                .Where(state => IsPlanned(state.Target, today))
                 .OrderBy(state => state.Target.Reminder.Time)
                 .ThenBy(state => state.Target.Reminder.No);
             foreach (var state in due)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var claimed = await ClaimAsync(state.Target, state.Today, today, cancellationToken).ConfigureAwait(false);
+                var claimed = await statuses.TryCreateAsync(state.Target.Reminder.No, state.Target.Channel.Id, today, cancellationToken).ConfigureAwait(false);
                 if (claimed is null)
                 {
                     continue;
@@ -92,8 +114,13 @@ public sealed class ReminderSendService(
                 await SendAsync(state.Target, claimed, cancellationToken).ConfigureAwait(false);
             }
 
-            // 昨日の、送れなかった (または、送信中のまま止まった)ものも、上限の回数まで送り直す (日付をまたいでも、送り直しは数分で終わる)
-            changed |= await RetryPreviousDayAsync(targets, cancellationToken).ConfigureAwait(false);
+            // 送り直すもの: 今日と昨日の、送れなかった (または送信中のまま止まった)ものを、上限の回数まで送り直す
+            var retries = await source.GetRetryTargetsAsync(today, cancellationToken).ConfigureAwait(false);
+            changed |= await RetryAsync(retries, today, nowTime, cancellationToken).ConfigureAwait(false);
+
+            // ここまで読み書きが通ったときだけ範囲を進める。失敗した回の分は、次の回が同じ範囲から読み直す
+            _scannedDate = today;
+            _scannedThrough = through;
 
             changed |= SetLastError(null);
         }
@@ -258,29 +285,6 @@ public sealed class ReminderSendService(
         await AppendLogAsync(target, 0, status, error, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>送る権利を取る</summary>
-    /// <param name="target">送る対象</param>
-    /// <param name="current">
-    /// 今日の送信の状況
-    /// まだ無ければ null
-    /// </param>
-    /// <param name="today">今日</param>
-    /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>
-    /// 送る権利を取れたときの、送信中の行。
-    /// 送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null。
-    /// </returns>
-    /// <remarks>行を作る・送り直しの権利を取る</remarks>
-    private async Task<ReminderSendStatus?> ClaimAsync(ReminderSendTarget target, ReminderSendStatus? current, DateOnly today, CancellationToken cancellationToken)
-    {
-        if (current is null)
-        {
-            return await statuses.TryCreateAsync(target.Reminder.No, target.Channel.Id, today, cancellationToken).ConfigureAwait(false);
-        }
-
-        return await ClaimRetryAsync(current, cancellationToken).ConfigureAwait(false);
-    }
-
     /// <summary>送り直しの権利を取る</summary>
     /// <param name="current">今の送信の状況</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -309,32 +313,41 @@ public sealed class ReminderSendService(
             : null;
     }
 
-    /// <summary>昨日の送れなかったもの・送信中のまま止まったものを送り直す</summary>
+    /// <summary>今日と昨日の送れなかったもの・送信中のまま止まったものを送り直す</summary>
     /// <param name="targets">
-    /// 送る対象と、昨日の送信の状況。
+    /// 送る対象と、今日・昨日の送信の状況。
     /// 送信設定が今もあるものだけで、削除されたリマインダー・送信先は送り直さない。
     /// </param>
+    /// <param name="today">今日</param>
+    /// <param name="nowTime">今の時刻 (HHmm の整数)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送り直しを始めたものがあれば true</returns>
     /// <remarks>
     /// 新しい行は作らない
     /// 昨日の分を今から新しく送らないため
     /// 送る内容は今のリマインダーの内容
+    /// リマインダーを直して今日の送信予定でなくなったものは今日の分を送り直さない
     /// </remarks>
-    private async Task<bool> RetryPreviousDayAsync(IReadOnlyList<ReminderSendTargetState> targets, CancellationToken cancellationToken)
+    private async Task<bool> RetryAsync(IReadOnlyList<ReminderSendTargetState> targets, DateOnly today, int nowTime, CancellationToken cancellationToken)
     {
         var changed = false;
-        foreach (var state in targets.Where(state => state.Yesterday is not null))
+        foreach (var state in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (await ClaimRetryAsync(state.Yesterday!, cancellationToken).ConfigureAwait(false) is not { } claimed)
+            if (state.Today is not null && IsDue(state.Target, today, nowTime)
+                && await ClaimRetryAsync(state.Today, cancellationToken).ConfigureAwait(false) is { } todayClaimed)
             {
-                continue;
+                changed = true;
+                await SendAsync(state.Target, todayClaimed, cancellationToken).ConfigureAwait(false);
             }
 
-            changed = true;
-            await SendAsync(state.Target, claimed, cancellationToken).ConfigureAwait(false);
+            if (state.Yesterday is not null
+                && await ClaimRetryAsync(state.Yesterday, cancellationToken).ConfigureAwait(false) is { } yesterdayClaimed)
+            {
+                changed = true;
+                await SendAsync(state.Target, yesterdayClaimed, cancellationToken).ConfigureAwait(false);
+            }
         }
         return changed;
     }
