@@ -117,8 +117,12 @@ public sealed class ReminderService
             .Select(reminder => new ReminderTarget(reminder, statuses.GetValueOrDefault(reminder.No)))];
     }
 
-    /// <summary>リマインダー本体を保存する</summary>
+    /// <summary>リマインダーを保存する</summary>
     /// <param name="reminder">保存するリマインダー</param>
+    /// <param name="selectedChannelIds">
+    /// 選んだ送信先の番号
+    /// null なら送信設定に触れない
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した内容 (採番後)</returns>
     /// <remarks>
@@ -126,20 +130,25 @@ public sealed class ReminderService
     /// 番号は保存先が決める
     /// それ以外は同じ <see cref="Reminder.No"/> の既存分を更新する
     /// 論理削除済みなら削除フラグを解除する
+    /// 送信先を渡したときは本体と同じ 1 回の書き込みで送信設定も書く
+    /// 書く送信先は <see cref="ReminderSendChannels.For"/> が決める
     /// </remarks>
     /// <exception cref="ArgumentException">指定の番号のリマインダーが無い</exception>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
-    public async Task<Reminder> SaveAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public async Task<Reminder> SaveAsync(Reminder reminder, IReadOnlyCollection<int>? selectedChannelIds = null, CancellationToken cancellationToken = default)
     {
+        var channelIds = selectedChannelIds is null
+            ? null
+            : ReminderSendChannels.For(reminder.TargetUserId, _repository.CurrentUserId, selectedChannelIds);
         Reminder saved;
         if (reminder.No == 0)
         {
-            saved = await _repository.AddAsync(reminder with { IsDeleted = false }, cancellationToken);
+            saved = await _repository.AddAsync(reminder with { IsDeleted = false }, channelIds, cancellationToken);
         }
         else
         {
             saved = reminder with { IsDeleted = false };
-            if (!await _repository.UpdateAsync(saved, cancellationToken))
+            if (!await _repository.UpdateAsync(saved, channelIds, cancellationToken))
             {
                 throw new ArgumentException($"番号 {reminder.No} のリマインダーがありません。", nameof(reminder));
             }

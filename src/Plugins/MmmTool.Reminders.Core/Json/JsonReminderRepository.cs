@@ -98,7 +98,7 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     }
 
     /// <inheritdoc />
-    public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public async Task<Reminder> AddAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
         try
@@ -117,7 +117,7 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     }
 
     /// <inheritdoc />
-    public async Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
         try

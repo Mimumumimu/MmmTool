@@ -40,8 +40,6 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     private readonly ReminderSettingsService _settings;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
-    /// <summary>リマインダーの送信設定の保存先</summary>
-    private readonly IReminderSendSettingRepository _sendSettings;
     /// <summary>現在日時</summary>
     private readonly TimeProvider _time;
 
@@ -57,14 +55,6 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <remarks>ある間は登録を押せない</remarks>
     private bool _hasBlankTitle;
 
-    /// <summary>保存したが送信設定をまだ書いていないリマインダーの番号</summary>
-    /// <remarks>
-    /// 登録の途中で失敗したとき、保存済みのリマインダーは押し直すと「すでにある」として飛ばされる。
-    /// 送信設定を書き終えるまで番号を持ち、押し直したときにも書くことで、送信設定が付かないまま残らないようにする。
-    /// 書き終えたら空にする。
-    /// </remarks>
-    private readonly List<int> _pendingSendSettingNos = [];
-
     /// <summary>読み込みを終えたか</summary>
     /// <remarks>初期値を入れている間は選びを保存しない</remarks>
     private bool _isLoaded;
@@ -73,16 +63,13 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="settings">リマインダーの設定</param>
     /// <param name="channelLoader">送信先の選択肢を作る</param>
-    /// <param name="sendSettings">リマインダーの送信設定の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     public ReminderBulkInputViewModel(
-        ReminderService reminders, ReminderSettingsService settings, ReminderChannelLoader channelLoader,
-        IReminderSendSettingRepository sendSettings, TimeProvider time)
+        ReminderService reminders, ReminderSettingsService settings, ReminderChannelLoader channelLoader, TimeProvider time)
     {
         _reminders = reminders;
         _settings = settings;
         _channelLoader = channelLoader;
-        _sendSettings = sendSettings;
         _time = time;
 
         HourRows = [.. Enumerable.Range(0, 24).Select(hour => new ReminderBulkHourRow(
@@ -321,21 +308,17 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         try
         {
             await LoadExistingAsync();
+            // 送信先を選んでいるときは、リマインダーごとに、本体と同じ 1 回の書き込みで送信設定も書く。送る処理は MmmBatch が行う
+            // 新規の登録なので、何も選んでいなければ書くものが無く、送信設定に触れない
             var channelIds = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
+            var selected = IsChannelVisible && channelIds.Count > 0 ? channelIds : null;
             var count = 0;
             foreach (var reminder in _toAdd.Where(reminder => !_existing.Contains(KeyOf(reminder))).OrderBy(reminder => reminder.Time))
             {
-                _pendingSendSettingNos.Add((await _reminders.SaveAsync(reminder)).No);
+                await _reminders.SaveAsync(reminder, selected);
                 count++;
             }
 
-            // 送信先を選んでいるときは、送信設定も書く。送る処理は MmmBatch が行う。リマインダーの数だけ書かず、まとめて 1 回で書く
-            // 前の押下で保存して、書けなかった分も含める。送信先は置き換えなので、同じ番号に重ねて書いても結果は変わらない
-            if (IsChannelVisible && channelIds.Count > 0 && _pendingSendSettingNos.Count > 0)
-            {
-                await _sendSettings.SetChannelsAsync(_pendingSendSettingNos, channelIds);
-            }
-            _pendingSendSettingNos.Clear();
             CloseRequested?.Invoke(this, count);
         }
         catch (DataFileException ex)

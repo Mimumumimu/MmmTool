@@ -166,9 +166,6 @@
     private readonly HashSet<int> _channels = [];
     private ReminderOptionsResponse? _options;
     private bool _saving;
-
-    /// <summary>新規で保存したあと、送信先だけ保存できなかったときの、保存したリマインダーの番号。以後の保存は、この番号を更新する。</summary>
-    private int? _createdNo;
     private string? _error;
 
     /// <summary>キーボードを除いた見える範囲にシートを合わせる購読。</summary>
@@ -340,15 +337,10 @@
             _speak,
             _target,
             ChannelsEnabled ? [.. _channels] : []);
-        var result = await Reminders.SaveAsync(_createdNo ?? (IsNew ? null : Source!.No), request);
+        var result = await Reminders.SaveAsync(IsNew ? null : Source!.No, request);
         _saving = false;
         switch (result.Status)
         {
-            case ApiFailure.None when result.Value!.Warning is { } warning:
-                // リマインダーは保存できたが、送信先を保存できなかった。保存し直したとき、同じリマインダーを更新して、重ねて作らない
-                _createdNo = result.Value.No;
-                _error = warning;
-                break;
             case ApiFailure.None:
                 await OnSaved.InvokeAsync();
                 break;

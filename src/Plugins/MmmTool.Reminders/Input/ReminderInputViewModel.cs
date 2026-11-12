@@ -38,13 +38,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <remarks>新規なら null</remarks>
     private Reminder? _target;
 
-    /// <summary>読み込んだときに選んでいた送信先の番号</summary>
-    /// <remarks>
-    /// ほかの人が登録した送信先も含む。
-    /// 保存のときに、選び直していなければ、選んだ内容を、そのまま書き直し、外さない。
-    /// </remarks>
-    private HashSet<int> _initialChannelIds = [];
-
     /// <summary>ViewModel を作る</summary>
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="users">ユーザーの保存先</param>
@@ -188,7 +181,6 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     public async Task LoadChannelsAsync(int copySourceNo = 0)
     {
         ChannelOptions.Clear();
-        _initialChannelIds = [];
         HasNoChannels = false;
         IsChannelVisible = _channelLoader.IsAvailable;
         if (!IsChannelVisible)
@@ -204,8 +196,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
             {
                 if (settings.TryGetValue(target.No, out var channelIds))
                 {
-                    _initialChannelIds = [.. channelIds];
-                    checkedIds = _initialChannelIds;
+                    checkedIds = [.. channelIds];
                 }
             }
             else if (copySourceNo > 0 && settings.TryGetValue(copySourceNo, out var sourceIds))
@@ -416,18 +407,13 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
         try
         {
-            var saved = await _reminders.SaveAsync(reminder);
-            // 送信設定の保存に失敗して画面が開いたままのとき、もう一度保存しても、新しいリマインダーを重ねて作らないよう、保存した内容を編集対象にする
-            _target = saved;
-            // 送信先を選んでいるときは、保存のたびに、送信設定を書き直して、更新日時を今に進める。
+            // 送信先の欄を出しているときは、保存のたびに、本体と同じ 1 回の書き込みで送信設定を書き直して、更新日時を今に進める。
             // MmmBatch は、更新日時が今日の発動時刻より後なら、今日の分は送らない。保存した時点で、送る時刻がもう過去なら今日は送らず、まだ先なら、その時刻に送る
             // 宛先が自分でも全員でもないときは、送信先を選べず、チェックは外れている。空で保存して、自分の送信先の設定をすべて外す
-            var selected = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
-            if (IsChannelVisible && (selected.Count > 0 || !_initialChannelIds.SetEquals(selected)))
-            {
-                await _sendSettings.SetChannelsAsync(saved.No, selected);
-                _initialChannelIds = selected;
-            }
+            var selected = IsChannelVisible
+                ? ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet()
+                : null;
+            var saved = await _reminders.SaveAsync(reminder, selected);
             CloseRequested?.Invoke(this, saved);
         }
         catch (Exception ex) when (ex is DataFileException or ArgumentException)

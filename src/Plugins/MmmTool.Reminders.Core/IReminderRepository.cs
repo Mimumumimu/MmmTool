@@ -81,17 +81,37 @@ public interface IReminderRepository
 
     /// <summary>リマインダーを追加する</summary>
     /// <param name="reminder">追加するリマインダー (<see cref="Reminder.No"/> は無視する)</param>
+    /// <param name="channelIds">
+    /// 選んだ送信先の番号。
+    /// null なら送信設定に触れない。
+    /// 空なら、自分が使用者の送信先の設定を外す。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>追加した内容 (保存先が決めた番号つき)</returns>
+    /// <remarks>
+    /// 送信設定は本体と同じ 1 回の書き込みで書く
+    /// 片方だけが書かれた状態を作らない
+    /// 送信設定を持たない保存先 (JSON)は <paramref name="channelIds"/> を使わない
+    /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
-    Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default);
+    Task<Reminder> AddAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default);
 
     /// <summary>既存のリマインダーを同じ番号の内容で置き換える</summary>
     /// <param name="reminder">置き換える内容 (<see cref="Reminder.No"/> で対象を決める)</param>
+    /// <param name="channelIds">
+    /// 選んだ送信先の番号。
+    /// null なら送信設定に触れない。
+    /// 空なら、自分が使用者の送信先の設定を外す。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があって置き換えたとき true (無ければ false)</returns>
+    /// <remarks>
+    /// 送信設定は本体と同じ 1 回の書き込みで書く
+    /// 対象が無いときは送信設定も書かない
+    /// 送信設定を持たない保存先 (JSON)は <paramref name="channelIds"/> を使わない
+    /// </remarks>
     /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
-    Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default);
 
     /// <summary>リマインダーの削除フラグを変える</summary>
     /// <param name="no">対象のリマインダーの番号</param>

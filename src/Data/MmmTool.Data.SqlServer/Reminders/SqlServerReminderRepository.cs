@@ -173,24 +173,40 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が DB に入れられない値</exception>
-    public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public async Task<Reminder> AddAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { No = 0 });
-        var id = await WriteAsync(
-            (connection, transaction, userId) => ReminderSql.InsertAsync(connection, transaction, userId, row, cancellationToken),
-            cancellationToken).ConfigureAwait(false);
+        var id = await WriteAsync(async (connection, transaction, userId) =>
+        {
+            var newId = await ReminderSql.InsertAsync(connection, transaction, userId, row, cancellationToken).ConfigureAwait(false);
+            if (channelIds is not null)
+            {
+                await ReminderSendSettingSql.SetChannelsAsync(connection, transaction, userId, [newId], channelIds, cancellationToken).ConfigureAwait(false);
+            }
+            return newId;
+        }, cancellationToken).ConfigureAwait(false);
         return (row with { Id = id, CreatedByUserId = _currentUser.Id, AuthorUserId = _currentUser.Id }).ToReminder();
     }
 
     /// <inheritdoc />
     /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が DB に入れられない値</exception>
-    public Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateAsync(Reminder reminder, IReadOnlyCollection<int>? channelIds, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder);
         // 編集できるのは、宛先が自分・全員宛て・自分が作成したもので、見える人だけ。削除済みを編集すると、復活する。呼ぶ側が IsDeleted を false にして渡す
-        return WriteAsync(
-            (connection, transaction, userId) => ReminderSql.UpdateAsync(connection, transaction, userId, row, cancellationToken),
-            cancellationToken);
+        return WriteAsync(async (connection, transaction, userId) =>
+        {
+            if (!await ReminderSql.UpdateAsync(connection, transaction, userId, row, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            if (channelIds is not null)
+            {
+                await ReminderSendSettingSql.SetChannelsAsync(connection, transaction, userId, [row.Id], channelIds, cancellationToken).ConfigureAwait(false);
+            }
+            return true;
+        }, cancellationToken);
     }
 
     /// <inheritdoc />

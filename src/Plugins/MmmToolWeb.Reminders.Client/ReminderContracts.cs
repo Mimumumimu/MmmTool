@@ -131,12 +131,7 @@ public sealed record ReminderSaveRequest(
 /// 保存したリマインダーの番号
 /// 新規のときは採番した番号
 /// </param>
-/// <param name="Warning">
-/// リマインダーは保存したが、送信先を保存できなかったときの理由。
-/// 保存し直すと、同じリマインダーを更新する。
-/// 問題が無いときは null。
-/// </param>
-public sealed record ReminderSaveResult(int No, string? Warning = null);
+public sealed record ReminderSaveResult(int No);
 
 /// <summary>この端末が登録した送信先を探す要求</summary>
 /// <param name="Endpoint">

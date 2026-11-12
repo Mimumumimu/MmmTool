@@ -1,6 +1,5 @@
 using System.Globalization;
 using MmmSdk.Core.Components.DaysOfWeek;
-using MmmSdk.Core.Components.Storage;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.SqlServer.Reminders;
 using MmmTool.NotificationChannels.Core;
@@ -199,20 +198,17 @@ internal static class ReminderEndpoints
     /// <summary>リマインダーを追加する</summary>
     /// <param name="request">保存する内容</param>
     /// <param name="repository">リマインダーの保存先</param>
-    /// <param name="sendSettings">送信設定の保存先</param>
     /// <param name="cancellationToken">キャンセルの通知</param>
     /// <returns>
     /// 成功なら 200 と、採番した番号。
     /// 入力が正しくないときは 400。
-    /// リマインダーは保存できたが送信先を保存できなかったときは 200 と、番号と理由。
     /// </returns>
     /// <remarks>
-    /// リマインダーと送信設定は別の書き込み。
-    /// 送信設定だけ失敗したとき、画面が保存し直すと、同じリマインダーが重なって作られる。
-    /// そのため、失敗を 200 の理由で返し、画面が返した番号で更新し直せるようにする。
+    /// リマインダーと送信設定を 1 つのトランザクションで書く
+    /// 保存した時刻を送信設定の更新日時にする
     /// </remarks>
     private static async Task<IResult> AddAsync(
-        ReminderSaveRequest request, SqlServerReminderWebRepository repository, SqlServerReminderSendSettingRepository sendSettings, CancellationToken cancellationToken)
+        ReminderSaveRequest request, SqlServerReminderWebRepository repository, CancellationToken cancellationToken)
     {
         var error = Validate(request);
         var reminder = error is null ? ToReminder(request, 0) : null;
@@ -221,21 +217,8 @@ internal static class ReminderEndpoints
             return Results.BadRequest(new ErrorResponse(error ?? InvalidMessage));
         }
 
-        var saved = await repository.AddAsync(reminder, cancellationToken);
-
-        // 送信先を選んだときだけ、送信設定を書く。保存した時刻が、送信設定の更新日時になる
-        var channelIds = EffectiveChannelIds(request, repository.CurrentUserId);
-        if (channelIds.Count > 0)
-        {
-            try
-            {
-                await sendSettings.SetChannelsAsync(saved.No, channelIds, cancellationToken);
-            }
-            catch (DataFileException)
-            {
-                return Results.Ok(new ReminderSaveResult(saved.No, SendSettingWarning));
-            }
-        }
+        var channelIds = ReminderSendChannels.For(reminder.TargetUserId, repository.CurrentUserId, request.ChannelIds);
+        var saved = await repository.AddAsync(reminder, channelIds, cancellationToken);
         return Results.Ok(new ReminderSaveResult(saved.No));
     }
 
@@ -243,15 +226,19 @@ internal static class ReminderEndpoints
     /// <param name="no">リマインダーの番号</param>
     /// <param name="request">保存する内容</param>
     /// <param name="repository">リマインダーの保存先</param>
-    /// <param name="sendSettings">送信設定の保存先</param>
     /// <param name="cancellationToken">キャンセルの通知</param>
     /// <returns>
     /// 成功なら 200 と、番号。
     /// 入力が正しくないときは 400。
     /// 見えない・無いときは 404。
     /// </returns>
+    /// <remarks>
+    /// リマインダーと送信設定を 1 つのトランザクションで書く。
+    /// 選び直しを反映するため、送信先を選んでいなくても書く。
+    /// 選んでいない送信先の設定を論理削除する。
+    /// </remarks>
     private static async Task<IResult> UpdateAsync(
-        int no, ReminderSaveRequest request, SqlServerReminderWebRepository repository, SqlServerReminderSendSettingRepository sendSettings, CancellationToken cancellationToken)
+        int no, ReminderSaveRequest request, SqlServerReminderWebRepository repository, CancellationToken cancellationToken)
     {
         var error = Validate(request);
         var reminder = error is null ? ToReminder(request, no) : null;
@@ -260,14 +247,10 @@ internal static class ReminderEndpoints
             return Results.BadRequest(new ErrorResponse(error ?? InvalidMessage));
         }
 
-        if (!await repository.UpdateAsync(reminder, cancellationToken))
-        {
-            return Results.NotFound(new ErrorResponse(NotFoundMessage));
-        }
-
-        // 選び直しを反映するため、送信先を選んでいなくても書く。選んでいない送信先の設定は、論理削除される。失敗しても、同じ内容で保存し直せる
-        await sendSettings.SetChannelsAsync(no, EffectiveChannelIds(request, repository.CurrentUserId), cancellationToken);
-        return Results.Ok(new ReminderSaveResult(no));
+        var channelIds = ReminderSendChannels.For(reminder.TargetUserId, repository.CurrentUserId, request.ChannelIds);
+        return await repository.UpdateAsync(reminder, channelIds, cancellationToken)
+            ? Results.Ok(new ReminderSaveResult(no))
+            : Results.NotFound(new ErrorResponse(NotFoundMessage));
     }
 
     /// <summary>リマインダーを削除する</summary>
@@ -299,9 +282,6 @@ internal static class ReminderEndpoints
 
     /// <summary>入力が正しくないときの理由</summary>
     private const string InvalidMessage = "入力の内容を確かめてください。";
-
-    /// <summary>リマインダーは保存したが送信先を保存できなかったときの理由</summary>
-    private const string SendSettingWarning = "リマインダーは保存しましたが、送信先を保存できませんでした。もう一度、保存してください。";
 
     /// <summary>要求の入力を確かめる</summary>
     /// <param name="request">保存する内容</param>
@@ -365,18 +345,6 @@ internal static class ReminderEndpoints
             TargetUserId = request.TargetUserId,
         };
     }
-
-    /// <summary>保存する送信先の番号を決める</summary>
-    /// <param name="request">保存する内容</param>
-    /// <param name="selfId">今のユーザーの番号</param>
-    /// <returns>
-    /// 選んだ送信先。
-    /// 宛先をほかの人にしたリマインダーは自分の送信先へ送らないため、空。
-    /// 空にすると、自分の送信先の設定がすべて外れる。
-    /// </returns>
-    /// <remarks>宛先が自分でも全員でもないときは空にする</remarks>
-    private static IReadOnlyList<int> EffectiveChannelIds(ReminderSaveRequest request, int selfId)
-        => request.TargetUserId == 0 || request.TargetUserId == selfId ? request.ChannelIds : [];
 
     /// <summary>時刻の整数を HH:mm の文字にする</summary>
     /// <param name="value">HHmm の整数</param>

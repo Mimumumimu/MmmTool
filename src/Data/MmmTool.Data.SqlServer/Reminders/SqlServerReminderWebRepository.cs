@@ -219,43 +219,66 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
 
     /// <summary>リマインダーを追加する</summary>
     /// <param name="reminder">追加するリマインダー (番号は無視する)</param>
+    /// <param name="channelIds">
+    /// 選んだ送信先の番号。
+    /// 空なら、自分が使用者の送信先の設定を外す。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>追加した内容 (採番した番号と作成者つき)</returns>
+    /// <remarks>送信設定は本体と同じトランザクションで書く</remarks>
     /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が DB に入れられない値</exception>
     /// <exception cref="DataFileException">
     /// ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった
     /// メッセージは画面に出せる
     /// </exception>
-    public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public async Task<Reminder> AddAsync(Reminder reminder, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { No = 0, IsDeleted = false });
         var userId = UserId;
-        var id = await WriteAsync(
-            (connection, transaction) => ReminderSql.InsertAsync(connection, transaction, userId, row, cancellationToken),
-            cancellationToken).ConfigureAwait(false);
+        var id = await WriteAsync(async (connection, transaction) =>
+        {
+            var newId = await ReminderSql.InsertAsync(connection, transaction, userId, row, cancellationToken).ConfigureAwait(false);
+            await ReminderSendSettingSql.SetChannelsAsync(connection, transaction, userId, [newId], channelIds, cancellationToken).ConfigureAwait(false);
+            return newId;
+        }, cancellationToken).ConfigureAwait(false);
         return (row with { Id = id, AuthorUserId = userId }).ToReminder();
     }
 
     /// <summary>既存のリマインダーを同じ番号の内容で置き換える</summary>
     /// <param name="reminder">置き換える内容 (番号で対象を決める)</param>
+    /// <param name="channelIds">
+    /// 選んだ送信先の番号。
+    /// 空なら、自分が使用者の送信先の設定を外す。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>
     /// 見えて更新できたとき true
     /// 無い・見えないとき false
     /// </returns>
-    /// <remarks>削除済みを編集すると削除が取り消される</remarks>
+    /// <remarks>
+    /// 削除済みを編集すると削除が取り消される
+    /// 送信設定は本体と同じトランザクションで書く
+    /// 対象が無いときは送信設定も書かない
+    /// </remarks>
     /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が DB に入れられない値</exception>
     /// <exception cref="DataFileException">
     /// ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった
     /// メッセージは画面に出せる
     /// </exception>
-    public Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateAsync(Reminder reminder, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { IsDeleted = false });
         var userId = UserId;
-        return WriteAsync(
-            (connection, transaction) => ReminderSql.UpdateAsync(connection, transaction, userId, row, cancellationToken),
-            cancellationToken);
+        return WriteAsync(async (connection, transaction) =>
+        {
+            if (!await ReminderSql.UpdateAsync(connection, transaction, userId, row, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            await ReminderSendSettingSql.SetChannelsAsync(connection, transaction, userId, [row.Id], channelIds, cancellationToken).ConfigureAwait(false);
+            return true;
+        }, cancellationToken);
     }
 
     /// <summary>リマインダーの削除フラグを変える</summary>
