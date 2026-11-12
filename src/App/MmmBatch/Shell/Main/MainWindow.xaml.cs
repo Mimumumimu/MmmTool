@@ -31,10 +31,11 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         ContentHost.Child = navigation;
+        PaneToggleButton.Bind(navigation.ViewModel);
         HistoryButtons.Bind(navigation.ViewModel);
 
         this.UseCustomTitleBar(AppTitleBar, AppIcon.FilePath);
-        this.KeepClickableInTitleBar(HistoryButtons);
+        this.KeepClickableInTitleBar(TitleBarButtons);
         // 前回の位置と大きさを復元する。無い・画面外のときは、既定の大きさで、DPI に合わせる。変わったら保存する。ウィンドウが閉じたら自分で後始末する
         WindowBoundsKeeper.Attach(this, positions, "MainWindow", DefaultWidth, DefaultHeight);
         AppWindow.Closing += OnClosing;

@@ -18,7 +18,10 @@
 
         <Grid x:Name="AppTitleBar" Grid.Row="0">
             <StackPanel Orientation="Horizontal">
-                <pages:NavigationHistoryButtons x:Name="HistoryButtons" Margin="4,0,0,0" />
+                <StackPanel x:Name="TitleBarButtons" Margin="4,0,0,0" Orientation="Horizontal">
+                    <pages:NavigationPaneToggleButton x:Name="PaneToggleButton" />
+                    <pages:NavigationHistoryButtons x:Name="HistoryButtons" Margin="16,0,0,0" />
+                </StackPanel>
                 <TextBlock
                     Margin="8,0,0,0"
                     VerticalAlignment="Center"
