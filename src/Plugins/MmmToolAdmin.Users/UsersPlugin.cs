@@ -6,8 +6,8 @@ namespace MmmToolAdmin.Users;
 
 /// <summary>ユーザーの入口で、ページを登録する</summary>
 /// <remarks>
-/// ユーザーと登録用コードの保存先は、ホストが DB の実装を登録する。
-/// 接続の設定画面と、それを開く口は、ホストが <c>AddConnectionSettingsDialog</c> で登録する。
+/// ユーザーと登録用コードの保存先はホストが DB の実装を登録する。
+/// 接続の設定画面と、それを開く口はホストが <c>AddConnectionSettingsDialog</c> で登録する。
 /// </remarks>
 public sealed class UsersPlugin : IFeaturePlugin
 {

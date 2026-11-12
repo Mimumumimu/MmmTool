@@ -6,17 +6,18 @@ using MmmTool.Data.SqlServer.Reminders;
 
 namespace MmmTool.Data.SqlServer.Users;
 
-/// <summary>
-/// 縦持ちの設定の表 (<c>dbo.AppUserSetting</c>・<c>dbo.AppUserAdminSetting</c>)の読み書き。2 つの表は列とキーが同じなので、表の名前だけを変えて使う。
-/// </summary>
+/// <summary>縦持ちの設定の表の読み書き</summary>
 /// <remarks>
-/// 設定を外すときは論理削除する。外した行は、設定し直すときに、削除を戻して値を直す。
+/// 2 つの表は列とキーが同じなので、表の名前だけを変えて使う。
+/// 設定を外すときは論理削除する。
+/// 外した行は設定し直すときに削除を戻して値を直す。
 /// 同じ人・同じ設定の、削除されていない行は 1 行だけで、一意の索引が守る。
-/// 作成者と更新者の列には、操作した人の番号を入れる。管理者の設定は、管理ツールが書くので 0。
+/// 作成者と更新者の列には操作した人の番号を入れる。
+/// 管理者の設定は管理ツールが書くので 0。
 /// </remarks>
 internal sealed class UserSettingTable
 {
-    /// <summary>値の最大の長さ <c>Value</c></summary>
+    /// <summary>値の最大の長さ Value</summary>
     public const int ValueMaxLength = 200;
 
     /// <summary>ユーザー自身が決める設定の表</summary>
@@ -28,11 +29,15 @@ internal sealed class UserSettingTable
     /// <summary>表の名前</summary>
     private readonly string _table;
 
-    /// <summary>この表で使える一番小さい機能番号。共通の <see cref="CodeFeatures.Common"/> を使うのは、ユーザー自身が決める設定だけ</summary>
+    /// <summary>この表で使える一番小さい機能番号</summary>
+    /// <remarks>共通の CodeFeatures.Common を使うのはユーザー自身が決める設定だけ</remarks>
     private readonly int _minFeatureNo;
 
     /// <summary>表の名前から作る</summary>
-    /// <param name="table">表の名前。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <param name="table">
+    /// 表の名前
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
     /// <param name="minFeatureNo">この表で使える一番小さい機能番号</param>
     private UserSettingTable(string table, int minFeatureNo)
     {
@@ -47,7 +52,10 @@ internal sealed class UserSettingTable
     /// <param name="categoryNo">区分番号</param>
     /// <param name="codeNo">コード番号 (枝番)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>値。設定が無いときは null</returns>
+    /// <returns>
+    /// 値
+    /// 設定が無いときは null
+    /// </returns>
     public Task<string?> GetAsync(SqlServerDatabase database, int userId, int featureNo, int categoryNo, int codeNo, CancellationToken cancellationToken)
         => SendTableAccess.RunAsync(database, async connection =>
         {
@@ -61,7 +69,7 @@ internal sealed class UserSettingTable
             return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
         }, cancellationToken);
 
-    /// <summary>1 人の、同じ区分・コード番号の設定を、機能ごとに読む</summary>
+    /// <summary>1 人の同じ区分・コード番号の設定を機能ごとに読む</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="userId">設定を持つ人の番号</param>
     /// <param name="categoryNo">区分番号</param>
@@ -93,14 +101,17 @@ internal sealed class UserSettingTable
     /// <summary>設定の値を保存する</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="userId">設定を持つ人の番号</param>
-    /// <param name="actorUserId">操作した人の番号。作成者・更新者の列に入れる</param>
+    /// <param name="actorUserId">
+    /// 操作した人の番号
+    /// 作成者・更新者の列に入れる
+    /// </param>
     /// <param name="featureNo">機能番号</param>
     /// <param name="categoryNo">区分番号</param>
     /// <param name="codeNo">コード番号 (枝番)</param>
     /// <param name="value">値</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="ArgumentException">番号が小さすぎる・値が長すぎる。</exception>
+    /// <exception cref="ArgumentException">番号が小さすぎる・値が長すぎる</exception>
     public Task SetAsync(SqlServerDatabase database, int userId, int actorUserId, int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -141,15 +152,22 @@ internal sealed class UserSettingTable
         }, cancellationToken);
     }
 
-    /// <summary>設定を外す (論理削除する)</summary>
+    /// <summary>設定を外す</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="userId">設定を持つ人の番号</param>
-    /// <param name="actorUserId">操作した人の番号。更新者の列に入れる</param>
+    /// <param name="actorUserId">
+    /// 操作した人の番号
+    /// 更新者の列に入れる
+    /// </param>
     /// <param name="featureNo">機能番号</param>
     /// <param name="categoryNo">区分番号</param>
     /// <param name="codeNo">コード番号 (枝番)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>外す処理の完了を表すタスク。設定が無くても、失敗にしない</returns>
+    /// <returns>
+    /// 外す処理の完了を表すタスク。
+    /// 設定が無くても、失敗にしない。
+    /// </returns>
+    /// <remarks>論理削除する</remarks>
     public Task ClearAsync(SqlServerDatabase database, int userId, int actorUserId, int featureNo, int categoryNo, int codeNo, CancellationToken cancellationToken)
         => SendTableAccess.RunAsync(database, async connection =>
         {
@@ -165,7 +183,7 @@ internal sealed class UserSettingTable
             return 0;
         }, cancellationToken);
 
-    /// <summary>設定を決める 4 つの番号を、パラメーターに足す</summary>
+    /// <summary>設定を決める 4 つの番号をパラメーターに足す</summary>
     /// <param name="command">足す先のコマンド</param>
     /// <param name="userId">人の番号</param>
     /// <param name="featureNo">機能番号</param>

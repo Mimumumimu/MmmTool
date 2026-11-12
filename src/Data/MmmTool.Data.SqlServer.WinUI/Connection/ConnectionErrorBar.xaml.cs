@@ -3,11 +3,11 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
-/// <summary>DB を読む画面の上に重ねる、エラーの InfoBar</summary>
+/// <summary>DB を読む画面の上に重ねるエラーの InfoBar</summary>
 /// <remarks>画面の ViewModel (<see cref="DatabaseViewModelBase"/>)を渡すと、そのエラーを出し、「接続の設定」ボタンで接続の設定の画面を開く。</remarks>
 public sealed partial class ConnectionErrorBar : UserControl
 {
-    /// <summary><see cref="ViewModel"/> の依存関係プロパティ</summary>
+    /// <summary>ViewModel の依存関係プロパティ</summary>
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
         nameof(ViewModel), typeof(DatabaseViewModelBase), typeof(ConnectionErrorBar), new PropertyMetadata(null));
 

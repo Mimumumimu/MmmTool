@@ -23,23 +23,24 @@ using MmmSdk.WinUI.Utilities;
 
 namespace MmmToolAdmin;
 
-/// <summary>アプリケーション (起動・終了と DI の構成)</summary>
+/// <summary>アプリケーション</summary>
 public partial class App : Application
 {
     /// <summary>多重起動の防止</summary>
     private readonly SingleInstanceGuard _instanceGuard = new(AppInfo.Name);
 
-    /// <summary>復旧できないエラーの報告先 (ログ・ダイアログ・終了)</summary>
+    /// <summary>復旧できないエラーの報告先</summary>
     private readonly FatalErrorHandler _fatalErrors;
 
     /// <summary>DI とライフタイムを扱う Host</summary>
     private readonly IHost _host;
 
-    /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
+    /// <summary>メインウィンドウ</summary>
+    /// <remarks>まだ作っていなければ null</remarks>
     private MainWindow? _window;
 
-    /// <summary>多重起動を確認して、DI の構成を作る</summary>
-    /// <remarks>未処理の例外の受け皿は、Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
+    /// <summary>多重起動を確認して DI の構成を作る</summary>
+    /// <remarks>未処理の例外の受け皿は Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
     public App()
     {
         if (!_instanceGuard.IsFirstInstance)
@@ -67,7 +68,10 @@ public partial class App : Application
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <param name="fatalErrors">復旧できないエラーの報告先 (SDK の部品が使う)</param>
-    /// <param name="errorLog">エラーを書くログ。復旧できないエラーの報告と共有し、DB の失敗の記録にも使う</param>
+    /// <param name="errorLog">
+    /// エラーを書くログ。
+    /// 復旧できないエラーの報告と共有し、DB の失敗の記録にも使う。
+    /// </param>
     private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
     {
         services.AddSingleton(TimeProvider.System);
@@ -114,9 +118,12 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Host を始めて、メインウィンドウを出す</summary>
+    /// <summary>Host を始めてメインウィンドウを出す</summary>
     /// <returns>起動の完了を表すタスク</returns>
-    /// <remarks>このアプリは、個々の機能の名前を持たない。機能は <c>AddFeaturePlugin</c> で登録し、サイドバーの項目は機能が自分で登録する。</remarks>
+    /// <remarks>
+    /// このアプリは個々の機能の名前を持たない。
+    /// 機能は <c>AddFeaturePlugin</c> で登録し、サイドバーの項目は機能が自分で登録する。
+    /// </remarks>
     private async Task StartAsync()
     {
         await _host.StartAsync();
@@ -137,9 +144,12 @@ public partial class App : Application
         }
     }
 
-    /// <summary>アプリを終了する (メインウィンドウを閉じたとき)</summary>
+    /// <summary>アプリを終了する</summary>
     /// <returns>終了処理の完了を表すタスク</returns>
-    /// <remarks>開いているウィンドウを閉じ、Host を止めて破棄してから、アプリを終える。</remarks>
+    /// <remarks>
+    /// メインウィンドウを閉じたとき。
+    /// 開いているウィンドウを閉じ、Host を止めて破棄してから、アプリを終える。
+    /// </remarks>
     private async Task ExitAsync()
     {
         _host.Services.GetRequiredService<IDialogHost>().CloseAll(_window);

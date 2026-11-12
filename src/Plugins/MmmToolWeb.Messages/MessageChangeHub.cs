@@ -5,26 +5,29 @@ using System.Threading.Channels;
 
 namespace MmmToolWeb.Messages;
 
-/// <summary>
-/// 会話の更新を、会話を開いている端末に知らせる口。端末ごとに 1 本の流れを持つ。
-/// </summary>
+/// <summary>会話の更新を会話を開いている端末に知らせる口</summary>
 /// <remarks>
-/// 知らせる中身は「更新がある」だけ。端末は、知らせを受けたら、差分の取得で新しいメッセージを読む。
-/// 流れが詰まっても、知らせは 1 つにまとめる。端末が遅れても、メモリを増やさないため。
-/// 接続していない人の分は、何も持たない。
+/// 端末ごとに 1 本の流れを持つ。
+/// 知らせる中身は「更新がある」だけ。
+/// 端末は知らせを受けたら、差分の取得で新しいメッセージを読む。
+/// 流れが詰まっても知らせは 1 つにまとめる。
+/// 端末が遅れてもメモリを増やさないため。
+/// 接続していない人の分は何も持たない。
 /// </remarks>
 public sealed class MessageChangeHub
 {
-    /// <summary>生きていることを伝える合図の間隔。通信の途中で切られないようにする</summary>
+    /// <summary>生きていることを伝える合図の間隔</summary>
+    /// <remarks>通信の途中で切られないようにする</remarks>
     private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(25);
 
-    /// <summary>接続中の流れ。人の番号ごと</summary>
+    /// <summary>接続中の流れ</summary>
+    /// <remarks>人の番号ごと</remarks>
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<Guid, Channel<bool>>> _subscribers = new();
 
     /// <summary>接続している端末があるか</summary>
     public bool HasSubscribers => !_subscribers.IsEmpty;
 
-    /// <summary>更新を知らせる相手に、知らせる</summary>
+    /// <summary>更新を知らせる相手に知らせる</summary>
     /// <param name="userIds">更新のあった会話に入っている人の番号</param>
     public void Notify(IEnumerable<int> userIds)
     {
@@ -46,7 +49,10 @@ public sealed class MessageChangeHub
     /// <summary>1 人の端末の流れを始める</summary>
     /// <param name="userId">人の番号</param>
     /// <param name="cancellationToken">端末が切れたときに止まるトークン</param>
-    /// <returns>知らせの流れ。「changed」は更新の知らせで、「ping」は生きている合図</returns>
+    /// <returns>
+    /// 知らせの流れ。
+    /// 「changed」は更新の知らせで、「ping」は生きている合図。
+    /// </returns>
     public async IAsyncEnumerable<SseItem<string>> SubscribeAsync(int userId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var id = Guid.NewGuid();

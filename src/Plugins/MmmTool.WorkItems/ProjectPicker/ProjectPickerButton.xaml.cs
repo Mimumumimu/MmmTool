@@ -4,14 +4,17 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.WorkItems.ProjectPicker;
 
-/// <summary>「表示する案件」のボタンと、案件を選ぶ入れ物のフライアウト。作業管理の表とスケジュールが共有する</summary>
+/// <summary>「表示する案件」のボタンと案件を選ぶ入れ物のフライアウト</summary>
 /// <remarks>
-/// 使う側が、作ったあとに <see cref="Attach"/> で ViewModel を渡す。XAML から作るので、コンストラクターで受け取れない。
-/// 選んだ案件は、作業管理と同じ設定に保存するので、どちらの画面で変えても、もう一方に反映する。
+/// 作業管理の表とスケジュールが共有する。
+/// 使う側が作ったあとに <see cref="Attach"/> で ViewModel を渡す。
+/// XAML から作るので、コンストラクターで受け取れない。
+/// 選んだ案件は作業管理と同じ設定に保存するので、どちらの画面で変えても、もう一方に反映する。
 /// </remarks>
 public sealed partial class ProjectPickerButton : UserControl
 {
-    /// <summary>案件を選ぶ画面の ViewModel で、<see cref="Attach"/> で渡す。渡すまでは null</summary>
+    /// <summary>案件を選ぶ画面の ViewModel で、Attach で渡す</summary>
+    /// <remarks>渡すまでは null</remarks>
     public ProjectPickerViewModel Picker { get; private set; } = null!;
 
     /// <summary>ボタンを作る</summary>
@@ -44,7 +47,7 @@ public sealed partial class ProjectPickerButton : UserControl
         }
     }
 
-    /// <summary>一覧の最後の行が作られたら、続きを読む</summary>
+    /// <summary>一覧の最後の行が作られたら続きを読む</summary>
     /// <param name="sender">一覧</param>
     /// <param name="args">行が作られたときの情報</param>
     private void OnChoiceContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)

@@ -4,10 +4,12 @@ using MmmTool.Data.Connection;
 
 namespace MmmTool.Features.Database.Settings;
 
-/// <summary>
-/// 保存先 (ローカル / DB)の設定ページのカードの ViewModel。今の保存先を一行で見せ、編集画面を開く。
-/// </summary>
-/// <remarks>保存先と接続の編集は、別の画面 (<c>DatabaseEditViewModel</c>)で行う。ここは、編集画面を閉じたあとに、見せている内容を読み直す。</remarks>
+/// <summary>保存先の設定ページのカードの ViewModel</summary>
+/// <remarks>
+/// 今の保存先を一行で見せ、編集画面を開く。
+/// 保存先と接続の編集は別の画面 (<c>DatabaseEditViewModel</c>)で行う。
+/// ここは編集画面を閉じたあとに、見せている内容を読み直す。
+/// </remarks>
 public sealed partial class DatabaseSettingsViewModel : ObservableObject
 {
     /// <summary>接続の設定の読み書き</summary>
@@ -27,10 +29,12 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
         Summary = CreateSummary();
     }
 
-    /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
+    /// <summary>設定を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、変更させない。</remarks>
     public bool IsEditable { get; }
 
-    /// <summary>今の保存先の説明 (ローカル、またはサーバーとサーバー名)</summary>
+    /// <summary>今の保存先の説明</summary>
+    /// <remarks>ローカル、またはサーバーとサーバー名。</remarks>
     [ObservableProperty]
     public partial string Summary { get; private set; }
 
@@ -43,8 +47,8 @@ public sealed partial class DatabaseSettingsViewModel : ObservableObject
         Summary = CreateSummary();
     }
 
-    /// <summary>保存してある設定から、今の保存先の説明を作る</summary>
-    /// <returns>ローカルなら「ローカル」、DB なら「サーバー (サーバー名)」</returns>
+    /// <summary>保存してある設定から今の保存先の説明を作る</summary>
+    /// <returns>ローカルなら「ローカル」、DB なら「サーバー (サーバー名)」。</returns>
     private string CreateSummary()
     {
         var saved = _settings.Load();

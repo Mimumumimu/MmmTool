@@ -19,21 +19,28 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     /// <summary>セッションごとのタブと画面</summary>
     private readonly Dictionary<CliSessionViewModel, SessionTab> _tabs = [];
-    /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー</summary>
-    /// <remarks><see cref="AppEnvironment.WebView2Directory"/> は、WebView2 の既定の EXE の横ではなく、データにまとめる。アプリの中の WebView2 は、すべて同じ場所を使う。</remarks>
+    /// <summary>WebView2 のデータの保存先フォルダー</summary>
+    /// <remarks>
+    /// <see cref="AppEnvironment.WebView2Directory"/> は WebView2 の既定の EXE の横ではなく、データにまとめる。
+    /// アプリの中の WebView2 はすべて同じ場所を使う。
+    /// </remarks>
     private readonly string _webView2Directory;
-    /// <summary>ターミナルをつないでよいか (定型コマンドの読み込みが済んだか)</summary>
+    /// <summary>ターミナルをつないでよいか</summary>
+    /// <remarks>定型コマンドの読み込みが済んだか</remarks>
     private bool _terminalsConnectable;
-    /// <summary>サイドバーの項目に、知らせの印を出す口</summary>
+    /// <summary>サイドバーの項目に知らせの印を出す口</summary>
     private readonly INavigationService _navigation;
-    /// <summary>このページが載っているウィンドウ (タスクバーを点滅させる先)</summary>
-    /// <remarks>ほかのページを開いている間は、ページが画面から外れて <c>XamlRoot</c> が無くなるので、載ったときに覚えておく。ページを別ウィンドウに外したときは、載り直したときに更新する。</remarks>
+    /// <summary>このページが載っているウィンドウ</summary>
+    /// <remarks>
+    /// ほかのページを開いている間はページが画面から外れて <c>XamlRoot</c> が無くなるので、載ったときに覚えておく。
+    /// ページを別ウィンドウに外したときは載り直したときに更新する。
+    /// </remarks>
     private AppWindow? _hostWindow;
 
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
-    /// <param name="navigation">サイドバーの項目に、知らせの印を出す口</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
+    /// <param name="navigation">サイドバーの項目に、知らせの印を出す口。</param>
     public CliAssistPage(CliAssistViewModel viewModel, AppEnvironment environment, INavigationService navigation)
     {
         ViewModel = viewModel;
@@ -55,7 +62,7 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         RebuildCommandTree();
     }
 
-    /// <summary>ViewModel のプロパティが変わったら、画面を合わせる</summary>
+    /// <summary>ViewModel のプロパティが変わったら画面を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -81,9 +88,11 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     /// <inheritdoc />
     /// <remarks>
-    /// 機能をオフにしたときと、ページを別のウィンドウへ作り直すとき。ViewModel とのつなぎをすべて外し、ターミナルのコントロールからセッションを外す。
-    /// ViewModel は、スコープが持ち続けることがある (ページの作り直し)ので、このページを残さないよう、購読を外しきる。
-    /// シェル (とその中の CLI)は、スコープの破棄で終了する。何度呼んでもよい。
+    /// 機能をオフにしたときとページを別のウィンドウへ作り直すとき。
+    /// ViewModel とのつなぎをすべて外し、ターミナルのコントロールからセッションを外す。
+    /// ViewModel はスコープが持ち続けることがある (ページの作り直し)ので、このページを残さないよう、購読を外しきる。
+    /// シェル (とその中の CLI)はスコープの破棄で終了する。
+    /// 何度呼んでもよい。
     /// </remarks>
     public void Release()
     {
@@ -108,7 +117,10 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
     public Task PrepareHandoverAsync() => Task.WhenAll(_tabs.Values.Select(tab => tab.View.PrepareHandoverAsync()));
 
     /// <inheritdoc />
-    /// <remarks>タブごとに、ターミナルの画面の内容と、届いていた出力を受け取る。ViewModel とシェルは、そのまま残る。</remarks>
+    /// <remarks>
+    /// タブごとに、ターミナルの画面の内容と、届いていた出力を受け取る。
+    /// ViewModel とシェルはそのまま残る。
+    /// </remarks>
     public object TakeHandover()
     {
         var handovers = _tabs.ToDictionary(pair => pair.Key, pair => pair.Value.View.TakeHandover());
@@ -118,8 +130,9 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     /// <inheritdoc />
     /// <remarks>
-    /// タブごとに、ターミナルへ引き継ぎの内容を渡し、すぐセッションをつなぐ。画面に出るのを待つと、そのあいだの出力が捨てられるため。
-    /// 定型コマンドの読み込みが済んでいないときは、読み込みのあとに <see cref="OnLoaded"/> がつなぐ。
+    /// タブごとに、ターミナルへ引き継ぎの内容を渡し、すぐセッションをつなぐ。
+    /// 画面に出るのを待つとそのあいだの出力が捨てられるため。
+    /// 定型コマンドの読み込みが済んでいないときは読み込みのあとに <see cref="OnLoaded"/> がつなぐ。
     /// </remarks>
     public void ApplyHandover(object handover, AppWindow? hostWindow)
     {
@@ -147,17 +160,20 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     #endregion
 
-    /// <summary>サイドバーの「CLI補助」の項目に、知らせの印を出す・消す</summary>
-    /// <remarks>どれかのタブが確認を待っている間だけ出す。ほかのページを見ていて、タブの黄色が目に入らないときのため。</remarks>
+    /// <summary>サイドバーの「CLI補助」の項目に知らせの印を出す・消す</summary>
+    /// <remarks>
+    /// どれかのタブが確認を待っている間だけ出す。
+    /// ほかのページを見ていて、タブの黄色が目に入らないときのため。
+    /// </remarks>
     private void UpdateNavigationBadge()
         => _navigation.SetBadge<CliAssistPage>(ViewModel.Sessions.Any(session => session.IsAwaitingInput));
 
-    /// <summary>読み込み時の処理 (ViewModel の初期化・ターミナルの接続)</summary>
+    /// <summary>読み込み時の処理</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 起動するシェル (Windows / WSL)は、初期化で読み込む定型コマンドで決まるので、初期化が済んでからターミナルにつなぐ。
-    /// ターミナルは、つないだとき (表示の準備がまだなら、準備ができたとき)にシェルを起動する。
+    /// 起動するシェル (Windows / WSL)は初期化で読み込む定型コマンドで決まるので、初期化が済んでからターミナルにつなぐ。
+    /// ターミナルはつないだとき (表示の準備がまだなら、準備ができたとき)にシェルを起動する。
     /// </remarks>
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -172,21 +188,23 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     #region セッション (タブ)
 
-    /// <summary>セッション 1 つ分のタブと、その中の画面</summary>
+    /// <summary>セッション 1 つ分のタブとその中の画面</summary>
     /// <param name="Item">タブ</param>
     /// <param name="View">タブの中の画面 (ターミナルと送信欄)</param>
     /// <param name="OnSessionChanged">セッションの変更を受けるハンドラ (タブを取り除くときに外す)</param>
-    /// <param name="Highlight">確認が出たときの、タブの黄色の強調 (タブを取り除くときに後始末する)</param>
+    /// <param name="Highlight">確認が出たときの、タブの黄色の強調 (タブを取り除くときに後始末する)。</param>
     private sealed record SessionTab(TabViewItem Item, CliSessionView View, PropertyChangedEventHandler OnSessionChanged, AwaitingTabHighlight Highlight);
 
-    /// <summary>選ばれているセッションの画面を、タブの下の枠に入れる</summary>
+    /// <summary>選ばれているセッションの画面をタブの下の枠に入れる</summary>
     /// <remarks>
-    /// 選ばれていないタブの画面は、枠から外れる。ターミナルは外れても作り直されない。再表示のときは、フォーカスを戻すだけ。
+    /// 選ばれていないタブの画面は枠から外れる
+    /// ターミナルは外れても作り直されない
+    /// 再表示のときはフォーカスを戻すだけ
     /// </remarks>
     private void ShowSelectedSession()
         => SessionHost.Child = _tabs.TryGetValue(ViewModel.SelectedSession, out var tab) ? tab.View : null;
 
-    /// <summary>セッションの一覧が変わったら、タブを合わせる</summary>
+    /// <summary>セッションの一覧が変わったらタブを合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更の情報</param>
     private void OnSessionsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -219,11 +237,14 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         }
     }
 
-    /// <summary>セッションのタブを作って、並べる</summary>
+    /// <summary>セッションのタブを作って並べる</summary>
     /// <param name="session">セッション</param>
     /// <remarks>
-    /// 定型コマンドの読み込みが済んでいれば、ターミナルをつなぐ。つないだとき、シェルが起動する。済んでいなければ、読み込みのあとでつなぐ。
-    /// 選ばれていないタブは画面から外れるが、ターミナルは外れても作り直されない。再表示のときは、フォーカスを戻すだけ。
+    /// 定型コマンドの読み込みが済んでいれば、ターミナルをつなぐ。
+    /// つないだとき、シェルが起動する。
+    /// 済んでいなければ、読み込みのあとでつなぐ。
+    /// 選ばれていないタブは画面から外れるがターミナルは外れても作り直されない。
+    /// 再表示のときはフォーカスを戻すだけ。
     /// </remarks>
     private void AddTab(CliSessionViewModel session)
     {
@@ -274,19 +295,22 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     /// <summary>通知する文字列が出たら、ウィンドウが見えていて前面にないときだけ、タスクバーのボタンを点滅させる</summary>
     /// <param name="sender">イベントの送信元</param>
-    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか (点滅には関係しない)</param>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか (点滅には関係しない)。</param>
     /// <remarks>
-    /// 選んでいないタブ・ほかのページを開いている間に出た文字列でも点滅させる。ウィンドウが後ろにあると、タブの黄色もサイドバーの丸も目に入らないため。
-    /// 最小化・トレイへの退避中は点滅させない。アプリが前面にあるときも、画面で気づけるので点滅させない。
-    /// 判定は <see cref="WindowExtensions.FlashTaskbarIfInactive"/> が行う。
+    /// 選んでいないタブ・ほかのページを開いている間に出た文字列でも点滅させる
+    /// ウィンドウが後ろにあるとタブの黄色もサイドバーの丸も目に入らないため
+    /// 最小化・トレイへの退避中は点滅させない
+    /// アプリが前面にあるときも画面で気づけるので点滅させない
+    /// 判定は <see cref="WindowExtensions.FlashTaskbarIfInactive"/> が行う
     /// </remarks>
     private void OnFocusTriggerMatched(object? sender, bool moveToTerminal) => _hostWindow?.FlashTaskbarIfInactive();
 
     /// <summary>セッションのタブを取り除く</summary>
     /// <param name="session">取り除くセッション</param>
     /// <remarks>
-    /// ターミナルを画面から外し、セッションとのつなぎも外す。シェルの終了は、このあと ViewModel が行う。
-    /// つなぎを外すのは、閉じたセッションが DI のスコープに (ページを捨てるまで)残るため、画面 (WebView2 を含む)まで残さないため。
+    /// ターミナルを画面から外し、セッションとのつなぎも外す。
+    /// シェルの終了はこのあと ViewModel が行う。
+    /// つなぎを外すのは閉じたセッションが DI のスコープに (ページを捨てるまで)残るため、画面 (WebView2 を含む)まで残さないため。
     /// </remarks>
     private void RemoveTab(CliSessionViewModel session)
     {
@@ -307,7 +331,7 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         UpdateNavigationBadge();
     }
 
-    /// <summary>タブが選ばれたら、ViewModel に反映する</summary>
+    /// <summary>タブが選ばれたら ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">選択の変更の情報</param>
     private void OnSessionTabSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -324,12 +348,13 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         }
     }
 
-    /// <summary>タブの一覧が変わったら、タブの並びを一覧へ反映する</summary>
+    /// <summary>タブの一覧が変わったらタブの並びを一覧へ反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">変更の情報</param>
     /// <remarks>
-    /// ドラッグの並べ替えでは、タブがいったん外れてから入れ直される。数がそろったときだけ反映し、並べ替えの前に選んでいたタブを選び直す。
-    /// 追加・削除のときは、一覧のほうが先に変わっているので、並びは同じで何も起きない。
+    /// ドラッグの並べ替えではタブがいったん外れてから入れ直される。
+    /// 数がそろったときだけ反映し、並べ替えの前に選んでいたタブを選び直す。
+    /// 追加・削除のときは一覧のほうが先に変わっているので、並びは同じで何も起きない。
     /// </remarks>
     private void OnTabItemsChanged(TabView sender, Windows.Foundation.Collections.IVectorChangedEventArgs args)
     {
@@ -356,12 +381,12 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         }
     }
 
-    /// <summary>「＋」が押されたら、新しいタブを開く</summary>
+    /// <summary>「＋」が押されたら新しいタブを開く</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">イベントの情報</param>
     private void OnAddTabButtonClick(TabView sender, object args) => ViewModel.AddSessionCommand.Execute(null);
 
-    /// <summary>タブの「×」が押されたら、確認してから閉じる</summary>
+    /// <summary>タブの「×」が押されたら確認してから閉じる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じるタブの情報</param>
     private void OnTabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
@@ -376,14 +401,14 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
 
     #region 定型コマンド
 
-    /// <summary>タブが選ばれたら、ViewModel に反映する</summary>
+    /// <summary>タブが選ばれたら ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
     private void OnCategorySelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         => ViewModel.SelectedCategory = sender.SelectedItem == SessionCategoryItem ? CommandCategory.Session : CommandCategory.Shell;
 
     /// <summary>ツリーのノードを作り直す</summary>
-    /// <remarks>すべてのノードを最初から展開した状態にする。</remarks>
+    /// <remarks>すべてのノードを最初から展開した状態にする</remarks>
     private void RebuildCommandTree()
     {
         CommandTree.RootNodes.Clear();
@@ -393,7 +418,7 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         }
     }
 
-    /// <summary>ViewModel の要素から、ツリーのノードを作る (子も展開した状態)</summary>
+    /// <summary>ViewModel の要素からツリーのノードを作る</summary>
     /// <param name="item">ツリーの要素</param>
     /// <returns>ツリーのノード</returns>
     private static TreeViewNode CreateNode(CommandTreeItem item)
@@ -406,10 +431,13 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         return node;
     }
 
-    /// <summary>ツリーを横にもスクロールできるようにする。</summary>
+    /// <summary>ツリーを横にもスクロールできるようにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>TreeView は既定で横スクロールが無効で、長い名前は右が切れる。テンプレート内の ScrollViewer に直接設定する。</remarks>
+    /// <remarks>
+    /// TreeView は既定で横スクロールが無効で、長い名前は右が切れる。
+    /// テンプレート内の ScrollViewer に直接設定する。
+    /// </remarks>
     private void OnCommandTreeLoaded(object sender, RoutedEventArgs e)
     {
         if (VisualTreeSearch.FindDescendant<ScrollViewer>(CommandTree) is { } scrollViewer)
@@ -419,7 +447,7 @@ public sealed partial class CliAssistPage : Page, IHandoverPage
         }
     }
 
-    /// <summary>ツリーの項目が選ばれたら、コマンドを実行する</summary>
+    /// <summary>ツリーの項目が選ばれたらコマンドを実行する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選ばれた項目の情報</param>
     private void OnCommandTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)

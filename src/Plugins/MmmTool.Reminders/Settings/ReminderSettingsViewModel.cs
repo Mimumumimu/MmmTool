@@ -9,7 +9,7 @@ using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.Settings;
 
-/// <summary>リマインダーの設定 (設定ページの部品)の ViewModel</summary>
+/// <summary>リマインダーの設定の ViewModel</summary>
 public sealed partial class ReminderSettingsViewModel : ObservableObject
 {
     /// <summary>リマインダーの設定</summary>
@@ -18,52 +18,71 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <summary>Windows の設定を開く処理</summary>
     private readonly IPathOpener _pathOpener;
 
-    /// <summary>Windows の音声の設定 (声・速さ)を開くアドレス</summary>
+    /// <summary>Windows の音声の設定を開くアドレス</summary>
     private const string SpeechSettingsUri = "ms-settings:speech";
 
     /// <summary>保存済みの値を入れている最中か</summary>
-    /// <remarks>true の間は、値の変更で保存しない。読み込んだだけの値で、設定ファイルを書き換えないため。</remarks>
+    /// <remarks>
+    /// true の間は値の変更で保存しない。
+    /// 読み込んだだけの値で、設定ファイルを書き換えないため。
+    /// </remarks>
     private bool _isInitializing;
 
-    /// <summary>画面に出すエラー (保存に失敗したとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>保存に失敗したとき</remarks>
     public ErrorState Error { get; } = new();
 
-    /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
+    /// <summary>設定を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、変更させない。</remarks>
     public bool IsEditable { get; }
 
-    /// <summary>スヌーズ間隔の下限 (分)</summary>
+    /// <summary>スヌーズ間隔の下限</summary>
+    /// <remarks>単位は分</remarks>
     public double SnoozeIntervalMin => ReminderSettingsService.MinSnoozeInterval;
 
-    /// <summary>スヌーズ間隔の上限 (分)</summary>
+    /// <summary>スヌーズ間隔の上限</summary>
+    /// <remarks>単位は分</remarks>
     public double SnoozeIntervalMax => ReminderSettingsService.MaxSnoozeInterval;
 
-    /// <summary>リマインダーのスヌーズ再通知間隔 (分)</summary>
-    /// <remarks>変わったら即保存する。範囲外・空は下限・上限に収めて画面にも反映する。</remarks>
+    /// <summary>リマインダーのスヌーズ再通知間隔</summary>
+    /// <remarks>
+    /// 単位は分
+    /// 変わったら即保存する
+    /// 範囲外・空は下限・上限に収めて画面にも反映する
+    /// </remarks>
     [ObservableProperty]
     public partial double SnoozeIntervalMinutes { get; set; }
 
-    /// <summary>読み上げの音量の下限 (%)</summary>
+    /// <summary>読み上げの音量の下限</summary>
+    /// <remarks>単位は %</remarks>
     public double SpeechVolumeMin => 0;
 
-    /// <summary>読み上げの音量の上限 (%)</summary>
+    /// <summary>読み上げの音量の上限</summary>
+    /// <remarks>単位は %</remarks>
     public double SpeechVolumeMax => 100;
 
-    /// <summary>音量を変更できるか (設定ファイルを読めなかったときは、変更させない)</summary>
+    /// <summary>音量を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは変更させない</remarks>
     public bool IsVolumeEditable => !_speech.IsVolumeReadOnly;
 
-    /// <summary>読み上げの音量 (%)</summary>
-    /// <remarks>スライダーを動かし終えるのを待ってから保存する。動かす間は、保存しない。</remarks>
+    /// <summary>読み上げの音量</summary>
+    /// <remarks>
+    /// 単位は %
+    /// スライダーを動かし終えるのを待ってから保存する
+    /// 動かす間は保存しない
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SpeechVolumeText))]
     public partial double SpeechVolumePercent { get; set; }
 
-    /// <summary>読み上げの音量の表示 (例: 50%)</summary>
+    /// <summary>読み上げの音量の表示</summary>
+    /// <remarks>例: 50%</remarks>
     public string SpeechVolumeText => $"{SpeechVolumePercent:0}%";
 
-    /// <summary>読み上げ (試し聞き)</summary>
+    /// <summary>読み上げ</summary>
     private readonly ISpeechService _speech;
 
-    /// <summary>音量の保存を、スライダーが止まるまで待つ</summary>
+    /// <summary>音量の保存をスライダーが止まるまで待つ</summary>
     private readonly Debouncer _volumeSaveDebouncer = new(TimeSpan.FromMilliseconds(400));
 
     /// <summary>試し聞きの文</summary>
@@ -87,7 +106,10 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
 
     /// <summary>今の音量で、短い文を読み上げる</summary>
     /// <returns>読み上げの開始が済んだことを表すタスク</returns>
-    /// <remarks>予約中の保存を待たず、いまのスライダーの値をすぐ保存してから読む。読み上げは保存値を使うため。</remarks>
+    /// <remarks>
+    /// 予約中の保存を待たず、いまのスライダーの値をすぐ保存してから読む。
+    /// 読み上げは保存値を使うため。
+    /// </remarks>
     [RelayCommand]
     private async Task PreviewSpeechAsync()
     {
@@ -96,7 +118,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
         await _speech.SpeakAsync(PreviewText);
     }
 
-    /// <summary>値が変わったら範囲に収めて、少し待ってから保存する</summary>
+    /// <summary>値が変わったら範囲に収めて少し待ってから保存する</summary>
     /// <param name="value">変更後の音量 (%)</param>
     partial void OnSpeechVolumePercentChanged(double value)
     {
@@ -118,7 +140,7 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <summary>音量を保存する</summary>
     /// <param name="percent">保存する音量 (%)</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存の失敗は、スヌーズ間隔と同じく画面に出す。</remarks>
+    /// <remarks>保存の失敗はスヌーズ間隔と同じく画面に出す</remarks>
     private async Task SaveSpeechVolumeAsync(int percent)
     {
         try
@@ -140,7 +162,10 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
 
     /// <summary>Windows の音声の設定を開く</summary>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>読み上げの声と速さは、Windows の音声の設定に従う。開けなかったとき (<see cref="PathOpenException"/>)は、画面に出す。</remarks>
+    /// <remarks>
+    /// 読み上げの声と速さは Windows の音声の設定に従う
+    /// 開けなかったとき (<see cref="PathOpenException"/>)は画面に出す
+    /// </remarks>
     [RelayCommand]
     private async Task OpenSpeechSettingsAsync()
     {
@@ -178,8 +203,9 @@ public sealed partial class ReminderSettingsViewModel : ObservableObject
     /// <param name="minutes">保存するスヌーズ間隔 (分)</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態 (設定ファイルを読めなかった)では、入力欄を無効にしてあるので、ここへは来ない。来たら、保存されなかったことを知らせる。
-    /// 保存の失敗 (ロック・権限など)は、画面に出す。
+    /// 保存できない状態 (設定ファイルを読めなかった)では入力欄を無効にしてあるので、ここへは来ない。
+    /// 来たら、保存されなかったことを知らせる。
+    /// 保存の失敗 (ロック・権限など)は画面に出す。
     /// </remarks>
     private async Task SaveSnoozeIntervalAsync(int minutes)
     {

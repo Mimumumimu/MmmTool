@@ -3,11 +3,15 @@ using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.Setup;
 
-/// <summary>CLI補助の初期設定ダイアログ (使うツールと、動かす環境を選ぶ)</summary>
+/// <summary>CLI補助の初期設定ダイアログ</summary>
+/// <remarks>使うツールと動かす環境を選ぶ</remarks>
 public sealed partial class CliSetupDialog : ContentDialog
 {
     /// <summary>初回として開いたか</summary>
-    /// <remarks>初回は、選ばずに閉じられないようにする。定型コマンドのファイルを作るのに、選んだ内容が要るため。</remarks>
+    /// <remarks>
+    /// 初回は選ばずに閉じられないようにする
+    /// 定型コマンドのファイルを作るのに選んだ内容が要るため
+    /// </remarks>
     private bool _isFirstRun;
 
     /// <summary>ダイアログの ViewModel</summary>
@@ -23,7 +27,10 @@ public sealed partial class CliSetupDialog : ContentDialog
 
     /// <summary>初回の初期設定として開く</summary>
     /// <returns>選んだ初期設定</returns>
-    /// <remarks>キャンセルのボタンは出さず、Esc でも閉じない。「作成」で閉じるまで待つ。</remarks>
+    /// <remarks>
+    /// キャンセルのボタンは出さず、Esc でも閉じない。
+    /// 「作成」で閉じるまで待つ。
+    /// </remarks>
     public async Task<CliSetup> ShowFirstRunAsync()
     {
         _isFirstRun = true;
@@ -36,10 +43,21 @@ public sealed partial class CliSetupDialog : ContentDialog
         return ViewModel.ToSetup();
     }
 
-    /// <summary>初期化 (定型コマンドの作り直し)として開く</summary>
-    /// <param name="current">今の初期設定で、環境と使っているツール。最初に選んでおく</param>
-    /// <returns>選んだ初期設定。キャンセルなら null</returns>
-    /// <remarks>取り消せない操作なので、既定のボタンを置かない。Enter で誤って実行しないため。キャンセルを既定にすると強調色になり、主な操作に見えるため。SDK の確認ダイアログと同じ。</remarks>
+    /// <summary>初期化として開く</summary>
+    /// <param name="current">
+    /// 今の初期設定で、環境と使っているツール。
+    /// 最初に選んでおく。
+    /// </param>
+    /// <returns>
+    /// 選んだ初期設定
+    /// キャンセルなら null
+    /// </returns>
+    /// <remarks>
+    /// 取り消せない操作なので、既定のボタンを置かない。
+    /// Enter で誤って実行しないため。
+    /// キャンセルを既定にすると強調色になり、主な操作に見えるため。
+    /// SDK の確認ダイアログと同じ。
+    /// </remarks>
     public async Task<CliSetup?> ShowResetAsync(CliSetup current)
     {
         _isFirstRun = false;
@@ -52,9 +70,10 @@ public sealed partial class CliSetupDialog : ContentDialog
         return await ShowAsync() == ContentDialogResult.Primary ? ViewModel.ToSetup() : null;
     }
 
-    /// <summary>閉じる前の処理 (初回は、決定のボタン以外では閉じない)</summary>
+    /// <summary>閉じる前の処理</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じる操作の情報</param>
+    /// <remarks>初回は決定のボタン以外では閉じない</remarks>
     private void OnClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
     {
         if (_isFirstRun && args.Result != ContentDialogResult.Primary)

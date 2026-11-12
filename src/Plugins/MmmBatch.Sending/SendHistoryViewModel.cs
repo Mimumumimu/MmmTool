@@ -5,11 +5,12 @@ using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.Sending;
 
-/// <summary>
-/// 送信の履歴の画面。このアプリを起動してから送った 1 回ごとの記録 (メモリ上)を、機能ごとに、新しい順に、最大 <see cref="MaxCount"/> 件並べる。
-/// </summary>
+/// <summary>送信の履歴の画面</summary>
 /// <remarks>
-/// 起動時は空で、揮発性。ログのファイルは読まない。機能の仕事の結果が変わったとき (送ったとき)に読み直す。
+/// このアプリを起動してから送った 1 回ごとの記録を、機能ごとに、新しい順に、最大 MaxCount 件並べる。
+/// 起動時は空で、揮発性。
+/// ログのファイルは読まない。
+/// 機能の仕事の結果が変わったとき (送ったとき)に読み直す。
 /// 機能ごとに、この型を継承して、機能のキー (<see cref="SendLogEntry.Source"/>)と仕事を渡す。
 /// </remarks>
 public partial class SendHistoryViewModel : SendViewModelBase
@@ -20,11 +21,15 @@ public partial class SendHistoryViewModel : SendViewModelBase
     /// <summary>起動してから送った分の記録</summary>
     private readonly ISendHistory _history;
 
-    /// <summary>この履歴の機能のキー (<see cref="SendLogEntry.Source"/>)</summary>
+    /// <summary>この履歴の機能のキー</summary>
+    /// <remarks><see cref="SendLogEntry.Source"/></remarks>
     private readonly string _source;
 
     /// <summary>ViewModel を作る</summary>
-    /// <param name="source">この履歴の機能のキーで、<see cref="SendLogEntry.Source"/> の値。この機能の行だけを出す</param>
+    /// <param name="source">
+    /// この履歴の機能のキーで、<see cref="SendLogEntry.Source"/> の値。
+    /// この機能の行だけを出す。
+    /// </param>
     /// <param name="history">起動してから送った分の記録</param>
     /// <param name="job">この履歴の機能の仕事</param>
     /// <param name="dialogs">接続の設定の画面を開く</param>
@@ -36,10 +41,11 @@ public partial class SendHistoryViewModel : SendViewModelBase
         _history = history;
     }
 
-    /// <summary>一覧の行 (新しい順)</summary>
+    /// <summary>一覧の行</summary>
     public ObservableCollection<SendHistoryItemViewModel> Items { get; } = [];
 
-    /// <summary>一覧が空か (まだ 1 件も送っていない)</summary>
+    /// <summary>一覧が空か</summary>
+    /// <remarks>まだ 1 件も送っていない</remarks>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
 

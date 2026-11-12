@@ -1,70 +1,71 @@
 namespace MmmTool.Messages.Core;
 
-/// <summary>
-/// ローカルモードで使う、会話とメッセージを使えない保存先。
-/// </summary>
-/// <remarks>DB モードのとき、ホストが、SQL Server の保存先に置き換える。画面は、<see cref="IsAvailable"/> が false の間は、メッセージの入口を出さない。</remarks>
+/// <summary>ローカルモードで使う会話とメッセージを使えない保存先</summary>
+/// <remarks>
+/// DB モードではホストが SQL Server の保存先に置き換える
+/// <see cref="IsAvailable"/> が false の間は画面にメッセージの入口を出さない
+/// </remarks>
 public sealed class UnavailableMessageRepository : IMessageRepository
 {
     /// <inheritdoc />
     public bool IsAvailable => false;
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<MessageSyncResult> GetStartAsync(CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<IReadOnlyList<ChatMessage>> GetMessagesAsync(int conversationId, int beforeMessageId, int count, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<MessageSyncResult> GetChangesAsync(DateTimeOffset since, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<int> FindDirectConversationAsync(int peerUserId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<int> FindConversationOfMessageAsync(int messageId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<IReadOnlyList<MessagePerson>> SearchPeopleAsync(string prefix, int count, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<bool?> CanNotifyPeerAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
     public Task<MessagePeerNotifyState?> GetPeerNotifyStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<GroupChangeOutcome> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<GroupChangeOutcome> RenameGroupAsync(int conversationId, string name, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<GroupChangeOutcome> LeaveGroupAsync(int conversationId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">メッセージは、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">メッセージは DB モードだけで使える</exception>
     public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default) => throw NotAvailable();
 
     /// <summary>使えないときの例外を作る</summary>

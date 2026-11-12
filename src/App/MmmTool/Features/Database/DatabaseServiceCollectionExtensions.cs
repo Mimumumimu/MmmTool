@@ -8,15 +8,16 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.Database;
 
-/// <summary>
-/// 保存先 (ローカル / DB)の画面 (設定ページの部品・編集画面・初回の選択の画面)を DI に登録する。
-/// </summary>
+/// <summary>保存先の画面を DI に登録する</summary>
 public static class DatabaseServiceCollectionExtensions
 {
     /// <summary>保存先の画面を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
-    /// <remarks>接続の設定の読み書き (<c>DatabaseSettingsService</c>)は、DB の種類ごとの登録 (<c>AddSqlServerData</c>)が行う。設定ページの部品は並び順の値で並ぶ (<see cref="SettingsSectionOrder"/>)ので、呼ぶ位置は問わない。</remarks>
+    /// <remarks>
+    /// 接続の設定の読み書き (<c>DatabaseSettingsService</c>)は DB の種類ごとの登録 (<c>AddSqlServerData</c>)が行う。
+    /// 設定ページの部品は並び順の値で並ぶ (<see cref="SettingsSectionOrder"/>)ので、呼ぶ位置は問わない。
+    /// </remarks>
     public static IServiceCollection AddDatabaseScreens(this IServiceCollection services)
     {
         services.AddSingleton<DatabaseChoiceService>();

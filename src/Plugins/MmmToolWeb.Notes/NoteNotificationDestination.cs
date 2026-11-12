@@ -4,19 +4,20 @@ using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Notes;
 
-/// <summary>
-/// ノートの通知を押したときに、そのノートが有効な日で、ノートのページを開く行き先。
-/// </summary>
+/// <summary>ノートの通知を押したときにそのノートが有効な日でノートのページを開く行き先</summary>
 /// <remarks>
-/// 「通知」の機能は、ノートの名前を持たない。この行き先を登録するのは、ノートの機能。
-/// 開く日は、今日が期間内なら今日、そうでなければ開始日。今日は、サーバーの日付で決める。
-/// ノートが見えない・削除済み・終了日が過去のときは、日付を付けずに、ノートのページを開く。
+/// 「通知」の機能はノートの名前を持たない。
+/// この行き先を登録するのはノートの機能。
+/// 開く日は今日が期間内なら今日、そうでなければ開始日。
+/// 今日はサーバーの日付で決める。
+/// ノートが見えない・削除済み・終了日が過去のときは日付を付けずに、ノートのページを開く。
 /// </remarks>
 /// <param name="repository">ノートの保存先</param>
 /// <param name="time">現在時刻の取得元</param>
 public sealed class NoteNotificationDestination(INoteRepository repository, TimeProvider time) : INotificationDestination
 {
-    /// <summary>ノートのページの道。<c>NotesPage.Route</c> と同じ</summary>
+    /// <summary>ノートのページの道</summary>
+    /// <remarks>NotesPage.Route と同じ</remarks>
     private const string NotesPath = "/notes";
 
     /// <inheritdoc />

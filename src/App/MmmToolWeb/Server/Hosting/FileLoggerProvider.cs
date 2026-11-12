@@ -2,20 +2,20 @@ using System.Text;
 
 namespace MmmToolWeb.Server.Hosting;
 
-/// <summary>
-/// 警告以上と、守りに関わる出来事 (<see cref="SecurityLog.Category"/>)を、日ごとのファイルに書くログの出力先。
-/// </summary>
-/// <param name="directoryPath">ログのファイルを置くフォルダ。</param>
+/// <summary>警告以上と守りに関わる出来事を日ごとのファイルに書くログの出力先</summary>
+/// <param name="directoryPath">ログのファイルを置くフォルダ</param>
 /// <remarks>
-/// 1 日のファイルが <see cref="MaxFileBytes"/> に達したら、その日の記録を止める。大量の拒否でディスクを埋められないようにするため。
-/// 通常のアクセスの記録は、アクセスログ (W3C 形式)のファイルが受け持つ。
+/// <see cref="SecurityLog.Category"/>。
+/// 1 日のファイルが <see cref="MaxFileBytes"/> に達したら、その日の記録を止める。
+/// 大量の拒否でディスクを埋められないようにするため。
+/// 通常のアクセスの記録はアクセスログ (W3C 形式)のファイルが受け持つ。
 /// </remarks>
 internal sealed class FileLoggerProvider(string directoryPath) : ILoggerProvider
 {
-    /// <summary>1 日のファイルの大きさの上限。</summary>
+    /// <summary>1 日のファイルの大きさの上限</summary>
     private const long MaxFileBytes = 10 * 1024 * 1024;
 
-    /// <summary>書き込みの排他用ロック。</summary>
+    /// <summary>書き込みの排他用ロック</summary>
     private readonly Lock _gate = new();
 
     /// <inheritdoc />
@@ -26,10 +26,11 @@ internal sealed class FileLoggerProvider(string directoryPath) : ILoggerProvider
     {
     }
 
-    /// <summary>
-    /// 1 行を、今日のファイルに足す。
-    /// </summary>
-    /// <param name="text">足す内容。末尾の改行を含む。</param>
+    /// <summary>1 行を今日のファイルに足す</summary>
+    /// <param name="text">
+    /// 足す内容
+    /// 末尾の改行を含む
+    /// </param>
     private void Append(string text)
     {
         var now = DateTimeOffset.Now;
@@ -58,11 +59,9 @@ internal sealed class FileLoggerProvider(string directoryPath) : ILoggerProvider
         }
     }
 
-    /// <summary>
-    /// 分類ごとの、ログの書き手。
-    /// </summary>
-    /// <param name="provider">書き込み先。</param>
-    /// <param name="category">ログの分類の名前。</param>
+    /// <summary>分類ごとのログの書き手</summary>
+    /// <param name="provider">書き込み先</param>
+    /// <param name="category">ログの分類の名前</param>
     private sealed class FileLogger(FileLoggerProvider provider, string category) : ILogger
     {
         /// <inheritdoc />
@@ -91,11 +90,9 @@ internal sealed class FileLoggerProvider(string directoryPath) : ILoggerProvider
             provider.Append(text.ToString());
         }
 
-        /// <summary>
-        /// ログの段階の、ファイルに書く名前を返す。
-        /// </summary>
-        /// <param name="logLevel">ログの段階。</param>
-        /// <returns>名前。</returns>
+        /// <summary>ログの段階のファイルに書く名前を返す</summary>
+        /// <param name="logLevel">ログの段階</param>
+        /// <returns>名前</returns>
         private static string ToLabel(LogLevel logLevel) => logLevel switch
         {
             LogLevel.Warning => "警告",

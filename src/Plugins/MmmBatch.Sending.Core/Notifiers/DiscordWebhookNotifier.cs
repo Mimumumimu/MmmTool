@@ -3,14 +3,14 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Sending.Core.Notifiers;
 
-/// <summary>
-/// Discord の Webhook へ送る。
-/// </summary>
+/// <summary>Discord の Webhook へ送る</summary>
 /// <param name="http">HTTP クライアント (アプリ全体で 1 つ)</param>
 /// <remarks>
-/// 見出しがあれば、太字の 1 行目にする。そのあとに本文で、リンクがあれば、次の行にリンク。見出しと本文の作り方は、機能ごとに、ほかの送信先と同じ形にそろえている。
+/// 見出しがあれば、太字の 1 行目にする。
+/// そのあとに本文で、リンクがあれば、次の行にリンク。
+/// 見出しと本文の作り方は機能ごとに、ほかの送信先と同じ形にそろえている。
 /// Discord の本文の上限は 2000 文字で、超える分は切る。
-/// 本文の @everyone などは、メンションとして効かせない。
+/// 本文の @everyone などはメンションとして効かせない。
 /// </remarks>
 public sealed class DiscordWebhookNotifier(HttpClient http) : INotifier
 {

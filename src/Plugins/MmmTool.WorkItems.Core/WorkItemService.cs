@@ -7,32 +7,38 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>
-/// 作業管理を読み書きし、選んだ案件の最新の内容をメモリに持つ。アプリ全体で 1 つ。
-/// </summary>
+/// <summary>作業管理を読み書きし選んだ案件の最新の内容をメモリに持つ</summary>
 /// <param name="repository">保存先</param>
 /// <param name="policy">更新してよいかの判定</param>
 /// <param name="time">現在の時刻を知るための時計</param>
 /// <param name="settings">この PC の設定 (選んだ案件の番号を残す)</param>
 /// <param name="ticker">毎分の合図 (他の人の更新を取りに行くのに使う)</param>
 /// <remarks>
-/// 名前・日付・時間の範囲の入力の確認、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
-/// 予測できる入力の誤りは、例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。保存の失敗は <see cref="DataFileException"/>。
-/// 操作は 1 つずつ順に行う。同時に呼ばれても、順番に待つ。差分の取得も同じロックの中で行う。
-/// <see cref="StartPolling"/> は UI スレッドから呼ぶ。差分の取得は、呼んだ UI スレッドに戻して動かすので、<see cref="Changed"/> も UI スレッドから発火する。
+/// アプリ全体で 1 つ。
+/// 名前・日付・時間の範囲の入力の確認、並べ替え・移動の位置の計算、他の人の更新の反映 (差分の取得)を行う。
+/// 保存に成功してから、メモリを書き換え、<see cref="Changed"/> を発火する。
+/// 予測できる入力の誤りは例外ではなく、画面に出せるメッセージ (戻り値の文字列)で返す。
+/// 保存の失敗は <see cref="DataFileException"/>。
+/// 操作は 1 つずつ順に行う。
+/// 同時に呼ばれても順番に待つ。
+/// 差分の取得も同じロックの中で行う。
+/// <see cref="StartPolling"/> は UI スレッドから呼ぶ。
+/// 差分の取得は呼んだ UI スレッドに戻して動かすので、<see cref="Changed"/> も UI スレッドから発火する。
 /// </remarks>
 public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEditPolicy policy, TimeProvider time, ISettingsStore settings, ITicker ticker)
 {
-    /// <summary>手動で取得した直後に、自動の取得が重ならないよう、直前の取得から空ける時間</summary>
+    /// <summary>手動で取得した直後に自動の取得が重ならないよう、直前の取得から空ける時間</summary>
     private static readonly TimeSpan PollMinimumGap = TimeSpan.FromSeconds(30);
 
-    /// <summary>差分の取得で、基準の時刻から戻して読む長さ (確定前だった更新の取りこぼしを避ける)</summary>
+    /// <summary>差分の取得で、基準の時刻から戻して読む長さ</summary>
+    /// <remarks>確定前だった更新の取りこぼしを避ける</remarks>
     private static readonly TimeSpan PollOverlap = TimeSpan.FromSeconds(60);
 
     /// <summary>操作を順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>読み込みの結果 (失敗したか・壊れたファイルを退避したか)</summary>
+    /// <summary>読み込みの結果</summary>
+    /// <remarks>失敗したか・壊れたファイルを退避したか</remarks>
     private readonly LoadStatus _status = new();
 
     /// <summary>読み込んでいる案件</summary>
@@ -44,66 +50,87 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     private readonly Dictionary<int, WorkItem> _items = [];
 
-    /// <summary>表示しない案件の番号。この PC の設定に残し、ここに無い案件は、全部表示する</summary>
+    /// <summary>表示しない案件の番号</summary>
+    /// <remarks>この PC の設定に残し、ここに無い案件は全部表示する。</remarks>
     private readonly HashSet<int> _hidden = [];
 
     /// <summary>表示しない案件の番号を残す設定のキー</summary>
     private const string HiddenKey = WorkItemSettingKeys.HiddenProjects;
 
-    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>作業管理のコードマスタ</summary>
     private CodeBook _codes = CodeBook.Empty;
 
-    /// <summary>担当者にできる人。削除済みも含み、名前を引くため</summary>
+    /// <summary>担当者にできる人</summary>
+    /// <remarks>削除済みも含み、名前を引くため。</remarks>
     private IReadOnlyList<WorkAssignee> _assignees = [];
 
     /// <summary>記録を読んでいる日</summary>
     private DateOnly _day;
 
-    /// <summary>その日の記録 (全員分)</summary>
+    /// <summary>その日の記録</summary>
     private List<WorkRecord> _dayRecords = [];
 
-    /// <summary>スケジュールの実績で、表示する案件の、すべての日の記録。作業と日付で 1 件で、実績が 0 より大きいものだけ</summary>
-    /// <remarks>スケジュールを開いている間だけ持つ。持つかどうかは <see cref="_holdsScheduleRecords"/> で決まる。表だけを開いている間は、読まず、差分も取らない。</remarks>
+    /// <summary>スケジュールの実績で、表示する案件のすべての日の記録</summary>
+    /// <remarks>
+    /// 作業と日付で 1 件で、実績が 0 より大きいものだけ。
+    /// スケジュールを開いている間だけ持つ。
+    /// 持つかどうかは <see cref="_holdsScheduleRecords"/> で決まる。
+    /// 表だけを開いている間は読まず、差分も取らない。
+    /// </remarks>
     private readonly Dictionary<(int WorkItemId, DateOnly Date), WorkRecord> _scheduleRecords = [];
 
-    /// <summary>スケジュールの記録を持っているか (持っている間だけ、差分の取得で、すべての日の記録を読む)</summary>
+    /// <summary>スケジュールの記録を持っているか</summary>
+    /// <remarks>持っている間だけ、差分の取得で、すべての日の記録を読む。</remarks>
     private bool _holdsScheduleRecords;
 
-    /// <summary>定期的な取得を使っている画面の数で、作業管理の表とスケジュール。0 になったら止める</summary>
+    /// <summary>定期的な取得を使っている画面の数で、作業管理の表とスケジュール</summary>
+    /// <remarks>0 になったら止める</remarks>
     private int _pollUsers;
 
-    /// <summary>その日の、自分の日報メモ (無ければ null)</summary>
+    /// <summary>その日の自分の日報メモ</summary>
     private WorkDayNote? _dayNote;
 
-    /// <summary>差分の取得の基準の時刻で、保存先が返した、いちばん新しい更新日時。まだ無ければ null</summary>
+    /// <summary>差分の取得の基準の時刻で、保存先が返した、いちばん新しい更新日時</summary>
+    /// <remarks>まだ無ければ null</remarks>
     private DateTimeOffset? _baseline;
 
-    /// <summary>定期的な差分の取得の、毎分の合図の登録 (動いていなければ null)</summary>
+    /// <summary>定期的な差分の取得の毎分の合図の登録</summary>
     private ITickSubscription? _poll;
 
-    /// <summary>自動入力を試し終えた (作業の番号, 日付)</summary>
-    /// <remarks>同じ日に、同じ作業へ何度も問い合わせないため。日付が替わると捨てる。設定を変えた作業の分は、すぐ外す。</remarks>
+    /// <summary>自動入力を試し終えた</summary>
+    /// <remarks>
+    /// 同じ日に同じ作業へ何度も問い合わせないため
+    /// 日付が替わると捨てる
+    /// 設定を変えた作業の分はすぐ外す
+    /// </remarks>
     private readonly HashSet<(int WorkItemId, DateOnly Date)> _autoHandled = [];
 
-    /// <summary>自動入力を最後に行った日 (まだ行っていなければ、既定の値)</summary>
-    /// <remarks>ページを開いたまま日付が替わったことを、定期的な取得のときに知るために使う。</remarks>
+    /// <summary>自動入力を最後に行った日</summary>
+    /// <remarks>
+    /// まだ行っていなければ、既定の値。
+    /// ページを開いたまま日付が替わったことを定期的な取得のときに知るために使う。
+    /// </remarks>
     private DateOnly _autoDate;
 
-    /// <summary>内容が変わった (読み込み・追加・更新・削除・記録・他の人の更新の反映)</summary>
+    /// <summary>内容が変わった</summary>
     public event EventHandler<WorkChangedEventArgs>? Changed;
 
-    /// <summary>定期的な差分の取得に失敗した (画面に出せるメッセージ)</summary>
+    /// <summary>定期的な差分の取得に失敗した</summary>
     public event EventHandler<string>? RefreshFailed;
 
-    /// <summary>「自分の担当だけ」の設定が変わった (引数は新しい値)</summary>
-    /// <remarks>作業管理とスケジュールは、同じ設定を使う。両方の画面が同時に見えているとき、片方の変更を、もう片方へ伝えるため。</remarks>
+    /// <summary>「自分の担当だけ」の設定が変わった</summary>
+    /// <remarks>
+    /// 作業管理とスケジュールは同じ設定を使う。
+    /// 両方の画面が同時に見えているとき、片方の変更を、もう片方へ伝えるため。
+    /// </remarks>
     public event EventHandler<bool>? MineOnlyChanged;
 
-    /// <summary>「自分の担当だけ」の設定を変えたことを、ほかの画面へ知らせる</summary>
+    /// <summary>「自分の担当だけ」の設定を変えたことをほかの画面へ知らせる</summary>
     /// <param name="value">新しい値</param>
     public void NotifyMineOnlyChanged(bool value) => MineOnlyChanged?.Invoke(this, value);
 
-    /// <summary>最後の読み込みに失敗したときのメッセージ。成功したら null</summary>
+    /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
+    /// <remarks>成功したら null</remarks>
     public string? LoadError => _status.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
@@ -118,12 +145,16 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>今日の日付</summary>
     public DateOnly Today => DateOnly.FromDateTime(time.GetLocalNow().DateTime);
 
-    /// <summary>記録を読んでいる日 (まだ読んでいなければ、今日)</summary>
-    /// <remarks>表の入力日と同じ。別の画面が読み直すときに、この日を渡して、表の日をずらさないために使う。</remarks>
+    /// <summary>記録を読んでいる日</summary>
+    /// <remarks>
+    /// まだ読んでいなければ、今日。
+    /// 表の入力日と同じ。
+    /// 別の画面が読み直すときに、この日を渡して、表の日をずらさないために使う。
+    /// </remarks>
     public DateOnly Day => _day == default ? Today : _day;
 
 
-    /// <summary>表示している案件が、1 つ以上あるか</summary>
+    /// <summary>表示している案件が 1 つ以上あるか</summary>
     public bool HasVisibleProjects => _projects.Count > 0;
 
     /// <summary>読み込んでいる案件</summary>
@@ -135,26 +166,36 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>読み込んでいる作業</summary>
     public IReadOnlyCollection<WorkItem> Items => _items.Values;
 
-    /// <summary>作業管理のコードマスタ (状態・進捗度・優先度の選択肢)</summary>
+    /// <summary>作業管理のコードマスタ</summary>
     public CodeBook Codes => _codes;
 
-    /// <summary>担当者を扱う保存先か (ローカルモードは false)</summary>
+    /// <summary>担当者を扱う保存先か</summary>
     public bool HasAssignees => repository.HasAssignees;
 
-    /// <summary>担当者にできる人。削除済みも含み、名前を引くため。表示名の順</summary>
+    /// <summary>担当者にできる人</summary>
+    /// <remarks>
+    /// 削除済みも含み、名前を引くため。
+    /// 表示名の順。
+    /// </remarks>
     public IReadOnlyList<WorkAssignee> Assignees => _assignees;
 
     /// <summary>担当者の表示名を引く</summary>
     /// <param name="userId">ユーザーの番号 (0 は未割り当て)</param>
-    /// <returns>表示名。未割り当ては空文字、一覧に無い番号は「ユーザー {番号}」</returns>
+    /// <returns>
+    /// 表示名。
+    /// 未割り当ては空文字、一覧に無い番号は「ユーザー {番号}」。
+    /// </returns>
     public string AssigneeName(int userId)
         => userId == 0 ? "" : _assignees.FirstOrDefault(a => a.UserId == userId)?.Name ?? $"ユーザー {userId}";
 
-    /// <summary>選んだ案件の中身と、ある日の記録を、保存先から読み込む</summary>
+    /// <summary>選んだ案件の中身とある日の記録を保存先から読み込む</summary>
     /// <param name="day">記録を読む日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。<see cref="LoadError"/> にも残す。</exception>
+    /// <exception cref="DataFileException">
+    /// 読み込みに失敗した
+    /// <see cref="LoadError"/> にも残す
+    /// </exception>
     public async Task LoadAsync(DateOnly day, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -203,10 +244,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         OnChanged();
     }
 
-    /// <summary>記録を読む日を変える。その日の記録だけを読み直し、案件とその中身は、日付に依存しないので読み直さない</summary>
+    /// <summary>記録を読む日を変える</summary>
     /// <param name="day">記録を読む日</param>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <remarks>その日の記録だけを読み直し、案件とその中身は日付に依存しないので読み直さない。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public async Task SetDayAsync(DateOnly day)
     {
         await _lock.WaitAsync();
@@ -229,8 +271,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>他の人の更新を取り込む定期的な取得を始める</summary>
     /// <remarks>
-    /// UI スレッドから呼ぶ。作業管理の表とスケジュールの、使う画面の数を数え、すでに動いていれば、数を増やすだけ。
-    /// 画面の切り替えで、新しい画面の開始が、前の画面の停止より先でも後でも、取得が止まったままにならないため。
+    /// UI スレッドから呼ぶ。
+    /// 作業管理の表とスケジュールの、使う画面の数を数え、すでに動いていれば、数を増やすだけ。
+    /// 画面の切り替えで、新しい画面の開始が前の画面の停止より先でも後でも、取得が止まったままにならないため。
     /// </remarks>
     public void StartPolling()
     {
@@ -246,7 +289,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             new TickOptions { Timing = TickTiming.Staggered, MinimumGap = PollMinimumGap, OnCallerContext = true });
     }
 
-    /// <summary>定期的な取得を、この画面の分だけ止める (使う画面がなくなったら、取得を止める)</summary>
+    /// <summary>定期的な取得をこの画面の分だけ止める</summary>
+    /// <remarks>使う画面がなくなったら、取得を止める。</remarks>
     public void StopPolling()
     {
         if (_pollUsers > 0)
@@ -262,14 +306,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         _poll = null;
     }
 
-    /// <summary>スケジュールの実績 (表示する案件の、すべての日の記録)を、保存先から読み込む</summary>
+    /// <summary>スケジュールの実績を保存先から読み込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
-    /// スケジュールを開くたびに、案件と中身の読み込み (<see cref="LoadAsync"/>)のあとに呼ぶ。読んだあとは、60 秒ごとの取得が、すべての日の記録の差分も取り込む。
-    /// 離れるときは <see cref="ReleaseScheduleRecords"/> で捨てる。
+    /// スケジュールを開くたびに案件と中身の読み込み (<see cref="LoadAsync"/>)のあとに呼ぶ
+    /// 読んだあとは 60 秒ごとの取得がすべての日の記録の差分も取り込む
+    /// 離れるときは <see cref="ReleaseScheduleRecords"/> で捨てる
     /// </remarks>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public async Task LoadScheduleRecordsAsync(CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken);
@@ -290,7 +335,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         OnChanged();
     }
 
-    /// <summary>スケジュールの実績を捨てる。スケジュールを離れたときに行い、以後、すべての日の記録の差分は読まない</summary>
+    /// <summary>スケジュールの実績を捨てる</summary>
+    /// <remarks>スケジュールを離れたときに行い、以後、すべての日の記録の差分は読まない。</remarks>
     public void ReleaseScheduleRecords()
     {
         _holdsScheduleRecords = false;
@@ -300,8 +346,8 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>基準の時刻より後に更新された行を読み、メモリに反映する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>取得の完了を表すタスク</returns>
-    /// <remarks>返ってきた行は、種類と番号で突き合わせて反映するので、同じ行が何度届いても結果は変わらない。</remarks>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <remarks>返ってきた行は種類と番号で突き合わせて反映するので、同じ行が何度届いても結果は変わらない。</remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         var changed = false;
@@ -332,12 +378,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>他の人の更新を、今すぐ取り込む (利用者が更新ボタンを押したとき)</summary>
+    /// <summary>他の人の更新を今すぐ取り込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>取り込みの完了を表すタスク</returns>
     /// <remarks>
-    /// 定期的な取得と同じ取り込みを、合図を待たずに行う。直後に自動の取り込みが重ならないよう、今取ったことを合図の仕組みに覚えさせる。
-    /// 失敗は、定期的な取得と同じく <see cref="RefreshFailed"/> で知らせる。UI スレッドから呼ぶ。
+    /// 利用者が更新ボタンを押したとき。
+    /// 定期的な取得と同じ取り込みを合図を待たずに行う。
+    /// 直後に自動の取り込みが重ならないよう、今取ったことを合図の仕組みに覚えさせる。
+    /// 失敗は定期的な取得と同じく <see cref="RefreshFailed"/> で知らせる。
+    /// UI スレッドから呼ぶ。
     /// </remarks>
     public async Task RefreshNowAsync(CancellationToken cancellationToken = default)
     {
@@ -345,9 +394,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         await TryRefreshAsync(cancellationToken);
     }
 
-    /// <summary>差分を取り込む (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
+    /// <summary>差分を取り込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>取り込みの完了を表すタスク。読めなかったときは false</returns>
+    /// <returns>
+    /// 取り込みの完了を表すタスク
+    /// 読めなかったときは false
+    /// </returns>
+    /// <remarks>失敗は <see cref="RefreshFailed"/> で知らせる</remarks>
     private async Task<bool> TryRefreshAsync(CancellationToken cancellationToken)
     {
         try
@@ -364,25 +417,32 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>木構造と集計値を作る</summary>
     /// <param name="date">入力日</param>
-    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (グループ・案件の集計は、全員の作業から計算したまま)</param>
-    /// <param name="completed">完了して日がたった作業の見え方 (隠しても、集計は変えない)</param>
-    /// <param name="keepWork">ほかの絞り込みを通った作業のうち、残す作業の条件 (状態の絞り込みで、null なら絞らない)</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (グループ・案件の集計は全員の作業から計算したまま)</param>
+    /// <param name="completed">完了して日がたった作業の見え方 (隠しても、集計は変えない)。</param>
+    /// <param name="keepWork">ほかの絞り込みを通った作業のうち、残す作業の条件 (状態の絞り込みで、null なら絞らない)。</param>
     /// <returns>案件の行の並び</returns>
     /// <remarks>
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。集計を変えないのは、案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため。
-    /// 読み込みの時点で絞ると、他の人が担当を変えた作業が、差分の取得で届かず古いまま残る。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。
+    /// 集計を変えないのは案件・グループの進捗が「全体の進み具合」で、見る人によって数字が変わらないようにするため。
+    /// 読み込みの時点で絞ると、他の人が担当を変えた作業が差分の取得で届かず古いまま残る。
     /// </remarks>
     public IReadOnlyList<WorkNode> BuildTree(DateOnly date, bool mineOnly = false, CompletedDisplay completed = CompletedDisplay.Show, Func<WorkItem, bool>? keepWork = null)
         => BuildTree(_projects.Values, _groups.Values, _items.Values, _dayRecords, date, mineOnly, completed, keepWork);
 
-    /// <summary>作業管理の表に出す木を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <summary>作業管理の表に出す木を 1 つの案件だけ作る</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="date">入力日</param>
     /// <param name="mineOnly">自分が担当の作業の行だけを出すか</param>
     /// <param name="completed">完了して日がたった作業の見え方</param>
-    /// <param name="keepWork">残す作業の条件 (状態の絞り込みで、null なら絞らない)</param>
-    /// <returns>その案件の行。案件を読み込んでいなければ null</returns>
-    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    /// <param name="keepWork">残す作業の条件 (状態の絞り込みで、null なら絞らない)。</param>
+    /// <returns>
+    /// その案件の行
+    /// 案件を読み込んでいなければ null
+    /// </returns>
+    /// <remarks>
+    /// 案件を表示に加えたとき、その案件の行だけを差し込むため。
+    /// 案件の中身はほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。
+    /// </remarks>
     public WorkNode? BuildProjectTree(int projectId, DateOnly date, bool mineOnly, CompletedDisplay completed, Func<WorkItem, bool>? keepWork = null)
         => BuildTree(
             _projects.Values.Where(p => p.Id == projectId),
@@ -422,12 +482,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return roots;
     }
 
-    /// <summary>読んでいる日の、実績の合計を数える</summary>
+    /// <summary>読んでいる日の実績の合計を数える</summary>
     /// <param name="mineOnly">自分が担当の作業だけを数えるか (表の「自分の担当だけ」と同じ)</param>
     /// <returns>実績の合計 (小数 2 桁の時間)</returns>
     /// <remarks>
-    /// 表示している案件の作業の、その日の記録を足す。
-    /// 「過去の完了」で行を隠した作業も数える。隠しても、その日に働いた時間は変わらないため。
+    /// 表示している案件の作業のその日の記録を足す。
+    /// 「過去の完了」で行を隠した作業も数える。
+    /// 隠してもその日に働いた時間は変わらないため。
     /// 案件・グループの集計値 <see cref="WorkSummary.ActualDay"/> は全員の分のままなので、使わずに、記録から数える。
     /// </remarks>
     public double BuildDayTotal(bool mineOnly)
@@ -439,31 +500,47 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             .Select(r => r.Hours));
     }
 
-    /// <summary>読んでいる日に、自分が担当の作業へ入った工数の合計を、保存先から読む</summary>
+    /// <summary>読んでいる日に自分が担当の作業へ入った工数の合計を保存先から読む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>工数の合計で、小数 2 桁の時間</returns>
-    /// <remarks>勤務の時間帯の元。表示しない案件も含め、画面の表示の設定には従わない。メモリの内容は使わず、毎回読む。</remarks>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <returns>工数の合計で、小数 2 桁の時間。</returns>
+    /// <remarks>
+    /// 勤務の時間帯の元。
+    /// 表示しない案件も含め、画面の表示の設定には従わない。
+    /// メモリの内容は使わず、毎回読む。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public Task<double> GetMyDayHoursAsync(CancellationToken cancellationToken = default)
         => repository.GetMyDayHoursAsync(Day, cancellationToken);
 
     /// <summary>スケジュールに出す内容を作る</summary>
-    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
-    /// <param name="completed">完了した作業の見え方。作業管理の「過去の完了」とは別に選び、今日完了した作業も隠す</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は全員の作業から計算したまま)</param>
+    /// <param name="completed">
+    /// 完了した作業の見え方。
+    /// 作業管理の「過去の完了」とは別に選び、今日完了した作業も隠す。
+    /// </param>
     /// <returns>行の木・実績の棒・軸の範囲</returns>
     /// <remarks>
-    /// 実績は、持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
-    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。理由は <see cref="BuildTree(DateOnly, bool, CompletedDisplay, Func{WorkItem, bool}?)"/> と同じ。軸の範囲は、隠す前の内容から求める。
+    /// 実績は持っている記録 (<see cref="LoadScheduleRecordsAsync"/>)から作る。
+    /// 絞り込みは表示だけで、読み込みのあとにメモリで行う。
+    /// 理由は <see cref="BuildTree(DateOnly, bool, CompletedDisplay, Func{WorkItem, bool}?)"/> と同じ。
+    /// 軸の範囲は隠す前の内容から求める。
     /// </remarks>
     public ScheduleSnapshot BuildSchedule(bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(mineOnly, completed, _projects.Values, _groups.Values, _items.Values, _scheduleRecords.Values);
 
-    /// <summary>スケジュールに出す内容を、1 つの案件だけ作る (案件を表示に加えたとき、その案件の行だけを差し込むため)</summary>
+    /// <summary>スケジュールに出す内容を 1 つの案件だけ作る</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は、全員の作業から計算したまま)</param>
+    /// <param name="mineOnly">自分が担当の作業の行だけを出すか (案件・グループの棒と合計は全員の作業から計算したまま)</param>
     /// <param name="completed">完了した作業の見え方</param>
-    /// <returns>その案件だけの行の木・実績の棒・軸の範囲。軸の範囲は、この案件と今日だけから求めた値。案件を読み込んでいなければ、行の木は空</returns>
-    /// <remarks>案件の中身は、ほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。</remarks>
+    /// <returns>
+    /// その案件だけの行の木・実績の棒・軸の範囲。
+    /// 軸の範囲はこの案件と今日だけから求めた値。
+    /// 案件を読み込んでいなければ、行の木は空。
+    /// </returns>
+    /// <remarks>
+    /// 案件を表示に加えたとき、その案件の行だけを差し込むため。
+    /// 案件の中身はほかの案件に依存しないので、全体を作り直した内容のうち、この案件の部分と同じになる。
+    /// </remarks>
     public ScheduleSnapshot BuildScheduleOfProject(int projectId, bool mineOnly, CompletedDisplay completed)
         => BuildSchedule(
             mineOnly,
@@ -500,40 +577,57 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return new ScheduleSnapshot(roots, actuals, dayNotes, start, end);
     }
 
-    /// <summary>番号から、案件を探す</summary>
+    /// <summary>番号から案件を探す</summary>
     /// <param name="id">案件の番号</param>
-    /// <returns>案件。読み込んでいなければ null</returns>
+    /// <returns>
+    /// 案件
+    /// 読み込んでいなければ null
+    /// </returns>
     public WorkProject? GetProject(int id) => _projects.GetValueOrDefault(id);
 
-    /// <summary>番号から、グループを探す</summary>
+    /// <summary>番号からグループを探す</summary>
     /// <param name="id">グループの番号</param>
-    /// <returns>グループ。読み込んでいなければ null</returns>
+    /// <returns>
+    /// グループ
+    /// 読み込んでいなければ null
+    /// </returns>
     public WorkGroup? GetGroup(int id) => _groups.GetValueOrDefault(id);
 
-    /// <summary>番号から、作業を探す</summary>
+    /// <summary>番号から作業を探す</summary>
     /// <param name="id">作業の番号</param>
-    /// <returns>作業。読み込んでいなければ null</returns>
+    /// <returns>
+    /// 作業
+    /// 読み込んでいなければ null
+    /// </returns>
     public WorkItem? GetItem(int id) => _items.GetValueOrDefault(id);
 
-    /// <summary>ある日の記録を返す (作業ごと・日ごとに 1 件)</summary>
+    /// <summary>ある日の記録を返す</summary>
     /// <param name="workItemId">作業の番号</param>
     /// <param name="date">日付</param>
-    /// <returns>記録。無ければ null (読んでいる日以外は、常に null)</returns>
+    /// <returns>
+    /// 記録
+    /// 無ければ null (読んでいる日以外は常に null)
+    /// </returns>
     public WorkRecord? GetRecord(int workItemId, DateOnly date)
         => date == _day ? _dayRecords.FirstOrDefault(r => r.WorkItemId == workItemId && !r.IsDeleted) : null;
 
-    /// <summary>読んでいる日の、自分の日報メモを返す</summary>
+    /// <summary>読んでいる日の自分の日報メモを返す</summary>
     /// <returns>メモ (無ければ空文字)</returns>
     public string GetDayNote() => _dayNote?.Note ?? "";
 
-    /// <summary>読んでいる日の、自分の日報メモを保存する</summary>
+    /// <summary>読んでいる日の自分の日報メモを保存する</summary>
     /// <param name="date">日付 (読んでいる日)</param>
-    /// <param name="note">メモ (空白だけのときは、空にする)</param>
-    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
+    /// <param name="note">メモ (空白だけのときは空にする)</param>
+    /// <returns>
+    /// 入力の誤りのメッセージ。
+    /// 保存したときと、変わっていないときは null。
+    /// </returns>
     /// <remarks>
-    /// 空にしても、行は消さず、メモを空にする。作業報告では、空と、行が無いことを区別しない。持ち主は今のユーザーだけなので、更新の判定 (<see cref="IWorkItemEditPolicy"/>)は通さない。
+    /// 空にしても、行は消さず、メモを空にする。
+    /// 作業報告では空と、行が無いことを区別しない。
+    /// 持ち主は今のユーザーだけなので、更新の判定 (<see cref="IWorkItemEditPolicy"/>)は通さない。
     /// </remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> SetDayNoteAsync(DateOnly date, string note)
     {
         if (note.Length > WorkItemLimits.DayNoteMaxLength)
@@ -558,34 +652,49 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>作業報告のために、担当が自分の作業と、その記録と、報告日の日報メモを読む</summary>
+    /// <summary>作業報告のために担当が自分の作業とその記録と報告日の日報メモを読む</summary>
     /// <param name="from">実績の開始日 (記録を読み始める日)</param>
-    /// <param name="reportDate">報告日で、予定の日。その日の記録も読む</param>
+    /// <param name="reportDate">
+    /// 報告日で、予定の日。
+    /// その日の記録も読む。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読んだ内容。テキストにするのは <see cref="WorkReportBuilder"/> (画面が、「時間を出す」の切り替えのたびに、読み直さずに作り直せる)</returns>
-    /// <remarks>表示している案件・隠している行の設定には従わない。読んだ内容を、メモリの木とは別に扱うので、画面の状態を変えない。</remarks>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <returns>
+    /// 読んだ内容。
+    /// テキストにするのは <see cref="WorkReportBuilder"/> (画面が「時間を出す」の切り替えのたびに、読み直さずに作り直せる)。
+    /// </returns>
+    /// <remarks>
+    /// 表示している案件・隠している行の設定には従わない。
+    /// 読んだ内容を、メモリの木とは別に扱うので、画面の状態を変えない。
+    /// </remarks>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public Task<WorkReportData> LoadReportAsync(DateOnly from, DateOnly reportDate, CancellationToken cancellationToken = default)
         => repository.LoadReportAsync(from, reportDate, cancellationToken: cancellationToken);
 
     /// <summary>作業報告の実績の開始日の既定を返す</summary>
     /// <param name="reportDate">報告日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>報告日より前で、担当が自分の作業に工数が入った日か、作業を完了にした日の、直近の日。無ければ、報告日の前日</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <returns>
+    /// 報告日より前で、担当が自分の作業に工数が入った日か、作業を完了にした日の、直近の日。
+    /// 無ければ、報告日の前日。
+    /// </returns>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public async Task<DateOnly> GetDefaultReportFromAsync(DateOnly reportDate, CancellationToken cancellationToken = default)
         => await repository.GetLatestRecordedDateAsync(reportDate, cancellationToken) ?? reportDate.AddDays(-1);
 
-    /// <summary>案件マスターを、名前で検索して読む</summary>
-    /// <param name="query">検索語。名前の一部で、空なら絞らない</param>
+    /// <summary>案件マスターを名前で検索して読む</summary>
+    /// <param name="query">
+    /// 検索語。
+    /// 名前の一部で、空なら絞らない。
+    /// </param>
     /// <param name="activeOnly">完了済みの案件を除くか</param>
     /// <param name="selectedOnly">表示している案件だけを読むか (表示しない案件を除く)</param>
-    /// <param name="selectedFirst">表示している案件を、先頭にまとめるか</param>
+    /// <param name="selectedFirst">表示している案件を、先頭にまとめるか。</param>
     /// <param name="offset">読み始める位置</param>
     /// <param name="count">読む件数の上限</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>案件の一覧</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     public async Task<IReadOnlyList<WorkProjectEntry>> SearchProjectsAsync(string query, bool activeOnly, bool selectedOnly, bool selectedFirst, int offset, int count, CancellationToken cancellationToken = default)
     {
         // 表示しない案件の番号は、ロックの中で写しを取る (別の操作が書き換えている間に、数えない)
@@ -602,10 +711,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return await repository.SearchProjectsAsync(query.Trim(), activeOnly, selectedOnly, hidden, selectedFirst, offset, count, cancellationToken);
     }
 
-    /// <summary>案件を追加する (表示しない案件ではないので、そのまま表示される)</summary>
+    /// <summary>案件を追加する</summary>
     /// <param name="name">名前</param>
-    /// <returns>追加した案件の識別か、入力の誤りのメッセージ</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>追加した案件の識別か、入力の誤りのメッセージ。</returns>
+    /// <remarks>表示しない案件ではないので、そのまま表示される。</remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<WorkAddResult> AddProjectAsync(string name)
     {
         name = name.Trim();
@@ -629,13 +739,20 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>案件の名前・リンク・備考を更新する (読み込んでいない案件も、名前は直せる)</summary>
+    /// <summary>案件の名前・リンク・備考を更新する</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
-    /// <param name="link">新しいリンク。変えないなら null で、空文字はリンクを消す</param>
+    /// <param name="link">
+    /// 新しいリンク。
+    /// 変えないなら null で、空文字はリンクを消す。
+    /// </param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
-    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>
+    /// 入力の誤りのメッセージ。
+    /// 保存したときと、変わっていないときは null。
+    /// </returns>
+    /// <remarks>読み込んでいない案件も名前は直せる</remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> UpdateProjectAsync(int projectId, string? name, string? link, string? note)
     {
         name = name?.Trim();
@@ -676,10 +793,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>案件を削除する。論理削除で、案件の行だけを削除する。中のグループ・作業の行は残すので、案件の行を戻せば、中身も戻る</summary>
+    /// <summary>案件を削除する</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <returns>更新できないときのメッセージ。削除したら null</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>
+    /// 更新できないときのメッセージ
+    /// 削除したら null
+    /// </returns>
+    /// <remarks>
+    /// 論理削除で、案件の行だけを削除する。
+    /// 中のグループ・作業の行は残すので、案件の行を戻せば、中身も戻る。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> DeleteProjectAsync(int projectId)
     {
         if (Deny(WorkRowKind.Project, projectId) is { } denied)
@@ -706,11 +830,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>案件を、表示する・表示しない (表示しない案件は、この PC の設定に残す)</summary>
+    /// <summary>案件を表示する・表示しない</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <param name="selected">選ぶか。false なら表示せず、表示しなくても、案件とその中身は消えない</param>
+    /// <param name="selected">
+    /// 選ぶか。
+    /// false なら表示せず、表示しなくても、案件とその中身は消えない。
+    /// </param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <remarks>表示しない案件はこの PC の設定に残す</remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task SetProjectSelectedAsync(int projectId, bool selected)
     {
         await _lock.WaitAsync();
@@ -763,10 +891,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <param name="kind">追加する行の種類 (グループまたは作業)</param>
     /// <param name="projectId">追加先の案件の番号</param>
     /// <param name="parentGroupId">追加先の親のグループの番号 (0 は案件の直下)</param>
-    /// <param name="after">この行の直後に、同じ親の下の兄弟として置く。null なら末尾</param>
-    /// <returns>追加した行の識別か、追加しなかった理由</returns>
-    /// <remarks>名前は必須なので、初期値は「新しいグループ」「新しい作業」にする。空の名前を作らないため。作業の開始日の初期値は今日で、期限日は空。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <param name="after">
+    /// この行の直後に、同じ親の下の兄弟として置く。
+    /// null なら末尾。
+    /// </param>
+    /// <returns>追加した行の識別か、追加しなかった理由。</returns>
+    /// <remarks>
+    /// 名前は必須なので、初期値は「新しいグループ」「新しい作業」にする。
+    /// 空の名前を作らないため。
+    /// 作業の開始日の初期値は今日で、期限日は空。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<WorkAddResult> AddAsync(WorkRowKind kind, int projectId, int parentGroupId, WorkKey? after = null)
     {
         if (Deny(WorkRowKind.Project, projectId) is { } denied)
@@ -822,9 +957,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     }
 
     /// <summary>グループの名前・備考を更新する</summary>
-    /// <param name="updated">更新後の行 (番号で、今の行を探す)</param>
-    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <param name="updated">更新後の行 (番号で、今の行を探す)。</param>
+    /// <returns>
+    /// 入力の誤りのメッセージ。
+    /// 保存したときと、変わっていないときは null。
+    /// </returns>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> UpdateGroupAsync(WorkGroup updated)
     {
         if (Deny(WorkRowKind.Group, updated.Id) is { } denied)
@@ -863,14 +1001,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     }
 
     /// <summary>作業の項目を更新する</summary>
-    /// <param name="updated">更新後の行 (番号で、今の行を探す)</param>
-    /// <param name="inputDate">入力日 (状態が完了に変わったときの、完了日)</param>
-    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
+    /// <param name="updated">更新後の行 (番号で、今の行を探す)。</param>
+    /// <param name="inputDate">入力日 (状態が完了に変わったときの、完了日)。</param>
+    /// <returns>
+    /// 入力の誤りのメッセージ。
+    /// 保存したときと、変わっていないときは null。
+    /// </returns>
     /// <remarks>
-    /// 位置 (案件・親・並び)と実績の累計は、ここでは変えない。日付の逆転・時間の範囲外などは、保存せずにメッセージで返す。
-    /// 状態が完了に変わったときは完了日に入力日を入れ、完了から外れたときは消す。完了のままなら変えない。
+    /// 位置 (案件・親・並び)と実績の累計はここでは変えない。
+    /// 日付の逆転・時間の範囲外などは保存せずにメッセージで返す。
+    /// 状態が完了に変わったときは完了日に入力日を入れ、完了から外れたときは消す。
+    /// 完了のままなら変えない。
     /// </remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> UpdateItemAsync(WorkItem updated, DateOnly inputDate)
     {
         if (Deny(WorkRowKind.Work, updated.Id) is { } denied)
@@ -936,11 +1079,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>行を、兄弟の中で上または下へ動かす</summary>
+    /// <summary>行を兄弟の中で上または下へ動かす</summary>
     /// <param name="key">行の識別 (グループまたは作業)</param>
-    /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
+    /// <param name="delta">動かす数 (-1 で上、1 で下)。</param>
     /// <returns>動かしたら true (先頭・末尾で動かせなければ false)</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<bool> ShiftAsync(WorkKey key, int delta)
     {
         if (Deny(key.Kind, key.Id) is not null)
@@ -986,13 +1129,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>行 (グループなら中身ごと)を、別のグループの下か、案件の直下へ移し、移動先の末尾に置く</summary>
+    /// <summary>行を別のグループの下か、案件の直下へ移し、移動先の末尾に置く</summary>
     /// <param name="key">移す行の識別 (グループまたは作業)</param>
     /// <param name="projectId">移動先の案件の番号</param>
     /// <param name="groupId">移動先のグループの番号 (0 は案件の直下)</param>
-    /// <returns>入力の誤りのメッセージで、自分自身・自分の中へは移せない。移したら null</returns>
-    /// <remarks>別の案件へ移すときは、移す行 (グループなら中身も)の案件の番号と、その作業の記録の案件の番号も直す。移動元の案件の更新日時も更新する。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>
+    /// 入力の誤りのメッセージで、自分自身・自分の中へは移せない。
+    /// 移したら null。
+    /// </returns>
+    /// <remarks>
+    /// 別の案件へ移すときは移す行 (グループなら中身も)の案件の番号と、その作業の記録の案件の番号も直す。
+    /// 移動元の案件の更新日時も更新する。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> MoveAsync(WorkKey key, int projectId, int groupId)
     {
         if (Deny(key.Kind, key.Id) is { } denied)
@@ -1054,10 +1203,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>グループまたは作業を削除する。論理削除で、その行だけを削除する。グループの中の行は残すが、親が無いので画面には出ない</summary>
+    /// <summary>グループまたは作業を削除する</summary>
     /// <param name="key">行の識別 (グループまたは作業)</param>
-    /// <returns>更新できないときのメッセージ。削除したら null</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>
+    /// 更新できないときのメッセージ
+    /// 削除したら null
+    /// </returns>
+    /// <remarks>
+    /// 論理削除で、その行だけを削除する。
+    /// グループの中の行は残すが親が無いので画面には出ない。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> DeleteAsync(WorkKey key)
     {
         if (Deny(key.Kind, key.Id) is { } denied)
@@ -1095,14 +1251,20 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>日ごとの記録 (実績・日の備考)を保存する</summary>
+    /// <summary>日ごとの記録を保存する</summary>
     /// <param name="workItemId">作業の番号</param>
     /// <param name="date">日付</param>
     /// <param name="hours">実績 (時間)</param>
     /// <param name="note">日の備考</param>
-    /// <returns>入力の誤りのメッセージ。保存したときと、変わっていないときは null</returns>
-    /// <remarks>実績が 0 で備考が空なら、その日の記録を論理削除する。保存先が、作業の実績の累計も計算し直す。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <returns>
+    /// 入力の誤りのメッセージ。
+    /// 保存したときと、変わっていないときは null。
+    /// </returns>
+    /// <remarks>
+    /// 実績が 0 で備考が空なら、その日の記録を論理削除する。
+    /// 保存先が作業の実績の累計も計算し直す。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task<string?> SetRecordAsync(int workItemId, DateOnly date, double hours, string note)
     {
         if (Deny(WorkRowKind.Work, workItemId) is { } denied)
@@ -1164,17 +1326,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>自動入力: 設定のある自分の作業に、システムの今日の記録を、行が無いときだけ入れる</summary>
+    /// <summary>自動入力: 設定のある自分の作業にシステムの今日の記録を行が無いときだけ入れる</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>入れた記録の数</returns>
     /// <remarks>
-    /// 入れる条件は、作業の自動入力の設定 (時間が 0 より大きい・曜日に今日が含まれる)と、開始日から期限日の間であること、祝日ではないこと。
-    /// 完了した作業と、担当が自分でない作業には入れない。過去の日と未来の日には入れない。
+    /// 入れる条件は作業の自動入力の設定 (時間が 0 より大きい・曜日に今日が含まれる)と、開始日から期限日の間であること、祝日ではないこと。
+    /// 完了した作業と担当が自分でない作業には入れない。
+    /// 過去の日と未来の日には入れない。
     /// 画面に読み込んだ作業ではなく、保存先から読むので、表示しない案件の作業にも入る。
-    /// 論理削除された記録の行も「ある」と数えるので、0 にして消した日は戻さない。入れる操作は <see cref="IWorkItemRepository.AddRecordIfAbsentAsync"/>。
+    /// 論理削除された記録の行も「ある」と数えるので、0 にして消した日は戻さない。
+    /// 入れる操作は <see cref="IWorkItemRepository.AddRecordIfAbsentAsync"/>。
     /// 同じ日に同じ作業へ何度も問い合わせないよう、試し終えた作業は覚える。
     /// </remarks>
-    /// <exception cref="DataFileException">読み込みまたは保存に失敗した。</exception>
+    /// <exception cref="DataFileException">読み込みまたは保存に失敗した</exception>
     public async Task<int> AddAutoEntriesAsync(CancellationToken cancellationToken = default)
     {
         if (UserId == 0)
@@ -1233,10 +1397,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return added;
     }
 
-    /// <summary>作業が、その日の自動入力の対象か</summary>
+    /// <summary>作業がその日の自動入力の対象か</summary>
     /// <param name="item">作業</param>
     /// <param name="date">日付 (システムの今日)</param>
-    /// <returns>時間が 0 より大きく、開始日から期限日の間で、曜日が合い、祝日ではなければ true</returns>
+    /// <returns>時間が 0 より大きく、開始日から期限日の間で、曜日が合い、祝日ではなければ true。</returns>
     private static bool IsAutoEntryDue(WorkItem item, DateOnly date)
         => item.AutoHours > 0
             && (item.StartDate is not { } start || start <= date)
@@ -1244,9 +1408,9 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             && WeekdaySet.OccursOn(item.AutoWeekdays, date.DayOfWeek)
             && !JapaneseHolidays.IsHoliday(date);
 
-    /// <summary>行を、兄弟の中で上または下へ動かせるか</summary>
+    /// <summary>行を兄弟の中で上または下へ動かせるか</summary>
     /// <param name="key">行の識別 (グループまたは作業)</param>
-    /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
+    /// <param name="delta">動かす数 (-1 で上、1 で下)。</param>
     /// <returns>動かせれば true (先頭・末尾では false)</returns>
     public bool CanShift(WorkKey key, int delta)
     {
@@ -1260,10 +1424,11 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return to >= 0 && to < siblings.Count;
     }
 
-    /// <summary>行が、あるグループの中 (段数を問わない)にあるグループか</summary>
+    /// <summary>行があるグループの中にあるグループか</summary>
     /// <param name="groupId">調べるグループの番号</param>
     /// <param name="ancestorGroupId">祖先かどうかを調べるグループの番号</param>
     /// <returns>中にあれば true</returns>
+    /// <remarks>段数を問わない</remarks>
     public bool IsInsideGroup(int groupId, int ancestorGroupId)
     {
         var visited = new HashSet<int>();
@@ -1290,7 +1455,10 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     private const string RemovedMessage = "この行は、すでに削除されています。";
 
     /// <summary>毎分の合図で、差分の取得を 1 回行う</summary>
-    /// <returns>取得の結果を表すタスク。どちらかが読めなかったときは失敗で、続くと次の合図までの時間が延びる</returns>
+    /// <returns>
+    /// 取得の結果を表すタスク。
+    /// どちらかが読めなかったときは失敗で、続くと次の合図までの時間が延びる。
+    /// </returns>
     private async Task<TickResult> PollOnceAsync()
     {
         var refreshed = await TryRefreshAsync(CancellationToken.None);
@@ -1298,10 +1466,17 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return refreshed && added ? TickResult.Done : TickResult.Failed;
     }
 
-    /// <summary>ページを開いたまま日付が替わったとき、自動入力を行う (失敗は <see cref="RefreshFailed"/> で知らせる)</summary>
+    /// <summary>ページを開いたまま日付が替わったとき、自動入力を行う</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>確認の完了を表すタスク。読み書きできなかったときは false</returns>
-    /// <remarks>一度も自動入力を行っていないとき (作業管理のページを開いていないとき)は、何もしない。ページを開かない日は休みとして扱うため。</remarks>
+    /// <returns>
+    /// 確認の完了を表すタスク
+    /// 読み書きできなかったときは false
+    /// </returns>
+    /// <remarks>
+    /// 失敗は <see cref="RefreshFailed"/> で知らせる
+    /// 一度も自動入力を行っていないとき (作業管理のページを開いていないとき)は何もしない
+    /// ページを開かない日は休みとして扱うため
+    /// </remarks>
     private async Task<bool> TryAddAutoEntriesOnNewDayAsync(CancellationToken cancellationToken)
     {
         if (_autoDate == default || _autoDate == Today)
@@ -1321,12 +1496,19 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>この PC の設定から、表示しない案件の番号を読む</summary>
-    /// <returns>案件の番号。重なりなしで、ユーザーを特定していないときは空</returns>
+    /// <summary>この PC の設定から表示しない案件の番号を読む</summary>
+    /// <returns>
+    /// 案件の番号。
+    /// 重なりなしで、ユーザーを特定していないときは空。
+    /// </returns>
     /// <remarks>
-    /// キーは <c>WorkItems.HiddenProjects</c>、値は案件の番号をカンマでつないだ文字列で、例は <c>1,5,7</c>。無ければ、全部の案件を表示する。
-    /// モード (ローカル・サーバー)の切り替えは想定せず、キーを分けない。切り替えたときは、この設定を消す。消すのは <c>IDatabaseModeChangeHandler</c> で行う。
-    /// 削除された案件の番号が残っても、読み込みに影響しない。除く対象が、無いだけ。
+    /// キーは <c>WorkItems.HiddenProjects</c>、値は案件の番号をカンマでつないだ文字列で、例は <c>1,5,7</c>。
+    /// 無ければ、全部の案件を表示する。
+    /// モード (ローカル・サーバー)の切り替えは想定せず、キーを分けない。
+    /// 切り替えたときはこの設定を消す。
+    /// 消すのは <c>IDatabaseModeChangeHandler</c> で行う。
+    /// 削除された案件の番号が残っても読み込みに影響しない。
+    /// 除く対象が無いだけ。
     /// </remarks>
     private List<int> ReadHidden()
     {
@@ -1342,9 +1524,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
             .Distinct()];
     }
 
-    /// <summary>表示しない案件の番号を、この PC の設定に残す</summary>
+    /// <summary>表示しない案件の番号をこの PC の設定に残す</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>設定を保存できなくても、この起動の間は、メモリの内容で動く。設定の保存の失敗は、設定ストアが扱う。</remarks>
+    /// <remarks>
+    /// 設定を保存できなくても、この起動の間はメモリの内容で動く。
+    /// 設定の保存の失敗は設定ストアが扱う。
+    /// </remarks>
     private async Task SaveHiddenAsync()
     {
         if (UserId != 0)
@@ -1353,7 +1538,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>差分の内容を、メモリに反映する</summary>
+    /// <summary>差分の内容をメモリに反映する</summary>
     /// <param name="changes">差分</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>メモリの内容が変わったら true</returns>
@@ -1435,10 +1620,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return changed;
     }
 
-    /// <summary>届いた記録 (または、保存した記録)を、スケジュールの実績に反映する</summary>
-    /// <param name="record">記録 (論理削除された行と、実績が 0 で備考も空の行は、外す)</param>
+    /// <summary>届いた記録をスケジュールの実績に反映する</summary>
+    /// <param name="record">記録 (論理削除された行と、実績が 0 で備考も空の行は外す)。</param>
     /// <returns>持っている記録が変わったら true</returns>
-    /// <remarks>実績が 0 でも備考がある行は残す。スケジュールの日の備考に出すため。</remarks>
+    /// <remarks>
+    /// 実績が 0 でも備考がある行は残す
+    /// スケジュールの日の備考に出すため
+    /// </remarks>
     private bool ApplyScheduleRecord(WorkRecord record)
     {
         var key = (record.WorkItemId, record.Date);
@@ -1455,7 +1643,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return true;
     }
 
-    /// <summary>作業が無くなった記録を、スケジュールの実績から外す (表示しなくなった案件・削除された作業の分)</summary>
+    /// <summary>作業が無くなった記録をスケジュールの実績から外す</summary>
     private void PruneScheduleRecords()
     {
         foreach (var key in _scheduleRecords.Keys.Where(k => !_items.ContainsKey(k.WorkItemId)).ToList())
@@ -1464,12 +1652,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>辞書に行を入れる (同じ内容なら何もしない)</summary>
+    /// <summary>辞書に行を入れる</summary>
     /// <typeparam name="T">行の型</typeparam>
     /// <param name="dictionary">入れ先</param>
     /// <param name="id">行の番号</param>
     /// <param name="value">行</param>
     /// <returns>内容が変わったら true</returns>
+    /// <remarks>同じ内容なら何もしない</remarks>
     private static bool Upsert<T>(Dictionary<int, T> dictionary, int id, T value) where T : class
     {
         if (dictionary.TryGetValue(id, out var current) && current.Equals(value))
@@ -1480,7 +1669,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return true;
     }
 
-    /// <summary>読み込んだ案件の中身を、メモリに入れる</summary>
+    /// <summary>読み込んだ案件の中身をメモリに入れる</summary>
     /// <param name="data">読み込んだ内容</param>
     private void Merge(WorkLoadResult data)
     {
@@ -1499,11 +1688,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         PruneOrphans();
     }
 
-    /// <summary>案件の行が無い行・親のグループの行が無い行を、メモリから外す</summary>
+    /// <summary>案件の行が無い行・親のグループの行が無い行をメモリから外す</summary>
     /// <returns>外した行があれば true</returns>
     /// <remarks>
-    /// 案件やグループの削除は、その行だけに論理削除の印を付け、中の行には付けない。
-    /// そのため、読み込んだ中に、削除された案件・グループの中の行が混ざる。親をたどれない行は、画面に出さない。
+    /// 案件やグループの削除はその行だけに論理削除の印を付け、中の行には付けない。
+    /// そのため、読み込んだ中に、削除された案件・グループの中の行が混ざる。
+    /// 親をたどれない行は画面に出さない。
     /// </remarks>
     private bool PruneOrphans()
     {
@@ -1529,7 +1719,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return removed;
     }
 
-    /// <summary>案件の中身 (案件の行・グループ・作業・記録)を、メモリから外す</summary>
+    /// <summary>案件の中身をメモリから外す</summary>
     /// <param name="projectId">案件の番号</param>
     private void RemoveProjectContent(int projectId)
     {
@@ -1545,10 +1735,13 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         _dayRecords.RemoveAll(r => r.ProjectId == projectId);
     }
 
-    /// <summary>同じ親の兄弟 (グループと作業)を、並び順に返す</summary>
+    /// <summary>同じ親の兄弟を並び順に返す</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="parentGroupId">親のグループの番号 (0 は案件の直下)</param>
-    /// <returns>兄弟の一覧。並び順で、呼ぶ側が書き換えてよい新しい一覧</returns>
+    /// <returns>
+    /// 兄弟の一覧。
+    /// 並び順で、呼ぶ側が書き換えてよい新しい一覧。
+    /// </returns>
     private List<(WorkRowKind Kind, int Id, int SortOrder)> SiblingsOf(int projectId, int parentGroupId)
         => [.. _groups.Values.Where(g => g.ProjectId == projectId && g.ParentGroupId == parentGroupId).Select(g => (WorkRowKind.Group, g.Id, g.SortOrder))
             .Concat(_items.Values.Where(i => i.ProjectId == projectId && i.GroupId == parentGroupId).Select(i => (WorkRowKind.Work, i.Id, i.SortOrder)))
@@ -1576,7 +1769,7 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return false;
     }
 
-    /// <summary>位置の変更を、メモリの行に反映する</summary>
+    /// <summary>位置の変更をメモリの行に反映する</summary>
     /// <param name="positions">反映する位置</param>
     private void ApplyPositions(IReadOnlyList<WorkPosition> positions)
     {
@@ -1593,9 +1786,12 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary>グループと、その下のすべてのグループ・作業の番号を返す</summary>
+    /// <summary>グループとその下のすべてのグループ・作業の番号を返す</summary>
     /// <param name="groupId">グループの番号</param>
-    /// <returns>グループの番号 (自分を含む)と作業の番号。グループが無ければ、どちらも空</returns>
+    /// <returns>
+    /// グループの番号 (自分を含む)と作業の番号。
+    /// グループが無ければ、どちらも空。
+    /// </returns>
     private (HashSet<int> GroupIds, HashSet<int> ItemIds) Descendants(int groupId)
     {
         var groupIds = new HashSet<int>();
@@ -1628,12 +1824,18 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
     /// <summary>更新してよくないときのメッセージを返す</summary>
     /// <param name="kind">行の種類</param>
     /// <param name="id">行の番号</param>
-    /// <returns>更新できないときのメッセージ。更新してよければ null</returns>
+    /// <returns>
+    /// 更新できないときのメッセージ
+    /// 更新してよければ null
+    /// </returns>
     private string? Deny(WorkRowKind kind, int id) => policy.CanEdit(kind, id) ? null : DeniedMessage;
 
     /// <summary>名前の誤りを調べる</summary>
     /// <param name="name">名前 (前後の空白を除いたもの)</param>
-    /// <returns>画面に出せるメッセージ。正しければ null</returns>
+    /// <returns>
+    /// 画面に出せるメッセージ
+    /// 正しければ null
+    /// </returns>
     private static string? ValidateName(string name)
     {
         if (name.Length == 0)
@@ -1645,20 +1847,30 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
 
     /// <summary>備考の誤りを調べる</summary>
     /// <param name="note">備考</param>
-    /// <returns>画面に出せるメッセージ。正しければ null</returns>
+    /// <returns>
+    /// 画面に出せるメッセージ
+    /// 正しければ null
+    /// </returns>
     private static string? ValidateNote(string note)
         => note.Length > WorkItemLimits.NoteMaxLength ? $"備考は {WorkItemLimits.NoteMaxLength} 文字までです。" : null;
 
-    /// <summary>リンクの誤りを調べる。長さだけで、開く種類は絞らない</summary>
+    /// <summary>リンクの誤りを調べる</summary>
     /// <param name="link">リンク (前後の空白を除いたもの)</param>
-    /// <returns>画面に出せるメッセージ。正しければ null</returns>
+    /// <returns>
+    /// 画面に出せるメッセージ
+    /// 正しければ null
+    /// </returns>
+    /// <remarks>長さだけで、開く種類は絞らない。</remarks>
     private static string? ValidateLink(string link)
         => link.Length > WorkItemLimits.LinkMaxLength ? $"リンクは {WorkItemLimits.LinkMaxLength} 文字までです。" : null;
 
     /// <summary>作業の入力の誤りを調べる</summary>
     /// <param name="item">調べる作業</param>
     /// <param name="codes">コードブック</param>
-    /// <returns>画面に出せるメッセージ。正しければ null</returns>
+    /// <returns>
+    /// 画面に出せるメッセージ
+    /// 正しければ null
+    /// </returns>
     private static string? ValidateItem(WorkItem item, CodeBook codes)
     {
         if ((ValidateName(item.Name) ?? ValidateLink(item.Link) ?? ValidateNote(item.Note)) is { } basic)
@@ -1688,12 +1900,15 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         return null;
     }
 
-    /// <summary>ロックを持っている間に溜めた、変更の通知 (無ければ null)</summary>
+    /// <summary>ロックを持っている間に溜めた変更の通知</summary>
     private WorkChangedEventArgs? _pendingChanged;
 
-    /// <summary>変更の通知を、ロックを放したあとに出すよう予約する</summary>
-    /// <param name="args">通知の内容 (省略すると、全体の変更)</param>
-    /// <remarks>違う内容の通知が重なったときは、全体の変更にまとめる。どちらの変更も、全体を作り直せば反映できるため。</remarks>
+    /// <summary>変更の通知をロックを放したあとに出すよう予約する</summary>
+    /// <param name="args">通知の内容 (省略すると、全体の変更)。</param>
+    /// <remarks>
+    /// 違う内容の通知が重なったときは全体の変更にまとめる
+    /// どちらの変更も全体を作り直せば反映できるため
+    /// </remarks>
     private void OnChangedLater(WorkChangedEventArgs? args = null)
     {
         args ??= WorkChangedEventArgs.All;
@@ -1710,6 +1925,6 @@ public sealed class WorkItemService(IWorkItemRepository repository, IWorkItemEdi
         }
     }
 
-    /// <summary><see cref="Changed"/> を、全体の変更として発火する</summary>
+    /// <summary>Changed を全体の変更として発火する</summary>
     private void OnChanged() => Changed?.Invoke(this, WorkChangedEventArgs.All);
 }

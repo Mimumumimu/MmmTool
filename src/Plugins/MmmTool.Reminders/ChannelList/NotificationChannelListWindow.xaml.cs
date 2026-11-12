@@ -10,19 +10,27 @@ namespace MmmTool.Reminders.ChannelList;
 
 /// <summary>送信先の一覧ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。最大化・最小化はできない。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 大きさは変えられる。
+/// 最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
 /// 行のダブルタップで編集、右クリックで行のメニューで、編集・削除ができる。
 /// </remarks>
 public sealed partial class NotificationChannelListWindow : Window
 {
-    /// <summary>最初の幅 (DIP)</summary>
+    /// <summary>最初の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialWidth = 560;
-    /// <summary>最初の高さ (DIP)</summary>
+    /// <summary>最初の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialHeight = 420;
-    /// <summary>最小の幅 (DIP)</summary>
+    /// <summary>最小の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumWidth = 440;
-    /// <summary>最小の高さ (DIP)</summary>
+    /// <summary>最小の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumHeight = 320;
 
     /// <summary>閉じたら完了する</summary>
@@ -36,7 +44,7 @@ public sealed partial class NotificationChannelListWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public NotificationChannelListWindow(NotificationChannelListViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -104,7 +112,10 @@ public sealed partial class NotificationChannelListWindow : Window
     /// <summary>メニュー項目の行</summary>
     /// <param name="sender">メニュー項目</param>
     /// <returns>メニュー項目の行</returns>
-    /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は Tag に入れてある。</remarks>
+    /// <remarks>
+    /// メニューは画面の要素の外に出るので DataContext が受け継がれない
+    /// 行は Tag に入れてある
+    /// </remarks>
     private static NotificationChannelItem ItemOf(object sender) => (NotificationChannelItem)((FrameworkElement)sender).Tag;
 
     /// <summary>閉じたら完了を返す</summary>

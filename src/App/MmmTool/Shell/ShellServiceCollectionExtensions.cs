@@ -9,7 +9,7 @@ using MmmTool.Shell.Main;
 
 namespace MmmTool.Shell;
 
-/// <summary>画面の枠 (メインウィンドウ・サイドバー・トレイ)の DI 登録</summary>
+/// <summary>画面の枠の DI 登録</summary>
 public static class ShellServiceCollectionExtensions
 {
     /// <summary>画面の枠を登録する</summary>

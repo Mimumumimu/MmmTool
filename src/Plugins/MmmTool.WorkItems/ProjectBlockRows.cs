@@ -3,10 +3,10 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems;
 
-/// <summary>表の行のうち、案件の行 (字下げの段 0)と、その下の行のかたまりを扱える行</summary>
+/// <summary>表の行のうち案件の行とその下の行のかたまりを扱える行</summary>
 public interface IProjectBlockRow : ITreeGridRow
 {
-    /// <summary>行の識別 (種類 + 番号)</summary>
+    /// <summary>行の識別</summary>
     WorkKey Key { get; }
 
     /// <summary>案件の行か</summary>
@@ -16,18 +16,23 @@ public interface IProjectBlockRow : ITreeGridRow
     string Name { get; }
 }
 
-/// <summary>表示する案件の出し入れを、表の行のうち、その案件のかたまりだけで行う (作業管理の表とスケジュールで共有する)</summary>
+/// <summary>表示する案件の出し入れを表の行のうち、その案件のかたまりだけで行う</summary>
 /// <remarks>
-/// 案件の中身は、ほかの案件に依存しない。そのため、外した案件は、行のかたまりを抜くだけ、加えた案件は、その案件の分だけ作った行を、名前の順の位置へ差し込めばよい。
-/// 案件の並び (名前の順、同じなら番号の順)は、<see cref="WorkItemTree.CompareProjects"/> と同じ。
+/// 作業管理の表とスケジュールで共有する。
+/// 案件の中身はほかの案件に依存しない。
+/// そのため、外した案件は行のかたまりを抜くだけ、加えた案件はその案件の分だけ作った行を、名前の順の位置へ差し込めばよい。
+/// 案件の並び (名前の順、同じなら番号の順)は <see cref="WorkItemTree.CompareProjects"/> と同じ。
 /// </remarks>
 public static class ProjectBlockRows
 {
-    /// <summary>案件のかたまり (案件の行と、その下の行)を、表から抜く</summary>
+    /// <summary>案件のかたまりを表から抜く</summary>
     /// <typeparam name="TRow">行の型</typeparam>
     /// <param name="rows">表に渡している行の一覧</param>
     /// <param name="projectId">案件の番号</param>
-    /// <returns>抜いた行で、上から順。表に出ていない案件は null (反映できなかったことにして、全体を作り直すため)</returns>
+    /// <returns>
+    /// 抜いた行で、上から順。
+    /// 表に出ていない案件は null (反映できなかったことにして、全体を作り直すため)。
+    /// </returns>
     public static IReadOnlyList<TRow>? Remove<TRow>(IList<TRow> rows, int projectId)
         where TRow : class, IProjectBlockRow
     {
@@ -66,10 +71,13 @@ public static class ProjectBlockRows
         return removed;
     }
 
-    /// <summary>案件のかたまりを、案件の名前の順の位置へ差し込む</summary>
+    /// <summary>案件のかたまりを案件の名前の順の位置へ差し込む</summary>
     /// <typeparam name="TRow">行の型</typeparam>
     /// <param name="rows">表に渡している行の一覧</param>
-    /// <param name="block">差し込む行で、先頭が案件の行。上から順</param>
+    /// <param name="block">
+    /// 差し込む行で、先頭が案件の行。
+    /// 上から順。
+    /// </param>
     public static void Insert<TRow>(IList<TRow> rows, IReadOnlyList<TRow> block)
         where TRow : class, IProjectBlockRow
     {

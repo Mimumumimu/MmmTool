@@ -4,19 +4,22 @@ using MmmTool.Backlog.Core;
 
 namespace MmmTool.Backlog.Settings;
 
-/// <summary>Backlog 連携の設定 (設定ページの部品)の ViewModel</summary>
+/// <summary>Backlog 連携の設定の ViewModel</summary>
 public sealed class BacklogSettingsViewModel
 {
     /// <summary>Backlog 連携の設定</summary>
     private readonly BacklogSettingsService _backlogSettings;
 
-    /// <summary>保存済みの API キー (変わっていないときは、保存し直さない)</summary>
+    /// <summary>保存済みの API キー</summary>
+    /// <remarks>変わっていないときは保存し直さない</remarks>
     private string _savedApiKey = "";
 
-    /// <summary>画面に出すエラー (API キーを読めなかった・保存できなかったとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>API キーを読めなかった・保存できなかったとき</remarks>
     public ErrorState Error { get; } = new();
 
-    /// <summary>入力欄の最初の値で、保存済みの API キー。登録が無ければ空</summary>
+    /// <summary>入力欄の最初の値で、保存済みの API キー</summary>
+    /// <remarks>登録が無ければ空</remarks>
     public string InitialApiKey => _savedApiKey;
 
     /// <summary>保存済みの API キーを読み込む</summary>
@@ -34,9 +37,17 @@ public sealed class BacklogSettingsViewModel
         }
     }
 
-    /// <summary>API キーを保存する (入力欄からフォーカスが外れたときに呼ぶ)</summary>
-    /// <param name="apiKey">入力された API キー。空なら、登録を消す</param>
-    /// <remarks>前後の空白は除く。貼り付けたときに混ざりやすいため。変わっていなければ何もしない。</remarks>
+    /// <summary>API キーを保存する</summary>
+    /// <param name="apiKey">
+    /// 入力された API キー。
+    /// 空なら、登録を消す。
+    /// </param>
+    /// <remarks>
+    /// 入力欄からフォーカスが外れたときに呼ぶ
+    /// 前後の空白は除く
+    /// 貼り付けたときに混ざりやすいため
+    /// 変わっていなければ何もしない
+    /// </remarks>
     public void Save(string apiKey)
     {
         apiKey = apiKey.Trim();

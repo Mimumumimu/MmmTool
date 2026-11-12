@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace MmmTool.CodeMaster.Edit;
 
-/// <summary>編集画面の一覧の 1 行で、固定の表記と、直せる名前</summary>
+/// <summary>編集画面の一覧の 1 行で、固定の表記と直せる名前</summary>
 /// <param name="codeNo">コード番号</param>
 /// <param name="label">名前の前に固定で出す表記</param>
 /// <param name="name">保存済みの名前</param>

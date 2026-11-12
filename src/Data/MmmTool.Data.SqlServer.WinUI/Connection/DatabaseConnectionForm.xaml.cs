@@ -6,8 +6,11 @@ using Windows.System;
 
 namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
-/// <summary>DB への接続の入力欄 (設定ページと、初回の保存先の選択の画面で共有する部品)</summary>
-/// <remarks>呼び出し側が、自分の ViewModel が持つ <see cref="DatabaseConnectionViewModel"/> を渡して作る。2 つの画面で同じ入力欄を使うため、DI からは作らない。</remarks>
+/// <summary>DB への接続の入力欄</summary>
+/// <remarks>
+/// 呼び出し側が自分の ViewModel が持つ <see cref="DatabaseConnectionViewModel"/> を渡して作る。
+/// 2 つの画面で同じ入力欄を使うため、DI からは作らない。
+/// </remarks>
 public sealed partial class DatabaseConnectionForm : UserControl
 {
     /// <summary>部品の ViewModel</summary>
@@ -21,12 +24,13 @@ public sealed partial class DatabaseConnectionForm : UserControl
         InitializeComponent();
     }
 
-    /// <summary>サーバー名・ユーザー名などにフォーカスが来たら IME をオフにする (半角の英数字を打つため)</summary>
+    /// <summary>サーバー名・ユーザー名などにフォーカスが来たら IME をオフにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>半角の英数字を打つため</remarks>
     private void OnAsciiBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOff();
 
-    /// <summary>入力欄で Enter を押したら、「接続を確認」を行う</summary>
+    /// <summary>入力欄で Enter を押したら「接続を確認」を行う</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キーの情報</param>
     /// <remarks>

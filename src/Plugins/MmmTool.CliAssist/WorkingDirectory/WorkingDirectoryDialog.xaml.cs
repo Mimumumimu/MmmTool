@@ -26,7 +26,10 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
     /// <param name="title">ダイアログのタイトル</param>
     /// <param name="primaryButtonText">決定ボタンの文言</param>
     /// <param name="openDirectories">ほかのタブが開いているフォルダ (選べないようにする)</param>
-    /// <returns>選ばれたフォルダ。キャンセルなら null</returns>
+    /// <returns>
+    /// 選ばれたフォルダ
+    /// キャンセルなら null
+    /// </returns>
     public async Task<string?> PickAsync(string title, string primaryButtonText, IReadOnlyList<string> openDirectories)
     {
         Title = title;
@@ -40,13 +43,13 @@ public sealed partial class WorkingDirectoryDialog : ContentDialog
             : null;
     }
 
-    /// <summary>履歴のフォルダがクリックされたら、入力欄に入れる</summary>
+    /// <summary>履歴のフォルダがクリックされたら入力欄に入れる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">クリックされた項目の情報</param>
     private void OnDirectoryClick(object sender, ItemClickEventArgs e)
         => ViewModel.DirectoryPath = (string)e.ClickedItem;
 
-    /// <summary>履歴のフォルダがダブルクリックされたら、入力欄に入れて確定する</summary>
+    /// <summary>履歴のフォルダがダブルクリックされたら入力欄に入れて確定する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ダブルタップの情報</param>
     private async void OnDirectoryDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

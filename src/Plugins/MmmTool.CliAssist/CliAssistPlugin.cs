@@ -16,7 +16,7 @@ using MmmTool.CliAssist.WorkingDirectory;
 namespace MmmTool.CliAssist;
 
 /// <summary>CLI補助の入口</summary>
-/// <remarks>保存先 (定型コマンド・利用状態)はローカル専用の JSON。</remarks>
+/// <remarks>保存先 (定型コマンド・利用状態)はローカル専用の JSON</remarks>
 public sealed class CliAssistPlugin : IFeaturePlugin
 {
     /// <inheritdoc />

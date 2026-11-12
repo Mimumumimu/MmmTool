@@ -2,11 +2,15 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>案件の中身の読み込み結果 (論理削除されていない行だけ)</summary>
+/// <summary>案件の中身の読み込み結果</summary>
 /// <param name="Projects">案件</param>
 /// <param name="Groups">案件の中のグループ</param>
 /// <param name="Items">案件の中の作業</param>
-/// <param name="Codes">作業管理のコードマスタで、論理削除された件も含む。案件を番号で指定して読んだときは、空</param>
+/// <param name="Codes">
+/// 作業管理のコードマスタで、論理削除された件も含む。
+/// 案件を番号で指定して読んだときは空。
+/// </param>
+/// <remarks>論理削除されていない行だけ</remarks>
 public sealed record WorkLoadResult(
     IReadOnlyList<WorkProject> Projects,
     IReadOnlyList<WorkGroup> Groups,

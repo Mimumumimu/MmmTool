@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.CliAssist.Main;
 
-/// <summary>よく使う文のチップの見た目を、文とグループで切り替える</summary>
+/// <summary>よく使う文のチップの見た目を文とグループで切り替える</summary>
 public sealed partial class QuickMessageTemplateSelector : DataTemplateSelector
 {
     /// <summary>文のチップの見た目</summary>

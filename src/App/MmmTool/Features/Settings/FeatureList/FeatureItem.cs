@@ -3,7 +3,7 @@ using MmmSdk.Core.Components.Features;
 
 namespace MmmTool.Features.Settings.FeatureList;
 
-/// <summary>設定ページの「機能」の一覧の 1 行 (機能のオン・オフのスイッチと、並べ替えの取っ手)</summary>
+/// <summary>設定ページの「機能」の一覧の 1 行</summary>
 /// <param name="info">機能の登録情報</param>
 /// <param name="isOn">今オンか</param>
 public sealed partial class FeatureItem(FeatureInfo info, bool isOn) : ObservableObject
@@ -14,10 +14,11 @@ public sealed partial class FeatureItem(FeatureInfo info, bool isOn) : Observabl
     /// <summary>機能の名前</summary>
     public string DisplayName => info.DisplayName;
 
-    /// <summary>オフにできるか (false の機能は、スイッチを出さない)</summary>
+    /// <summary>オフにできるか</summary>
+    /// <remarks>false の機能はスイッチを出さない</remarks>
     public bool CanDisable => info.CanDisable;
 
-    /// <summary>オンか (スイッチの状態)</summary>
+    /// <summary>オンか</summary>
     [ObservableProperty]
     public partial bool IsOn { get; set; } = isOn;
 }

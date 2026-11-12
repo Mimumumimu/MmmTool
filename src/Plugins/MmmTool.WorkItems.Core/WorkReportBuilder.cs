@@ -4,18 +4,26 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>作業報告 (実績と予定のテキスト)を組み立てる</summary>
+/// <summary>作業報告を組み立てる</summary>
 /// <remarks>
-/// UI と保存先に依存しない整形。形と規則は docs/specs/work-report.md。
-/// 実績は、期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。予定は、状態が作業予定・作業中で、予定に含めない印が無い作業。保留は、状態が保留で、予定に含めない印が無い作業で、1 件も無いか、切り替え (<c>showOnHold</c>)がオフなら区画を出さない。
-/// 並びは画面に表示している順で、案件は名前順、グループと作業は同じ親の下の並び順。画面の表示の設定には従わない。
+/// UI と保存先に依存しない整形。
+/// 形と規則は docs/specs/work-report.md。
+/// 実績は期間 (実績の開始日から報告日の前日まで)に工数が記入された作業か、完了にした作業で、実績に含めない印が無い作業。
+/// 予定は状態が作業予定・作業中で、予定に含めない印が無い作業。
+/// 保留は状態が保留で、予定に含めない印が無い作業で、1 件も無いか、切り替え (<c>showOnHold</c>)がオフなら区画を出さない。
+/// 並びは画面に表示している順で、案件は名前順、グループと作業は同じ親の下の並び順。
+/// 画面の表示の設定には従わない。
 /// </remarks>
 public static class WorkReportBuilder
 {
-    /// <summary>1 段の字下げ (全角スペース)</summary>
+    /// <summary>1 段の字下げ</summary>
     private const string Indent = "　";
 
-    /// <summary>作業の行の頭に付ける印。1 件の始まりを見分けるため。全角 1 文字</summary>
+    /// <summary>作業の行の頭に付ける印</summary>
+    /// <remarks>
+    /// 1 件の始まりを見分けるため
+    /// 全角 1 文字
+    /// </remarks>
     private const string Bullet = "・";
 
     /// <summary>行の区切り</summary>
@@ -27,13 +35,24 @@ public static class WorkReportBuilder
     /// <summary>作業報告のテキストを組み立てる</summary>
     /// <param name="data">読んだ内容</param>
     /// <param name="from">実績の開始日 (実績を拾い始める日)</param>
-    /// <param name="reportDate">報告日で、予定の日。実績は、この日より前だけ</param>
-    /// <param name="showHours">実績の各作業に、期間内の工数の合計を添えるか</param>
-    /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか</param>
-    /// <param name="showOnHold">保留の区画 (■保留)を出すか。オフなら、保留の作業があっても区画ごと出さない</param>
-    /// <returns>テキストで、行の区切りは CRLF。末尾に改行は付けない</returns>
+    /// <param name="reportDate">
+    /// 報告日で、予定の日。
+    /// 実績はこの日より前だけ。
+    /// </param>
+    /// <param name="showHours">実績の各作業に、期間内の工数の合計を添えるか。</param>
+    /// <param name="showProgress">実績と予定の各作業に、進捗度を添えるか。</param>
+    /// <param name="showOnHold">
+    /// 保留の区画 (■保留)を出すか。
+    /// オフなら、保留の作業があっても区画ごと出さない。
+    /// </param>
+    /// <returns>
+    /// テキストで、行の区切りは CRLF。
+    /// 末尾に改行は付けない。
+    /// </returns>
     /// <remarks>
-    /// 日報メモ (<see cref="WorkDayNote"/>)は、報告日の分だけを、いちばん最後の「■日報メモ」に、全角スペース 1 つの字下げをつけて出す。実績・予定・保留の中には出さない。空 (空白だけも含む)のメモは、無いものとして扱う。
+    /// 日報メモ (<see cref="WorkDayNote"/>)は報告日の分だけをいちばん最後の「■日報メモ」に、全角スペース 1 つの字下げをつけて出す。
+    /// 実績・予定・保留の中には出さない。
+    /// 空 (空白だけも含む)のメモは無いものとして扱う。
     /// </remarks>
     public static string Build(WorkReportData data, DateOnly from, DateOnly reportDate, bool showHours, bool showProgress, bool showOnHold)
     {
@@ -103,10 +122,11 @@ public static class WorkReportBuilder
         return builder.ToString().TrimEnd('\r', '\n');
     }
 
-    /// <summary>案件・親のグループをたどれるグループだけを返す (削除された案件・グループの中のグループを外す)</summary>
+    /// <summary>案件・親のグループをたどれるグループだけを返す</summary>
     /// <param name="source">読んだグループ</param>
     /// <param name="projects">削除されていない案件</param>
-    /// <returns>グループの番号をキーにした、残したグループ (論理削除済みは含まない)</returns>
+    /// <returns>グループの番号をキーにした、残したグループ (論理削除済みは含まない)。</returns>
+    /// <remarks>削除された案件・グループの中のグループを外す</remarks>
     private static Dictionary<int, WorkGroup> ValidGroups(IEnumerable<WorkGroup> source, Dictionary<int, WorkProject> projects)
     {
         var valid = source.Where(g => !g.IsDeleted).ToDictionary(g => g.Id);
@@ -124,16 +144,24 @@ public static class WorkReportBuilder
         return valid;
     }
 
-    /// <summary>備考を、空でない行に分ける</summary>
+    /// <summary>備考を空でない行に分ける</summary>
     /// <param name="note">備考</param>
-    /// <returns>行で、行末の空白を除く。行頭の空白は、書いた人の字下げなので残す。空白だけの行は含まない</returns>
-    /// <remarks>改行は、CRLF・CR・LF のどれでも区切る。WinUI の複数行の入力欄は、改行を CR 1 文字で持つことがある。</remarks>
+    /// <returns>
+    /// 行で、行末の空白を除く。
+    /// 行頭の空白は書いた人の字下げなので残す。
+    /// 空白だけの行は含まない。
+    /// </returns>
+    /// <remarks>
+    /// 改行は CRLF・CR・LF のどれでも区切る
+    /// WinUI の複数行の入力欄は改行を CR 1 文字で持つことがある
+    /// </remarks>
     private static IEnumerable<string> Lines(string note)
         => note.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.TrimEnd()).Where(l => l.Length > 0);
 
-    /// <summary>同じ行を 1 つにする (最初に出たものを残す)</summary>
+    /// <summary>同じ行を 1 つにする</summary>
     /// <param name="lines">行</param>
     /// <returns>重なりを除いた行</returns>
+    /// <remarks>最初に出たものを残す</remarks>
     private static List<string> Distinct(IEnumerable<string> lines) => [.. lines.Distinct(StringComparer.Ordinal)];
 
     /// <summary>実績または予定の 1 区画を書き出す</summary>
@@ -142,7 +170,7 @@ public static class WorkReportBuilder
     /// <param name="projects">案件</param>
     /// <param name="groups">グループ</param>
     /// <param name="codes">コードブック (状態・進捗度の名前を引く)</param>
-    /// <param name="showProgress">各作業に、進捗度を添えるか</param>
+    /// <param name="showProgress">各作業に、進捗度を添えるか。</param>
     private static void AppendSection(StringBuilder builder, List<ReportEntry> entries, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, CodeBook codes, bool showProgress)
     {
         if (entries.Count == 0)
@@ -167,10 +195,16 @@ public static class WorkReportBuilder
         }
     }
 
-    /// <summary>日報メモを、行に分ける。書いたとおりで、前後の空行と、行末の空白だけを除く</summary>
+    /// <summary>日報メモを行に分ける</summary>
     /// <param name="text">日報メモ</param>
-    /// <returns>行で、字下げは残す。途中の空行も残す</returns>
-    /// <remarks>改行は、CRLF・CR・LF のどれでも区切る。</remarks>
+    /// <returns>
+    /// 行で、字下げは残す。
+    /// 途中の空行も残す。
+    /// </returns>
+    /// <remarks>
+    /// 書いたとおりで、前後の空行と行末の空白だけを除く。
+    /// 改行は CRLF・CR・LF のどれでも区切る。
+    /// </remarks>
     private static List<string> ManualLines(string text)
     {
         var lines = text.Split(["\r\n", "\r", "\n"], StringSplitOptions.None).Select(l => l.TrimEnd()).ToList();
@@ -185,7 +219,7 @@ public static class WorkReportBuilder
         return lines;
     }
 
-    /// <summary>作業の親 (案件の行か、グループの行)を、無ければ作って返す</summary>
+    /// <summary>作業の親を無ければ作って返す</summary>
     /// <param name="projectId">案件の番号</param>
     /// <param name="groupId">グループの番号 (0 は案件の直下)</param>
     /// <param name="projects">案件</param>
@@ -193,6 +227,7 @@ public static class WorkReportBuilder
     /// <param name="roots">案件の行</param>
     /// <param name="groupNodes">グループの行</param>
     /// <returns>親の行</returns>
+    /// <remarks>案件の行か、グループの行。</remarks>
     private static Node EnsureParent(int projectId, int groupId, Dictionary<int, WorkProject> projects, Dictionary<int, WorkGroup> groups, Dictionary<int, Node> roots, Dictionary<int, Node> groupNodes)
     {
         if (groupId == 0)
@@ -216,12 +251,13 @@ public static class WorkReportBuilder
         return node;
     }
 
-    /// <summary>行の子を、並び順に書き出す (子がグループ 1 つだけのグループは、1 行につなぐ)</summary>
+    /// <summary>行の子を並び順に書き出す</summary>
     /// <param name="builder">書き出し先</param>
     /// <param name="parent">親の行</param>
     /// <param name="depth">子の字下げの段数</param>
     /// <param name="codes">コードブック</param>
-    /// <param name="showProgress">各作業に、進捗度を添えるか</param>
+    /// <param name="showProgress">各作業に、進捗度を添えるか。</param>
+    /// <remarks>子がグループ 1 つだけのグループは 1 行につなぐ</remarks>
     private static void AppendChildren(StringBuilder builder, Node parent, int depth, CodeBook codes, bool showProgress)
     {
         foreach (var child in parent.Children.OrderBy(c => c.SortOrder).ThenBy(c => c.Kind).ThenBy(c => c.Id))
@@ -247,7 +283,7 @@ public static class WorkReportBuilder
 
     /// <summary>作業の行と備考を書き出す</summary>
     /// <param name="builder">書き出し先</param>
-    /// <param name="entry">作業と、出す備考・工数</param>
+    /// <param name="entry">作業と、出す備考・工数。</param>
     /// <param name="indent">作業の行の字下げ</param>
     /// <param name="depth">作業の行の字下げの段数</param>
     /// <param name="codes">コードブック</param>
@@ -275,11 +311,15 @@ public static class WorkReportBuilder
 
     /// <summary>区画に出す作業 1 件</summary>
     /// <param name="Item">作業</param>
-    /// <param name="Notes">出す備考で、行ごと。重なりを除いた</param>
+    /// <param name="Notes">
+    /// 出す備考で、行ごと。
+    /// 重なりを除いた。
+    /// </param>
     /// <param name="Hours">添える工数 (添えないなら null)</param>
     private sealed record ReportEntry(WorkItem Item, List<string> Notes, double? Hours);
 
-    /// <summary>木の行の種類で、並びの決めに使う。同じ並び順なら、グループが作業より先</summary>
+    /// <summary>木の行の種類で、並びの決めに使う</summary>
+    /// <remarks>同じ並び順なら、グループが作業より先。</remarks>
     private enum NodeKind
     {
         /// <summary>案件</summary>
@@ -302,7 +342,7 @@ public static class WorkReportBuilder
         /// <summary>子の行</summary>
         public List<Node> Children { get; } = [];
 
-        /// <summary>作業の行のときの、出す内容</summary>
+        /// <summary>作業の行のときの出す内容</summary>
         public ReportEntry? Entry { get; init; }
     }
 }

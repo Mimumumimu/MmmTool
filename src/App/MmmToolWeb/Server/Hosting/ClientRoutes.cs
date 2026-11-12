@@ -7,18 +7,15 @@ using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Server.Hosting;
 
-/// <summary>
-/// ブラウザ側 (Client)の画面の道の一覧。本体と、足した機能の、画面の <c>@page</c> から集めるので、画面を足しても、ここは直さない。
-/// </summary>
+/// <summary>ブラウザ側の画面の道の一覧</summary>
+/// <remarks>本体と、足した機能の、画面の @page から集めるので、画面を足しても、ここは直さない。</remarks>
 internal sealed class ClientRoutes
 {
-    /// <summary>画面の道ごとの照合。</summary>
+    /// <summary>画面の道ごとの照合</summary>
     private readonly List<TemplateMatcher> _matchers;
 
-    /// <summary>
-    /// 画面の道を集める。
-    /// </summary>
-    /// <param name="features">足した機能。</param>
+    /// <summary>画面の道を集める</summary>
+    /// <param name="features">足した機能</param>
     public ClientRoutes(IEnumerable<IWebFeature> features)
     {
         _matchers = features
@@ -32,11 +29,9 @@ internal sealed class ClientRoutes
             .ToList();
     }
 
-    /// <summary>
-    /// 画面の道かを返す。
-    /// </summary>
-    /// <param name="path">要求の道。</param>
-    /// <returns>画面の道のどれかに当てはまるなら true。</returns>
+    /// <summary>画面の道かを返す</summary>
+    /// <param name="path">要求の道</param>
+    /// <returns>画面の道のどれかに当てはまるなら true</returns>
     public bool IsKnown(PathString path)
     {
         var values = new RouteValueDictionary();

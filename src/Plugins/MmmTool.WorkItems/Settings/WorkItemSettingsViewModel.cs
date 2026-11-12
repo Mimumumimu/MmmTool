@@ -6,29 +6,37 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Settings;
 
-/// <summary>作業管理の設定 (設定ページの部品)の ViewModel</summary>
+/// <summary>作業管理の設定の ViewModel</summary>
 public sealed partial class WorkItemSettingsViewModel : ObservableObject
 {
     /// <summary>起動時の表示の設定</summary>
     private readonly WorkItemDisplaySettings _displaySettings;
 
     /// <summary>保存済みの値を入れている最中か</summary>
-    /// <remarks>読み込んだだけの値で設定ファイルを書き換えないよう、true の間は、値の変更で保存しない。</remarks>
+    /// <remarks>読み込んだだけの値で設定ファイルを書き換えないよう、true の間は値の変更で保存しない。</remarks>
     private bool _isInitializing;
 
-    /// <summary>画面に出すエラー (保存に失敗したとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>保存に失敗したとき</remarks>
     public ErrorState Error { get; } = new();
 
-    /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
+    /// <summary>設定を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、変更させない。</remarks>
     public bool IsEditable { get; }
 
-    /// <summary>作業管理の「過去の完了」の、起動時の表示の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
-    /// <remarks>変わったら即保存する。</remarks>
+    /// <summary>作業管理の「過去の完了」の起動時の表示の選択肢の番号</summary>
+    /// <remarks>
+    /// <see cref="CompletedDisplay"/> の値と同じ
+    /// 変わったら即保存する
+    /// </remarks>
     [ObservableProperty]
     public partial int PastCompletedIndex { get; set; }
 
-    /// <summary>スケジュールの「完了」の、起動時の表示の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
-    /// <remarks>変わったら即保存する。</remarks>
+    /// <summary>スケジュールの「完了」の起動時の表示の選択肢の番号</summary>
+    /// <remarks>
+    /// <see cref="CompletedDisplay"/> の値と同じ
+    /// 変わったら即保存する
+    /// </remarks>
     [ObservableProperty]
     public partial int ScheduleCompletedIndex { get; set; }
 
@@ -68,8 +76,9 @@ public sealed partial class WorkItemSettingsViewModel : ObservableObject
     /// <param name="save">保存する処理</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態 (設定ファイルを読めなかった)では、選択欄を無効にしてあるので、ここへは来ない。来たら、保存されなかったことを知らせる。
-    /// 保存の失敗 (ロック・権限など)は、画面に出す。
+    /// 保存できない状態 (設定ファイルを読めなかった)では選択欄を無効にしてあるので、ここへは来ない。
+    /// 来たら、保存されなかったことを知らせる。
+    /// 保存の失敗 (ロック・権限など)は画面に出す。
     /// </remarks>
     private async Task SaveAsync(Func<Task<bool>> save)
     {

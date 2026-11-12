@@ -6,21 +6,22 @@ using MmmTool.Notes.Core;
 
 namespace MmmTool.Data.Sqlite.Notes;
 
-/// <summary>
-/// ノートを、ローカルの SQLite (<c>Data/MmmTool.db</c>の <c>Note</c> 表)に保存する。
-/// </summary>
+/// <summary>ノートをローカルの SQLiteに保存する</summary>
 /// <param name="database">データベースファイルを開く入口</param>
-/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
+/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)。</param>
 /// <remarks>
-/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/notes.md にある。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
-/// 書き込みは、書き込みの許可を最初に取るトランザクションの中で行う。処理は、UI スレッドを止めないよう、別のスレッドで行う。SQL はパラメーター化だけで書く。
+/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/notes.md にある。
+/// ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
+/// 書き込みは書き込みの許可を最初に取るトランザクションの中で行う。
+/// 処理は UI スレッドを止めないよう、別のスレッドで行う。
+/// SQL はパラメーター化だけで書く。
 /// </remarks>
 public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider time) : INoteRepository
 {
-    /// <summary>ローカルのユーザーの番号 (固定)</summary>
+    /// <summary>ローカルのユーザーの番号</summary>
     private const int LocalUserId = 1;
 
-    /// <summary>表の全部の列 (読む順)</summary>
+    /// <summary>表の全部の列</summary>
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
     /// <inheritdoc />
@@ -30,17 +31,17 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     public int CurrentUserId => LocalUserId;
 
     /// <inheritdoc />
-    /// <remarks>ローカルモードは、通知が無いので、常に null を返す。</remarks>
+    /// <remarks>ローカルモードは通知が無いので、常に null を返す。</remarks>
     public Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default)
         => Task.FromResult<NoteChange?>(null);
 
     /// <inheritdoc />
-    /// <remarks>ローカルモードは、ほかの人の更新が無いので、常に空を返す。</remarks>
+    /// <remarks>ローカルモードはほかの人の更新が無いので、常に空を返す。</remarks>
     public Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default)
         => Task.FromResult(new NoteChanges(time.GetUtcNow(), []));
 
     /// <inheritdoc />
-    /// <remarks>ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。</remarks>
+    /// <remarks>ローカルモードはユーザーの表が無いので、名前は空文字を返す。</remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
         => ReadWithNamesAsync(
             "EndDate >= @day AND StartDate <= @day",
@@ -49,8 +50,8 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
 
     /// <inheritdoc />
     /// <remarks>
-    /// 更新日時は、いつも同じ時差の同じ形の文字で保存するので、範囲の端も同じ形の文字にして、文字の大小で比べる。
-    /// ローカルモードは、ユーザーの表が無いので、名前は空文字を返す。
+    /// 更新日時はいつも同じ時差の同じ形の文字で保存するので、範囲の端も同じ形の文字にして、文字の大小で比べる。
+    /// ローカルモードはユーザーの表が無いので、名前は空文字を返す。
     /// </remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
         => ReadWithNamesAsync(
@@ -58,11 +59,17 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
             [("@from", from), ("@to", to), ("@includeDeleted", includeDeleted), ("@me", LocalUserId)],
             cancellationToken);
 
-    /// <summary>条件に合う、見えるノートを読む (名前は空文字)</summary>
-    /// <param name="condition">絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
-    /// <param name="parameters">パラメーター。<c>@includeDeleted</c> と <c>@me</c> を含める</param>
+    /// <summary>条件に合う見えるノートを読む</summary>
+    /// <param name="condition">
+    /// 絞り込みの条件
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
+    /// <param name="parameters">
+    /// パラメーター
+    /// <c>@includeDeleted</c> と <c>@me</c> を含める
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>ノートと名前で、並びは不定</returns>
+    /// <returns>ノートと名前で、並びは不定。</returns>
     private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, (string Name, object Value)[] parameters, CancellationToken cancellationToken)
         => RunAsync<IReadOnlyList<NoteWithNames>>(
             async connection =>
@@ -99,11 +106,14 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
             },
             cancellationToken);
 
-    /// <summary>ノートの番号の分の、ほかの実施日を、1 回の問い合わせでまとめて読む</summary>
+    /// <summary>ノートの番号の分のほかの実施日を 1 回の問い合わせでまとめて読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="noteIds">ノートの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>ノートの番号ごとの、日付の順の一覧。ほかの実施日が無いノートは、含まない</returns>
+    /// <returns>
+    /// ノートの番号ごとの、日付の順の一覧。
+    /// ほかの実施日が無いノートは含まない。
+    /// </returns>
     private static async Task<Dictionary<int, IReadOnlyList<DateOnly>>> ReadOtherEventDatesAsync(SqliteConnection connection, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
     {
         var result = new Dictionary<int, IReadOnlyList<DateOnly>>();
@@ -128,20 +138,23 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         return result;
     }
 
-    /// <summary>枝番と日付の組を、json_each で渡す JSON にする</summary>
+    /// <summary>枝番と日付の組を json_each で渡す JSON にする</summary>
     /// <param name="items">枝番と日付の組</param>
     /// <returns>JSON の文字</returns>
     private static string ToJson(IReadOnlyList<(int CodeNo, DateOnly Day)> items)
         => JsonSerializer.Serialize(items.Select(item => new { codeNo = item.CodeNo, value = NoteOtherEventDates.ToValue(item.Day) }));
 
-    /// <summary>ノートの番号に合う、ほかの実施日を取り出す</summary>
+    /// <summary>ノートの番号に合うほかの実施日を取り出す</summary>
     /// <param name="dates"><see cref="ReadOtherEventDatesAsync"/> の結果</param>
     /// <param name="noteId">ノートの番号</param>
-    /// <returns>日付の順の一覧。無ければ空</returns>
+    /// <returns>
+    /// 日付の順の一覧
+    /// 無ければ空
+    /// </returns>
     private static IReadOnlyList<DateOnly> DatesOf(Dictionary<int, IReadOnlyList<DateOnly>> dates, int noteId)
         => dates.TryGetValue(noteId, out var list) ? list : [];
 
-    /// <summary>ノートのほかの実施日を、新しい日付の一覧に合わせて書く</summary>
+    /// <summary>ノートのほかの実施日を新しい日付の一覧に合わせて書く</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">ノートを書いているトランザクション</param>
     /// <param name="noteId">ノートの番号</param>
@@ -150,8 +163,10 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き終わったことを表すタスク</returns>
     /// <remarks>
-    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。SQL Server と同じ形。
-    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
+    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。
+    /// SQL Server と同じ形。
+    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。
+    /// 削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
     /// </remarks>
     private static async Task WriteOtherEventDatesAsync(SqliteConnection connection, SqliteTransaction transaction, int noteId, IReadOnlyList<DateOnly> dates, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -201,7 +216,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
+    /// <exception cref="ArgumentException">入力内容が正しくない</exception>
     public async Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -239,7 +254,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
+    /// <exception cref="ArgumentException">入力内容が正しくない</exception>
     public async Task<bool> UpdateAsync(int id, NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -280,7 +295,7 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
         return changed > 0;
     }
 
-    /// <summary>接続を開いて、読む処理を別のスレッドで実行する</summary>
+    /// <summary>接続を開いて読む処理を別のスレッドで実行する</summary>
     /// <typeparam name="T">結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -295,9 +310,10 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     private Task RunInTransactionAsync(Func<SqliteConnection, SqliteTransaction, Task> work, CancellationToken cancellationToken)
         => Task.Run(() => database.RunInTransactionAsync(work, cancellationToken), cancellationToken);
 
-    /// <summary>ノートの行を読む (<see cref="Columns"/> の順)</summary>
+    /// <summary>ノートの行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
+    /// <remarks><see cref="Columns"/> の順</remarks>
     private static NoteRow ReadRow(SqliteDataReader r) => new()
     {
         Id = r.GetInt32(0),

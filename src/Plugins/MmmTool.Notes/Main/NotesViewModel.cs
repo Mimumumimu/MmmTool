@@ -14,9 +14,7 @@ using MmmTool.Notes.Core;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>
-/// ノートのページの ViewModel。表示する日・表示の切り替え・カードの操作を扱う。
-/// </summary>
+/// <summary>ノートのページの ViewModel</summary>
 /// <param name="notes">ノートの読み書き</param>
 /// <param name="pageBuilder">カード一覧のページを作る処理</param>
 /// <param name="dialogs">ノートの入力ウィンドウを開く口</param>
@@ -28,65 +26,77 @@ namespace MmmTool.Notes.Main;
 /// <param name="state">画面で選んだ状態 (ページを作り直しても引き継ぐ)</param>
 /// <param name="ticker">毎分の合図 (ほかの人の更新の読み直しに使う)</param>
 /// <remarks>
-/// ほかの人の更新は、ページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を毎分 1 回、端末ごとにずらした秒に読み直して反映する。始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
-/// 他の機能の内容 (作業報告など)が変わったときは、その機能からの通知で、すぐ読み直す。見えている間だけ購読する。
-/// 読み直しでページを作り直すときは、読んでいる位置と、開いているカードを保つ。日付・切り替えを変えたときは、先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
+/// 表示する日・表示の切り替え・カードの操作を扱う。
+/// ほかの人の更新はページが見えている間だけ、保存先が共有 (DB)のとき、表示している日の分を毎分 1 回、端末ごとにずらした秒に読み直して反映する。
+/// 始めるのは <see cref="ResumeAsync"/>、止めるのは <see cref="Suspend"/>。
+/// 他の機能の内容 (作業報告など)が変わったときはその機能からの通知で、すぐ読み直す。
+/// 見えている間だけ購読する。
+/// 読み直しでページを作り直すときは読んでいる位置と、開いているカードを保つ。
+/// 日付・切り替えを変えたときは先頭から表示し、「全文」は全部開き、「タイトルだけ」は全部閉じる。
 /// ほかのページから戻ったときも読み直すが、日・基準・切り替えが前回の表示と同じなら、位置と開いているカードを保つ。
 /// </remarks>
 public sealed partial class NotesViewModel(
     NoteService notes, NotePageBuilder pageBuilder, INoteDialogService dialogs, IDialogService confirm, IPathOpener opener,
     DayContentService contents, ISettingsStore settings, IFeatureStatus features, NotesViewState state, ITicker ticker) : ObservableObject, IDisposable
 {
-    /// <summary>手動で読み直した直後に、自動の読み直しが重ならないよう、直前の読み直しから空ける時間</summary>
+    /// <summary>手動で読み直した直後に自動の読み直しが重ならないよう、直前の読み直しから空ける時間</summary>
     private static readonly TimeSpan RefreshMinimumGap = TimeSpan.FromSeconds(30);
 
-    /// <summary>他の機能の内容が変わってから、読み直すまでの待ち時間</summary>
+    /// <summary>他の機能の内容が変わってから読み直すまでの待ち時間</summary>
     /// <remarks>表のセルを続けて直したときなど、通知が続けて来るので、まとめて 1 回だけ読み直す。</remarks>
     private static readonly TimeSpan ContentChangeDelay = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>変更の通知を購読している、他の機能の内容の提供元</summary>
+    /// <summary>変更の通知を購読している他の機能の内容の提供元</summary>
     private readonly List<IDayContentSource> _watched = [];
 
-    /// <summary>購読を始めたときの、画面のスレッドの同期コンテキスト (通知は、どのスレッドからでも来るため)</summary>
+    /// <summary>購読を始めたときの画面のスレッドの同期コンテキスト</summary>
+    /// <remarks>通知はどのスレッドからでも来るため</remarks>
     private SynchronizationContext? _uiContext;
 
-    /// <summary>通知のあとの読み直しを、取り消すためのトークンの元 (待っていないときは null)</summary>
+    /// <summary>通知のあとの読み直しを取り消すためのトークンの元</summary>
     private CancellationTokenSource? _contentChange;
 
-    /// <summary>ほかの人の更新を読み直す、毎分の合図の登録 (見えていないときと、保存先が自分だけのときは null)</summary>
+    /// <summary>ほかの人の更新を読み直す毎分の合図の登録</summary>
     private ITickSubscription? _refreshSubscription;
 
-    /// <summary>今、表示しているカード</summary>
+    /// <summary>今表示しているカード</summary>
     private IReadOnlyList<NoteCard> _cards = [];
 
-    /// <summary>最後に表示したページの HTML (読み直して、同じなら、作り直さない)</summary>
+    /// <summary>最後に表示したページの HTML</summary>
+    /// <remarks>読み直して、同じなら、作り直さない。</remarks>
     private string _lastHtml = "";
 
-    /// <summary>最後に表示したときの、日・基準・切り替え</summary>
-    /// <remarks>見えるようになったとき、同じなら位置を保つために使う。まだ表示していないときは null。</remarks>
+    /// <summary>最後に表示したときの日・基準・切り替え</summary>
+    /// <remarks>
+    /// 見えるようになったとき、同じなら位置を保つために使う。
+    /// まだ表示していないときは null。
+    /// </remarks>
     private ShownKey? _shownKey;
 
-    /// <summary>読み込みの順番 (古い読み込みの結果を捨てるため)</summary>
+    /// <summary>読み込みの順番</summary>
+    /// <remarks>古い読み込みの結果を捨てるため</remarks>
     private int _version;
 
-    /// <summary>読み直しを止めるためのトークンの元 (見えていないときは null)</summary>
+    /// <summary>読み直しを止めるためのトークンの元</summary>
     private CancellationTokenSource? _refreshing;
 
-    /// <summary>カード一覧を表示する面 (ページが、作ったあとに渡す)</summary>
+    /// <summary>カード一覧を表示する面</summary>
+    /// <remarks>ページが作ったあとに渡す</remarks>
     public INoteCardsSurface? Surface { get; set; }
 
-    /// <summary>ダークモードか (ページが、画面のテーマに合わせて渡す)</summary>
+    /// <summary>ダークモードか</summary>
+    /// <remarks>ページが画面のテーマに合わせて渡す</remarks>
     public bool IsDark { get; set; }
 
     /// <summary>表示する日</summary>
     [ObservableProperty]
     public partial DateOnly Day { get; set; } = state.Day.Resolve(notes.Today);
 
-    /// <summary>表示する日に、どのノートを出すかの基準 (期間・更新日)</summary>
+    /// <summary>表示する日にどのノートを出すかの基準</summary>
     [ObservableProperty]
     public partial NoteBasis Basis { get; set; } = state.Basis;
 
-    /// <summary>「タイトルだけ」にするか (false は「全文」)</summary>
+    /// <summary>「タイトルだけ」にするか</summary>
     [ObservableProperty]
     public partial bool IsTitleOnly { get; set; } = state.IsTitleOnly;
 
@@ -97,14 +107,18 @@ public sealed partial class NotesViewModel(
     /// <summary>読み込み・操作の失敗</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>「表示する内容」に出す、他の機能の内容。オンの機能の分だけ</summary>
+    /// <summary>「表示する内容」に出す他の機能の内容</summary>
+    /// <remarks>オンの機能の分だけ</remarks>
     public ObservableCollection<DayContentSourceItem> Sources { get; } = [];
 
-    /// <summary>「表示する内容」のボタンを出すか (出せる内容が 1 つ以上あり、基準が期間のとき)</summary>
-    /// <remarks>作業報告などは「その日の内容」なので、更新日で見るときは出さない。</remarks>
+    /// <summary>「表示する内容」のボタンを出すか</summary>
+    /// <remarks>
+    /// 出せる内容が 1 つ以上あり、基準が期間のとき。
+    /// 作業報告などは「その日の内容」なので、更新日で見るときは出さない。
+    /// </remarks>
     public bool HasSources => Sources.Count > 0 && Basis == NoteBasis.Period;
 
-    /// <summary>基準を変えたら、先頭から表示し直す</summary>
+    /// <summary>基準を変えたら先頭から表示し直す</summary>
     /// <param name="value">新しい基準</param>
     partial void OnBasisChanged(NoteBasis value)
     {
@@ -113,7 +127,7 @@ public sealed partial class NotesViewModel(
         ReloadAsync(preserveState: false).Forget();
     }
 
-    /// <summary>日付を変えたら、先頭から表示し直す</summary>
+    /// <summary>日付を変えたら先頭から表示し直す</summary>
     /// <param name="value">新しい日</param>
     partial void OnDayChanged(DateOnly value)
     {
@@ -121,7 +135,7 @@ public sealed partial class NotesViewModel(
         ReloadAsync(preserveState: false).Forget();
     }
 
-    /// <summary>表示の切り替えを変えたら、先頭から表示し直す</summary>
+    /// <summary>表示の切り替えを変えたら先頭から表示し直す</summary>
     /// <param name="value">新しい値</param>
     partial void OnIsTitleOnlyChanged(bool value)
     {
@@ -129,7 +143,7 @@ public sealed partial class NotesViewModel(
         ReloadAsync(preserveState: false).Forget();
     }
 
-    /// <summary>削除したものの表示を変えたら、先頭から表示し直す</summary>
+    /// <summary>削除したものの表示を変えたら先頭から表示し直す</summary>
     /// <param name="value">新しい値</param>
     partial void OnShowDeletedChanged(bool value)
     {
@@ -152,8 +166,9 @@ public sealed partial class NotesViewModel(
     /// <summary>実際の今日を表示する</summary>
     /// <remarks>
     /// 通知のクリックから、ページを開いたあとに呼ぶ。
-    /// 基準は「期間」に戻す。今日実施のノートを、今日更新したとは限らないため。
-    /// すでに今日を表示しているときは、日は変えない。
+    /// 基準は「期間」に戻す。
+    /// 今日実施のノートを今日更新したとは限らないため。
+    /// すでに今日を表示しているときは日は変えない。
     /// </remarks>
     public void ShowToday()
     {
@@ -161,21 +176,29 @@ public sealed partial class NotesViewModel(
         Day = notes.Today;
     }
 
-    /// <summary>指定の日を表示する (他の人の作成・更新の通知から開くとき、そのノートが有効な日にする)</summary>
+    /// <summary>指定の日を表示する</summary>
     /// <param name="day">表示する日</param>
-    /// <remarks>基準は「期間」に戻す。通知のノートが有効な日は、期間で決めた日のため。</remarks>
+    /// <remarks>
+    /// 他の人の作成・更新の通知から開くとき、そのノートが有効な日にする。
+    /// 基準は「期間」に戻す。
+    /// 通知のノートが有効な日は期間で決めた日のため。
+    /// </remarks>
     public void ShowDay(DateOnly day)
     {
         Basis = NoteBasis.Period;
         Day = day;
     }
 
-    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
+    /// <summary>更新ボタンを出すか</summary>
+    /// <remarks>他の人の更新がある DB モードだけで、ローカルモードは false。</remarks>
     public bool CanRefresh => notes.IsShared;
 
-    /// <summary>ほかの人の更新を、今すぐ読み直す</summary>
+    /// <summary>ほかの人の更新を今すぐ読み直す</summary>
     /// <returns>読み直しの完了を表すタスク</returns>
-    /// <remarks>定期的な読み直しと同じく、読んでいる位置と開いているカードを保つ。直後に自動の読み直しが重ならないよう、間隔は数え直す。</remarks>
+    /// <remarks>
+    /// 定期的な読み直しと同じく、読んでいる位置と開いているカードを保つ。
+    /// 直後に自動の読み直しが重ならないよう、間隔は数え直す。
+    /// </remarks>
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -198,15 +221,16 @@ public sealed partial class NotesViewModel(
     /// <summary>今の日・基準・切り替え</summary>
     private ShownKey CurrentKey => new(Day, Basis, IsTitleOnly, ShowDeleted);
 
-    /// <summary>表示の内容を決める、日・基準・切り替え (変わったら先頭から表示し直す組)</summary>
+    /// <summary>表示の内容を決める日・基準・切り替え</summary>
     /// <param name="Day">表示する日</param>
     /// <param name="Basis">どのノートを出すかの基準</param>
     /// <param name="IsTitleOnly">「タイトルだけ」か</param>
     /// <param name="ShowDeleted">削除したものも出すか</param>
     private readonly record struct ShownKey(DateOnly Day, NoteBasis Basis, bool IsTitleOnly, bool ShowDeleted);
 
-    /// <summary>ページが見えるようになった (表示し、読み直しを始める)</summary>
+    /// <summary>ページが見えるようになった</summary>
     /// <returns>最初の表示の完了を表すタスク</returns>
+    /// <remarks>表示し、読み直しを始める。</remarks>
     public async Task ResumeAsync()
     {
         Suspend();
@@ -234,7 +258,8 @@ public sealed partial class NotesViewModel(
             new TickOptions { Timing = TickTiming.Staggered, MinimumGap = RefreshMinimumGap, OnCallerContext = true });
     }
 
-    /// <summary>出せる内容を、機能のオン・オフに合わせて作り直す (変わったときだけ)</summary>
+    /// <summary>出せる内容を機能のオン・オフに合わせて作り直す</summary>
+    /// <remarks>変わったときだけ</remarks>
     private void RefreshSources()
     {
         var available = contents.Sources.Where(s => s.FeatureKey is null || features.IsEnabled(s.FeatureKey)).ToList();
@@ -261,8 +286,9 @@ public sealed partial class NotesViewModel(
         }
     }
 
-    /// <summary>他の機能の内容の設定を、この PC の設定から読み直す (画面は作り直さない)</summary>
+    /// <summary>他の機能の内容の設定をこの PC の設定から読み直す</summary>
     /// <returns>値が変わったものがあるか</returns>
+    /// <remarks>画面は作り直さない</remarks>
     private bool SyncSourceSettings()
     {
         var changed = false;
@@ -273,10 +299,12 @@ public sealed partial class NotesViewModel(
         return changed;
     }
 
-    /// <summary>他の機能の内容の設定が変わった。枠を作り直す</summary>
+    /// <summary>他の機能の内容の設定が変わった</summary>
+    /// <remarks>枠を作り直す</remarks>
     private void OnSourceChanged() => ReloadAsync(preserveState: true).Forget();
 
-    /// <summary>ページが見えなくなった。読み直しを止め、見えていない間は DB に問い合わせない</summary>
+    /// <summary>ページが見えなくなった</summary>
+    /// <remarks>読み直しを止め、見えていない間は DB に問い合わせない。</remarks>
     public void Suspend()
     {
         _refreshing?.Cancel();
@@ -290,11 +318,11 @@ public sealed partial class NotesViewModel(
     /// <summary>購読を解除する</summary>
     /// <remarks>
     /// 提供元はアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel がメモリに残り続ける。
-    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)にも、呼ばれる。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)にも呼ばれる。
     /// </remarks>
     public void Dispose() => Suspend();
 
-    /// <summary>他の機能の内容が変わったら読み直せるよう、変更の通知を購読する</summary>
+    /// <summary>他の機能の内容が変わったら読み直せるよう変更の通知を購読する</summary>
     private void WatchContents()
     {
         _uiContext = SynchronizationContext.Current;
@@ -306,9 +334,10 @@ public sealed partial class NotesViewModel(
         features.Changed += OnFeatureChanged;
     }
 
-    /// <summary>機能のオン・オフが切り替わった。画面のスレッドへ戻して、出せる内容を合わせ直す</summary>
+    /// <summary>機能のオン・オフが切り替わった</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="featureKey">切り替わった機能のキー</param>
+    /// <remarks>画面のスレッドへ戻して、出せる内容を合わせ直す。</remarks>
     private void OnFeatureChanged(object? sender, string featureKey) => _uiContext?.Post(_ =>
     {
         if (_refreshing is null)
@@ -335,12 +364,14 @@ public sealed partial class NotesViewModel(
         _contentChange = null;
     }
 
-    /// <summary>他の機能の内容が変わった。画面のスレッドへ戻して、読み直しを予約する</summary>
+    /// <summary>他の機能の内容が変わった</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>画面のスレッドへ戻して、読み直しを予約する。</remarks>
     private void OnContentChanged(object? sender, EventArgs e) => _uiContext?.Post(_ => ScheduleContentReload(), null);
 
-    /// <summary>少し待ってから、枠を読み直す。待っている間に次の通知が来たら、待ち直す</summary>
+    /// <summary>少し待ってから枠を読み直す</summary>
+    /// <remarks>待っている間に次の通知が来たら、待ち直す。</remarks>
     private void ScheduleContentReload()
     {
         // 更新日で見ているときは、他の機能の内容を出さないので、読み直さない
@@ -356,8 +387,8 @@ public sealed partial class NotesViewModel(
         ReloadAfterContentChangeAsync(source.Token).Forget();
     }
 
-    /// <summary>待ってから、読んでいる位置と開いているカードを保って読み直す</summary>
-    /// <param name="cancellationToken">見えなくなったとき・次の通知が来たときに、取り消すトークン</param>
+    /// <summary>待ってから読んでいる位置と開いているカードを保って読み直す</summary>
+    /// <param name="cancellationToken">見えなくなったとき・次の通知が来たときに、取り消すトークン。</param>
     /// <returns>読み直しの完了を表すタスク</returns>
     private async Task ReloadAfterContentChangeAsync(CancellationToken cancellationToken)
     {
@@ -372,11 +403,12 @@ public sealed partial class NotesViewModel(
         }
     }
 
-    /// <summary>テーマが変わった (ページを、新しい配色で作り直す)</summary>
+    /// <summary>テーマが変わった</summary>
     /// <returns>作り直しの完了を表すタスク</returns>
+    /// <remarks>ページを新しい配色で作り直す</remarks>
     public Task ThemeChangedAsync() => ReloadAsync(preserveState: true);
 
-    /// <summary>カードの操作 (編集・削除・復元)を行う</summary>
+    /// <summary>カードの操作を行う</summary>
     /// <param name="action">操作</param>
     /// <param name="noteId">ノートの番号</param>
     /// <returns>操作の完了を表すタスク</returns>
@@ -419,10 +451,14 @@ public sealed partial class NotesViewModel(
         }
     }
 
-    /// <summary>本文のリンクを、既定のアプリで開く</summary>
+    /// <summary>本文のリンクを既定のアプリで開く</summary>
     /// <param name="uri">リンク先 (http・https・file)</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>ファイル (<c>file:</c>)は、パスにして開く。フォルダは、エクスプローラーで開く。開けなかったときは、失敗を表示する。</remarks>
+    /// <remarks>
+    /// ファイル (<c>file:</c>)はパスにして開く
+    /// フォルダはエクスプローラーで開く
+    /// 開けなかったときは失敗を表示する
+    /// </remarks>
     public async Task OpenLinkAsync(Uri uri)
     {
         try
@@ -435,11 +471,11 @@ public sealed partial class NotesViewModel(
         }
     }
 
-    /// <summary>ノートを削除する・復元して、読み直す</summary>
+    /// <summary>ノートを削除する・復元して読み直す</summary>
     /// <param name="note">対象のノート</param>
-    /// <param name="isDeleted">削除するなら true、復元するなら false</param>
+    /// <param name="isDeleted">削除するなら true、復元するなら false。</param>
     /// <returns>操作と読み直しの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">保存できなかった。</exception>
+    /// <exception cref="DataFileException">保存できなかった</exception>
     private async Task SetDeletedAsync(Note note, bool isDeleted)
     {
         if (!await notes.SetDeletedAsync(note.Id, isDeleted))
@@ -449,9 +485,9 @@ public sealed partial class NotesViewModel(
         await ReloadAsync(preserveState: true);
     }
 
-    /// <summary>オンにした他の機能の内容を、表示する日の分だけ読んで、枠にする</summary>
+    /// <summary>オンにした他の機能の内容を表示する日の分だけ読んで、枠にする</summary>
     /// <returns>枠 (オンの内容が無ければ空)</returns>
-    /// <exception cref="DataFileException">読めなかった。</exception>
+    /// <exception cref="DataFileException">読めなかった</exception>
     private async Task<IReadOnlyList<DayContentFrame>> LoadFramesAsync()
     {
         var frames = new List<DayContentFrame>();
@@ -465,9 +501,17 @@ public sealed partial class NotesViewModel(
     }
 
     /// <summary>表示する日のノートを読み込んで、ページを作り直す</summary>
-    /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は、先頭から表示する)</param>
-    /// <returns>読み込みと表示の完了を表すタスク。DB から読めなかったときは false。もっと新しい読み込みに替わって捨てたときは true</returns>
-    /// <remarks>失敗は、画面に出す。続けられる失敗なので、今の表示は変えない。読み直しの結果が前と同じなら、ページを作り直さない。</remarks>
+    /// <param name="preserveState">読んでいる位置と、開いているカードを保つか (false は先頭から表示する)。</param>
+    /// <returns>
+    /// 読み込みと表示の完了を表すタスク
+    /// DB から読めなかったときは false
+    /// もっと新しい読み込みに替わって捨てたときは true
+    /// </returns>
+    /// <remarks>
+    /// 失敗は画面に出す。
+    /// 続けられる失敗なので、今の表示は変えない。
+    /// 読み直しの結果が前と同じなら、ページを作り直さない。
+    /// </remarks>
     private async Task<bool> ReloadAsync(bool preserveState)
     {
         var version = ++_version;

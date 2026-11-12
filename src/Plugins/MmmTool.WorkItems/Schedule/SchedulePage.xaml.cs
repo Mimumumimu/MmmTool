@@ -9,48 +9,55 @@ using MmmTool.WorkItems.ViewOptions;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>スケジュールのページで、作業の予定と実績を、日付を横に並べて見る。サイドバーでは作業管理の子</summary>
+/// <summary>スケジュールのページで、作業の予定と実績を日付を横に並べて見る</summary>
 /// <remarks>
+/// サイドバーでは作業管理の子。
 /// 表 <see cref="TreeGridView"/> の左に、名前・担当・実績・状態・進捗を固定して置き、右の 1 つの広い列に、<see cref="ScheduleTimelineCell"/> で日付の棒を行ごとに描く。
-/// 日付の軸が変わったとき (範囲・単位)は、広い列の幅と見出しを作り直す。単位を変えたときは、見ている範囲の中央の日付を保つ。
+/// 日付の軸が変わったとき (範囲・単位)は広い列の幅と見出しを作り直す。
+/// 単位を変えたときは見ている範囲の中央の日付を保つ。
 /// </remarks>
 public sealed partial class SchedulePage : Page
 {
-    /// <summary>今日を開いたとき・「今日」を押したときに、今日を置く位置 (見える範囲の左端からの割合)</summary>
+    /// <summary>今日を開いたとき・「今日」を押したときに今日を置く位置</summary>
     private const double TodayRatio = 0.25;
 
-    /// <summary>日付の棒を出す、広い列</summary>
+    /// <summary>日付の棒を出す広い列</summary>
     private readonly TreeGridColumn _timelineColumn;
 
-    /// <summary>実績 (時間の合計)の列</summary>
+    /// <summary>実績の列</summary>
     private readonly TreeGridColumn _hoursColumn;
 
     /// <summary>状態の列</summary>
     private readonly TreeGridColumn _statusColumn;
 
-    /// <summary>文字に幅を合わせる列 (実績・状態)の幅の下限 (見出しの文字と余白が収まる幅)</summary>
+    /// <summary>文字に幅を合わせる列の幅の下限</summary>
     private const double TextColumnMinWidth = 64;
 
     /// <summary>文字の幅の測定に使う部品</summary>
     private readonly TextBlock _measurer = new();
 
-    /// <summary>単位を変えたときに、見ている範囲の中央に保つ日付 (軸が作り直されたら、その日付へ動かす)</summary>
+    /// <summary>単位を変えたときに見ている範囲の中央に保つ日付</summary>
+    /// <remarks>軸が作り直されたら、その日付へ動かす。</remarks>
     private DateOnly? _anchor;
 
-    /// <summary>保つ日付を置く位置で、見える範囲の左端からの割合。今日を基準にするときは <see cref="TodayRatio"/>、見ている範囲の中央を保つときは 0.5</summary>
+    /// <summary>保つ日付を置く位置で、見える範囲の左端からの割合</summary>
+    /// <remarks>今日を基準にするときは TodayRatio、見ている範囲の中央を保つときは 0.5。</remarks>
     private double _anchorRatio = 0.5;
 
     /// <summary>マウスカーソルを処理待ちの形にする口</summary>
     private readonly IBusyCursor _busyCursor;
 
-    /// <summary>読み込み中の、処理待ちの入れ物 (読み込み中でなければ null)</summary>
+    /// <summary>読み込み中の処理待ちの入れ物</summary>
     private IDisposable? _busyScope;
 
     /// <summary>ページの ViewModel</summary>
     public ScheduleViewModel ViewModel { get; }
 
-    /// <summary>「表示」のボタンに、見え方の設定 (完了)を並べた入れ物を付ける</summary>
-    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。作業管理の「過去の完了」とは別の設定で、選びは保存しない。</remarks>
+    /// <summary>「表示」のボタンに見え方の設定を並べた入れ物を付ける</summary>
+    /// <remarks>
+    /// 続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。
+    /// 作業管理の「過去の完了」とは別の設定で、選びは保存しない。
+    /// </remarks>
     private void BuildViewFlyout()
     {
         var completed = new CompletedDisplaySection("完了", null, index => ViewModel.CompletedIndex = index);
@@ -126,7 +133,8 @@ public sealed partial class SchedulePage : Page
         ActualThemeChanged += (_, _) => RefreshTimeline();
     }
 
-    /// <summary>読み込み中は、ウィンドウ全体のマウスカーソルを砂時計にする。サイドバーを押した直後は、マウスがサイドバーの上にあるためで、終わったら、元に戻す</summary>
+    /// <summary>読み込み中はウィンドウ全体のマウスカーソルを砂時計にする</summary>
+    /// <remarks>サイドバーを押した直後はマウスがサイドバーの上にあるためで、終わったら、元に戻す。</remarks>
     private void ApplyLoadingCursor()
     {
         if (ViewModel.IsLoading)
@@ -140,10 +148,14 @@ public sealed partial class SchedulePage : Page
         }
     }
 
-    /// <summary>表の行・見出しが画面に描かれてから、処理待ちを終える</summary>
+    /// <summary>表の行・見出しが画面に描かれてから処理待ちを終える</summary>
     /// <param name="scope">終える処理待ちの入れ物</param>
     /// <returns>終わりの完了を表すタスク</returns>
-    /// <remarks>読み込みが終わった時点では、行と見出しはまだ作られていない。そのあとのレイアウトで作られる。続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。</remarks>
+    /// <remarks>
+    /// 読み込みが終わった時点では行と見出しはまだ作られていない。
+    /// そのあとのレイアウトで作られる。
+    /// 続けて動かす位置の指定 (<see cref="ScrollTo"/>)のあとに終えるため、2 回待つ。
+    /// </remarks>
     private async Task EndBusyAfterRenderAsync(IDisposable scope)
     {
         await WaitForRenderAsync();
@@ -171,12 +183,18 @@ public sealed partial class SchedulePage : Page
             CellTemplate = (DataTemplate)Resources[templateKey],
         };
 
-    /// <summary>総合計の行を、表の上に固定して出す。行が 1 つも無い間は、出さない</summary>
-    /// <remarks>行が無い間は、表に案内だけを出すため。</remarks>
+    /// <summary>総合計の行を表の上に固定して出す</summary>
+    /// <remarks>
+    /// 行が 1 つも無い間は出さない
+    /// 行が無い間は表に案内だけを出すため
+    /// </remarks>
     private void ApplyTotalRow() => TimelineGrid.PinnedTopRows = ViewModel.IsEmpty ? [] : [ViewModel.TotalRow];
 
-    /// <summary>実績と状態の列の幅を、見出しと、いちばん長い文字に合わせる</summary>
-    /// <remarks>幅が変わったときだけ、表に列を付け直させる。実績は、総合計の行の数字も含めて測る。</remarks>
+    /// <summary>実績と状態の列の幅を見出しといちばん長い文字に合わせる</summary>
+    /// <remarks>
+    /// 幅が変わったときだけ、表に列を付け直させる。
+    /// 実績は総合計の行の数字も含めて測る。
+    /// </remarks>
     private void FitTextColumns()
     {
         var changed = FitColumn(_hoursColumn, ViewModel.Rows.Select(row => row.TotalHoursText).Append(ViewModel.TotalRow.TotalHoursText));
@@ -187,11 +205,11 @@ public sealed partial class SchedulePage : Page
         }
     }
 
-    /// <summary>列の幅を、いちばん長い文字に合わせる</summary>
+    /// <summary>列の幅をいちばん長い文字に合わせる</summary>
     /// <param name="column">合わせる列</param>
     /// <param name="texts">列に出す文字</param>
     /// <returns>幅が変わったら true</returns>
-    /// <remarks>数字と、状態の名前 (全角の文字)は、文字の幅がそろっているので、文字数がいちばん多いものだけを測る。</remarks>
+    /// <remarks>数字と、状態の名前 (全角の文字)は文字の幅がそろっているので、文字数がいちばん多いものだけを測る。</remarks>
     private bool FitColumn(TreeGridColumn column, IEnumerable<string> texts)
     {
         var longest = texts.MaxBy(text => text.Length) ?? "";
@@ -216,11 +234,11 @@ public sealed partial class SchedulePage : Page
     }
 
     /// <summary>日付の棒の列の見出しを作る</summary>
-    /// <returns>見出しの部品 (軸がまだ無いときは、空)</returns>
+    /// <returns>見出しの部品 (軸がまだ無いときは空)</returns>
     private UIElement BuildTimelineHeader()
         => ViewModel.Axis is { } axis ? ScheduleHeader.Build(axis, SchedulePalette.For(ActualTheme), ViewModel.Today) : new Grid();
 
-    /// <summary>ページを開いたときに、保存先から読み直して、今日が見える位置へ動かす</summary>
+    /// <summary>ページを開いたときに保存先から読み直して、今日が見える位置へ動かす</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -253,7 +271,7 @@ public sealed partial class SchedulePage : Page
         return source.Task;
     }
 
-    /// <summary>「今日」が押されたら、今日が見える位置へ動かす</summary>
+    /// <summary>「今日」が押されたら今日が見える位置へ動かす</summary>
     /// <param name="sender">ボタン</param>
     /// <param name="e">イベントの情報</param>
     private void OnTodayClick(object sender, RoutedEventArgs e) => ScrollTo(ViewModel.Today, TodayRatio);
@@ -296,7 +314,7 @@ public sealed partial class SchedulePage : Page
         }
     }
 
-    /// <summary>広い列の幅を軸に合わせ、見出しとセルを作り直す</summary>
+    /// <summary>広い列の幅を軸に合わせ見出しとセルを作り直す</summary>
     private void RefreshTimeline()
     {
         if (ViewModel.Axis is not { } visual)
@@ -308,10 +326,10 @@ public sealed partial class SchedulePage : Page
         TimelineGrid.RefreshColumns();
     }
 
-    /// <summary>日付が、見える範囲の決まった位置になるよう、横に動かす</summary>
+    /// <summary>日付が見える範囲の決まった位置になるよう横に動かす</summary>
     /// <param name="date">日付</param>
     /// <param name="ratio">見える範囲 (固定の列を除く)の左端からの割合 (0.5 で中央)</param>
-    /// <remarks>列の幅を変えた直後は、幅が決まっていないので、レイアウトが済んでから動かす。</remarks>
+    /// <remarks>列の幅を変えた直後は幅が決まっていないので、レイアウトが済んでから動かす。</remarks>
     private void ScrollTo(DateOnly date, double ratio)
         => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {

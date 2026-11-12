@@ -3,9 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace MmmTool.Messages.Cache;
 
-/// <summary>
-/// 端末の控えを読み書きする、ソース生成の設定。
-/// </summary>
+/// <summary>端末の控えを読み書きするソース生成の設定</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(CachedConversationList))]
 [JsonSerializable(typeof(CachedMessages))]

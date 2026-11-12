@@ -4,12 +4,13 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.Users;
 
-/// <summary>
-/// ログイン名とパスワードを、秘密の保管庫に覚える。保管庫は Windows の資格情報マネージャーで、Windows アカウントごと。
-/// </summary>
+/// <summary>ログイン名とパスワードを秘密の保管庫に覚える</summary>
 /// <remarks>
-/// 項目の名前は <c>MmmTool.Account.&lt;サーバー名&gt;/&lt;データベース名&gt;</c>。接続先が違うと別の項目になり、互いを上書きしない。
-/// 値は「ログイン名、改行、パスワード」の 1 つの文字列で、ログイン名に改行などの制御文字は使えない。判定は <see cref="AppUserRow.FromAppUser"/> で行う。
+/// 保管庫は Windows の資格情報マネージャーで、Windows アカウントごと。
+/// 項目の名前は <c>MmmTool.Account.&lt;サーバー名&gt;/&lt;データベース名&gt;</c>。
+/// 接続先が違うと別の項目になり、互いを上書きしない。
+/// 値は「ログイン名、改行、パスワード」の 1 つの文字列で、ログイン名に改行などの制御文字は使えない。
+/// 判定は <see cref="AppUserRow.FromAppUser"/> で行う。
 /// </remarks>
 /// <param name="secrets">秘密の保管庫</param>
 /// <param name="settings">DB への接続の設定 (項目の名前に使う)</param>
@@ -19,7 +20,7 @@ public sealed class SecretSavedCredentialStore(ISecretStore secrets, DatabaseSet
     private const string NamePrefix = "MmmTool.Account.";
 
     /// <inheritdoc />
-    /// <remarks>保管庫を読めないときは、覚えていないものとして扱い、ログイン画面を出す。</remarks>
+    /// <remarks>保管庫を読めないときは覚えていないものとして扱い、ログイン画面を出す。</remarks>
     public SavedCredential? Load()
     {
         string? value;
@@ -37,14 +38,14 @@ public sealed class SecretSavedCredentialStore(ISecretStore secrets, DatabaseSet
     }
 
     /// <inheritdoc />
-    /// <exception cref="SecretStoreException">保管庫に書けなかった。</exception>
+    /// <exception cref="SecretStoreException">保管庫に書けなかった</exception>
     public void Save(SavedCredential credential) => secrets.Set(GetName(), $"{credential.LoginName}\n{credential.Password}");
 
     /// <inheritdoc />
-    /// <exception cref="SecretStoreException">保管庫から消せなかった。</exception>
+    /// <exception cref="SecretStoreException">保管庫から消せなかった</exception>
     public void Clear() => secrets.Remove(GetName());
 
-    /// <summary>今の接続先の、項目の名前を作る</summary>
+    /// <summary>今の接続先の項目の名前を作る</summary>
     /// <returns>項目の名前</returns>
     private string GetName()
     {

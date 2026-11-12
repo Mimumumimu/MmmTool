@@ -13,23 +13,35 @@ namespace MmmTool.CliAssist.QuickMessages;
 
 /// <summary>よく使う文の編集ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、閉じるまで親を操作できないモーダルで出す。大きさは変えられる。最大化・最小化はできない。
-/// 開くときは、黄金比の横長にする。広げたいときは、利用者が縁をドラッグする。大きさは覚えない。
-/// タイトル帯をドラッグして移動できる。× で閉じたときはキャンセルと同じ。閉じたウィンドウは再表示できないので、開くたびに作り直す。
+/// 親ウィンドウの上に閉じるまで親を操作できないモーダルで出す。
+/// 大きさは変えられる。
+/// 最大化・最小化はできない。
+/// 開くときは黄金比の横長にする。
+/// 広げたいときは利用者が縁をドラッグする。
+/// 大きさは覚えない。
+/// タイトル帯をドラッグして移動できる。
+/// × で閉じたときはキャンセルと同じ。
+/// 閉じたウィンドウは再表示できないので、開くたびに作り直す。
 /// </remarks>
 public sealed partial class QuickMessageWindow : Window
 {
-    /// <summary>最初の幅 (DIP)</summary>
+    /// <summary>最初の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialWidth = 800;
 
-    /// <summary>最初の高さ (DIP)</summary>
-    /// <remarks>幅との比を、黄金比 (約 1.6 対 1)にする。</remarks>
+    /// <summary>最初の高さ</summary>
+    /// <remarks>
+    /// 単位は DIP
+    /// 幅との比を黄金比 (約 1.6 対 1)にする
+    /// </remarks>
     private const double InitialHeight = 500;
 
-    /// <summary>最小の幅 (DIP)</summary>
+    /// <summary>最小の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumWidth = 560;
 
-    /// <summary>最小の高さ (DIP)</summary>
+    /// <summary>最小の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumHeight = 400;
 
     /// <summary>閉じたら完了する</summary>
@@ -38,7 +50,8 @@ public sealed partial class QuickMessageWindow : Window
     /// <summary>擬似モーダルの処理</summary>
     private readonly PseudoModal _modal;
 
-    /// <summary>右クリックした行 (メニューの「削除」の確認を、この行のそばに出す)</summary>
+    /// <summary>右クリックした行</summary>
+    /// <remarks>メニューの「削除」の確認をこの行のそばに出す</remarks>
     private TreeViewItem? _contextRow;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -46,7 +59,7 @@ public sealed partial class QuickMessageWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public QuickMessageWindow(QuickMessageWindowViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -67,7 +80,10 @@ public sealed partial class QuickMessageWindow : Window
 
     /// <summary>親ウィンドウの上にモーダルで表示し、閉じるまで待つ</summary>
     /// <param name="owner">親ウィンドウ</param>
-    /// <returns>閉じるまでの待機を表すタスク。保存した内容は、よく使う文のサービスへ反映済み</returns>
+    /// <returns>
+    /// 閉じるまでの待機を表すタスク
+    /// 保存した内容はよく使う文のサービスへ反映済み
+    /// </returns>
     public async Task ShowModalAsync(Window owner)
     {
         ViewModel.Initialize();
@@ -99,7 +115,7 @@ public sealed partial class QuickMessageWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnCancelClick(object sender, RoutedEventArgs e) => _modal.Close();
 
-    /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
+    /// <summary>ツリーの選択が変わったら ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
     /// <remarks>TreeView.SelectedItem は x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。</remarks>
@@ -116,9 +132,13 @@ public sealed partial class QuickMessageWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnRowMenuRemoveClick(object sender, RoutedEventArgs e) => RequestRemove(_contextRow ?? (FrameworkElement)RemoveButton);
 
-    /// <summary>選んでいる項目を削除する。中に文があるグループなら、先に確認を出す</summary>
-    /// <param name="target">確認の吹き出しを出す場所 (押したボタン、または右クリックした行)</param>
-    /// <remarks>ボタンとメニューで、同じ確認を使う。中に文が無いグループと、文は、確認なしで削除する。</remarks>
+    /// <summary>選んでいる項目を削除する</summary>
+    /// <param name="target">確認の吹き出しを出す場所 (押したボタン、または右クリックした行)。</param>
+    /// <remarks>
+    /// 中に文があるグループなら、先に確認を出す。
+    /// ボタンとメニューで、同じ確認を使う。
+    /// 中に文が無いグループと、文は確認なしで削除する。
+    /// </remarks>
     private void RequestRemove(FrameworkElement target)
     {
         if (ViewModel.SelectedItem is { IsGroup: true, Children.Count: > 0 } group)
@@ -136,7 +156,7 @@ public sealed partial class QuickMessageWindow : Window
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 何も無い所では、メニューを出さない。
+    /// 何も無い所ではメニューを出さない。
     /// 行の中身 (ListView の行)が右クリックを処理済みにするので、処理済みでも受け取る。
     /// </remarks>
     private void OnTreeContextRequested(UIElement sender, ContextRequestedEventArgs e)
@@ -163,7 +183,7 @@ public sealed partial class QuickMessageWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>確認の「削除」が押されたら、吹き出しを閉じて削除する</summary>
+    /// <summary>確認の「削除」が押されたら吹き出しを閉じて削除する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnRemoveConfirmed(object sender, RoutedEventArgs e)
@@ -172,7 +192,7 @@ public sealed partial class QuickMessageWindow : Window
         ViewModel.RemoveCommand.Execute(null);
     }
 
-    /// <summary>確認の「キャンセル」が押されたら、吹き出しを閉じる</summary>
+    /// <summary>確認の「キャンセル」が押されたら吹き出しを閉じる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnRemoveCanceled(object sender, RoutedEventArgs e) => RemoveConfirmFlyout.Hide();
@@ -181,9 +201,10 @@ public sealed partial class QuickMessageWindow : Window
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">ドラッグの情報</param>
     /// <remarks>
-    /// グループの中にグループは入れないため。文をドラッグしているときは、グループの行へ落とせる状態に戻す。
+    /// グループの中にグループは入れないため。
+    /// 文をドラッグしているときはグループの行へ落とせる状態に戻す。
     /// ドラッグの終わりの通知は当てにせず、始めるたびに毎回決め直す。
-    /// グループの中の文の間へ落ちたものは、ここでは防げないので、ViewModel が外へ出す。
+    /// グループの中の文の間へ落ちたものはここでは防げないので、ViewModel が外へ出す。
     /// </remarks>
     private void OnTreeDragItemsStarting(TreeView sender, TreeViewDragItemsStartingEventArgs args)
     {
@@ -197,7 +218,7 @@ public sealed partial class QuickMessageWindow : Window
         }
     }
 
-    /// <summary>ViewModel の選択が変わったら、ツリーの選択を合わせる</summary>
+    /// <summary>ViewModel の選択が変わったらツリーの選択を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -209,8 +230,11 @@ public sealed partial class QuickMessageWindow : Window
         }
     }
 
-    /// <summary>選んだ項目の入力欄にフォーカスして、すぐ打てるようにする</summary>
-    /// <remarks>グループはグループ名、文は文の欄。選択の切り替えで入力欄が表示されてから移す。</remarks>
+    /// <summary>選んだ項目の入力欄にフォーカスしてすぐ打てるようにする</summary>
+    /// <remarks>
+    /// グループはグループ名、文は文の欄。
+    /// 選択の切り替えで入力欄が表示されてから移す。
+    /// </remarks>
     private void FocusEditBox()
     {
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>

@@ -6,7 +6,7 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.Settings.General;
 
-/// <summary>メインウィンドウの設定 (設定ページの部品)の ViewModel</summary>
+/// <summary>メインウィンドウの設定の ViewModel</summary>
 public sealed partial class MainWindowSettingsViewModel : ObservableObject
 {
     /// <summary>メインウィンドウの設定</summary>
@@ -16,29 +16,38 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     private readonly AudioKeepAliveSettingsService _audioSettings;
 
     /// <summary>保存済みの値を入れている最中か</summary>
-    /// <remarks>true の間は、値の変更で保存しない。読み込んだだけの値で、設定ファイルを書き換えないため。</remarks>
+    /// <remarks>
+    /// true の間は値の変更で保存しない。
+    /// 読み込んだだけの値で、設定ファイルを書き換えないため。
+    /// </remarks>
     private bool _isInitializing;
 
-    /// <summary>画面に出すエラー (保存に失敗したとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>保存に失敗したとき</remarks>
     public ErrorState Error { get; } = new();
 
-    /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
+    /// <summary>設定を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、変更させない。</remarks>
     public bool IsEditable { get; }
 
     /// <summary>起動時にメイン画面を開くか</summary>
-    /// <remarks>変わったら即保存する。</remarks>
+    /// <remarks>変わったら即保存する</remarks>
     [ObservableProperty]
     public partial bool OpenOnStartup { get; set; }
 
-    /// <summary>× ボタンの動きの選択肢の名前 (<see cref="CloseButtonAction"/> の値の順)</summary>
+    /// <summary>× ボタンの動きの選択肢の名前</summary>
+    /// <remarks><see cref="CloseButtonAction"/> の値の順</remarks>
     public IReadOnlyList<string> CloseButtonActionNames { get; } = ["トレイに残る", "終了する"];
 
-    /// <summary>選んでいる × ボタンの動きの位置 (<see cref="CloseButtonActionNames"/> の添字)</summary>
-    /// <remarks>変わったら即保存する。</remarks>
+    /// <summary>選んでいる × ボタンの動きの位置</summary>
+    /// <remarks>
+    /// <see cref="CloseButtonActionNames"/> の添字
+    /// 変わったら即保存する
+    /// </remarks>
     [ObservableProperty]
     public partial int CloseButtonActionIndex { get; set; }
 
-    /// <summary>音声機器を眠らせないよう、無音を流し続けるか</summary>
+    /// <summary>音声機器を眠らせないよう無音を流し続けるか</summary>
     /// <remarks>変わったら即保存し、すぐに始める・止める。</remarks>
     [ObservableProperty]
     public partial bool KeepAudioDeviceAwake { get; set; }
@@ -71,7 +80,7 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
 
     /// <summary>選びが変わったら保存する</summary>
     /// <param name="value">変更後の位置</param>
-    /// <remarks>選択を外した (-1)ときは保存しない。</remarks>
+    /// <remarks>選択を外した (-1)ときは保存しない</remarks>
     partial void OnCloseButtonActionIndexChanged(int value)
     {
         if (_isInitializing || !Enum.IsDefined((CloseButtonAction)value))
@@ -96,8 +105,9 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     /// <param name="value">保存する値</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できない状態 (設定ファイルを読めなかった)では、スイッチを無効にしてあるので、ここへは来ない。来たら、保存されなかったことを知らせる。
-    /// 保存の失敗 (ロック・権限など)は、画面に出す。
+    /// 保存できない状態 (設定ファイルを読めなかった)ではスイッチを無効にしてあるので、ここへは来ない。
+    /// 来たら、保存されなかったことを知らせる。
+    /// 保存の失敗 (ロック・権限など)は画面に出す。
     /// </remarks>
     private async Task SaveAsync(bool value)
     {
@@ -121,7 +131,7 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
     /// <summary>× ボタンを押したときの動きを保存する</summary>
     /// <param name="value">保存する値</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ。</remarks>
+    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ</remarks>
     private async Task SaveCloseButtonActionAsync(CloseButtonAction value)
     {
         try
@@ -143,8 +153,8 @@ public sealed partial class MainWindowSettingsViewModel : ObservableObject
 
     /// <summary>無音を流し続けるかを保存し、すぐに始める・止める</summary>
     /// <param name="value">保存する値</param>
-    /// <returns>保存と、始める・止める処理の完了を表すタスク</returns>
-    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ。</remarks>
+    /// <returns>保存と、始める・止める処理の完了を表すタスク。</returns>
+    /// <remarks>失敗の扱いは <see cref="SaveAsync"/> と同じ</remarks>
     private async Task SaveKeepAudioDeviceAwakeAsync(bool value)
     {
         try

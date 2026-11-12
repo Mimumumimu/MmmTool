@@ -5,19 +5,26 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.MessageSending.Core;
 
-/// <summary>
-/// MmmTool と Web 版で書かれたメッセージの通知を、受ける人の通知先へ送る。1 秒おきの仕事。
-/// </summary>
+/// <summary>MmmTool と Web 版で書かれたメッセージの通知を受ける人の通知先へ送る</summary>
 /// <remarks>
 /// <para>
-/// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (送信待ち・送信中・失敗で上限に達していない通知の状態)ごとに、送る権利を取ってから送る。
-/// 権利は、読んだ内容と同じときだけ更新できる条件つきの更新で取る。取れた (1 行更新できた)ものだけが送る。
-/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す。決まりは <see cref="SendRetryPolicy"/> にある。
-/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。送り直しの前に送信が済んでいたときは、二重に送られうる。取りこぼすより、重複を許す側に倒す。
+/// 1 秒おきの仕事。
 /// </para>
 /// <para>
-/// リマインダーと違い、日付・時刻は見ない。書かれた順に、すぐ送る。1 秒おきの実行で拾うので、書いてから送るまで最大で約 1 秒かかる。
-/// 失敗の理由は、DB には残さず、送信のログにだけ残す。
+/// 1 回の実行 (<see cref="RunAsync"/>)は送る対象 (送信待ち・送信中・失敗で上限に達していない通知の状態)ごとに、送る権利を取ってから送る。
+/// 権利は読んだ内容と同じときだけ更新できる条件つきの更新で取る。
+/// 取れた (1 行更新できた)ものだけが送る。
+/// 失敗 (<see cref="MessageSendStatus.Failed"/>)は待つ時間を空けて、回数の上限まで送り直す。
+/// 決まりは <see cref="SendRetryPolicy"/> にある。
+/// 送信中のまま長く止まっている行 (送っている途中で落ちた)も送り直す。
+/// 送り直しの前に送信が済んでいたときは二重に送られうる。
+/// 取りこぼすより、重複を許す側に倒す。
+/// </para>
+/// <para>
+/// リマインダーと違い、日付・時刻は見ない。
+/// 書かれた順にすぐ送る。
+/// 1 秒おきの実行で拾うので、書いてから送るまで最大で約 1 秒かかる。
+/// 失敗の理由は DB には残さず、送信のログにだけ残す。
 /// </para>
 /// </remarks>
 /// <param name="store">通知の状態の読み出しと保存先</param>
@@ -34,38 +41,48 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     /// <summary>「最近の依頼」に出す最大の件数</summary>
     public const int RecentCount = 100;
 
-    /// <summary>送る権利を、一度にまとめて取る最大の件数</summary>
-    /// <remarks>取ってから送り終えるまでの間、その行は送信中のままになる。長く掛からないよう、件数ごとに区切る。</remarks>
+    /// <summary>送る権利を一度にまとめて取る最大の件数</summary>
+    /// <remarks>
+    /// 取ってから送り終えるまでの間、その行は送信中のままになる。
+    /// 長く掛からないよう、件数ごとに区切る。
+    /// </remarks>
     private const int ClaimGroupSize = 20;
 
-    /// <summary>区分ごとの、外部へ送る口</summary>
+    /// <summary>区分ごとの外部へ送る口</summary>
     private readonly Dictionary<NotificationChannelKind, INotifier> _notifiers = notifiers.ToDictionary(notifier => notifier.Kind);
 
     /// <inheritdoc />
     public string Name => "メッセージの送信";
 
     /// <inheritdoc />
-    /// <remarks>メッセージをすぐ送るため、1 秒おきに読む。書いてから送るまで最大でこの間隔で、読むのは状態の索引で絞った行だけで軽い。</remarks>
+    /// <remarks>
+    /// メッセージをすぐ送るため、1 秒おきに読む。
+    /// 書いてから送るまで最大でこの間隔で、読むのは状態の索引で絞った行だけで軽い。
+    /// </remarks>
     public TimeSpan Interval => PollInterval;
 
     /// <inheritdoc />
-    /// <remarks>任意のスレッドから発火する。</remarks>
+    /// <remarks>任意のスレッドから発火する</remarks>
     public event EventHandler? Changed;
 
     /// <inheritdoc />
-    /// <remarks>任意のスレッドから発火する。</remarks>
+    /// <remarks>任意のスレッドから発火する</remarks>
     public event EventHandler? Ran;
 
     /// <inheritdoc />
     public string? LastError { get; private set; }
 
-    /// <summary>送るものがあれば、送る</summary>
-    /// <param name="now">今の日時で、ローカル。メッセージは日付・時刻を見ないので使わない</param>
+    /// <summary>送るものがあれば送る</summary>
+    /// <param name="now">
+    /// 今の日時で、ローカル。
+    /// メッセージは日付・時刻を見ないので使わない。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>
-    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終え、次の分に、また試す。送信の失敗は、行の状態に残す。
-    /// 気づいてほしい失敗は、送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
+    /// DB の読み書きの失敗は <see cref="LastError"/> に残して、その回を終え、次の分にまた試す。
+    /// 送信の失敗は行の状態に残す。
+    /// 気づいてほしい失敗は送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
     /// </remarks>
     public async Task RunAsync(DateTime now, CancellationToken cancellationToken = default)
     {
@@ -113,20 +130,30 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
 
     /// <summary>「最近の依頼」に出す依頼を取得する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>依頼を新しい順に、最大 <see cref="RecentCount"/> 件。日付・状態では絞らない</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 依頼を新しい順に、最大 <see cref="RecentCount"/> 件。
+    /// 日付・状態では絞らない。
+    /// </returns>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(CancellationToken cancellationToken = default)
         => store.GetRecentAsync(RecentCount, cancellationToken);
 
-    /// <summary>状態や待ち時間にかかわらず、今すぐ 1 回送る (画面の「再送」)</summary>
+    /// <summary>状態や待ち時間にかかわらず今すぐ 1 回送る</summary>
     /// <param name="target">送る対象</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     /// <remarks>
-    /// 送信済み・回数の上限に達した失敗も送り直せる。回数は数え続ける。
-    /// 同じ送信を、別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
+    /// 送信済み・回数の上限に達した失敗も送り直せる。
+    /// 回数は数え続ける。
+    /// 同じ送信を別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
     /// </remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public async Task ResendAsync(MessageSendTarget target, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -141,9 +168,9 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>送って、結果を行とログに残す</summary>
+    /// <summary>送って結果を行とログに残す</summary>
     /// <param name="target">送る対象</param>
-    /// <param name="claimed">送る権利を取った、送信中の依頼</param>
+    /// <param name="claimed">送る権利を取った、送信中の依頼。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     private async Task SendAsync(MessageSendTarget target, MessageDeliveryItem claimed, CancellationToken cancellationToken)
@@ -187,14 +214,21 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
         }
     }
 
-    /// <summary>結果を、依頼の行 (今の状態)に残し、送信のログに 1 行足す</summary>
+    /// <summary>結果を依頼の行に残し、送信のログに 1 行足す</summary>
     /// <param name="target">送った対象</param>
-    /// <param name="claimed">送る権利を取った、送信中の依頼</param>
+    /// <param name="claimed">送る権利を取った、送信中の依頼。</param>
     /// <param name="status">結果 (<see cref="SendStatus.Sent"/> か <see cref="SendStatus.Failed"/>)</param>
-    /// <param name="error">失敗の理由。成功は空文字。送信のログにだけ残す</param>
+    /// <param name="error">
+    /// 失敗の理由
+    /// 成功は空文字
+    /// 送信のログにだけ残す
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
-    /// <remarks>ログを書けなくても、送信そのものは失敗にしない。気づけるよう、通知は出す。</remarks>
+    /// <remarks>
+    /// ログを書けなくても送信そのものは失敗にしない。
+    /// 気づけるよう、通知は出す。
+    /// </remarks>
     private async Task FinishAsync(MessageSendTarget target, MessageDeliveryItem claimed, SendStatus status, string error, CancellationToken cancellationToken)
     {
         if (status == SendStatus.Sent)
@@ -222,7 +256,10 @@ public sealed class MessageSendService(IMessageSendStore store, IEnumerable<INot
     }
 
     /// <summary>最後の失敗を記録する</summary>
-    /// <param name="message">失敗のメッセージ。無ければ null</param>
+    /// <param name="message">
+    /// 失敗のメッセージ
+    /// 無ければ null
+    /// </param>
     /// <returns>前回と違えば true</returns>
     private bool SetLastError(string? message)
     {

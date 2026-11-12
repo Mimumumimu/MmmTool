@@ -2,13 +2,19 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.Data.CodeMaster;
 
-/// <summary>
-/// DB の <c>CodeMaster</c> (コードマスタ)の 1 行で、列と 1 対 1 に対応する。
-/// </summary>
-/// <remarks><see cref="FeatureNo"/>・<see cref="CategoryNo"/>・<see cref="CodeNo"/> の組は一意。名前の「ない」は空文字、数値の「ない」は 0。NULL は使わない。</remarks>
+/// <summary>DB の CodeMasterの 1 行で、列と 1 対 1 に対応する</summary>
+/// <remarks>
+/// <see cref="FeatureNo"/>・<see cref="CategoryNo"/>・<see cref="CodeNo"/> の組は一意。
+/// 名前の「ない」は空文字、数値の「ない」は 0。
+/// NULL は使わない。
+/// </remarks>
 public sealed record CodeMasterRow
 {
-    /// <summary>主キー。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キー</summary>
+    /// <remarks>
+    /// DB が採番する
+    /// 0 は新規
+    /// </remarks>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -17,13 +23,15 @@ public sealed record CodeMasterRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者で、ユーザーの番号。0 は特定のユーザーではない</summary>
+    /// <summary>作成者で、ユーザーの番号</summary>
+    /// <remarks>0 は特定のユーザーではない</remarks>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者で、ユーザーの番号。0 は特定のユーザーではない</summary>
+    /// <summary>更新者で、ユーザーの番号</summary>
+    /// <remarks>0 は特定のユーザーではない</remarks>
     public int UpdatedByUserId { get; init; }
 
     /// <summary>機能番号</summary>
@@ -38,13 +46,13 @@ public sealed record CodeMasterRow
     /// <summary>表示順</summary>
     public int SortOrder { get; init; }
 
-    /// <summary>数値 (要らないコードは 0)</summary>
+    /// <summary>数値</summary>
     public int NumericValue { get; init; }
 
-    /// <summary>名前 (無いときは空文字)</summary>
+    /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>DB の行から、アプリの型にする</summary>
+    /// <summary>DB の行からアプリの型にする</summary>
     /// <returns>コードマスタの 1 件</returns>
     public CodeMasterEntry ToEntry() => new()
     {

@@ -8,8 +8,10 @@ namespace MmmTool.CliAssist.Main;
 
 /// <summary>選ばれていないタブで確認が出たとき、タブの背景を明滅させて黄色にする</summary>
 /// <remarks>
-/// 明滅は 3 回で、止まったあとは黄色のまま残す。残すのは、出た瞬間を見逃しても、タブを選ぶまで分かるようにするため。
-/// 黄色が残っている間にテーマを切り替えたときは、新しいテーマの黄色に付け替える。このときは明滅しない。
+/// 明滅は 3 回で、止まったあとは黄色のまま残す。
+/// 残すのは出た瞬間を見逃しても、タブを選ぶまで分かるようにするため。
+/// 黄色が残っている間にテーマを切り替えたときは新しいテーマの黄色に付け替える。
+/// このときは明滅しない。
 /// </remarks>
 internal sealed class AwaitingTabHighlight
 {
@@ -31,7 +33,10 @@ internal sealed class AwaitingTabHighlight
 
     /// <summary>タブの強調を作る</summary>
     /// <param name="item">対象のタブ</param>
-    /// <param name="resources">色を持つリソース。<c>SessionAwaitingTabColor</c> と <c>SessionAwaitingTabFlashColor</c> を、ライトとダークで持つ。</param>
+    /// <param name="resources">
+    /// 色を持つリソース。
+    /// <c>SessionAwaitingTabColor</c> と <c>SessionAwaitingTabFlashColor</c> を、ライトとダークで持つ。
+    /// </param>
     public AwaitingTabHighlight(TabViewItem item, ResourceDictionary resources)
     {
         _item = item;
@@ -66,7 +71,7 @@ internal sealed class AwaitingTabHighlight
         }
     }
 
-    /// <summary>今の状態に合わせて、タブの背景を決める</summary>
+    /// <summary>今の状態に合わせてタブの背景を決める</summary>
     /// <param name="flash">明滅させるか</param>
     private void Apply(bool flash)
     {

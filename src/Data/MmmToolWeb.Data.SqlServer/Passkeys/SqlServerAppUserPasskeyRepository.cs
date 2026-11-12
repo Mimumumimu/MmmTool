@@ -6,23 +6,28 @@ using MmmToolWeb.Auth.Core.Passkeys;
 
 namespace MmmToolWeb.Data.SqlServer.Passkeys;
 
-/// <summary>
-/// パスキー (<see cref="AppUserPasskey"/>)を、SQL Server の <c>dbo.AppUserPasskey</c> に保存する。
-/// </summary>
+/// <summary>パスキーを SQL Server の dbo.AppUserPasskey に保存する</summary>
 /// <remarks>
-/// 作成者・更新者は、パスキーの持ち主。本人が登録し、本人がログインで更新するため。更新日時は DB サーバーの時計で書く。
+/// <see cref="AppUserPasskey"/>。
+/// 作成者・更新者はパスキーの持ち主。
+/// 本人が登録し、本人がログインで更新するため。
+/// 更新日時は DB サーバーの時計で書く。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database) : IAppUserPasskeyRepository
 {
-    /// <summary>読む列 (<see cref="ReadPasskey"/> の並び)</summary>
+    /// <summary>読む列</summary>
+    /// <remarks><see cref="ReadPasskey"/> の並び</remarks>
     private const string Columns = "Id, AppUserId, CredentialId, PublicKey, SignCount, UserHandle, DeviceName, LastUsedAt";
 
-    /// <summary>端末の呼び名の最大文字数 (DB の列の長さと同じ)</summary>
+    /// <summary>端末の呼び名の最大文字数</summary>
     private const int DeviceNameMaxLength = 50;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<AppUserPasskey?> FindByCredentialIdAsync(byte[] credentialId, CancellationToken cancellationToken)
         => database.RunAsync<AppUserPasskey?>(async connection =>
         {
@@ -34,7 +39,10 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<AppUserPasskey>> GetByUserAsync(int appUserId, CancellationToken cancellationToken)
         => database.RunAsync<IReadOnlyList<AppUserPasskey>>(async connection =>
         {
@@ -52,7 +60,10 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task AddAsync(AppUserPasskey passkey, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(passkey);
@@ -80,7 +91,10 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task UpdateUsageAsync(int id, uint signCount, DateTime lastUsedAt, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
         {
@@ -96,7 +110,7 @@ public sealed class SqlServerAppUserPasskeyRepository(SqlServerDatabase database
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 
-    /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="AppUserPasskey"/> にする</summary>
+    /// <summary>読んでいる行を Columns の並びの AppUserPasskey にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
     /// <returns>パスキー</returns>
     private static AppUserPasskey ReadPasskey(SqlDataReader reader) => new(

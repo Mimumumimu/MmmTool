@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.Backlog.Settings;
 
-/// <summary>Backlog 連携の設定 (設定ページに並べる部品)</summary>
+/// <summary>Backlog 連携の設定</summary>
 public sealed partial class BacklogSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>

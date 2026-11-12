@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmBatch.ReminderSending;
 
-/// <summary>リマインダーの送信の履歴の一覧の中身 (見出しつきの一覧・エラー)</summary>
+/// <summary>リマインダーの送信の履歴の一覧の中身</summary>
 public sealed partial class ReminderHistoryControl : UserControl
 {
     /// <summary>一覧の ViewModel</summary>

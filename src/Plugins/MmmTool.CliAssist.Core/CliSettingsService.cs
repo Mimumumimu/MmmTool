@@ -3,10 +3,9 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.CliAssist.Core;
 
-/// <summary>
-/// CLI補助の利用状態 (作業ディレクトリ)をメモリに持ち、変更のたびに保存する。アプリ全体で 1 つ。
-/// </summary>
+/// <summary>CLI補助の利用状態をメモリに持ち、変更のたびに保存する</summary>
 /// <param name="repository">CLI補助の利用状態の保存先</param>
+/// <remarks>アプリ全体で 1 つ</remarks>
 public sealed class CliSettingsService(ICliSettingsRepository repository)
 {
     /// <summary>ディレクトリ履歴の最大件数</summary>
@@ -14,25 +13,29 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
 
     /// <summary>現在の設定</summary>
     /// <remarks>
-    /// 書き換えず、変更のたびに新しい設定へ差し替える。保存の途中 (スレッドプールでの JSON への変換)に、UI スレッドで履歴を変えても、
-    /// 保存中のものは変わらない。列挙中の変更による例外を防ぐため。
+    /// 書き換えず、変更のたびに新しい設定へ差し替える。
+    /// 保存の途中 (スレッドプールでの JSON への変換)に、UI スレッドで履歴を変えても、
+    /// 保存中のものは変わらない。
+    /// 列挙中の変更による例外を防ぐため。
     /// </remarks>
     private CliSettings _settings = new();
 
-    /// <summary>保存の順序を守るロック (古い内容が後から書かれないように)</summary>
+    /// <summary>保存の順序を守るロック</summary>
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
     /// <summary>読み込みの結果</summary>
     /// <remarks>
-    /// ファイルを読めなかったとき (ロック・権限など)は、元のファイルを上書きで消さないよう保存を止める。黙って保存しない。補助的な設定なので、例外にはしない。
+    /// ファイルを読めなかったとき (ロック・権限など)は元のファイルを上書きで消さないよう保存を止める。
+    /// 黙って保存しない。
+    /// 補助的な設定なので、例外にはしない。
     /// 中身が壊れていたときは退避済みなので止めない。
     /// </remarks>
     private readonly LoadStatus _status = new();
 
-    /// <summary>読み込みに失敗したときのメッセージ。</summary>
+    /// <summary>読み込みに失敗したときのメッセージ</summary>
     public string? LoadError => _status.LoadError;
 
-    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。</summary>
+    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
     public string? RecoveryMessage => _status.RecoveryMessage;
 
     /// <summary>最後に移動した作業ディレクトリ</summary>
@@ -40,23 +43,29 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
 
     /// <summary>起動時にシェルを始める作業ディレクトリ</summary>
     /// <remarks>
-    /// 最後に移動した作業ディレクトリが、読み込み時に存在していたときだけ。無い・調べていないときは null。
-    /// 存在の確認は、UI スレッドを止めないよう、読み込み (<see cref="LoadAsync"/>)の中でバックグラウンドで行う。ネットワークパスで止まることがあるため。
+    /// 最後に移動した作業ディレクトリが読み込み時に存在していたときだけ。
+    /// 無い・調べていないときは null。
+    /// 存在の確認は UI スレッドを止めないよう、読み込み (<see cref="LoadAsync"/>)の中でバックグラウンドで行う。
+    /// ネットワークパスで止まることがあるため。
     /// </remarks>
     public string? StartDirectory { get; private set; }
 
-    /// <summary>起動時に戻すタブの作業ディレクトリ (タブの並び順)</summary>
+    /// <summary>起動時に戻すタブの作業ディレクトリ</summary>
     /// <remarks>
-    /// 前回開いていたタブのうち、読み込み時に存在していたフォルダだけで、重複は除く。無ければ空で、そのときは <see cref="StartDirectory"/> で 1 タブ開く。
-    /// 存在の確認は、<see cref="StartDirectory"/> と同じくバックグラウンドで行う。
+    /// 前回開いていたタブのうち、読み込み時に存在していたフォルダだけで、重複は除く。
+    /// 無ければ空で、そのときは <see cref="StartDirectory"/> で 1 タブ開く。
+    /// 存在の確認は <see cref="StartDirectory"/> と同じくバックグラウンドで行う。
     /// </remarks>
     public IReadOnlyList<string> StartTabs { get; private set; } = [];
 
     /// <summary>起動時に選ぶタブの作業ディレクトリ</summary>
-    /// <remarks><see cref="StartTabs"/> の中のどれか。前回選んでいたタブが戻せないときは null で、先頭を選ぶ。</remarks>
+    /// <remarks>
+    /// <see cref="StartTabs"/> の中のどれか。
+    /// 前回選んでいたタブが戻せないときは null で、先頭を選ぶ。
+    /// </remarks>
     public string? StartSelectedTab { get; private set; }
 
-    /// <summary>作業ディレクトリの履歴 (新しい順)</summary>
+    /// <summary>作業ディレクトリの履歴</summary>
     public IReadOnlyList<string> DirectoryHistory => _settings.DirectoryHistory;
 
     /// <summary>設定を読み込む</summary>
@@ -96,10 +105,11 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         }
     }
 
-    /// <summary>作業ディレクトリを移動したことを記録する。最終ディレクトリ・履歴の先頭を更新する。</summary>
+    /// <summary>作業ディレクトリを移動したことを記録する</summary>
     /// <param name="directory">移動した作業ディレクトリ</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>最終ディレクトリ・履歴の先頭を更新する</remarks>
     public Task AddDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
         var history = new List<string>(_settings.DirectoryHistory);
@@ -114,11 +124,12 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
         return SaveAsync(cancellationToken);
     }
 
-    /// <summary>開いているタブを記録する。並び順・選んでいるタブを残す。</summary>
+    /// <summary>開いているタブを記録する</summary>
     /// <param name="directories">タブの作業ディレクトリ (タブの並び順)</param>
     /// <param name="selected">選んでいるタブの作業ディレクトリ</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
+    /// <remarks>並び順・選んでいるタブを残す</remarks>
     public Task SaveTabsAsync(IReadOnlyList<string> directories, string? selected, CancellationToken cancellationToken = default)
     {
         _settings = new CliSettings
@@ -150,7 +161,10 @@ public sealed class CliSettingsService(ICliSettingsRepository repository)
     /// <summary>設定を保存する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存を止めているときは何もしない。保存は順番に行い、そのときの最新の設定を書く。</remarks>
+    /// <remarks>
+    /// 保存を止めているときは何もしない。
+    /// 保存は順番に行い、そのときの最新の設定を書く。
+    /// </remarks>
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
         if (_status.HasFailed)

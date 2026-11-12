@@ -9,12 +9,18 @@ namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
 /// <summary>DB の接続の設定ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身に合わせて決める。お知らせが出入りしたら、決め直す。
-/// サイズ変更・最大化・最小化はできない。保存・キャンセル・× のどれでも閉じる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 幅は固定で、高さは中身に合わせて決める。
+/// お知らせが出入りしたら、決め直す。
+/// サイズ変更・最大化・最小化はできない。
+/// 保存・キャンセル・× のどれでも閉じる。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class ConnectionSettingsWindow : Window
 {
-    /// <summary>ウィンドウの幅 (DIP)</summary>
+    /// <summary>ウィンドウの幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double WindowWidth = 480;
 
     /// <summary>閉じたことを知らせる</summary>
@@ -28,7 +34,7 @@ public sealed partial class ConnectionSettingsWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public ConnectionSettingsWindow(ConnectionSettingsViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -93,7 +99,7 @@ public sealed partial class ConnectionSettingsWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnCloseRequested(object? sender, EventArgs e) => _modal.Close();
 
-    /// <summary>閉じたら、待っている側へ知らせる</summary>
+    /// <summary>閉じたら待っている側へ知らせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)

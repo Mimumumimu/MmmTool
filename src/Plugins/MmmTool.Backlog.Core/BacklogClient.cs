@@ -4,14 +4,18 @@ using MmmTool.Backlog.Core.Json;
 
 namespace MmmTool.Backlog.Core;
 
-/// <summary>
-/// Backlog の REST API (API キー認証)で、共有ファイルの一覧の取得とダウンロードを行う。
-/// </summary>
+/// <summary>Backlog の REST APIで、共有ファイルの一覧の取得とダウンロードを行う</summary>
 /// <remarks>
-/// <see cref="HttpClient"/> はアプリ全体で 1 つを使い回す。ソケットの枯渇を避けるため、このクラスを Singleton にする。接続は定期的に張り直す。DNS の変更に追従するため。
-/// タイムアウトは長めで、5 分。ダウンロードは、応答の先頭を受けたあとはタイムアウトの対象にならないので、大きなファイルも取れる。
-/// 通信は常に https。API キーはクエリに入るので、エラーのメッセージには URL を入れない。
-/// 失敗は <see cref="BacklogException"/> で上げる。呼び出し元が画面に出す。
+/// <see cref="HttpClient"/> はアプリ全体で 1 つを使い回す。
+/// ソケットの枯渇を避けるため、このクラスを Singleton にする。
+/// 接続は定期的に張り直す。
+/// DNS の変更に追従するため。
+/// タイムアウトは長めで、5 分。
+/// ダウンロードは応答の先頭を受けたあとはタイムアウトの対象にならないので、大きなファイルも取れる。
+/// 通信は常に https。
+/// API キーはクエリに入るので、エラーのメッセージには URL を入れない。
+/// 失敗は <see cref="BacklogException"/> で上げる。
+/// 呼び出し元が画面に出す。
 /// </remarks>
 public sealed class BacklogClient : IDisposable
 {
@@ -24,11 +28,12 @@ public sealed class BacklogClient : IDisposable
     /// <summary>通信に使う HttpClient</summary>
     private readonly HttpClient _http = new(new SocketsHttpHandler { PooledConnectionLifetime = ConnectionLifetime }) { Timeout = Timeout };
 
-    /// <summary>共有ファイルの一覧を取得する (フォルダーは含めず、ファイルだけ)</summary>
+    /// <summary>共有ファイルの一覧を取得する</summary>
     /// <param name="location">取得するフォルダーの場所</param>
     /// <param name="apiKey">API キー</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>フォルダー直下のファイル (API が返した順)</returns>
+    /// <remarks>フォルダーは含めず、ファイルだけ。</remarks>
     /// <exception cref="BacklogException">通信に失敗した、または応答が想定の形ではなかった。</exception>
     public async Task<IReadOnlyList<BacklogSharedFile>> ListFilesAsync(BacklogLocation location, string apiKey, CancellationToken cancellationToken = default)
     {
@@ -58,7 +63,7 @@ public sealed class BacklogClient : IDisposable
         }
     }
 
-    /// <summary>共有ファイルをダウンロードして、ファイルに保存する</summary>
+    /// <summary>共有ファイルをダウンロードしてファイルに保存する</summary>
     /// <param name="location">ファイルがあるフォルダーの場所 (スペースとプロジェクトを使う)</param>
     /// <param name="file">ダウンロードするファイル</param>
     /// <param name="apiKey">API キー</param>
@@ -66,10 +71,12 @@ public sealed class BacklogClient : IDisposable
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存先の隣の一時ファイルに書いてから置き換える。途中で失敗しても、元のファイルが壊れない。メモリには溜めず、受けながら書く。
-    /// 保存先に書けないとき (ロック・権限など)は、<see cref="IOException"/> / <see cref="UnauthorizedAccessException"/> をそのまま上げる。
+    /// 保存先の隣の一時ファイルに書いてから置き換える。
+    /// 途中で失敗しても元のファイルが壊れない。
+    /// メモリには溜めず、受けながら書く。
+    /// 保存先に書けないとき (ロック・権限など)は <see cref="IOException"/> / <see cref="UnauthorizedAccessException"/> をそのまま上げる。
     /// </remarks>
-    /// <exception cref="BacklogException">通信に失敗した。</exception>
+    /// <exception cref="BacklogException">通信に失敗した</exception>
     public async Task DownloadAsync(BacklogLocation location, BacklogSharedFile file, string apiKey, string destinationPath, CancellationToken cancellationToken = default)
     {
         var url = $"https://{location.Domain}/api/v2/projects/{Uri.EscapeDataString(location.ProjectKey)}/files/{file.Id}?apiKey={Uri.EscapeDataString(apiKey)}";
@@ -112,9 +119,9 @@ public sealed class BacklogClient : IDisposable
     /// <inheritdoc />
     public void Dispose() => _http.Dispose();
 
-    /// <summary>応答が失敗なら、理由を持つ例外を上げる</summary>
+    /// <summary>応答が失敗なら理由を持つ例外を上げる</summary>
     /// <param name="response">API の応答</param>
-    /// <exception cref="BacklogException">応答が成功ではなかった。</exception>
+    /// <exception cref="BacklogException">応答が成功ではなかった</exception>
     private static void ThrowIfFailed(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode)
@@ -131,21 +138,24 @@ public sealed class BacklogClient : IDisposable
         });
     }
 
-    /// <summary>接続の失敗を、画面に出せる例外にする</summary>
+    /// <summary>接続の失敗を画面に出せる例外にする</summary>
     /// <param name="exception">元の例外</param>
     /// <returns>画面に出せるメッセージを持つ例外</returns>
     private static BacklogException ConnectionFailed(HttpRequestException exception)
         => new($"Backlog に接続できませんでした。{exception.Message}", exception);
 
-    /// <summary>タイムアウトを、画面に出せる例外にする</summary>
+    /// <summary>タイムアウトを画面に出せる例外にする</summary>
     /// <param name="exception">元の例外</param>
     /// <returns>画面に出せるメッセージを持つ例外</returns>
     private static BacklogException TimedOut(TaskCanceledException exception)
         => new("Backlog からの応答がありませんでした。時間切れです。", exception);
 
-    /// <summary>一時ファイルを消す。消せなくても例外にしない</summary>
+    /// <summary>一時ファイルを消す</summary>
     /// <param name="path">消すファイルのパス</param>
-    /// <remarks>後始末なので、元の失敗を隠さないよう、消せなかったことは無視する。</remarks>
+    /// <remarks>
+    /// 消せなくても例外にしない。
+    /// 後始末なので、元の失敗を隠さないよう、消せなかったことは無視する。
+    /// </remarks>
     private static void DeleteQuietly(string path)
     {
         try

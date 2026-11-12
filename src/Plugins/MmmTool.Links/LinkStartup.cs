@@ -4,7 +4,7 @@ using MmmTool.Links.Core;
 
 namespace MmmTool.Links;
 
-/// <summary>リンクの起動時の準備 (トレイのリンクメニュー用の読み込み)</summary>
+/// <summary>リンクの起動時の準備</summary>
 /// <param name="linkMenu">リンクメニューの読み書き</param>
 public sealed class LinkStartup(LinkMenuService linkMenu) : IStartupTask
 {

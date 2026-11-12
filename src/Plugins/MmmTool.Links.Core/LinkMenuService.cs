@@ -2,23 +2,28 @@ using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.Links.Core;
 
-/// <summary>
-/// リンクメニューを読み書きし、最後に読み込み・保存した構成を持つ。アプリ全体で 1 つ。
-/// </summary>
+/// <summary>リンクメニューを読み書きし最後に読み込み・保存した構成を持つ</summary>
 /// <param name="repository">リンクメニューの保存先</param>
-/// <remarks>トレイのリンクメニューは <see cref="Current"/> から作る。メニューを開くたびにファイルを読まないため。</remarks>
+/// <remarks>
+/// アプリ全体で 1 つ
+/// トレイのリンクメニューは <see cref="Current"/> から作る
+/// メニューを開くたびにファイルを読まないため
+/// </remarks>
 public sealed class LinkMenuService(ILinkRepository repository)
 {
     /// <summary>最後に読み込み・保存した構成</summary>
-    /// <remarks>まだ読み込んでいなければ null。</remarks>
+    /// <remarks>まだ読み込んでいなければ null</remarks>
     public LinkMenu? Current { get; private set; }
 
     /// <summary>読み込みの結果</summary>
-    /// <remarks>読み込みに失敗しても保存は止めない。編集ページが、読み直すまで保存させない。</remarks>
+    /// <remarks>
+    /// 読み込みに失敗しても保存は止めない
+    /// 編集ページが読み直すまで保存させない
+    /// </remarks>
     private readonly LoadStatus _status = new();
 
     /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
-    /// <remarks>成功したら null に戻る。</remarks>
+    /// <remarks>成功したら null に戻る</remarks>
     public string? LoadError => _status.LoadError;
 
     /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
@@ -28,7 +33,10 @@ public sealed class LinkMenuService(ILinkRepository repository)
     /// <summary>リンクメニューを読み込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込んだリンクメニュー</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。<see cref="LoadError"/> にも残す。</exception>
+    /// <exception cref="DataFileException">
+    /// 読み込みに失敗した
+    /// <see cref="LoadError"/> にも残す
+    /// </exception>
     public async Task<LinkMenu> LoadAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -49,7 +57,7 @@ public sealed class LinkMenuService(ILinkRepository repository)
     /// <param name="menu">保存するリンクメニュー</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">保存に失敗した。</exception>
+    /// <exception cref="DataFileException">保存に失敗した</exception>
     public async Task SaveAsync(LinkMenu menu, CancellationToken cancellationToken = default)
     {
         await repository.SaveAsync(menu, cancellationToken);

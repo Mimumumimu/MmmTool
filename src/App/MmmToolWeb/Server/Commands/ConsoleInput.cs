@@ -2,17 +2,14 @@ using System.Text;
 
 namespace MmmToolWeb.Server.Commands;
 
-/// <summary>
-/// サーバーの PC のコンソールで行う入力。
-/// </summary>
+/// <summary>サーバーの PC のコンソールで行う入力</summary>
 internal static class ConsoleInput
 {
-    /// <summary>
-    /// 文字列を聞く。何も入力されなければ、既定値を使う。
-    /// </summary>
-    /// <param name="label">聞く項目の名前。</param>
-    /// <param name="defaultValue">何も入力されなかったときの値。</param>
+    /// <summary>文字列を聞く</summary>
+    /// <param name="label">聞く項目の名前</param>
+    /// <param name="defaultValue">何も入力されなかったときの値</param>
     /// <returns>入力された値で、前後の空白を除く。</returns>
+    /// <remarks>何も入力されなければ、既定値を使う。</remarks>
     public static string Ask(string label, string defaultValue)
     {
         Console.Write(defaultValue.Length > 0 ? $"{label} [{defaultValue}]: " : $"{label}: ");
@@ -20,12 +17,11 @@ internal static class ConsoleInput
         return line.Length > 0 ? line : defaultValue;
     }
 
-    /// <summary>
-    /// はい・いいえを聞く。何も入力されなければ、既定値を使う。
-    /// </summary>
-    /// <param name="label">聞く内容。</param>
-    /// <param name="defaultValue">何も入力されなかったときの値。</param>
-    /// <returns>「はい」なら <c>true</c>。</returns>
+    /// <summary>はい・いいえを聞く</summary>
+    /// <param name="label">聞く内容</param>
+    /// <param name="defaultValue">何も入力されなかったときの値</param>
+    /// <returns>「はい」なら <c>true</c></returns>
+    /// <remarks>何も入力されなければ、既定値を使う。</remarks>
     public static bool AskYesNo(string label, bool defaultValue)
     {
         Console.Write($"{label} (y/n) [{(defaultValue ? "y" : "n")}]: ");
@@ -33,11 +29,15 @@ internal static class ConsoleInput
         return line.Length == 0 ? defaultValue : line is "y" or "yes";
     }
 
-    /// <summary>
-    /// パスワードを、画面に表示せずに聞く。
-    /// </summary>
-    /// <param name="hasSaved">すでに保存されたパスワードがあるか。あれば、何も入力しないと、それを使う。</param>
-    /// <returns>入力されたパスワード。何も入力されなければ空文字。</returns>
+    /// <summary>パスワードを画面に表示せずに聞く</summary>
+    /// <param name="hasSaved">
+    /// すでに保存されたパスワードがあるか。
+    /// あれば、何も入力しないと、それを使う。
+    /// </param>
+    /// <returns>
+    /// 入力されたパスワード
+    /// 何も入力されなければ空文字
+    /// </returns>
     public static string AskPassword(bool hasSaved)
     {
         Console.Write(hasSaved ? "パスワード (変えないときは何も入力しない): " : "パスワード: ");

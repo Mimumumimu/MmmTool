@@ -6,12 +6,11 @@ using MmmTool.DayContent.Core;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>
-/// 「表示する内容」の枠の中の、他の機能の内容 1 つ分の設定で、出すか・全員か・実績の開始日・選択肢を持つ。
-/// </summary>
+/// <summary>「表示する内容」の枠の中の他の機能の内容 1 つ分の設定で出すか・全員か・実績の開始日・選択肢を持つ</summary>
 /// <remarks>
-/// 出すかどうかと、選択肢の選びは、この PC の設定に覚える。「自分 / 全員」と実績の開始日は覚えない。
-/// 実績の開始日は、表示する日が変わったら、提供する機能が決める既定に戻る。
+/// 出すかどうかと、選択肢の選びはこの PC の設定に覚える。
+/// 「自分 / 全員」と実績の開始日は覚えない。
+/// 実績の開始日は表示する日が変わったら、提供する機能が決める既定に戻る。
 /// </remarks>
 public sealed partial class DayContentSourceItem : ObservableObject
 {
@@ -21,17 +20,18 @@ public sealed partial class DayContentSourceItem : ObservableObject
     /// <summary>この PC の設定の保存先</summary>
     private readonly ISettingsStore _settings;
 
-    /// <summary>変わったときに、画面を作り直す処理</summary>
+    /// <summary>変わったときに画面を作り直す処理</summary>
     private Action? _changed;
 
-    /// <summary>実績の開始日を、コードで設定している最中か (手で変えたと数えないため)</summary>
+    /// <summary>実績の開始日をコードで設定している最中か</summary>
+    /// <remarks>手で変えたと数えないため</remarks>
     private bool _isSettingFrom;
 
     /// <summary>設定する</summary>
     /// <param name="source">内容の提供元</param>
     /// <param name="settings">この PC の設定の保存先</param>
     /// <param name="isShared">複数の人で共有するか (全員の選択を出す)</param>
-    /// <param name="changed">設定が変わったときに、画面を作り直す処理</param>
+    /// <param name="changed">設定が変わったときに、画面を作り直す処理。</param>
     public DayContentSourceItem(IDayContentSource source, ISettingsStore settings, bool isShared, Action changed)
     {
         Source = source;
@@ -61,10 +61,10 @@ public sealed partial class DayContentSourceItem : ObservableObject
     /// <summary>真偽の選択肢</summary>
     public ObservableCollection<DayContentOptionItem> Options { get; } = [];
 
-    /// <summary>実績の開始日の既定を決めた、表示する日 (まだ決めていなければ null)</summary>
+    /// <summary>実績の開始日の既定を決めた表示する日</summary>
     public DateOnly? FromFor { get; private set; }
 
-    /// <summary>実績の開始日 (期間の開始日)</summary>
+    /// <summary>実績の開始日</summary>
     public DateOnly From { get; private set; }
 
     /// <summary>この内容を出すか</summary>
@@ -72,7 +72,10 @@ public sealed partial class DayContentSourceItem : ObservableObject
     public partial bool IsEnabled { get; set; }
 
     /// <summary>全員の分を出すか</summary>
-    /// <remarks>false は自分だけ。覚えない。</remarks>
+    /// <remarks>
+    /// false は自分だけ
+    /// 覚えない
+    /// </remarks>
     [ObservableProperty]
     public partial bool Everyone { get; set; }
 
@@ -114,12 +117,12 @@ public sealed partial class DayContentSourceItem : ObservableObject
     /// <summary>選択肢の値</summary>
     public IReadOnlyDictionary<string, bool> OptionValues => Options.ToDictionary(o => o.Key, o => o.IsOn);
 
-    /// <summary>表示する日に合わせて、実績の開始日の既定を決める</summary>
+    /// <summary>表示する日に合わせて実績の開始日の既定を決める</summary>
     /// <param name="day">表示する日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>決める処理の完了を表すタスク</returns>
     /// <remarks>表示する日が前に決めたときと同じなら、手で選んだ値を残す。</remarks>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">既定を読めなかった。</exception>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">既定を読めなかった</exception>
     public async Task EnsureFromAsync(DateOnly day, CancellationToken cancellationToken = default)
     {
         if (FromFor == day)
@@ -140,9 +143,12 @@ public sealed partial class DayContentSourceItem : ObservableObject
         }
     }
 
-    /// <summary>出すかどうかと選択肢を、この PC の設定から読み直す</summary>
+    /// <summary>出すかどうかと選択肢をこの PC の設定から読み直す</summary>
     /// <returns>値が変わったか</returns>
-    /// <remarks>作業報告の窓など、別の画面が同じ設定を変えたときに、合わせるため。読み直した値は、書き戻さず、画面の作り直しもしない。</remarks>
+    /// <remarks>
+    /// 作業報告の窓など、別の画面が同じ設定を変えたときに、合わせるため。
+    /// 読み直した値は書き戻さず、画面の作り直しもしない。
+    /// </remarks>
     public bool SyncFromSettings()
     {
         var saved = _changed;
@@ -173,7 +179,7 @@ public sealed partial class DayContentSourceItem : ObservableObject
         }
     }
 
-    /// <summary>出すかどうかが変わったら、覚えて、画面を作り直す</summary>
+    /// <summary>出すかどうかが変わったら覚えて画面を作り直す</summary>
     /// <param name="value">新しい値</param>
     partial void OnIsEnabledChanged(bool value)
     {
@@ -185,11 +191,11 @@ public sealed partial class DayContentSourceItem : ObservableObject
         _changed();
     }
 
-    /// <summary>全員の選択が変わったら、画面を作り直す</summary>
+    /// <summary>全員の選択が変わったら画面を作り直す</summary>
     /// <param name="value">新しい値</param>
     partial void OnEveryoneChanged(bool value) => _changed?.Invoke();
 
-    /// <summary>選択肢が変わったら、覚えて、画面を作り直す</summary>
+    /// <summary>選択肢が変わったら覚えて画面を作り直す</summary>
     /// <param name="option">変わった選択肢</param>
     private void OnOptionChanged(DayContentOptionItem option)
     {

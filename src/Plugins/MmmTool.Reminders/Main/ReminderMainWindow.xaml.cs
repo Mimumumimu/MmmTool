@@ -15,33 +15,44 @@ namespace MmmTool.Reminders.Main;
 
 /// <summary>リマインダーのメイン画面</summary>
 /// <remarks>
-/// トレイメニュー・通知から開く普通のウィンドウで、モーダルではない。アプリ内で 1 枚だけで、開いていれば前面に出す。開くのは <see cref="ReminderWindowService"/>。
-/// 閉じたら破棄する。閉じたウィンドウは再表示できないため、次は作り直す。位置と大きさは SDK の <see cref="WindowBoundsKeeper"/> が保存し、次に開くとき復元する。
-/// 保存が無い・画面外のときは、最初の大きさで主モニターの作業領域の右下に出す。最大化・最小化はできない。タイトル帯をドラッグして移動できる。
+/// トレイメニュー・通知から開く普通のウィンドウで、モーダルではない。
+/// アプリ内で 1 枚だけで、開いていれば前面に出す。
+/// 開くのは <see cref="ReminderWindowService"/>。
+/// 閉じたら破棄する。
+/// 閉じたウィンドウは再表示できないため、次は作り直す。
+/// 位置と大きさは SDK の <see cref="WindowBoundsKeeper"/> が保存し、次に開くとき復元する。
+/// 保存が無い・画面外のときは最初の大きさで主モニターの作業領域の右下に出す。
+/// 最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。
 /// </remarks>
 public sealed partial class ReminderMainWindow : Window
 {
-    /// <summary>最初の幅 (DIP)</summary>
+    /// <summary>最初の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialWidth = 360;
-    /// <summary>最初の高さ (DIP)</summary>
+    /// <summary>最初の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialHeight = 440;
-    /// <summary>最小の幅で、単位は DIP。最初の幅より狭いと、状態の切り替えに押されて件名が見えなくなるため</summary>
+    /// <summary>最小の幅で、単位は DIP</summary>
+    /// <remarks>最初の幅より狭いと状態の切り替えに押されて件名が見えなくなるため</remarks>
     private const double MinimumWidth = 360;
-    /// <summary>最小の高さ (DIP)</summary>
+    /// <summary>最小の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumHeight = 320;
 
-    /// <summary>備考のアイコン (メモ)</summary>
+    /// <summary>備考のアイコン</summary>
     private const string NoteGlyph = "";
-    /// <summary>コピーしたことを知らせるアイコン (チェック)</summary>
+    /// <summary>コピーしたことを知らせるアイコン</summary>
     private const string CheckGlyph = "";
     /// <summary>チェックを出しておく時間</summary>
     private static readonly TimeSpan CopiedDisplayTime = TimeSpan.FromSeconds(1.5);
 
     /// <summary>ウィンドウの位置と大きさの保存・復元</summary>
     private readonly IWindowPositionService _positions;
-    /// <summary>備考のコピーのチェックを、元のアイコンに戻すまで数えるタイマー</summary>
+    /// <summary>備考のコピーのチェックを元のアイコンに戻すまで数えるタイマー</summary>
     private readonly DispatcherQueueTimer _copiedTimer;
-    /// <summary>いまチェックを出している備考のアイコン。出していなければ null</summary>
+    /// <summary>いまチェックを出している備考のアイコン</summary>
+    /// <remarks>出していなければ null</remarks>
     private FontIcon? _copiedIcon;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -50,7 +61,7 @@ public sealed partial class ReminderMainWindow : Window
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
     /// <param name="positions">ウィンドウの位置と大きさの保存・復元</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public ReminderMainWindow(ReminderMainViewModel viewModel, IWindowPositionService positions, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -72,7 +83,7 @@ public sealed partial class ReminderMainWindow : Window
         };
     }
 
-    /// <summary>読み込んでから、前回の位置と大きさで表示する</summary>
+    /// <summary>読み込んでから前回の位置と大きさで表示する</summary>
     /// <returns>読み込みと表示の完了を表すタスク</returns>
     public async Task ShowAsync()
     {
@@ -87,18 +98,18 @@ public sealed partial class ReminderMainWindow : Window
         Activate();
     }
 
-    /// <summary>未対応の色 (グレー)</summary>
+    /// <summary>未対応の色</summary>
     private static readonly SolidColorBrush NoneBrush = new(ColorHelper.FromArgb(0xFF, 0x9E, 0x9E, 0x9E));
-    /// <summary>スヌーズの色 (アンバー)</summary>
+    /// <summary>スヌーズの色</summary>
     private static readonly SolidColorBrush SnoozeBrush = new(ColorHelper.FromArgb(0xFF, 0xF5, 0x9E, 0x0B));
-    /// <summary>完了の色 (エメラルド系のグリーン)</summary>
+    /// <summary>完了の色</summary>
     /// <remarks>濃い緑 (#2E7D32 など)は暗くくすんでアンバーと釣り合わず、ダークテーマで沈むため、明るめにした。</remarks>
     private static readonly SolidColorBrush DoneBrush = new(ColorHelper.FromArgb(0xFF, 0x16, 0xA3, 0x4A));
 
-    /// <summary>状態の色 (未＝グレー / スヌーズ＝アンバー / 完了＝グリーン)</summary>
+    /// <summary>状態の色</summary>
     /// <param name="status">対応状態</param>
     /// <returns>状態を表すブラシ</returns>
-    /// <remarks>ライト・ダークのどちらでも見分けやすい不透明の固定色。</remarks>
+    /// <remarks>ライト・ダークのどちらでも見分けやすい不透明の固定色</remarks>
     public static Brush StatusBrush(ReminderStatus status) => status switch
     {
         ReminderStatus.Snooze => SnoozeBrush,
@@ -106,7 +117,7 @@ public sealed partial class ReminderMainWindow : Window
         _ => NoneBrush,
     };
 
-    /// <summary>件名を押したら、リンクがあれば開く</summary>
+    /// <summary>件名を押したらリンクがあれば開く</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">タップの情報</param>
     private async void OnTitleTapped(object sender, TappedRoutedEventArgs e)
@@ -138,12 +149,12 @@ public sealed partial class ReminderMainWindow : Window
         _copiedTimer.Start();
     }
 
-    /// <summary>チェックの時間が過ぎたら、アイコンを元のメモに戻す</summary>
+    /// <summary>チェックの時間が過ぎたらアイコンを元のメモに戻す</summary>
     /// <param name="sender">タイマー</param>
     /// <param name="args">イベントの情報</param>
     private void OnCopiedTimerTick(DispatcherQueueTimer sender, object args) => ResetCopiedIcon();
 
-    /// <summary>チェックを出している備考のアイコンを、元のメモに戻す</summary>
+    /// <summary>チェックを出している備考のアイコンを元のメモに戻す</summary>
     private void ResetCopiedIcon()
     {
         if (_copiedIcon is { } icon)
@@ -174,8 +185,11 @@ public sealed partial class ReminderMainWindow : Window
     private async void OnDeleteClick(object sender, RoutedEventArgs e) => await ViewModel.DeleteCommand.ExecuteAsync(ItemOf(sender));
 
     /// <summary>押された要素の行</summary>
-    /// <param name="sender">メニュー項目か、備考のボタン</param>
+    /// <param name="sender">メニュー項目か、備考のボタン。</param>
     /// <returns>押された要素の行</returns>
-    /// <remarks>メニューは画面の要素の外に出るので DataContext が受け継がれない。行は、メニュー項目も備考のボタンも Tag に入れてある。</remarks>
+    /// <remarks>
+    /// メニューは画面の要素の外に出るので DataContext が受け継がれない
+    /// 行はメニュー項目も備考のボタンも Tag に入れてある
+    /// </remarks>
     private static ReminderTodayItem ItemOf(object sender) => (ReminderTodayItem)((FrameworkElement)sender).Tag;
 }

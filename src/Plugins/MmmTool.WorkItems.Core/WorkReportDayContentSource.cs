@@ -3,13 +3,14 @@ using MmmTool.DayContent.Core;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>
-/// 作業報告 (実績と予定のテキスト)を、日ごとの内容として提供する。ノートの画面に出す。
-/// </summary>
+/// <summary>作業報告を日ごとの内容として提供する</summary>
 /// <param name="repository">作業管理の保存先</param>
 /// <remarks>
-/// 文は <see cref="WorkReportBuilder"/> が作る。作業報告の窓と同じ形で、期間の終わりが報告日、始まりが実績の開始日。
-/// 選択肢のキーは、作業報告の窓が覚える設定のキーと同じにして、選択を共有する。作業報告の窓の「保留を表示」は、ここには出さず、保留は常に出す。
+/// ノートの画面に出す。
+/// 文は <see cref="WorkReportBuilder"/> が作る。
+/// 作業報告の窓と同じ形で、期間の終わりが報告日、始まりが実績の開始日。
+/// 選択肢のキーは作業報告の窓が覚える設定のキーと同じにして、選択を共有する。
+/// 作業報告の窓の「保留を表示」はここには出さず、保留は常に出す。
 /// </remarks>
 public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayContentSource
 {
@@ -17,7 +18,7 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
     public event EventHandler? Changed;
 
     /// <summary>内容が変わったことを知らせる</summary>
-    /// <remarks>変わったことを知れる派生クラスだけが呼ぶ。</remarks>
+    /// <remarks>変わったことを知れる派生クラスだけが呼ぶ</remarks>
     protected void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);
 
     /// <summary>「実績に時間を出す」の選択を残す設定のキー</summary>
@@ -33,7 +34,10 @@ public class WorkReportDayContentSource(IWorkItemRepository repository) : IDayCo
     public string Title => "作業報告";
 
     /// <summary>作業管理の機能のキー</summary>
-    /// <remarks>設定ファイルにも使う。<c>WorkItemsFeature.Key</c> は、この値を使う。</remarks>
+    /// <remarks>
+    /// 設定ファイルにも使う
+    /// <c>WorkItemsFeature.Key</c> はこの値を使う
+    /// </remarks>
     public const string WorkItemsFeatureKey = "WorkItems";
 
     /// <inheritdoc />

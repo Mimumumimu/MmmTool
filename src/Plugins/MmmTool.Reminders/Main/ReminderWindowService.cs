@@ -9,19 +9,28 @@ namespace MmmTool.Reminders.Main;
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を管理するサービス</param>
 /// <remarks>
-/// 画面はアプリ内で 1 枚だけ持ち、開いていれば前面に出す。閉じられたら次に開くときに作り直す。UI スレッドから呼ぶ。
-/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。
-/// ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため、通知をクリックするたびに開くと、積み上がる。
+/// 画面はアプリ内で 1 枚だけ持ち、開いていれば前面に出す。
+/// 閉じられたら次に開くときに作り直す。
+/// UI スレッドから呼ぶ。
+/// 画面 (と ViewModel)は開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。
+/// ルートから解決した <see cref="IDisposable"/> の Transient はアプリの終了まで DI コンテナが保持し続けるため、通知をクリックするたびに開くと、積み上がる。
 /// </remarks>
 public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDialogHost dialogs)
 {
-    /// <summary>開いている (開いている途中の)画面。無ければ null</summary>
-    /// <remarks>読み込み中にもう一度開こうとしたとき、2 枚目を作らず、表示し終わるのを待ってから前面に出すため Task で持つ。</remarks>
+    /// <summary>開いている画面</summary>
+    /// <remarks>
+    /// 読み込み中にもう一度開こうとしたとき、2 枚目を作らず、表示し終わるのを待ってから前面に出すため Task で持つ。
+    /// </remarks>
     private Task<ReminderMainWindow>? _opening;
 
-    /// <summary>開く (開いていれば前面に出す)</summary>
+    /// <summary>開く</summary>
     /// <returns>開いた画面</returns>
-    /// <remarks>画面を作る・表示するのに失敗したときは、例外をそのまま呼び出し元へ渡す。バグなので、安全網が受ける。次に呼ぶときは、作り直す。</remarks>
+    /// <remarks>
+    /// 開いていれば前面に出す。
+    /// 画面を作る・表示するのに失敗したときは例外をそのまま呼び出し元へ渡す。
+    /// バグなので、安全網が受ける。
+    /// 次に呼ぶときは作り直す。
+    /// </remarks>
     public async Task<ReminderMainWindow> ShowAsync()
     {
         if (_opening is { } opening)
@@ -84,17 +93,18 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
         return window;
     }
 
-    /// <summary>TEMP(計測): 通知のクリックを受けた時刻 (<see cref="Stopwatch.GetTimestamp"/>)</summary>
+    /// <summary>TEMP: 通知のクリックを受けた時刻</summary>
+    /// <remarks><see cref="Stopwatch.GetTimestamp"/></remarks>
     private long _clickedAt;
 
-    /// <summary>TEMP(計測): 通知のクリックを受けた時刻を控える</summary>
+    /// <summary>TEMP: 通知のクリックを受けた時刻を控える</summary>
     public void MarkClicked()
     {
         _clickedAt = Stopwatch.GetTimestamp();
         WriteTrace($"通知のクリックを受けた (画面は{(_opening is null ? "閉じている" : "開いている")})");
     }
 
-    /// <summary>TEMP(計測): 前面化の結果を <c>Data/Logs/foreground-yyyy-MM-dd.log</c> に追記する</summary>
+    /// <summary>TEMP: 前面化の結果を Data/Logs/foreground-yyyy-MM-dd.log に追記する</summary>
     /// <param name="message">書く内容</param>
     private static void WriteTrace(string message)
     {
@@ -113,7 +123,10 @@ public sealed class ReminderWindowService(IServiceScopeFactory scopeFactory, IDi
 
     /// <summary>通知から開く</summary>
     /// <returns>開いてスヌーズへ進める処理の完了を表すタスク</returns>
-    /// <remarks>通知をクリックして「気づいた」とみなし、発動済みで未対応のものをスヌーズに進める。次はスヌーズ間隔の後に再通知する。</remarks>
+    /// <remarks>
+    /// 通知をクリックして「気づいた」とみなし、発動済みで未対応のものをスヌーズに進める。
+    /// 次はスヌーズ間隔の後に再通知する。
+    /// </remarks>
     public async Task ShowFromNotificationAsync()
     {
         var window = await ShowAsync();

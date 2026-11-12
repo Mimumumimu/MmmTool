@@ -4,7 +4,7 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems;
 
-/// <summary>作業管理の起動時の準備 (保存先からの読み込み)</summary>
+/// <summary>作業管理の起動時の準備</summary>
 /// <param name="workItems">作業管理の読み書き</param>
 public sealed class WorkItemStartup(WorkItemService workItems) : IStartupTask
 {

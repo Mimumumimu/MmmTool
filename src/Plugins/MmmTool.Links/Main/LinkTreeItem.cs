@@ -5,11 +5,11 @@ using MmmTool.Links.Core;
 
 namespace MmmTool.Links.Main;
 
-/// <summary>
-/// リンク編集ツリーの 1 要素で、編集用。保存時に <see cref="LinkNode"/> へ変換する。
-/// </summary>
+/// <summary>リンク編集ツリーの 1 要素で、編集用</summary>
 /// <remarks>
-/// 種類は作成時 (読み込み・追加時)に決めて変えない。名前で決めると、入力途中に「-」と打っただけで区切り線に変わってしまうため。
+/// 保存時に LinkNode へ変換する。
+/// 種類は作成時 (読み込み・追加時)に決めて変えない。
+/// 名前で決めると入力途中に「-」と打っただけで区切り線に変わってしまうため。
 /// 保存する JSON にも種類を書くので、「-」という名前のリンクも、読み直して区切り線に変わらない。
 /// </remarks>
 public sealed partial class LinkTreeItem : ObservableObject
@@ -18,8 +18,11 @@ public sealed partial class LinkTreeItem : ObservableObject
     /// <param name="kind">種類</param>
     /// <param name="name">表示名</param>
     /// <param name="path">開くパス</param>
-    /// <param name="children">子要素で、フォルダのとき。それ以外は null</param>
-    /// <remarks>生成は <see cref="CreateLink"/> などから行う。</remarks>
+    /// <param name="children">
+    /// 子要素で、フォルダのとき。
+    /// それ以外は null。
+    /// </param>
+    /// <remarks>生成は <see cref="CreateLink"/> などから行う</remarks>
     private LinkTreeItem(LinkNodeKind kind, string name, string path, ObservableCollection<LinkTreeItem>? children)
     {
         Kind = kind;
@@ -42,14 +45,14 @@ public sealed partial class LinkTreeItem : ObservableObject
     }
 
     /// <summary>種類</summary>
-    /// <remarks>作成時に決めて変えない。</remarks>
+    /// <remarks>作成時に決めて変えない</remarks>
     public LinkNodeKind Kind { get; }
 
     /// <summary>表示名</summary>
     [ObservableProperty]
     public partial string Name { get; set; }
 
-    /// <summary>開くパスで、リンクのときに使う。</summary>
+    /// <summary>開くパスでリンクのときに使う</summary>
     [ObservableProperty]
     public partial string Path { get; set; }
 
@@ -72,7 +75,7 @@ public sealed partial class LinkTreeItem : ObservableObject
     public bool IsNotSeparator => !IsSeparator;
 
     /// <summary>種類のアイコン</summary>
-    /// <remarks>フォルダは開閉で変える。</remarks>
+    /// <remarks>フォルダは開閉で変える</remarks>
     public string Glyph => Kind switch
     {
         LinkNodeKind.Folder => IsExpanded ? "" : "",
@@ -111,7 +114,7 @@ public sealed partial class LinkTreeItem : ObservableObject
         _ => new LinkNode { Kind = LinkNodeKindNames.ToJsonValue(LinkNodeKind.Link), Name = Name, Path = string.IsNullOrWhiteSpace(Path) ? null : Path.Trim() },
     };
 
-    /// <summary>子孫の数で、フォルダのときに使う。</summary>
+    /// <summary>子孫の数でフォルダのときに使う</summary>
     /// <returns>子孫の数</returns>
     public int CountDescendants() => Children?.Sum(child => 1 + child.CountDescendants()) ?? 0;
 }

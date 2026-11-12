@@ -6,11 +6,16 @@ using MmmTool.ClipboardTransfer.Main;
 
 namespace MmmTool.ClipboardTransfer;
 
-/// <summary>クリップボード転送の入口 (ページを登録する)</summary>
+/// <summary>クリップボード転送の入口</summary>
+/// <remarks>ページを登録する</remarks>
 public sealed class ClipboardTransferPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存するデータは無い。設定ページでオン・オフできる。オフの間はサイドバーに出さない。</remarks>
+    /// <remarks>
+    /// 保存するデータは無い
+    /// 設定ページでオン・オフできる
+    /// オフの間はサイドバーに出さない
+    /// </remarks>
     public void Register(IServiceCollection services)
     {
         services.AddFeature(ClipboardTransferFeature.Key, ClipboardTransferFeature.DisplayName, defaultEnabled: false);

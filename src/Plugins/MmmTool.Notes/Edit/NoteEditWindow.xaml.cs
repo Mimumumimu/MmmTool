@@ -16,31 +16,53 @@ using Windows.Graphics;
 
 namespace MmmTool.Notes.Edit;
 
-/// <summary>ノート入力ウィンドウ (1 件の新規登録・編集)</summary>
+/// <summary>ノート入力ウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。本文を広く書けるようにするため。最大化・最小化はできない。
-/// タイトル帯をドラッグして移動できる。× で閉じたときはキャンセルと同じ。開くたびに作り直す。閉じたウィンドウは再表示できないため。
-/// 本文欄の上のボタンか右クリックで、書式 (太字・斜体・下線・取消線・色)とリンクを、HTML のタグにして足せる。ファイルやフォルダーをドロップすると、リンクが入る。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 大きさは変えられる。
+/// 本文を広く書けるようにするため。
+/// 最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。
+/// × で閉じたときはキャンセルと同じ。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
+/// 本文欄の上のボタンか右クリックで、書式 (太字・斜体・下線・取消線・色)とリンクを、HTML のタグにして足せる。
+/// ファイルやフォルダーをドロップするとリンクが入る。
 /// </remarks>
 public sealed partial class NoteEditWindow : Window
 {
-    /// <summary>ウィンドウの幅で、単位は DIP。横長の 2 列にして、縦横の比を黄金比に近づける</summary>
+    /// <summary>ウィンドウの幅で、単位は DIP</summary>
+    /// <remarks>横長の 2 列にして、縦横の比を黄金比に近づける。</remarks>
     private const double WindowWidth = 1000;
 
-    /// <summary>ウィンドウの高さで、単位は DIP。タイトルバーを含む</summary>
+    /// <summary>ウィンドウの高さで、単位は DIP</summary>
+    /// <remarks>タイトルバーを含む</remarks>
     private const double WindowHeight = 640;
 
-    /// <summary>最小の幅で、単位は DIP。右の列は内容の幅 (期間の行が最も広い)で、本文の列が縮む。本文の列に、300 ほどを残す幅</summary>
+    /// <summary>最小の幅で、単位は DIP</summary>
+    /// <remarks>
+    /// 期間の行が最も広い。
+    /// 右の列は内容の幅で、本文の列が縮む。
+    /// 本文の列に 300 ほどを残す幅。
+    /// </remarks>
     private const double MinimumWidth = 800;
 
-    /// <summary>最小の高さで、単位は DIP。右の列が切れない高さ。InfoBar は左の列の本文が縮んで場所を空けるので、右の列は InfoBar に左右されない</summary>
+    /// <summary>最小の高さで、単位は DIP</summary>
+    /// <remarks>
+    /// 右の列が切れない高さ。
+    /// InfoBar は左の列の本文が縮んで場所を空けるので、右の列は InfoBar に左右されない。
+    /// </remarks>
     private const double MinimumHeight = 560;
 
-    /// <summary>タイトルバーの高さ (DIP)</summary>
-    /// <remarks>ResizeClient は、タイトルバーを自分で描いていても、この分を上に足した大きさにする。</remarks>
+    /// <summary>タイトルバーの高さ</summary>
+    /// <remarks>
+    /// 単位は DIP。
+    /// ResizeClient はタイトルバーを自分で描いていても、この分を上に足した大きさにする。
+    /// </remarks>
     private const double TitleBarHeight = 32;
 
-    /// <summary>日付の欄の表示の形で、曜日つき。PC の言語に依らず日本語</summary>
+    /// <summary>日付の欄の表示の形で、曜日つき</summary>
+    /// <remarks>PC の言語に依らず日本語</remarks>
     private const string DateFormat = "{year.full}/{month.integer(2)}/{day.integer(2)} ({dayofweek.abbreviated})";
 
     /// <summary>閉じたときに結果を返す</summary>
@@ -52,14 +74,20 @@ public sealed partial class NoteEditWindow : Window
     /// <summary>ダイアログの親を決めるサービス</summary>
     private readonly IDialogHost _dialogs;
 
-    /// <summary>選んだ文字に書式を付ける項目 (文字を選んでいるときだけ押せる)</summary>
+    /// <summary>選んだ文字に書式を付ける項目</summary>
+    /// <remarks>文字を選んでいるときだけ押せる</remarks>
     private readonly List<MenuFlyoutItemBase> _selectionItems = [];
 
-    /// <summary>文字を選んでいるときだけ押せる、書式のボタン (本文欄の上の列)</summary>
+    /// <summary>文字を選んでいるときだけ押せる書式のボタン</summary>
     private readonly List<Button> _selectionButtons = [];
 
-    /// <summary>書式 (選んだ文字をタグで囲むもの)の定義。右クリックのメニューと、本文欄の上のボタンの両方が、これから作られる</summary>
-    /// <remarks>アイコンは、親を 1 つしか持てないので、使うたびに作る。取り消し線は Symbol の一覧に無いため、Segoe Fluent Icons の字形 (U+EDE0)を FontIcon で指定する。</remarks>
+    /// <summary>書式の定義</summary>
+    /// <remarks>
+    /// 選んだ文字をタグで囲むもの。
+    /// 右クリックのメニューと本文欄の上のボタンの両方がこれから作られる。
+    /// アイコンは親を 1 つしか持てないので、使うたびに作る。
+    /// 取り消し線は Symbol の一覧に無いため、Segoe Fluent Icons の字形 (U+EDE0)を FontIcon で指定する。
+    /// </remarks>
     private static readonly (string Text, Func<IconElement> CreateIcon, string Tag)[] Formats =
     [
         ("太字", () => new SymbolIcon(Symbol.Bold), "b"),
@@ -68,7 +96,8 @@ public sealed partial class NoteEditWindow : Window
         ("取消線", () => new FontIcon { Glyph = "" }, "s"),
     ];
 
-    /// <summary>色のパネルの見本と、その色 (パネルを開くときに、テーマに合わせて塗る)</summary>
+    /// <summary>色のパネルの見本とその色</summary>
+    /// <remarks>パネルを開くときにテーマに合わせて塗る</remarks>
     private readonly List<(Border Swatch, NoteColor Color)> _colorSwatches = [];
 
     /// <summary>色のパネル</summary>
@@ -77,10 +106,10 @@ public sealed partial class NoteEditWindow : Window
     /// <summary>保存したか</summary>
     private bool _saved;
 
-    /// <summary>メニューを開いたときの、本文欄の選択の開始位置</summary>
+    /// <summary>メニューを開いたときの本文欄の選択の開始位置</summary>
     private int _selectionStart;
 
-    /// <summary>メニューを開いたときの、本文欄の選択の長さ</summary>
+    /// <summary>メニューを開いたときの本文欄の選択の長さ</summary>
     private int _selectionLength;
 
     /// <summary>ウィンドウの ViewModel</summary>
@@ -88,7 +117,7 @@ public sealed partial class NoteEditWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     /// <param name="dialogs">ダイアログの親を決めるサービス (リンクの入力に使う)</param>
     public NoteEditWindow(NoteEditViewModel viewModel, AppEnvironment environment, IDialogHost dialogs)
     {
@@ -122,9 +151,15 @@ public sealed partial class NoteEditWindow : Window
 
     /// <summary>親ウィンドウの上にモーダルで表示し、閉じるまで待つ</summary>
     /// <param name="owner">親ウィンドウ</param>
-    /// <param name="note">編集するノート。新規なら null</param>
-    /// <param name="defaultStartDate">新規のときの、開始日の初期値</param>
-    /// <returns>保存したら true。キャンセル・× なら false</returns>
+    /// <param name="note">
+    /// 編集するノート
+    /// 新規なら null
+    /// </param>
+    /// <param name="defaultStartDate">新規のときの、開始日の初期値。</param>
+    /// <returns>
+    /// 保存したら true
+    /// キャンセル・× なら false
+    /// </returns>
     public async Task<bool> ShowModalAsync(Window owner, Note? note, DateOnly defaultStartDate)
     {
         ViewModel.Load(note, defaultStartDate);
@@ -148,10 +183,14 @@ public sealed partial class NoteEditWindow : Window
     /// <returns>開始日・終了日・実施日の欄</returns>
     private CalendarDatePicker[] PeriodPickers() => [StartDatePicker, EndDatePicker, EventDatePicker];
 
-    /// <summary>期間の外の警告が出ている間、開始日・終了日の欄の枠を、エラーの色にする。実施日の欄は、実施日が外れているときだけ</summary>
+    /// <summary>期間の外の警告が出ている間、開始日・終了日の欄の枠をエラーの色にする</summary>
     /// <param name="sender">ViewModel</param>
     /// <param name="e">変わったプロパティの情報</param>
-    /// <remarks>どの欄が原因かを、警告の文と別に、欄そのものでも分かるようにする。ほかの実施日は、外れた行の文字をエラーの色にする。</remarks>
+    /// <remarks>
+    /// 実施日の欄は実施日が外れているときだけ。
+    /// どの欄が原因かを、警告の文と別に、欄そのものでも分かるようにする。
+    /// ほかの実施日は外れた行の文字をエラーの色にする。
+    /// </remarks>
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(NoteEditViewModel.IsPeriodErrorOpen))
@@ -165,7 +204,7 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary>日付の欄の枠を、エラーの色にする・元に戻す</summary>
+    /// <summary>日付の欄の枠をエラーの色にする・元に戻す</summary>
     /// <param name="picker">日付の欄</param>
     /// <param name="isInvalid">エラーの色にするか</param>
     private static void MarkInvalid(CalendarDatePicker picker, bool isInvalid)
@@ -182,19 +221,24 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary>ほかの実施日の行の文字の色。期間の外のときは、エラーの色</summary>
+    /// <summary>ほかの実施日の行の文字の色</summary>
     /// <param name="isInvalid">期間の外か</param>
     /// <returns>文字の色</returns>
+    /// <remarks>期間の外のときはエラーの色</remarks>
     public static Brush ForegroundOf(bool isInvalid)
         => (Brush)Application.Current.Resources[isInvalid ? "SystemFillColorCriticalBrush" : "TextFillColorPrimaryBrush"];
 
-    /// <summary>「実施日を追加」を押したら、カレンダーを開く。日を押すたびに、入る・外れるが切り替わり、「閉じる」まで開いたままにする</summary>
+    /// <summary>「実施日を追加」を押したらカレンダーを開く</summary>
     /// <param name="sender">ボタン</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 開くたびに作り直す。実施日の日を押せない日にする印を、開くときの実施日に合わせるため。
-    /// 開いたときに見せる月は、いつも今日の月。これから足す日を選ぶカレンダーで、既にある日の月を見せないため。
-    /// 土曜・日曜・祝日の線は、日付の欄のカレンダーと同じ。開いただけでは、何も入れない。
+    /// 日を押すたびに入る・外れるが切り替わり、「閉じる」まで開いたままにする。
+    /// 開くたびに作り直す。
+    /// 実施日の日を押せない日にする印を開くときの実施日に合わせるため。
+    /// 開いたときに見せる月はいつも今日の月。
+    /// これから足す日を選ぶカレンダーで、既にある日の月を見せないため。
+    /// 土曜・日曜・祝日の線は日付の欄のカレンダーと同じ。
+    /// 開いただけでは何も入れない。
     /// </remarks>
     private void OnAddOtherEventDateClick(object sender, RoutedEventArgs e)
     {
@@ -248,14 +292,20 @@ public sealed partial class NoteEditWindow : Window
         flyout.ShowAt(AddOtherDateButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
     }
 
-    /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする (日本語の入力が多いため)</summary>
+    /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>日本語の入力が多いため</remarks>
     private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
     /// <summary>本文欄の右クリックのメニューを作る</summary>
     /// <returns>メニュー</returns>
-    /// <remarks>文字を選んでいるときだけ、書式と色が押せる。「リンクを追加」は、選んでいなくても押せる。切り取り・コピー・貼り付け・すべて選択も入れる。欄の標準のメニューを置き換えるため。</remarks>
+    /// <remarks>
+    /// 文字を選んでいるときだけ、書式と色が押せる。
+    /// 「リンクを追加」は選んでいなくても押せる。
+    /// 切り取り・コピー・貼り付け・すべて選択も入れる。
+    /// 欄の標準のメニューを置き換えるため。
+    /// </remarks>
     private MenuFlyout BuildBodyMenu()
     {
         var menu = new MenuFlyout();
@@ -282,10 +332,12 @@ public sealed partial class NoteEditWindow : Window
         return menu;
     }
 
-    /// <summary>本文欄の上に、書式のボタンの列を作る</summary>
+    /// <summary>本文欄の上に書式のボタンの列を作る</summary>
     /// <remarks>
-    /// 並びと名前は、右クリックのメニューと同じ。色・太字・斜体・下線・取消線・リンクを追加の順に並べる。
-    /// 右クリックを知らなくても、書式を付けられるようにするため。名前は、ツールチップに出す。
+    /// 並びと名前は右クリックのメニューと同じ
+    /// 色・太字・斜体・下線・取消線・リンクを追加の順に並べる
+    /// 右クリックを知らなくても書式を付けられるようにするため
+    /// 名前はツールチップに出す
     /// </remarks>
     private void BuildFormatBar()
     {
@@ -325,7 +377,7 @@ public sealed partial class NoteEditWindow : Window
     }
 
     /// <summary>書式のボタンを 1 つ作り、列に足す</summary>
-    /// <param name="text">名前 (ツールチップと、読み上げに使う)</param>
+    /// <param name="text">名前 (ツールチップと、読み上げに使う)。</param>
     /// <param name="icon">アイコン</param>
     /// <param name="needsSelection">文字を選んでいるときだけ押せるか</param>
     /// <returns>足したボタン</returns>
@@ -351,7 +403,7 @@ public sealed partial class NoteEditWindow : Window
         return button;
     }
 
-    /// <summary>文字を選んでいるときだけ、書式のボタンを押せるようにする</summary>
+    /// <summary>文字を選んでいるときだけ書式のボタンを押せるようにする</summary>
     private void UpdateFormatBar()
     {
         foreach (var button in _selectionButtons)
@@ -360,18 +412,23 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary>本文欄で選んでいる文字を控える (ボタンを押すとフォーカスが移るため、押した時点の選択を使う)</summary>
+    /// <summary>本文欄で選んでいる文字を控える</summary>
+    /// <remarks>ボタンを押すとフォーカスが移るため、押した時点の選択を使う。</remarks>
     private void CaptureSelection()
     {
         _selectionStart = BodyBox.SelectionStart;
         _selectionLength = BodyBox.SelectionLength;
     }
 
-    /// <summary>書式の項目を足す (選んだ文字を、タグで囲む)</summary>
+    /// <summary>書式の項目を足す</summary>
     /// <param name="menu">足し先のメニュー</param>
     /// <param name="text">項目の文字</param>
-    /// <param name="icon">項目のアイコン。無ければ null</param>
+    /// <param name="icon">
+    /// 項目のアイコン
+    /// 無ければ null
+    /// </param>
     /// <param name="tag">囲むタグの名前</param>
+    /// <remarks>選んだ文字をタグで囲む</remarks>
     private void AddFormat(MenuFlyout menu, string text, IconElement? icon, string tag)
     {
         var item = new MenuFlyoutItem { Text = text, Icon = icon };
@@ -402,9 +459,13 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary>「色」の項目を作る (押すと、色のパネルが開く)</summary>
+    /// <summary>「色」の項目を作る</summary>
     /// <returns>メニューの項目</returns>
-    /// <remarks>メニューの中に、さらに入れ子のメニューを開くと、色を選ぶのに何度も辿ることになる。そのため、色は 1 枚のパネルで選ぶ。</remarks>
+    /// <remarks>
+    /// 押すと色のパネルが開く。
+    /// メニューの中に、さらに入れ子のメニューを開くと、色を選ぶのに何度も辿ることになる。
+    /// そのため、色は 1 枚のパネルで選ぶ。
+    /// </remarks>
     private MenuFlyoutItem BuildColorItem()
     {
         var item = new MenuFlyoutItem { Text = "色", Icon = new SymbolIcon(Symbol.FontColor) };
@@ -413,8 +474,8 @@ public sealed partial class NoteEditWindow : Window
         return item;
     }
 
-    /// <summary>色のパネルを、選んでいる文字の直下に出す</summary>
-    /// <remarks>欄の見えている範囲の外に文字があるとき (スクロールしているとき)は、範囲の端に寄せる。</remarks>
+    /// <summary>色のパネルを選んでいる文字の直下に出す</summary>
+    /// <remarks>欄の見えている範囲の外に文字があるとき (スクロールしているとき)は範囲の端に寄せる</remarks>
     private void ShowColorFlyout()
     {
         var rect = BodyBox.GetRectFromCharacterIndex(_selectionStart, false);
@@ -424,7 +485,7 @@ public sealed partial class NoteEditWindow : Window
         _colorFlyout.ShowAt(BodyBox, new FlyoutShowOptions { Position = position, Placement = FlyoutPlacementMode.Bottom });
     }
 
-    /// <summary>色のパネルを作る (「標準」と、系統を横・段階を縦に並べた 11 × 4 の色)</summary>
+    /// <summary>色のパネルを作る</summary>
     /// <returns>パネル</returns>
     private Flyout BuildColorFlyout()
     {
@@ -461,10 +522,13 @@ public sealed partial class NoteEditWindow : Window
         return flyout;
     }
 
-    /// <summary>色のパネルを開くとき、色の見本を、今のテーマ (ライト・ダーク)で読める色に塗る</summary>
+    /// <summary>色のパネルを開くとき、色の見本を今のテーマで読める色に塗る</summary>
     /// <param name="sender">パネル</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>本文に入る色は、ライトの値。ダークでは、表示のときに同じ系統の別の色に差し替わる。</remarks>
+    /// <remarks>
+    /// 本文に入る色はライトの値
+    /// ダークでは表示のときに同じ系統の別の色に差し替わる
+    /// </remarks>
     private void OnColorFlyoutOpening(object? sender, object e)
     {
         var dark = RootGrid.ActualTheme == ElementTheme.Dark;
@@ -475,14 +539,14 @@ public sealed partial class NoteEditWindow : Window
     }
 
     /// <summary>パネルで色を選んだら、パネルを閉じて、選んでいた文字に反映する</summary>
-    /// <param name="transform">選んでいた文字から、置き換える文字を作る処理</param>
+    /// <param name="transform">選んでいた文字から、置き換える文字を作る処理。</param>
     private void PickColor(Func<string, string> transform)
     {
         _colorFlyout.Hide();
         ReplaceSelection(transform);
     }
 
-    /// <summary>メニューを開くとき、選んでいる文字を控え、押せる項目と、色の見本を合わせる</summary>
+    /// <summary>メニューを開くとき、選んでいる文字を控え、押せる項目と色の見本を合わせる</summary>
     /// <param name="sender">メニュー</param>
     /// <param name="e">イベントの情報</param>
     private void OnBodyMenuOpening(object? sender, object e)
@@ -496,8 +560,8 @@ public sealed partial class NoteEditWindow : Window
 
     }
 
-    /// <summary>メニューを開いたときに選んでいた文字を、変換した文字に置き換える</summary>
-    /// <param name="transform">選んでいた文字から、置き換える文字を作る処理</param>
+    /// <summary>メニューを開いたときに選んでいた文字を変換した文字に置き換える</summary>
+    /// <param name="transform">選んでいた文字から、置き換える文字を作る処理。</param>
     private void ReplaceSelection(Func<string, string> transform)
     {
         BodyBox.Focus(FocusState.Programmatic);
@@ -510,7 +574,7 @@ public sealed partial class NoteEditWindow : Window
     /// <summary>「リンクを追加」を押したら、リンク名とリンク先を聞いて、リンクを入れる</summary>
     /// <param name="sender">メニューの項目</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>文字を選んでいるときは、その文字がリンク名の初期値になる。</remarks>
+    /// <remarks>文字を選んでいるときはその文字がリンク名の初期値になる</remarks>
     private async void OnAddLinkClick(object sender, RoutedEventArgs e)
     {
         BodyBox.Select(_selectionStart, _selectionLength);
@@ -527,7 +591,10 @@ public sealed partial class NoteEditWindow : Window
 
     /// <summary>リンク名とリンク先を聞く</summary>
     /// <param name="initialName">リンク名の初期値</param>
-    /// <returns>入力した内容。キャンセルなら null</returns>
+    /// <returns>
+    /// 入力した内容
+    /// キャンセルなら null
+    /// </returns>
     private async Task<(string Name, string Target)?> AskLinkAsync(string initialName)
     {
         var nameBox = new TextBox { Header = "リンク名", Text = initialName, PlaceholderText = "省略すると、リンク先を表示します" };
@@ -563,10 +630,13 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary>ファイル・フォルダーを落としたら、カーソルの位置に、リンクを入れる</summary>
+    /// <summary>ファイル・フォルダーを落としたら、カーソルの位置にリンクを入れる</summary>
     /// <param name="sender">本文欄</param>
     /// <param name="e">ドロップの情報</param>
-    /// <remarks>リンク名は、ファイル・フォルダーの名前。複数を落としたときは、1 つずつ改行して並べる。</remarks>
+    /// <remarks>
+    /// リンク名はファイル・フォルダーの名前
+    /// 複数を落としたときは 1 つずつ改行して並べる
+    /// </remarks>
     private async void OnBodyDrop(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
@@ -593,7 +663,7 @@ public sealed partial class NoteEditWindow : Window
         }
     }
 
-    /// <summary><c>#RRGGBB</c> の文字から、色にする</summary>
+    /// <summary>#RRGGBB の文字から色にする</summary>
     /// <param name="hex">色の値</param>
     /// <returns>色</returns>
     private static Windows.UI.Color ParseColor(string hex)

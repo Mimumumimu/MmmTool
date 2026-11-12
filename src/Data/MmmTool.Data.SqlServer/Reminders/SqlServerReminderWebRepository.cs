@@ -8,27 +8,30 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Reminders;
 
-/// <summary>
-/// Web 版のリマインダーを、SQL Server の <c>dbo.Reminder</c>・<c>dbo.ReminderState</c> から、要求ごとに読み、書く。
-/// </summary>
+/// <summary>Web 版のリマインダーを SQL Server の dbo.Reminder・dbo.ReminderState から、要求ごとに読み、書く</summary>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <remarks>
 /// <para>
-/// PC 版の <see cref="SqlServerReminderRepository"/> は、全件をメモリに持って毎分読み直す、アプリ全体で 1 つの保存先。Web 版は要求ごとに作り、メモリに持たない。
-/// 今日の対象は、日付と曜日の条件を問い合わせの中で絞って読む。自分の対応状態は、同じ問い合わせで外部結合して読む。対応状態は、読むだけで、書かない。
+/// PC 版の <see cref="SqlServerReminderRepository"/> は全件をメモリに持って毎分読み直す、アプリ全体で 1 つの保存先。
+/// Web 版は要求ごとに作り、メモリに持たない。
+/// 今日の対象は日付と曜日の条件を問い合わせの中で絞って読む。
+/// 自分の対応状態は同じ問い合わせで外部結合して読む。
+/// 対応状態は読むだけで、書かない。
 /// </para>
 /// <para>
-/// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)と、書き込みの SQL は、PC 版と同じ <see cref="ReminderSql"/>。
-/// 共通ヘッダーの列 (<c>CreatedByUserId</c> など)は、条件に使わない。完全削除はしない。
+/// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)と、書き込みの SQL は PC 版と同じ <see cref="ReminderSql"/>。
+/// 共通ヘッダーの列 (<c>CreatedByUserId</c> など)は条件に使わない。
+/// 完全削除はしない。
 /// </para>
 /// </remarks>
 public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, CurrentUser currentUser)
 {
-    /// <summary>曜日指定を表す日付 (<c>9999-12-31</c>)</summary>
+    /// <summary>曜日指定を表す日付</summary>
     private static readonly DateTime NoDate = DateOnly.MaxValue.ToDateTime(TimeOnly.MinValue);
 
-    /// <summary>ある日の対象を読む問い合わせ。<see cref="ReminderSql.ReadReminder"/> の並びに、その日の対応状態 (無ければ 0)が続く</summary>
+    /// <summary>ある日の対象を読む問い合わせ</summary>
+    /// <remarks>ReminderSql.ReadReminder の並びにその日の対応状態が続く</remarks>
     private static readonly string TodaySql =
         $"""
         SELECT {ReminderSql.PrefixedColumns("r")}, ISNULL(s.Status, 0)
@@ -40,7 +43,8 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
         ORDER BY r.Time, r.Id
         """;
 
-    /// <summary>一覧を読む問い合わせ。日付 → 時刻 → 番号の順で、曜日指定 (<c>9999-12-31</c>)は後ろに並ぶ</summary>
+    /// <summary>一覧を読む問い合わせ</summary>
+    /// <remarks>日付 → 時刻 → 番号の順で、曜日指定は後ろに並ぶ。</remarks>
     private static readonly string ListSql =
         $"""
         {ReminderSql.Select}
@@ -51,7 +55,10 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
         """;
 
     /// <summary>今のユーザーの番号</summary>
-    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない
+    /// ログインが必要
+    /// </exception>
     private int UserId
     {
         get
@@ -62,14 +69,23 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
     }
 
     /// <summary>今のユーザーの番号</summary>
-    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない
+    /// ログインが必要
+    /// </exception>
     public int CurrentUserId => UserId;
 
-    /// <summary>ある日の対象と、その日の対応状態を読む</summary>
+    /// <summary>ある日の対象とその日の対応状態を読む</summary>
     /// <param name="day">日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>その日に発動する、削除されていない、宛先が自分と全員宛てのリマインダーで、時刻、番号の順。時刻が正しくないものは外す</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// その日に発動する、削除されていない、宛先が自分と全員宛てのリマインダーで、時刻、番号の順。
+    /// 時刻が正しくないものは外す。
+    /// </returns>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<ReminderTarget>> GetTodayAsync(DateOnly day, CancellationToken cancellationToken = default)
     {
         var userId = UserId;
@@ -97,12 +113,24 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
     }
 
     /// <summary>見えるリマインダーの一覧を読む</summary>
-    /// <param name="today">今日。「過去の予定」を外す基準</param>
-    /// <param name="includePast">日付が過去の日付指定も含めるか。今日は含む</param>
+    /// <param name="today">
+    /// 今日
+    /// 「過去の予定」を外す基準
+    /// </param>
+    /// <param name="includePast">
+    /// 日付が過去の日付指定も含めるか
+    /// 今日は含む
+    /// </param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>日付、時刻、番号の順の一覧。曜日指定は後ろ</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 日付、時刻、番号の順の一覧。
+    /// 曜日指定は後ろ。
+    /// </returns>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<Reminder>> GetListAsync(DateOnly today, bool includePast, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var userId = UserId;
@@ -126,11 +154,17 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
         }, cancellationToken);
     }
 
-    /// <summary>番号を指定して、見えるリマインダーを 1 件読む</summary>
+    /// <summary>番号を指定して見えるリマインダーを 1 件読む</summary>
     /// <param name="no">リマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>削除済みも含めて返す。無い・見えないときは null</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 削除済みも含めて返す
+    /// 無い・見えないときは null
+    /// </returns>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<Reminder?> FindAsync(int no, CancellationToken cancellationToken = default)
     {
         var userId = UserId;
@@ -145,12 +179,21 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
         }, cancellationToken);
     }
 
-    /// <summary>通知の記録から、見えて削除されていないリマインダーの番号と、送った日を 1 回で読む</summary>
+    /// <summary>通知の記録から、見えて削除されていないリマインダーの番号と送った日を 1 回で読む</summary>
     /// <param name="sendStatusId">送信の状況の番号 (<c>ReminderSendStatus.Id</c>)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>自分の送信先に届いた記録で、リマインダーが見えて削除されていないときだけ、リマインダーの番号と送った日。それ以外は null</returns>
-    /// <remarks>送信先の使用者 (<c>NotificationChannel.UserId</c>)と、リマインダーの見える範囲で絞る。共通ヘッダーの列は条件に使わない。</remarks>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 自分の送信先に届いた記録で、リマインダーが見えて削除されていないときだけ、リマインダーの番号と送った日。
+    /// それ以外は null。
+    /// </returns>
+    /// <remarks>
+    /// 送信先の使用者 (<c>NotificationChannel.UserId</c>)とリマインダーの見える範囲で絞る
+    /// 共通ヘッダーの列は条件に使わない
+    /// </remarks>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<(int ReminderNo, DateOnly Date)?> FindNotifiedAsync(int sendStatusId, CancellationToken cancellationToken = default)
     {
         var userId = UserId;
@@ -178,8 +221,11 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
     /// <param name="reminder">追加するリマインダー (番号は無視する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>追加した内容 (採番した番号と作成者つき)</returns>
-    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が、DB に入れられない値。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が DB に入れられない値</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { No = 0, IsDeleted = false });
@@ -190,13 +236,19 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
         return (row with { Id = id, AuthorUserId = userId }).ToReminder();
     }
 
-    /// <summary>既存のリマインダーを、同じ番号の内容で置き換える</summary>
+    /// <summary>既存のリマインダーを同じ番号の内容で置き換える</summary>
     /// <param name="reminder">置き換える内容 (番号で対象を決める)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>見えて更新できたとき true。無い・見えないとき false</returns>
-    /// <remarks>削除済みを編集すると、削除が取り消される。</remarks>
-    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が、DB に入れられない値。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 見えて更新できたとき true
+    /// 無い・見えないとき false
+    /// </returns>
+    /// <remarks>削除済みを編集すると削除が取り消される</remarks>
+    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先・文字数が DB に入れられない値</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・管理者が無効にしている・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { IsDeleted = false });
@@ -206,12 +258,18 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
             cancellationToken);
     }
 
-    /// <summary>リマインダーの削除フラグ (論理削除)を変える</summary>
+    /// <summary>リマインダーの削除フラグを変える</summary>
     /// <param name="no">リマインダーの番号</param>
     /// <param name="isDeleted">削除済みにするか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>見えて書けたとき true。無い・見えないとき false</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 見えて書けたとき true
+    /// 無い・見えないとき false
+    /// </returns>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default)
     {
         var userId = UserId;
@@ -234,8 +292,9 @@ public sealed class SqlServerReminderWebRepository(SqlServerDatabase database, C
             return value;
         }, cancellationToken);
 
-    /// <summary>日の曜日を、曜日指定の曜日 (月 = 1・火 = 2 … 日 = 64)の 1 つのビットにする</summary>
+    /// <summary>日の曜日を曜日指定の曜日の 1 つのビットにする</summary>
     /// <param name="day">日</param>
     /// <returns>その曜日のビット</returns>
+    /// <remarks>月 = 1・火 = 2 … 日 = 64</remarks>
     private static byte WeekdayBit(DateOnly day) => (byte)(1 << (((int)day.DayOfWeek + 6) % 7));
 }

@@ -10,7 +10,7 @@ namespace MmmToolAdmin.Users;
 /// <param name="Status">状態の文字列</param>
 public sealed record UserItem(int Id, string DisplayName, string LoginName, bool IsActive, string Status)
 {
-    /// <summary>ユーザーから、一覧の行を作る</summary>
+    /// <summary>ユーザーから一覧の行を作る</summary>
     /// <param name="user">ユーザー</param>
     /// <param name="today">今日の日付</param>
     /// <returns>一覧の行</returns>

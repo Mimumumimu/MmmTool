@@ -8,14 +8,19 @@ using Windows.System;
 
 namespace MmmTool.Features.Users.Edit;
 
-/// <summary>アカウントの項目 (表示名・ログイン名・パスワード)を編集するウィンドウ</summary>
+/// <summary>アカウントの項目を編集するウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身 (項目ごとに違う)に合わせて決める。サイズ変更・最大化・最小化はできない。
-/// 保存・キャンセル・× のどれでも閉じる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 幅は固定で、高さは中身 (項目ごとに違う)に合わせて決める。
+/// サイズ変更・最大化・最小化はできない。
+/// 保存・キャンセル・× のどれでも閉じる。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class AccountEditWindow : Window
 {
-    /// <summary>ウィンドウの幅 (DIP)</summary>
+    /// <summary>ウィンドウの幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double WindowWidth = 440;
 
     /// <summary>閉じたことを知らせる</summary>
@@ -29,7 +34,7 @@ public sealed partial class AccountEditWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public AccountEditWindow(AccountEditViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -84,9 +89,10 @@ public sealed partial class AccountEditWindow : Window
         }
     }
 
-    /// <summary>表示名の入力欄にフォーカスが来たら IME をオンにする。日本語の入力が多いためで、ログイン名は英数字が多いので、オンにしない</summary>
+    /// <summary>表示名の入力欄にフォーカスが来たら IME をオンにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>日本語の入力が多いためで、ログイン名は英数字が多いので、オンにしない。</remarks>
     private void OnValueBoxGotFocus(object sender, RoutedEventArgs e)
     {
         if (!ViewModel.NeedsCurrentPassword)
@@ -95,9 +101,10 @@ public sealed partial class AccountEditWindow : Window
         }
     }
 
-    /// <summary>Enter キーで保存する (ボタンにフォーカスがあるときは、ボタンの操作に任せる)</summary>
+    /// <summary>Enter キーで保存する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キーの情報</param>
+    /// <remarks>ボタンにフォーカスがあるときはボタンの操作に任せる</remarks>
     private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Enter && e.OriginalSource is not Button && ViewModel.SaveCommand.CanExecute(null))
@@ -112,7 +119,7 @@ public sealed partial class AccountEditWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnCloseRequested(object? sender, EventArgs e) => _modal.Close();
 
-    /// <summary>閉じたら、待っている側へ知らせる</summary>
+    /// <summary>閉じたら待っている側へ知らせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)

@@ -1,31 +1,35 @@
 namespace MmmTool.Backlog.Core;
 
-/// <summary>
-/// Backlog の共有ファイル 1 件で、API の応答の 1 要素。
-/// </summary>
+/// <summary>Backlog の共有ファイル 1 件でAPI の応答の 1 要素</summary>
 /// <remarks>
-/// 応答の JSON から読むので、プロパティ名は API の名前 (camelCase)に対応する。大文字小文字は区別しない。使うものだけを持つ。
+/// 応答の JSON から読むので、プロパティ名は API の名前 (camelCase)に対応する。
+/// 大文字小文字は区別しない。
+/// 使うものだけを持つ。
 /// </remarks>
 public sealed class BacklogSharedFile
 {
-    /// <summary>種別を表す値のうち、ファイルを指すもの</summary>
+    /// <summary>種別を表す値のうちファイルを指すもの</summary>
     public const string FileType = "file";
 
-    /// <summary>共有ファイルの ID (ダウンロードに使う)</summary>
+    /// <summary>共有ファイルの ID</summary>
+    /// <remarks>ダウンロードに使う</remarks>
     public long Id { get; init; }
 
-    /// <summary>種別 (<c>file</c> / <c>directory</c>)</summary>
+    /// <summary>種別</summary>
     public string Type { get; init; } = "";
 
     /// <summary>ファイル名</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>大きさで、単位はバイト。応答に無い (null)ときは null</summary>
+    /// <summary>大きさで、単位はバイト</summary>
+    /// <remarks>応答に無いときは null</remarks>
     public long? Size { get; init; }
 
-    /// <summary>更新日時。応答に無いときは null</summary>
+    /// <summary>更新日時</summary>
+    /// <remarks>応答に無いときは null</remarks>
     public DateTimeOffset? Updated { get; init; }
 
-    /// <summary>ファイルか (フォルダーではないか)</summary>
+    /// <summary>ファイルか</summary>
+    /// <remarks>フォルダーではないか</remarks>
     public bool IsFile => string.Equals(Type, FileType, StringComparison.OrdinalIgnoreCase);
 }

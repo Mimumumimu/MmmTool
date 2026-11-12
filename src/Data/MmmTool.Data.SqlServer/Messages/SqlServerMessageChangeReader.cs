@@ -5,24 +5,25 @@ using MmmTool.Data.SqlServer.Reminders;
 
 namespace MmmTool.Data.SqlServer.Messages;
 
-/// <summary>
-/// 更新されたメッセージと、その会話に入っている人、更新された参加者の行 (読んだ位置の変わり)を、ユーザーを特定せずに読む。Web 版のサーバーが、会話を開いている端末に、更新を知らせるために使う。
-/// </summary>
+/// <summary>更新されたメッセージとその会話に入っている人、更新された参加者の行をユーザーを特定せずに読む</summary>
 /// <remarks>
+/// Web 版のサーバーが会話を開いている端末に、更新を知らせるために使う。
 /// 全員分を 1 つの問い合わせにして、索引 <c>Message (UpdatedAt)</c> と <c>MessageConversationMember (UpdatedAt)</c> で、基準より後に更新された行だけを読む。
 /// 読むのは番号と日時だけで、本文は読まない。
-/// 参加者の行は、削除済みも読む。グループを抜けた人の別の端末に、抜けたことを知らせるため。
+/// 参加者の行は削除済みも読む。
+/// グループを抜けた人の別の端末に抜けたことを知らせるため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerMessageChangeReader(SqlServerDatabase database)
 {
-    /// <summary>
-    /// 基準より後に更新されたメッセージと、その会話の参加者を読む。
-    /// </summary>
+    /// <summary>基準より後に更新されたメッセージとその会話の参加者を読む</summary>
     /// <param name="since">この日時より後に更新された行を読む</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新されたメッセージの番号と更新日時、参加者の番号の組。次の基準にする DB の今の日時も返す</returns>
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。</exception>
+    /// <returns>
+    /// 更新されたメッセージの番号と更新日時、参加者の番号の組。
+    /// 次の基準にする DB の今の日時も返す。
+    /// </returns>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった</exception>
     public Task<(IReadOnlyList<MessageChange> Changes, DateTimeOffset Now)> ReadAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
         => SendTableAccess.RunAsync<(IReadOnlyList<MessageChange>, DateTimeOffset)>(database, async connection =>
         {
@@ -55,11 +56,25 @@ public sealed class SqlServerMessageChangeReader(SqlServerDatabase database)
         }, cancellationToken);
 }
 
-/// <summary>
-/// 更新された行 1 件と、知らせる相手 1 人の組。更新された行は、メッセージか、会話の参加者の行のどちらか。参加者の行の更新は、読んだ位置の変わりを表す。
-/// </summary>
-/// <param name="RowId">更新された行の番号。<paramref name="IsReadPosition"/> が false のときはメッセージの番号、true のときは参加者の行の番号</param>
-/// <param name="UpdatedAt">行を最後に更新した日時。DB の時計</param>
-/// <param name="UserId">更新を知らせる相手。メッセージのときは会話に入っている人、参加者の行のときはその行の人</param>
-/// <param name="IsReadPosition">参加者の行の更新 (読んだ位置の変わり)か。false ならメッセージの更新</param>
+/// <summary>更新された行 1 件と知らせる相手 1 人の組</summary>
+/// <param name="RowId">
+/// 更新された行の番号。
+/// <paramref name="IsReadPosition"/> が false のときはメッセージの番号、true のときは参加者の行の番号。
+/// </param>
+/// <param name="UpdatedAt">
+/// 行を最後に更新した日時
+/// DB の時計
+/// </param>
+/// <param name="UserId">
+/// 更新を知らせる相手。
+/// メッセージのときは会話に入っている人、参加者の行のときはその行の人。
+/// </param>
+/// <param name="IsReadPosition">
+/// 参加者の行の更新 (読んだ位置の変わり)か
+/// false ならメッセージの更新
+/// </param>
+/// <remarks>
+/// 更新された行はメッセージか、会話の参加者の行のどちらか。
+/// 参加者の行の更新は読んだ位置の変わりを表す。
+/// </remarks>
 public sealed record MessageChange(int RowId, DateTimeOffset UpdatedAt, int UserId, bool IsReadPosition);

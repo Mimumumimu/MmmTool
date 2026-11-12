@@ -3,13 +3,13 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Sending.Core.Notifiers;
 
-/// <summary>
-/// ntfy へ送る。
-/// </summary>
+/// <summary>ntfy へ送る</summary>
 /// <param name="http">HTTP クライアント (アプリ全体で 1 つ)</param>
 /// <remarks>
-/// サーバーの URL に JSON を POST する発行の形で送る。タイトルに日本語を使うため、ヘッダーに入れない。
-/// リンクが URL (http・https)なら、通知をタップしたときに開く。ファイル・フォルダーのパスは開けないので、本文の最後に添える。
+/// サーバーの URL に JSON を POST する発行の形で送る。
+/// タイトルに日本語を使うため、ヘッダーに入れない。
+/// リンクが URL (http・https)なら、通知をタップしたときに開く。
+/// ファイル・フォルダーのパスは開けないので、本文の最後に添える。
 /// </remarks>
 public sealed class NtfyNotifier(HttpClient http) : INotifier
 {

@@ -10,10 +10,13 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Messages;
 
-/// <summary>メッセージの入口。ページ・読み続ける部品・起動時の準備を登録する</summary>
+/// <summary>メッセージの入口</summary>
 /// <remarks>
-/// 外部へ送る処理は、MmmTool には無い。画面は、メッセージと通知の状態を DB に書くだけで、実際に送るのは MmmBatch。
-/// トレイのメニューは持たない。会話は、サイドバーのページで開く。
+/// ページ・読み続ける部品・起動時の準備を登録する。
+/// 外部へ送る処理は MmmTool には無い。
+/// 画面はメッセージと通知の状態を DB に書くだけで、実際に送るのは MmmBatch。
+/// トレイのメニューは持たない。
+/// 会話はサイドバーのページで開く。
 /// </remarks>
 public sealed class MessagesPlugin : IFeaturePlugin
 {

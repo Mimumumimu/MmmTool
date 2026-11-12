@@ -3,9 +3,7 @@ using MmmTool.DayContent.Core;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>
-/// 「表示する内容」の枠の中の、真偽の選択肢 1 つで、チェックとして出す。
-/// </summary>
+/// <summary>「表示する内容」の枠の中の真偽の選択肢 1 つでチェックとして出す</summary>
 public sealed partial class DayContentOptionItem : ObservableObject
 {
     /// <summary>変わったときに呼ぶ処理</summary>
@@ -25,7 +23,7 @@ public sealed partial class DayContentOptionItem : ObservableObject
         _changed = changed;
     }
 
-    /// <summary>選択肢の識別 (この PC の設定のキー)</summary>
+    /// <summary>選択肢の識別</summary>
     public string Key { get; }
 
     /// <summary>画面に出す名前</summary>
@@ -35,7 +33,7 @@ public sealed partial class DayContentOptionItem : ObservableObject
     [ObservableProperty]
     public partial bool IsOn { get; set; }
 
-    /// <summary>選びが変わったら、知らせる</summary>
+    /// <summary>選びが変わったら知らせる</summary>
     /// <param name="value">新しい値</param>
     partial void OnIsOnChanged(bool value) => _changed?.Invoke(this);
 }

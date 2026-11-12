@@ -2,12 +2,10 @@ using MmmSdk.Core.Components.Features;
 
 namespace MmmBatch.Sending.Core.Notifiers;
 
-/// <summary>
-/// 起動時に、Web 版通知の送り手の鍵を用意しておく。
-/// </summary>
+/// <summary>起動時に Web 版通知の送り手の鍵を用意しておく</summary>
 /// <param name="keys">送り手の鍵</param>
 /// <remarks>
-/// 端末の登録には、Web 版のサーバーに公開鍵を設定しておく必要があり、最初の送信より前に要る。
+/// 端末の登録には Web 版のサーバーに公開鍵を設定しておく必要があり、最初の送信より前に要る。
 /// そのため、送るときではなく、起動時に作る。
 /// </remarks>
 public sealed class WebPushKeyStartup(WebPushKeyStore keys) : IStartupTask

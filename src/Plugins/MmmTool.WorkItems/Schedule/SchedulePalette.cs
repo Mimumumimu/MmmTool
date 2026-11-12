@@ -5,11 +5,21 @@ using Windows.UI;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>スケジュールの色 (ライト・ダークの両方の値を持つ、名前のついた色)</summary>
+/// <summary>スケジュールの色</summary>
 /// <remarks>
-/// 棒・休みの日の背景・今日の線のように、画面の部品が、コードで描くものの色。テーマごとに値を持たせ、どちらかを標準任せにしない。
-/// 実績の棒の中の数字は、棒の背景に対して 4.5 倍以上のコントラストにする。ライトは薄い背景と濃い文字、ダークは暗い緑の背景と明るい文字にする。ダークで明るい面にすると、暗い背景の中で浮くため。
-/// 休みの日の背景は、土曜を薄い青、日曜と祝日を薄い赤にし、どちらも半透明の色にする。行の背景が、白の作業の行でも、青い案件・グループの行でも、約 1.2 倍以上の差で見える。中立な灰色にしない。灰色は、入力できない行のように見えるため。不透明にしない。これはユーザーの決定で、不透明にすると、行の背景や罫線が隠れて、のっぺりした帯になる。土曜と日曜で、作りをそろえる。
+/// ライト・ダークの両方の値を持つ、名前のついた色。
+/// 棒・休みの日の背景・今日の線のように、画面の部品がコードで描くものの色。
+/// テーマごとに値を持たせ、どちらかを標準任せにしない。
+/// 実績の棒の中の数字は棒の背景に対して 4.5 倍以上のコントラストにする。
+/// ライトは薄い背景と濃い文字、ダークは暗い緑の背景と明るい文字にする。
+/// ダークで明るい面にすると暗い背景の中で浮くため。
+/// 休みの日の背景は土曜を薄い青、日曜と祝日を薄い赤にし、どちらも半透明の色にする。
+/// 行の背景が白の作業の行でも、青い案件・グループの行でも、約 1.2 倍以上の差で見える。
+/// 中立な灰色にしない。
+/// 灰色は入力できない行のように見えるため。
+/// 不透明にしない。
+/// これはユーザーの決定で、不透明にすると、行の背景や罫線が隠れて、のっぺりした帯になる。
+/// 土曜と日曜で、作りをそろえる。
 /// </remarks>
 public sealed class SchedulePalette
 {
@@ -55,7 +65,7 @@ public sealed class SchedulePalette
 
     /// <summary>テーマに合った色を返す</summary>
     /// <param name="theme">要素の実際のテーマ (<see cref="FrameworkElement.ActualTheme"/>)</param>
-    /// <returns>ダークならダークの色、それ以外はライトの色</returns>
+    /// <returns>ダークならダークの色、それ以外はライトの色。</returns>
     public static SchedulePalette For(ElementTheme theme) => theme == ElementTheme.Dark ? DarkPalette.Value : LightPalette.Value;
 
     /// <summary>色の組を作る</summary>
@@ -80,16 +90,17 @@ public sealed class SchedulePalette
         Sunday = new SolidColorBrush(sunday);
     }
 
-    /// <summary>土曜の列の背景 (薄い青)</summary>
+    /// <summary>土曜の列の背景</summary>
     public SolidColorBrush SaturdayFill { get; }
 
-    /// <summary>日曜・祝日の列の背景 (薄い赤)</summary>
+    /// <summary>日曜・祝日の列の背景</summary>
     public SolidColorBrush SundayFill { get; }
 
     /// <summary>日付の区切りの線</summary>
     public SolidColorBrush Line { get; }
 
-    /// <summary>今日の線と、見出しの今日の印 (棒の青・実績の緑・休みの赤と混ざらない、無彩色寄りの 1 色)</summary>
+    /// <summary>今日の線と見出しの今日の印</summary>
+    /// <remarks>棒の青・実績の緑・休みの赤と混ざらない、無彩色寄りの 1 色。</remarks>
     public SolidColorBrush Today { get; }
 
     /// <summary>見出しの今日の印の上の文字</summary>
@@ -107,27 +118,28 @@ public sealed class SchedulePalette
     /// <summary>実績の棒の枠</summary>
     public SolidColorBrush ActualEdge { get; }
 
-    /// <summary>実績の棒の中の、時間の数字</summary>
+    /// <summary>実績の棒の中の時間の数字</summary>
     public SolidColorBrush ActualText { get; }
 
     /// <summary>期限切れの枠</summary>
     public SolidColorBrush Critical { get; }
 
-    /// <summary>見出しの、土曜の文字</summary>
+    /// <summary>見出しの土曜の文字</summary>
     public SolidColorBrush Saturday { get; }
 
-    /// <summary>見出しの、日曜・祝日の文字</summary>
+    /// <summary>見出しの日曜・祝日の文字</summary>
     public SolidColorBrush Sunday { get; }
 
-    /// <summary>完了した作業の予定の棒 (進行中の青より彩度を落とした青灰色)</summary>
+    /// <summary>完了した作業の予定の棒</summary>
     public SolidColorBrush DonePlan { get; }
 
-    /// <summary>完了日の印の背景 (実績の棒の緑と形で見分ける)</summary>
+    /// <summary>完了日の印の背景</summary>
+    /// <remarks>実績の棒の緑と形で見分ける</remarks>
     public SolidColorBrush DoneMark { get; }
 
-    /// <summary>完了日の印の中の、チェックの色</summary>
+    /// <summary>完了日の印の中のチェックの色</summary>
     public SolidColorBrush DoneMarkText { get; }
 
-    /// <summary>日の備考がある日の印 (棒の青・実績の緑・休みの赤と混ざらない琥珀色)</summary>
+    /// <summary>日の備考がある日の印</summary>
     public SolidColorBrush NoteMark { get; }
 }

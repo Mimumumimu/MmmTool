@@ -1,18 +1,18 @@
 namespace MmmToolWeb.Server.Hosting;
 
-/// <summary>
-/// 探りを繰り返す接続元を、一定時間断る。探りは、存在しない道への要求と、画面の道ではない道に画面の入口を返しただけの要求。
-/// </summary>
-/// <param name="next">次の処理。</param>
+/// <summary>探りを繰り返す接続元を一定時間断る</summary>
+/// <param name="next">次の処理</param>
 /// <param name="guard">探りの数え方と、断った接続元の一覧。</param>
-/// <param name="routes">画面の道の一覧。</param>
-/// <param name="loggerFactory">ログの出力先を作る。</param>
+/// <param name="routes">画面の道の一覧</param>
+/// <param name="loggerFactory">ログの出力先を作る</param>
+/// <remarks>探りは存在しない道への要求と、画面の道ではない道に画面の入口を返しただけの要求。</remarks>
 internal sealed class ProbeGuardMiddleware(RequestDelegate next, ProbeGuard guard, ClientRoutes routes, ILoggerFactory loggerFactory)
 {
-    /// <summary>画面の入口を返す仕組み (<c>MapFallbackToFile</c>)の道の型。</summary>
+    /// <summary>画面の入口を返す仕組みの道の型</summary>
     private const string FallbackPattern = "{*path:nonfile}";
 
-    /// <summary>普通に使っても <c>404</c> になる道。探りに数えない。</summary>
+    /// <summary>普通に使っても 404 になる道</summary>
+    /// <remarks>探りに数えない</remarks>
     private static readonly HashSet<string> NormalNotFoundPaths = new(StringComparer.OrdinalIgnoreCase)
     {
         "/favicon.ico",
@@ -20,14 +20,12 @@ internal sealed class ProbeGuardMiddleware(RequestDelegate next, ProbeGuard guar
         "/MmmToolWeb.Client.styles.css",
     };
 
-    /// <summary>記録の書き手。</summary>
+    /// <summary>記録の書き手</summary>
     private readonly ILogger _logger = loggerFactory.CreateLogger(SecurityLog.Category);
 
-    /// <summary>
-    /// 断っている接続元なら断り、そうでなければ処理して、探りなら数える。
-    /// </summary>
-    /// <param name="context">今の要求。</param>
-    /// <returns>処理の完了を表すタスク。</returns>
+    /// <summary>断っている接続元なら断り、そうでなければ処理して、探りなら数える</summary>
+    /// <param name="context">今の要求</param>
+    /// <returns>処理の完了を表すタスク</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         var address = ClientAddress.PartitionKey(context);
@@ -49,11 +47,9 @@ internal sealed class ProbeGuardMiddleware(RequestDelegate next, ProbeGuard guar
         }
     }
 
-    /// <summary>
-    /// 処理した要求が、探りかを返す。
-    /// </summary>
-    /// <param name="context">処理を終えた要求。</param>
-    /// <returns>探りなら true。</returns>
+    /// <summary>処理した要求が探りかを返す</summary>
+    /// <param name="context">処理を終えた要求</param>
+    /// <returns>探りなら true</returns>
     private bool IsProbe(HttpContext context)
     {
         var path = context.Request.Path;

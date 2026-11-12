@@ -1,15 +1,16 @@
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// ノートの表示ページが使う仮想ホスト名と、カードの操作の内部リンク。本文のリンク (http / https / file)の判定。
-/// </summary>
+/// <summary>ノートの表示ページが使う仮想ホスト名とカードの操作の内部リンク</summary>
 /// <remarks>
-/// カードの「編集」「削除」「復元」は、表示ページが持つ仮想ホストの URL (<see cref="ActionUrl"/>)で表し、ページの移動を横取りして、アプリが処理する。
-/// 本文に書いた <c>&lt;a&gt;</c> が、この操作になりすまして、ほかの人のノートの削除などを呼ばないよう、本文のリンクは仮想ホストを指せない。判定は <see cref="TryNormalizeHref"/> で行う。
+/// 本文のリンクの判定。
+/// カードの「編集」「削除」「復元」は表示ページが持つ仮想ホストの URL (<see cref="ActionUrl"/>)で表し、ページの移動を横取りして、アプリが処理する。
+/// 本文に書いた <c>&lt;a&gt;</c> がこの操作になりすまして、ほかの人のノートの削除などを呼ばないよう、本文のリンクは仮想ホストを指せない。
+/// 判定は <see cref="TryNormalizeHref"/> で行う。
 /// </remarks>
 public static class NoteLinks
 {
-    /// <summary>表示ページの仮想ホスト名で、実在しない名前。<c>.invalid</c> は、実在しないことが決まっている</summary>
+    /// <summary>表示ページの仮想ホスト名で、実在しない名前</summary>
+    /// <remarks>.invalid は実在しないことが決まっている</remarks>
     public const string PageHost = "notes.mmmtool.invalid";
 
     /// <summary>表示ページの URL</summary>
@@ -25,7 +26,7 @@ public static class NoteLinks
     public static string ActionUrl(NoteAction action, int noteId)
         => $"https://{PageHost}/action/{ActionName(action)}/{noteId}";
 
-    /// <summary>内部リンクの URL から、操作とノートの番号を取り出す</summary>
+    /// <summary>内部リンクの URL から操作とノートの番号を取り出す</summary>
     /// <param name="uri">移動先の URL</param>
     /// <param name="action">操作</param>
     /// <param name="noteId">ノートの番号</param>
@@ -56,20 +57,23 @@ public static class NoteLinks
         return false;
     }
 
-    /// <summary>本文のリンク先を、ページに出す形にする (<c>file:</c> は、仮想ホストの内部リンクに包む)</summary>
+    /// <summary>本文のリンク先をページに出す形にする</summary>
     /// <param name="href">正規化したリンク先 (<see cref="TryNormalizeHref"/>の結果)</param>
     /// <returns>ページの <c>href</c> に出す URL</returns>
     /// <remarks>
-    /// 仮想ホストの https のページから <c>file:</c> のリンクを押しても、WebView2 (Chromium)は、ローカルのファイルへの移動を、移動が始まる前に止める。
-    /// アプリが横取りする <c>NavigationStarting</c> が来ない。そのため、<c>file:</c> は、仮想ホストの内部リンクに包んで出し、アプリが横取りして、元の URL を取り出す。
+    /// <c>file:</c> は仮想ホストの内部リンクに包む。
+    /// 仮想ホストの https のページから <c>file:</c> のリンクを押しても、WebView2 (Chromium)はローカルのファイルへの移動を、移動が始まる前に止める。
+    /// アプリが横取りする <c>NavigationStarting</c> が来ない。
+    /// そのため、<c>file:</c> は仮想ホストの内部リンクに包んで出し、アプリが横取りして、元の URL を取り出す。
     /// </remarks>
     public static string ToPageHref(string href)
         => href.StartsWith("file:", StringComparison.OrdinalIgnoreCase) ? $"https://{PageHost}/open?u={Uri.EscapeDataString(href)}" : href;
 
-    /// <summary>内部リンクの URL から、包まれている本文のリンク先 (<c>file:</c>)を取り出す</summary>
+    /// <summary>内部リンクの URL から、包まれている本文のリンク先を取り出す</summary>
     /// <param name="uri">移動先の URL</param>
     /// <param name="target">取り出したリンク先</param>
-    /// <returns><see cref="ToPageHref"/> が包んだ内部リンクで、中身が開いてよい URL なら true</returns>
+    /// <returns><see cref="ToPageHref"/> が包んだ内部リンクで、中身が開いてよい URL なら true。</returns>
+    /// <remarks><c>file:</c></remarks>
     public static bool TryParseOpen(string uri, out Uri target)
     {
         target = null!;
@@ -93,7 +97,7 @@ public static class NoteLinks
     public static bool IsPageUri(string uri)
         => Uri.TryCreate(uri, UriKind.Absolute, out var parsed) && IsPageHost(parsed);
 
-    /// <summary>ページの中のリンクとして、開いてよい URL か (http・https・file)</summary>
+    /// <summary>ページの中のリンクとして開いてよい URL か</summary>
     /// <param name="uri">開く URL</param>
     /// <returns>開いてよいなら true</returns>
     public static bool IsOpenable(Uri uri)
@@ -101,8 +105,11 @@ public static class NoteLinks
 
     /// <summary>本文のリンクとして使える URL かを調べ、書き直した形にする</summary>
     /// <param name="raw">本文に書かれたリンク先</param>
-    /// <param name="href">使えるときの、正規化した URL (<c>http</c>・<c>https</c>・<c>file</c>)</param>
-    /// <returns>使えるなら true。それ以外の種類 (独自のスキーム・<c>javascript:</c> など)・空白や引用符を含むもの・仮想ホストは false</returns>
+    /// <param name="href">使えるときの、正規化した URL (<c>http</c>・<c>https</c>・<c>file</c>)。</param>
+    /// <returns>
+    /// 使えるなら true
+    /// それ以外の種類 (独自のスキーム・<c>javascript:</c> など)・空白や引用符を含むもの・仮想ホストは false
+    /// </returns>
     public static bool TryNormalizeHref(string raw, out string href)
     {
         href = "";
@@ -130,12 +137,18 @@ public static class NoteLinks
         return true;
     }
 
-    /// <summary>ページの HTML に出したリンク先 (本文のリンク)を、すべて集める</summary>
+    /// <summary>ページの HTML に出したリンク先をすべて集める</summary>
     /// <param name="html">アプリが組み立てたページの HTML</param>
-    /// <returns>リンク先の正規化した URL (<see cref="Uri.AbsoluteUri"/>)の集まり。カードの操作の内部リンクは含まない</returns>
+    /// <returns>
+    /// リンク先の正規化した URL (<see cref="Uri.AbsoluteUri"/>)の集まり
+    /// カードの操作の内部リンクは含まない
+    /// </returns>
     /// <remarks>
-    /// 押したリンクを開いてよいかの判定に使う。開くのは、今のページに出したリンクだけ。ファイルをページに落として、そのファイルへ移ろうとしたときなど、
-    /// ページに出していないものは、開かない。HTML はアプリが組み立てたもの (<c>&lt;a href="…"&gt;</c> の形だけ)なので、その形だけを集める。
+    /// 押したリンクを開いてよいかの判定に使う。
+    /// 開くのは今のページに出したリンクだけ。
+    /// ファイルをページに落として、そのファイルへ移ろうとしたときなど、
+    /// ページに出していないものは開かない。
+    /// HTML はアプリが組み立てたもの (<c>&lt;a href="…"&gt;</c> の形だけ)なので、その形だけを集める。
     /// </remarks>
     public static HashSet<string> CollectHrefs(string html)
     {
@@ -166,19 +179,23 @@ public static class NoteLinks
         return hrefs;
     }
 
-    /// <summary>ファイル・フォルダーのパスを、リンク先の URL (<c>file:</c>)にする</summary>
+    /// <summary>ファイル・フォルダーのパスをリンク先の URLにする</summary>
     /// <param name="path">ファイル・フォルダーのパス (<c>C:\…</c> または <c>\\server\…</c>)</param>
-    /// <returns>URL。パスとして読めないときは、そのまま返す</returns>
+    /// <returns>
+    /// URL
+    /// パスとして読めないときはそのまま返す
+    /// </returns>
+    /// <remarks><c>file:</c></remarks>
     public static string FileHref(string path)
         => Path.IsPathRooted(path) && Uri.TryCreate(path, UriKind.Absolute, out var uri) ? uri.AbsoluteUri : path;
 
     /// <summary>仮想ホストの URL か</summary>
     /// <param name="uri">URL</param>
-    /// <returns>https で、仮想ホストなら true</returns>
+    /// <returns>https で、仮想ホストなら true。</returns>
     private static bool IsPageHost(Uri uri)
         => uri.Scheme == Uri.UriSchemeHttps && string.Equals(uri.Host, PageHost, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>操作の、URL の中の名前</summary>
+    /// <summary>操作の URL の中の名前</summary>
     /// <param name="action">操作</param>
     /// <returns>小文字の名前</returns>
     private static string ActionName(NoteAction action) => action.ToString().ToLowerInvariant();

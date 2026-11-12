@@ -36,7 +36,7 @@ public sealed partial class ClipboardTransferPage : Page
     /// <param name="e">ドラッグの情報</param>
     private void OnDragLeave(object sender, DragEventArgs e) => VisualStateManager.GoToState(this, "DropIdle", true);
 
-    /// <summary>ドラッグ中、ファイルなら送れると示す</summary>
+    /// <summary>ドラッグ中ファイルなら送れると示す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ドラッグの情報</param>
     private void OnDragOver(object sender, DragEventArgs e)
@@ -51,7 +51,7 @@ public sealed partial class ClipboardTransferPage : Page
         }
     }
 
-    /// <summary>ドロップされたファイルを、クリップボードに載せる</summary>
+    /// <summary>ドロップされたファイルをクリップボードに載せる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ドロップの情報</param>
     private async void OnDrop(object sender, DragEventArgs e)
@@ -78,6 +78,6 @@ public sealed partial class ClipboardTransferPage : Page
 
     /// <summary>ドロップを受け付けられるか</summary>
     /// <param name="e">ドラッグの情報</param>
-    /// <returns>処理中ではなく、ファイルが含まれていれば true</returns>
+    /// <returns>処理中ではなく、ファイルが含まれていれば true。</returns>
     private bool CanDrop(DragEventArgs e) => ViewModel.IsIdle && e.DataView.Contains(StandardDataFormats.StorageItems);
 }

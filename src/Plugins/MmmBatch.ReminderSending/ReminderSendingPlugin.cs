@@ -6,10 +6,11 @@ using MmmSdk.WinUI.Components.Pages;
 
 namespace MmmBatch.ReminderSending;
 
-/// <summary>リマインダーの送信の入口 (毎分の仕事とページを登録する)</summary>
+/// <summary>リマインダーの送信の入口</summary>
 /// <remarks>
-/// 送る対象の読み出し口 (<see cref="IReminderSendTargetSource"/>)と、送信の状況の保存先 (<see cref="IReminderSendStatusRepository"/>)は、ホストが DB の実装を登録する。
-/// 機能に共通の送信の処理 (送る口・ログ・毎分の監視)は、ホストが <c>AddSendingCore</c> で登録する。
+/// 毎分の仕事とページを登録する。
+/// 送る対象の読み出し口 (<see cref="IReminderSendTargetSource"/>)と、送信の状況の保存先 (<see cref="IReminderSendStatusRepository"/>)はホストが DB の実装を登録する。
+/// 機能に共通の送信の処理 (送る口・ログ・毎分の監視)はホストが <c>AddSendingCore</c> で登録する。
 /// </remarks>
 public sealed class ReminderSendingPlugin : IFeaturePlugin
 {

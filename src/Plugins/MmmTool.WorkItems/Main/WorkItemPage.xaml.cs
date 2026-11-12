@@ -25,7 +25,8 @@ namespace MmmTool.WorkItems.Main;
 /// </remarks>
 public sealed partial class WorkItemPage : Page
 {
-    /// <summary>列の定義 (キー・見出し・幅・固定か・毎日入力する列か)</summary>
+    /// <summary>列の定義</summary>
+    /// <remarks>キー・見出し・幅・固定か・毎日入力する列か</remarks>
     private readonly List<TreeGridColumn> _columns;
 
     /// <summary>状態と進捗度・実績の食い違いを知らせる吹き出し</summary>
@@ -37,13 +38,16 @@ public sealed partial class WorkItemPage : Page
     /// <summary>入力日の備考の列</summary>
     private readonly TreeGridColumn _dayNoteColumn;
 
-    /// <summary>毎日入力する列のキー (見出しの色を付ける)</summary>
-    /// <summary>確定を渡し済みの入力欄 (入力欄ごとに 1 回だけ保存するため)</summary>
+    /// <summary>確定を渡し済みの入力欄</summary>
+    /// <remarks>入力欄ごとに 1 回だけ保存するため</remarks>
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TextBox, object?> _committedBoxes = [];
 
+    /// <summary>毎日入力する列のキー</summary>
+    /// <remarks>見出しの色を付ける</remarks>
     private static readonly HashSet<string> DailyKeys = ["Status", "Progress", "ActualDay", "DayNote", "Note"];
 
-    /// <summary>日報メモの入力欄に、一度に見せる行数 (入力欄の高さは、この行数から計算する)</summary>
+    /// <summary>日報メモの入力欄に一度に見せる行数</summary>
+    /// <remarks>入力欄の高さはこの行数から計算する</remarks>
     private const int DayNoteLines = 5;
 
     /// <summary>ページの ViewModel</summary>
@@ -144,10 +148,10 @@ public sealed partial class WorkItemPage : Page
         Unloaded += (_, _) => _warningBubble.Hide();
     }
 
-    /// <summary>状態と進捗度・実績の食い違いを、入力したセルの下に短く出す</summary>
+    /// <summary>状態と進捗度・実績の食い違いを入力したセルの下に短く出す</summary>
     /// <param name="sender">ViewModel</param>
     /// <param name="warning">警告 (行・列・文)</param>
-    /// <remarks>保存の直後は、行の表示を作り直している途中なので、表示が整ってから、セルの位置を引く。</remarks>
+    /// <remarks>保存の直後は行の表示を作り直している途中なので、表示が整ってから、セルの位置を引く。</remarks>
     private void OnWarningRaised(object? sender, WorkWarning warning)
         => DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
@@ -157,11 +161,14 @@ public sealed partial class WorkItemPage : Page
             }
         });
 
-    /// <summary>日報メモの入力欄の高さを、<see cref="DayNoteLines"/> 行ちょうどが入る高さにする</summary>
+    /// <summary>日報メモの入力欄の高さを DayNoteLines 行ちょうどが入る高さにする</summary>
     /// <remarks>
-    /// 高さ = 行数 × 1 行の高さ + 上下の余白 + 枠。1 行の高さは、入力欄と同じフォントの <see cref="TextBlock"/> を 1 行ぶん測って求める。
-    /// <see cref="TextBox"/> には、行の高さの指定が無い。測るので、画面の拡大率やフォントが変わってもずれない。
-    /// 入力欄を作ったあと (<see cref="FrameworkElement.Loaded"/>)に呼ぶ。スタイルが当たる前は、フォントの大きさが決まらないため。
+    /// 高さ = 行数 × 1 行の高さ + 上下の余白 + 枠。
+    /// 1 行の高さは入力欄と同じフォントの <see cref="TextBlock"/> を 1 行ぶん測って求める。
+    /// <see cref="TextBox"/> には行の高さの指定が無い。
+    /// 測るので、画面の拡大率やフォントが変わってもずれない。
+    /// 入力欄を作ったあと (<see cref="FrameworkElement.Loaded"/>)に呼ぶ。
+    /// スタイルが当たる前はフォントの大きさが決まらないため。
     /// </remarks>
     private void FitDayNoteHeight()
     {
@@ -172,12 +179,12 @@ public sealed partial class WorkItemPage : Page
             + DayNoteBox.BorderThickness.Top + DayNoteBox.BorderThickness.Bottom;
     }
 
-    /// <summary>ページを開いたときに、保存先から読み直す</summary>
+    /// <summary>ページを開いたときに保存先から読み直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private async void OnLoaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
 
-    /// <summary>日付の選択欄が入力用に切り替わったら、すぐカレンダーを開く</summary>
+    /// <summary>日付の選択欄が入力用に切り替わったらすぐカレンダーを開く</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
     private void OnDateLoaded(object sender, RoutedEventArgs e)
@@ -189,10 +196,14 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>カレンダーが開いたとき、日付が空なら、入力日 (終了日は開始日があれば開始日)の月を表示する</summary>
+    /// <summary>カレンダーが開いたとき、日付が空なら、入力日の月を表示する</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>日付が空のままだと、カレンダーはシステムの今日の月を表示するため。選択はしない。表示する月だけ変える。</remarks>
+    /// <remarks>
+    /// 日付が空のままだとカレンダーはシステムの今日の月を表示するため
+    /// 選択はしない
+    /// 表示する月だけ変える
+    /// </remarks>
     private void OnDateOpened(object? sender, object e)
     {
         if (sender is not CalendarDatePicker { Date: null } picker || TreeGridView.GetRow(picker) is not WorkItemRow row)
@@ -216,9 +227,12 @@ public sealed partial class WorkItemPage : Page
         });
     }
 
-    /// <summary>要素の中から、最初のカレンダーを探す</summary>
+    /// <summary>要素の中から最初のカレンダーを探す</summary>
     /// <param name="element">探し始める要素</param>
-    /// <returns>見つかったカレンダー。無ければ <see langword="null"/></returns>
+    /// <returns>
+    /// 見つかったカレンダー
+    /// 無ければ <see langword="null"/>
+    /// </returns>
     private static CalendarView? FindCalendarView(DependencyObject? element)
     {
         if (element is CalendarView calendar)
@@ -237,7 +251,7 @@ public sealed partial class WorkItemPage : Page
         return null;
     }
 
-    /// <summary>カレンダーが閉じたら、表示用に戻す</summary>
+    /// <summary>カレンダーが閉じたら表示用に戻す</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="e">イベントの情報</param>
     private void OnDateClosed(object? sender, object e)
@@ -271,13 +285,16 @@ public sealed partial class WorkItemPage : Page
             IsInvokable = key is "Priority" or "Status" or "Progress" or "Assignee" or "Link",
         };
 
-    /// <summary>表示用のセルの見た目のキーから、入力用のキーを返す</summary>
+    /// <summary>表示用のセルの見た目のキーから入力用のキーを返す</summary>
     /// <param name="templateKey">表示用のキー (…Cell)</param>
     /// <returns>入力用のキー (…Edit)</returns>
     private static string EditKey(string templateKey) => templateKey[..^"Cell".Length] + "Edit";
 
     /// <summary>設定と入力日に合わせて、列の表示・見出し・色を直し、表に反映する</summary>
-    /// <param name="fitAll">表示しているすべての列の幅を測るか。作った直後で、false なら、新しく表示する列だけ</param>
+    /// <param name="fitAll">
+    /// 表示しているすべての列の幅を測るか。
+    /// 作った直後で、false なら、新しく表示する列だけ。
+    /// </param>
     private void ApplyColumns(bool fitAll = false)
     {
         var lineBrush = (Brush)Resources["DailyLineBrush"];
@@ -298,12 +315,15 @@ public sealed partial class WorkItemPage : Page
         TreeGrid.RefreshColumns();
     }
 
-    /// <summary>表示している列の幅を、中身に合わせる</summary>
-    /// <param name="only">測る列 (null なら、表示しているすべての列)</param>
+    /// <summary>表示している列の幅を中身に合わせる</summary>
+    /// <param name="only">測る列 (null なら、表示しているすべての列)。</param>
     /// <returns>幅が変わった列があるか</returns>
     /// <remarks>
-    /// 見出し・選択肢・今の行の文字のうち、いちばん長いものに、余白を足した幅にする。備考だけは、上限を設ける。
-    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。表示していない列は測らない。行の数 × 列の数だけ、文字の幅を測るので、重いため。
+    /// 見出し・選択肢・今の行の文字のうち、いちばん長いものに、余白を足した幅にする。
+    /// 備考だけは上限を設ける。
+    /// 表示を変える操作 (行の追加・入力の確定)のあとに呼ぶ。
+    /// 表示していない列は測らない。
+    /// 行の数 × 列の数だけ、文字の幅を測るので、重いため。
     /// </remarks>
     private bool FitColumns(IReadOnlyCollection<TreeGridColumn>? only = null)
     {
@@ -343,14 +363,18 @@ public sealed partial class WorkItemPage : Page
         return changed;
     }
 
-    /// <summary>備考の列の幅の上限 (これより長い文は、省略して出す)</summary>
+    /// <summary>備考の列の幅の上限</summary>
+    /// <remarks>これより長い文は省略して出す</remarks>
     private const double NoteMaxWidth = 320;
 
-    /// <summary>名前のセルの右端に並ぶ印 1 つの幅 (自動入力の印と、作業報告から外す印)</summary>
-    /// <remarks>アイコンの大きさ 14 に、ボタンの余白 (左右 2 ずつ)の 4 と、印どうしの間隔 6 を足した値。どの印も同じ大きさ。</remarks>
+    /// <summary>名前のセルの右端に並ぶ印 1 つの幅</summary>
+    /// <remarks>
+    /// アイコンの大きさ 14 に、ボタンの余白 (左右 2 ずつ)の 4 と、印どうしの間隔 6 を足した値。
+    /// どの印も同じ大きさ。
+    /// </remarks>
     private const double MarkWidth = 24;
 
-    /// <summary>名前のセルの右端に印が並ぶときの、文字との間の余白</summary>
+    /// <summary>名前のセルの右端に印が並ぶときの文字との間の余白</summary>
     /// <remarks>印の右の余白 6 から、最後の印の間隔 6 を引いた分は 0 なので、文字との間の 4 だけを足す。</remarks>
     private const double MarksMargin = 4;
 
@@ -379,15 +403,17 @@ public sealed partial class WorkItemPage : Page
 
     /// <summary>列の見出しに必要な幅を測る</summary>
     /// <param name="column">列</param>
-    /// <returns>見出しの文字の幅に、左右の余白を足したもの</returns>
+    /// <returns>見出しの文字の幅に、左右の余白を足したもの。</returns>
     private double HeaderWidth(TreeGridColumn column) => TextWidth(column.Header, Microsoft.UI.Text.FontWeights.SemiBold) + 28;
 
-    /// <summary>「表示列」の入れ物にある、列ごとのチェック (列のキーが引く)</summary>
+    /// <summary>「表示列」の入れ物にある列ごとのチェック</summary>
+    /// <remarks>列のキーが引く</remarks>
     private readonly Dictionary<string, CheckBox> _columnChecks = [];
 
-    /// <summary>列の見出しの右クリックのメニュー (その列を非表示にする)を作る</summary>
+    /// <summary>列の見出しの右クリックのメニューを作る</summary>
     /// <param name="key">列のキー</param>
     /// <returns>メニュー</returns>
+    /// <remarks>その列を非表示にする</remarks>
     private MenuFlyout BuildHeaderMenu(string key)
     {
         var menu = new MenuFlyout();
@@ -397,8 +423,11 @@ public sealed partial class WorkItemPage : Page
         return menu;
     }
 
-    /// <summary>「表示」のボタンに、見え方の設定 (過去の完了・列)を並べた入れ物を付ける</summary>
-    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。名前の列は、常に出す。</remarks>
+    /// <summary>「表示」のボタンに見え方の設定を並べた入れ物を付ける</summary>
+    /// <remarks>
+    /// 続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。
+    /// 名前の列は常に出す。
+    /// </remarks>
     private void BuildViewFlyout()
     {
         var completed = new CompletedDisplaySection("過去の完了", "入力日に完了した作業は、常に表示します", index => ViewModel.CompletedIndex = index);
@@ -427,8 +456,12 @@ public sealed partial class WorkItemPage : Page
         ViewButton.Flyout = flyout;
     }
 
-    /// <summary>「絞り込み」のボタンに、絞り込みの条件 (状態・開始日)を並べた入れ物を付ける</summary>
-    /// <remarks>続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。条件が増えたときは、見出し付きの部を足す。チェックはコードマスタの状態から、開くたびに作る。</remarks>
+    /// <summary>「絞り込み」のボタンに絞り込みの条件を並べた入れ物を付ける</summary>
+    /// <remarks>
+    /// 続けて何個も切り替えられるよう、メニューではなく、開いたままの入れ物にする。
+    /// 条件が増えたときは見出し付きの部を足す。
+    /// チェックはコードマスタの状態から、開くたびに作る。
+    /// </remarks>
     private void BuildFilterFlyout()
     {
         var panel = new StackPanel { Spacing = 0 };
@@ -467,7 +500,7 @@ public sealed partial class WorkItemPage : Page
 
     #region 入力日
 
-    /// <summary>入力日の日付が選ばれたら、ViewModel に反映する</summary>
+    /// <summary>入力日の日付が選ばれたら ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">日付の変更の情報</param>
     private void OnInputDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -483,12 +516,12 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>日付を、日付の選択欄の値にする</summary>
+    /// <summary>日付を日付の選択欄の値にする</summary>
     /// <param name="date">日付</param>
     /// <returns>その日の 0 時 (この PC のタイムゾーン)</returns>
     private static DateTimeOffset ToOffset(DateOnly date) => new(date.ToDateTime(TimeOnly.MinValue));
 
-    /// <summary>ViewModel の値が変わったら、画面を合わせる</summary>
+    /// <summary>ViewModel の値が変わったら画面を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -514,7 +547,7 @@ public sealed partial class WorkItemPage : Page
 
     #region セルの入力
 
-    /// <summary>文字の入力欄にフォーカスが入ったら、全体を選ぶ (そのまま打ち替えられるように)</summary>
+    /// <summary>文字の入力欄にフォーカスが入ったら全体を選ぶ</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnCellGotFocus(object sender, RoutedEventArgs e) => (sender as TextBox)?.SelectAll();
@@ -522,7 +555,11 @@ public sealed partial class WorkItemPage : Page
     /// <summary>時間の入力欄で、数字と小数点以外の入力を受け付けない</summary>
     /// <param name="sender">入力欄</param>
     /// <param name="args">入力前の文字の情報</param>
-    /// <remarks>整数部 4 桁・小数部 2 桁まで。1・1.5・1.25 の形。空は許し、なしとして扱う。</remarks>
+    /// <remarks>
+    /// 整数部 4 桁・小数部 2 桁まで。
+    /// 1・1.5・1.25 の形。
+    /// 空は許し、なしとして扱う。
+    /// </remarks>
     private void OnNumberBeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
         => args.Cancel = !HoursPattern().IsMatch(args.NewText);
 
@@ -531,12 +568,12 @@ public sealed partial class WorkItemPage : Page
     [GeneratedRegex(@"^\d{0,4}(\.\d{0,2})?$")]
     private static partial Regex HoursPattern();
 
-    /// <summary>日付の選択欄で日付が選ばれたら、確定する</summary>
+    /// <summary>日付の選択欄で日付が選ばれたら確定する</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="args">日付の変更の情報</param>
     /// <remarks>
     /// 行の使い回しで値が差し替わったときも起きるので、行の値と同じなら何もしない。
-    /// 日付をクリアするときは、行の右クリックのメニューの「日付をクリア」を使う。
+    /// 日付をクリアするときは行の右クリックのメニューの「日付をクリア」を使う。
     /// </remarks>
     private void OnCellDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
     {
@@ -547,7 +584,7 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>文字の入力欄で Enter が押されたら、入力を確定する</summary>
+    /// <summary>文字の入力欄で Enter が押されたら入力を確定する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キー入力の情報</param>
     private void OnTextCellKeyDown(object sender, KeyRoutedEventArgs e)
@@ -560,19 +597,22 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>文字の入力欄からフォーカスが外れたら、入力を確定する</summary>
+    /// <summary>文字の入力欄からフォーカスが外れたら入力を確定する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnTextCellLostFocus(object sender, RoutedEventArgs e) => CommitText(sender);
 
     /// <summary>入力欄が属する列のキーを返す</summary>
-    /// <param name="element">入力欄 (XAML の名前が、<c>Col_</c> に列のキーをつないだもの)</param>
+    /// <param name="element">入力欄 (XAML の名前が <c>Col_</c> に列のキーをつないだもの)</param>
     /// <returns>列のキー</returns>
-    /// <remarks>名前をそのまま列のキーにしないのは、行のプロパティ (Name・Note など)と同じ名前だと、x:Bind が、どちらを指すか決められないため。</remarks>
+    /// <remarks>名前をそのまま列のキーにしないのは行のプロパティ (Name・Note など)と同じ名前だと、x:Bind がどちらを指すか決められないため。</remarks>
     private static string ColumnKey(FrameworkElement element) => element.Name.StartsWith("Col_", StringComparison.Ordinal) ? element.Name[4..] : element.Name;
 
-    /// <summary>文字の入力欄の入力を、保存に渡す</summary>
-    /// <param name="sender">入力欄で、行は、表から引く。Name に列の名前が入っている</param>
+    /// <summary>文字の入力欄の入力を保存に渡す</summary>
+    /// <param name="sender">
+    /// 入力欄で、行は表から引く。
+    /// Name に列の名前が入っている。
+    /// </param>
     private void CommitText(object sender)
     {
         if (sender is TextBox box && TreeGridView.GetRow(box) is WorkItemRow row)
@@ -581,12 +621,14 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>文字の入力欄の入力を、保存に渡す (同じ入力欄からは、1 回だけ)</summary>
+    /// <summary>文字の入力欄の入力を保存に渡す</summary>
     /// <param name="box">入力欄</param>
     /// <param name="row">入力欄の行</param>
     /// <remarks>
+    /// 同じ入力欄からは 1 回だけ。
     /// Enter・フォーカスが外れた通知・入力欄を外す直前の通知 (<see cref="TreeGridView.EditEnding"/>)の、どれからも呼ばれるので、
-    /// 同じ入力欄からの 2 回目は何もしない。1 回目の保存が終わる前は、行の値が古いので、値の比較では防げない。
+    /// 同じ入力欄からの 2 回目は何もしない。
+    /// 1 回目の保存が終わる前は行の値が古いので、値の比較では防げない。
     /// 入力のたびに、入力欄は作り直されるので、入力欄ごとに 1 回で足りる。
     /// </remarks>
     private void CommitText(TextBox box, WorkItemRow row)
@@ -597,11 +639,11 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>入力中のセルが、表示用に戻される直前に、入力した値を確定する</summary>
+    /// <summary>入力中のセルが表示用に戻される直前に入力した値を確定する</summary>
     /// <param name="sender">表</param>
     /// <param name="e">セルの情報</param>
     /// <remarks>
-    /// ほかのセルや表の外のクリックでは、入力欄が外されたあとに、フォーカスが外れた通知が届くので、そのときは入力欄から行をたどれない。
+    /// ほかのセルや表の外のクリックでは入力欄が外されたあとに、フォーカスが外れた通知が届くので、そのときは入力欄から行をたどれない。
     /// 入力欄がまだ表の中にあるこの時点で、行を渡されて確定する。
     /// </remarks>
     private void OnEditEnding(object? sender, TreeGridCellEventArgs e)
@@ -612,11 +654,11 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>選択の列 (優先度・状態・進捗度)のセルがクリックされたら、選択肢のメニューを、セルの下に出す</summary>
+    /// <summary>選択の列のセルがクリックされたら、選択肢のメニューをセルの下に出す</summary>
     /// <param name="sender">表</param>
     /// <param name="e">セルの情報</param>
     /// <remarks>
-    /// プルダウン (ComboBox)は、行ごとに置くと重く、表の中で入力の切り替えと組み合わせると、一覧の項目が選べなくなったため、使わない。
+    /// プルダウン (ComboBox)は行ごとに置くと重く、表の中で入力の切り替えと組み合わせると、一覧の項目が選べなくなったため、使わない。
     /// 選択肢は短い一覧なので、メニューで選び、今の値にチェックを付ける。
     /// </remarks>
     private void OnCellInvoked(object? sender, TreeGridCellEventArgs e)
@@ -657,7 +699,7 @@ public sealed partial class WorkItemPage : Page
         menu.ShowAt(e.Cell, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
     }
 
-    /// <summary>担当者のメニューを、セルの下に出す</summary>
+    /// <summary>担当者のメニューをセルの下に出す</summary>
     /// <param name="row">行</param>
     /// <param name="cell">セル</param>
     private void ShowAssigneeMenu(WorkItemRow row, FrameworkElement cell)
@@ -673,10 +715,14 @@ public sealed partial class WorkItemPage : Page
         menu.ShowAt(cell, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
     }
 
-    /// <summary>リンクの入力欄を、指定の場所の下に出す</summary>
+    /// <summary>リンクの入力欄を指定の場所の下に出す</summary>
     /// <param name="row">行</param>
     /// <param name="target">入力欄を出す場所の要素</param>
-    /// <remarks>Enter か、入力欄を閉じたときに確定する。Esc は、元のリンクのまま閉じて、保存しない。空にして確定すると、リンクを消す。</remarks>
+    /// <remarks>
+    /// Enter か、入力欄を閉じたときに確定する。
+    /// Esc は元のリンクのまま閉じて、保存しない。
+    /// 空にして確定するとリンクを消す。
+    /// </remarks>
     private void ShowLinkEditor(WorkItemRow row, FrameworkElement target)
     {
         var box = new TextBox
@@ -715,10 +761,14 @@ public sealed partial class WorkItemPage : Page
         DispatcherQueue.TryEnqueue(() => flyout.ShowAt(target));
     }
 
-    /// <summary>自動入力の入力枠を、指定の場所の下に出す</summary>
+    /// <summary>自動入力の入力枠を指定の場所の下に出す</summary>
     /// <param name="row">行 (作業)</param>
     /// <param name="target">入力枠を出す場所の要素 (名前のセル)</param>
-    /// <remarks>「保存」か、時間の欄の Enter で保存する。外側を押したときと Esc は、保存しない。「クリア」は、設定を空に戻す。</remarks>
+    /// <remarks>
+    /// 「保存」か、時間の欄の Enter で保存する。
+    /// 外側を押したときと Esc は保存しない。
+    /// 「クリア」は設定を空に戻す。
+    /// </remarks>
     private void ShowAutoEntryEditor(WorkItemRow row, FrameworkElement target)
     {
         var editor = new AutoEntryEditor();
@@ -742,7 +792,7 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の入力欄を開くとき、今の備考を入れる</summary>
     /// <param name="sender">開く入れ物</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>触れない作業 (完了して日がたった作業)の備考は、全文を読めるよう開くが、入力はできない。</remarks>
+    /// <remarks>触れない作業 (完了して日がたった作業)の備考は全文を読めるよう開くが、入力はできない。</remarks>
     private void OnNoteFlyoutOpening(object? sender, object e)
     {
         if (sender is Flyout { Target: Button button, Content: TextBox box } && TreeGridView.GetRow(button) is WorkItemRow row)
@@ -756,10 +806,14 @@ public sealed partial class WorkItemPage : Page
     /// <summary>備考の入れ物を開いているボタン</summary>
     private Button? _noteTarget;
 
-    /// <summary>備考の入力欄で Esc が押されたら、入力を取りやめる。元の備考に戻し、入れ物は、そのまま閉じる</summary>
+    /// <summary>備考の入力欄で Esc が押されたら入力を取りやめる</summary>
     /// <param name="sender">備考の入力欄</param>
     /// <param name="e">キー入力の情報</param>
-    /// <remarks>閉じるときの確定では、元の備考と同じなので、保存されない。表のセルの Esc と同じ動き。</remarks>
+    /// <remarks>
+    /// 元の備考に戻し、入れ物はそのまま閉じる。
+    /// 閉じるときの確定では元の備考と同じなので、保存されない。
+    /// 表のセルの Esc と同じ動き。
+    /// </remarks>
     private void OnNoteKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Escape && sender is TextBox box && _noteTarget is { } button && TreeGridView.GetRow(button) is WorkItemRow row)
@@ -768,7 +822,7 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>備考の入力欄を開いたら、入力できる状態にする</summary>
+    /// <summary>備考の入力欄を開いたら入力できる状態にする</summary>
     /// <param name="sender">開いた入れ物</param>
     /// <param name="e">イベントの情報</param>
     private void OnNoteFlyoutOpened(object? sender, object e)
@@ -780,7 +834,7 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>備考の入力欄を閉じたら、入力を確定する</summary>
+    /// <summary>備考の入力欄を閉じたら入力を確定する</summary>
     /// <param name="sender">閉じた入れ物</param>
     /// <param name="e">イベントの情報</param>
     private void OnNoteFlyoutClosed(object? sender, object e)
@@ -795,7 +849,7 @@ public sealed partial class WorkItemPage : Page
 
     #region 右クリックのメニュー
 
-    /// <summary>行の右クリックのメニューを、その行に合わせて作る</summary>
+    /// <summary>行の右クリックのメニューをその行に合わせて作る</summary>
     /// <param name="sender">メニュー</param>
     /// <param name="e">イベントの情報</param>
     private void OnRowMenuOpening(object? sender, object e)
@@ -884,10 +938,13 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(item);
     }
 
-    /// <summary>名前のセルの、自動入力の印が押されたら、自動入力の入力枠を、名前のセルの下に開く</summary>
+    /// <summary>名前のセルの自動入力の印が押されたら、自動入力の入力枠を名前のセルの下に開く</summary>
     /// <param name="sender">印のボタン</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>右クリックの「自動入力…」と同じ入力枠。触れない行では、開かない。</remarks>
+    /// <remarks>
+    /// 右クリックの「自動入力…」と同じ入力枠
+    /// 触れない行では開かない
+    /// </remarks>
     private void OnAutoEntryMarkClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement mark
@@ -898,10 +955,13 @@ public sealed partial class WorkItemPage : Page
         }
     }
 
-    /// <summary>名前のセルの、作業報告から外す印が押されたら、選択肢のメニューを、印の下に開く</summary>
+    /// <summary>名前のセルの作業報告から外す印が押されたら、選択肢のメニューを印の下に開く</summary>
     /// <param name="sender">印のボタン</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>選択肢は、右クリックの「作業報告」と同じ。触れない行では、選べない。</remarks>
+    /// <remarks>
+    /// 選択肢は右クリックの「作業報告」と同じ
+    /// 触れない行では選べない
+    /// </remarks>
     private void OnReportExclusionMarkClick(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement mark || TreeGridView.GetRow(mark) is not WorkItemRow row)
@@ -914,13 +974,14 @@ public sealed partial class WorkItemPage : Page
         menu.ShowAt(mark, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
     }
 
-    /// <summary>メニューに、作業報告から外す範囲を選ぶサブメニューを足す</summary>
+    /// <summary>メニューに作業報告から外す範囲を選ぶサブメニューを足す</summary>
     /// <param name="menu">足し先のメニュー</param>
     /// <param name="row">行 (作業)</param>
     /// <remarks>
     /// 3 つのうち 1 つだけが選ばれるので、ラジオ付きの項目にする。
     /// メニューは開くたびに行から作るので、チェックは行の値から付け、選んだときの処理は Click で行う。
-    /// 今と同じ値を選んでも、何も書かない。触れない行では、選べない。
+    /// 今と同じ値を選んでも何も書かない。
+    /// 触れない行では選べない。
     /// </remarks>
     private void AddReportExclusionMenu(MenuFlyout menu, WorkItemRow row)
     {
@@ -929,8 +990,8 @@ public sealed partial class WorkItemPage : Page
         menu.Items.Add(submenu);
     }
 
-    /// <summary>メニューに、作業報告から外す範囲の 3 つの項目を足す</summary>
-    /// <param name="items">足し先の項目の一覧 (右クリックのサブメニューと、印を押したときのメニューで共通)</param>
+    /// <summary>メニューに作業報告から外す範囲の 3 つの項目を足す</summary>
+    /// <param name="items">足し先の項目の一覧 (右クリックのサブメニューと、印を押したときのメニューで共通)。</param>
     /// <param name="row">行 (作業)</param>
     private void AddReportExclusionItems(IList<MenuFlyoutItemBase> items, WorkItemRow row)
     {

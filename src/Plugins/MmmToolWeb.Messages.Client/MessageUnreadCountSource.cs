@@ -2,10 +2,9 @@ using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Messages.Client;
 
-/// <summary>
-/// メッセージの、読んでいない数を、サーバーに聞く。ホーム画面のタイルの数に使う。
-/// </summary>
-/// <param name="client">サーバーのメッセージの API。</param>
+/// <summary>メッセージの読んでいない数をサーバーに聞く</summary>
+/// <param name="client">サーバーのメッセージの API</param>
+/// <remarks>ホーム画面のタイルの数に使う</remarks>
 public sealed class MessageUnreadCountSource(MessagesClient client) : IUnreadCountSource
 {
     /// <inheritdoc />

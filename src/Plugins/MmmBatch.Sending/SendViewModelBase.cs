@@ -4,17 +4,16 @@ using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.Sending;
 
-/// <summary>
-/// 送信の一覧の画面 (今日の送信予定・最近の依頼・履歴)の ViewModel の共通部分。
-/// </summary>
+/// <summary>送信の一覧の画面の ViewModel の共通部分</summary>
 /// <remarks>
 /// 機能の仕事の結果が変わったら、<see cref="IBatchJob.Changed"/> を受けて、UI スレッドで読み直す。
-/// 読み込みの失敗の表示と、「接続の設定」から読み直す処理、古い読み込みの結果を捨てる世代の管理は、共通の <see cref="DatabaseViewModelBase"/> が持つ。
+/// 読み込みの失敗の表示と、「接続の設定」から読み直す処理、古い読み込みの結果を捨てる世代の管理は共通の <see cref="DatabaseViewModelBase"/> が持つ。
 /// 変更の通知を、作ったスレッドへ戻して反映するため、UI スレッドで作ること。
 /// </remarks>
 public abstract class SendViewModelBase : DatabaseViewModelBase
 {
-    /// <summary>作ったスレッドで、UI スレッドのこと。変更の通知をここへ戻す</summary>
+    /// <summary>作ったスレッドで、UI スレッドのこと</summary>
+    /// <remarks>変更の通知をここへ戻す</remarks>
     private readonly SynchronizationContext _context;
 
     /// <summary>毎分の実行のたびに読み直すか</summary>
@@ -23,9 +22,18 @@ public abstract class SendViewModelBase : DatabaseViewModelBase
     /// <summary>ViewModel を作り、変更の購読を始める</summary>
     /// <param name="job">この画面の機能の仕事 (変更・毎分の実行を購読する)</param>
     /// <param name="dialogs">接続の設定の画面を開く</param>
-    /// <param name="monitor">毎分の監視で、接続の設定を保存した直後に、すぐ 1 回実行させる。再送のゲートにも使う</param>
-    /// <param name="refreshEveryRun">毎分の実行のたびに読み直すか。リマインダー・送信設定の編集や、MmmTool からの新しい依頼を、すぐ反映したい一覧だけ true</param>
-    /// <exception cref="InvalidOperationException">UI スレッド以外で作った。変更の通知を戻す先が無い。</exception>
+    /// <param name="monitor">
+    /// 毎分の監視で、接続の設定を保存した直後に、すぐ 1 回実行させる。
+    /// 再送のゲートにも使う。
+    /// </param>
+    /// <param name="refreshEveryRun">
+    /// 毎分の実行のたびに読み直すか。
+    /// リマインダー・送信設定の編集や、MmmTool からの新しい依頼を、すぐ反映したい一覧だけ true。
+    /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// UI スレッド以外で作った
+    /// 変更の通知を戻す先が無い
+    /// </exception>
     protected SendViewModelBase(IBatchJob job, IConnectionSettingsDialogService dialogs, BatchMonitor monitor, bool refreshEveryRun = false)
         : base(dialogs)
     {
@@ -64,9 +72,10 @@ public abstract class SendViewModelBase : DatabaseViewModelBase
         await RefreshAsync();
     }
 
-    /// <summary>仕事の結果が変わった (・毎分の実行が終わった)ら、UI スレッドで読み直す</summary>
+    /// <summary>仕事の結果が変わったら UI スレッドで読み直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>・毎分の実行が終わった</remarks>
     private void OnJobChanged(object? sender, EventArgs e)
         => _context.Post(_ => RefreshAsync().Forget(), null);
 }

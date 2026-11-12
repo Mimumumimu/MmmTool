@@ -25,26 +25,27 @@ using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch;
 
-/// <summary>アプリケーション (起動・終了と DI の構成)</summary>
+/// <summary>アプリケーション</summary>
 public partial class App : Application
 {
     /// <summary>多重起動の防止</summary>
     private readonly SingleInstanceGuard _instanceGuard = new(AppInfo.Name);
 
-    /// <summary>復旧できないエラーの報告先 (ログ・ダイアログ・終了)</summary>
+    /// <summary>復旧できないエラーの報告先</summary>
     private readonly FatalErrorHandler _fatalErrors;
 
     /// <summary>DI とライフタイムを扱う Host</summary>
     private readonly IHost _host;
 
-    /// <summary>メインウィンドウ。まだ作っていなければ null</summary>
+    /// <summary>メインウィンドウ</summary>
+    /// <remarks>まだ作っていなければ null</remarks>
     private MainWindow? _window;
 
     /// <summary>終了の処理を始めたか</summary>
     private bool _exiting;
 
-    /// <summary>多重起動を確認して、DI の構成を作る</summary>
-    /// <remarks>未処理の例外の受け皿は、Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
+    /// <summary>多重起動を確認して DI の構成を作る</summary>
+    /// <remarks>未処理の例外の受け皿は Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
     public App()
     {
         if (!_instanceGuard.IsFirstInstance)
@@ -71,8 +72,11 @@ public partial class App : Application
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
-    /// <param name="fatalErrors">復旧できないエラーの報告先 (トレイなど、SDK の部品が使う)</param>
-    /// <param name="errorLog">エラーを書くログ。復旧できないエラーの報告と共有し、DB の失敗の記録にも使う</param>
+    /// <param name="fatalErrors">復旧できないエラーの報告先 (トレイなど、SDK の部品が使う)。</param>
+    /// <param name="errorLog">
+    /// エラーを書くログ。
+    /// 復旧できないエラーの報告と共有し、DB の失敗の記録にも使う。
+    /// </param>
     private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
     {
         services.AddSingleton(TimeProvider.System);
@@ -127,11 +131,14 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Host を始めて、トレイと各機能を用意する</summary>
+    /// <summary>Host を始めてトレイと各機能を用意する</summary>
     /// <returns>起動の完了を表すタスク</returns>
     /// <remarks>
-    /// 基本は、トレイだけで動き続ける。ウィンドウは出さない。最初の実行で、どれかの仕事が状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
-    /// このアプリは、個々の機能の名前を持たない。機能は <c>AddFeaturePlugin</c> で登録し、毎分の仕事・通知・サイドバーの項目は、機能が自分で登録する。
+    /// 基本はトレイだけで動き続ける。
+    /// ウィンドウは出さない。
+    /// 最初の実行で、どれかの仕事が状況を読めなかったとき (接続の設定が無い・つながらない)だけ、気づけるよう、ウィンドウを出す。
+    /// このアプリは個々の機能の名前を持たない。
+    /// 機能は <c>AddFeaturePlugin</c> で登録し、毎分の仕事・通知・サイドバーの項目は機能が自分で登録する。
     /// </remarks>
     private async Task StartAsync()
     {
@@ -166,9 +173,12 @@ public partial class App : Application
         }
     }
 
-    /// <summary>アプリを完全に終了する (トレイメニューの「終了」から)</summary>
+    /// <summary>アプリを完全に終了する</summary>
     /// <returns>終了処理の完了を表すタスク</returns>
-    /// <remarks>送信の後始末 → トレイアイコンの解放 → アプリの終了 の順に行う。後の 2 つは Host の破棄 (作った順の逆)で行われる。</remarks>
+    /// <remarks>
+    /// 送信の後始末 → トレイアイコンの解放 → アプリの終了 の順に行う
+    /// 後の 2 つは Host の破棄 (作った順の逆)で行われる
+    /// </remarks>
     private async Task ExitAsync()
     {
         if (_exiting)

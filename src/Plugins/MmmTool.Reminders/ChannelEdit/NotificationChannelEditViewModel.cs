@@ -8,14 +8,16 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Reminders.ChannelEdit;
 
-/// <summary>
-/// 送信先の登録画面。送信先 1 件を新規登録・編集して保存する。
-/// </summary>
+/// <summary>送信先の登録画面</summary>
 /// <remarks>
-/// 種類は、新規のときだけ選べて、編集では変えない。
-/// ntfy は、トピック名を自動で作って見せる。コピーと作り直しもできる。
-/// Discord は、Webhook の URL を貼る。画面では伏せる。
-/// Web 版通知は、Web 版の画面でブラウザが宛先を作るので、ここでは新規に登録できず、登録名だけを直せる。宛先の値は、そのまま保つ。
+/// 送信先 1 件を新規登録・編集して保存する。
+/// 種類は新規のときだけ選べて、編集では変えない。
+/// ntfy はトピック名を自動で作って見せる。
+/// コピーと作り直しもできる。
+/// Discord は Webhook の URL を貼る。
+/// 画面では伏せる。
+/// Web 版通知は Web 版の画面でブラウザが宛先を作るので、ここでは新規に登録できず、登録名だけを直せる。
+/// 宛先の値はそのまま保つ。
 /// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class NotificationChannelEditViewModel : ObservableObject
@@ -36,7 +38,8 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     /// <summary>クリップボード</summary>
     private readonly IClipboardService _clipboard;
 
-    /// <summary>編集対象。新規なら null</summary>
+    /// <summary>編集対象</summary>
+    /// <remarks>新規なら null</remarks>
     private NotificationChannel? _target;
 
     /// <summary>ViewModel を作る</summary>
@@ -63,7 +66,10 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     public partial string WindowTitle { get; private set; } = "";
 
     /// <summary>種類の選択肢</summary>
-    /// <remarks>新規は ntfy と Discord。編集は、種類を変えられないので、登録済みの種類だけ。</remarks>
+    /// <remarks>
+    /// 新規は ntfy と Discord。
+    /// 編集は種類を変えられないので、登録済みの種類だけ。
+    /// </remarks>
     [ObservableProperty]
     public partial IReadOnlyList<NotificationChannelKindOption> KindOptions { get; private set; }
 
@@ -74,7 +80,8 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsWebPush))]
     public partial NotificationChannelKindOption SelectedKind { get; set; }
 
-    /// <summary>種類を選べるか (新規のときだけ)</summary>
+    /// <summary>種類を選べるか</summary>
+    /// <remarks>新規のときだけ</remarks>
     [ObservableProperty]
     public partial bool IsKindEditable { get; private set; }
 
@@ -91,15 +98,16 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     [ObservableProperty]
     public partial string Name { get; set; } = "";
 
-    /// <summary>登録名のエラー。無ければ null</summary>
+    /// <summary>登録名のエラー</summary>
     [ObservableProperty]
     public partial string? NameError { get; private set; }
 
-    /// <summary>ntfy のトピック名で、最初は自動で作ったもの。自分で決めてもよい</summary>
+    /// <summary>ntfy のトピック名で、最初は自動で作ったもの</summary>
+    /// <remarks>自分で決めてもよい</remarks>
     [ObservableProperty]
     public partial string NtfyTopic { get; set; } = "";
 
-    /// <summary>ntfy のトピック名のエラー。無ければ null</summary>
+    /// <summary>ntfy のトピック名のエラー</summary>
     [ObservableProperty]
     public partial string? TopicError { get; private set; }
 
@@ -107,7 +115,7 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     [ObservableProperty]
     public partial string DiscordUrl { get; set; } = "";
 
-    /// <summary>Discord の Webhook の URL のエラー。無ければ null</summary>
+    /// <summary>Discord の Webhook の URL のエラー</summary>
     [ObservableProperty]
     public partial string? UrlError { get; private set; }
 
@@ -115,8 +123,15 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
     public ErrorState SaveError { get; } = new();
 
     /// <summary>入力欄に読み込む</summary>
-    /// <param name="target">編集する送信先。新規なら null</param>
-    /// <remarks>新規は ntfy で、登録名は空、トピック名は新しく作ったもの。入力欄には例を薄く出す。編集は対象の値を読み込み、種類は変えられない。</remarks>
+    /// <param name="target">
+    /// 編集する送信先
+    /// 新規なら null
+    /// </param>
+    /// <remarks>
+    /// 新規は ntfy で、登録名は空、トピック名は新しく作ったもの。
+    /// 入力欄には例を薄く出す。
+    /// 編集は対象の値を読み込み、種類は変えられない。
+    /// </remarks>
     public void Load(NotificationChannel? target)
     {
         _target = target;
@@ -135,21 +150,24 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
         SaveError.Clear();
     }
 
-    /// <summary>登録名が変わったら、登録名のエラーを消す</summary>
+    /// <summary>登録名が変わったら登録名のエラーを消す</summary>
     /// <param name="value">変更後の登録名</param>
     partial void OnNameChanged(string value) => NameError = null;
 
-    /// <summary>トピック名が変わったら、トピック名のエラーを消す</summary>
+    /// <summary>トピック名が変わったらトピック名のエラーを消す</summary>
     /// <param name="value">変更後のトピック名</param>
     partial void OnNtfyTopicChanged(string value) => TopicError = null;
 
-    /// <summary>URL が変わったら、URL のエラーを消す</summary>
+    /// <summary>URL が変わったら URL のエラーを消す</summary>
     /// <param name="value">変更後の URL</param>
     partial void OnDiscordUrlChanged(string value) => UrlError = null;
 
     /// <summary>入力値を検証して保存し、閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>登録名が未入力・Discord の URL が正しくないときは、エラーを出して保存しない。保存に失敗したらエラーを出して閉じない。</remarks>
+    /// <remarks>
+    /// 登録名が未入力・Discord の URL が正しくないときはエラーを出して保存しない
+    /// 保存に失敗したらエラーを出して閉じない
+    /// </remarks>
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -220,7 +238,10 @@ public sealed partial class NotificationChannelEditViewModel : ObservableObject
 
     /// <summary>ntfy のトピック名を作り直す</summary>
     /// <returns>作り直しの完了を表すタスク</returns>
-    /// <remarks>古いトピック名は使えなくなり、スマホの ntfy のアプリにも新しいものを入れ直す必要があるので、確認してから。保存したときに反映される。</remarks>
+    /// <remarks>
+    /// 古いトピック名は使えなくなり、スマホの ntfy のアプリにも新しいものを入れ直す必要があるので、確認してから。
+    /// 保存したときに反映される。
+    /// </remarks>
     [RelayCommand]
     private async Task RegenerateTopicAsync()
     {

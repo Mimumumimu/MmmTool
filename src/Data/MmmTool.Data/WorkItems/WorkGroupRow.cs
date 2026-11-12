@@ -2,13 +2,19 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.Data.WorkItems;
 
-/// <summary>
-/// DB の <c>WorkGroup</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkGroup"/> とは別の、DB の形のまま持つ。
-/// </summary>
-/// <remarks>変換は <see cref="FromWorkGroup"/> と <see cref="ToWorkGroup"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。</remarks>
+/// <summary>DB の WorkGroup の 1 行で、列と 1 対 1 に対応する</summary>
+/// <remarks>
+/// アプリの型 WorkGroup とは別の DB の形のまま持つ
+/// 変換は <see cref="FromWorkGroup"/> と <see cref="ToWorkGroup"/>
+/// 作成・更新の日時と作成者・更新者は Repository が入れる
+/// </remarks>
 public sealed record WorkGroupRow
 {
-    /// <summary>主キー。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キー</summary>
+    /// <remarks>
+    /// DB が採番する
+    /// 0 は新規
+    /// </remarks>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -17,36 +23,40 @@ public sealed record WorkGroupRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (ユーザーの番号)</summary>
+    /// <summary>作成者</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (ユーザーの番号)</summary>
+    /// <summary>更新者</summary>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>属する案件 (<c>WorkProject.Id</c>)</summary>
+    /// <summary>属する案件</summary>
     public int ProjectId { get; init; }
 
-    /// <summary>親のグループで、<c>WorkGroup.Id</c>。0 は案件の直下</summary>
+    /// <summary>親のグループで、WorkGroup.Id</summary>
+    /// <remarks>0 は案件の直下</remarks>
     public int ParentGroupId { get; init; }
 
-    /// <summary>兄弟の中の並び (グループと作業にまたがる 1 つの数)</summary>
+    /// <summary>兄弟の中の並び</summary>
     public int SortOrder { get; init; }
 
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>リンク (無いときは空文字)</summary>
+    /// <summary>リンク</summary>
     public string Link { get; init; } = "";
 
-    /// <summary>備考 (無いときは空文字)</summary>
+    /// <summary>備考</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>アプリの型から、DB の行にする</summary>
+    /// <summary>アプリの型から DB の行にする</summary>
     /// <param name="group">グループ</param>
-    /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
+    /// <returns>
+    /// DB の行
+    /// 作成・更新の日時と作成者・更新者は決めない (Repository が入れる)
+    /// </returns>
     /// <exception cref="ArgumentException">名前が空・長すぎる、備考が長すぎる、番号が負。</exception>
     public static WorkGroupRow FromWorkGroup(WorkGroup group)
     {
@@ -68,7 +78,7 @@ public sealed record WorkGroupRow
         };
     }
 
-    /// <summary>DB の行から、アプリの型にする</summary>
+    /// <summary>DB の行からアプリの型にする</summary>
     /// <returns>グループ</returns>
     public WorkGroup ToWorkGroup() => new()
     {

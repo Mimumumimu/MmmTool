@@ -5,19 +5,19 @@ using MmmTool.Data.SqlServer.Connection;
 
 namespace MmmToolWeb.Server.Commands;
 
-/// <summary>
-/// サーバーの PC で行う、DB の接続の設定の入力で、コマンドは <c>setup-db</c>。サーバー名・データベース名・ユーザー名・パスワードを順に聞き、接続を試して、通ったら保存する。
-/// </summary>
+/// <summary>サーバーの PC で行う、DB の接続の設定の入力で、コマンドは setup-db</summary>
+/// <remarks>サーバー名・データベース名・ユーザー名・パスワードを順に聞き、接続を試して、通ったら保存する。</remarks>
 internal static class SetupDatabaseCommand
 {
-    /// <summary>コマンドの名前。</summary>
+    /// <summary>コマンドの名前</summary>
     public const string Name = "setup-db";
 
-    /// <summary>
-    /// 設定を聞いて、保存する。
-    /// </summary>
-    /// <param name="services">サービスの入口。</param>
-    /// <returns>終了コード。保存したら 0、保存しなかったら 1。</returns>
+    /// <summary>設定を聞いて保存する</summary>
+    /// <param name="services">サービスの入口</param>
+    /// <returns>
+    /// 終了コード。
+    /// 保存したら 0、保存しなかったら 1。
+    /// </returns>
     public static async Task<int> RunAsync(IServiceProvider services)
     {
         var settings = services.GetRequiredService<DatabaseSettingsService>();

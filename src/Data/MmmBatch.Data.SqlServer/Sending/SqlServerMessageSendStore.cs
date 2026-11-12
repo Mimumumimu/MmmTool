@@ -12,20 +12,25 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
-/// <summary>
-/// メッセージの通知の状態を、SQL Server の <c>dbo.MessageDelivery</c> から読み、状態を書く。
-/// </summary>
+/// <summary>メッセージの通知の状態を SQL Server の dbo.MessageDelivery から読み、状態を書く</summary>
 /// <remarks>
-/// 行を足すのは MmmTool と Web 版。ここは読んで、状態を変えるだけ。読むたびに DB から読む。
-/// MmmBatch はユーザーではないので、更新者は 0。更新日時は DB サーバーの時計で書く。複数の MmmBatch の時計のずれを入れないため。
-/// 送る先は、通知を受ける人の通知先 (<c>dbo.AppUserSetting</c>)から読み、その送信先の値 (<c>dbo.NotificationChannel</c>)を読む。送るため。
-/// 通知先を指定していない人の分は、送る先が null になる。
-/// <c>dbo.Message.UpdatedAt</c> は更新しない。画面に通知の状態を出さないため、端末の差分の取得に、状態の変わりを届ける必要が無い。
+/// 行を足すのは MmmTool と Web 版。
+/// ここは読んで、状態を変えるだけ。
+/// 読むたびに DB から読む。
+/// MmmBatch はユーザーではないので、更新者は 0。
+/// 更新日時は DB サーバーの時計で書く。
+/// 複数の MmmBatch の時計のずれを入れないため。
+/// 送る先は通知を受ける人の通知先 (<c>dbo.AppUserSetting</c>)から読み、その送信先の値 (<c>dbo.NotificationChannel</c>)を読む。
+/// 送るため。
+/// 通知先を指定していない人の分は送る先が null になる。
+/// <c>dbo.Message.UpdatedAt</c> は更新しない。
+/// 画面に通知の状態を出さないため、端末の差分の取得に、状態の変わりを届ける必要が無い。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMessageSendStore
 {
-    /// <summary>読む列 (<see cref="ReadTarget"/> の並び)</summary>
+    /// <summary>読む列</summary>
+    /// <remarks><see cref="ReadTarget"/> の並び</remarks>
     private static readonly string Select =
         $$"""
         SELECT d.Id, d.MessageId, d.UserId, m.SenderUserId, m.Body, d.Status, d.Attempts, d.CreatedAt, d.UpdatedAt,
@@ -43,16 +48,17 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
 
 
     /// <inheritdoc />
-    /// <remarks>主キー (<c>Id</c>)の降順で先頭から読む。日付・状態では絞らないので、索引は要らない。</remarks>
+    /// <remarks>
+    /// 主キー (<c>Id</c>)の降順で先頭から読む。
+    /// 日付・状態では絞らないので、索引は要らない。
+    /// </remarks>
     public Task<IReadOnlyList<MessageSendTarget>> GetRecentAsync(int count, CancellationToken cancellationToken = default)
         => ReadAsync(
             "WHERE d.IsDeleted = 0 ORDER BY d.Id DESC OFFSET 0 ROWS FETCH NEXT @Count ROWS ONLY",
             0, count, cancellationToken);
 
     /// <inheritdoc />
-    /// <remarks>
-    /// 受ける人のメッセージが無効かの判定は、MmmTool と Web 版が宛先を外すときと同じ条件で、<see cref="FeatureAccessSql"/> にある。
-    /// </remarks>
+    /// <remarks>受ける人のメッセージが無効かの判定は MmmTool と Web 版が宛先を外すときと同じ条件で、<see cref="FeatureAccessSql"/> にある。</remarks>
     public Task<MessageSendBatch> SkipDisabledAndGetSendableAsync(int maxAttempts, CancellationToken cancellationToken = default)
         => SendTableAccess.RunAsync(database, async connection =>
         {
@@ -109,8 +115,10 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
 
     /// <inheritdoc />
     /// <remarks>
-    /// 読んだときの状態・更新日時と同じ行だけを更新する。別の MmmBatch が先に取っていれば、その行は更新されない。
-    /// 行ごとの条件 (番号・状態・更新日時)は、JSON の 1 つのパラメーターで渡す。更新日時はミリ秒までの値で比べる。
+    /// 読んだときの状態・更新日時と同じ行だけを更新する。
+    /// 別の MmmBatch が先に取っていれば、その行は更新されない。
+    /// 行ごとの条件 (番号・状態・更新日時)は JSON の 1 つのパラメーターで渡す。
+    /// 更新日時はミリ秒までの値で比べる。
     /// </remarks>
     public Task<IReadOnlySet<int>> TryClaimManyAsync(IReadOnlyList<MessageDeliveryItem> items, CancellationToken cancellationToken = default)
     {
@@ -175,10 +183,17 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
             return 0;
         }, cancellationToken);
 
-    /// <summary>条件に合う通知の状態を、送る先と一緒に読む</summary>
-    /// <param name="whereAndOrder">WHERE と ORDER BY。パラメーターは <c>@Pending</c>・<c>@Sent</c>・<c>@Failed</c>・<c>@MaxAttempts</c>・<c>@Count</c>。状態で絞るときは、索引 <c>Status</c> で探せるよう、<c>Status</c> の条件から始める</param>
+    /// <summary>条件に合う通知の状態を送る先と一緒に読む</summary>
+    /// <param name="whereAndOrder">
+    /// WHERE と ORDER BY。
+    /// パラメーターは <c>@Pending</c>・<c>@Sent</c>・<c>@Failed</c>・<c>@MaxAttempts</c>・<c>@Count</c>。
+    /// 状態で絞るときは索引 <c>Status</c> で探せるよう、<c>Status</c> の条件から始める。
+    /// </param>
     /// <param name="maxAttempts">送ろうとする回数の上限</param>
-    /// <param name="count">読む最大の件数 <c>@Count</c>。使わないときは null</param>
+    /// <param name="count">
+    /// 読む最大の件数 <c>@Count</c>
+    /// 使わないときは null
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送る対象</returns>
     private Task<IReadOnlyList<MessageSendTarget>> ReadAsync(string whereAndOrder, int maxAttempts, int? count, CancellationToken cancellationToken)
@@ -204,10 +219,13 @@ public sealed class SqlServerMessageSendStore(SqlServerDatabase database) : IMes
             return targets;
         }, cancellationToken);
 
-    /// <summary>読んでいる行を、<see cref="Select"/> の並びの <see cref="MessageSendTarget"/> にする</summary>
+    /// <summary>読んでいる行を Select の並びの MessageSendTarget にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
     /// <returns>送る対象</returns>
-    /// <exception cref="InvalidOperationException">状態・区分が、定義にない値。バグか、手で直した値。</exception>
+    /// <exception cref="InvalidOperationException">
+    /// 状態・区分が定義にない値。
+    /// バグか、手で直した値。
+    /// </exception>
     private static MessageSendTarget ReadTarget(SqlDataReader reader)
     {
         var status = (MessageSendStatus)reader.GetByte(5);

@@ -12,28 +12,29 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Messages;
 
-/// <summary>
-/// 会話とメッセージの読み出しと書き込みを、SQL Server で行う。
-/// 表は、<c>dbo.MessageConversation</c>・<c>dbo.MessageConversationMember</c>・<c>dbo.Message</c>・<c>dbo.MessageDelivery</c>。
-/// </summary>
+/// <summary>会話とメッセージの読み出しと書き込みを SQL Server で行う</summary>
 /// <remarks>
-/// 読むたびに DB から読む。操作した人は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
-/// 通知の状態を変えるのは MmmBatch で、ここは行を足すだけ。通知先の送信先の値は、読まない。
-/// 差分の取得は、会話の数に関係なく、<c>MessageDelivery (UserId, UpdatedAt)</c>・<c>Message (SenderUserId, UpdatedAt)</c>・
+/// 表は dbo.MessageConversation・dbo.MessageConversationMember・dbo.Message・dbo.MessageDelivery。
+/// 読むたびに DB から読む。
+/// 操作した人は <see cref="CurrentUser"/>。
+/// 特定していないと読み書きできない。
+/// 通知の状態を変えるのは MmmBatch で、ここは行を足すだけ。
+/// 通知先の送信先の値は読まない。
+/// 差分の取得は会話の数に関係なく、<c>MessageDelivery (UserId, UpdatedAt)</c>・<c>Message (SenderUserId, UpdatedAt)</c>・。
 /// <c>MessageConversationMember (UserId, UpdatedAt)</c> の索引 3 回で読む。
-/// 読んだ位置を書くときは、同じ会話のほかの参加者の行の更新日時も進めるので、3 つ目の索引が、読んだ位置の変わりも届ける。
+/// 読んだ位置を書くときは同じ会話のほかの参加者の行の更新日時も進めるので、3 つ目の索引が読んだ位置の変わりも届ける。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 public sealed class SqlServerMessageRepository(SqlServerDatabase database, CurrentUser currentUser) : IMessageRepository
 {
-    /// <summary>1 対 1 の会話の種類の値 <c>MessageConversation.Kind</c></summary>
+    /// <summary>1 対 1 の会話の種類の値 MessageConversation.Kind</summary>
     private const byte DirectKind = (byte)ConversationKind.Direct;
 
-    /// <summary>グループの会話の種類の値 <c>MessageConversation.Kind</c></summary>
+    /// <summary>グループの会話の種類の値 MessageConversation.Kind</summary>
     private const byte GroupKind = (byte)ConversationKind.Group;
 
-    /// <summary>メッセージを、返信元つきで読む問い合わせの、選ぶ列と結合</summary>
+    /// <summary>メッセージを返信元つきで読む問い合わせの選ぶ列と結合</summary>
     private const string MessageSelect =
         """
         SELECT m.Id, m.ConversationId, m.SenderUserId, ISNULL(su.DisplayName, N''), m.ReplyToMessageId, rsu.DisplayName, r.Body, m.Body, m.CreatedAt, m.UpdatedAt
@@ -43,16 +44,20 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         LEFT JOIN dbo.AppUser AS rsu ON rsu.Id = r.SenderUserId
         """;
 
-    /// <summary>管理者がメッセージを無効にした人かを調べる条件。人の番号を表す式は、<c>{0}</c> に入れる</summary>
+    /// <summary>管理者がメッセージを無効にした人かを調べる条件</summary>
+    /// <remarks>人の番号を表す式は{0} に入れる</remarks>
     private static readonly string MessagesDisabled = FeatureAccessSql.IsDisabled("{0}", CodeFeatures.Messages);
 
-    /// <summary>管理者がメッセージを無効にしていない人かを調べる条件。人の番号を表す式は、<c>{0}</c> に入れる</summary>
+    /// <summary>管理者がメッセージを無効にしていない人かを調べる条件</summary>
+    /// <remarks>人の番号を表す式は{0} に入れる</remarks>
     private static readonly string MessagesEnabled = $"(NOT {MessagesDisabled})";
 
-    /// <summary>その人に、通知が届くかを調べる条件。その人が、通知先を指定し、その送信先が削除されておらず、管理者がメッセージを無効にしていない</summary>
+    /// <summary>その人に通知が届くかを調べる条件</summary>
     /// <remarks>
-    /// 人の番号を表す式は、<c>{0}</c> に入れる。
-    /// 通知の状態の行を書く相手を決めることと、相手に通知が届かないことの案内に使う。送れるかどうかには使わない。
+    /// その人が通知先を指定し、その送信先が削除されておらず、管理者がメッセージを無効にしていない。
+    /// 人の番号を表す式は <c>{0}</c> に入れる。
+    /// 通知の状態の行を書く相手を決めることと相手に通知が届かないことの案内に使う。
+    /// 送れるかどうかには使わない。
     /// </remarks>
     private static readonly string NotificationTargetExists =
         $$"""
@@ -62,13 +67,20 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
             AND NOT {{MessagesDisabled}})
         """;
 
-    /// <summary>人が使える状態で存在するかを調べる条件。削除されておらず、今日使える期間にいる</summary>
-    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。</remarks>
+    /// <summary>人が使える状態で存在するかを調べる条件</summary>
+    /// <remarks>
+    /// 削除されておらず、今日使える期間にいる。
+    /// 人の番号を表す式は <c>{0}</c> に入れる。
+    /// </remarks>
     private const string UserUsable =
         "EXISTS (SELECT 1 FROM dbo.AppUser WHERE Id = {0} AND IsDeleted = 0 AND ValidFrom <= CAST(GETDATE() AS date) AND ValidTo >= CAST(GETDATE() AS date))";
 
-    /// <summary>グループに足せる人かを調べる条件。使える状態で存在し、管理者にメッセージを無効にされていない</summary>
-    /// <remarks>人の番号を表す式は、<c>{0}</c> に入れる。通知先の有無は問わない。</remarks>
+    /// <summary>グループに足せる人かを調べる条件</summary>
+    /// <remarks>
+    /// 使える状態で存在し、管理者にメッセージを無効にされていない。
+    /// 人の番号を表す式は <c>{0}</c> に入れる。
+    /// 通知先の有無は問わない。
+    /// </remarks>
     private static readonly string UserCanBeAdded = $"({UserUsable} AND {MessagesEnabled})";
 
     /// <inheritdoc />
@@ -254,7 +266,8 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
     /// <inheritdoc />
     /// <remarks>
-    /// 会話の番号があるときは、<see cref="CanNotifyPeerAsync"/> と同じ決まりで相手を見つける。グループは、相手が 1 人に決まらないので true。
+    /// 会話の番号があるときは <see cref="CanNotifyPeerAsync"/> と同じ決まりで相手を見つける
+    /// グループは相手が 1 人に決まらないので true
     /// </remarks>
     public Task<MessagePeerNotifyState?> GetPeerNotifyStateAsync(int conversationId, int peerUserId, CancellationToken cancellationToken = default)
     {
@@ -296,7 +309,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">本文が空か長すぎる・送り先の指定が正しくない。</exception>
+    /// <exception cref="ArgumentException">本文が空か長すぎる・送り先の指定が正しくない</exception>
     public Task<SendMessageResult> SendAsync(MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -351,11 +364,20 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">開始済みのトランザクション</param>
     /// <param name="me">送る人の番号</param>
-    /// <param name="target">送り先。新しいグループの参加者は、自分を除き、重なりを除いた番号</param>
+    /// <param name="target">
+    /// 送り先。
+    /// 新しいグループの参加者は自分を除き、重なりを除いた番号。
+    /// </param>
     /// <param name="body">前後の空白を取った本文</param>
-    /// <param name="replyToMessageId">返信元の番号。返信でなければ 0</param>
+    /// <param name="replyToMessageId">
+    /// 返信元の番号
+    /// 返信でなければ 0
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>結果。送れたときだけ、呼ぶ側がコミットする</returns>
+    /// <returns>
+    /// 結果。
+    /// 送れたときだけ、呼ぶ側がコミットする。
+    /// </returns>
     private static async Task<SendMessageResult> SendInTransactionAsync(
         SqlConnection connection, SqlTransaction transaction, int me, MessageTarget target, string body, int replyToMessageId, CancellationToken cancellationToken)
     {
@@ -455,7 +477,10 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <summary>DB の今の日時を読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>DB の時計の今の日時。次の差分の基準になる</returns>
+    /// <returns>
+    /// DB の時計の今の日時
+    /// 次の差分の基準になる
+    /// </returns>
     private static async Task<DateTimeOffset> ReadNowAsync(SqlConnection connection, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -466,9 +491,15 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <summary>自分の会話の要約を読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="me">自分の番号</param>
-    /// <param name="conversationIds">読む会話の番号。null なら、自分の会話すべて</param>
+    /// <param name="conversationIds">
+    /// 読む会話の番号。
+    /// null なら、自分の会話すべて。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>メッセージのある会話の要約。最後のメッセージが新しい順</returns>
+    /// <returns>
+    /// メッセージのある会話の要約
+    /// 最後のメッセージが新しい順
+    /// </returns>
     private static async Task<IReadOnlyList<ConversationSummary>> ReadConversationsAsync(
         SqlConnection connection, int me, IReadOnlyCollection<int>? conversationIds, CancellationToken cancellationToken)
     {
@@ -546,12 +577,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         }, cancellationToken);
     }
 
-    /// <summary>会話ごとの、自分以外の参加者の読んだ位置を読む</summary>
+    /// <summary>会話ごとの自分以外の参加者の読んだ位置を読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="me">自分の番号</param>
-    /// <param name="conversationIds">読む会話の番号。null なら、自分の会話すべて</param>
+    /// <param name="conversationIds">
+    /// 読む会話の番号。
+    /// null なら、自分の会話すべて。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>会話の番号ごとの読んだ位置。自分しかいない会話は含まない</returns>
+    /// <returns>
+    /// 会話の番号ごとの読んだ位置
+    /// 自分しかいない会話は含まない
+    /// </returns>
     private static async Task<Dictionary<int, IReadOnlyList<ReadPosition>>> ReadReadPositionsAsync(
         SqlConnection connection, int me, IReadOnlyCollection<int>? conversationIds, CancellationToken cancellationToken)
     {
@@ -586,7 +623,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">会話の番号かメッセージの番号が 1 未満。</exception>
+    /// <exception cref="ArgumentException">会話の番号かメッセージの番号が 1 未満</exception>
     public Task<MarkReadOutcome> MarkReadAsync(int conversationId, int messageId, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(conversationId, 1);
@@ -648,20 +685,27 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         }, cancellationToken);
     }
 
-    /// <summary>問い合わせを実行して、メッセージを読む</summary>
+    /// <summary>問い合わせを実行してメッセージを読む</summary>
     /// <param name="command">列の並びが <see cref="MessageSelect"/> と同じ問い合わせ</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読んだメッセージ。問い合わせの並びのまま</returns>
+    /// <returns>
+    /// 読んだメッセージ
+    /// 問い合わせの並びのまま
+    /// </returns>
     private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(SqlCommand command, CancellationToken cancellationToken)
     {
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await ReadMessagesAsync(reader, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>開いた読み取りの、いまの結果から、メッセージを読む</summary>
+    /// <summary>開いた読み取りのいまの結果からメッセージを読む</summary>
     /// <param name="reader">いまの結果の列の並びが <see cref="MessageSelect"/> と同じ読み取り</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読んだメッセージ。問い合わせの並びのまま。読み取りは、この結果の終わりまで進む</returns>
+    /// <returns>
+    /// 読んだメッセージ
+    /// 問い合わせの並びのまま
+    /// 読み取りはこの結果の終わりまで進む
+    /// </returns>
     private static async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(SqlDataReader reader, CancellationToken cancellationToken)
     {
         var messages = new List<ChatMessage>();
@@ -677,11 +721,17 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
 
     /// <summary>相手との 1 対 1 の会話を探す</summary>
     /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">使うトランザクション。無ければ null</param>
+    /// <param name="transaction">
+    /// 使うトランザクション
+    /// 無ければ null
+    /// </param>
     /// <param name="me">自分の番号</param>
     /// <param name="peerUserId">相手の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>会話の番号。無ければ 0</returns>
+    /// <returns>
+    /// 会話の番号
+    /// 無ければ 0
+    /// </returns>
     private static async Task<int> FindDirectAsync(SqlConnection connection, SqlTransaction? transaction, int me, int peerUserId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -701,11 +751,14 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is int id ? id : 0;
     }
 
-    /// <summary>1 対 1 の会話と、その参加者を作る</summary>
+    /// <summary>1 対 1 の会話とその参加者を作る</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="me">自分の番号</param>
-    /// <param name="peerUserId">相手の番号。自分の番号なら、参加者は自分 1 人</param>
+    /// <param name="peerUserId">
+    /// 相手の番号。
+    /// 自分の番号なら、参加者は自分 1 人。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>作った会話の番号</returns>
     private static async Task<int> CreateDirectAsync(SqlConnection connection, SqlTransaction transaction, int me, int peerUserId, CancellationToken cancellationToken)
@@ -715,11 +768,17 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return conversationId;
     }
 
-    /// <summary>グループの会話と、その参加者を作る</summary>
+    /// <summary>グループの会話とその参加者を作る</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
-    /// <param name="me">自分の番号。参加者に入る</param>
-    /// <param name="name">グループの名前。前後の空白を取った文字</param>
+    /// <param name="me">
+    /// 自分の番号
+    /// 参加者に入る
+    /// </param>
+    /// <param name="name">
+    /// グループの名前
+    /// 前後の空白を取った文字
+    /// </param>
     /// <param name="memberIds">自分以外の参加者の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>作った会話の番号</returns>
@@ -736,7 +795,10 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="me">自分の番号</param>
     /// <param name="kind">会話の種類の値</param>
-    /// <param name="name">グループの名前。1 対 1 は空文字</param>
+    /// <param name="name">
+    /// グループの名前
+    /// 1 対 1 は空文字
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>足した会話の番号</returns>
     private static async Task<int> InsertConversationAsync(
@@ -751,10 +813,13 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return (int)(await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
     }
 
-    /// <summary>会話に、参加者の行を足す</summary>
+    /// <summary>会話に参加者の行を足す</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
-    /// <param name="me">足す操作をする人の番号。作成者・更新者になる</param>
+    /// <param name="me">
+    /// 足す操作をする人の番号
+    /// 作成者・更新者になる
+    /// </param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="userIds">参加者の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -784,12 +849,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         await member.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>新しいグループの名前と参加者が、正しいか調べる</summary>
+    /// <summary>新しいグループの名前と参加者が正しいか調べる</summary>
     /// <param name="connection">開いた接続</param>
-    /// <param name="name">名前。前後の空白を取った文字</param>
-    /// <param name="memberIds">自分以外の参加者の番号。重なりを除いたもの</param>
+    /// <param name="name">
+    /// 名前
+    /// 前後の空白を取った文字
+    /// </param>
+    /// <param name="memberIds">
+    /// 自分以外の参加者の番号
+    /// 重なりを除いたもの
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>名前が使え、参加者が 1 人以上で自分を含めて上限以内、全員が使える人で、管理者にメッセージを無効にされていないとき true</returns>
+    /// <returns>名前が使え、参加者が 1 人以上で自分を含めて上限以内、全員が使える人で、管理者にメッセージを無効にされていないとき true。</returns>
     private static async Task<bool> IsValidNewGroupAsync(SqlConnection connection, string name, IReadOnlyList<int> memberIds, CancellationToken cancellationToken)
     {
         if (!MessageDraft.IsValidGroupName(name) || !MessageDraft.IsValidGroupMemberCount(memberIds.Count))
@@ -801,7 +872,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">追加する人が 1 人もいない。</exception>
+    /// <exception cref="ArgumentException">追加する人が 1 人もいない</exception>
     public Task<GroupChangeOutcome> AddMembersAsync(int conversationId, IReadOnlyList<int> userIds, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(userIds);
@@ -920,7 +991,10 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="connection">開いた接続</param>
     /// <param name="me">自分の番号</param>
     /// <param name="conversationId">グループの番号</param>
-    /// <param name="change">トランザクションの中で行う変更。<see cref="GroupChangeOutcome.Done"/> を返したときだけ、コミットする</param>
+    /// <param name="change">
+    /// トランザクションの中で行う変更。
+    /// <see cref="GroupChangeOutcome.Done"/> を返したときだけ、コミットする。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>結果の区分</returns>
     private static async Task<GroupChangeOutcome> ChangeGroupAsync(
@@ -954,12 +1028,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <summary>システムメッセージを書く</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
-    /// <param name="me">操作した人の番号。作成者・更新者になる</param>
+    /// <param name="me">
+    /// 操作した人の番号
+    /// 作成者・更新者になる
+    /// </param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="body">出来上がった文</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き終えたことを表すタスク</returns>
-    /// <remarks>通知の状態の行は書かない。通知は送らない。</remarks>
+    /// <remarks>
+    /// 通知の状態の行は書かない
+    /// 通知は送らない
+    /// </remarks>
     private static async Task WriteSystemMessageAsync(
         SqlConnection connection, SqlTransaction transaction, int me, int conversationId, string body, CancellationToken cancellationToken)
     {
@@ -1000,7 +1080,10 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="userId">人の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>表示名。人が無いときは空文字</returns>
+    /// <returns>
+    /// 表示名
+    /// 人が無いときは空文字
+    /// </returns>
     private static async Task<string> ReadDisplayNameAsync(SqlConnection connection, SqlTransaction transaction, int userId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -1010,7 +1093,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is string name ? name : "";
     }
 
-    /// <summary>トランザクションの終わりまで続く、名前つきの鍵を取る</summary>
+    /// <summary>トランザクションの終わりまで続く名前つきの鍵を取る</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="resource">鍵の名前</param>
@@ -1037,7 +1120,10 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="me">自分の番号</param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>会話の種類の値。自分が参加していない・会話が無いときは null</returns>
+    /// <returns>
+    /// 会話の種類の値
+    /// 自分が参加していない・会話が無いときは null
+    /// </returns>
     private static async Task<byte?> ReadKindIfMemberAsync(SqlConnection connection, SqlTransaction transaction, int me, int conversationId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -1053,13 +1139,14 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is byte kind ? kind : null;
     }
 
-    /// <summary>通知を受ける人を読む。送った人以外の参加者で、自分だけの会話は自分</summary>
+    /// <summary>通知を受ける人を読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="me">自分の番号</param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>通知を受ける人の番号</returns>
+    /// <remarks>送った人以外の参加者で、自分だけの会話は自分。</remarks>
     private static async Task<IReadOnlyList<int>> ReadRecipientsAsync(SqlConnection connection, SqlTransaction transaction, int me, int conversationId, CancellationToken cancellationToken)
     {
         var members = await ReadMemberIdsAsync(connection, transaction, conversationId, cancellationToken).ConfigureAwait(false);
@@ -1072,7 +1159,7 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="userId">人の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>削除されておらず、今日使える期間にいるとき true</returns>
+    /// <returns>削除されておらず、今日使える期間にいるとき true。</returns>
     private static async Task<bool> UserExistsAsync(SqlConnection connection, SqlTransaction transaction, int userId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -1082,15 +1169,19 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return (int)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
     }
 
-    /// <summary>人の番号の一覧のうち、条件を満たす人の番号を、1 回の問い合わせで読む</summary>
+    /// <summary>人の番号の一覧のうち、条件を満たす人の番号を 1 回の問い合わせで読む</summary>
     /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">使うトランザクション。無ければ null</param>
+    /// <param name="transaction">
+    /// 使うトランザクション
+    /// 無ければ null
+    /// </param>
     /// <param name="userIds">調べる人の番号</param>
     /// <param name="condition">人の番号を表す式を <c>{0}</c> に入れる条件</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>条件を満たす人の番号</returns>
     /// <remarks>
-    /// 番号は JSON の 1 つのパラメーターで渡し、<c>OPENJSON</c> で行にする。人数が多くても、パラメーターの数の上限 (2100)に当たらない。
+    /// 番号は JSON の 1 つのパラメーターで渡し、<c>OPENJSON</c> で行にする。
+    /// 人数が多くてもパラメーターの数の上限 (2100)に当たらない。
     /// 人ごとに問い合わせを流さないための部品で、条件は <see cref="NotificationTargetExists"/>・<see cref="MessagesDisabled"/>・<see cref="UserUsable"/> を使う。
     /// </remarks>
     private static async Task<HashSet<int>> ReadUserIdsWhereAsync(
@@ -1114,12 +1205,15 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return passed;
     }
 
-    /// <summary>人の表示名を、1 回の問い合わせでまとめて読む</summary>
+    /// <summary>人の表示名を 1 回の問い合わせでまとめて読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="userIds">人の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>人の番号と表示名の組。人が無い番号は含まない</returns>
+    /// <returns>
+    /// 人の番号と表示名の組
+    /// 人が無い番号は含まない
+    /// </returns>
     private static async Task<Dictionary<int, string>> ReadDisplayNamesAsync(
         SqlConnection connection, SqlTransaction transaction, IReadOnlyCollection<int> userIds, CancellationToken cancellationToken)
     {
@@ -1141,14 +1235,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return names;
     }
 
-    /// <summary>メッセージが、その会話の、削除されていないメッセージか調べる。返信元と、読んだ位置の確かめに使う</summary>
+    /// <summary>メッセージがその会話の削除されていないメッセージか調べる</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">使うトランザクション</param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="messageId">メッセージの番号</param>
-    /// <param name="excludeSystem">true のとき、システムメッセージを除く。返信元の確かめは true、読んだ位置の確かめは false</param>
+    /// <param name="excludeSystem">
+    /// true のとき、システムメッセージを除く。
+    /// 返信元の確かめは true、読んだ位置の確かめは false。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>同じ会話のメッセージのとき true</returns>
+    /// <remarks>返信元と読んだ位置の確かめに使う</remarks>
     private static async Task<bool> MessageInConversationExistsAsync(
         SqlConnection connection, SqlTransaction transaction, int conversationId, int messageId, bool excludeSystem, CancellationToken cancellationToken)
     {
@@ -1161,12 +1259,18 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
-    /// <summary>管理者が、その人のメッセージを無効にしているか調べる</summary>
+    /// <summary>管理者がその人のメッセージを無効にしているか調べる</summary>
     /// <param name="connection">開いた接続</param>
-    /// <param name="transaction">使うトランザクション。無ければ null</param>
+    /// <param name="transaction">
+    /// 使うトランザクション
+    /// 無ければ null
+    /// </param>
     /// <param name="userId">人の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>無効のとき true。設定が無い人は有効なので false</returns>
+    /// <returns>
+    /// 無効のとき true
+    /// 設定が無い人は有効なので false
+    /// </returns>
     private static async Task<bool> IsMessagesDisabledAsync(SqlConnection connection, SqlTransaction? transaction, int userId, CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -1182,9 +1286,12 @@ public sealed class SqlServerMessageRepository(SqlServerDatabase database, Curre
     /// <returns>整数のパラメーター</returns>
     private static SqlParameter Int(string name, int value) => new(name, SqlDbType.Int) { Value = value };
 
-    /// <summary>LIKE の特別な文字を、そのままの文字として扱えるよう、エスケープする</summary>
+    /// <summary>LIKE の特別な文字をそのままの文字として扱えるよう、エスケープする</summary>
     /// <param name="text">探す文字</param>
-    /// <returns>エスケープした文字。エスケープの文字は、バックスラッシュ</returns>
+    /// <returns>
+    /// エスケープした文字
+    /// エスケープの文字はバックスラッシュ
+    /// </returns>
     private static string EscapeLike(string text)
         => text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal)
             .Replace("_", "\\_", StringComparison.Ordinal).Replace("[", "\\[", StringComparison.Ordinal);

@@ -4,28 +4,25 @@ using Fido2NetLib.Objects;
 
 namespace MmmToolWeb.Auth.Core.Passkeys;
 
-/// <summary>
-/// パスキーの登録とログインで、WebAuthn の手続き。人の特定とログイン状態の発行は呼び出し側が行う。
-/// </summary>
-/// <param name="fido2">WebAuthn の検証を行うライブラリ。</param>
-/// <param name="repository">パスキーの保存先。</param>
-/// <param name="ceremonies">手続きの途中の状態の置き場。</param>
+/// <summary>パスキーの登録とログインで、WebAuthn の手続き</summary>
+/// <param name="fido2">WebAuthn の検証を行うライブラリ</param>
+/// <param name="repository">パスキーの保存先</param>
+/// <param name="ceremonies">手続きの途中の状態の置き場</param>
+/// <remarks>人の特定とログイン状態の発行は呼び出し側が行う</remarks>
 public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repository, PasskeyCeremonyStore ceremonies)
 {
-    /// <summary>手続きの途中の状態で、登録のもの。</summary>
+    /// <summary>手続きの途中の状態で登録のもの</summary>
     private sealed record RegistrationCeremony(int AppUserId, string DeviceName, CredentialCreateOptions Options);
 
-    /// <summary>手続きの途中の状態で、ログインのもの。</summary>
+    /// <summary>手続きの途中の状態でログインのもの</summary>
     private sealed record LoginCeremony(AssertionOptions Options);
 
-    /// <summary>
-    /// パスキーの登録を始める。
-    /// </summary>
-    /// <param name="appUserId">登録する人のユーザーの番号。</param>
-    /// <param name="userName">パスキーに表示するユーザー名。</param>
-    /// <param name="displayName">パスキーに表示する名前。</param>
-    /// <param name="deviceName">端末の呼び名。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
+    /// <summary>パスキーの登録を始める</summary>
+    /// <param name="appUserId">登録する人のユーザーの番号</param>
+    /// <param name="userName">パスキーに表示するユーザー名</param>
+    /// <param name="displayName">パスキーに表示する名前</param>
+    /// <param name="deviceName">端末の呼び名</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
     /// <returns>ブラウザに渡す選択肢と、完了の呼び出しに渡す番号。</returns>
     public async Task<PasskeyStart> StartRegistrationAsync(
         int appUserId, string userName, string displayName, string deviceName, CancellationToken cancellationToken)
@@ -52,14 +49,15 @@ public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repos
         return new PasskeyStart(id, options.ToJson());
     }
 
-    /// <summary>
-    /// パスキーの登録を完了して、保存する。
-    /// </summary>
-    /// <param name="ceremonyId"><see cref="StartRegistrationAsync"/> が返した番号。</param>
-    /// <param name="response">ブラウザが返した結果。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>登録した人のユーザーの番号。番号が違う・期限切れのときは <c>null</c>。</returns>
-    /// <exception cref="Fido2VerificationException">ブラウザの結果の検証に失敗したとき。</exception>
+    /// <summary>パスキーの登録を完了して保存する</summary>
+    /// <param name="ceremonyId"><see cref="StartRegistrationAsync"/> が返した番号</param>
+    /// <param name="response">ブラウザが返した結果</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 登録した人のユーザーの番号
+    /// 番号が違う・期限切れのときは <c>null</c>
+    /// </returns>
+    /// <exception cref="Fido2VerificationException">ブラウザの結果の検証に失敗したとき</exception>
     public async Task<int?> FinishRegistrationAsync(
         string ceremonyId, AuthenticatorAttestationRawResponse response, CancellationToken cancellationToken)
     {
@@ -85,10 +83,9 @@ public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repos
         return ceremony.AppUserId;
     }
 
-    /// <summary>
-    /// パスキーでのログインを始める。ユーザー名を入力させない方式。
-    /// </summary>
+    /// <summary>パスキーでのログインを始める</summary>
     /// <returns>ブラウザに渡す選択肢と、完了の呼び出しに渡す番号。</returns>
+    /// <remarks>ユーザー名を入力させない方式</remarks>
     public PasskeyStart StartLogin()
     {
         var options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
@@ -100,14 +97,15 @@ public sealed class PasskeyService(IFido2 fido2, IAppUserPasskeyRepository repos
         return new PasskeyStart(id, options.ToJson());
     }
 
-    /// <summary>
-    /// パスキーでのログインを完了して、人を特定する。
-    /// </summary>
-    /// <param name="ceremonyId"><see cref="StartLogin"/> が返した番号。</param>
-    /// <param name="response">ブラウザが返した結果。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>ログインした人のユーザーの番号。番号が違う・期限切れ・未登録のパスキーのときは <c>null</c>。</returns>
-    /// <exception cref="Fido2VerificationException">ブラウザの結果の検証に失敗したとき。</exception>
+    /// <summary>パスキーでのログインを完了して人を特定する</summary>
+    /// <param name="ceremonyId"><see cref="StartLogin"/> が返した番号</param>
+    /// <param name="response">ブラウザが返した結果</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// ログインした人のユーザーの番号
+    /// 番号が違う・期限切れ・未登録のパスキーのときは <c>null</c>
+    /// </returns>
+    /// <exception cref="Fido2VerificationException">ブラウザの結果の検証に失敗したとき</exception>
     public async Task<int?> FinishLoginAsync(
         string ceremonyId, AuthenticatorAssertionRawResponse response, CancellationToken cancellationToken)
     {

@@ -5,7 +5,7 @@ using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.QuickMessages;
 
-/// <summary>編集ダイアログで編集中の、よく使う文またはグループ 1 件</summary>
+/// <summary>編集ダイアログで編集中のよく使う文またはグループ 1 件</summary>
 /// <remarks>
 /// 種類は作成時 (読み込み・追加時)に決めて変えない。
 /// グループは文だけを持てて、グループの中にグループは入れない。
@@ -16,7 +16,7 @@ public sealed partial class QuickMessageEditItem : ObservableObject
     /// <param name="label">表示名</param>
     /// <param name="text">入力欄に入れる文</param>
     /// <param name="children">グループの中の文 (文は null)</param>
-    /// <remarks>生成は <see cref="CreateMessage"/> などから行う。</remarks>
+    /// <remarks>生成は <see cref="CreateMessage"/> などから行う</remarks>
     private QuickMessageEditItem(string label, string text, ObservableCollection<QuickMessageEditItem>? children)
     {
         Label = label;
@@ -38,12 +38,16 @@ public sealed partial class QuickMessageEditItem : ObservableObject
     }
 
     /// <summary>表示名</summary>
-    /// <remarks>文は、省略すると文の 1 行目。グループは、グループ名。</remarks>
+    /// <remarks>
+    /// 文は省略すると文の 1 行目
+    /// グループはグループ名
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     public partial string Label { get; set; }
 
-    /// <summary>入力欄に入れる文 (文のとき)</summary>
+    /// <summary>入力欄に入れる文</summary>
+    /// <remarks>文のとき</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayName))]
     public partial string Text { get; set; }
@@ -61,11 +65,14 @@ public sealed partial class QuickMessageEditItem : ObservableObject
     public bool IsGroup => Children is not null;
 
     /// <summary>種類のアイコン</summary>
-    /// <remarks>グループは開閉で変える。</remarks>
+    /// <remarks>グループは開閉で変える</remarks>
     public string Glyph => IsGroup ? (IsExpanded ? "" : "") : "";
 
     /// <summary>一覧に出す名前</summary>
-    /// <remarks>表示名、無ければ文の 1 行目。どちらも無ければ「(未入力)」。</remarks>
+    /// <remarks>
+    /// 表示名、無ければ文の 1 行目。
+    /// どちらも無ければ「(未入力)」。
+    /// </remarks>
     public string DisplayName
     {
         get

@@ -9,27 +9,34 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Reminders;
 
-/// <summary>
-/// 自分の送信先に届いたリマインダーを、受け取った通知として、SQL Server の <c>dbo.ReminderSendStatus</c> から読む。
-/// </summary>
+/// <summary>自分の送信先に届いたリマインダーを受け取った通知として、SQL Server の dbo.ReminderSendStatus から読む</summary>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <remarks>
 /// 自分の送信先は <c>NotificationChannel.UserId</c> が自分のもので、共通ヘッダーの列は条件に使わない。
-/// 送信済みのものだけを、送った日時の新しい順に読む。
+/// 送信済みのものだけを送った日時の新しい順に読む。
 /// 読む量が履歴の長さに比例しないよう、送信先ごとに、索引 <c>IX_ReminderSendStatus_ChannelId_SentAt</c> で新しい順に先頭から件数だけ読み、そのあと、送信先をまたいで並べる。
-/// 見出しは「リマインダー」で、本文は、1 行目が件名、備考があれば次の行。形は <see cref="ReminderNotificationText"/> と同じ。リンクはリマインダーのリンク。送る先の値は読まない。
+/// 見出しは「リマインダー」で、本文は 1 行目が件名、備考があれば次の行。
+/// 形は <see cref="ReminderNotificationText"/> と同じ。
+/// リンクはリマインダーのリンク。
+/// 送る先の値は読まない。
 /// 削除したリマインダーの、過去の通知も、一覧に残る。
 /// </remarks>
 public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, CurrentUser currentUser) : IReceivedNotificationSource
 {
-    /// <summary>送信済みを表す状態の値。Pending = 1 / Sent = 2 / Failed = 3 (<c>docs/specs/database.md</c> の <c>ReminderSendStatus</c>)</summary>
+    /// <summary>送信済みを表す状態の値</summary>
+    /// <remarks>Pending = 1 / Sent = 2 / Failed = 3</remarks>
     private const byte Sent = 2;
 
-    /// <summary>管理者が、今のユーザーのリマインダーを無効にしているかを調べる条件。無効の人には、何も出さない</summary>
+    /// <summary>管理者が今のユーザーのリマインダーを無効にしているかを調べる条件</summary>
+    /// <remarks>無効の人には何も出さない</remarks>
     private static readonly string RemindersDisabled = FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders);
 
-    /// <summary>新しい順に読む問い合わせ。送信先ごとの先頭を、<c>CROSS APPLY</c> で索引から読む。<see cref="ReadRow"/> の並び</summary>
+    /// <summary>新しい順に読む問い合わせ</summary>
+    /// <remarks>
+    /// 送信先ごとの先頭を CROSS APPLY で索引から読む
+    /// ReadRow の並び
+    /// </remarks>
     private static readonly string LatestSql =
         $"""
         SELECT TOP (@Count) s.Id, r.Title, r.Note, r.Link, s.SentAt
@@ -46,7 +53,11 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
         ORDER BY s.SentAt DESC, s.Id DESC
         """;
 
-    /// <summary>番号を指定して 1 件読む問い合わせ。自分の送信先に届いたものだけ。<see cref="ReadRow"/> の並び</summary>
+    /// <summary>番号を指定して 1 件読む問い合わせ</summary>
+    /// <remarks>
+    /// 自分の送信先に届いたものだけ
+    /// ReadRow の並び
+    /// </remarks>
     private static readonly string OneSql =
         $"""
         SELECT s.Id, r.Title, r.Note, r.Link, s.SentAt
@@ -63,7 +74,10 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
     public string KindName => "リマインダー";
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<ReceivedNotification>> GetLatestAsync(int count, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -86,7 +100,10 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<ReceivedNotification?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -102,7 +119,7 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
         }, cancellationToken);
     }
 
-    /// <summary>自分の番号と、送信済みの状態の値を、問い合わせに足す</summary>
+    /// <summary>自分の番号と送信済みの状態の値を問い合わせに足す</summary>
     /// <param name="command">問い合わせ</param>
     /// <param name="userId">今のユーザーの番号</param>
     private static void AddCommonParameters(SqlCommand command, int userId)
@@ -111,7 +128,7 @@ public sealed class SqlServerReceivedReminderSource(SqlServerDatabase database, 
         command.Parameters.Add(new SqlParameter("@Sent", SqlDbType.TinyInt) { Value = Sent });
     }
 
-    /// <summary>読んでいる行を、受け取った通知にする</summary>
+    /// <summary>読んでいる行を受け取った通知にする</summary>
     /// <param name="reader">問い合わせの列を読んでいるリーダー</param>
     /// <returns>受け取った通知</returns>
     private static ReceivedNotification ReadRow(SqlDataReader reader)

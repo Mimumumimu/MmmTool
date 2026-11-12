@@ -10,21 +10,30 @@ namespace MmmTool.WorkItems.Report;
 
 /// <summary>作業報告のウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられ、最大化もできる。最大化は、最大化ボタンかタイトル帯のダブルクリックで行う。最小化はできない。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 大きさは変えられ、最大化もできる。
+/// 最大化は最大化ボタンかタイトル帯のダブルクリックで行う。
+/// 最小化はできない。
+/// タイトル帯をドラッグして移動できる。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
 /// </remarks>
 public sealed partial class WorkReportWindow : Window
 {
-    /// <summary>最初の幅 (DIP)</summary>
+    /// <summary>最初の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialWidth = 720;
 
-    /// <summary>最初の高さ (DIP)</summary>
+    /// <summary>最初の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialHeight = 620;
 
-    /// <summary>最小の幅 (DIP)</summary>
+    /// <summary>最小の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumWidth = 560;
 
-    /// <summary>最小の高さ (DIP)</summary>
+    /// <summary>最小の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumHeight = 360;
 
     /// <summary>閉じたら完了する</summary>
@@ -38,7 +47,7 @@ public sealed partial class WorkReportWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public WorkReportWindow(WorkReportViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -82,7 +91,7 @@ public sealed partial class WorkReportWindow : Window
         await _closed.Task;
     }
 
-    /// <summary>報告日が選ばれたら、ViewModel に反映する</summary>
+    /// <summary>報告日が選ばれたら ViewModel に反映する</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="args">日付の変更の情報</param>
     private void OnReportDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -98,7 +107,7 @@ public sealed partial class WorkReportWindow : Window
         }
     }
 
-    /// <summary>実績の開始日が選ばれたら、ViewModel に反映する</summary>
+    /// <summary>実績の開始日が選ばれたら ViewModel に反映する</summary>
     /// <param name="sender">日付の選択欄</param>
     /// <param name="args">日付の変更の情報</param>
     private void OnFromDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -114,7 +123,7 @@ public sealed partial class WorkReportWindow : Window
         }
     }
 
-    /// <summary>ViewModel の日付が変わったら、日付の選択欄を合わせる (付け替え・前日への修正)</summary>
+    /// <summary>ViewModel の日付が変わったら日付の選択欄を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -130,12 +139,12 @@ public sealed partial class WorkReportWindow : Window
         }
     }
 
-    /// <summary>日付を、日付の選択欄の値にする</summary>
+    /// <summary>日付を日付の選択欄の値にする</summary>
     /// <param name="date">日付</param>
     /// <returns>その日の 0 時 (この PC のタイムゾーン)</returns>
     private static DateTimeOffset ToOffset(DateOnly date) => new(date.ToDateTime(TimeOnly.MinValue));
 
-    /// <summary>「閉じる」が押されたら、ウィンドウを閉じる</summary>
+    /// <summary>「閉じる」が押されたらウィンドウを閉じる</summary>
     /// <param name="sender">ボタン</param>
     /// <param name="e">イベントの情報</param>
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

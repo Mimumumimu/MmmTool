@@ -9,9 +9,8 @@ using MmmToolWeb.Notes.Client;
 
 namespace MmmToolWeb.Notes;
 
-/// <summary>
-/// ノートの Web 版のサーバー側。読み書きは、MmmTool と同じ <see cref="NoteService"/> と <c>SqlServerNoteRepository</c> を使う。
-/// </summary>
+/// <summary>ノートの Web 版のサーバー側</summary>
+/// <remarks>読み書きは MmmTool と同じ NoteService と SqlServerNoteRepository を使う</remarks>
 public sealed class NotesWebFeature : IWebFeature
 {
     /// <inheritdoc />

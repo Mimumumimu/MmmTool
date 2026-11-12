@@ -3,16 +3,19 @@ using MmmSdk.Core.Components.Shells;
 
 namespace MmmTool.CliAssist.Core;
 
-/// <summary>
-/// CliCommands.json が無いとき・初期化するときに作る既定の定型コマンド。
-/// </summary>
+/// <summary>CliCommands.json が無いとき・初期化するときに作る既定の定型コマンド</summary>
 /// <remarks>
-/// 補助スクリプトは <c>{AppDir}\Assets\Tools\</c> に置かれる。置くのは CLI補助のプラグインのプロジェクトで、ここでは相対パスだけを持つ。
-/// 初期設定で選んだツールごとに、「シェル」「AI セッション」の両方のタブにフォルダを作る。ツールどうしで、同じ働きのコマンドは同じ表示名・同じ順にそろえる。
-/// 環境で違うのは、Claude Code の会話履歴の削除の補助スクリプトだけで、ほかのコマンドは同じ。
-/// Windows では、補助スクリプトを動かすシェルを、ターミナルで使うシェル (<see cref="ShellLocator"/>)に合わせる。pwsh が無い環境では Windows PowerShell を使う。
-/// WSL では、Python 版 (Ubuntu に標準で入っている python3 で動かす)を使う。WSL には Windows のごみ箱が無く、PowerShell 版では WSL 側の履歴を戻せる形で消せないため。
-/// <c>{AppDir}</c> は、送るときに環境に合わせたパスへ展開する。WSL では <c>/mnt/d/...</c> になる。
+/// 補助スクリプトは <c>{AppDir}\Assets\Tools\</c> に置かれる。
+/// 置くのは CLI補助のプラグインのプロジェクトで、ここでは相対パスだけを持つ。
+/// 初期設定で選んだツールごとに「シェル」「AI セッション」の両方のタブにフォルダを作る。
+/// ツールどうしで、同じ働きのコマンドは同じ表示名・同じ順にそろえる。
+/// 環境で違うのは Claude Code の会話履歴の削除の補助スクリプトだけで、ほかのコマンドは同じ。
+/// Windows では補助スクリプトを動かすシェルをターミナルで使うシェル (<see cref="ShellLocator"/>)に合わせる。
+/// pwsh が無い環境では Windows PowerShell を使う。
+/// WSL では Python 版 (Ubuntu に標準で入っている python3 で動かす)を使う。
+/// WSL には Windows のごみ箱が無く、PowerShell 版では WSL 側の履歴を戻せる形で消せないため。
+/// <c>{AppDir}</c> は送るときに環境に合わせたパスへ展開する。
+/// WSL では <c>/mnt/d/...</c> になる。
 /// </remarks>
 [SupportedOSPlatform("windows")]
 public static class CliCommandDefaults
@@ -34,7 +37,7 @@ public static class CliCommandDefaults
         Session = [.. setup.Tools.Select(SessionGroup)],
     };
 
-    /// <summary>シェルで打つコマンド (ツールの起動など)のフォルダを作る</summary>
+    /// <summary>シェルで打つコマンドのフォルダを作る</summary>
     /// <param name="tool">ツール</param>
     /// <param name="environment">コマンドを動かす環境</param>
     /// <returns>ツールのフォルダ</returns>
@@ -91,7 +94,10 @@ public static class CliCommandDefaults
     };
 
     /// <summary>会話履歴の削除の補助スクリプトを動かすコマンドを作る</summary>
-    /// <param name="scriptName">スクリプトの名前で、拡張子なし。<c>Assets/Tools/</c> の <c>.ps1</c> と <c>.py</c> の組</param>
+    /// <param name="scriptName">
+    /// スクリプトの名前で、拡張子なし。
+    /// <c>Assets/Tools/</c> の <c>.ps1</c> と <c>.py</c> の組。
+    /// </param>
     /// <param name="environment">コマンドを動かす環境</param>
     /// <returns>ターミナルへ送るコマンド文字列</returns>
     private static string RemoveSessionCommand(string scriptName, CliEnvironment environment) => environment switch
@@ -100,18 +106,24 @@ public static class CliCommandDefaults
         _ => $"{ShellLocator.Default.FileName} -NoProfile -File \"{CommandPlaceholders.AppDir}\\Assets\\Tools\\{scriptName}.ps1\"",
     };
 
-    /// <summary>フォルダ (子を持つノード)を作る</summary>
+    /// <summary>フォルダを作る</summary>
     /// <param name="label">表示名</param>
     /// <param name="children">子要素</param>
     /// <returns>フォルダのノード</returns>
     private static CliCommandNode Group(string label, params CliCommandNode[] children)
         => new() { Label = label, Children = [.. children] };
 
-    /// <summary>コマンド (葉)を作る</summary>
+    /// <summary>コマンドを作る</summary>
     /// <param name="label">表示名</param>
     /// <param name="command">ターミナルへ送るコマンド文字列</param>
-    /// <param name="switchTo">送信後に切り替えるタブ。切り替えないなら null</param>
-    /// <param name="focus">送信後にフォーカスを移す先。移さないなら null</param>
+    /// <param name="switchTo">
+    /// 送信後に切り替えるタブ
+    /// 切り替えないなら null
+    /// </param>
+    /// <param name="focus">
+    /// 送信後にフォーカスを移す先
+    /// 移さないなら null
+    /// </param>
     /// <returns>コマンドのノード</returns>
     private static CliCommandNode Leaf(string label, string command, CommandCategory? switchTo = null, FocusTarget? focus = null)
         => new()

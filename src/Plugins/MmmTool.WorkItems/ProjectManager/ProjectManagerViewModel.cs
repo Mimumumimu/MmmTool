@@ -9,27 +9,31 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.ProjectManager;
 
-/// <summary>
-/// 案件の管理の画面。案件マスター (全員で共有する案件の一覧)を一覧で見て、登録・名前の変更・削除をする。
-/// </summary>
+/// <summary>案件の管理の画面</summary>
 /// <param name="service">作業管理の読み書き</param>
 /// <param name="confirm">確認ダイアログ</param>
 /// <remarks>
-/// 案件は、「新しい案件」で出る入力中の行に名前を入れて確定すると追加する。空のまま・Esc は保存しない。追加すると、作った人の表示する案件に加わる。削除は論理削除で、中のグループ・作業も消える。確認に件数を出す。
-/// 更新してよいかは、サービスの更新の入口 (<see cref="IWorkItemEditPolicy"/>)が決める。
+/// 案件マスターを一覧で見て、登録・名前の変更・削除をする。
+/// 案件は「新しい案件」で出る入力中の行に名前を入れて確定すると追加する。
+/// 空のまま・Esc は保存しない。
+/// 追加すると作った人の表示する案件に加わる。
+/// 削除は論理削除で、中のグループ・作業も消える。
+/// 確認に件数を出す。
+/// 更新してよいかはサービスの更新の入口 (<see cref="IWorkItemEditPolicy"/>)が決める。
 /// </remarks>
 public sealed partial class ProjectManagerViewModel(WorkItemService service, IDialogService confirm) : ObservableObject
 {
     /// <summary>1 回に読む件数</summary>
     private const int PageSize = 50;
 
-    /// <summary>入力中の新しい行 (無ければ null)</summary>
+    /// <summary>入力中の新しい行</summary>
     private ProjectManagerItem? _pending;
 
     /// <summary>新しい案件の作成の確認を出している最中か</summary>
     private bool _isConfirming;
 
-    /// <summary>今の読み込みの番号 (古い結果を捨てるため)</summary>
+    /// <summary>今の読み込みの番号</summary>
+    /// <remarks>古い結果を捨てるため</remarks>
     private int _version;
 
     /// <summary>続きを読んでいる最中か</summary>
@@ -41,11 +45,12 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>完了済みの案件を除くか (既定はオン)</summary>
+    /// <summary>完了済みの案件を除くか</summary>
     [ObservableProperty]
     public partial bool ActiveOnly { get; set; } = true;
 
-    /// <summary>入力中の行に、入力のフォーカスを移してほしいときに起こす (画面が受ける)</summary>
+    /// <summary>入力中の行に入力のフォーカスを移してほしいときに起こす</summary>
+    /// <remarks>画面が受ける</remarks>
     public event Action<ProjectManagerItem>? PendingFocusRequested;
 
     /// <summary>続きがあるか</summary>
@@ -56,7 +61,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    /// <summary>一覧を読み直す (先頭から)</summary>
+    /// <summary>一覧を読み直す</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
     public async Task RefreshAsync()
     {
@@ -84,8 +89,9 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>一覧の続きを読む (終わりまで来たとき)</summary>
+    /// <summary>一覧の続きを読む</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>終わりまで来たとき</remarks>
     public async Task LoadMoreAsync()
     {
         if (!HasMore || _isLoading)
@@ -119,10 +125,10 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>案件の名前の入力を、確定する</summary>
+    /// <summary>案件の名前の入力を確定する</summary>
     /// <param name="item">一覧の 1 件</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>入力が受け入れられなかったときは、理由を出して、保存されている名前に戻す。</remarks>
+    /// <remarks>入力が受け入れられなかったときは理由を出して、保存されている名前に戻す。</remarks>
     public async Task RenameAsync(ProjectManagerItem item)
     {
         var name = item.Name.Trim();
@@ -155,9 +161,10 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>確認してから、案件を削除する。論理削除で、中のグループ・作業も</summary>
+    /// <summary>確認してから案件を削除する</summary>
     /// <param name="item">一覧の 1 件</param>
     /// <returns>削除の完了を表すタスク</returns>
+    /// <remarks>論理削除で、中のグループ・作業も。</remarks>
     public async Task DeleteAsync(ProjectManagerItem item)
     {
         if (item.IsNew)
@@ -197,9 +204,12 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>入力中の行を、先頭に出す (すでにあるときは、それを使う)</summary>
+    /// <summary>入力中の行を先頭に出す</summary>
     /// <returns>入力中の行</returns>
-    /// <remarks>名前が入って確定するまで、保存しない。</remarks>
+    /// <remarks>
+    /// すでにあるときはそれを使う。
+    /// 名前が入って確定するまで、保存しない。
+    /// </remarks>
     [RelayCommand]
     private void BeginAdd()
     {
@@ -215,12 +225,15 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         PendingFocusRequested?.Invoke(_pending);
     }
 
-    /// <summary>入力中の行を、確認してから作成する (名前が空なら、保存せずに消す)</summary>
+    /// <summary>入力中の行を確認してから作成する</summary>
     /// <param name="item">入力中の行</param>
     /// <returns>作成の完了を表すタスク</returns>
     /// <remarks>
+    /// 名前が空なら、保存せずに消す。
     /// 案件は全員で共有するので、Enter を押したときだけ、確認してから保存する。
-    /// フォーカスが外れただけでは保存しない。行は残り、入力を続けられる。確認で取りやめたときも、行を残す。
+    /// フォーカスが外れただけでは保存しない。
+    /// 行は残り、入力を続けられる。
+    /// 確認で取りやめたときも行を残す。
     /// </remarks>
     public async Task CreateAsync(ProjectManagerItem item)
     {
@@ -267,8 +280,9 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         }
     }
 
-    /// <summary>閉じてよいかを確かめる (名前を入力中の新しい案件があるときだけ、確認する)</summary>
+    /// <summary>閉じてよいかを確かめる</summary>
     /// <returns>閉じてよければ true</returns>
+    /// <remarks>名前を入力中の新しい案件があるときだけ、確認する。</remarks>
     public async Task<bool> ConfirmCloseAsync()
     {
         if (_pending is not { } pending || pending.Name.Trim().Length == 0)
@@ -279,7 +293,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         return await confirm.ConfirmAsync("案件の作成を中止", $"案件「{pending.Name.Trim()}」は、まだ作成していません。\n作成せずに閉じますか？", "閉じる", "戻る");
     }
 
-    /// <summary>入力中の行を、保存せずに消す</summary>
+    /// <summary>入力中の行を保存せずに消す</summary>
     /// <param name="item">入力中の行</param>
     public void CancelNew(ProjectManagerItem item)
     {
@@ -293,7 +307,7 @@ public sealed partial class ProjectManagerViewModel(WorkItemService service, IDi
         IsEmpty = Items.Count == 0;
     }
 
-    /// <summary>完了済みを除くかが変わったら、読み直す</summary>
+    /// <summary>完了済みを除くかが変わったら読み直す</summary>
     /// <param name="value">除くか</param>
     partial void OnActiveOnlyChanged(bool value) => RefreshAsync().Forget();
 }

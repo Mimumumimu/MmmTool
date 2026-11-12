@@ -13,7 +13,10 @@ public sealed partial class CommonSettingsPage : Page
     /// <param name="sections">各機能が登録した設定の部品</param>
     /// <param name="features">機能の並び</param>
     /// <param name="services">部品を作る DI のサービスプロバイダー</param>
-    /// <remarks>部品は、並び順の値の順 (同じ値は登録順)に並べる。管理ツールの機能は、オフにできないので、並べ直さない。</remarks>
+    /// <remarks>
+    /// 部品は並び順の値の順 (同じ値は登録順)に並べる。
+    /// 管理ツールの機能はオフにできないので、並べ直さない。
+    /// </remarks>
     public CommonSettingsPage(IEnumerable<SettingsSection> sections, FeatureService features, IServiceProvider services)
     {
         InitializeComponent();

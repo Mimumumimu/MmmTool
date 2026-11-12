@@ -7,7 +7,7 @@ namespace MmmTool.CliAssist.Setup;
 /// <summary>CLI補助の初期設定ダイアログを開く</summary>
 /// <param name="services">ダイアログを作る DI のサービスプロバイダー</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
-/// <remarks>ダイアログは開くたびに DI から作る。</remarks>
+/// <remarks>ダイアログは開くたびに DI から作る</remarks>
 public sealed class CliSetupDialogService(IServiceProvider services, IDialogHost dialogs) : ICliSetupDialogService
 {
     /// <inheritdoc />

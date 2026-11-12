@@ -6,11 +6,12 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Features.Users.SignIn;
 
-/// <summary>
-/// ログインの画面。ログイン名とパスワードでログインする。新規登録と、再設定のあとの新しいパスワードも、同じ画面で扱う。
-/// </summary>
+/// <summary>ログインの画面</summary>
 /// <remarks>
-/// 状態は <see cref="SignInMode"/> の 3 つ。登録・新しいパスワードを決めた場合も含めて、ログインできたら、今のユーザーが設定され、
+/// ログイン名とパスワードでログインする。
+/// 新規登録と、再設定のあとの新しいパスワードも、同じ画面で扱う。
+/// 状態は <see cref="SignInMode"/> の 3 つ。
+/// 登録・新しいパスワードを決めた場合も含めて、ログインできたら、今のユーザーが設定され、
 /// <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class SignInViewModel : ObservableObject
@@ -39,7 +40,7 @@ public sealed partial class SignInViewModel : ObservableObject
     }
 
     /// <summary>画面を閉じてほしい</summary>
-    /// <remarks>ログインしたユーザーを渡す。</remarks>
+    /// <remarks>ログインしたユーザーを渡す</remarks>
     public event EventHandler<AppUser?>? CloseRequested;
 
     /// <summary>ログイン名の最大文字数</summary>
@@ -63,7 +64,8 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <summary>新しいパスワードを決める状態か</summary>
     public bool IsNewPasswordMode => Mode == SignInMode.NewPassword;
 
-    /// <summary>ログイン名を入力できるか (新しいパスワードを決めるときは、決まっているので入力しない)</summary>
+    /// <summary>ログイン名を入力できるか</summary>
+    /// <remarks>新しいパスワードを決めるときは決まっているので入力しない</remarks>
     public bool IsLoginNameEditable => Mode != SignInMode.NewPassword;
 
     /// <summary>見出し</summary>
@@ -82,7 +84,7 @@ public sealed partial class SignInViewModel : ObservableObject
         _ => "ログイン",
     };
 
-    /// <summary>副のボタンの文言 (無いときは空)</summary>
+    /// <summary>副のボタンの文言</summary>
     public string SecondaryText => Mode switch
     {
         SignInMode.SignIn => "新規登録",
@@ -93,11 +95,13 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <summary>副のボタンがあるか</summary>
     public bool HasSecondary => SecondaryText.Length > 0;
 
-    /// <summary>ログイン名で、初期値は Windows のユーザー名。半角英数字と記号だけのときのみ</summary>
+    /// <summary>ログイン名で、初期値は Windows のユーザー名</summary>
+    /// <remarks>半角英数字と記号だけのときのみ</remarks>
     [ObservableProperty]
     public partial string LoginName { get; set; } = "";
 
-    /// <summary>表示名で、新規登録のとき。初期値は Windows のユーザー名</summary>
+    /// <summary>表示名で、新規登録のとき</summary>
+    /// <remarks>初期値は Windows のユーザー名</remarks>
     [ObservableProperty]
     public partial string DisplayName { get; set; } = "";
 
@@ -105,20 +109,24 @@ public sealed partial class SignInViewModel : ObservableObject
     [ObservableProperty]
     public partial string Password { get; set; } = "";
 
-    /// <summary>パスワードの確認入力 (新規登録・新しいパスワードのとき)</summary>
+    /// <summary>パスワードの確認入力</summary>
+    /// <remarks>新規登録・新しいパスワードのとき</remarks>
     [ObservableProperty]
     public partial string PasswordConfirm { get; set; } = "";
 
-    /// <summary>エラー。無ければ null</summary>
+    /// <summary>エラー</summary>
     [ObservableProperty]
     public partial string? Error { get; private set; }
 
-    /// <summary>保存先 (DB)の失敗のエラー (接続できない・設定が足りない など)</summary>
+    /// <summary>保存先の失敗のエラー</summary>
     public ErrorState SaveError { get; } = new();
 
-    /// <summary>入力を検証して、主な操作 (ログイン・登録・新しいパスワードを決める)を行う</summary>
+    /// <summary>入力を検証して主な操作を行う</summary>
     /// <returns>操作の完了を表すタスク</returns>
-    /// <remarks>入力が正しくないときはエラーを出して、閉じない。</remarks>
+    /// <remarks>
+    /// ログイン・登録・新しいパスワードを決める。
+    /// 入力が正しくないときはエラーを出して、閉じない。
+    /// </remarks>
     [RelayCommand]
     private async Task SubmitAsync()
     {
@@ -149,7 +157,8 @@ public sealed partial class SignInViewModel : ObservableObject
         }
     }
 
-    /// <summary>副の操作 (ログインと新規登録を切り替える)を行う</summary>
+    /// <summary>副の操作を行う</summary>
+    /// <remarks>ログインと新規登録を切り替える</remarks>
     [RelayCommand]
     private void Secondary()
     {
@@ -243,7 +252,10 @@ public sealed partial class SignInViewModel : ObservableObject
     }
 
     /// <summary>パスワードと確認入力を検証する</summary>
-    /// <returns>正しければ true。正しくなければ、エラーを出して false</returns>
+    /// <returns>
+    /// 正しければ true。
+    /// 正しくなければ、エラーを出して false。
+    /// </returns>
     private bool ValidatePassword()
     {
         if (Password.Length == 0)
@@ -263,8 +275,12 @@ public sealed partial class SignInViewModel : ObservableObject
     /// <returns>今日の日付</returns>
     private DateOnly Today() => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
 
-    /// <summary>入力中に出すエラーを求める (ログイン名に使えない文字があるときだけ)</summary>
-    /// <returns>エラーの文言。無ければ null</returns>
+    /// <summary>入力中に出すエラーを求める</summary>
+    /// <returns>
+    /// エラーの文言
+    /// 無ければ null
+    /// </returns>
+    /// <remarks>ログイン名に使えない文字があるときだけ</remarks>
     private string? GetLiveError()
     {
         var name = LoginName.Trim();
@@ -273,12 +289,14 @@ public sealed partial class SignInViewModel : ObservableObject
             : null;
     }
 
-    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは出す)</summary>
+    /// <summary>入力を変えたらエラーを消す</summary>
     /// <param name="value">変えたあとの値</param>
+    /// <remarks>ログイン名に使えない文字があるときは出す</remarks>
     partial void OnLoginNameChanged(string value) => Error = GetLiveError();
 
-    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
+    /// <summary>入力を変えたらエラーを消す</summary>
     /// <param name="value">変えたあとの値</param>
+    /// <remarks>ログイン名に使えない文字があるときは残す</remarks>
     partial void OnPasswordChanged(string value) => Error = GetLiveError();
 }
 
@@ -291,6 +309,6 @@ public enum SignInMode
     /// <summary>新しくユーザーを登録する</summary>
     Register,
 
-    /// <summary>管理者が再設定したあと、新しいパスワードを決める</summary>
+    /// <summary>管理者が再設定したあと新しいパスワードを決める</summary>
     NewPassword,
 }

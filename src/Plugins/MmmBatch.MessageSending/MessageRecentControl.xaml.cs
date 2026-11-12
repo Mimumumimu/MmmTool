@@ -5,7 +5,7 @@ using Windows.Foundation;
 
 namespace MmmBatch.MessageSending;
 
-/// <summary>最近の依頼の一覧の中身 (見出しつきの一覧・エラー)</summary>
+/// <summary>最近の依頼の一覧の中身</summary>
 /// <remarks>行を右クリックして、「再送」(まだ送っていないものは「今すぐ送る」)を選べる。</remarks>
 public sealed partial class MessageRecentControl : UserControl
 {

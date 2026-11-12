@@ -8,8 +8,11 @@ using MmmTool.Links.Main;
 
 namespace MmmTool.Links;
 
-/// <summary>リンク機能の入口 (編集ページ・トレイのリンクメニューを登録する)</summary>
-/// <remarks>保存先はローカル専用の JSON。</remarks>
+/// <summary>リンク機能の入口</summary>
+/// <remarks>
+/// 編集ページ・トレイのリンクメニューを登録する
+/// 保存先はローカル専用の JSON
+/// </remarks>
 public sealed class LinksPlugin : IFeaturePlugin
 {
     /// <inheritdoc />

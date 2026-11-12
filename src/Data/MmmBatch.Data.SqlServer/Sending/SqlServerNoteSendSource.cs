@@ -12,13 +12,13 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
-/// <summary>
-/// 他の人の作成・更新の通知の元になるノートと、通知する相手を、SQL Server から読む。読むだけで、書かない。
-/// </summary>
+/// <summary>他の人の作成・更新の通知の元になるノートと通知する相手を SQL Server から読む</summary>
 /// <remarks>
-/// 更新されたノートの読み方は、MmmTool (PC の通知ダイアログ)と共通の <see cref="SqlServerNoteChangeReader"/>。
-/// 通知する相手は、「ノートの通知を受け取る」がオンの人のうち、通知先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
-/// オンの人は、<c>dbo.AppUserSetting</c> の索引 <c>IX_AppUserSetting_FeatureNo_CategoryNo_CodeNo_Value_UserId</c> で探す。送信先は <c>dbo.NotificationChannel</c> から読む。
+/// 読むだけで、書かない。
+/// 更新されたノートの読み方は MmmTool (PC の通知ダイアログ)と共通の <see cref="SqlServerNoteChangeReader"/>。
+/// 通知する相手は「ノートの通知を受け取る」がオンの人のうち、通知先が指定されていて、その送信先が削除されておらず、管理者がノートを無効にしていない人。
+/// オンの人は <c>dbo.AppUserSetting</c> の索引 <c>IX_AppUserSetting_FeatureNo_CategoryNo_CodeNo_Value_UserId</c> で探す。
+/// 送信先は <c>dbo.NotificationChannel</c> から読む。
 /// 全員を一度に読まないよう、人の番号の順に、指定の人数ずつ読む。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
@@ -46,7 +46,10 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
             cancellationToken);
 
     /// <inheritdoc />
-    /// <remarks>人の番号は JSON の 1 つのパラメーターで渡す。条件は <see cref="GetRecipientsAsync"/> と同じ問い合わせを共有する。</remarks>
+    /// <remarks>
+    /// 人の番号は JSON の 1 つのパラメーターで渡す
+    /// 条件は <see cref="GetRecipientsAsync"/> と同じ問い合わせを共有する
+    /// </remarks>
     public Task<IReadOnlyList<NoteRecipient>> GetRecipientsByIdsAsync(IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(userIds);
@@ -62,12 +65,23 @@ public sealed class SqlServerNoteSendSource(SqlServerDatabase database) : INoteS
             cancellationToken);
     }
 
-    /// <summary>通知する相手を読む。人の絞り方と件数の指定だけを変えて、2 つの読み方で共有する</summary>
-    /// <param name="top">先頭に付ける <c>TOP</c> の指定。無ければ空。定数だけを渡す (SQL に埋め込むため)</param>
-    /// <param name="userFilter">人を絞る条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <summary>通知する相手を読む</summary>
+    /// <param name="top">
+    /// 先頭に付ける <c>TOP</c> の指定
+    /// 無ければ空
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
+    /// <param name="userFilter">
+    /// 人を絞る条件
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
     /// <param name="addParameters">条件が使うパラメーターを足す処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>通知する相手。人の番号の順</returns>
+    /// <returns>
+    /// 通知する相手
+    /// 人の番号の順
+    /// </returns>
+    /// <remarks>人の絞り方と件数の指定だけを変えて、2 つの読み方で共有する。</remarks>
     private Task<IReadOnlyList<NoteRecipient>> ReadRecipientsAsync(string top, string userFilter, Action<SqlCommand> addParameters, CancellationToken cancellationToken)
         => SendTableAccess.RunAsync<IReadOnlyList<NoteRecipient>>(database, async connection =>
         {

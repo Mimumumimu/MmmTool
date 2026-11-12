@@ -12,28 +12,42 @@ namespace MmmTool.WorkItems.ProjectManager;
 
 /// <summary>案件の管理のウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。大きさは変えられる。最大化・最小化はできない。
-/// タイトル帯をドラッグして移動できる。開くたびに作り直す。閉じたウィンドウは再表示できないため。
-/// 名前は、普段は文字だけで、クリックすると入力欄になる。既存の案件は、フォーカスが外れたとき・Enter で保存し、Esc で取り消す。これは Excel と同じ。追加は、左上の「新しい案件」で出る入力中の行から行い、Enter で確認してから作る。フォーカスが外れただけでは作らない。削除は、行の右クリックのメニューで、送信先の一覧と同じ。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 大きさは変えられる。
+/// 最大化・最小化はできない。
+/// タイトル帯をドラッグして移動できる。
+/// 開くたびに作り直す。
+/// 閉じたウィンドウは再表示できないため。
+/// 名前は普段は文字だけで、クリックすると入力欄になる。
+/// 既存の案件はフォーカスが外れたとき・Enter で保存し、Esc で取り消す。
+/// これは Excel と同じ。
+/// 追加は左上の「新しい案件」で出る入力中の行から行い、Enter で確認してから作る。
+/// フォーカスが外れただけでは作らない。
+/// 削除は行の右クリックのメニューで、送信先の一覧と同じ。
 /// </remarks>
 public sealed partial class ProjectManagerWindow : Window
 {
-    /// <summary>最初の幅 (DIP)</summary>
+    /// <summary>最初の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialWidth = 640;
 
-    /// <summary>最初の高さ (DIP)</summary>
+    /// <summary>最初の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double InitialHeight = 520;
 
-    /// <summary>最小の幅 (DIP)</summary>
+    /// <summary>最小の幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumWidth = 480;
 
-    /// <summary>最小の高さ (DIP)</summary>
+    /// <summary>最小の高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double MinimumHeight = 360;
 
     /// <summary>閉じたら完了する</summary>
     private readonly TaskCompletionSource _closed = new();
 
-    /// <summary>閉じてよいと確かめ済みか (確認のあとの Close で、もう一度確認しないため)</summary>
+    /// <summary>閉じてよいと確かめ済みか</summary>
+    /// <remarks>確認のあとの Close で、もう一度確認しないため。</remarks>
     private bool _closeConfirmed;
 
     /// <summary>擬似モーダルの処理</summary>
@@ -44,7 +58,7 @@ public sealed partial class ProjectManagerWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public ProjectManagerWindow(ProjectManagerViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -57,7 +71,7 @@ public sealed partial class ProjectManagerWindow : Window
         Closed += (_, _) => _closed.TrySetResult();
     }
 
-    /// <summary>閉じる操作 (右上の ×)のとき、作成中の案件があれば、確認する</summary>
+    /// <summary>閉じる操作のとき、作成中の案件があれば確認する</summary>
     /// <param name="sender">ウィンドウ</param>
     /// <param name="args">閉じる操作の情報</param>
     private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
@@ -71,7 +85,7 @@ public sealed partial class ProjectManagerWindow : Window
         CloseAfterConfirmAsync().Forget();
     }
 
-    /// <summary>確認して、よければ閉じる</summary>
+    /// <summary>確認してよければ閉じる</summary>
     /// <returns>確認と閉じる処理の完了を表すタスク</returns>
     private async Task CloseAfterConfirmAsync()
     {
@@ -100,7 +114,7 @@ public sealed partial class ProjectManagerWindow : Window
         await _closed.Task;
     }
 
-    /// <summary>一覧の最後の行が作られたら、続きを読む</summary>
+    /// <summary>一覧の最後の行が作られたら続きを読む</summary>
     /// <param name="sender">一覧</param>
     /// <param name="args">行が作られたときの情報</param>
     private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -111,7 +125,7 @@ public sealed partial class ProjectManagerWindow : Window
         }
     }
 
-    /// <summary>名前の入力欄で Enter なら確定、Esc なら取り消す</summary>
+    /// <summary>名前の入力欄で Enter なら確定 Esc なら取り消す</summary>
     /// <param name="sender">名前の入力欄</param>
     /// <param name="e">キー入力の情報</param>
     private void OnNameKeyDown(object sender, KeyRoutedEventArgs e)
@@ -141,7 +155,7 @@ public sealed partial class ProjectManagerWindow : Window
         }
     }
 
-    /// <summary>名前の入力欄からフォーカスが外れたら、確定する</summary>
+    /// <summary>名前の入力欄からフォーカスが外れたら確定する</summary>
     /// <param name="sender">名前の入力欄</param>
     /// <param name="e">イベントの情報</param>
     private void OnNameLostFocus(object sender, RoutedEventArgs e)
@@ -170,7 +184,7 @@ public sealed partial class ProjectManagerWindow : Window
         }
     }
 
-    /// <summary>入力中の行の入力欄が作られたら、フォーカスを移す</summary>
+    /// <summary>入力中の行の入力欄が作られたらフォーカスを移す</summary>
     /// <param name="sender">名前の入力欄</param>
     /// <param name="e">イベントの情報</param>
     private void OnNameLoaded(object sender, RoutedEventArgs e)
@@ -181,8 +195,9 @@ public sealed partial class ProjectManagerWindow : Window
         }
     }
 
-    /// <summary>入力中の行にフォーカスを移す (すでに出ている行へ、もう一度「新しい案件」を押したとき)</summary>
+    /// <summary>入力中の行にフォーカスを移す</summary>
     /// <param name="item">入力中の行</param>
+    /// <remarks>すでに出ている行へもう一度「新しい案件」を押したとき</remarks>
     private void OnPendingFocusRequested(ProjectManagerItem item)
     {
         ProjectListView.ScrollIntoView(item);
@@ -193,12 +208,13 @@ public sealed partial class ProjectManagerWindow : Window
         }
     }
 
-    /// <summary>名前の入力を確定する (入力中の行は追加、そのほかは名前の変更)</summary>
+    /// <summary>名前の入力を確定する</summary>
     /// <param name="item">一覧の 1 件</param>
     /// <returns>確定の完了を表すタスク</returns>
+    /// <remarks>入力中の行は追加、そのほかは名前の変更。</remarks>
     private Task CommitAsync(ProjectManagerItem item) => item.IsNew ? ViewModel.CreateAsync(item) : ViewModel.RenameAsync(item);
 
-    /// <summary>メニューの「削除」が押されたら、確認してから削除する</summary>
+    /// <summary>メニューの「削除」が押されたら確認してから削除する</summary>
     /// <param name="sender">メニュー項目 (行は Tag に入れてある)</param>
     /// <param name="e">イベントの情報</param>
     private void OnDeleteClick(object sender, RoutedEventArgs e)

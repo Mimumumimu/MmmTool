@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.Features.Users.Settings;
 
-/// <summary>アカウントの設定 (設定ページに並べる部品)</summary>
+/// <summary>アカウントの設定</summary>
 public sealed partial class AccountSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>

@@ -9,12 +9,16 @@ namespace MmmTool.CodeMaster.Edit;
 
 /// <summary>コードマスタの区分 1 つの名前を編集するウィンドウ</summary>
 /// <remarks>
-/// 親ウィンドウの上に、モーダル (閉じるまで親を操作できない)で出す。幅は固定で、高さは中身に合わせて決める。サイズ変更・最大化・最小化はできない。
-/// 保存・閉じるボタン・× のどれでも閉じる。閉じたウィンドウは再表示できないので、開くたびに作り直す。
+/// 親ウィンドウの上にモーダル (閉じるまで親を操作できない)で出す。
+/// 幅は固定で、高さは中身に合わせて決める。
+/// サイズ変更・最大化・最小化はできない。
+/// 保存・閉じるボタン・× のどれでも閉じる。
+/// 閉じたウィンドウは再表示できないので、開くたびに作り直す。
 /// </remarks>
 public sealed partial class CodeNameEditWindow : Window
 {
-    /// <summary>ウィンドウの幅 (DIP)</summary>
+    /// <summary>ウィンドウの幅</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double WindowWidth = 560;
 
     /// <summary>閉じたことを知らせる</summary>
@@ -28,7 +32,7 @@ public sealed partial class CodeNameEditWindow : Window
 
     /// <summary>ウィンドウを作る</summary>
     /// <param name="viewModel">ウィンドウの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public CodeNameEditWindow(CodeNameEditViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -65,7 +69,7 @@ public sealed partial class CodeNameEditWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnRootLoaded(object sender, RoutedEventArgs e) => FitHeight();
 
-    /// <summary>エラーの出入りや文面が変わったら、高さを決め直す</summary>
+    /// <summary>エラーの出入りや文面が変わったら高さを決め直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変わったプロパティの情報</param>
     /// <remarks>エラーの表示がバインドで切り替わったあとに測るため、UI スレッドの次の順番に回す。</remarks>
@@ -91,7 +95,7 @@ public sealed partial class CodeNameEditWindow : Window
     /// <param name="e">イベントの情報</param>
     private void OnCloseRequested(object? sender, EventArgs e) => _modal.Close();
 
-    /// <summary>閉じたら、待っている側へ知らせる</summary>
+    /// <summary>閉じたら待っている側へ知らせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">閉じたイベントの情報</param>
     private void OnClosed(object sender, WindowEventArgs args)

@@ -7,14 +7,18 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>スケジュールの日付の見出し (上が月か年、下が日付と曜日か、月曜の日付か、月)を作る</summary>
+/// <summary>スケジュールの日付の見出しを作る</summary>
 /// <remarks>
-/// 見出しは、軸ごとに 1 つ作る。行のセルと違い、行の使い回しの影響を受けない。表の見出しの高さは表全体で 1 つなので、<see cref="Height"/> を表に渡す。
-/// 文字の色は、既定の文字色を使って、テーマに追従し、土曜・日曜・祝日だけ <see cref="SchedulePalette"/> の色にする。
+/// 上が月か年、下が日付と曜日か、月曜の日付か、月。
+/// 見出しは軸ごとに 1 つ作る。
+/// 行のセルと違い、行の使い回しの影響を受けない。
+/// 表の見出しの高さは表全体で 1 つなので、<see cref="Height"/> を表に渡す。
+/// 文字の色は既定の文字色を使って、テーマに追従し、土曜・日曜・祝日だけ <see cref="SchedulePalette"/> の色にする。
 /// </remarks>
 public static class ScheduleHeader
 {
-    /// <summary>見出しの高さ (月・日付・曜日の 3 行が収まる)</summary>
+    /// <summary>見出しの高さ</summary>
+    /// <remarks>月・日付・曜日の 3 行が収まる</remarks>
     public const double Height = 56;
 
     /// <summary>1 行の高さ</summary>
@@ -23,13 +27,14 @@ public static class ScheduleHeader
     /// <summary>文字の大きさ</summary>
     private const double FontSize = 12;
 
-    /// <summary>月の文字の、月の初めの線からの左の余白 (右も同じ幅をあける)</summary>
+    /// <summary>月の文字の月の初めの線からの左の余白</summary>
+    /// <remarks>右も同じ幅をあける</remarks>
     private const double MonthLabelMargin = 4;
 
     /// <summary>見出しを作る</summary>
     /// <param name="visual">日付の軸</param>
     /// <param name="palette">色</param>
-    /// <param name="today">今日 (日の単位だけ、今日の列に印を付ける)</param>
+    /// <param name="today">今日 (日の単位だけ、今日の列に印を付ける)。</param>
     /// <returns>見出しの部品 (軸の幅の Canvas)</returns>
     public static UIElement Build(ScheduleAxisVisual visual, SchedulePalette palette, DateOnly today)
     {
@@ -80,11 +85,15 @@ public static class ScheduleHeader
         return canvas;
     }
 
-    /// <summary>上の段に、月の初めごとの月の文字を足す</summary>
+    /// <summary>上の段に月の初めごとの月の文字を足す</summary>
     /// <param name="canvas">見出し</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="format">月の文字の書式</param>
-    /// <remarks>軸の左端の月は月の途中から始まるので、次の月までの幅が狭いことがある。年を含む文字が入らないときは「M月」だけにし、それも入らないときは出さない。次の月の文字と重ならないようにするため。</remarks>
+    /// <remarks>
+    /// 軸の左端の月は月の途中から始まるので、次の月までの幅が狭いことがある。
+    /// 年を含む文字が入らないときは「M月」だけにし、それも入らないときは出さない。
+    /// 次の月の文字と重ならないようにするため。
+    /// </remarks>
     private static void AddMonthLabels(Canvas canvas, ScheduleAxis axis, string format)
     {
         for (var date = axis.Start; date <= axis.End; date = date.AddDays(1))
@@ -124,12 +133,16 @@ public static class ScheduleHeader
         return label;
     }
 
-    /// <summary>日の単位の、1 日ぶんの見出しを足す。日付と曜日を出し、土曜は青、日曜と祝日は赤で、どちらも日付と曜日の両方。今日は印を付ける</summary>
+    /// <summary>日の単位の 1 日ぶんの見出しを足す</summary>
     /// <param name="canvas">見出し</param>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="date">日付</param>
     /// <param name="isToday">今日か</param>
+    /// <remarks>
+    /// 日付と曜日を出し、土曜は青、日曜と祝日は赤で、どちらも日付と曜日の両方。
+    /// 今日は印を付ける。
+    /// </remarks>
     private static void AddDayLabel(Canvas canvas, ScheduleAxis axis, SchedulePalette palette, DateOnly date, bool isToday)
     {
         var x = axis.X(date);
@@ -176,9 +189,10 @@ public static class ScheduleHeader
         canvas.Children.Add(weekday);
     }
 
-    /// <summary>見出しの高さの区切りの線で、行の線と同じ位置。行の線は高さが行の高さなので、見出しの高さに伸ばす</summary>
+    /// <summary>見出しの高さの区切りの線で、行の線と同じ位置</summary>
     /// <param name="visual">日付の軸</param>
     /// <returns>線の図形</returns>
+    /// <remarks>行の線は高さが行の高さなので、見出しの高さに伸ばす。</remarks>
     private static Geometry LinesOfHeader(ScheduleAxisVisual visual)
     {
         var group = new GeometryGroup();
@@ -200,7 +214,7 @@ public static class ScheduleHeader
         return group;
     }
 
-    /// <summary>曜日の 1 文字 (PC の言語に依らず日本語)</summary>
+    /// <summary>曜日の 1 文字</summary>
     /// <param name="date">日付</param>
     /// <returns>月・火・水・木・金・土・日のどれか</returns>
     private static string JapaneseWeekday(DateOnly date) => "日月火水木金土"[(int)date.DayOfWeek].ToString();
@@ -209,7 +223,7 @@ public static class ScheduleHeader
     /// <param name="text">文字</param>
     /// <param name="size">文字の大きさ</param>
     /// <param name="weight">文字の太さ</param>
-    /// <param name="width">幅 (指定すると、中央に寄せる)</param>
+    /// <param name="width">幅 (指定すると、中央に寄せる)。</param>
     /// <returns>文字の部品</returns>
     private static TextBlock Text(string text, double size, Windows.UI.Text.FontWeight weight, double? width = null)
         => new()

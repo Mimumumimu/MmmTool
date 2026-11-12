@@ -8,38 +8,46 @@ using MmmTool.Notes.Core;
 
 namespace MmmTool.Notes.Edit;
 
-/// <summary>
-/// ノートの入力画面。ノート 1 件を新規登録・編集して保存する。
-/// </summary>
+/// <summary>ノートの入力画面</summary>
 /// <param name="notes">ノートの読み書き</param>
 /// <remarks>
-/// 開始日と終了日は、一方を変えて前後が逆になったら、もう一方を同じ日に合わせる。終了日は、空にできて、空は無期限。
-/// 実施日は、空にできて、空は未設定。期間の外に入れたら、開始日・終了日を動かして合わせる。終了日が空のときは、終了日は動かさない。
-/// ほかの実施日 (複数)も同じ決まりで、期間の外に入れたら期間を合わせ、期間を動かして外れたときは、動かさず、警告を出して保存できなくする。
-/// 開始日・終了日を動かして、実施日かほかの実施日が期間の外に出たときは、その日を動かさず、警告を出して保存できなくする。
-/// 同じ日は、先に入っていた日が勝つ。実施日を、ほかの実施日にある日にしようとしたときは、実施日を元の日に戻して知らせる。
-/// 公開範囲を変えられるのは、書いた人だけ。ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため。
+/// ノート 1 件を新規登録・編集して保存する。
+/// 開始日と終了日は一方を変えて前後が逆になったら、もう一方を同じ日に合わせる。
+/// 終了日は空にできて、空は無期限。
+/// 実施日は空にできて、空は未設定。
+/// 期間の外に入れたら、開始日・終了日を動かして合わせる。
+/// 終了日が空のときは終了日は動かさない。
+/// ほかの実施日 (複数)も同じ決まりで、期間の外に入れたら期間を合わせ、期間を動かして外れたときは動かさず、警告を出して保存できなくする。
+/// 開始日・終了日を動かして、実施日かほかの実施日が期間の外に出たときはその日を動かさず、警告を出して保存できなくする。
+/// 同じ日は先に入っていた日が勝つ。
+/// 実施日をほかの実施日にある日にしようとしたときは実施日を元の日に戻して知らせる。
+/// 公開範囲を変えられるのは書いた人だけ。
+/// ほかの人が全員に見えるノートを、自分だけのものにして隠さないため。
 /// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObject
 {
-    /// <summary>重要度の選択の位置 (最低 = 0 … 最高 = 4)と、<see cref="NotePriority"/> の差</summary>
+    /// <summary>重要度の選択の位置と NotePriority の差</summary>
+    /// <remarks>最低 = 0 … 最高 = 4</remarks>
     private const int PriorityOffset = 1;
 
-    /// <summary>編集対象。新規なら null</summary>
+    /// <summary>編集対象</summary>
+    /// <remarks>新規なら null</remarks>
     private Note? _target;
 
-    /// <summary>開始日・終了日をそろえている最中か (そろえた変更が、さらに変更を呼ばないように)</summary>
+    /// <summary>開始日・終了日をそろえている最中か</summary>
     private bool _syncingDates;
 
     /// <summary>画面を閉じてほしい</summary>
     /// <remarks>保存したときは true、キャンセルのときは false を渡す。</remarks>
     public event EventHandler<bool>? CloseRequested;
 
-    /// <summary>複数の人で共有するか。DB モードで、公開範囲を出す</summary>
+    /// <summary>複数の人で共有するか</summary>
+    /// <remarks>DB モードで、公開範囲を出す。</remarks>
     public bool IsShared => notes.IsShared;
 
-    /// <summary>公開範囲を変えられるか (共有するときの、新規か、書いた人の編集)</summary>
+    /// <summary>公開範囲を変えられるか</summary>
+    /// <remarks>共有するときの新規か、書いた人の編集。</remarks>
     public bool CanChangeVisibility => IsShared && (_target is null || _target.AuthorUserId == notes.CurrentUserId);
 
     /// <summary>画面のタイトル</summary>
@@ -51,7 +59,8 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial string Title { get; set; } = "";
 
-    /// <summary>本文で、書いたとおりの文字。右クリックの助けが、書式のタグを入れる</summary>
+    /// <summary>本文で、書いたとおりの文字</summary>
+    /// <remarks>右クリックの助けが書式のタグを入れる</remarks>
     [ObservableProperty]
     public partial string Body { get; set; } = "";
 
@@ -59,26 +68,32 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [ObservableProperty]
     public partial DateTimeOffset? StartDate { get; set; }
 
-    /// <summary>終了日。空は無期限</summary>
+    /// <summary>終了日</summary>
+    /// <remarks>空は無期限</remarks>
     [ObservableProperty]
     public partial DateTimeOffset? EndDate { get; set; }
 
-    /// <summary>実施日。空は未設定</summary>
+    /// <summary>実施日</summary>
+    /// <remarks>空は未設定</remarks>
     [ObservableProperty]
     public partial DateTimeOffset? EventDate { get; set; }
 
-    /// <summary>ほかの実施日の一覧で、日付の順に並ぶ。「✕」で 1 行ずつ外せる</summary>
+    /// <summary>ほかの実施日の一覧で、日付の順に並ぶ</summary>
+    /// <remarks>「✕」で 1 行ずつ外せる</remarks>
     public ObservableCollection<OtherEventDateItem> OtherEventDates { get; } = [];
 
-    /// <summary>ほかの実施日が 1 つも無いか (一覧の枠に「なし」を出す)</summary>
+    /// <summary>ほかの実施日が 1 つも無いか</summary>
+    /// <remarks>一覧の枠に「なし」を出す</remarks>
     [ObservableProperty]
     public partial bool IsOtherEventDatesEmpty { get; private set; } = true;
 
-    /// <summary>実施日か、ほかの実施日が期間の外にあるという警告を出しているか (出している間は保存できない)</summary>
+    /// <summary>実施日かほかの実施日が期間の外にあるという警告を出しているか</summary>
+    /// <remarks>出している間は保存できない</remarks>
     [ObservableProperty]
     public partial bool IsPeriodErrorOpen { get; private set; }
 
-    /// <summary>実施日が期間の外にあるか。実施日の欄の枠を、エラーの色にする</summary>
+    /// <summary>実施日が期間の外にあるか</summary>
+    /// <remarks>実施日の欄の枠をエラーの色にする</remarks>
     [ObservableProperty]
     public partial bool IsEventDateInvalid { get; private set; }
 
@@ -89,11 +104,13 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// <summary>開始日・終了日を動かして合わせたことの知らせ</summary>
     public ErrorState AdjustInfo { get; } = new();
 
-    /// <summary>重要度の選択の位置で、最低が 0、最高が 4。初期は「中」</summary>
+    /// <summary>重要度の選択の位置で、最低が 0最高が 4</summary>
+    /// <remarks>初期は「中」</remarks>
     [ObservableProperty]
     public partial int PriorityIndex { get; set; } = (int)NotePriority.Normal - PriorityOffset;
 
-    /// <summary>自分だけに表示するか。false は全員で、DB モードだけ</summary>
+    /// <summary>自分だけに表示するか</summary>
+    /// <remarks>false は全員で、DB モードだけ。</remarks>
     [ObservableProperty]
     public partial bool IsPrivate { get; set; }
 
@@ -101,9 +118,15 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     public ErrorState SaveError { get; } = new();
 
     /// <summary>新規の登録・編集の内容を読み込む</summary>
-    /// <param name="note">編集するノート。新規なら null</param>
-    /// <param name="defaultStartDate">新規のときの、開始日の初期値</param>
-    /// <remarks>新規の終了日は、開始日と同じで、1 日だけ。無期限は、利用者が空にして選ぶ。</remarks>
+    /// <param name="note">
+    /// 編集するノート
+    /// 新規なら null
+    /// </param>
+    /// <param name="defaultStartDate">新規のときの、開始日の初期値。</param>
+    /// <remarks>
+    /// 新規の終了日は開始日と同じで、1 日だけ。
+    /// 無期限は利用者が空にして選ぶ。
+    /// </remarks>
     public void Load(Note? note, DateOnly defaultStartDate)
     {
         _target = note;
@@ -147,7 +170,10 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
 
     /// <summary>開始日を変えたら、終了日より後にならないよう、終了日を合わせる</summary>
     /// <param name="value">新しい開始日</param>
-    /// <remarks>実施日は動かさない。期間の外に出たときは、警告を出す。</remarks>
+    /// <remarks>
+    /// 実施日は動かさない
+    /// 期間の外に出たときは警告を出す
+    /// </remarks>
     partial void OnStartDateChanged(DateTimeOffset? value)
     {
         if (!_syncingDates)
@@ -165,7 +191,10 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
 
     /// <summary>終了日を変えたら、開始日より前にならないよう、開始日を合わせる</summary>
     /// <param name="value">新しい終了日</param>
-    /// <remarks>実施日は動かさない。期間の外に出たときは、警告を出す。</remarks>
+    /// <remarks>
+    /// 実施日は動かさない
+    /// 期間の外に出たときは警告を出す
+    /// </remarks>
     partial void OnEndDateChanged(DateTimeOffset? value)
     {
         if (!_syncingDates)
@@ -181,12 +210,14 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         UpdatePeriodError();
     }
 
-    /// <summary>実施日を変えたら、期間の外のときは、開始日・終了日を動かして合わせる</summary>
+    /// <summary>実施日を変えたら、期間の外のときは開始日・終了日を動かして合わせる</summary>
     /// <param name="oldValue">変える前の実施日</param>
     /// <param name="newValue">新しい実施日</param>
     /// <remarks>
-    /// 開始日より前なら開始日を早め、終了日より後なら終了日を伸ばす。終了日が空 (無期限)のときは、終了日は動かさない。動かしたときは、知らせる。
-    /// ほかの実施日にある日にしようとしたときは、先に入っていた日が勝つので、実施日を元の日に戻して、重複を知らせる。
+    /// 開始日より前なら開始日を早め、終了日より後なら終了日を伸ばす。
+    /// 終了日が空 (無期限)のときは終了日は動かさない。
+    /// 動かしたときは知らせる。
+    /// ほかの実施日にある日にしようとしたときは先に入っていた日が勝つので、実施日を元の日に戻して、重複を知らせる。
     /// </remarks>
     partial void OnEventDateChanged(DateTimeOffset? oldValue, DateTimeOffset? newValue)
     {
@@ -216,11 +247,12 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         UpdatePeriodError();
     }
 
-    /// <summary>ほかの実施日を、一覧に足す</summary>
+    /// <summary>ほかの実施日を一覧に足す</summary>
     /// <param name="day">足す日</param>
     /// <remarks>
-    /// 実施日と同じ日と、一覧にある日は、先に入っていた日が勝つので、足さない。期間の外の日は、開始日・終了日を動かして合わせて、知らせる。
-    /// 一覧は、日付の順に並べる。
+    /// 実施日と同じ日と、一覧にある日は先に入っていた日が勝つので、足さない。
+    /// 期間の外の日は開始日・終了日を動かして合わせて、知らせる。
+    /// 一覧は日付の順に並べる。
     /// </remarks>
     public void AddOtherEventDate(DateOnly day)
     {
@@ -247,7 +279,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         UpdatePeriodError();
     }
 
-    /// <summary>ほかの実施日を、一覧から外す</summary>
+    /// <summary>ほかの実施日を一覧から外す</summary>
     /// <param name="day">外す日</param>
     public void RemoveOtherEventDate(DateOnly day)
     {
@@ -257,7 +289,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         }
     }
 
-    /// <summary>ほかの実施日の 1 行を、一覧から外す</summary>
+    /// <summary>ほかの実施日の 1 行を一覧から外す</summary>
     /// <param name="item">外す行</param>
     private void RemoveOtherEventDate(OtherEventDateItem item)
     {
@@ -266,8 +298,9 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         UpdatePeriodError();
     }
 
-    /// <summary>ほかの実施日の一覧を、渡された日付で置き換える (読み込むとき)</summary>
+    /// <summary>ほかの実施日の一覧を渡された日付で置き換える</summary>
     /// <param name="days">日付</param>
+    /// <remarks>読み込むとき</remarks>
     private void SetOtherEventDates(IEnumerable<DateOnly> days)
     {
         OtherEventDates.Clear();
@@ -279,7 +312,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     }
 
     /// <summary>実施日が期間の外のとき、開始日・終了日を動かして、実施日を含める</summary>
-    /// <param name="eventDate">実施日か、ほかの実施日</param>
+    /// <param name="eventDate">実施日か、ほかの実施日。</param>
     private void AdjustPeriodToEvent(DateTimeOffset eventDate)
     {
         var messages = new List<string>();
@@ -308,8 +341,8 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         }
     }
 
-    /// <summary>実施日とほかの実施日が期間の外にあるかを調べて、警告と、外れた行の印と、保存できるかを合わせる</summary>
-    /// <remarks>警告の文は、実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。</remarks>
+    /// <summary>実施日とほかの実施日が期間の外にあるかを調べて、警告と外れた行の印と保存できるかを合わせる</summary>
+    /// <remarks>警告の文は実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。</remarks>
     private void UpdatePeriodError()
     {
         IsEventDateInvalid = EventDate is { } eventDate && IsOutOfPeriod(eventDate);
@@ -334,23 +367,31 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>日付が、開始日から終了日の外にあるか (終了日が空は、終了日の側は常に中)</summary>
+    /// <summary>日付が開始日から終了日の外にあるか</summary>
     /// <param name="date">調べる日</param>
-    /// <returns>外なら true。開始日が空のときは false</returns>
+    /// <returns>
+    /// 外なら true
+    /// 開始日が空のときは false
+    /// </returns>
     private bool IsOutOfPeriod(DateTimeOffset date)
         => StartDate is { } start && (date.Date < start.Date || (EndDate is { } end && date.Date > end.Date));
 
-    /// <summary>終了日をクリアする (無期限にする)</summary>
+    /// <summary>終了日をクリアする</summary>
+    /// <remarks>無期限にする</remarks>
     [RelayCommand]
     private void ClearEndDate() => EndDate = null;
 
-    /// <summary>実施日をクリアする (未設定にする)</summary>
+    /// <summary>実施日をクリアする</summary>
+    /// <remarks>未設定にする</remarks>
     [RelayCommand]
     private void ClearEventDate() => EventDate = null;
 
     /// <summary>保存して閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>失敗は、閉じずに書いた内容を残して、画面に出す。タイトルが空の間と、実施日が期間の外にある間は、押せない。</remarks>
+    /// <remarks>
+    /// 失敗は閉じずに書いた内容を残して、画面に出す。
+    /// タイトルが空の間と、実施日が期間の外にある間は押せない。
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -401,15 +442,19 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, false);
 
-    /// <summary>保存できる状態か。タイトルが空の間と、実施日が期間の外にある間は、保存できない。Web 版と同じ</summary>
+    /// <summary>保存できる状態か</summary>
+    /// <remarks>
+    /// タイトルが空の間と実施日が期間の外にある間は保存できない
+    /// Web 版と同じ
+    /// </remarks>
     private bool CanSave => !IsPeriodErrorOpen && !string.IsNullOrWhiteSpace(Title);
 
-    /// <summary>日付を、知らせの文に入れる形 (<c>yyyy/MM/dd</c>)にする</summary>
+    /// <summary>日付を知らせの文に入れる形にする</summary>
     /// <param name="date">日付</param>
     /// <returns>文字</returns>
     private static string FormatDate(DateTimeOffset date) => date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture);
 
-    /// <summary>日付を、日付の欄に渡す形にする</summary>
+    /// <summary>日付を日付の欄に渡す形にする</summary>
     /// <param name="date">日付</param>
     /// <returns>その日の 0 時 (この PC の時差)</returns>
     private static DateTimeOffset ToOffset(DateOnly date) => new(date.ToDateTime(TimeOnly.MinValue));

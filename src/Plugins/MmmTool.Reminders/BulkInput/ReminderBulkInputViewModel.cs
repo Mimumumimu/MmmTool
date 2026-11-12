@@ -9,30 +9,34 @@ using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.BulkInput;
 
-/// <summary>
-/// まとめて追加の画面。時刻の表で会議の時刻を選び、日付指定のリマインダーを複数件まとめて登録する。
-/// </summary>
+/// <summary>まとめて追加の画面</summary>
 /// <remarks>
-/// 中の表 (0〜23 時の行に、:00 と :30 のマス)でマスを選ぶと、右の一覧に会議が 1 件ずつ増える。一覧では、時刻・件名・リンクを直せる。直さなければ、そのまま登録できる。
-/// 一覧は選んだ順ではなく、マスを選んだ時点で、時刻の順になる位置に入る。時刻を直した行は、直している最中に動かないよう、その場に残す。
-/// 左の列の日付・何分前・読み上げ・送信先は、全部の会議に同じ内容を付ける。日付・何分前・読み上げが変わるたびに、行の下の文を作り直す。
-/// 同じ日付・時刻・件名のリマインダーがすでにあるときと、一覧に同じものが重なるときは、その行を追加しない。
-/// 宛先は自分で、ローカルモードでは 0 にする。登録できたら <see cref="CloseRequested"/> で画面を閉じてもらう。
+/// 時刻の表で会議の時刻を選び、日付指定のリマインダーを複数件まとめて登録する。
+/// 中の表 (0〜23 時の行に、:00 と :30 のマス)でマスを選ぶと、右の一覧に会議が 1 件ずつ増える。
+/// 一覧では時刻・件名・リンクを直せる。
+/// 直さなければ、そのまま登録できる。
+/// 一覧は選んだ順ではなく、マスを選んだ時点で、時刻の順になる位置に入る。
+/// 時刻を直した行は直している最中に動かないよう、その場に残す。
+/// 左の列の日付・何分前・読み上げ・送信先は全部の会議に同じ内容を付ける。
+/// 日付・何分前・読み上げが変わるたびに行の下の文を作り直す。
+/// 同じ日付・時刻・件名のリマインダーがすでにあるときと、一覧に同じものが重なるときはその行を追加しない。
+/// 宛先は自分で、ローカルモードでは 0 にする。
+/// 登録できたら <see cref="CloseRequested"/> で画面を閉じてもらう。
 /// </remarks>
 public sealed partial class ReminderBulkInputViewModel : ObservableObject
 {
-    /// <summary>同じ予定があるときの、行の下の文</summary>
+    /// <summary>同じ予定があるときの行の下の文</summary>
     private const string DuplicateMessage = "同じ予定があるため、追加しません。";
 
-    /// <summary>件名が空のときの、行の下の文</summary>
+    /// <summary>件名が空のときの行の下の文</summary>
     private const string TitleRequiredMessage = "件名を入力してください。";
 
-    /// <summary>鳴らす時刻がすでに過ぎているときの、行の下の文</summary>
+    /// <summary>鳴らす時刻がすでに過ぎているときの行の下の文</summary>
     private const string PastMessage = "時刻が過ぎているため、すぐに通知します。";
 
     /// <summary>リマインダーの読み書き</summary>
     private readonly ReminderService _reminders;
-    /// <summary>リマインダーの設定 (前回選んだ内容の保存と読み込み)</summary>
+    /// <summary>リマインダーの設定</summary>
     private readonly ReminderSettingsService _settings;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
@@ -41,23 +45,28 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <summary>現在日時</summary>
     private readonly TimeProvider _time;
 
-    /// <summary>すでにあるリマインダーの日付・時刻・件名 (論理削除済みを除く)</summary>
+    /// <summary>すでにあるリマインダーの日付・時刻・件名</summary>
+    /// <remarks>論理削除済みを除く</remarks>
     private HashSet<(int Date, int Time, string Title)> _existing = [];
 
-    /// <summary>追加するリマインダー (一覧のうち、重ならない行)</summary>
+    /// <summary>追加するリマインダー</summary>
+    /// <remarks>一覧のうち、重ならない行。</remarks>
     private List<Reminder> _toAdd = [];
 
-    /// <summary>件名が空の行があるか。ある間は、登録を押せない</summary>
+    /// <summary>件名が空の行があるか</summary>
+    /// <remarks>ある間は登録を押せない</remarks>
     private bool _hasBlankTitle;
 
-    /// <summary>保存したが、送信設定をまだ書いていないリマインダーの番号</summary>
+    /// <summary>保存したが送信設定をまだ書いていないリマインダーの番号</summary>
     /// <remarks>
-    /// 登録の途中で失敗したとき、保存済みのリマインダーは、押し直すと「すでにある」として飛ばされる。
-    /// 送信設定を書き終えるまで番号を持ち、押し直したときにも書くことで、送信設定が付かないまま残らないようにする。書き終えたら空にする。
+    /// 登録の途中で失敗したとき、保存済みのリマインダーは押し直すと「すでにある」として飛ばされる。
+    /// 送信設定を書き終えるまで番号を持ち、押し直したときにも書くことで、送信設定が付かないまま残らないようにする。
+    /// 書き終えたら空にする。
     /// </remarks>
     private readonly List<int> _pendingSendSettingNos = [];
 
-    /// <summary>読み込みを終えたか (初期値を入れている間は、選びを保存しない)</summary>
+    /// <summary>読み込みを終えたか</summary>
+    /// <remarks>初期値を入れている間は選びを保存しない</remarks>
     private bool _isLoaded;
 
     /// <summary>ViewModel を作る</summary>
@@ -98,13 +107,16 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     }
 
     /// <summary>画面を閉じてほしい</summary>
-    /// <remarks>登録した件数を渡す。キャンセルのときは 0。</remarks>
+    /// <remarks>
+    /// 登録した件数を渡す
+    /// キャンセルのときは 0
+    /// </remarks>
     public event EventHandler<int>? CloseRequested;
 
-    /// <summary>時刻の表の行 (0〜23 時)</summary>
+    /// <summary>時刻の表の行</summary>
     public IReadOnlyList<ReminderBulkHourRow> HourRows { get; }
 
-    /// <summary>開いたときに、表の上端に置く行の時</summary>
+    /// <summary>開いたときに表の上端に置く行の時</summary>
     /// <remarks>今の時刻に一番近い、30 分刻みの時刻の時。</remarks>
     public int InitialHour { get; }
 
@@ -115,7 +127,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <summary>何分前かの選択肢</summary>
     public IReadOnlyList<ReminderBulkLeadOption> LeadOptions { get; }
 
-    /// <summary>選んでいる、何分前か</summary>
+    /// <summary>選んでいる何分前か</summary>
     [ObservableProperty]
     public partial ReminderBulkLeadOption SelectedLead { get; set; }
 
@@ -123,7 +135,8 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSpeak { get; set; }
 
-    /// <summary>送信先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ)</summary>
+    /// <summary>送信先を選ぶ欄を出すか</summary>
+    /// <remarks>DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ。</remarks>
     [ObservableProperty]
     public partial bool IsChannelVisible { get; private set; }
 
@@ -131,7 +144,8 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <remarks>チェックで、複数選べる。</remarks>
     public ObservableCollection<ReminderChannelOption> ChannelOptions { get; } = [];
 
-    /// <summary>送信先が 1 つも無いか (送信先の欄を出していて、選べるものが無い)</summary>
+    /// <summary>送信先が 1 つも無いか</summary>
+    /// <remarks>送信先の欄を出していて、選べるものが無い。</remarks>
     [ObservableProperty]
     public partial bool HasNoChannels { get; private set; }
 
@@ -149,11 +163,12 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <summary>登録のエラー</summary>
     public ErrorState SaveError { get; } = new();
 
-    /// <summary>すでにあるリマインダーと、送信先を読み、行の下の文を作る</summary>
+    /// <summary>すでにあるリマインダーと送信先を読み、行の下の文を作る</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
-    /// 読めなかったときは、エラーを出して、すでにあるものは無いものとして扱う。
-    /// 送信先は、使えるとき (<see cref="ReminderChannelLoader.IsAvailable"/>)だけ読み、前回選んだ送信先にチェックを入れる。読めなかったときは、送信先の欄を出さない。
+    /// 読めなかったときはエラーを出して、すでにあるものは無いものとして扱う。
+    /// 送信先は使えるとき (<see cref="ReminderChannelLoader.IsAvailable"/>)だけ読み、前回選んだ送信先にチェックを入れる。
+    /// 読めなかったときは送信先の欄を出さない。
     /// </remarks>
     public async Task LoadAsync()
     {
@@ -189,7 +204,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         _isLoaded = true;
     }
 
-    /// <summary>送信先のチェックが変わったら、選びを覚える</summary>
+    /// <summary>送信先のチェックが変わったら選びを覚える</summary>
     /// <param name="sender">変わった送信先の選択肢</param>
     /// <param name="e">変わったプロパティの情報</param>
     private void OnChannelChanged(object? sender, PropertyChangedEventArgs e) => RememberChoices();
@@ -202,7 +217,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         RememberChoices();
     }
 
-    /// <summary>何分前かが変わったら、覚えて、行の下の文を作り直す</summary>
+    /// <summary>何分前かが変わったら覚えて行の下の文を作り直す</summary>
     /// <param name="value">変更後の選択</param>
     partial void OnSelectedLeadChanged(ReminderBulkLeadOption value)
     {
@@ -210,11 +225,12 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         RememberChoices();
     }
 
-    /// <summary>何分前・読み上げ・送信先の選びを、次に開いたときの初期値として保存する</summary>
+    /// <summary>何分前・読み上げ・送信先の選びを次に開いたときの初期値として保存する</summary>
     /// <remarks>
-    /// 登録しないで閉じても残るよう、選びが変わるたびに保存する。読み込みの前 (初期値を入れている間)は保存しない。
-    /// 送信先を出していないときは、保存してある送信先を、そのまま残す。
-    /// 設定を保存できない状態 (<see cref="ReminderSettingsService.IsReadOnly"/>)でも、登録の邪魔はしない。
+    /// 登録しないで閉じても残るよう、選びが変わるたびに保存する。
+    /// 読み込みの前 (初期値を入れている間)は保存しない。
+    /// 送信先を出していないときは保存してある送信先をそのまま残す。
+    /// 設定を保存できない状態 (<see cref="ReminderSettingsService.IsReadOnly"/>)でも登録の邪魔はしない。
     /// </remarks>
     private void RememberChoices()
     {
@@ -229,7 +245,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         _settings.SetBulkAsync(SelectedLead.Minutes, IsSpeak, channelIds).Forget();
     }
 
-    /// <summary>日付が変わったら、行の下の文を作り直す</summary>
+    /// <summary>日付が変わったら行の下の文を作り直す</summary>
     /// <param name="oldValue">変更前の日付</param>
     /// <param name="newValue">変更後の日付</param>
     /// <remarks>カレンダーで選択中の日付をもう一度押すと選択が外れるため、空になったら元の日付に戻す。</remarks>
@@ -243,7 +259,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>表のマスの選びが変わったら、一覧に会議を足す・外す</summary>
+    /// <summary>表のマスの選びが変わったら一覧に会議を足す・外す</summary>
     /// <param name="sender">選びが変わったマス</param>
     /// <param name="e">変わったプロパティの情報</param>
     private void OnSlotChanged(object? sender, PropertyChangedEventArgs e)
@@ -278,7 +294,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>一覧の行の時刻・件名・リンクが変わったら、行の下の文を作り直す</summary>
+    /// <summary>一覧の行の時刻・件名・リンクが変わったら行の下の文を作り直す</summary>
     /// <param name="sender">変わった行</param>
     /// <param name="e">変わったプロパティの情報</param>
     private void OnEntryChanged(object? sender, PropertyChangedEventArgs e)
@@ -290,11 +306,13 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
         }
     }
 
-    /// <summary>一覧の会議を、すべて登録して閉じる</summary>
+    /// <summary>一覧の会議をすべて登録して閉じる</summary>
     /// <returns>登録の完了を表すタスク</returns>
     /// <remarks>
-    /// 登録の直前に、すでにあるリマインダーを読み直し、重なるものを除く。途中で失敗したときも、押し直せば、登録済みの分を重ねない。
-    /// 時刻の順に登録する。失敗したらエラーを出して閉じない。
+    /// 登録の直前に、すでにあるリマインダーを読み直し、重なるものを除く。
+    /// 途中で失敗したときも、押し直せば、登録済みの分を重ねない。
+    /// 時刻の順に登録する。
+    /// 失敗したらエラーを出して閉じない。
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanRegister))]
     private async Task RegisterAsync()
@@ -328,7 +346,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     }
 
     /// <summary>登録できるか</summary>
-    /// <returns>追加する会議があり、件名が空の行が無いとき true</returns>
+    /// <returns>追加する会議があり、件名が空の行が無いとき true。</returns>
     private bool CanRegister() => _toAdd.Count > 0 && !_hasBlankTitle;
 
     /// <summary>保存せずに閉じる</summary>
@@ -337,7 +355,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
 
     /// <summary>すでにあるリマインダーを読む</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     private async Task LoadExistingAsync()
     {
         var reminders = await _reminders.GetRemindersAsync(includeDeleted: false);
@@ -349,7 +367,7 @@ public sealed partial class ReminderBulkInputViewModel : ObservableObject
     /// <returns>日付・時刻・件名</returns>
     private static (int Date, int Time, string Title) KeyOf(Reminder reminder) => (reminder.Date, reminder.Time, reminder.Title);
 
-    /// <summary>追加するリマインダーと、一覧の行の下の文を作り直す</summary>
+    /// <summary>追加するリマインダーと一覧の行の下の文を作り直す</summary>
     private void Refresh()
     {
         var now = _time.GetLocalNow().DateTime;

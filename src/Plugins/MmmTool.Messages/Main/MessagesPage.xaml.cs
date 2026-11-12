@@ -14,40 +14,54 @@ using VirtualKey = Windows.System.VirtualKey;
 
 namespace MmmTool.Messages.Main;
 
-/// <summary>サイドバーのメッセージのページ。左に人の一覧、右に会話と入力欄を並べる</summary>
+/// <summary>サイドバーのメッセージのページ</summary>
+/// <remarks>左に人の一覧、右に会話と入力欄を並べる。</remarks>
 public sealed partial class MessagesPage : Page
 {
-    /// <summary>メッセージの一覧が先頭に近づいた、と見なす位置 (DIP)</summary>
+    /// <summary>メッセージの一覧が先頭に近づいたと見なす位置</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double NearTopOffset = 80;
 
-    /// <summary>メッセージの一覧が一番下に近い、と見なす残りの高さ (DIP)</summary>
+    /// <summary>メッセージの一覧が一番下に近い、と見なす残りの高さ</summary>
+    /// <remarks>単位は DIP</remarks>
     private const double NearBottomOffset = 120;
 
-    /// <summary>会話を切り替えるとき、前の会話が消える長さ。入ってくるものより短く、始めも終わりもなめらかに消す</summary>
+    /// <summary>会話を切り替えるとき、前の会話が消える長さ</summary>
+    /// <remarks>入ってくるものより短く、始めも終わりもなめらかに消す。</remarks>
     private static readonly TimeSpan FadeOutDuration = TimeSpan.FromMilliseconds(260);
 
-    /// <summary>会話を切り替えるとき、新しい会話が現れ始めるまでの遅れ。前の会話が薄くなってから、現れ始める</summary>
+    /// <summary>会話を切り替えるとき、新しい会話が現れ始めるまでの遅れ</summary>
+    /// <remarks>前の会話が薄くなってから、現れ始める。</remarks>
     private static readonly TimeSpan FadeInDelay = TimeSpan.FromMilliseconds(60);
 
-    /// <summary>会話を切り替えるとき、新しい会話が現れる長さ。入ってくるものは長めに、減速して止まる</summary>
+    /// <summary>会話を切り替えるとき、新しい会話が現れる長さ</summary>
+    /// <remarks>入ってくるものは長めに減速して止まる</remarks>
     private static readonly TimeSpan FadeInDuration = TimeSpan.FromMilliseconds(360);
 
-    /// <summary>新しい会話が現れるとき、下から浮かび上がる距離 (DIP)</summary>
+    /// <summary>新しい会話が現れるとき、下から浮かび上がる距離</summary>
+    /// <remarks>単位は DIP</remarks>
     private const float FadeInRise = 10f;
 
-    /// <summary>フェードの変え終わりの通知を待つ、時間への上乗せ。通知が来ないときに打ち切る</summary>
+    /// <summary>フェードの変え終わりの通知を待つ時間への上乗せ</summary>
+    /// <remarks>通知が来ないときに打ち切る</remarks>
     private static readonly TimeSpan FadeTimeout = TimeSpan.FromMilliseconds(200);
 
     /// <summary>OS の設定で、画面の動きが切られているかを知るための設定</summary>
     private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
 
-    /// <summary>ページが載っている画面。見える・見えないの変化を受けるため。載っていない間は null</summary>
+    /// <summary>ページが載っている画面</summary>
+    /// <remarks>
+    /// 見える・見えないの変化を受けるため
+    /// 載っていない間は null
+    /// </remarks>
     private XamlRoot? _root;
 
-    /// <summary>メッセージの一覧のスクロールの枠。まだ見つけていなければ null</summary>
+    /// <summary>メッセージの一覧のスクロールの枠</summary>
+    /// <remarks>まだ見つけていなければ null</remarks>
     private ScrollViewer? _scroller;
 
-    /// <summary>会話を切り替えるたびに進む番号。古い切り替えのフェードの後始末を、使わないために使う</summary>
+    /// <summary>会話を切り替えるたびに進む番号</summary>
+    /// <remarks>古い切り替えのフェードの後始末を使わないために使う</remarks>
     private int _switchVersion;
 
     /// <summary>ページの ViewModel</summary>
@@ -87,34 +101,41 @@ public sealed partial class MessagesPage : Page
         };
     }
 
-    /// <summary>メッセージの出る・出さないを、真偽から決める</summary>
+    /// <summary>メッセージの出る・出さないを真偽から決める</summary>
     /// <param name="value">出すか</param>
-    /// <returns>出すなら Visible、出さないなら Collapsed</returns>
+    /// <returns>出すなら Visible、出さないなら Collapsed。</returns>
     public static Visibility Visible(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-    /// <summary>会話の行の名前の太さを、読んでいないかから決める</summary>
+    /// <summary>会話の行の名前の太さを読んでいないかから決める</summary>
     /// <param name="unread">読んでいないメッセージがあるか</param>
-    /// <returns>読んでいないときは太字、読んだときは通常の見出しの太さ</returns>
+    /// <returns>読んでいないときは太字、読んだときは通常の見出しの太さ。</returns>
     public static Windows.UI.Text.FontWeight NameWeight(bool unread) => unread ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.SemiBold;
 
     /// <summary>ページが載っているウィンドウの表示の状態が変わったら、読む間隔を直す</summary>
     /// <param name="sender">ウィンドウの内容の画面 (<c>XamlRoot</c>)</param>
     /// <param name="args">変更の情報</param>
-    /// <remarks>ウィンドウは、× でトレイへ隠す。ページの <c>Unloaded</c> は来ないので、ここで見える・見えないを知る。</remarks>
+    /// <remarks>
+    /// ウィンドウは× でトレイへ隠す。
+    /// ページの <c>Unloaded</c> は来ないので、ここで見える・見えないを知る。
+    /// </remarks>
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateVisible();
 
-    /// <summary>ページが見えているかを、いまの画面から決めて、ViewModel に伝える</summary>
+    /// <summary>ページが見えているかをいまの画面から決めて、ViewModel に伝える</summary>
     private void UpdateVisible() => ViewModel.SetVisible(_root?.IsHostVisible == true);
 
-    /// <summary>探す欄にフォーカスが来たら、IME をオンにする。日本語の入力が多いため</summary>
+    /// <summary>探す欄にフォーカスが来たら IME をオンにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
+    /// <remarks>日本語の入力が多いため</remarks>
     private void OnJapaneseBoxGotFocus(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
-    /// <summary>会話の一覧の行を押したら、会話を開く</summary>
+    /// <summary>会話の一覧の行を押したら会話を開く</summary>
     /// <param name="sender">一覧</param>
     /// <param name="e">押した行の情報</param>
-    /// <remarks>開いている行の印は、<see cref="MessagesViewModel.SelectedConversation"/> が決める。開いている行を押したときは、何もしない。</remarks>
+    /// <remarks>
+    /// 開いている行の印は <see cref="MessagesViewModel.SelectedConversation"/> が決める
+    /// 開いている行を押したときは何もしない
+    /// </remarks>
     private void OnConversationClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is ConversationItem item)
@@ -149,12 +170,16 @@ public sealed partial class MessagesPage : Page
     /// <summary>参加者の画面の「人を追加」「グループを抜ける」を押したら、画面を閉じる</summary>
     /// <param name="sender">押したボタン</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>操作は、ボタンのコマンドが行う。ここでは、次の画面や確認ダイアログの邪魔にならないよう、閉じるだけ。</remarks>
+    /// <remarks>
+    /// 操作はボタンのコマンドが行う。
+    /// ここでは次の画面や確認ダイアログの邪魔にならないよう、閉じるだけ。
+    /// </remarks>
     private void OnParticipantsActionClick(object sender, RoutedEventArgs e) => ParticipantsButton.Flyout?.Hide();
 
-    /// <summary>入力欄で Ctrl+Enter が押されたら、送信する。Enter だけなら改行</summary>
+    /// <summary>入力欄で Ctrl+Enter が押されたら送信する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キー入力の情報</param>
+    /// <remarks>Enter だけなら改行</remarks>
     private void OnBodyPreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Key == VirtualKey.Enter
@@ -168,8 +193,11 @@ public sealed partial class MessagesPage : Page
         }
     }
 
-    /// <summary>メッセージの「返信」を押したら、返信を始める</summary>
-    /// <param name="sender">押したボタン。<c>Tag</c> に、メッセージの行を持つ</param>
+    /// <summary>メッセージの「返信」を押したら返信を始める</summary>
+    /// <param name="sender">
+    /// 押したボタン。
+    /// <c>Tag</c> に、メッセージの行を持つ。
+    /// </param>
     /// <param name="e">イベントの情報</param>
     private void OnReplyClick(object sender, RoutedEventArgs e)
     {
@@ -203,7 +231,10 @@ public sealed partial class MessagesPage : Page
     }
 
     /// <summary>一番下のメッセージまでスクロールする</summary>
-    /// <param name="onlyIfNearBottom">true のときは、見ている位置が一番下の近くのときだけ。新着が届いたとき、さかのぼって読んでいる人の位置を動かさないため</param>
+    /// <param name="onlyIfNearBottom">
+    /// true のときは見ている位置が一番下の近くのときだけ。
+    /// 新着が届いたとき、さかのぼって読んでいる人の位置を動かさないため。
+    /// </param>
     private void ScrollToEnd(bool onlyIfNearBottom) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
     {
         if (ViewModel.Messages.Count == 0)
@@ -218,11 +249,13 @@ public sealed partial class MessagesPage : Page
         MessageList.ScrollIntoView(ViewModel.Messages[^1]);
     });
 
-    /// <summary>会話の切り替えの準備をする。前の会話の見た目を撮って上に重ね、下の一覧を透明にする</summary>
+    /// <summary>会話の切り替えの準備をする</summary>
     /// <returns>準備の完了を表すタスク</returns>
     /// <remarks>
-    /// 撮った画像は、フェードが終わるまで残す。切り替えが続けて来たときは、撮り直さず、残っている画像をそのまま使う。
-    /// 一覧がまだ見えていない (幅か高さが 0)ときは、撮らない。
+    /// 前の会話の見た目を撮って上に重ね、下の一覧を透明にする。
+    /// 撮った画像はフェードが終わるまで残す。
+    /// 切り替えが続けて来たときは撮り直さず、残っている画像をそのまま使う。
+    /// 一覧がまだ見えていない (幅か高さが 0)ときは撮らない。
     /// </remarks>
     private async Task PrepareSwitchAsync()
     {
@@ -242,9 +275,13 @@ public sealed partial class MessagesPage : Page
         SetRise(MessageList, FadeInRise);
     }
 
-    /// <summary>部品の縦の位置のずれを、動きをつけずに、すぐ指定の値にする。動いているものは止める</summary>
+    /// <summary>部品の縦の位置のずれを動きをつけずにすぐ指定の値にする</summary>
     /// <param name="target">位置をずらす部品</param>
-    /// <param name="offset">元の位置からの下へのずれ。単位は DIP で、0 が元の位置</param>
+    /// <param name="offset">
+    /// 元の位置からの下へのずれ。
+    /// 単位は DIP で、0 が元の位置。
+    /// </param>
+    /// <remarks>動いているものは止める</remarks>
     private static void SetRise(UIElement target, float offset)
     {
         ElementCompositionPreview.SetIsTranslationEnabled(target, true);
@@ -253,9 +290,13 @@ public sealed partial class MessagesPage : Page
         visual.Properties.InsertVector3("Translation", new System.Numerics.Vector3(0f, offset, 0f));
     }
 
-    /// <summary>部品の濃さを、動きをつけずに、すぐ指定の値にする。動いているフェードは止める</summary>
+    /// <summary>部品の濃さを動きをつけずにすぐ指定の値にする</summary>
     /// <param name="target">濃さを変える部品</param>
-    /// <param name="value">濃さ。0 が透明、1 が不透明</param>
+    /// <param name="value">
+    /// 濃さ。
+    /// 0 が透明、1 が不透明。
+    /// </param>
+    /// <remarks>動いているフェードは止める</remarks>
     private static void SetOpacity(UIElement target, float value)
     {
         var visual = ElementCompositionPreview.GetElementVisual(target);
@@ -263,16 +304,23 @@ public sealed partial class MessagesPage : Page
         visual.Opacity = value;
     }
 
-    /// <summary>部品の濃さを、いまの濃さから指定の濃さまで、少しずつ変える</summary>
+    /// <summary>部品の濃さをいまの濃さから指定の濃さまで、少しずつ変える</summary>
     /// <param name="target">濃さを変える部品</param>
-    /// <param name="to">変えたあとの濃さ。0 が透明、1 が不透明</param>
+    /// <param name="to">
+    /// 変えたあとの濃さ。
+    /// 0 が透明、1 が不透明。
+    /// </param>
     /// <param name="duration">変える時間</param>
     /// <param name="delay">変え始めるまでの遅れ</param>
-    /// <param name="easing">変わり方の曲線。(x1, y1, x2, y2)の 3 次ベジェ</param>
-    /// <param name="rise">指定すると、同じ時間・同じ曲線で、この距離だけ下にずれた位置から元の位置へ浮かび上がらせる (DIP)</param>
+    /// <param name="easing">
+    /// 変わり方の曲線
+    /// (x1, y1, x2, y2)の 3 次ベジェ
+    /// </param>
+    /// <param name="rise">指定すると、同じ時間・同じ曲線で、この距離だけ下にずれた位置から元の位置へ浮かび上がらせる (DIP)。</param>
     /// <returns>変え終わったことを表すタスク</returns>
     /// <remarks>
-    /// 部品の <c>Opacity</c> ではなく、描画の層 (<c>Visual</c>)の濃さを動かす。途中で別のフェードを始めても、いまの濃さから始まる。
+    /// 部品の <c>Opacity</c> ではなく、描画の層 (<c>Visual</c>)の濃さを動かす。
+    /// 途中で別のフェードを始めてもいまの濃さから始まる。
     /// 変え終わりの通知が来ないときのため、遅れと時間に少し足した長さで打ち切る。
     /// </remarks>
     private static Task FadeAsync(UIElement target, float to, TimeSpan duration, TimeSpan delay, System.Numerics.Vector4 easing, float? rise = null)
@@ -306,14 +354,22 @@ public sealed partial class MessagesPage : Page
         return Task.WhenAny(completion.Task, Task.Delay(delay + duration + FadeTimeout));
     }
 
-    /// <summary>出ていくものの曲線。始めはゆっくり動き出し、終わりもゆっくり止まる。加速だけだと、終わりで急に消える</summary>
+    /// <summary>出ていくものの曲線</summary>
+    /// <remarks>
+    /// 始めはゆっくり動き出し、終わりもゆっくり止まる。
+    /// 加速だけだと終わりで急に消える。
+    /// </remarks>
     private static readonly System.Numerics.Vector4 FadeOutEasing = new(0.33f, 0f, 0.67f, 1f);
 
-    /// <summary>入ってくるものの曲線。始めは速く、止まる手前で減速する (Fluent の減速)</summary>
+    /// <summary>入ってくるものの曲線</summary>
+    /// <remarks>始めは速く、止まる手前で減速する。</remarks>
     private static readonly System.Numerics.Vector4 DecelerateEasing = new(0.1f, 0.9f, 0.2f, 1f);
 
-    /// <summary>メッセージ欄の中身を差し替えたあと、一番下へ合わせてから、重ねたフェードで切り替える</summary>
-    /// <remarks>配置が終わるのを待ってから、スクロールする。配置の前だと、一番下の行が、まだ作られていないため。</remarks>
+    /// <summary>メッセージ欄の中身を差し替えたあと一番下へ合わせてから、重ねたフェードで切り替える</summary>
+    /// <remarks>
+    /// 配置が終わるのを待ってから、スクロールする。
+    /// 配置の前だと、一番下の行がまだ作られていないため。
+    /// </remarks>
     private void OnMessagesReplaced() => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => CrossFadeAsync().Forget());
 
     /// <summary>一番下へ合わせ、撮っておいた前の会話を薄くしながら、下の新しい会話を濃くする</summary>
@@ -350,8 +406,9 @@ public sealed partial class MessagesPage : Page
         }
     }
 
-    /// <summary>指定のメッセージまでスクロールする。通知を押して開いたとき</summary>
+    /// <summary>指定のメッセージまでスクロールする</summary>
     /// <param name="messageId">メッセージの番号</param>
+    /// <remarks>通知を押して開いたとき</remarks>
     private void ScrollToMessage(int messageId) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
     {
         if (ViewModel.Messages.FirstOrDefault(item => item.Id == messageId) is { } target)
@@ -360,9 +417,12 @@ public sealed partial class MessagesPage : Page
         }
     });
 
-    /// <summary>一覧の中の、スクロールの枠を探す</summary>
+    /// <summary>一覧の中のスクロールの枠を探す</summary>
     /// <param name="parent">探す元</param>
-    /// <returns>見つけたスクロールの枠。無ければ null</returns>
+    /// <returns>
+    /// 見つけたスクロールの枠
+    /// 無ければ null
+    /// </returns>
     private static ScrollViewer? FindScroller(DependencyObject parent)
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)

@@ -9,13 +9,15 @@ using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.MessageSending;
 
-/// <summary>
-/// 最近の依頼の画面。依頼を、日付や状態にかかわらず、新しい順に並べ、状態を見せて、右クリックで「再送」「今すぐ送る」ができる。
-/// </summary>
+/// <summary>最近の依頼の画面</summary>
 /// <remarks>
-/// 送信の状況が変わったときに読み直す。新しい依頼は、仕事が数秒以内に拾って送るので、その結果 (送った・失敗した)で読み直される。
-/// 数秒おきの実行のたびには読み直さない。DB への読み込みを増やさないため。
-/// 日付で絞らない。日をまたいだ失敗を、再送できなくなるため。
+/// 依頼を、日付や状態にかかわらず、新しい順に並べ、状態を見せて、右クリックで「再送」「今すぐ送る」ができる。
+/// 送信の状況が変わったときに読み直す。
+/// 新しい依頼は仕事が数秒以内に拾って送るので、その結果 (送った・失敗した)で読み直される。
+/// 数秒おきの実行のたびには読み直さない。
+/// DB への読み込みを増やさないため。
+/// 日付で絞らない。
+/// 日をまたいだ失敗を再送できなくなるため。
 /// </remarks>
 public sealed partial class MessageRecentViewModel : SendViewModelBase
 {
@@ -32,10 +34,11 @@ public sealed partial class MessageRecentViewModel : SendViewModelBase
         _service = service;
     }
 
-    /// <summary>一覧の行 (新しい順)</summary>
+    /// <summary>一覧の行</summary>
     public ObservableCollection<MessageRecentItemViewModel> Items { get; } = [];
 
-    /// <summary>一覧が空か (読み込みが済んで、1 件も無い)</summary>
+    /// <summary>一覧が空か</summary>
+    /// <remarks>読み込みが済んで、1 件も無い。</remarks>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
 
@@ -83,10 +86,14 @@ public sealed partial class MessageRecentViewModel : SendViewModelBase
         Error.Set(Job.LastError);
     }
 
-    /// <summary>今すぐ 1 回送る (送信済み・失敗の上限に達したものも送れる)</summary>
+    /// <summary>今すぐ 1 回送る</summary>
     /// <param name="item">送る行</param>
     /// <returns>送信と読み直しの完了を表すタスク</returns>
-    /// <remarks>送れなかったときは、その行が「失敗」になる。DB の失敗 (接続できない・表が無い)は、エラーに出す。</remarks>
+    /// <remarks>
+    /// 送信済み・失敗の上限に達したものも送れる
+    /// 送れなかったときはその行が「失敗」になる
+    /// DB の失敗 (接続できない・表が無い)はエラーに出す
+    /// </remarks>
     [RelayCommand]
     private async Task ResendAsync(MessageRecentItemViewModel item)
     {

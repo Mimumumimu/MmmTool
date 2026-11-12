@@ -3,30 +3,38 @@ using MmmSdk.Core.Components.DaysOfWeek;
 
 namespace MmmTool.Reminders.Core;
 
-/// <summary>リマインダー 1 件 (本体)</summary>
+/// <summary>リマインダー 1 件</summary>
 /// <remarks>
 /// 日付指定 (<see cref="Date"/> に yyyyMMdd)と曜日指定 (<see cref="Date"/> に <see cref="ReminderDates.NoDate"/>、
-/// <see cref="Weekdays"/> に曜日)の 2 通りがある。対応状態は <see cref="ReminderState"/> に別に持ち、<see cref="No"/> で紐付ける。
-/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る。値は <c>init</c> で設定する。
+/// <see cref="Weekdays"/> に曜日)の 2 通りがある。
+/// 対応状態は <see cref="ReminderState"/> に別に持ち、<see cref="No"/> で紐付ける。
+/// 値は作ったあとに書き換えず、変えるときは <c>with</c> で新しく作る。
+/// 値は <c>init</c> で設定する。
 /// </remarks>
 public sealed record Reminder
 {
     /// <summary>番号</summary>
-    /// <remarks>登録順の一意の連番 (ID)で、<see cref="ReminderState.BaseNo"/> が指すキー。0 は未採番で、新規を表す。</remarks>
+    /// <remarks>
+    /// 登録順の一意の連番 (ID)で、<see cref="ReminderState.BaseNo"/> が指すキー。
+    /// 0 は未採番で、新規を表す。
+    /// </remarks>
     public int No { get; init; }
 
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted { get; init; }
 
-    /// <summary>発動日 (yyyyMMdd の整数)</summary>
-    /// <remarks>曜日指定のときは <see cref="ReminderDates.NoDate"/>。</remarks>
+    /// <summary>発動日</summary>
+    /// <remarks>曜日指定のときは <see cref="ReminderDates.NoDate"/></remarks>
     public int Date { get; init; }
 
-    /// <summary>発動時刻 (HHmm の整数)</summary>
+    /// <summary>発動時刻</summary>
     public int Time { get; init; }
 
     /// <summary>曜日指定</summary>
-    /// <remarks>日付指定のときは <see cref="Weekdays.None"/>。曜日指定で <see cref="Weekdays.None"/> か 7 つ全部なら毎日。</remarks>
+    /// <remarks>
+    /// 日付指定のときは <see cref="Weekdays.None"/>
+    /// 曜日指定で <see cref="Weekdays.None"/> か 7 つ全部なら毎日
+    /// </remarks>
     public Weekdays Weekdays { get; init; }
 
     /// <summary>件名</summary>
@@ -35,25 +43,34 @@ public sealed record Reminder
     /// <summary>備考</summary>
     public string? Note { get; init; }
 
-    /// <summary>リンク (URL・ファイル・フォルダのパス)</summary>
+    /// <summary>リンク</summary>
     public string? Link { get; init; }
 
     /// <summary>通知のときに読み上げるか</summary>
-    /// <remarks>既存のデータ (この項目が無い JSON)は false (読み上げない)で読み込む。</remarks>
+    /// <remarks>既存のデータ (この項目が無い JSON)は false (読み上げない)で読み込む</remarks>
     public bool IsSpeak { get; init; }
 
-    /// <summary>宛先のユーザーで、<c>AppUser.Id</c> の値。0 は全員宛て</summary>
+    /// <summary>宛先のユーザーで、AppUser.Id の値</summary>
     /// <remarks>
-    /// DB モードだけで使う。ローカルモードでは常に 0 で、JSON には書かない。この項目が無い既存の JSON は 0 で読み込む。
+    /// 0 は全員宛て。
+    /// DB モードだけで使う。
+    /// ローカルモードでは常に 0 で、JSON には書かない。
+    /// この項目が無い既存の JSON は 0 で読み込む。
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int TargetUserId { get; init; }
 
-    /// <summary>作成者のユーザーで、<c>AppUser.Id</c> の値。作った人。0 は作成者を持たない (ローカルモード)</summary>
+    /// <summary>作成者のユーザーで、AppUser.Id の値</summary>
     /// <remarks>
-    /// DB モードだけで使い、DB が持つ値を読むだけ。作成するときに、保存先が今のユーザーを入れ、更新では変えない。ローカルモードでは常に 0 で、JSON には書かない。
-    /// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)の判断に使う業務の列で、DB の <c>AuthorUserId</c>。共通ヘッダーの <c>CreatedByUserId</c> は、条件に使わない。
-    /// 編集も削除も、見える人ならできる。削除の確認ダイアログは、いつも出す。
+    /// 作った人。
+    /// 0 は作成者を持たない。
+    /// DB モードだけで使い、DB が持つ値を読むだけ。
+    /// 作成するときに、保存先が今のユーザーを入れ、更新では変えない。
+    /// ローカルモードでは常に 0 で、JSON には書かない。
+    /// 見える範囲 (宛先が自分・全員宛て・自分が作成したもの)の判断に使う業務の列で、DB の <c>AuthorUserId</c>。
+    /// 共通ヘッダーの <c>CreatedByUserId</c> は条件に使わない。
+    /// 編集も削除も見える人ならできる。
+    /// 削除の確認ダイアログはいつも出す。
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int AuthorUserId { get; init; }

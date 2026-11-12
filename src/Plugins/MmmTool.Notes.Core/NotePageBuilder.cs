@@ -3,28 +3,30 @@ using System.Text;
 
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// その日のノートを、カードに並べた 1 枚の HTML のページにする。
-/// </summary>
-/// <param name="formatter">本文を、表示してよい HTML にする処理</param>
+/// <summary>その日のノートをカードに並べた 1 枚の HTML のページにする</summary>
+/// <param name="formatter">本文を、表示してよい HTML にする処理。</param>
 /// <remarks>
-/// ページはスクリプトを使わない。表示側が、スクリプトを止める。「タイトルだけ」でカードを開く動きは <c>details</c>、「編集」「削除」「復元」は内部リンクで、<see cref="NoteLinks.ActionUrl"/> を使う。
-/// タイトル・名前・本文は、すべて HTML の文字に直すか、<see cref="INoteBodyFormatter"/> が組み立てたものだけを出す。外部の資源は読み込まない。
-/// 色は、ライト・ダークのそれぞれの値を CSS の変数に持ち、ページの <c>html</c> 要素のクラス (<c>dark</c>)で切り替える。
+/// ページはスクリプトを使わない。
+/// 表示側がスクリプトを止める。
+/// 「タイトルだけ」でカードを開く動きは <c>details</c>、「編集」「削除」「復元」は内部リンクで、<see cref="NoteLinks.ActionUrl"/> を使う。
+/// タイトル・名前・本文はすべて HTML の文字に直すか、<see cref="INoteBodyFormatter"/> が組み立てたものだけを出す。
+/// 外部の資源は読み込まない。
+/// 色はライト・ダークのそれぞれの値を CSS の変数に持ち、ページの <c>html</c> 要素のクラス (<c>dark</c>)で切り替える。
 /// </remarks>
 public sealed class NotePageBuilder(INoteBodyFormatter formatter)
 {
-    /// <summary>曜日の表示で、日曜が先頭。PC の言語に依らず日本語</summary>
+    /// <summary>曜日の表示で、日曜が先頭</summary>
+    /// <remarks>PC の言語に依らず日本語</remarks>
     private static readonly string[] Weekdays = ["日", "月", "火", "水", "木", "金", "土"];
 
     /// <summary>ページを作る</summary>
     /// <param name="cards">カードに出す内容 (並べ終えたもの)</param>
     /// <param name="options">条件</param>
-    /// <param name="frames">カードの上に出す、他の機能の内容の枠 (無ければ null)</param>
+    /// <param name="frames">カードの上に出す、他の機能の内容の枠 (無ければ null)。</param>
     /// <returns>HTML のページ</returns>
     /// <remarks>
-    /// 枠は、ノートの番号と重ならないよう、負の番号 (<c>n-1</c> から)の id を付け、カードと同じ開閉の決まり (<see cref="NotePageOptions.OpenIds"/>)で出す。
-    /// 枠の文は、すべて HTML の文字に直して出す。
+    /// 枠はノートの番号と重ならないよう、負の番号 (<c>n-1</c> から)の id を付け、カードと同じ開閉の決まり (<see cref="NotePageOptions.OpenIds"/>)で出す。
+    /// 枠の文はすべて HTML の文字に直して出す。
     /// </remarks>
     public string Build(IReadOnlyList<NoteCard> cards, NotePageOptions options, IReadOnlyList<DayContentFrame>? frames = null)
     {
@@ -57,7 +59,10 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <summary>他の機能の内容の枠 1 つを出力に出す</summary>
     /// <param name="html">出力</param>
     /// <param name="frame">枠の内容</param>
-    /// <param name="id">枠の番号で、負の数。カードの開閉の状態と同じ仕組みで覚える</param>
+    /// <param name="id">
+    /// 枠の番号で、負の数。
+    /// カードの開閉の状態と同じ仕組みで覚える。
+    /// </param>
     /// <param name="options">条件</param>
     private static void AppendFrame(StringBuilder html, DayContentFrame frame, int id, NotePageOptions options)
     {
@@ -138,7 +143,7 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     private static void AppendAction(StringBuilder html, NoteAction action, int noteId, string label)
         => html.Append("<a class=\"action\" href=\"").Append(NoteLinks.ActionUrl(action, noteId)).Append("\">").Append(label).Append("</a>");
 
-    /// <summary>印 (重要度・今日の更新・自分だけ・削除済み)を出力に出す</summary>
+    /// <summary>印を出力に出す</summary>
     /// <param name="html">出力</param>
     /// <param name="card">カードに出す内容</param>
     /// <param name="isShared">複数の人で共有するか</param>
@@ -175,8 +180,15 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <param name="card">カードに出す内容</param>
     /// <param name="isShared">複数の人で共有するか</param>
     /// <param name="day">表示する日</param>
-    /// <returns>項目ごとの文字。期間・実施日・作成者・更新の順で、項目の間の区切りは CSS が付ける</returns>
-    /// <remarks>実施日は、実施日とほかの実施日を合わせて、表示する日より後で、いちばん近い 1 日だけを小さく出す。当日は帯で示し、過ぎたあとは出さない。同じ年は、年を省く。</remarks>
+    /// <returns>
+    /// 項目ごとの文字。
+    /// 期間・実施日・作成者・更新の順で、項目の間の区切りは CSS が付ける。
+    /// </returns>
+    /// <remarks>
+    /// 実施日は実施日とほかの実施日を合わせて、表示する日より後で、いちばん近い 1 日だけを小さく出す。
+    /// 当日は帯で示し、過ぎたあとは出さない。
+    /// 同じ年は年を省く。
+    /// </remarks>
     private static List<string> Meta(NoteCard card, bool isShared, DateOnly day)
     {
         var note = card.Note;
@@ -201,24 +213,26 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         return parts;
     }
 
-    /// <summary>日付を <c>yyyy/MM/dd</c> にする</summary>
+    /// <summary>日付を yyyy/MM/dd にする</summary>
     /// <param name="date">日付</param>
     /// <returns>文字</returns>
     private static string FormatDate(DateOnly date) => date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture);
 
-    /// <summary>日付を、曜日つき (<c>yyyy/MM/dd (土)</c>)にする。PC 版のページと Web 版の画面が、同じ書き方を使う</summary>
+    /// <summary>日付を曜日つきにする</summary>
     /// <param name="date">日付</param>
     /// <returns>文字</returns>
+    /// <remarks>PC 版のページと Web 版の画面が同じ書き方を使う</remarks>
     public static string FormatDay(DateOnly date) => $"{FormatDate(date)} ({Weekdays[(int)date.DayOfWeek]})";
 
-    /// <summary>文字を、HTML の文字に直す</summary>
+    /// <summary>文字を HTML の文字に直す</summary>
     /// <param name="text">文字</param>
     /// <returns>直した文字列</returns>
     private static string Escape(string text)
         => text.Replace("&", "&amp;", StringComparison.Ordinal).Replace("<", "&lt;", StringComparison.Ordinal).Replace(">", "&gt;", StringComparison.Ordinal).Replace("\"", "&quot;", StringComparison.Ordinal);
 
-    /// <summary>ページの CSS (パレットの色のクラスを含む)</summary>
+    /// <summary>ページの CSS</summary>
     /// <returns>CSS</returns>
+    /// <remarks>パレットの色のクラスを含む</remarks>
     private static string Css()
     {
         var css = new StringBuilder(8192);

@@ -2,14 +2,16 @@ using System.Globalization;
 
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// 本文に付けられる文字色のパレットで、11 系統 × 4 段階の 44 色。
-/// </summary>
+/// <summary>本文に付けられる文字色のパレットで11 系統 × 4 段階の 44 色</summary>
 /// <remarks>
-/// 色は、系統 (灰色・赤・橙など)と段階 (濃い〜薄い)で決める。本文には、ライトモードで読める色の値 (<see cref="NoteColor.Hex"/>)が入り、
-/// 表示のときに、ダークモードでは同じ系統の別の色 (<see cref="NoteColor.DarkHex"/>)に差し替える。パレットに無い値は、色を付けず、標準の文字色になる。
-/// 全部の色は、カードの背景 (ライト <see cref="LightBackground"/>・ダーク <see cref="DarkBackground"/>)に対して、本文の文字として読める明るさ (コントラスト比 4.5 以上)になるよう、計算で決める。
-/// 「黒」は置かない。ダークモードで見えなくなるため。色を外すときは「標準」にする。
+/// 色は系統 (灰色・赤・橙など)と段階 (濃い〜薄い)で決める。
+/// 本文にはライトモードで読める色の値 (<see cref="NoteColor.Hex"/>)が入り、
+/// 表示のときにダークモードでは同じ系統の別の色 (<see cref="NoteColor.DarkHex"/>)に差し替える。
+/// パレットに無い値は色を付けず、標準の文字色になる。
+/// 全部の色はカードの背景 (ライト <see cref="LightBackground"/>・ダーク <see cref="DarkBackground"/>)に対して、本文の文字として読める明るさ (コントラスト比 4.5 以上)になるよう、計算で決める。
+/// 「黒」は置かない。
+/// ダークモードで見えなくなるため。
+/// 色を外すときは「標準」にする。
 /// </remarks>
 public static class NoteColorPalette
 {
@@ -19,16 +21,19 @@ public static class NoteColorPalette
     /// <summary>ダークモードのカードの背景色</summary>
     public const string DarkBackground = "#2B2B2B";
 
-    /// <summary>段階の名前 (濃い順)</summary>
+    /// <summary>段階の名前</summary>
     private static readonly string[] ToneNames = ["濃い", "やや濃い", "やや薄い", "薄い"];
 
-    /// <summary>ライトモードで、背景との間に確保するコントラスト比で、段階ごと。濃い順</summary>
+    /// <summary>ライトモードで、背景との間に確保するコントラスト比で、段階ごと</summary>
+    /// <remarks>濃い順</remarks>
     private static readonly double[] LightContrasts = [9.0, 7.0, 5.5, 4.5];
 
-    /// <summary>ダークモードで、背景との間に確保するコントラスト比で、段階ごと。濃い順</summary>
+    /// <summary>ダークモードで、背景との間に確保するコントラスト比で、段階ごと</summary>
+    /// <remarks>濃い順</remarks>
     private static readonly double[] DarkContrasts = [4.8, 6.5, 8.5, 11.0];
 
-    /// <summary>系統で、名前・色相・彩度。灰色だけ彩度 0</summary>
+    /// <summary>系統で、名前・色相・彩度</summary>
+    /// <remarks>灰色だけ彩度 0</remarks>
     private static readonly (string Name, double Hue, double Saturation)[] Families =
     [
         ("灰色", 0, 0),
@@ -44,15 +49,23 @@ public static class NoteColorPalette
         ("桃", 330, 0.7),
     ];
 
-    /// <summary>パレットの全部の色 (系統の順、系統の中は濃い順)</summary>
+    /// <summary>パレットの全部の色</summary>
+    /// <remarks>系統の順、系統の中は濃い順。</remarks>
     public static IReadOnlyList<NoteColor> All { get; } = Build();
 
-    /// <summary>1 行に並べる色の数で、段階の数。画面のパレットの列の数</summary>
+    /// <summary>1 行に並べる色の数で、段階の数</summary>
+    /// <remarks>画面のパレットの列の数</remarks>
     public static int ToneCount => ToneNames.Length;
 
-    /// <summary>ライトモードの値から、パレットの色を探す</summary>
-    /// <param name="hex">色の値で、<c>#RRGGBB</c>。大文字と小文字は区別しない</param>
-    /// <returns>パレットの色。無ければ null</returns>
+    /// <summary>ライトモードの値からパレットの色を探す</summary>
+    /// <param name="hex">
+    /// 色の値で、<c>#RRGGBB</c>。
+    /// 大文字と小文字は区別しない。
+    /// </param>
+    /// <returns>
+    /// パレットの色
+    /// 無ければ null
+    /// </returns>
     public static NoteColor? TryFind(string hex)
         => All.FirstOrDefault(color => string.Equals(color.Hex, hex, StringComparison.OrdinalIgnoreCase));
 
@@ -75,12 +88,12 @@ public static class NoteColorPalette
         return [.. colors];
     }
 
-    /// <summary>指定のコントラスト比になる明るさの色を、二分法で探す</summary>
+    /// <summary>指定のコントラスト比になる明るさの色を二分法で探す</summary>
     /// <param name="hue">色相 (0〜360)</param>
     /// <param name="saturation">彩度 (0〜1)</param>
     /// <param name="backgroundLuminance">背景の相対輝度</param>
     /// <param name="contrast">確保するコントラスト比</param>
-    /// <param name="brighterIsBetter">明るいほどコントラストが上がるか (ダークモードの背景は true、ライトモードは false)</param>
+    /// <param name="brighterIsBetter">明るいほどコントラストが上がるか (ダークモードの背景は true、ライトモードは false)。</param>
     /// <returns>色 (<c>#RRGGBB</c>)</returns>
     private static string Solve(double hue, double saturation, double backgroundLuminance, double contrast, bool brighterIsBetter)
     {
@@ -128,7 +141,7 @@ public static class NoteColorPalette
         return (r + m, g + m, b + m);
     }
 
-    /// <summary>RGB を <c>#RRGGBB</c> にする</summary>
+    /// <summary>RGB を #RRGGBB にする</summary>
     /// <param name="rgb">赤・緑・青 (0〜1)</param>
     /// <returns>大文字の <c>#RRGGBB</c></returns>
     private static string ToHex((double R, double G, double B) rgb)
@@ -139,7 +152,7 @@ public static class NoteColorPalette
     /// <returns>0〜255 の整数</returns>
     private static int Byte(double value) => (int)Math.Round(Math.Clamp(value, 0, 1) * 255);
 
-    /// <summary>相対輝度 (WCAG)を求める</summary>
+    /// <summary>相対輝度を求める</summary>
     /// <param name="hex"><c>#RRGGBB</c></param>
     /// <returns>相対輝度</returns>
     private static double Luminance(string hex)
@@ -148,10 +161,13 @@ public static class NoteColorPalette
         return Luminance(((value >> 16 & 0xFF) / 255.0, (value >> 8 & 0xFF) / 255.0, (value & 0xFF) / 255.0));
     }
 
-    /// <summary>相対輝度 (WCAG)を求める</summary>
+    /// <summary>相対輝度を求める</summary>
     /// <param name="rgb">赤・緑・青 (0〜1)</param>
     /// <returns>相対輝度</returns>
-    /// <remarks>丸めた 8 ビットの値で求める。表示される色のコントラスト比と合わせるため。</remarks>
+    /// <remarks>
+    /// 丸めた 8 ビットの値で求める
+    /// 表示される色のコントラスト比と合わせるため
+    /// </remarks>
     private static double Luminance((double R, double G, double B) rgb)
     {
         static double Linear(double channel)

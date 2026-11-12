@@ -8,17 +8,17 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.Users;
 
-/// <summary>
-/// ログイン (DB モードのとき、ログイン名とパスワードで、今のユーザーを特定する)を DI に登録する。
-/// </summary>
+/// <summary>ログインを DI に登録する</summary>
+/// <remarks>DB モードのとき、ログイン名とパスワードで、今のユーザーを特定する。</remarks>
 public static class UserServiceCollectionExtensions
 {
-    /// <summary>ユーザーの特定の準備と、ログインの画面を登録する</summary>
+    /// <summary>ユーザーの特定の準備とログインの画面を登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// 起動時の準備は、登録した順に動くので、各機能の登録より前に呼ぶ。機能の準備より先に、今のユーザーを決めておくため。
-    /// ユーザーの部品 (<c>AddUsers</c>)と、保存先は、DB の種類ごとの登録 (<c>AddSqlServerData</c>)が行う。
+    /// 起動時の準備は登録した順に動くので、各機能の登録より前に呼ぶ。
+    /// 機能の準備より先に今のユーザーを決めておくため。
+    /// ユーザーの部品 (<c>AddUsers</c>)と、保存先は DB の種類ごとの登録 (<c>AddSqlServerData</c>)が行う。
     /// </remarks>
     public static IServiceCollection AddUserSignIn(this IServiceCollection services)
     {

@@ -4,10 +4,14 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmBatch.MessageSending;
 
-/// <summary>「メッセージの送信」のページ (「最近の依頼」と、「履歴」を切り替える)</summary>
+/// <summary>「メッセージの送信」のページ</summary>
 /// <remarks>
-/// 最初は「最近の依頼」を出す。2 つの画面は、作ったあと使い回す。切り替えのたびに作り直さない。
-/// ページを出すたびに、一覧を読み直す。出していない間に変わった分を、すぐ見せるため。
+/// 「最近の依頼」と「履歴」を切り替える
+/// 最初は「最近の依頼」を出す
+/// 2 つの画面は作ったあと使い回す
+/// 切り替えのたびに作り直さない
+/// ページを出すたびに一覧を読み直す
+/// 出していない間に変わった分をすぐ見せるため
 /// </remarks>
 public sealed partial class MessageSendingPage : Page
 {
@@ -29,7 +33,7 @@ public sealed partial class MessageSendingPage : Page
         Loaded += OnLoaded;
     }
 
-    /// <summary>ページを出したら、一覧を読み直す</summary>
+    /// <summary>ページを出したら一覧を読み直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnLoaded(object sender, RoutedEventArgs e)

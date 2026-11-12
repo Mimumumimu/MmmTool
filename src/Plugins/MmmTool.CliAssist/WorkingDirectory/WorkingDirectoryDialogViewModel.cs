@@ -23,10 +23,12 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private DirectoryCheck _check;
 
-    /// <summary>ほかのタブが開いているフォルダ (選べない)</summary>
+    /// <summary>ほかのタブが開いているフォルダ</summary>
+    /// <remarks>選べない</remarks>
     private IReadOnlyList<string> _openDirectories = [];
 
-    /// <summary>存在の確認の待ち合わせ (入力が変わったら、前の確認を取り消す)</summary>
+    /// <summary>存在の確認の待ち合わせ</summary>
+    /// <remarks>入力が変わったら、前の確認を取り消す。</remarks>
     private readonly Debouncer _checkDebouncer = new(CheckDelay);
 
     /// <summary>ViewModel を作る</summary>
@@ -40,7 +42,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         Directories.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoDirectories));
     }
 
-    /// <summary>最近使ったフォルダで、先頭が最新。</summary>
+    /// <summary>最近使ったフォルダで先頭が最新</summary>
     public ObservableCollection<string> Directories { get; } = [];
 
     /// <summary>最近使ったフォルダが無いか</summary>
@@ -50,26 +52,35 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     [ObservableProperty]
     public partial string DirectoryPath { get; set; }
 
-    /// <summary>入力されたフォルダが存在し、ほかのタブが開いていないとき、決定できる。</summary>
-    /// <remarks>存在の確認は、入力が止まってから、バックグラウンドで行う。確認が終わるまでは false。</remarks>
+    /// <summary>入力されたフォルダが存在し、ほかのタブが開いていないとき、決定できる</summary>
+    /// <remarks>
+    /// 存在の確認は入力が止まってから、バックグラウンドで行う。
+    /// 確認が終わるまでは false。
+    /// </remarks>
     public bool IsValid => _check == DirectoryCheck.Found && !IsOpenInOtherSession;
 
-    /// <summary>入力されたフォルダを、ほかのタブが開いている。</summary>
-    /// <remarks>同じフォルダのタブは開けない。パスの文字列だけで比べるので、入力のたびに呼んでよい。</remarks>
+    /// <summary>入力されたフォルダをほかのタブが開いている</summary>
+    /// <remarks>
+    /// 同じフォルダのタブは開けない。
+    /// パスの文字列だけで比べるので、入力のたびに呼んでよい。
+    /// </remarks>
     public bool IsOpenInOtherSession
         => DirectoryPath.Trim() is { Length: > 0 } path && _openDirectories.Any(directory => SessionDirectory.IsSame(directory, path));
 
-    /// <summary>入力はあるがフォルダが見つからない。</summary>
-    /// <remarks>確認が終わるまでは false。確認中に、見つからないと表示して、ちらつかせないため。</remarks>
+    /// <summary>入力はあるがフォルダが見つからない</summary>
+    /// <remarks>
+    /// 確認が終わるまでは false。
+    /// 確認中に、見つからないと表示して、ちらつかせないため。
+    /// </remarks>
     public bool IsNotFound => _check == DirectoryCheck.NotFound;
 
     /// <summary>エラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>履歴のフォルダを入力欄に入れて、存在するかを (デバウンスを待たずに)確認する</summary>
+    /// <summary>履歴のフォルダを入力欄に入れて存在するかを確認する</summary>
     /// <param name="directory">履歴のフォルダのパス</param>
-    /// <returns>存在すれば true (ダブルクリックで、そのまま決定してよいか)</returns>
-    /// <remarks>存在の確認は、UI スレッドを止めないよう、バックグラウンドで行う。</remarks>
+    /// <returns>存在すれば true (ダブルクリックで、そのまま決定してよいか)。</returns>
+    /// <remarks>存在の確認は UI スレッドを止めないよう、バックグラウンドで行う。</remarks>
     public async Task<bool> UseDirectoryAsync(string directory)
     {
         DirectoryPath = directory;
@@ -78,7 +89,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         return exists && DirectoryPath == directory && !IsOpenInOtherSession;
     }
 
-    /// <summary>入力が変わったら、存在の確認をやり直す</summary>
+    /// <summary>入力が変わったら存在の確認をやり直す</summary>
     /// <param name="value">変更後のパス</param>
     partial void OnDirectoryPathChanged(string value)
     {
@@ -109,7 +120,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
             exists => SetCheck(exists ? DirectoryCheck.Found : DirectoryCheck.NotFound));
     }
 
-    /// <summary>確認状態を変えて、表示を更新する</summary>
+    /// <summary>確認状態を変えて表示を更新する</summary>
     /// <param name="check">新しい確認状態</param>
     private void SetCheck(DirectoryCheck check)
     {
@@ -121,7 +132,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
     /// <summary>入力されたフォルダの確認状態</summary>
     private enum DirectoryCheck
     {
-        /// <summary>入力が空 (確認しない)</summary>
+        /// <summary>入力が空</summary>
+        /// <remarks>確認しない</remarks>
         None,
 
         /// <summary>確認中</summary>
@@ -130,7 +142,8 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         /// <summary>フォルダがある</summary>
         Found,
 
-        /// <summary>フォルダが無い (ファイルなど、フォルダでないものを含む)</summary>
+        /// <summary>フォルダが無い</summary>
+        /// <remarks>ファイルなど、フォルダでないものを含む。</remarks>
         NotFound,
     }
 
@@ -151,7 +164,7 @@ public sealed partial class WorkingDirectoryDialogViewModel : ObservableObject
         Error.Clear();
     }
 
-    /// <summary>フォルダ選択を、入力欄のフォルダで開いて、選ばれたフォルダを入力欄に入れる</summary>
+    /// <summary>フォルダ選択を入力欄のフォルダで開いて、選ばれたフォルダを入力欄に入れる</summary>
     /// <returns>選択の完了を表すタスク</returns>
     [RelayCommand]
     private async Task BrowseAsync()

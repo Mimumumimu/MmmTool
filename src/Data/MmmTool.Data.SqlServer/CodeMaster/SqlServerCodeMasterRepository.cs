@@ -6,15 +6,16 @@ using MmmTool.Data.SqlServer.Connection;
 
 namespace MmmTool.Data.SqlServer.CodeMaster;
 
-/// <summary>
-/// コードマスタの名前を、SQL Server (<c>dbo.CodeMaster</c>)で編集する。
-/// </summary>
+/// <summary>コードマスタの名前を SQL Serverで編集する</summary>
 /// <param name="database">SQL Server への入口</param>
 /// <remarks>
-/// 名前の列だけを書き、更新日時を DB の時計で進める。更新日時が進むので、作業管理の差分の取得が、変えた行を拾う。
-/// 更新者は 0 で、特定のユーザーではない。この保存先を使う管理ツール MmmToolAdmin は、ユーザーを特定しないため。
-/// MmmTool は、DB モードでは、これを使わない。DB モードのコードマスタは、管理ツールだけが編集する。
-/// 複数の名前は、1 文で書き、途中で失敗したら、すべて取り消す。
+/// 名前の列だけを書き、更新日時を DB の時計で進める。
+/// 更新日時が進むので、作業管理の差分の取得が変えた行を拾う。
+/// 更新者は 0 で、特定のユーザーではない。
+/// この保存先を使う管理ツール MmmToolAdmin はユーザーを特定しないため。
+/// MmmTool は DB モードでは、これを使わない。
+/// DB モードのコードマスタは管理ツールだけが編集する。
+/// 複数の名前は 1 文で書き、途中で失敗したら、すべて取り消す。
 /// </remarks>
 public sealed class SqlServerCodeMasterRepository(SqlServerDatabase database) : ICodeMasterRepository
 {

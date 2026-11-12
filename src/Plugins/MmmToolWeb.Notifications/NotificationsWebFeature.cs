@@ -8,12 +8,13 @@ using MmmToolWeb.Notifications.Client;
 
 namespace MmmToolWeb.Notifications;
 
-/// <summary>
-/// 通知を受け取る端末の登録の、Web 版のサーバー側。登録は、MmmTool と同じ <c>SqlServerNotificationChannelRepository</c> で、送信先の表に書く。
-/// </summary>
+/// <summary>通知を受け取る端末の登録の Web 版のサーバー側</summary>
 /// <remarks>
-/// 外部へ送る処理は、ここには無い。端末の宛先を送信先の行に書くだけで、実際に送るのは MmmBatch。
-/// このサーバーの DB のログインは、送る先の値の列 <c>Value</c> を読めない。登録した端末の一覧は、値を読まない要約で取る。
+/// 登録は MmmTool と同じ SqlServerNotificationChannelRepository で、送信先の表に書く。
+/// 外部へ送る処理はここには無い。
+/// 端末の宛先を送信先の行に書くだけで、実際に送るのは MmmBatch。
+/// このサーバーの DB のログインは送る先の値の列 <c>Value</c> を読めない。
+/// 登録した端末の一覧は値を読まない要約で取る。
 /// </remarks>
 public sealed class NotificationsWebFeature : IWebFeature
 {

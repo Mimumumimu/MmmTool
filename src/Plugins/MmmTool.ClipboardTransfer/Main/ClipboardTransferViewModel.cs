@@ -9,14 +9,13 @@ using MmmTool.ClipboardTransfer.Core;
 
 namespace MmmTool.ClipboardTransfer.Main;
 
-/// <summary>
-/// クリップボード転送ページ。ファイルをクリップボードに載せる送信と、クリップボードからファイルを保存する受信を行う。
-/// </summary>
+/// <summary>クリップボード転送ページ</summary>
 /// <param name="transfer">変換・保存の処理</param>
 /// <param name="clipboard">クリップボード</param>
 /// <param name="filePicker">ファイル選択</param>
 /// <param name="folderPicker">フォルダー選択</param>
 /// <param name="dialogs">ダイアログ</param>
+/// <remarks>ファイルをクリップボードに載せる送信とクリップボードからファイルを保存する受信を行う</remarks>
 public sealed partial class ClipboardTransferViewModel(
     ClipboardTransferService transfer,
     IClipboardService clipboard,
@@ -24,7 +23,7 @@ public sealed partial class ClipboardTransferViewModel(
     IFolderPickerService folderPicker,
     IDialogService dialogs) : ObservableObject
 {
-    /// <summary>結果の一覧に、ファイル名を並べる最大の件数</summary>
+    /// <summary>結果の一覧にファイル名を並べる最大の件数</summary>
     private const int MaxListedNames = 5;
 
     /// <summary>画面に出すエラー</summary>
@@ -37,11 +36,15 @@ public sealed partial class ClipboardTransferViewModel(
     [NotifyCanExecuteChangedFor(nameof(SelectFilesCommand), nameof(SaveFromClipboardCommand))]
     public partial bool IsBusy { get; set; }
 
-    /// <summary>処理中ではないか (操作できるか)</summary>
+    /// <summary>処理中ではないか</summary>
+    /// <remarks>操作できるか</remarks>
     public bool IsIdle => !IsBusy;
 
     /// <summary>変換・読み書きの処理を実行中か</summary>
-    /// <remarks>進行表示 (ProgressBar)に使う。ファイル選択・確認ダイアログでユーザーの入力を待っている間は false。</remarks>
+    /// <remarks>
+    /// 進行表示 (ProgressBar)に使う
+    /// ファイル選択・確認ダイアログでユーザーの入力を待っている間は false
+    /// </remarks>
     [ObservableProperty]
     public partial bool IsProcessing { get; set; }
 
@@ -59,7 +62,7 @@ public sealed partial class ClipboardTransferViewModel(
 
     /// <summary>ファイルをクリップボードに載せる</summary>
     /// <param name="paths">ファイルのパス (フォルダーは除かれる)</param>
-    /// <param name="skippedCount">呼び出し側で、ディスク上のファイルではないために除いた件数</param>
+    /// <param name="skippedCount">呼び出し側で、ディスク上のファイルではないために除いた件数。</param>
     /// <returns>送信の完了を表すタスク</returns>
     public async Task SendAsync(IReadOnlyList<string> paths, int skippedCount)
     {
@@ -113,7 +116,7 @@ public sealed partial class ClipboardTransferViewModel(
         }
     }
 
-    /// <summary>クリップボードの転送データを、ファイルとして保存する</summary>
+    /// <summary>クリップボードの転送データをファイルとして保存する</summary>
     /// <returns>受信の完了を表すタスク</returns>
     [RelayCommand(CanExecute = nameof(IsIdle))]
     private async Task SaveFromClipboardAsync()
@@ -158,10 +161,10 @@ public sealed partial class ClipboardTransferViewModel(
         }
     }
 
-    /// <summary>1 件の転送データを、保存先を選んで保存する</summary>
+    /// <summary>1 件の転送データを保存先を選んで保存する</summary>
     /// <param name="file">保存する転送データ</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>同じ名前のファイルがあるときの確認は、保存先を選ぶダイアログが出す。</remarks>
+    /// <remarks>同じ名前のファイルがあるときの確認は保存先を選ぶダイアログが出す</remarks>
     private async Task SaveOneAsync(TransferFile file)
     {
         if (await filePicker.PickSaveFileAsync(file.FileName) is not { } path)
@@ -180,10 +183,10 @@ public sealed partial class ClipboardTransferViewModel(
         }
     }
 
-    /// <summary>複数の転送データを、フォルダーを選んで保存する</summary>
+    /// <summary>複数の転送データをフォルダーを選んで保存する</summary>
     /// <param name="files">保存する転送データ</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>同じ名前のファイルがあるときは、まとめて置き換える・飛ばす・ファイルごとに決める、から選んでもらう。</remarks>
+    /// <remarks>同じ名前のファイルがあるときはまとめて置き換える・飛ばす・ファイルごとに決める、から選んでもらう。</remarks>
     private async Task SaveManyAsync(IReadOnlyList<TransferFile> files)
     {
         if (await folderPicker.PickFolderAsync() is not { } folder)
@@ -267,7 +270,10 @@ public sealed partial class ClipboardTransferViewModel(
     }
 
     /// <summary>操作を始める準備をする</summary>
-    /// <returns>始められたら true。処理中なら false</returns>
+    /// <returns>
+    /// 始められたら true
+    /// 処理中なら false
+    /// </returns>
     /// <remarks>前の結果・エラーを消して、処理中にする。</remarks>
     private bool TryBegin()
     {
@@ -282,7 +288,7 @@ public sealed partial class ClipboardTransferViewModel(
         return true;
     }
 
-    /// <summary>処理を実行している間、進行表示を出す</summary>
+    /// <summary>処理を実行している間進行表示を出す</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
     /// <param name="task">実行中の処理</param>
     /// <returns>処理の結果</returns>
@@ -299,7 +305,7 @@ public sealed partial class ClipboardTransferViewModel(
         }
     }
 
-    /// <summary>処理を実行している間、進行表示を出す</summary>
+    /// <summary>処理を実行している間進行表示を出す</summary>
     /// <param name="task">実行中の処理</param>
     /// <returns>処理の完了を表すタスク</returns>
     private async Task ProcessAsync(Task task)
@@ -325,9 +331,12 @@ public sealed partial class ClipboardTransferViewModel(
         IsResultOpen = true;
     }
 
-    /// <summary>ファイル名を、何件かまで改行で並べる</summary>
+    /// <summary>ファイル名を何件かまで改行で並べる</summary>
     /// <param name="names">ファイル名</param>
-    /// <returns>並べた文字列。多いときは「ほか N 件」を付ける</returns>
+    /// <returns>
+    /// 並べた文字列
+    /// 多いときは「ほか N 件」を付ける
+    /// </returns>
     private static string ListNames(IReadOnlyList<string> names)
     {
         var listed = string.Join("\n", names.Take(MaxListedNames));

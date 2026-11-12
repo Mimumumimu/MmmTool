@@ -8,23 +8,26 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.Data.Sqlite.WorkItems;
 
-/// <summary>
-/// 作業管理を、ローカルの SQLite (<c>Data/MmmTool.db</c>)に保存する。
-/// </summary>
+/// <summary>作業管理をローカルの SQLiteに保存する</summary>
 /// <param name="database">データベースファイルを開く入口</param>
-/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
+/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)。</param>
 /// <remarks>
-/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/work-items.md にある。ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
-/// 読みは、表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。JOIN で親の列が子の行に重ならないため。木はメモリで組み立てる。
-/// 書きは 1 件単位で、更新は変えた列だけ書く。書き込みは、書き込みの許可を最初に取るトランザクション (<c>BEGIN IMMEDIATE</c>)の中で行う。
-/// 処理は、UI スレッドを止めないよう、別のスレッドで行う。SQL はパラメーター化だけで書く。
+/// SQL Server の保存先と同じ設計の表と、同じ読み書きの形で、docs/specs/work-items.md にある。
+/// ユーザーは <c>Id = 1</c> の固定値で、<c>AppUser</c> の表は持たない。
+/// 読みは表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。
+/// JOIN で親の列が子の行に重ならないため。
+/// 木はメモリで組み立てる。
+/// 書きは 1 件単位で、更新は変えた列だけ書く。
+/// 書き込みは書き込みの許可を最初に取るトランザクション (<c>BEGIN IMMEDIATE</c>)の中で行う。
+/// 処理は UI スレッドを止めないよう、別のスレッドで行う。
+/// SQL はパラメーター化だけで書く。
 /// </remarks>
 public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvider time) : IWorkItemRepository
 {
-    /// <summary>ローカルのユーザーの番号 (固定)</summary>
+    /// <summary>ローカルのユーザーの番号</summary>
     private const int LocalUserId = 1;
 
-    /// <summary>「ない」日付の文字 (<c>9999-12-31</c>)</summary>
+    /// <summary>「ない」日付の文字</summary>
     private const string NoDateText = "9999-12-31";
 
     /// <inheritdoc />
@@ -33,7 +36,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <inheritdoc />
     public string? RecoveryMessage => database.RecoveryMessage;
 
-    /// <summary>今の日時 (保存先の時計の代わり)</summary>
+    /// <summary>今の日時</summary>
     private DateTimeOffset Now => time.GetUtcNow();
 
     /// <inheritdoc />
@@ -113,15 +116,24 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return WorkReportSplitter.Split(all, userIds);
     }
 
-    /// <summary>作業報告の中身を、担当者の条件を指定して、1 回の往復で読む</summary>
+    /// <summary>作業報告の中身を担当者の条件を指定して 1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="from">記録を読み始める日</param>
-    /// <param name="to">記録を読み終える日で、報告日</param>
-    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
+    /// <param name="to">記録を読み終える日で、報告日。</param>
+    /// <param name="assignee">
+    /// 担当者の列と比べる条件の後半。
+    /// <c>= @me</c> か、<c>IN (…)</c>。
+    /// </param>
     /// <param name="assigneeParameter">条件が使うパラメーターの名前と値</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>指定の担当者の、作業報告の中身</returns>
-    /// <remarks>担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る。</remarks>
+    /// <returns>指定の担当者の、作業報告の中身。</returns>
+    /// <remarks>
+    /// 担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業。
+    /// 表示しない案件も含む。
+    /// 担当者で絞るので、記録を付けた人は問わない。
+    /// 日報メモは持ち主が指定の人の行の、報告日の分だけ。
+    /// 6 つの問い合わせを 1 回の往復で受け取る。
+    /// </remarks>
     private static async Task<WorkReportData> LoadReportCoreAsync(
         SqliteConnection connection, DateOnly from, DateOnly to, string assignee, (string, object) assigneeParameter, CancellationToken cancellationToken)
     {
@@ -221,12 +233,18 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
 
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
-    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
-    /// <returns>条件の SQL。パラメーター <c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う</returns>
+    /// <param name="assignee">
+    /// 担当者の列と比べる条件の後半。
+    /// <c>= @me</c> か、<c>IN (…)</c>。
+    /// </param>
+    /// <returns>
+    /// 条件の SQL。
+    /// パラメーター <c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う。
+    /// </returns>
     /// <remarks>
     /// 担当が指定の人で、次のどちらか。
-    /// 予定の枝は、外す印が無く、状態が作業予定・作業中・保留。
-    /// 実績の枝は、実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
+    /// 予定の枝は外す印が無く、状態が作業予定・作業中・保留。
+    /// 実績の枝は実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
     /// </remarks>
     private static string ReportItemCondition(string alias, string assignee)
         => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId {assignee} AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN ({WorkItemStatuses.ReportSqlList})) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
@@ -496,9 +514,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
 
     /// <summary>日ごとの記録を書き、その作業の累計を計算し直す</summary>
     /// <param name="record">書く記録</param>
-    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない</param>
+    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>書いた記録と累計。何も書かなかったときは null</returns>
+    /// <returns>
+    /// 書いた記録と累計
+    /// 何も書かなかったときは null
+    /// </returns>
     private async Task<WorkRecordResult?> WriteRecordAsync(WorkRecord record, bool onlyIfAbsent, CancellationToken cancellationToken)
     {
         var row = WorkRecordRow.FromWorkRecord(record);
@@ -616,12 +637,12 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return result!;
     }
 
-    /// <summary>1 つの表の、変えた列だけを更新する</summary>
+    /// <summary>1 つの表の変えた列だけを更新する</summary>
     /// <param name="table">表の名前</param>
     /// <param name="id">行の番号</param>
     /// <param name="changes">変えた列</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新の完了を表すタスク (変えた列が無ければ、何も書かない)</returns>
+    /// <returns>更新の完了を表すタスク (変えた列が無ければ、何も書かない)。</returns>
     private Task UpdateColumnsAsync(string table, int id, ColumnChanges changes, CancellationToken cancellationToken)
     {
         if (changes.IsEmpty)
@@ -639,14 +660,14 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
     }
 
-    /// <summary>行の位置 (案件・親・並び)を書く</summary>
+    /// <summary>行の位置を書く</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション</param>
     /// <param name="positions">位置</param>
     /// <param name="now">今の日時</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの完了を表すタスク</returns>
-    /// <remarks>作業の案件が変わるときは、その作業の記録の案件の番号も直す。</remarks>
+    /// <remarks>作業の案件が変わるときはその作業の記録の案件の番号も直す</remarks>
     private static async Task ApplyPositionsAsync(SqliteConnection connection, SqliteTransaction transaction, IReadOnlyList<WorkPosition> positions, DateTimeOffset now, CancellationToken cancellationToken)
     {
         if (positions.Count == 0)
@@ -675,13 +696,16 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
             cancellationToken);
     }
 
-    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要ならコードマスタを、1 回の往復で読む</summary>
+    /// <summary>案件の中身と必要ならコードマスタを 1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="projectIds">案件の番号 (JSON の 1 つのパラメーターで渡す)</param>
-    /// <param name="exclude">その番号を除くか。表示しない案件を除いて読むとき true で、番号を指定して読むときは false</param>
+    /// <param name="exclude">
+    /// その番号を除くか。
+    /// 表示しない案件を除いて読むとき true で、番号を指定して読むときは false。
+    /// </param>
     /// <param name="withMaster">コードマスタも読むか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、コードマスタは空)</returns>
+    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときはコードマスタは空)</returns>
     private static async Task<WorkLoadResult> ReadContentAsync(SqliteConnection connection, IReadOnlyCollection<int> projectIds, bool exclude, bool withMaster, CancellationToken cancellationToken)
     {
         (string, object)[] parameters = [("@projects", IdJson.From(projectIds)), ("@feature", WorkCodes.FeatureNo)];
@@ -704,15 +728,19 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return new WorkLoadResult(projects, groups, items, codes);
     }
 
-    /// <summary>案件の番号が、パラメーター <c>@projects</c> (JSON の配列)に、含まれる (または含まれない)という条件</summary>
+    /// <summary>案件の番号がパラメーター @projectsに含まれるという条件</summary>
     /// <param name="alias">表の別名</param>
     /// <param name="column">案件の番号の列</param>
-    /// <param name="exclude">含まれないものに絞るか。表示しない案件を除くとき true で、番号を指定して読むときは false</param>
+    /// <param name="exclude">
+    /// 含まれないものに絞るか。
+    /// 表示しない案件を除くとき true で、番号を指定して読むときは false。
+    /// </param>
     /// <returns>条件の SQL</returns>
+    /// <remarks>または含まれない</remarks>
     private static string ProjectFilter(string alias, string column, bool exclude)
         => $"{alias}.{column} {(exclude ? "NOT IN" : "IN")} (SELECT value FROM json_each(@projects))";
 
-    /// <summary>接続を開いて、読む処理を別のスレッドで実行する</summary>
+    /// <summary>接続を開いて読む処理を別のスレッドで実行する</summary>
     /// <typeparam name="T">結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -727,7 +755,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     private Task RunInTransactionAsync(Func<SqliteConnection, SqliteTransaction, Task> work, CancellationToken cancellationToken)
         => Task.Run(() => database.RunInTransactionAsync(work, cancellationToken), cancellationToken);
 
-    /// <summary>共通ヘッダー (番号・論理削除・作成と更新の日時と人)の列の並び</summary>
+    /// <summary>共通ヘッダーの列の並び</summary>
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (6 列)</returns>
     private static string Header(string alias)
@@ -745,7 +773,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     private static string CodeColumns(string alias)
         => $"{alias}.FeatureNo, {alias}.CategoryNo, {alias}.CodeNo, {alias}.SortOrder, {alias}.NumericValue, {alias}.Name";
 
-    /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
+    /// <summary>案件の行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
     private static WorkProjectRow ReadProject(SqliteDataReader r) => new()
@@ -864,13 +892,13 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         Name = r.GetString(11),
     };
 
-    /// <summary>検索語の中の、<c>LIKE</c> の特別な文字を、そのままの文字として扱うようにする</summary>
+    /// <summary>検索語の中の LIKE の特別な文字をそのままの文字として扱うようにする</summary>
     /// <param name="query">検索語</param>
     /// <returns><c>\</c> で逃がした検索語</returns>
     private static string EscapeLike(string query)
         => query.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
 
-    /// <summary>検索の結果を、すべて読む</summary>
+    /// <summary>検索の結果をすべて読む</summary>
     /// <typeparam name="T">1 行を変換した型</typeparam>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション (使わないなら null)</param>
@@ -897,13 +925,14 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         return list;
     }
 
-    /// <summary>複数の <c>SELECT</c> を 1 つのコマンドで送り、結果を順に読む (1 回の往復で受け取る)</summary>
+    /// <summary>複数の SELECT を 1 つのコマンドで送り、結果を順に読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション (使わないなら null)</param>
-    /// <param name="queries"><c>SELECT</c> と、その 1 行を受け取る処理の並び (結果は、この順に届く)</param>
+    /// <param name="queries"><c>SELECT</c> と、その 1 行を受け取る処理の並び (結果はこの順に届く)。</param>
     /// <param name="parameters">パラメーター (すべての <c>SELECT</c> で共有する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>1 回の往復で受け取る</remarks>
     private static async Task QueryBatchAsync(
         SqliteConnection connection,
         SqliteTransaction? transaction,
@@ -932,7 +961,10 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
     /// <param name="sql">SQL</param>
     /// <param name="parameters">パラメーター</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>1 行 1 列目の値。行が無ければ null</returns>
+    /// <returns>
+    /// 1 行 1 列目の値
+    /// 行が無ければ null
+    /// </returns>
     private static async Task<object?> ScalarAsync(SqliteConnection connection, SqliteTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
     {
         await using var command = SqliteValues.Command(connection, transaction, sql, parameters);
@@ -971,7 +1003,7 @@ public sealed class SqliteWorkItemRepository(SqliteDatabase database, TimeProvid
         /// <summary>パラメーター</summary>
         public IEnumerable<(string, object)> Parameters => _parameters;
 
-        /// <summary>値が違うときだけ、列を足す</summary>
+        /// <summary>値が違うときだけ列を足す</summary>
         /// <param name="column">列の名前</param>
         /// <param name="before">更新前の値</param>
         /// <param name="after">更新後の値</param>

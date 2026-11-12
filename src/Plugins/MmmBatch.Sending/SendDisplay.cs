@@ -3,13 +3,20 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmBatch.Sending;
 
-/// <summary>送信の画面に出す文字列のうち、機能に共通のもの (機能ごとの状態の文字列は、各機能の画面に置く)</summary>
+/// <summary>送信の画面に出す文字列のうち機能に共通のもの</summary>
+/// <remarks>機能ごとの状態の文字列は各機能の画面に置く</remarks>
 public static class SendDisplay
 {
-    /// <summary>送信先を、種類と登録名にして、画面に出す文字列にする</summary>
-    /// <param name="kind">送信先の区分。送信先が無ければ null</param>
+    /// <summary>送信先を種類と登録名にして画面に出す文字列にする</summary>
+    /// <param name="kind">
+    /// 送信先の区分
+    /// 送信先が無ければ null
+    /// </param>
     /// <param name="name">送信先の登録名</param>
-    /// <returns>名前を先に、種類を補足として添えた「登録名 (ntfy)」の形。送信先が無ければ空文字</returns>
+    /// <returns>
+    /// 名前を先に、種類を補足として添えた「登録名 (ntfy)」の形。
+    /// 送信先が無ければ空文字。
+    /// </returns>
     /// <remarks>送る先の値 (トピック名・Webhook の URL・通知の宛先)は秘密なので、出さない。</remarks>
     public static string ChannelText(NotificationChannelKind? kind, string name)
     {
@@ -22,11 +29,17 @@ public static class SendDisplay
         return kindText.Length == 0 ? name : $"{name} ({kindText})";
     }
 
-    /// <summary>宛先を、送信先を登録した人と、種類・登録名にして、画面に出す文字列にする</summary>
-    /// <param name="ownerName">送信先を登録した人の表示名。分からなければ空文字</param>
+    /// <summary>宛先を送信先を登録した人と種類・登録名にして、画面に出す文字列にする</summary>
+    /// <param name="ownerName">
+    /// 送信先を登録した人の表示名
+    /// 分からなければ空文字
+    /// </param>
     /// <param name="kind">送信先の区分</param>
     /// <param name="name">送信先の登録名</param>
-    /// <returns>「ユーザー名 - 登録名 (ntfy)」の形で、MmmTool の宛先の選択肢と同じ。ユーザー名が分からなければ「登録名 (ntfy)」</returns>
+    /// <returns>
+    /// 「ユーザー名 - 登録名 (ntfy)」の形で、MmmTool の宛先の選択肢と同じ。
+    /// ユーザー名が分からなければ「登録名 (ntfy)」。
+    /// </returns>
     /// <remarks>送る先の値は秘密なので、出さない。</remarks>
     public static string RecipientText(string ownerName, NotificationChannelKind kind, string name)
     {
@@ -40,10 +53,16 @@ public static class SendDisplay
         return ownerName.Length == 0 ? channel : $"{ownerName} - {channel}";
     }
 
-    /// <summary>送った 1 回の結果を、画面に出す文字列にする</summary>
+    /// <summary>送った 1 回の結果を画面に出す文字列にする</summary>
     /// <param name="status">結果 (送信済み・失敗)</param>
-    /// <param name="error">失敗の理由。成功は空文字</param>
-    /// <returns>「成功」「失敗」。失敗は、理由があれば「失敗 (理由)」</returns>
+    /// <param name="error">
+    /// 失敗の理由
+    /// 成功は空文字
+    /// </param>
+    /// <returns>
+    /// 「成功」「失敗」
+    /// 失敗は理由があれば「失敗 (理由)」
+    /// </returns>
     public static string ResultText(SendStatus status, string error) => status switch
     {
         SendStatus.Sent => "成功",

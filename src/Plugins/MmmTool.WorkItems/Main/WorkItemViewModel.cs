@@ -17,17 +17,20 @@ using MmmTool.WorkItems.ProjectPicker;
 
 namespace MmmTool.WorkItems.Main;
 
-/// <summary>
-/// 作業管理のページ。木構造の表・入力日・表示列・表示する案件を扱う。
-/// </summary>
+/// <summary>作業管理のページ</summary>
 /// <remarks>
-/// 表のセルへの入力は、確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する。保存は <c>Commit～</c> が行う。入力が受け入れられなかったときは、
-/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。案件・グループの開閉・非表示の列は、この PC の設定 (設定ストア)に持つ。
-/// 画面に出すのは、利用者が選んだ案件だけ。他の人の更新は、サービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
+/// 木構造の表・入力日・表示列・表示する案件を扱う。
+/// 表のセルへの入力は確定したとき (フォーカスが外れたとき・Enter)に、その場で保存する。
+/// 保存は <c>Commit～</c> が行う。
+/// 入力が受け入れられなかったときは。
+/// 理由を <see cref="Error"/> に出し、入力欄を保存されている値に戻す。
+/// 案件・グループの開閉・非表示の列はこの PC の設定 (設定ストア)に持つ。
+/// 画面に出すのは利用者が選んだ案件だけ。
+/// 他の人の更新はサービスが 60 秒ごとに取り込み、<see cref="WorkItemService.Changed"/> で表を作り直す。
 /// </remarks>
 public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 {
-    /// <summary>非表示の列を、設定ストアに持つキー (列のキーを、カンマでつないだ文字列)</summary>
+    /// <summary>非表示の列を設定ストアに持つキー</summary>
     private const string HiddenColumnsKey = "WorkItems.HiddenColumns";
 
     /// <summary>日付として受け付ける書式</summary>
@@ -51,58 +54,79 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>マウスカーソルを処理待ちの形にする口</summary>
     private readonly IBusyCursor _busyCursor;
 
-    /// <summary>行の識別から、表の行を引く (使い回す)</summary>
+    /// <summary>行の識別から表の行を引く</summary>
+    /// <remarks>使い回す</remarks>
     private readonly Dictionary<WorkKey, WorkItemRow> _rowByKey = [];
 
-    /// <summary>画面で選んだ状態 (ページを作り直しても引き継ぐために、ページの外で持つ)</summary>
+    /// <summary>画面で選んだ状態</summary>
+    /// <remarks>ページを作り直しても引き継ぐためにページの外で持つ</remarks>
     private readonly WorkItemViewState _state;
 
-    /// <summary>利用者が閉じた案件・グループ (状態クラスと同じ集合)</summary>
+    /// <summary>利用者が閉じた案件・グループ</summary>
     private readonly HashSet<WorkKey> _collapsed;
 
     /// <summary>利用者が開いた案件・グループ</summary>
-    /// <remarks>状態クラスと同じ集合。既定で畳む、完了したグループを、開いたまま保つため。</remarks>
+    /// <remarks>
+    /// 状態クラスと同じ集合。
+    /// 既定で畳む、完了したグループを、開いたまま保つため。
+    /// </remarks>
     private readonly HashSet<WorkKey> _expanded;
 
     /// <summary>非表示の列のキー</summary>
     private readonly HashSet<string> _hiddenColumns;
 
-    /// <summary>隠す状態のコード番号 (状態クラスと同じ集合)</summary>
-    /// <remarks>保存しない。空なら、すべての状態を出す。</remarks>
+    /// <summary>隠す状態のコード番号</summary>
+    /// <remarks>
+    /// 保存しない。
+    /// 空なら、すべての状態を出す。
+    /// </remarks>
     private readonly HashSet<int> _hiddenStatuses;
 
     /// <summary>追加した直後で、名前を入力中の作業</summary>
-    /// <remarks>絞り込みで隠さない。名前を確定したら、絞り込みに従う。</remarks>
+    /// <remarks>
+    /// 絞り込みで隠さない。
+    /// 名前を確定したら、絞り込みに従う。
+    /// </remarks>
     private WorkKey? _addedKey;
 
-    /// <summary>選択欄の選択肢 (コードマスタが変わらない間は、同じ一覧を使い回す)</summary>
+    /// <summary>選択欄の選択肢</summary>
+    /// <remarks>コードマスタが変わらない間は同じ一覧を使い回す</remarks>
     private WorkChoices _choices = new(MmmTool.CodeMaster.Core.CodeBook.Empty);
 
-    /// <summary>壊れたファイルを退避した知らせを、もう出したか (サービスが、アプリの実行中ずっと持つので、ページを開くたびには出さない)</summary>
+    /// <summary>壊れたファイルを退避した知らせをもう出したか</summary>
+    /// <remarks>サービスがアプリの実行中ずっと持つので、ページを開くたびには出さない。</remarks>
     private bool _recoveryMessageShown;
 
-    /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
+    /// <summary>案件マスターが空か</summary>
+    /// <remarks>表示する案件が無いときの案内を決める</remarks>
     private bool _masterEmpty;
 
-    /// <summary>ページを開いている間か。<see cref="InitializeAsync"/> から <see cref="Suspend"/> までで、離れている間は、サービスの変更で表を作らない</summary>
+    /// <summary>ページを開いている間か</summary>
+    /// <remarks>InitializeAsync から Suspend までで、離れている間はサービスの変更で表を作らない。</remarks>
     private bool _active;
 
-    /// <summary>開いたときの読み込みが終わり、表を作り終えているか (終わるまでの変更は、全体を作り直す)</summary>
+    /// <summary>開いたときの読み込みが終わり表を作り終えているか</summary>
+    /// <remarks>終わるまでの変更は全体を作り直す</remarks>
     private bool _synced;
 
-    /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
+    /// <summary>作っている最中か</summary>
+    /// <remarks>設定の読み込みで、値の変更の処理を動かさないため。</remarks>
     private bool _initializing = true;
 
-    /// <summary>サービスから最後に受け取った、日報メモ (日付の変更で変わったかを知るため)</summary>
+    /// <summary>サービスから最後に受け取った日報メモ</summary>
+    /// <remarks>日付の変更で変わったかを知るため</remarks>
     private string _syncedDayNote = "";
 
-    /// <summary>日報メモの入力欄を、サービスの値に合わせている最中か (保存しないため)</summary>
+    /// <summary>日報メモの入力欄をサービスの値に合わせている最中か</summary>
+    /// <remarks>保存しないため</remarks>
     private bool _syncingDayNote;
 
-    /// <summary>最後に始めた、日報メモの保存 (作業報告を開く前に、終わりを待つため)</summary>
+    /// <summary>最後に始めた日報メモの保存</summary>
+    /// <remarks>作業報告を開く前に終わりを待つため</remarks>
     private Task _dayNoteSave = Task.CompletedTask;
 
-    /// <summary>表の行で、見えている行を 1 つにならしたもの。木の順</summary>
+    /// <summary>表の行で、見えている行を 1 つにならしたもの</summary>
+    /// <remarks>木の順</remarks>
     public ObservableCollection<WorkItemRow> Rows { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
@@ -111,57 +135,75 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>表示する案件を選ぶ画面の ViewModel</summary>
     public ProjectPickerViewModel ProjectPicker { get; }
 
-    /// <summary>入力日で、実績 (日)・備考 (日)・日報メモの日。既定は今日</summary>
+    /// <summary>入力日で、実績・備考・日報メモの日</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DayNotePlaceholder))]
     public partial DateOnly InputDate { get; set; }
 
-    /// <summary>入力日の日報メモで、入力欄の文字。フォーカスが外れたときに保存する</summary>
+    /// <summary>入力日の日報メモで、入力欄の文字</summary>
+    /// <remarks>フォーカスが外れたときに保存する</remarks>
     [ObservableProperty]
     public partial string DayNote { get; set; } = "";
 
-    /// <summary>日報メモの入力欄が空のときの薄い文字で、どの日のメモかが分かるよう、入力日つき。曜日は PC の言語に依らず日本語</summary>
+    /// <summary>日報メモの入力欄が空のときの薄い文字で、どの日のメモかが分かるよう、入力日つき</summary>
+    /// <remarks>曜日は PC の言語に依らず日本語</remarks>
     public string DayNotePlaceholder => $"{FormatDay(InputDate)} の日報メモ";
 
     /// <summary>入力日の実績の合計の表示</summary>
-    /// <remarks>入力日の隣に出すので、日付は付けない。表を作り直したときに更新する。</remarks>
+    /// <remarks>
+    /// 入力日の隣に出すので、日付は付けない。
+    /// 表を作り直したときに更新する。
+    /// </remarks>
     [ObservableProperty]
     public partial string DayTotalText { get; private set; } = "";
 
-    /// <summary>入力日の勤務の時間帯の表示で、9:00 ～ 21:30 の形。実績が無いときは空</summary>
-    /// <remarks>表示する案件や「自分の担当だけ」に依らず、自分の担当の全案件の工数から作る。</remarks>
+    /// <summary>入力日の勤務の時間帯の表示で、9:00 ～ 21:30 の形</summary>
+    /// <remarks>
+    /// 実績が無いときは空。
+    /// 表示する案件や「自分の担当だけ」に依らず、自分の担当の全案件の工数から作る。
+    /// </remarks>
     [ObservableProperty]
     public partial string DayWorkSpanText { get; private set; } = "";
 
-    /// <summary>勤務の時間帯の更新の通し番号 (古い読み込みの結果を捨てるため)</summary>
+    /// <summary>勤務の時間帯の更新の通し番号</summary>
+    /// <remarks>古い読み込みの結果を捨てるため</remarks>
     private int _workSpanVersion;
 
     /// <summary>日報メモの入力欄の最大の長さ</summary>
     public int DayNoteMaxLength => WorkItemLimits.DayNoteMaxLength;
 
-    /// <summary>担当者を扱うか。ローカルモードは false で、担当の列と絞り込みを出さない</summary>
+    /// <summary>担当者を扱うか</summary>
+    /// <remarks>ローカルモードは false で、担当の列と絞り込みを出さない。</remarks>
     public bool HasAssignees => _service.HasAssignees;
 
-    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
+    /// <summary>更新ボタンを出すか</summary>
+    /// <remarks>他の人の更新がある DB モードだけで、ローカルモードは false。</remarks>
     public bool CanRefresh => _service.HasAssignees;
 
     /// <summary>自分が担当の作業だけを表示するか</summary>
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>「過去の完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
-    /// <remarks>画面で選んだ値は保存しない。状態クラス (<see cref="WorkItemViewState"/>)が引き継ぎ、起動したときの値は、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.PastCompleted"/>)で決まる。</remarks>
+    /// <summary>「過去の完了」の選択肢の番号</summary>
+    /// <remarks>
+    /// <see cref="CompletedDisplay"/> の値と同じ。
+    /// 画面で選んだ値は保存しない。
+    /// 状態クラス (<see cref="WorkItemViewState"/>)が引き継ぎ、起動したときの値は設定の起動時の表示 (<see cref="WorkItemDisplaySettings.PastCompleted"/>)で決まる。
+    /// </remarks>
     [ObservableProperty]
     public partial int CompletedIndex { get; set; }
 
-    /// <summary>絞り込みのボタンの文字 (効いている条件があるときは、その数を添える)</summary>
+    /// <summary>絞り込みのボタンの文字</summary>
+    /// <remarks>効いている条件があるときはその数を添える</remarks>
     [ObservableProperty]
     public partial string FilterText { get; private set; } = "絞り込み";
 
-    /// <summary>状態の選択肢 (コードマスタの表示順で、絞り込みのチェックに並べる)</summary>
+    /// <summary>状態の選択肢</summary>
+    /// <remarks>コードマスタの表示順で、絞り込みのチェックに並べる。</remarks>
     public IReadOnlyList<WorkChoice> StatusChoices => _choices.Statuses;
 
-    /// <summary>担当者に選べる人 (先頭は未割り当て、次が自分、そのあとは表示名の順)</summary>
+    /// <summary>担当者に選べる人</summary>
+    /// <remarks>先頭は未割り当て、次が自分、そのあとは表示名の順。</remarks>
     public IReadOnlyList<WorkAssignee> AssigneeChoices
     {
         get
@@ -176,11 +218,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>行が 1 つも無いか (案内を出す)</summary>
+    /// <summary>行が 1 つも無いか</summary>
+    /// <remarks>案内を出す</remarks>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    /// <summary>行が無いときの案内 (表示する案件を選ぶか、案件を追加するか)</summary>
+    /// <summary>行が無いときの案内</summary>
+    /// <remarks>表示する案件を選ぶか、案件を追加するか。</remarks>
     [ObservableProperty]
     public partial string EmptyMessage { get; private set; } = "";
 
@@ -188,16 +232,18 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial WorkItemRow? SelectedRow { get; set; }
 
-    /// <summary>追加した行の名前を、入力できる状態にしてほしい</summary>
+    /// <summary>追加した行の名前を入力できる状態にしてほしい</summary>
     public event EventHandler<WorkItemRow>? FocusNameRequested;
 
-    /// <summary>表示する列が変わった (起動時の読み込みを除く)</summary>
+    /// <summary>表示する列が変わった</summary>
+    /// <remarks>起動時の読み込みを除く</remarks>
     public event EventHandler? ColumnVisibilityChanged;
 
-    /// <summary>行の一覧を作り直した (列の幅を内容に合わせ直すため)</summary>
+    /// <summary>行の一覧を作り直した</summary>
+    /// <remarks>列の幅を内容に合わせ直すため</remarks>
     public event EventHandler? RowsRebuilt;
 
-    /// <summary>状態と進捗度・実績の食い違いを、入力したセルの下に短く知らせてほしい</summary>
+    /// <summary>状態と進捗度・実績の食い違いを入力したセルの下に短く知らせてほしい</summary>
     public event EventHandler<WorkWarning>? WarningRaised;
 
     /// <summary>ViewModel を作る</summary>
@@ -235,7 +281,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         _initializing = false;
     }
 
-    /// <summary>ページを開いたときに、保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
+    /// <summary>ページを開いたときに保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     public async Task InitializeAsync()
     {
@@ -278,8 +324,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         _service.StartPolling();
     }
 
-    /// <summary>引き継いだ選択行を、表に戻す</summary>
-    /// <remarks>ページを作り直したあと、まだ選んでいる行が無いときだけ戻す。行が無くなっていたら、何もしない。</remarks>
+    /// <summary>引き継いだ選択行を表に戻す</summary>
+    /// <remarks>
+    /// ページを作り直したあとまだ選んでいる行が無いときだけ戻す。
+    /// 行が無くなっていたら、何もしない。
+    /// </remarks>
     private void RestoreSelection()
     {
         if (SelectedRow is null && _state.SelectedKey is { } key && _rowByKey.TryGetValue(key, out var row) && Rows.Contains(row))
@@ -288,9 +337,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>選んでいる行が変わったら、状態クラスに覚える</summary>
+    /// <summary>選んでいる行が変わったら状態クラスに覚える</summary>
     /// <param name="value">選んだ行 (選んでいなければ null)</param>
-    /// <remarks>ページを作り直しても、同じ行を選ぶため。ページを離れたあと (<see cref="Suspend"/>)に、画面の片付けで選択が外れても、覚えた行を消さないよう、開いている間だけ書く。</remarks>
+    /// <remarks>
+    /// ページを作り直しても同じ行を選ぶため。
+    /// ページを離れたあと (<see cref="Suspend"/>)に、画面の片付けで選択が外れても、覚えた行を消さないよう、開いている間だけ書く。
+    /// </remarks>
     partial void OnSelectedRowChanged(WorkItemRow? value)
     {
         if (!_initializing && _active)
@@ -299,7 +351,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>ページを離れたときに、他の人の更新の取得を止める</summary>
+    /// <summary>ページを離れたときに他の人の更新の取得を止める</summary>
     public void Suspend()
     {
         _active = false;
@@ -312,7 +364,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <param name="e">変更の内容</param>
     private void OnServiceChangedEvent(object? sender, WorkChangedEventArgs e) => OnServiceChanged(e);
 
-    /// <summary>取り込みに失敗したことを、画面のエラーに出す</summary>
+    /// <summary>取り込みに失敗したことを画面のエラーに出す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="message">失敗の内容</param>
     private void OnServiceRefreshFailed(object? sender, string message) => Error.Show(message);
@@ -320,7 +372,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>サービスの通知の購読を解除する</summary>
     /// <remarks>
     /// サービスはアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel とページがメモリに残り続ける。
-    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は、取得の参照も返す。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は取得の参照も返す。
     /// </remarks>
     public void Dispose()
     {
@@ -333,12 +385,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>列が、表示されているか</summary>
+    /// <summary>列が表示されているか</summary>
     /// <param name="key">列のキー</param>
     /// <returns>表示していれば true</returns>
     public bool IsColumnVisible(string key) => !_hiddenColumns.Contains(key);
 
-    /// <summary>列の表示・非表示を切り替えて、設定に残す</summary>
+    /// <summary>列の表示・非表示を切り替えて設定に残す</summary>
     /// <param name="key">列のキー</param>
     /// <param name="isVisible">表示するか</param>
     public void SetColumnVisible(string key, bool isVisible)
@@ -352,21 +404,21 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         ColumnVisibilityChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>入力日を、前の日にする</summary>
+    /// <summary>入力日を前の日にする</summary>
     [RelayCommand]
     private void PreviousDay() => InputDate = InputDate.AddDays(-1);
 
-    /// <summary>入力日を、次の日にする</summary>
+    /// <summary>入力日を次の日にする</summary>
     [RelayCommand]
     private void NextDay() => InputDate = InputDate.AddDays(1);
 
-    /// <summary>入力日を、今日にする</summary>
+    /// <summary>入力日を今日にする</summary>
     [RelayCommand]
     private void Today() => InputDate = _service.Today;
 
-    /// <summary>他の人の更新を、今すぐ取り込む</summary>
+    /// <summary>他の人の更新を今すぐ取り込む</summary>
     /// <returns>取り込みの完了を表すタスク</returns>
-    /// <remarks>失敗は、定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
+    /// <remarks>失敗は定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -386,8 +438,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>日報メモの入力が確定した (フォーカスが外れた)ら、保存する</summary>
+    /// <summary>日報メモの入力が確定したら保存する</summary>
     /// <param name="value">入力欄の文字</param>
+    /// <remarks>フォーカスが外れた</remarks>
     partial void OnDayNoteChanged(string value)
     {
         if (!_initializing && !_syncingDayNote)
@@ -421,8 +474,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>入力欄の日報メモを、サービスの値に合わせる (日付の変更・保存の失敗)</summary>
-    /// <param name="force">サービスの値が前回と同じでも、入力欄を書き換えるか (保存できなかった入力を戻すとき)</param>
+    /// <summary>入力欄の日報メモをサービスの値に合わせる</summary>
+    /// <param name="force">サービスの値が前回と同じでも、入力欄を書き換えるか (保存できなかった入力を戻すとき)。</param>
     private void SyncDayNote(bool force)
     {
         var current = _service.GetDayNote();
@@ -443,8 +496,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す</summary>
     /// <param name="value">自分の担当だけにするか</param>
+    /// <remarks>読み込みはやり直さない</remarks>
     partial void OnMineOnlyChanged(bool value)
     {
         if (_initializing)
@@ -460,7 +514,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>スケジュールで「自分の担当だけ」が変わったとき、この画面の値を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="value">新しい値</param>
-    /// <remarks>設定へは、変えた側が保存する。画面が見えていなければ、次に開くときに、設定から読む。</remarks>
+    /// <remarks>
+    /// 設定へは変えた側が保存する。
+    /// 画面が見えていなければ、次に開くときに、設定から読む。
+    /// </remarks>
     private void OnServiceMineOnlyChanged(object? sender, bool value)
     {
         if (value == MineOnly)
@@ -477,8 +534,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>「完了」の選択が変わったら、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <summary>「完了」の選択が変わったら表を作り直す</summary>
     /// <param name="value">選択肢の番号</param>
+    /// <remarks>読み込みはやり直さない</remarks>
     partial void OnCompletedIndexChanged(int value)
     {
         if (_initializing)
@@ -498,9 +556,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <returns>表示するなら true</returns>
     public bool IsStatusShown(int codeNo) => !_hiddenStatuses.Contains(codeNo);
 
-    /// <summary>状態の表示・非表示を切り替えて、表を作り直す (保存しない)</summary>
+    /// <summary>状態の表示・非表示を切り替えて表を作り直す</summary>
     /// <param name="codeNo">状態のコード番号</param>
     /// <param name="isShown">表示するか</param>
+    /// <remarks>保存しない</remarks>
     public void SetStatusShown(int codeNo, bool isShown)
     {
         if (isShown ? !_hiddenStatuses.Remove(codeNo) : !_hiddenStatuses.Add(codeNo))
@@ -512,7 +571,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>追加した作業の名前の入力を取りやめたときに、状態の絞り込みの例外を外して、表を作り直す</summary>
+    /// <summary>追加した作業の名前の入力を取りやめたときに状態の絞り込みの例外を外して、表を作り直す</summary>
     /// <param name="row">入力を取りやめた行</param>
     public void ReleaseAdded(WorkItemRow row)
     {
@@ -528,8 +587,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>開始日がまだ来ていない作業を隠すか</summary>
     public bool HideNotStarted => _state.HideNotStarted;
 
-    /// <summary>開始日がまだ来ていない作業を隠すかを切り替えて、表を作り直す (保存しない)</summary>
+    /// <summary>開始日がまだ来ていない作業を隠すかを切り替えて表を作り直す</summary>
     /// <param name="hide">隠すなら true</param>
+    /// <remarks>保存しない</remarks>
     public void SetHideNotStarted(bool hide)
     {
         if (_state.HideNotStarted == hide)
@@ -542,11 +602,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>絞り込みの条件 (状態・開始日)を通る作業か</summary>
+    /// <summary>絞り込みの条件を通る作業か</summary>
     /// <param name="item">作業</param>
-    /// <returns>残すなら true (すべての条件を通る作業と、名前を入力中の追加した作業)</returns>
+    /// <returns>残すなら true (すべての条件を通る作業と、名前を入力中の追加した作業)。</returns>
     /// <remarks>
-    /// 隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は、状態では隠れない。
+    /// 隠す状態はコードマスタの選択肢から選ばれたものだけなので、選択肢に無いコードの作業は状態では隠れない。
     /// 開始日は入力日と比べ、開始日が空の作業と、開始日が入力日以前の作業は隠れない。
     /// </remarks>
     private bool KeepByFilter(WorkItem item)
@@ -554,18 +614,21 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         || (!_hiddenStatuses.Contains((int)item.Status)
             && !(_state.HideNotStarted && item.StartDate is { } start && start > InputDate));
 
-    /// <summary>絞り込みを使っていないときは null、使っているときは <see cref="KeepByFilter"/> を返す</summary>
+    /// <summary>絞り込みを使っていないときは null、使っているときは KeepByFilter を返す</summary>
     private Func<WorkItem, bool>? ItemFilter => _hiddenStatuses.Count == 0 && !_state.HideNotStarted ? null : KeepByFilter;
 
-    /// <summary>絞り込みのボタンの文字を、効いている条件の数に合わせる</summary>
-    /// <remarks>状態の条件は、隠している状態が 1 つでもあれば、1 つと数える。開始日の条件は、1 つと数える。</remarks>
+    /// <summary>絞り込みのボタンの文字を効いている条件の数に合わせる</summary>
+    /// <remarks>
+    /// 状態の条件は隠している状態が 1 つでもあれば、1 つと数える。
+    /// 開始日の条件は 1 つと数える。
+    /// </remarks>
     private void UpdateFilterText()
     {
         var active = (_choices.Statuses.Any(s => _hiddenStatuses.Contains(s.CodeNo)) ? 1 : 0) + (_state.HideNotStarted ? 1 : 0);
         FilterText = active == 0 ? "絞り込み" : $"絞り込み ({active})";
     }
 
-    /// <summary>担当者を、確定する</summary>
+    /// <summary>担当者を確定する</summary>
     /// <param name="row">行 (作業)</param>
     /// <param name="userId">新しい担当者の番号 (0 は未割り当て)</param>
     /// <returns>確定の完了を表すタスク</returns>
@@ -577,8 +640,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>案件・グループを開く・閉じる (開閉の状態は、保存しない)</summary>
+    /// <summary>案件・グループを開く・閉じる</summary>
     /// <param name="row">開閉する行</param>
+    /// <remarks>開閉の状態は保存しない</remarks>
     public void Toggle(WorkItemRow row)
     {
         if (row.IsExpanded)
@@ -594,10 +658,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>案件・グループを、開いた状態にする</summary>
+    /// <summary>案件・グループを開いた状態にする</summary>
     /// <param name="key">開く行の識別</param>
     /// <returns>表示が変わる (閉じていた)なら true</returns>
-    /// <remarks>既定で畳むグループも、利用者が開いたものとして覚える。作業を足して未完了に戻っても、開いたままにするため。</remarks>
+    /// <remarks>
+    /// 既定で畳むグループも利用者が開いたものとして覚える
+    /// 作業を足して未完了に戻っても開いたままにするため
+    /// </remarks>
     private bool Open(WorkKey key)
     {
         var wasOpen = _rowByKey.TryGetValue(key, out var row) && row.IsExpanded;
@@ -608,7 +675,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>行を追加する</summary>
     /// <param name="kind">追加する行の種類</param>
-    /// <param name="target">右クリックした行で、案件・グループなら中に、作業なら同じ階層の次に追加する。案件を追加するときは null</param>
+    /// <param name="target">
+    /// 右クリックした行で、案件・グループなら中に、作業なら同じ階層の次に追加する。
+    /// 案件を追加するときは null。
+    /// </param>
     /// <returns>追加の完了を表すタスク</returns>
     public async Task AddAsync(WorkRowKind kind, WorkItemRow? target)
     {
@@ -671,15 +741,15 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>行を、兄弟の中で上または下へ動かせるか</summary>
+    /// <summary>行を兄弟の中で上または下へ動かせるか</summary>
     /// <param name="row">行</param>
-    /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
-    /// <returns>動かせれば true (案件は、並びを動かせない)</returns>
+    /// <param name="delta">動かす数 (-1 で上、1 で下)。</param>
+    /// <returns>動かせれば true (案件は並びを動かせない)</returns>
     public bool CanShift(WorkItemRow row, int delta) => !row.IsProject && !row.IsLocked && _service.CanShift(row.Key, delta);
 
-    /// <summary>行を、兄弟の中で上または下へ動かす</summary>
+    /// <summary>行を兄弟の中で上または下へ動かす</summary>
     /// <param name="row">行</param>
-    /// <param name="delta">動かす数 (-1 で上、1 で下)</param>
+    /// <param name="delta">動かす数 (-1 で上、1 で下)。</param>
     /// <returns>動かしの完了を表すタスク</returns>
     public async Task ShiftAsync(WorkItemRow row, int delta)
     {
@@ -699,7 +769,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>移動先を選んで、行 (グループなら中身ごと)を移す</summary>
+    /// <summary>移動先を選んで、行を移す</summary>
     /// <param name="row">移す行</param>
     /// <returns>移動の完了を表すタスク</returns>
     public async Task MoveAsync(WorkItemRow row)
@@ -744,9 +814,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>確認してから、行を削除する。論理削除で、グループは中身も一緒に</summary>
-    /// <param name="row">削除する行で、グループまたは作業。案件は、案件の管理の画面で削除する</param>
+    /// <summary>確認してから行を削除する</summary>
+    /// <param name="row">
+    /// 削除する行で、グループまたは作業。
+    /// 案件は案件の管理の画面で削除する。
+    /// </param>
     /// <returns>削除の完了を表すタスク</returns>
+    /// <remarks>論理削除で、グループは中身も一緒に。</remarks>
     public async Task DeleteAsync(WorkItemRow row)
     {
         if (row.IsLocked)
@@ -778,9 +852,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>作業報告の画面を開く。「作業報告」ボタンから開き、報告日の初期値は、作業管理で開いている日</summary>
+    /// <summary>作業報告の画面を開く</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
-    /// <remarks>日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く。保存は、入力欄のフォーカスが外れたときに始まる。</remarks>
+    /// <remarks>
+    /// 「作業報告」ボタンから開き、報告日の初期値は作業管理で開いている日。
+    /// 日報メモを書いてすぐ押したときに、今書いたメモが報告に出るよう、保存が終わるのを待ってから開く。
+    /// 保存は入力欄のフォーカスが外れたときに始まる。
+    /// </remarks>
     [RelayCommand]
     private async Task OpenReportAsync()
     {
@@ -788,7 +866,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         await _dialogs.ShowReportAsync(InputDate);
     }
 
-    /// <summary>案件の管理の画面を開く (バーの「案件の管理」から)</summary>
+    /// <summary>案件の管理の画面を開く</summary>
     /// <returns>画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
     private async Task OpenProjectManagerAsync()
@@ -806,12 +884,15 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         Rebuild();
     }
 
-    /// <summary>文字の入力欄 (名前・日付・時間)の入力を、確定する</summary>
+    /// <summary>文字の入力欄の入力を確定する</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー (Name / Start / Due / Planned / ActualDay)</param>
     /// <param name="text">入力された文字</param>
     /// <returns>確定の完了を表すタスク</returns>
-    /// <remarks>追加した作業の名前を確定したら、状態の絞り込みに従って表を作り直す。隠れる状態の作業は、ここで消える。</remarks>
+    /// <remarks>
+    /// 追加した作業の名前を確定したら、状態の絞り込みに従って表を作り直す。
+    /// 隠れる状態の作業はここで消える。
+    /// </remarks>
     public async Task CommitTextAsync(WorkItemRow row, string column, string text)
     {
         var released = column == "Name" && text.Trim().Length > 0 && _addedKey == row.Key;
@@ -827,11 +908,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>文字の入力欄の入力を、確定する (<see cref="CommitTextAsync"/> の本体)</summary>
+    /// <summary>文字の入力欄の入力を確定する</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー</param>
     /// <param name="text">入力された文字</param>
     /// <returns>確定の完了を表すタスク</returns>
+    /// <remarks><see cref="CommitTextAsync"/> の本体</remarks>
     private async Task CommitTextCoreAsync(WorkItemRow row, string column, string text)
     {
         if (row.IsLocked)
@@ -896,7 +978,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>備考の入力を、確定する</summary>
+    /// <summary>備考の入力を確定する</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー (Note / DayNote)</param>
     /// <param name="text">入力された文章</param>
@@ -921,9 +1003,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>リンクの入力を、確定する</summary>
+    /// <summary>リンクの入力を確定する</summary>
     /// <param name="row">行 (案件・グループ・作業のどれでもよい)</param>
-    /// <param name="text">入力されたリンク (空にすると、リンクを消す)</param>
+    /// <param name="text">入力されたリンク (空にすると、リンクを消す)。</param>
     /// <returns>確定の完了を表すタスク</returns>
     public async Task CommitLinkAsync(WorkItemRow row, string text)
     {
@@ -939,11 +1021,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>作業を、作業報告のどの部分から外すかを変える</summary>
+    /// <summary>作業を作業報告のどの部分から外すかを変える</summary>
     /// <param name="row">行 (作業)</param>
     /// <param name="exclusion">外す範囲</param>
     /// <returns>変更の完了を表すタスク</returns>
-    /// <remarks>今と同じ値、触れない行、作業ではない行では、何も書かない。</remarks>
+    /// <remarks>今と同じ値、触れない行、作業ではない行では何も書かない。</remarks>
     public async Task SetReportExclusionAsync(WorkItemRow row, WorkReportExclusion exclusion)
     {
         if (!row.IsWork || row.IsLocked || exclusion == row.ReportExclusion)
@@ -956,12 +1038,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>作業の自動入力の設定を変える</summary>
     /// <param name="row">行 (作業)</param>
-    /// <param name="hours">自動入力の時間 (0 以下は、設定をクリアする)</param>
+    /// <param name="hours">自動入力の時間 (0 以下は設定をクリアする)</param>
     /// <param name="weekdays">自動入力する曜日 (クリアするときは無視する)</param>
     /// <returns>変更の完了を表すタスク</returns>
     /// <remarks>
-    /// 今と同じ値、触れない行、作業ではない行では、何も書かない。
-    /// 保存できたら、すぐに今日の分の自動入力を確かめる。設定したのに、その場で入らない、を避けるため。
+    /// 今と同じ値、触れない行、作業ではない行では何も書かない。
+    /// 保存できたら、すぐに今日の分の自動入力を確かめる。
+    /// 設定したのに、その場で入らない、を避けるため。
     /// </remarks>
     public async Task SetAutoEntryAsync(WorkItemRow row, double hours, Weekdays weekdays)
     {
@@ -992,8 +1075,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>入力された文字を、自動入力の時間にする</summary>
-    /// <param name="text">入力された文字 (空は、0 として扱う)</param>
+    /// <summary>入力された文字を自動入力の時間にする</summary>
+    /// <param name="text">入力された文字 (空は 0 として扱う)</param>
     /// <param name="hours">時間</param>
     /// <returns>0 以上 24 以下の数として読めたとき true</returns>
     public static bool TryParseAutoHours(string text, out double hours)
@@ -1013,10 +1096,14 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>行のリンクを開く (リンクが無い行では、何もしない)</summary>
+    /// <summary>行のリンクを開く</summary>
     /// <param name="row">行</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>リンクは、登録されたものを種類を問わずそのまま開く。リンクの機能と同じで、開けなかったときは、理由を画面に出す。</remarks>
+    /// <remarks>
+    /// リンクが無い行では何もしない。
+    /// リンクは登録されたものを種類を問わずそのまま開く。
+    /// リンクの機能と同じで、開けなかったときは理由を画面に出す。
+    /// </remarks>
     public async Task OpenLinkAsync(WorkItemRow row)
     {
         if (!row.HasLink)
@@ -1041,7 +1128,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <returns>備考の全文</returns>
     public static string GetNote(WorkItemRow row, string column) => column == "DayNote" ? row.DayNote : row.Note;
 
-    /// <summary>選択欄 (優先度・状態・進捗度)の選択を、確定する</summary>
+    /// <summary>選択欄の選択を確定する</summary>
     /// <param name="row">行</param>
     /// <param name="column">列のキー (Priority / Status / Progress)</param>
     /// <param name="index">選択位置</param>
@@ -1067,11 +1154,14 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>名前・備考・リンクを、行の種類に合わせて更新する</summary>
+    /// <summary>名前・備考・リンクを行の種類に合わせて更新する</summary>
     /// <param name="row">行</param>
     /// <param name="name">新しい名前 (変えないなら null)</param>
     /// <param name="note">新しい備考 (変えないなら null)</param>
-    /// <param name="link">新しいリンク。変えないなら null で、空文字はリンクを消す</param>
+    /// <param name="link">
+    /// 新しいリンク。
+    /// 変えないなら null で、空文字はリンクを消す。
+    /// </param>
     /// <returns>更新の完了を表すタスク</returns>
     private async Task UpdateTextAsync(WorkItemRow row, string? name, string? note, string? link = null)
     {
@@ -1102,8 +1192,8 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>作業の項目を更新する</summary>
     /// <param name="row">行 (作業)</param>
-    /// <param name="change">今の作業から、更新後の作業を作る処理</param>
-    /// <param name="warn">保存できたあと、食い違いを確かめるきっかけ (知らせない更新は null)</param>
+    /// <param name="change">今の作業から、更新後の作業を作る処理。</param>
+    /// <param name="warn">保存できたあと、食い違いを確かめるきっかけ (知らせない更新は null)。</param>
     /// <returns>更新の完了を表すタスク</returns>
     private async Task UpdateItemAsync(WorkItemRow row, Func<WorkItem, WorkItem> change, WorkWarningTrigger? warn = null)
     {
@@ -1153,7 +1243,10 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>保存の結果に合わせて、エラーを消すか、入力を受け入れずに戻す</summary>
     /// <param name="row">行</param>
-    /// <param name="error">入力の誤りのメッセージ。保存できたときは null</param>
+    /// <param name="error">
+    /// 入力の誤りのメッセージ
+    /// 保存できたときは null
+    /// </param>
     /// <returns>保存できたとき true</returns>
     private bool AcceptOrReject(WorkItemRow row, string? error)
     {
@@ -1167,9 +1260,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return false;
     }
 
-    /// <summary>保存した作業に、入力したきっかけの食い違いがあれば、入力したセルの下に知らせてほしいと伝える</summary>
+    /// <summary>保存した作業に入力したきっかけの食い違いがあれば、入力したセルの下に知らせてほしいと伝える</summary>
     /// <param name="row">行 (作業)</param>
-    /// <param name="trigger">確定した入力 (吹き出しは、その入力のセルの下に出す)</param>
+    /// <param name="trigger">確定した入力 (吹き出しはその入力のセルの下に出す)</param>
     private void Warn(WorkItemRow row, WorkWarningTrigger trigger)
     {
         if (_service.GetItem(row.Id) is { } item && WorkItemWarnings.Check(item, _service.Codes, trigger, InputDate) is { } message)
@@ -1194,7 +1287,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         row.Revert();
     }
 
-    /// <summary>入力日を変えたあと、その日の記録を読み直す</summary>
+    /// <summary>入力日を変えたあとその日の記録を読み直す</summary>
     /// <param name="day">新しい入力日</param>
     /// <returns>読み込みの完了を表すタスク</returns>
     private async Task ChangeDayAsync(DateOnly day)
@@ -1220,11 +1313,14 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
 
     /// <summary>案件マスターが空かを確かめる</summary>
     /// <returns>確認の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">読み込みに失敗した。</exception>
+    /// <exception cref="DataFileException">読み込みに失敗した</exception>
     private async Task RefreshMasterAsync() => _masterEmpty = (await _service.SearchProjectsAsync("", false, false, false, 0, 1)).Count == 0;
 
-    /// <summary>木構造から、見えている行の一覧を作り直す</summary>
-    /// <remarks>同じ行は使い回して値だけを書き換え、行の増減・並びの変更は、差分だけを一覧に反映する。入力欄の位置とフォーカスを保つため。</remarks>
+    /// <summary>木構造から見えている行の一覧を作り直す</summary>
+    /// <remarks>
+    /// 同じ行は使い回して値だけを書き換え、行の増減・並びの変更は差分だけを一覧に反映する。
+    /// 入力欄の位置とフォーカスを保つため。
+    /// </remarks>
     private void Rebuild()
     {
         if (!ReferenceEquals(_choices.Book, _service.Codes))
@@ -1257,7 +1353,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         AfterRowsChanged();
     }
 
-    /// <summary>行の一覧が変わったあとの後始末 (行が無いときの案内・選んだ行・列の幅)</summary>
+    /// <summary>行の一覧が変わったあとの後始末</summary>
     private void AfterRowsChanged()
     {
         IsEmpty = Rows.Count == 0;
@@ -1270,8 +1366,11 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         RowsRebuilt?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>入力日の実績の合計を、サービスの内容から作り直す</summary>
-    /// <remarks>表の行ではなく記録から数えるので、「過去の完了」で隠した作業も数える。「自分の担当だけ」には従う。</remarks>
+    /// <summary>入力日の実績の合計をサービスの内容から作り直す</summary>
+    /// <remarks>
+    /// 表の行ではなく記録から数えるので、「過去の完了」で隠した作業も数える。
+    /// 「自分の担当だけ」には従う。
+    /// </remarks>
     private void UpdateDayTotals()
     {
         var total = _service.BuildDayTotal(MineOnly);
@@ -1279,11 +1378,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         _ = UpdateDayWorkSpanAsync();
     }
 
-    /// <summary>入力日の勤務の時間帯を、保存先から読んだ、自分の担当の全案件の工数の合計から作り直す</summary>
+    /// <summary>入力日の勤務の時間帯を保存先から読んだ、自分の担当の全案件の工数の合計から作り直す</summary>
     /// <returns>更新の完了を表すタスク</returns>
     /// <remarks>
-    /// 実績の合計 (表示の設定に従う)とは別に読む。「9 時から働いて何時まで」は自分 1 人の時間で、表示の設定で変わってはいけないため。
-    /// 続けて呼ばれたときは、最後の呼び出しの結果だけを反映する。
+    /// 実績の合計 (表示の設定に従う)とは別に読む。
+    /// 「9 時から働いて何時まで」は自分 1 人の時間で、表示の設定で変わってはいけないため。
+    /// 続けて呼ばれたときは最後の呼び出しの結果だけを反映する。
     /// </remarks>
     private async Task UpdateDayWorkSpanAsync()
     {
@@ -1306,12 +1406,15 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>日付を、曜日つきの表示にする</summary>
+    /// <summary>日付を曜日つきの表示にする</summary>
     /// <param name="date">日付</param>
-    /// <returns>2026/10/13 (火) の形。曜日は PC の言語に依らず日本語</returns>
+    /// <returns>
+    /// 2026/10/13 (火) の形
+    /// 曜日は PC の言語に依らず日本語
+    /// </returns>
     private static string FormatDay(DateOnly date) => date.ToString("yyyy/MM/dd (ddd)", CultureInfo.GetCultureInfo("ja-JP"));
 
-    /// <summary>完了して日がたった (完了日が入力日より前の)ものか</summary>
+    /// <summary>完了して日がたったものか</summary>
     /// <param name="node">木の行</param>
     /// <returns>そうなら true</returns>
     private bool IsPastFinished(WorkNode node)
@@ -1320,7 +1423,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
     /// <summary>行が開いているか</summary>
     /// <param name="node">木の行</param>
     /// <returns>開いていれば true</returns>
-    /// <remarks>中身がすべて完了して日がたったグループは、既定で畳む。利用者が開いたら開く。作業が 1 件も無いグループ (空)が下にあるときは畳まない。消えたように見えないため。</remarks>
+    /// <remarks>
+    /// 中身がすべて完了して日がたったグループは既定で畳む
+    /// 利用者が開いたら開く
+    /// 作業が 1 件も無いグループ (空)が下にあるときは畳まない
+    /// 消えたように見えないため
+    /// </remarks>
     private bool IsExpanded(WorkNode node)
     {
         var collapsedByDefault = node.Key.Kind == WorkRowKind.Group && IsPastFinished(node)
@@ -1328,7 +1436,7 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return _expanded.Contains(node.Key) || (!_collapsed.Contains(node.Key) && !collapsedByDefault);
     }
 
-    /// <summary>木の行から、表の行を使い回しで作り、見えている行を、木の順に並べる</summary>
+    /// <summary>木の行から、表の行を使い回しで作り、見えている行を木の順に並べる</summary>
     /// <param name="node">木の行</param>
     /// <param name="level">字下げの段</param>
     /// <param name="target">見えている行の並び (ここに足す)</param>
@@ -1372,12 +1480,15 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>サービスの内容が変わったときに、表を更新する (表示する案件の変更は、その案件の行だけで応える)</summary>
+    /// <summary>サービスの内容が変わったときに表を更新する</summary>
     /// <param name="args">変更の内容</param>
     /// <remarks>
-    /// ページを開いていない間は、作らない。開くたびに、読み直して作るため。スケジュールでの付け外しのたびに、見えていない表を作り直さないため。
-    /// 案件の中身は、ほかの案件に依存しないので、外した案件は行のかたまりを抜くだけ、加えた案件はその案件の分だけ作って、名前の順の位置へ差し込む。
-    /// 外した案件のうち、閉じていて表に出ていなかった行は、次に全体を作り直すときに、使い回しの置き場から外れる。
+    /// 表示する案件の変更はその案件の行だけで応える。
+    /// ページを開いていない間は作らない。
+    /// 開くたびに読み直して作るため。
+    /// スケジュールでの付け外しのたびに見えていない表を作り直さないため。
+    /// 案件の中身はほかの案件に依存しないので、外した案件は行のかたまりを抜くだけ、加えた案件はその案件の分だけ作って、名前の順の位置へ差し込む。
+    /// 外した案件のうち、閉じていて表に出ていなかった行は次に全体を作り直すときに、使い回しの置き場から外れる。
     /// </remarks>
     private void OnServiceChanged(WorkChangedEventArgs args)
     {
@@ -1398,9 +1509,9 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>外した案件の行のかたまりを、表から抜く</summary>
+    /// <summary>外した案件の行のかたまりを表から抜く</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <returns>反映できたら true (表に出ていない案件は、反映できなかったことにして、全体を作り直す)</returns>
+    /// <returns>反映できたら true (表に出ていない案件は反映できなかったことにして、全体を作り直す)。</returns>
     private bool RemoveProjectRows(int projectId)
     {
         if (ProjectBlockRows.Remove(Rows, projectId) is not { } removed)
@@ -1434,10 +1545,13 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>移動先の選択肢に、グループを木の順に足す</summary>
+    /// <summary>移動先の選択肢にグループを木の順に足す</summary>
     /// <param name="nodes">並べる行</param>
     /// <param name="projectId">案件の番号</param>
-    /// <param name="excluded">選択肢に出さない行で、移す行。その中も出さない</param>
+    /// <param name="excluded">
+    /// 選択肢に出さない行で、移す行。
+    /// その中も出さない。
+    /// </param>
     /// <param name="level">字下げの段</param>
     /// <param name="destinations">足し先</param>
     private static void AddDestinations(IReadOnlyList<WorkNode> nodes, int projectId, WorkKey excluded, int level, List<MoveDestination> destinations)
@@ -1449,9 +1563,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>入力された文字を、日付にする</summary>
-    /// <param name="text">入力された文字 (空は、日付なし)</param>
-    /// <param name="date">日付。空なら null</param>
+    /// <summary>入力された文字を日付にする</summary>
+    /// <param name="text">入力された文字 (空は日付なし)</param>
+    /// <param name="date">
+    /// 日付
+    /// 空なら null
+    /// </param>
     /// <returns>読めたとき (空も含む) true</returns>
     private static bool TryParseDate(string text, out DateOnly? date)
     {
@@ -1468,9 +1585,12 @@ public sealed partial class WorkItemViewModel : ObservableObject, IDisposable
         return false;
     }
 
-    /// <summary>入力された文字を、時間にする</summary>
-    /// <param name="text">入力された文字 (空は、時間なし)</param>
-    /// <param name="hours">時間。空なら null</param>
+    /// <summary>入力された文字を時間にする</summary>
+    /// <param name="text">入力された文字 (空は時間なし)</param>
+    /// <param name="hours">
+    /// 時間
+    /// 空なら null
+    /// </param>
     /// <returns>読めたとき (空も含む) true</returns>
     private static bool TryParseHours(string text, out double? hours)
     {

@@ -7,13 +7,16 @@ using MmmTool.Backlog.Settings;
 
 namespace MmmTool.Backlog;
 
-/// <summary>Backlog 連携の入口 (ページ・通信・設定の部品を登録する)</summary>
+/// <summary>Backlog 連携の入口</summary>
+/// <remarks>ページ・通信・設定の部品を登録する</remarks>
 public sealed class BacklogPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
     /// <remarks>
-    /// 保存するデータは、連携用パスの URL (設定ストア)と API キー (秘密の保管庫)だけ。専用のファイルは作らない。
-    /// 設定ページでオン・オフできる。オフの間は、サイドバーにも設定ページにも出さない。
+    /// 保存するデータは連携用パスの URL (設定ストア)と API キー (秘密の保管庫)だけ
+    /// 専用のファイルは作らない
+    /// 設定ページでオン・オフできる
+    /// オフの間はサイドバーにも設定ページにも出さない
     /// </remarks>
     public void Register(IServiceCollection services)
     {

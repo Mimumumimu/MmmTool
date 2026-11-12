@@ -1,11 +1,9 @@
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// ノートの入力内容で、新規の登録・編集で保存する値。
-/// </summary>
+/// <summary>ノートの入力内容で新規の登録・編集で保存する値</summary>
 /// <remarks>
-/// 期間・実施日・ほかの実施日の組み合わせは、<see cref="Validate"/> が調べる。
-/// ほかの実施日は、<c>NoteAttribute</c> 表に、1 日ごとに 1 行で保存する。
+/// 期間・実施日・ほかの実施日の組み合わせは <see cref="Validate"/> が調べる。
+/// ほかの実施日は <c>NoteAttribute</c> 表に、1 日ごとに 1 行で保存する。
 /// </remarks>
 public sealed record NoteInput
 {
@@ -24,31 +22,42 @@ public sealed record NoteInput
     /// <summary>開始日</summary>
     public DateOnly StartDate { get; init; }
 
-    /// <summary>終了日で、含む。無期限は <see cref="DateOnly.MaxValue"/></summary>
+    /// <summary>終了日で、含む</summary>
+    /// <remarks>無期限は DateOnly.MaxValue</remarks>
     public DateOnly EndDate { get; init; } = DateOnly.MaxValue;
 
-    /// <summary>実施日。未設定は <see cref="DateOnly.MaxValue"/></summary>
+    /// <summary>実施日</summary>
+    /// <remarks>未設定は DateOnly.MaxValue</remarks>
     public DateOnly EventDate { get; init; } = DateOnly.MaxValue;
 
-    /// <summary>ほかの実施日。実施日と同じ日・同じ日の重なりは入れられない。並びは問わない (保存するときに日付の順にする)</summary>
+    /// <summary>ほかの実施日</summary>
+    /// <remarks>
+    /// 保存するときに日付の順にする
+    /// 実施日と同じ日・同じ日の重なりは入れられない
+    /// 並びは問わない
+    /// </remarks>
     public IReadOnlyList<DateOnly> OtherEventDates { get; init; } = [];
 
     /// <summary>実施日が設定されているか</summary>
     public bool HasEventDate => EventDate != DateOnly.MaxValue;
 
-    /// <summary>実施日が、開始日から終了日の外にあるか (未設定は、外ではない)</summary>
+    /// <summary>実施日が開始日から終了日の外にあるか</summary>
+    /// <remarks>未設定は外ではない</remarks>
     public bool IsEventDateOutOfPeriod => HasEventDate && (EventDate < StartDate || EventDate > EndDate);
 
-    /// <summary>ほかの実施日のうち、開始日から終了日の外にあるものがあるか</summary>
+    /// <summary>ほかの実施日のうち開始日から終了日の外にあるものがあるか</summary>
     public bool IsOtherEventDateOutOfPeriod => OtherEventDates.Any(IsOutOfPeriod);
 
-    /// <summary>指定の日が、開始日から終了日の外にあるか</summary>
+    /// <summary>指定の日が開始日から終了日の外にあるか</summary>
     /// <param name="day">調べる日</param>
     /// <returns>外なら true</returns>
     public bool IsOutOfPeriod(DateOnly day) => day < StartDate || day > EndDate;
 
     /// <summary>保存できる内容かを調べる</summary>
-    /// <returns>保存できるなら null。できないときは、画面に出せる理由</returns>
+    /// <returns>
+    /// 保存できるなら null
+    /// できないときは画面に出せる理由
+    /// </returns>
     public string? Validate()
     {
         var title = Title.Trim();
@@ -92,6 +101,6 @@ public sealed record NoteInput
     }
 
     /// <summary>前後の空白を取り除き、ほかの実施日を日付の順にした、保存する内容にする</summary>
-    /// <returns>タイトルの前後の空白を取り除いた内容 (本文は、書いたとおりのまま)</returns>
+    /// <returns>タイトルの前後の空白を取り除いた内容 (本文は書いたとおりのまま)</returns>
     public NoteInput Trimmed() => this with { Title = Title.Trim(), OtherEventDates = [.. OtherEventDates.Order()] };
 }

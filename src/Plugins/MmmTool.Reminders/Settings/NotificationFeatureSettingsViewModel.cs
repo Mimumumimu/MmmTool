@@ -6,19 +6,27 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Reminders.Settings;
 
-/// <summary>
-/// 設定ページの「通知を受け取る機能」の ViewModel。通知を出す機能を並べ、オン・オフを保存する。
-/// </summary>
-/// <param name="settings">通知を受け取るオン・オフを持つ機能。登録された分</param>
+/// <summary>設定ページの「通知を受け取る機能」の ViewModel</summary>
+/// <param name="settings">
+/// 通知を受け取るオン・オフを持つ機能
+/// 登録された分
+/// </param>
 /// <param name="store">ユーザーごとの設定の保存先</param>
-/// <param name="access">機能の利用の控え。管理者が無効にした機能は並べない</param>
+/// <param name="access">
+/// 機能の利用の控え
+/// 管理者が無効にした機能は並べない
+/// </param>
 /// <remarks>
-/// リマインダーの機能は、メッセージやノートの名前を持たない。登録された設定を、並べるだけ。
-/// 切り替えた操作の直後に保存する。保存に失敗したときは、エラーを出して、保存済みの値に戻す。
+/// 通知を出す機能を並べ、オン・オフを保存する。
+/// リマインダーの機能はメッセージやノートの名前を持たない。
+/// 登録された設定を並べるだけ。
+/// 切り替えた操作の直後に保存する。
+/// 保存に失敗したときはエラーを出して、保存済みの値に戻す。
 /// </remarks>
 public sealed class NotificationFeatureSettingsViewModel(IEnumerable<INotificationFeatureSetting> settings, IAppUserSettingRepository store, FeatureAccessCache access)
 {
-    /// <summary>DB モード (サーバーモード)か。false のときは、部品を出さない</summary>
+    /// <summary>DB モードか</summary>
+    /// <remarks>false のときは部品を出さない</remarks>
     public bool IsAvailable { get; } = store.IsAvailable;
 
     /// <summary>並べる機能</summary>
@@ -27,7 +35,7 @@ public sealed class NotificationFeatureSettingsViewModel(IEnumerable<INotificati
     /// <summary>読み込み・保存のエラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>機能と、保存済みのオン・オフを読む</summary>
+    /// <summary>機能と保存済みのオン・オフを読む</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
     public async Task InitializeAsync()
     {

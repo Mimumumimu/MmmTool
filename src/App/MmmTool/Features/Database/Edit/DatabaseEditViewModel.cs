@@ -8,12 +8,14 @@ using MmmTool.Shell;
 
 namespace MmmTool.Features.Database.Edit;
 
-/// <summary>
-/// 保存先 (ローカル / DB)と、DB への接続を編集する画面の ViewModel。
-/// </summary>
+/// <summary>保存先と DB への接続を編集する画面の ViewModel</summary>
 /// <remarks>
-/// 保存するのは「保存」を押したときだけ。DB のときは、「接続を確認」で、つながると確認できるまで、「保存」を押せない。保存先は起動時に決まって使い始めるので、保存先や接続が変わったときは、反映に再起動が要ることを確認して、
-/// 「今すぐ終了」ならアプリを終了する。起動し直すのは利用者。保存できたら <see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
+/// 保存するのは「保存」を押したときだけ。
+/// DB のときは「接続を確認」でつながると確認できるまで、「保存」を押せない。
+/// 保存先は起動時に決まって使い始めるので、保存先や接続が変わったときは反映に再起動が要ることを確認して、
+/// 「今すぐ終了」ならアプリを終了する。
+/// 起動し直すのは利用者。
+/// 保存できたら <see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
 /// </remarks>
 public sealed partial class DatabaseEditViewModel : ObservableObject
 {
@@ -45,13 +47,15 @@ public sealed partial class DatabaseEditViewModel : ObservableObject
     /// <summary>画面を閉じてよい</summary>
     public event EventHandler? CloseRequested;
 
-    /// <summary>接続の入力欄 (保存先が DB のときに出す)</summary>
+    /// <summary>接続の入力欄</summary>
+    /// <remarks>保存先が DB のときに出す</remarks>
     public DatabaseConnectionViewModel Connection { get; }
 
-    /// <summary>設定を変更できるか (設定ファイルを読めなかったときは、上書きして消さないよう、変更させない)</summary>
+    /// <summary>設定を変更できるか</summary>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、変更させない。</remarks>
     public bool IsEditable { get; }
 
-    /// <summary>DB を選んでいるか (オフならローカル)</summary>
+    /// <summary>DB を選んでいるか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLocal), nameof(NeedsVerification))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
@@ -60,17 +64,19 @@ public sealed partial class DatabaseEditViewModel : ObservableObject
     /// <summary>ローカルを選んでいるか</summary>
     public bool IsLocal => !IsSqlServer;
 
-    /// <summary>「接続を確認」が済んでいないため、「保存」を押せないか (DB を選んでいて、つながると確認できていない)</summary>
+    /// <summary>「接続を確認」が済んでいないため、「保存」を押せないか</summary>
+    /// <remarks>DB を選んでいて、つながると確認できていない。</remarks>
     public bool NeedsVerification => IsSqlServer && !Connection.IsVerified;
 
-    /// <summary>「保存」を押せるか (設定を変更でき、ローカルか、DB でつながると確認できている)</summary>
+    /// <summary>「保存」を押せるか</summary>
+    /// <remarks>設定を変更でき、ローカルか、DB でつながると確認できている。</remarks>
     private bool CanSave() => IsEditable && !NeedsVerification;
 
-    /// <summary>保存先と接続の設定を保存して、閉じる</summary>
+    /// <summary>保存先と接続の設定を保存して閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
     /// <remarks>
-    /// 保存できなかったとき (入力が足りない・設定ファイルを読めなかった)は、入力欄のエラーに出して閉じない。
-    /// 保存先に関わる設定が変わったときは、再起動が要ることを確認する。
+    /// 保存できなかったとき (入力が足りない・設定ファイルを読めなかった)は入力欄のエラーに出して閉じない
+    /// 保存先に関わる設定が変わったときは再起動が要ることを確認する
     /// </remarks>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
@@ -113,7 +119,7 @@ public sealed partial class DatabaseEditViewModel : ObservableObject
     /// <param name="before">保存前の設定</param>
     /// <param name="after">保存後の設定</param>
     /// <param name="passwordEntered">パスワードを入力して保存したか</param>
-    /// <returns>保存先の種類が変わった、または DB のまま接続が変わったなら true (ローカルのままなら、DB の入力欄の変更は影響しない)</returns>
+    /// <returns>保存先の種類が変わった、または DB のまま接続が変わったなら true (ローカルのままなら、DB の入力欄の変更は影響しない)。</returns>
     private static bool AffectsStorage(DatabaseSettings before, DatabaseSettings after, bool passwordEntered)
         => before.Mode != after.Mode || (after.Mode == DatabaseMode.SqlServer && (before != after || passwordEntered));
 }

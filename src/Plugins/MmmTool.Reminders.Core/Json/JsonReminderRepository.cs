@@ -5,11 +5,16 @@ namespace MmmTool.Reminders.Core.Json;
 /// <summary>リマインダーを JSON ファイルに保存する</summary>
 /// <param name="store">JSON ファイルの読み書き</param>
 /// <remarks>
-/// 本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する。汎用設定ストアとは別。
-/// 最初のアクセスで 1 度だけ読み込み、メモリに持つ。書き込みは、変更後のコピーをファイルに書き、成功してからメモリを差し替える。保存に失敗したとき、メモリだけが新しい状態にならないため。
-/// 番号は、ロックの中で「最大 + 1」を計算して決める。
-/// ファイルが無い・空・壊れているときは空の一覧として扱う。壊れていたファイルは退避して <see cref="RecoveryMessage"/> に残す。
-/// ロック・権限などで読めなかったときも空の一覧として扱うが、元のファイルを空で上書きしないよう、書き込みは止める。書こうとすると例外になる。
+/// 本体は <c>Reminders.json</c>、対応状態は <c>ReminderStates.json</c> に分けて保存する。
+/// 汎用設定ストアとは別。
+/// 最初のアクセスで 1 度だけ読み込み、メモリに持つ。
+/// 書き込みは変更後のコピーをファイルに書き、成功してからメモリを差し替える。
+/// 保存に失敗したとき、メモリだけが新しい状態にならないため。
+/// 番号はロックの中で「最大 + 1」を計算して決める。
+/// ファイルが無い・空・壊れているときは空の一覧として扱う。
+/// 壊れていたファイルは退避して <see cref="RecoveryMessage"/> に残す。
+/// ロック・権限などで読めなかったときも空の一覧として扱うが、元のファイルを空で上書きしないよう、書き込みは止める。
+/// 書こうとすると例外になる。
 /// </remarks>
 public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepository
 {
@@ -22,15 +27,22 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     /// <summary>読み書きを順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    /// <summary>読み込みの結果 (失敗したか・壊れたファイルを退避したか)</summary>
+    /// <summary>読み込みの結果</summary>
+    /// <remarks>失敗したか・壊れたファイルを退避したか</remarks>
     private readonly LoadStatus _status = new();
 
-    /// <summary>リマインダー本体の一覧で、論理削除済みも含む。読み込むまでは null</summary>
-    /// <remarks>書き換えず、保存に成功したときに、新しい一覧へ差し替える。</remarks>
+    /// <summary>リマインダー本体の一覧で、論理削除済みも含む</summary>
+    /// <remarks>
+    /// 読み込むまでは null。
+    /// 書き換えず、保存に成功したときに、新しい一覧へ差し替える。
+    /// </remarks>
     private List<Reminder>? _reminders;
 
-    /// <summary>対応状態の一覧。読み込むまでは null</summary>
-    /// <remarks>書き換えず、保存に成功したときに、新しい一覧へ差し替える。</remarks>
+    /// <summary>対応状態の一覧</summary>
+    /// <remarks>
+    /// 読み込むまでは null。
+    /// 書き換えず、保存に成功したときに、新しい一覧へ差し替える。
+    /// </remarks>
     private List<ReminderState>? _states;
 
     /// <inheritdoc />
@@ -44,7 +56,7 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     public int CurrentUserId => 0;
 
     /// <inheritdoc />
-    /// <remarks>JSON は、完全削除ができる。</remarks>
+    /// <remarks>JSON は完全削除ができる</remarks>
     public bool CanPurge => true;
 
     /// <inheritdoc />
@@ -221,8 +233,11 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     /// <param name="next">書き込む一覧</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>呼ぶ側は <c>_lock</c> を取っておくこと。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。このときメモリの一覧は変えない。</exception>
+    /// <remarks>呼ぶ側は <c>_lock</c> を取っておくこと</remarks>
+    /// <exception cref="DataFileException">
+    /// 保存に失敗した
+    /// このときメモリの一覧は変えない
+    /// </exception>
     private async Task SaveRemindersAsync(List<Reminder> next, CancellationToken cancellationToken)
     {
         await store.WriteAsync(RemindersFileName, new ReminderFile { Items = next }, ReminderJsonContext.Readable.ReminderFile, cancellationToken);
@@ -233,18 +248,24 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
     /// <param name="next">書き込む一覧</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>呼ぶ側は <c>_lock</c> を取っておくこと。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した。このときメモリの一覧は変えない。</exception>
+    /// <remarks>呼ぶ側は <c>_lock</c> を取っておくこと</remarks>
+    /// <exception cref="DataFileException">
+    /// 保存に失敗した
+    /// このときメモリの一覧は変えない
+    /// </exception>
     private async Task SaveStatesAsync(List<ReminderState> next, CancellationToken cancellationToken)
     {
         await store.WriteAsync(StatesFileName, new ReminderStateFile { Items = next }, ReminderJsonContext.Readable.ReminderStateFile, cancellationToken);
         _states = next;
     }
 
-    /// <summary>未読み込みなら読み込む。呼ぶ側は <c>_lock</c> を取っておくこと</summary>
+    /// <summary>未読み込みなら読み込む</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>メモリに持っているリマインダー本体と対応状態の一覧</returns>
-    /// <remarks>ファイルを読めなかったときは空の一覧として扱い、<see cref="LoadError"/> に残す。</remarks>
+    /// <remarks>
+    /// 呼ぶ側は _lock を取っておくこと。
+    /// ファイルを読めなかったときは空の一覧として扱い、<see cref="LoadError"/> に残す。
+    /// </remarks>
     private async Task<(List<Reminder> Reminders, List<ReminderState> States)> EnsureLoadedAsync(CancellationToken cancellationToken)
     {
         if (_reminders is not null && _states is not null)
@@ -289,8 +310,8 @@ public sealed class JsonReminderRepository(IJsonFileStore store) : IReminderRepo
         return (_reminders, _states);
     }
 
-    /// <summary>読み込みに失敗していたら、書き込ませずに例外にする</summary>
-    /// <exception cref="DataFileException">読み込みに失敗している。</exception>
+    /// <summary>読み込みに失敗していたら書き込ませずに例外にする</summary>
+    /// <exception cref="DataFileException">読み込みに失敗している</exception>
     private void ThrowIfLoadFailed()
         => _status.ThrowIfSaveBlocked("ファイルを読めなかったため、元のデータを消さないよう保存を止めています。アプリを再起動してください。");
 }

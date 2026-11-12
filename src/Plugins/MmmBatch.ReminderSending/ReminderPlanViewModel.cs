@@ -9,12 +9,13 @@ using MmmTool.Data.SqlServer.WinUI.Connection;
 
 namespace MmmBatch.ReminderSending;
 
-/// <summary>
-/// 今日の送信予定の画面。今日送るリマインダーを時刻順に並べ、状態を見せて、右クリックで「再送」「今すぐ送る」ができる。
-/// </summary>
+/// <summary>今日の送信予定の画面</summary>
 /// <remarks>
-/// 送信の状況が変わったとき、と、毎分の実行が終わったときに読み直す。リマインダー・送信設定の編集を、すぐ反映するため。
-/// 今日の分でないもの・削除したもの・送信先なしは出さない。保存した時点で時刻が過ぎていて、今日は送らないものは、「対象外 (過去)」で出す。
+/// 今日送るリマインダーを時刻順に並べ、状態を見せて、右クリックで「再送」「今すぐ送る」ができる。
+/// 送信の状況が変わったとき、と、毎分の実行が終わったときに読み直す。
+/// リマインダー・送信設定の編集をすぐ反映するため。
+/// 今日の分でないもの・削除したもの・送信先なしは出さない。
+/// 保存した時点で時刻が過ぎていて、今日は送らないものは「対象外 (過去)」で出す。
 /// </remarks>
 public sealed partial class ReminderPlanViewModel : SendViewModelBase
 {
@@ -36,10 +37,11 @@ public sealed partial class ReminderPlanViewModel : SendViewModelBase
         _time = time;
     }
 
-    /// <summary>一覧の行 (時刻順)</summary>
+    /// <summary>一覧の行</summary>
     public ObservableCollection<ReminderPlanItemViewModel> Items { get; } = [];
 
-    /// <summary>一覧が空か (読み込みが済んで、1 件も無い)</summary>
+    /// <summary>一覧が空か</summary>
+    /// <remarks>読み込みが済んで、1 件も無い。</remarks>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; }
 
@@ -87,10 +89,14 @@ public sealed partial class ReminderPlanViewModel : SendViewModelBase
         Error.Set(Job.LastError);
     }
 
-    /// <summary>今すぐ 1 回送る (送信済み・失敗の上限に達したものも送れる)</summary>
+    /// <summary>今すぐ 1 回送る</summary>
     /// <param name="item">送る行</param>
     /// <returns>送信と読み直しの完了を表すタスク</returns>
-    /// <remarks>送れなかったときは、その行が「失敗」になる。DB の失敗 (接続できない・表が無い)は、エラーに出す。</remarks>
+    /// <remarks>
+    /// 送信済み・失敗の上限に達したものも送れる
+    /// 送れなかったときはその行が「失敗」になる
+    /// DB の失敗 (接続できない・表が無い)はエラーに出す
+    /// </remarks>
     [RelayCommand]
     private async Task ResendAsync(ReminderPlanItemViewModel item)
     {

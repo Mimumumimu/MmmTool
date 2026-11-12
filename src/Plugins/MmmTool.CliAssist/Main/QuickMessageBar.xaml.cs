@@ -4,10 +4,10 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.CliAssist.Main;
 
-/// <summary>入力欄の中に並べる、よく使う文のチップの行</summary>
+/// <summary>入力欄の中に並べるよく使う文のチップの行</summary>
 /// <remarks>
 /// チップは幅に収まる分だけ並べ、収まらない分は右端の「⋯」の一覧に出す。
-/// グループのチップと、「⋯」の一覧の中のグループは、押すと中の文の一覧が開く。
+/// グループのチップと、「⋯」の一覧の中のグループは押すと中の文の一覧が開く。
 /// </remarks>
 public sealed partial class QuickMessageBar : UserControl
 {
@@ -28,7 +28,7 @@ public sealed partial class QuickMessageBar : UserControl
         ChipsLayout.OverflowChanged += (_, _) => DispatcherQueue.TryEnqueue(UpdateOverflowButton);
     }
 
-    /// <summary>文が選ばれた (チップ・グループの一覧・「⋯」の一覧のどれからでも)</summary>
+    /// <summary>文が選ばれた</summary>
     public event EventHandler<QuickMessageItem>? MessageChosen;
 
     /// <summary>並べる文とグループ</summary>
@@ -45,7 +45,7 @@ public sealed partial class QuickMessageBar : UserControl
         set => SetValue(EditCommandProperty, value);
     }
 
-    /// <summary>「⋯」を、隠したチップがあるときだけ出す</summary>
+    /// <summary>「⋯」を隠したチップがあるときだけ出す</summary>
     private void UpdateOverflowButton()
         => OverflowButton.Visibility = ChipsLayout.HasHidden ? Visibility.Visible : Visibility.Collapsed;
 
@@ -84,10 +84,10 @@ public sealed partial class QuickMessageBar : UserControl
         }
     }
 
-    /// <summary>一覧に、文とグループの項目を足す</summary>
+    /// <summary>一覧に文とグループの項目を足す</summary>
     /// <param name="target">足す先の一覧</param>
     /// <param name="items">足す文とグループ</param>
-    /// <remarks>グループは、中の文を持つサブメニューにする。</remarks>
+    /// <remarks>グループは中の文を持つサブメニューにする</remarks>
     private void AddMenuItems(IList<MenuFlyoutItemBase> target, IEnumerable<QuickMessageItem> items)
     {
         foreach (var item in items)

@@ -6,14 +6,17 @@ using MmmSdk.Core.Components.Storage;
 
 namespace MmmBatch.Sending.Core;
 
-/// <summary>
-/// 送信のログを、ローカルのファイルに書く。1 日 1 ファイルで、1 行 1 件の JSON Lines。
-/// </summary>
+/// <summary>送信のログをローカルのファイルに書く</summary>
 /// <param name="directory">ログを置くフォルダー (<c>Data/Logs</c>)</param>
 /// <remarks>
-/// ファイル名は <c>send_yyyy-MM-dd.jsonl</c> で、送った日のローカルの日付。エラーのログ <c>yyyy-MM-dd.log</c> とは、名前が重ならない。
-/// ログは永遠に残す。今日から 30 日以上前の日のファイルは、<see cref="MoveOldFiles"/> が <c>old</c> フォルダーへ移す。
-/// アプリは、ログを書くだけで読まない。何かあったときに、人がファイルを読む。このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログは、そのコンピューターのファイルにある。
+/// 1 日 1 ファイルで、1 行 1 件の JSON Lines。
+/// ファイル名は <c>send_yyyy-MM-dd.jsonl</c> で、送った日のローカルの日付。
+/// エラーのログ <c>yyyy-MM-dd.log</c> とは名前が重ならない。
+/// ログは永遠に残す。
+/// 今日から 30 日以上前の日のファイルは <see cref="MoveOldFiles"/> が <c>old</c> フォルダーへ移す。
+/// アプリはログを書くだけで読まない。
+/// 何かあったときに人がファイルを読む。
+/// このコンピューターの中だけのログで、別のコンピューターで動かした MmmBatch のログはそのコンピューターのファイルにある。
 /// </remarks>
 public sealed class FileSendLog(string directory) : ISendLog
 {
@@ -26,14 +29,18 @@ public sealed class FileSendLog(string directory) : ISendLog
     /// <summary>ファイルを移すフォルダー名</summary>
     private const string OldFolderName = "old";
 
-    /// <summary>ファイルを残す日数で、今日を含む。これより古い日のファイルは <c>old</c> へ移す</summary>
+    /// <summary>ファイルを残す日数で、今日を含む</summary>
+    /// <remarks>これより古い日のファイルは old へ移す</remarks>
     public const int KeepDays = 30;
 
     /// <summary>書き込みを 1 つずつにするロック</summary>
     private readonly Lock _gate = new();
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ファイルに書けなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ファイルに書けなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task AppendAsync(SendLogEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -56,7 +63,10 @@ public sealed class FileSendLog(string directory) : ISendLog
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ファイルを移せなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ファイルを移せなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public int MoveOldFiles(DateOnly today)
     {
         var moved = 0;
@@ -93,15 +103,18 @@ public sealed class FileSendLog(string directory) : ISendLog
         return moved;
     }
 
-    /// <summary>日付から、ログのファイルのパスを作る</summary>
+    /// <summary>日付からログのファイルのパスを作る</summary>
     /// <param name="date">日付</param>
     /// <returns>ログのファイルのパス</returns>
     private string PathFor(DateOnly date)
         => Path.Combine(directory, FilePrefix + date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + FileExtension);
 
-    /// <summary>ログのファイルの名前から、日付を取り出す</summary>
+    /// <summary>ログのファイルの名前から日付を取り出す</summary>
     /// <param name="path">ログのファイルのパス</param>
-    /// <returns>日付。名前の形が違えば null</returns>
+    /// <returns>
+    /// 日付
+    /// 名前の形が違えば null
+    /// </returns>
     private static DateOnly? DateOf(string path)
     {
         var name = Path.GetFileNameWithoutExtension(path);
@@ -112,7 +125,8 @@ public sealed class FileSendLog(string directory) : ISendLog
     }
 }
 
-/// <summary>送信のログの JSON のソース生成 (リフレクションを使わない)</summary>
+/// <summary>送信のログの JSON のソース生成</summary>
+/// <remarks>リフレクションを使わない</remarks>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, Converters = [typeof(JsonStringEnumConverter<SendStatus>), typeof(JsonStringEnumConverter<MmmTool.NotificationChannels.Core.NotificationChannelKind>)])]
 [JsonSerializable(typeof(SendLogEntry))]
 internal sealed partial class SendLogJsonContext : JsonSerializerContext;

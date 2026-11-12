@@ -1,20 +1,24 @@
 namespace MmmTool.Backlog.Core;
 
-/// <summary>
-/// Backlog のファイル画面の URL を、場所 (<see cref="BacklogLocation"/>)に分ける。
-/// </summary>
+/// <summary>Backlog のファイル画面の URL を場所に分ける</summary>
 /// <remarks>
+/// <see cref="BacklogLocation"/>。
 /// URL の形は <c>https://{domain}/file/{projectKey}/{エンコード済みフォルダーパス}</c>。
-/// API キーを送る先なので、Backlog のドメイン以外は受け付けない。違う URL を貼ったときに、キーを別のサーバーへ送らないため。
+/// API キーを送る先なので、Backlog のドメイン以外は受け付けない。
+/// 違う URL を貼ったときにキーを別のサーバーへ送らないため。
 /// </remarks>
 public static class BacklogLocationParser
 {
-    /// <summary>Backlog のドメイン (これらのサブドメインだけを受け付ける)</summary>
+    /// <summary>Backlog のドメイン</summary>
+    /// <remarks>これらのサブドメインだけを受け付ける</remarks>
     private static readonly string[] BacklogDomains = ["backlog.jp", "backlog.com", "backlogtool.com"];
 
     /// <summary>URL を場所に分ける</summary>
     /// <param name="url">入力された URL</param>
-    /// <returns>分けた場所。URL が正しくないときは、理由 (画面に出す文)</returns>
+    /// <returns>
+    /// 分けた場所
+    /// URL が正しくないときは理由 (画面に出す文)
+    /// </returns>
     public static BacklogLocationResult Parse(string url)
     {
         if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))

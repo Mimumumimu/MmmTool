@@ -1,8 +1,6 @@
 namespace MmmTool.Users.Core;
 
-/// <summary>
-/// 登録しようとしたログイン名が、すでに使われている。
-/// </summary>
+/// <summary>登録しようとしたログイン名がすでに使われている</summary>
 /// <remarks>利用者が別のログイン名に直せる、予測できる失敗で、バグではない。</remarks>
 public sealed class LoginNameTakenException : Exception
 {
@@ -12,7 +10,7 @@ public sealed class LoginNameTakenException : Exception
     }
 
     /// <summary>内側の例外つきで例外を作る</summary>
-    /// <param name="innerException">原因の例外 (保存先が出した、重複のエラー)</param>
+    /// <param name="innerException">原因の例外 (保存先が出した、重複のエラー)。</param>
     public LoginNameTakenException(Exception innerException)
         : base("ログイン名はすでに使われています。", innerException)
     {

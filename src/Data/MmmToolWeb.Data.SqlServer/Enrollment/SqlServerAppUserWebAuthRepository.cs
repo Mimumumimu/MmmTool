@@ -6,24 +6,28 @@ using MmmToolWeb.Auth.Core.Enrollment;
 
 namespace MmmToolWeb.Data.SqlServer.Enrollment;
 
-/// <summary>
-/// Web 版の認証の状態 (登録用コード)を、SQL Server の <c>dbo.AppUserWebAuth</c> に保存する。
-/// </summary>
+/// <summary>Web 版の認証の状態を SQL Server の dbo.AppUserWebAuth に保存する</summary>
 /// <remarks>
-/// 1 人に 1 行で、行が無い人は、コードを出すときに作る。コードの期限と更新日時は、DB サーバーの時計で書く・比べる。
-/// 作成者・更新者は、コードを出した管理者のユーザーの番号を持てないので 0 になる。この操作はユーザーのログインではなく、サーバーの PC での操作のため。
+/// 1 人に 1 行で、行が無い人はコードを出すときに作る。
+/// コードの期限と更新日時は DB サーバーの時計で書く・比べる。
+/// 作成者・更新者はコードを出した管理者のユーザーの番号を持てないので 0 になる。
+/// この操作はユーザーのログインではなく、サーバーの PC での操作のため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database) : IAppUserWebAuthRepository
 {
-    /// <summary>重複したキー (一意インデックス)のエラー番号</summary>
+    /// <summary>重複したキーのエラー番号</summary>
     private static readonly int[] DuplicateKeyErrors = [2601, 2627];
 
-    /// <summary>行が無い人のログインの世代の番号。列の既定値と同じ</summary>
+    /// <summary>行が無い人のログインの世代の番号</summary>
+    /// <remarks>列の既定値と同じ</remarks>
     private const int DefaultSessionVersion = 1;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     /// <exception cref="InvalidOperationException">別の操作と重なって、2 回続けて保存できなかった。</exception>
     public Task<DateTimeOffset> SetEnrollmentCodeAsync(int appUserId, string codeHash, TimeSpan lifetime, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
@@ -42,7 +46,10 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<int?> FindUserByEnrollmentCodeAsync(string codeHash, CancellationToken cancellationToken)
         => database.RunAsync<int?>(async connection =>
         {
@@ -57,7 +64,10 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<int?> ConsumeEnrollmentCodeAsync(string codeHash, CancellationToken cancellationToken)
         => database.RunAsync<int?>(async connection =>
         {
@@ -75,7 +85,10 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<int> GetSessionVersionAsync(int appUserId, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
         {
@@ -86,7 +99,10 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     /// <exception cref="InvalidOperationException">別の操作と重なって、2 回続けて保存できなかった。</exception>
     public Task<int> IncrementSessionVersionAsync(int appUserId, CancellationToken cancellationToken)
         => database.RunAsync(async connection =>
@@ -132,13 +148,16 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
             throw new InvalidOperationException("ログインの世代の番号を上げられませんでした。もう一度実行してください。");
         }, cancellationToken);
 
-    /// <summary>その人の行があれば、コードを入れ替える</summary>
+    /// <summary>その人の行があればコードを入れ替える</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="appUserId">コードを出す人のユーザーの番号</param>
     /// <param name="codeHash">コードのハッシュ</param>
     /// <param name="lifetime">今から有効な時間</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>入れ替えたときの期限。行が無ければ null</returns>
+    /// <returns>
+    /// 入れ替えたときの期限
+    /// 行が無ければ null
+    /// </returns>
     private static async Task<DateTimeOffset?> TryUpdateAsync(
         SqlConnection connection, int appUserId, string codeHash, TimeSpan lifetime, CancellationToken cancellationToken)
     {
@@ -155,13 +174,16 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as DateTimeOffset?;
     }
 
-    /// <summary>その人の行を、コードつきで作る</summary>
+    /// <summary>その人の行をコードつきで作る</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="appUserId">コードを出す人のユーザーの番号</param>
     /// <param name="codeHash">コードのハッシュ</param>
     /// <param name="lifetime">今から有効な時間</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>作ったときの期限。同時に別の操作が先に行を作ったときは null</returns>
+    /// <returns>
+    /// 作ったときの期限
+    /// 同時に別の操作が先に行を作ったときは null
+    /// </returns>
     private static async Task<DateTimeOffset?> TryInsertAsync(
         SqlConnection connection, int appUserId, string codeHash, TimeSpan lifetime, CancellationToken cancellationToken)
     {
@@ -183,7 +205,7 @@ public sealed class SqlServerAppUserWebAuthRepository(SqlServerDatabase database
         }
     }
 
-    /// <summary>コードを入れる SQL の値を、コマンドに足す</summary>
+    /// <summary>コードを入れる SQL の値をコマンドに足す</summary>
     /// <param name="command">足し先のコマンド</param>
     /// <param name="appUserId">コードを出す人のユーザーの番号</param>
     /// <param name="codeHash">コードのハッシュ</param>

@@ -5,20 +5,20 @@ using MmmToolWeb.Server.Hosting;
 
 namespace MmmToolWeb.Server.Commands;
 
-/// <summary>
-/// サーバーの PC で行う、登録用コードの発行で、コマンドは <c>issue-code ログイン名</c>。その人の端末でパスキーを作るときに入力するコードを出す。
-/// </summary>
+/// <summary>サーバーの PC で行う、登録用コードの発行で、コマンドは issue-code ログイン名</summary>
+/// <remarks>その人の端末でパスキーを作るときに入力するコードを出す</remarks>
 internal static class IssueEnrollmentCodeCommand
 {
-    /// <summary>コマンドの名前。</summary>
+    /// <summary>コマンドの名前</summary>
     public const string Name = "issue-code";
 
-    /// <summary>
-    /// コードを発行して、画面に出す。
-    /// </summary>
-    /// <param name="services">サービスの入口。</param>
-    /// <param name="loginName">コードを出す人のログイン名。</param>
-    /// <returns>終了コード。発行したら 0、できなかったら 1。</returns>
+    /// <summary>コードを発行して画面に出す</summary>
+    /// <param name="services">サービスの入口</param>
+    /// <param name="loginName">コードを出す人のログイン名</param>
+    /// <returns>
+    /// 終了コード。
+    /// 発行したら 0、できなかったら 1。
+    /// </returns>
     public static async Task<int> RunAsync(IServiceProvider services, string loginName)
     {
         try

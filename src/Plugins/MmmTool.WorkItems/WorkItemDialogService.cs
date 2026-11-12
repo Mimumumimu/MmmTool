@@ -11,8 +11,12 @@ namespace MmmTool.WorkItems;
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
 /// <remarks>
-/// ダイアログは開くたびに DI から作る。UI スレッドから呼ぶ。案件の管理のウィンドウ (と ViewModel)は、開くたびに作るスコープから解決し、
-/// 作業報告のウィンドウも同じ。閉じたらスコープごと破棄する。ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため。
+/// ダイアログは開くたびに DI から作る。
+/// UI スレッドから呼ぶ。
+/// 案件の管理のウィンドウ (と ViewModel)は開くたびに作るスコープから解決し、
+/// 作業報告のウィンドウも同じ。
+/// 閉じたらスコープごと破棄する。
+/// ルートから解決した <see cref="IDisposable"/> の Transient はアプリの終了まで DI コンテナが保持し続けるため。
 /// </remarks>
 public sealed class WorkItemDialogService(IServiceProvider services, IServiceScopeFactory scopeFactory, IDialogHost dialogs) : IWorkItemDialogService
 {

@@ -4,17 +4,20 @@ using MmmTool.Reminders.Core;
 
 namespace MmmTool.Reminders.Main;
 
-/// <summary>リマインダーのメイン画面の行 (今日の対象 1 件)</summary>
+/// <summary>リマインダーのメイン画面の行</summary>
 /// <remarks>
-/// 行は参照番号 (<see cref="No"/>)で同定し、読み直しでは作り直さずに <see cref="Apply"/> で中身を差し替える。ちらつき・スクロール位置のリセットを防ぐため。
-/// ユーザーが状態を切り替えたときだけ、作るときに渡した処理で保存する。読み直しによる反映では保存しない。
+/// 行は参照番号 (<see cref="No"/>)で同定し、読み直しでは作り直さずに <see cref="Apply"/> で中身を差し替える。
+/// ちらつき・スクロール位置のリセットを防ぐため。
+/// ユーザーが状態を切り替えたときだけ、作るときに渡した処理で保存する。
+/// 読み直しによる反映では保存しない。
 /// </remarks>
 public sealed partial class ReminderTodayItem : ObservableObject
 {
     /// <summary>ユーザーが状態を切り替えたときの処理</summary>
     private readonly Func<ReminderTodayItem, ReminderStatus, Task> _statusChanged;
 
-    /// <summary>読み直した内容を反映している最中か (このときは保存しない)</summary>
+    /// <summary>読み直した内容を反映している最中か</summary>
+    /// <remarks>このときは保存しない</remarks>
     private bool _applying;
 
     /// <summary>行を作る</summary>
@@ -28,7 +31,8 @@ public sealed partial class ReminderTodayItem : ObservableObject
         Status = status;
     }
 
-    /// <summary>参照番号 (行の同定に使う)</summary>
+    /// <summary>参照番号</summary>
+    /// <remarks>行の同定に使う</remarks>
     public int No => Source.No;
 
     /// <summary>元のリマインダー</summary>
@@ -41,14 +45,18 @@ public sealed partial class ReminderTodayItem : ObservableObject
     [NotifyPropertyChangedFor(nameof(StatusIndex), nameof(IsDone))]
     public partial ReminderStatus Status { get; private set; }
 
-    /// <summary>時刻 (HH:mm)</summary>
+    /// <summary>時刻</summary>
+    /// <remarks>HH:mm</remarks>
     public string TimeText => ReminderDates.ToTime(Source.Time)?.ToString("HH:mm") ?? "";
 
     /// <summary>件名</summary>
     public string Title => Source.Title;
 
     /// <summary>備考</summary>
-    /// <remarks>前後の空白を除く。備考が無ければ空文字列。</remarks>
+    /// <remarks>
+    /// 前後の空白を除く
+    /// 備考が無ければ空文字列
+    /// </remarks>
     public string Note => Source.Note?.Trim() ?? "";
 
     /// <summary>備考があるか</summary>
@@ -60,8 +68,11 @@ public sealed partial class ReminderTodayItem : ObservableObject
     /// <summary>完了か</summary>
     public bool IsDone => Status == ReminderStatus.Done;
 
-    /// <summary>状態の切り替えの選択位置 (0 未 / 1 スヌーズ / 2 完了)</summary>
-    /// <remarks>画面の切り替え (セグメント)と双方向でつなぐ。ユーザーが切り替えたら保存する。</remarks>
+    /// <summary>状態の切り替えの選択位置</summary>
+    /// <remarks>
+    /// 画面の切り替え (セグメント)と双方向でつなぐ
+    /// ユーザーが切り替えたら保存する
+    /// </remarks>
     public int StatusIndex
     {
         get => Status switch
@@ -88,9 +99,10 @@ public sealed partial class ReminderTodayItem : ObservableObject
         }
     }
 
-    /// <summary>読み直した内容を反映する (保存はしない)</summary>
+    /// <summary>読み直した内容を反映する</summary>
     /// <param name="source">読み直したリマインダー</param>
     /// <param name="status">読み直した今日の対応状態</param>
+    /// <remarks>保存はしない</remarks>
     public void Apply(Reminder source, ReminderStatus status)
     {
         _applying = true;

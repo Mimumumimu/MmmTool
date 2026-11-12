@@ -9,15 +9,16 @@ using MmmTool.Reminders.Main;
 
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダーの起動時の準備 (時刻監視の開始)</summary>
+/// <summary>リマインダーの起動時の準備</summary>
 /// <param name="monitor">リマインダーの時刻監視</param>
 /// <param name="notifications">通知ダイアログの表示</param>
 /// <param name="speech">読み上げ</param>
 /// <param name="reminderWindows">リマインダーのメイン画面を開く</param>
-/// <param name="features">機能のオン・オフと、管理者による無効の状態</param>
+/// <param name="features">機能のオン・オフと、管理者による無効の状態。</param>
 /// <remarks>
 /// 監視はタイマーのスレッドから通知を求めてくるので、UI スレッドに切り替えて通知ダイアログを出し、読み上げ対象があれば一緒に読み上げる。
-/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く。発動済みの未対応はスヌーズに進む。
+/// 通知の本文をクリックして閉じたら、リマインダーのメイン画面を開く。
+/// 発動済みの未対応はスヌーズに進む。
 /// </remarks>
 public sealed class ReminderStartup(
     ReminderMonitor monitor,
@@ -26,14 +27,18 @@ public sealed class ReminderStartup(
     ReminderWindowService reminderWindows,
     IFeatureStatus features) : IStartupTask
 {
-    /// <summary>通知ダイアログの節の、送り元のキー</summary>
+    /// <summary>通知ダイアログの節の送り元のキー</summary>
     private const string NotificationSourceKey = "Reminders";
 
-    /// <summary>通知ダイアログの節の並びの値。サイドバーの並び (リマインダー 4)と同じで、ノート (2)の下に出す</summary>
+    /// <summary>通知ダイアログの節の並びの値</summary>
+    /// <remarks>サイドバーの並びと同じで、ノートの下に出す。</remarks>
     private const int NotificationOrder = 4;
 
     /// <inheritdoc />
-    /// <remarks>UI スレッドから呼ぶ。通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う。</remarks>
+    /// <remarks>
+    /// UI スレッドから呼ぶ。
+    /// 通知を出すときに戻る先として、呼んだスレッドのディスパッチャーを使う。
+    /// </remarks>
     public Task StartAsync()
     {
         var dispatcher = DispatcherQueue.GetForCurrentThread();

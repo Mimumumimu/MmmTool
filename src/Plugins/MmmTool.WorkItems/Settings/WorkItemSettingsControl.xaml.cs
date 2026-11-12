@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.WorkItems.Settings;
 
-/// <summary>作業管理の設定 (設定ページに並べる部品)</summary>
+/// <summary>作業管理の設定</summary>
 public sealed partial class WorkItemSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>

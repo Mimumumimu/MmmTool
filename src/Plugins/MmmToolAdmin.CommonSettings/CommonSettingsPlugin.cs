@@ -6,7 +6,8 @@ namespace MmmToolAdmin.CommonSettings;
 
 /// <summary>共通設定の入口で、ページを登録する</summary>
 /// <remarks>
-/// ページに並ぶ設定の部品は、各機能が <c>AddSettingsSection</c> で登録する。このプラグインは、個々の部品を知らない。
+/// ページに並ぶ設定の部品は各機能が <c>AddSettingsSection</c> で登録する
+/// このプラグインは個々の部品を知らない
 /// </remarks>
 public sealed class CommonSettingsPlugin : IFeaturePlugin
 {

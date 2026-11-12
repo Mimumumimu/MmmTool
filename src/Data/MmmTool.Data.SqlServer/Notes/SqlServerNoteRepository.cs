@@ -9,24 +9,30 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Notes;
 
-/// <summary>
-/// ノートを、SQL Server の <c>dbo.Note</c> に保存する。
-/// </summary>
+/// <summary>ノートを SQL Server の dbo.Note に保存する</summary>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
 /// <remarks>
-/// 読むたびに DB から読む。読むのは表示している日の分だけ。操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。特定していないと、読み書きできない。
-/// 読み書きの SQL は、すべて「見える」条件 (全員に見えるものか、自分が書いたもの)を持つ。見えないノートを、番号だけで操作させないため。
-/// 「自分だけ」の切り替えは、書いた人だけができる。ほかの人が、全員に見えるノートを、自分だけのものにして隠さないため。
-/// 更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
+/// 読むたびに DB から読む。
+/// 読むのは表示している日の分だけ。
+/// 操作した人 (作成者・更新者・書いた人)は <see cref="CurrentUser"/>。
+/// 特定していないと読み書きできない。
+/// 読み書きの SQL はすべて「見える」条件 (全員に見えるものか、自分が書いたもの)を持つ。
+/// 見えないノートを番号だけで操作させないため。
+/// 「自分だけ」の切り替えは書いた人だけができる。
+/// ほかの人が全員に見えるノートを、自分だけのものにして隠さないため。
+/// 更新日時は更新の SQL の中で DB サーバーの時計を使って書く。
 /// </remarks>
 public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentUser currentUser) : INoteRepository
 {
-    /// <summary>表の全部の列 (読む順)</summary>
+    /// <summary>表の全部の列</summary>
     private const string Columns = "Id, IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, AuthorUserId, IsPrivate, StartDate, EndDate, EventDate, Priority, Title, Body";
 
-    /// <summary>表の全部の列 (読む順)に、表の別名を付けたもの</summary>
-    /// <param name="alias">ノートの表の別名。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <summary>表の全部の列に表の別名を付けたもの</summary>
+    /// <param name="alias">
+    /// ノートの表の別名
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
     /// <returns>別名つきの列の並び (14 列)</returns>
     private static string QualifiedColumns(string alias) => string.Join(", ", Columns.Split(", ").Select(column => $"{alias}.{column}"));
 
@@ -37,8 +43,14 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     public int CurrentUserId => currentUser.Id;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    /// <remarks>書いた人と更新した人の名前は、ノートと一緒に <c>dbo.AppUser</c> を外部結合して読む。表示のための名前で、検索や索引には使わない。</remarks>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
+    /// <remarks>
+    /// 書いた人と更新した人の名前はノートと一緒に <c>dbo.AppUser</c> を外部結合して読む。
+    /// 表示のための名前で、検索や索引には使わない。
+    /// </remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetOnDayAsync(DateOnly day, bool includeDeleted, CancellationToken cancellationToken = default)
         => ReadWithNamesAsync(
             "n.EndDate >= @Day AND n.StartDate <= @Day",
@@ -47,8 +59,11 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
             cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
-    /// <remarks>更新日時の索引 <c>IX_Note_UpdatedAt</c> で範囲を絞る。</remarks>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
+    /// <remarks>更新日時の索引 <c>IX_Note_UpdatedAt</c> で範囲を絞る</remarks>
     public Task<IReadOnlyList<NoteWithNames>> GetUpdatedBetweenAsync(DateTimeOffset from, DateTimeOffset to, bool includeDeleted, CancellationToken cancellationToken = default)
         => ReadWithNamesAsync(
             "n.UpdatedAt >= @From AND n.UpdatedAt < @To",
@@ -60,13 +75,19 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
             includeDeleted,
             cancellationToken);
 
-    /// <summary>条件に合う、見えるノートを、書いた人と更新した人の名前つきで 1 回の問い合わせで読む</summary>
-    /// <param name="condition">ノートの表の別名 <c>n</c> を使った、絞り込みの条件。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <summary>条件に合う、見えるノートを書いた人と更新した人の名前つきで 1 回の問い合わせで読む</summary>
+    /// <param name="condition">
+    /// ノートの表の別名 <c>n</c> を使った、絞り込みの条件。
+    /// 定数だけを渡す (SQL に埋め込むため)。
+    /// </param>
     /// <param name="addParameters">条件で使うパラメーターを足す処理</param>
     /// <param name="includeDeleted">削除済みも含めるか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>ノートと名前で、並びは不定</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>ノートと名前で、並びは不定。</returns>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     private Task<IReadOnlyList<NoteWithNames>> ReadWithNamesAsync(string condition, Action<SqlCommand> addParameters, bool includeDeleted, CancellationToken cancellationToken)
     {
         var userId = RequireUserId();
@@ -101,11 +122,14 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         }, cancellationToken);
     }
 
-    /// <summary>ノートの番号の分の、ほかの実施日を、1 回の問い合わせでまとめて読む</summary>
+    /// <summary>ノートの番号の分のほかの実施日を 1 回の問い合わせでまとめて読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="noteIds">ノートの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>ノートの番号ごとの、日付の順の一覧。ほかの実施日が無いノートは、含まない</returns>
+    /// <returns>
+    /// ノートの番号ごとの、日付の順の一覧。
+    /// ほかの実施日が無いノートは含まない。
+    /// </returns>
     private static async Task<Dictionary<int, IReadOnlyList<DateOnly>>> ReadOtherEventDatesAsync(SqlConnection connection, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
     {
         var result = new Dictionary<int, IReadOnlyList<DateOnly>>();
@@ -147,21 +171,27 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         return result;
     }
 
-    /// <summary>枝番と日付の組を、OPENJSON で渡す JSON にする</summary>
+    /// <summary>枝番と日付の組を OPENJSON で渡す JSON にする</summary>
     /// <param name="items">枝番と日付の組</param>
     /// <returns>JSON の文字</returns>
     private static string ToJson(IReadOnlyList<(int CodeNo, DateOnly Day)> items)
         => JsonSerializer.Serialize(items.Select(item => new { codeNo = item.CodeNo, value = NoteOtherEventDates.ToValue(item.Day) }));
 
-    /// <summary>ノートの番号に合う、ほかの実施日を取り出す</summary>
+    /// <summary>ノートの番号に合うほかの実施日を取り出す</summary>
     /// <param name="dates"><see cref="ReadOtherEventDatesAsync"/> の結果</param>
     /// <param name="noteId">ノートの番号</param>
-    /// <returns>日付の順の一覧。無ければ空</returns>
+    /// <returns>
+    /// 日付の順の一覧
+    /// 無ければ空
+    /// </returns>
     private static IReadOnlyList<DateOnly> DatesOf(Dictionary<int, IReadOnlyList<DateOnly>> dates, int noteId)
         => dates.TryGetValue(noteId, out var list) ? list : [];
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<Note>> GetOnEventDateAsync(DateOnly day, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
@@ -198,7 +228,10 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
@@ -223,14 +256,23 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
-    /// <remarks>ユーザーには依らない。読み方は、MmmBatch と共通の <see cref="SqlServerNoteChangeReader"/> に持つ。</remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <remarks>
+    /// ユーザーには依らない
+    /// 読み方は MmmBatch と共通の <see cref="SqlServerNoteChangeReader"/> に持つ
+    /// </remarks>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<NoteChanges> GetChangesAsync(DateTimeOffset? since, DateOnly today, CancellationToken cancellationToken = default)
         => new SqlServerNoteChangeReader(database).ReadAsync(since, today, cancellationToken);
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="ArgumentException">入力内容が正しくない</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<Note> AddAsync(NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -279,8 +321,11 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">入力内容が正しくない。</exception>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="ArgumentException">入力内容が正しくない</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<bool> UpdateAsync(int id, NoteInput input, CancellationToken cancellationToken = default)
     {
         NoteRow.Validate(input);
@@ -315,7 +360,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         }, cancellationToken);
     }
 
-    /// <summary>ノートのほかの実施日を、新しい日付の一覧に合わせて書く</summary>
+    /// <summary>ノートのほかの実施日を新しい日付の一覧に合わせて書く</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">ノートを書いているトランザクション</param>
     /// <param name="noteId">ノートの番号</param>
@@ -324,8 +369,10 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き終わったことを表すタスク</returns>
     /// <remarks>
-    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。日付ごとに問い合わせない。
-    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
+    /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。
+    /// 日付ごとに問い合わせない。
+    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。
+    /// 削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
     /// </remarks>
     private static async Task WriteOtherEventDatesAsync(SqlConnection connection, SqlTransaction transaction, int noteId, int userId, IReadOnlyList<DateOnly> dates, CancellationToken cancellationToken)
     {
@@ -378,7 +425,10 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
     {
         var userId = RequireUserId();
@@ -398,7 +448,7 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         }, cancellationToken);
     }
 
-    /// <summary>入力内容のパラメーターを足す (<c>@IsPrivate</c> <c>@StartDate</c> <c>@EndDate</c> <c>@EventDate</c> <c>@Priority</c> <c>@Title</c> <c>@Body</c>)</summary>
+    /// <summary>入力内容のパラメーターを足す</summary>
     /// <param name="command">コマンド</param>
     /// <param name="input">入力内容</param>
     private static void AddInputParameters(SqlCommand command, NoteInput input)
@@ -416,25 +466,32 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
 
     /// <summary>今のユーザーの番号を取得する</summary>
     /// <returns>今のユーザーの番号</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない
+    /// ログインが必要
+    /// </exception>
     private int RequireUserId()
     {
         const string Message = "ユーザーが特定されていないため、ノートを使えません。ログインが必要です。";
         return currentUser.User?.Id ?? throw new DataFileException(Message, new InvalidOperationException(Message));
     }
 
-    /// <summary>接続を開いて、ノートの表を使う処理を実行する</summary>
+    /// <summary>接続を開いてノートの表を使う処理を実行する</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・実行中に失敗した
+    /// メッセージは画面に出せる
+    /// </exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
         => database.RunAsync(work, cancellationToken);
 
-    /// <summary>ノートの行を読む (<see cref="Columns"/> の順)</summary>
+    /// <summary>ノートの行を読む</summary>
     /// <param name="reader">読み取り中の結果</param>
     /// <returns>行</returns>
+    /// <remarks><see cref="Columns"/> の順</remarks>
     private static NoteRow ReadRow(SqlDataReader reader) => new()
     {
         Id = reader.GetInt32(0),

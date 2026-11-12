@@ -3,71 +3,103 @@ using WeekdayFlags = MmmSdk.Core.Components.DaysOfWeek.Weekdays;
 
 namespace MmmTool.Data.Reminders;
 
-/// <summary>
-/// DB の <c>dbo.Reminder</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="Reminder"/> とは別の、DB の形のまま持つ。
-/// </summary>
+/// <summary>DB の dbo.Reminder の 1 行で、列と 1 対 1 に対応する</summary>
 /// <remarks>
-/// 日付なしは <see cref="DateOnly.MaxValue"/>、つまり <c>9999-12-31</c> で、備考・リンクの空は空文字。NULL は使わない。理由は docs/specs/database.md にある。
+/// アプリの型 Reminder とは別の DB の形のまま持つ。
+/// 日付なしは <see cref="DateOnly.MaxValue"/>、つまり <c>9999-12-31</c> で、備考・リンクの空は空文字。
+/// NULL は使わない。
+/// 理由は docs/specs/database.md にある。
 /// <see cref="Reminder"/> との変換は <see cref="FromReminder"/> と <see cref="ToReminder"/>。
 /// </remarks>
 public sealed record ReminderRow
 {
-    /// <summary>主キーで、<see cref="Reminder.No"/> にあたる。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キーで、Reminder.No にあたる</summary>
+    /// <remarks>
+    /// DB が採番する
+    /// 0 は新規
+    /// </remarks>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted { get; init; }
 
     /// <summary>作成日時</summary>
-    /// <remarks>DB の既定値で入る。<see cref="FromReminder"/> では決めない。</remarks>
+    /// <remarks>
+    /// DB の既定値で入る
+    /// <see cref="FromReminder"/> では決めない
+    /// </remarks>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (<c>AppUser.Id</c>)</summary>
-    /// <remarks>記録用の列で、行を最初に入れた人。条件・結合・索引には使わない。アプリの型の <see cref="Reminder.AuthorUserId"/> は、業務の列 <see cref="AuthorUserId"/> から読む。</remarks>
+    /// <summary>作成者</summary>
+    /// <remarks>
+    /// 記録用の列で、行を最初に入れた人。
+    /// 条件・結合・索引には使わない。
+    /// アプリの型の <see cref="Reminder.AuthorUserId"/> は業務の列 <see cref="AuthorUserId"/> から読む。
+    /// </remarks>
     public int CreatedByUserId { get; init; }
 
-    /// <summary>作成者。<c>AppUser.Id</c> で、業務の列 <c>AuthorUserId</c>。作った人</summary>
-    /// <remarks>見える範囲の条件に使う。作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を、作るときに入れる。列は別で、条件・索引は、この列で行う。<see cref="FromReminder"/> では決めない。</remarks>
+    /// <summary>作成者</summary>
+    /// <remarks>
+    /// AppUser.Id で、業務の列 AuthorUserId。
+    /// 作った人。
+    /// 見える範囲の条件に使う。
+    /// 作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を作るときに入れる。
+    /// 列は別で、条件・索引はこの列で行う。
+    /// <see cref="FromReminder"/> では決めない。
+    /// </remarks>
     public int AuthorUserId { get; init; }
 
     /// <summary>更新日時</summary>
-    /// <remarks>更新の SQL の中で、DB サーバーの時計を使って書く。<see cref="FromReminder"/> では決めない。</remarks>
+    /// <remarks>
+    /// 更新の SQL の中で、DB サーバーの時計を使って書く。
+    /// <see cref="FromReminder"/> では決めない。
+    /// </remarks>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (<c>AppUser.Id</c>)</summary>
-    /// <remarks>アプリの型に無いので、<see cref="FromReminder"/> では決めない。Repository が入れる。</remarks>
+    /// <summary>更新者</summary>
+    /// <remarks>
+    /// アプリの型に無いので、<see cref="FromReminder"/> では決めない。
+    /// Repository が入れる。
+    /// </remarks>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>宛先。<c>AppUser.Id</c> で、0 は全員宛て</summary>
-    /// <remarks>アプリの型の <see cref="Reminder.TargetUserId"/> と同じ。</remarks>
+    /// <summary>宛先</summary>
+    /// <remarks>
+    /// AppUser.Id で、0 は全員宛て。
+    /// アプリの型の <see cref="Reminder.TargetUserId"/> と同じ。
+    /// </remarks>
     public int TargetUserId { get; init; }
 
     /// <summary>日付指定の日付</summary>
     /// <remarks>曜日指定 (日付なし)は <see cref="DateOnly.MaxValue"/>、つまり <c>9999-12-31</c>。</remarks>
     public DateOnly Date { get; init; } = DateOnly.MaxValue;
 
-    /// <summary>時刻 (秒は 0)</summary>
+    /// <summary>時刻</summary>
     public TimeOnly Time { get; init; }
 
-    /// <summary>曜日指定の曜日で、月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数。JSON と同じ</summary>
+    /// <summary>曜日指定の曜日で、月 = 1・火 = 2・水 = 4・木 = 8・金 = 16・土 = 32・日 = 64 を足した数</summary>
+    /// <remarks>JSON と同じ</remarks>
     public byte Weekdays { get; init; }
 
     /// <summary>件名</summary>
     public string Title { get; init; } = "";
 
-    /// <summary>備考 (無いときは空文字)</summary>
+    /// <summary>備考</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>リンク (無いときは空文字)</summary>
+    /// <summary>リンク</summary>
     public string Link { get; init; } = "";
 
     /// <summary>通知のときに読み上げるか</summary>
     public bool IsSpeak { get; init; }
 
-    /// <summary>アプリの型から、DB の行にする</summary>
+    /// <summary>アプリの型から DB の行にする</summary>
     /// <param name="reminder">リマインダー</param>
-    /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
-    /// <exception cref="ArgumentException">日付・時刻・曜日が、DB に入れられない値で、手で直した JSON の誤りなど。</exception>
+    /// <returns>
+    /// DB の行
+    /// 作成・更新の日時と作成者・更新者は決めない (Repository が入れる)
+    /// </returns>
+    /// <exception cref="ArgumentException">日付・時刻・曜日が DB に入れられない値で、手で直した JSON の誤りなど。</exception>
     public static ReminderRow FromReminder(Reminder reminder)
     {
         ArgumentNullException.ThrowIfNull(reminder);
@@ -120,8 +152,12 @@ public sealed record ReminderRow
         };
     }
 
-    /// <summary>DB の行から、アプリの型にする</summary>
-    /// <returns>リマインダー。備考・リンクの空文字は null にする。時刻の秒は切り捨てる</returns>
+    /// <summary>DB の行からアプリの型にする</summary>
+    /// <returns>
+    /// リマインダー
+    /// 備考・リンクの空文字は null にする
+    /// 時刻の秒は切り捨てる
+    /// </returns>
     public Reminder ToReminder() => new()
     {
         No = Id,

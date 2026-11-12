@@ -4,7 +4,8 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmTool.Reminders.Settings;
 
-/// <summary>設定ページの「通知を受け取る機能」。設定ページに並べる部品で、サーバーモードだけ出る</summary>
+/// <summary>設定ページの「通知を受け取る機能」</summary>
+/// <remarks>設定ページに並べる部品で、サーバーモードだけ出る。</remarks>
 public sealed partial class NotificationFeatureSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>

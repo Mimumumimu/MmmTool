@@ -15,54 +15,65 @@ using Windows.Storage.Streams;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>
-/// その日のノートのカード一覧を、WebView2 の 1 枚のページで表示する。
-/// </summary>
+/// <summary>その日のノートのカード一覧を WebView2 の 1 枚のページで表示する</summary>
 /// <remarks>
 /// <para>
-/// ページは、アプリが組み立てた HTML (<see cref="NotePageBuilder"/>)を、仮想ホスト (<see cref="NoteLinks.PageHost"/>)の <c>index.html</c> として返して表示する。
-/// 文字列で渡す方式には、渡せる量の上限があるが、本文は上限を決めないため。
+/// ページはアプリが組み立てた HTML (<see cref="NotePageBuilder"/>)を仮想ホスト (<see cref="NoteLinks.PageHost"/>)の <c>index.html</c> として返して表示する。
+/// 文字列で渡す方式には渡せる量の上限があるが、本文は上限を決めないため。
 /// </para>
 /// <para>
-/// ページの中のスクリプトは止める。外へのリクエストはすべて止める。仮想ホスト以外は、失敗で返す。ページの移動は、すべて横取りする。
-/// カードの「編集」「削除」「復元」は <see cref="ActionRequested"/>、本文のリンク (http・https・file)は <see cref="LinkRequested"/> で知らせる。それ以外への移動は、取り消す。
-/// 作り直す前の状態 (スクロールの位置・開いているカード)は、アプリ側から実行するスクリプトで取り出す。ページのスクリプトを止めても、これは動く。
+/// ページの中のスクリプトは止める。
+/// 外へのリクエストはすべて止める。
+/// 仮想ホスト以外は失敗で返す。
+/// ページの移動はすべて横取りする。
+/// カードの「編集」「削除」「復元」は <see cref="ActionRequested"/>、本文のリンク (http・https・file)は <see cref="LinkRequested"/> で知らせる。
+/// それ以外への移動は取り消す。
+/// 作り直す前の状態 (スクロールの位置・開いているカード)はアプリ側から実行するスクリプトで取り出す。
+/// ページのスクリプトを止めてもこれは動く。
 /// </para>
 /// </remarks>
 public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
 {
-    /// <summary>右クリックのメニューの項目の最小の幅で、単位は DIP。押しやすい幅にする</summary>
+    /// <summary>右クリックのメニューの項目の最小の幅で、単位は DIP</summary>
+    /// <remarks>押しやすい幅にする</remarks>
     private const double MenuMinWidth = 160;
 
-    /// <summary>ページに付ける、外部の読み込みを止める決まり (表示に使うのは、ページの中の CSS だけ)</summary>
+    /// <summary>ページに付ける外部の読み込みを止める決まり</summary>
+    /// <remarks>表示に使うのはページの中の CSS だけ</remarks>
     private const string ContentSecurityPolicy = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
     /// <summary>表示するページの HTML</summary>
     private string _html = "";
 
-    /// <summary>表示したあとに合わせる、スクロールの位置</summary>
+    /// <summary>表示したあとに合わせるスクロールの位置</summary>
     private double _pendingScroll;
 
-    /// <summary>開いてよいリンク先 (今のページに出したリンクだけ)</summary>
-    /// <remarks>ファイルをページに落として、そのファイルへ移ろうとしたとき (開くと、実行ファイルが動いてしまう)など、ページに出していない移動を、開かないため。</remarks>
+    /// <summary>開いてよいリンク先</summary>
+    /// <remarks>
+    /// 今のページに出したリンクだけ。
+    /// ファイルをページに落として、そのファイルへ移ろうとしたとき (開くと、実行ファイルが動いてしまう)など、ページに出していない移動を、開かないため。
+    /// </remarks>
     private IReadOnlySet<string> _allowedLinks = new HashSet<string>();
 
     /// <summary>初期化を始めたか</summary>
     private bool _initialized;
 
-    /// <summary>ページを表示できる状態か (WebView2 の準備ができ、ページの読み込みが成功した)</summary>
+    /// <summary>ページを表示できる状態か</summary>
+    /// <remarks>WebView2 の準備ができ、ページの読み込みが成功した。</remarks>
     private bool _ready;
 
     /// <summary>WebView2 の準備ができたか</summary>
     private bool _webViewReady;
 
-    /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー (読み込まれる前に設定する)</summary>
+    /// <summary>WebView2 のデータの保存先フォルダー</summary>
+    /// <remarks>読み込まれる前に設定する</remarks>
     public string WebView2Directory { get; set; } = "";
 
     /// <summary>カードの操作が押された</summary>
     public event EventHandler<NoteActionEventArgs>? ActionRequested;
 
-    /// <summary>本文のリンクが押された (開いてよい種類 (http・https・file)のものだけ)</summary>
+    /// <summary>本文のリンクが押された</summary>
+    /// <remarks>開いてよい種類 (http・https・file)のものだけ</remarks>
     public event EventHandler<Uri>? LinkRequested;
 
     /// <summary>表示面を作る</summary>
@@ -106,8 +117,8 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>カードと枠の id (<c>"n"</c> + 番号)の配列から、番号の集まりにする</summary>
-    /// <remarks>他の機能の内容の枠は、ノートの番号と重ならないよう、負の番号を付ける。</remarks>
+    /// <summary>カードと枠の idの配列から番号の集まりにする</summary>
+    /// <remarks>他の機能の内容の枠はノートの番号と重ならないよう、負の番号を付ける。</remarks>
     /// <param name="ids">カードの id の配列</param>
     /// <returns>ノートの番号</returns>
     private static HashSet<int> ReadNoteIds(JsonElement ids)
@@ -200,9 +211,10 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         InitializationErrorText.Visibility = Visibility.Visible;
     }
 
-    /// <summary>リクエストに答える。仮想ホストの <c>index.html</c> は、今のページで、それ以外は、失敗</summary>
+    /// <summary>リクエストに答える</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">リクエストの情報</param>
+    /// <remarks>仮想ホストの index.html は今のページで、それ以外は失敗。</remarks>
     private async void OnWebResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)
     {
         var deferral = args.GetDeferral();
@@ -228,9 +240,10 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>ページの移動を横取りする (カードの操作と、本文のリンクだけを受け、それ以外は取り消す)</summary>
+    /// <summary>ページの移動を横取りする</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">移動の情報</param>
+    /// <remarks>カードの操作と本文のリンクだけを受け、それ以外は取り消す。</remarks>
     private void OnNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
     {
         if (NoteLinks.TryParseAction(args.Uri, out var action, out var noteId))
@@ -258,7 +271,7 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         RequestLink(args.IsUserInitiated, args.Uri);
     }
 
-    /// <summary>新しいウィンドウで開く操作 (Ctrl+クリック・中クリック)を、ふつうのクリックと同じ判定に回す</summary>
+    /// <summary>新しいウィンドウで開く操作をふつうのクリックと同じ判定に回す</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">新しいウィンドウの情報</param>
     private void OnNewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)
@@ -267,9 +280,10 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         RequestLink(args.IsUserInitiated, NoteLinks.TryParseOpen(args.Uri, out var wrapped) ? wrapped.AbsoluteUri : args.Uri);
     }
 
-    /// <summary>リンクを開く依頼を出す (利用者の操作で、今のページに出したリンクだけ)</summary>
+    /// <summary>リンクを開く依頼を出す</summary>
     /// <param name="isUserInitiated">利用者の操作による移動か</param>
     /// <param name="uri">移動先の URL</param>
+    /// <remarks>利用者の操作で、今のページに出したリンクだけ。</remarks>
     private void RequestLink(bool isUserInitiated, string uri)
     {
         if (isUserInitiated
@@ -281,13 +295,16 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>右クリックのメニューを、カードの操作に差し替える</summary>
+    /// <summary>右クリックのメニューをカードの操作に差し替える</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">メニューの情報</param>
     /// <remarks>
-    /// 右クリックした位置のカードは、アプリ側から実行するスクリプトで調べる。ページのスクリプトは止めてあるが、これは動く。
-    /// カードの上なら、「編集」「削除」(削除済みのカードなら「復元」)を出す。選んだ文字があるときは、「コピー」を出す。それ以外の項目は出さない。
-    /// メニューは、WebView2 の標準のメニュー (項目の文字の幅しかなく、押しにくい)ではなく、アプリ (WinUI)の <see cref="MenuFlyout"/> で出す。
+    /// 右クリックした位置のカードはアプリ側から実行するスクリプトで調べる。
+    /// ページのスクリプトは止めてあるがこれは動く。
+    /// カードの上なら、「編集」「削除」(削除済みのカードなら「復元」)を出す。
+    /// 選んだ文字があるときは「コピー」を出す。
+    /// それ以外の項目は出さない。
+    /// メニューは WebView2 の標準のメニュー (項目の文字の幅しかなく、押しにくい)ではなく、アプリ (WinUI)の <see cref="MenuFlyout"/> で出す。
     /// </remarks>
     private async void OnContextMenuRequested(CoreWebView2 sender, CoreWebView2ContextMenuRequestedEventArgs args)
     {
@@ -329,7 +346,7 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>ページで選んでいる文字を、クリップボードにコピーする</summary>
+    /// <summary>ページで選んでいる文字をクリップボードにコピーする</summary>
     /// <returns>コピーの完了を表すタスク</returns>
     private async Task CopySelectionAsync()
     {
@@ -349,10 +366,13 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>ページの、指定の位置にあるカードを調べる</summary>
+    /// <summary>ページの指定の位置にあるカードを調べる</summary>
     /// <param name="core">WebView2</param>
     /// <param name="location">ページの左上からの位置</param>
-    /// <returns>カードのノートの番号と、削除済みか。カードの上でなければ null</returns>
+    /// <returns>
+    /// カードのノートの番号と、削除済みか。
+    /// カードの上でなければ null。
+    /// </returns>
     private static async Task<(int NoteId, bool IsDeleted)?> FindCardAtAsync(CoreWebView2 core, Windows.Foundation.Point location)
     {
         var x = location.X.ToString(CultureInfo.InvariantCulture);
@@ -379,7 +399,7 @@ public sealed partial class NoteCardsView : UserControl, INoteCardsSurface
         }
     }
 
-    /// <summary>ページの読み込みが終わったら、スクロールの位置を合わせる</summary>
+    /// <summary>ページの読み込みが終わったらスクロールの位置を合わせる</summary>
     /// <param name="sender">WebView2</param>
     /// <param name="args">読み込みの情報</param>
     private async void OnNavigationCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args)

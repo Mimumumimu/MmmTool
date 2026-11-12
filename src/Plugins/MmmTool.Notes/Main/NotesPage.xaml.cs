@@ -6,13 +6,16 @@ using MmmTool.Notes.Core;
 
 namespace MmmTool.Notes.Main;
 
-/// <summary>ノートのページで、サイドバーに出す。その日に有効なノートを、カードに並べた 1 枚の画面で読む</summary>
+/// <summary>ノートのページで、サイドバーに出す</summary>
+/// <remarks>その日に有効なノートをカードに並べた 1 枚の画面で読む</remarks>
 public sealed partial class NotesPage : Page
 {
-    /// <summary>ページが載っている画面で、見える・見えないの変化を受けるため。載っていない間は null</summary>
+    /// <summary>ページが載っている画面で、見える・見えないの変化を受けるため</summary>
+    /// <remarks>載っていない間は null</remarks>
     private XamlRoot? _root;
 
-    /// <summary>読み直している (見えている)状態か</summary>
+    /// <summary>読み直している状態か</summary>
+    /// <remarks>見えている</remarks>
     private bool _active;
 
     /// <summary>ページの ViewModel</summary>
@@ -20,7 +23,7 @@ public sealed partial class NotesPage : Page
 
     /// <summary>ページを作る</summary>
     /// <param name="viewModel">ページの ViewModel</param>
-    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所</param>
+    /// <param name="environment">アプリの名前と、データ・アイコンの置き場所。</param>
     public NotesPage(NotesViewModel viewModel, AppEnvironment environment)
     {
         ViewModel = viewModel;
@@ -82,14 +85,19 @@ public sealed partial class NotesPage : Page
     /// <summary>ページが載っているウィンドウの表示の状態が変わったら、読み直しを始める・止める</summary>
     /// <param name="sender">ウィンドウの内容の画面 (<c>XamlRoot</c>)</param>
     /// <param name="args">変更の情報</param>
-    /// <remarks>ウィンドウは、× でトレイへ隠す (ページの <c>Unloaded</c> は来ない)ので、ここで見える・見えないを知る。大きさの変更などでも来るが、状態が変わったときだけ動く。</remarks>
+    /// <remarks>
+    /// ウィンドウは× でトレイへ隠す (ページの <c>Unloaded</c> は来ない)ので、ここで見える・見えないを知る。
+    /// 大きさの変更などでも来るが状態が変わったときだけ動く。
+    /// </remarks>
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateActive();
 
-    /// <summary>ページが、見えている (読み直す)状態かを、今の画面から決める</summary>
+    /// <summary>ページが見えている状態かを今の画面から決める</summary>
+    /// <remarks>読み直す</remarks>
     private void UpdateActive() => SetActive(_root?.IsHostVisible == true);
 
-    /// <summary>読み直しを始める・止める (状態が変わったときだけ)</summary>
+    /// <summary>読み直しを始める・止める</summary>
     /// <param name="active">見えているか</param>
+    /// <remarks>状態が変わったときだけ</remarks>
     private void SetActive(bool active)
     {
         if (active == _active)
@@ -108,18 +116,18 @@ public sealed partial class NotesPage : Page
         }
     }
 
-    /// <summary>「表示する内容」を開いたら、設定を読み直す</summary>
+    /// <summary>「表示する内容」を開いたら設定を読み直す</summary>
     /// <param name="sender">開く枠</param>
     /// <param name="e">イベントの情報</param>
     private void OnSourcesFlyoutOpening(object? sender, object e) => ViewModel.RefreshSourceSettings();
 
-    /// <summary>基準の切り替えを押したら、基準を変える</summary>
+    /// <summary>基準の切り替えを押したら基準を変える</summary>
     /// <param name="sender">切り替え</param>
     /// <param name="args">変更の情報</param>
     private void OnBasisChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         => ViewModel.Basis = sender.SelectedItem == UpdatedItem ? NoteBasis.Updated : NoteBasis.Period;
 
-    /// <summary>日付の欄が変わったら、表示する日を変える</summary>
+    /// <summary>日付の欄が変わったら表示する日を変える</summary>
     /// <param name="sender">日付の欄</param>
     /// <param name="args">変更の情報</param>
     private void OnDateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
@@ -135,7 +143,7 @@ public sealed partial class NotesPage : Page
         }
     }
 
-    /// <summary>日付を、日付の欄に渡す形にする</summary>
+    /// <summary>日付を日付の欄に渡す形にする</summary>
     /// <param name="date">日付</param>
     /// <returns>その日の 0 時 (この PC の時差)</returns>
     private static DateTimeOffset ToOffset(DateOnly date) => new(date.ToDateTime(TimeOnly.MinValue));

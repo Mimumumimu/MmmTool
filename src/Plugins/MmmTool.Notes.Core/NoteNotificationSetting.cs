@@ -3,11 +3,11 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// ノートの「通知を受け取る」のオン・オフ。ユーザーごとの設定 <c>AppUserSetting</c> の 1 行で、行が無いときはオフ。
-/// </summary>
+/// <summary>ノートの「通知を受け取る」のオン・オフ</summary>
 /// <remarks>
-/// 通知先を持つ人に、ノートの通知が黙って届き始めないよう、既定はオフ。設定の画面は、登録されたこの設定を読んで、「通知を受け取る機能」の節を作る。
+/// ユーザーごとの設定 AppUserSetting の 1 行で、行が無いときはオフ。
+/// 通知先を持つ人に、ノートの通知が黙って届き始めないよう、既定はオフ。
+/// 設定の画面は登録されたこの設定を読んで、「通知を受け取る機能」の節を作る。
 /// </remarks>
 public sealed class NoteNotificationSetting : INotificationFeatureSetting
 {

@@ -10,13 +10,14 @@ using MmmTool.Reminders.List;
 
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダーの入力・まとめて追加・一覧画面と、送信先の画面を開く</summary>
+/// <summary>リマインダーの入力・まとめて追加・一覧画面と送信先の画面を開く</summary>
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
 /// <remarks>
-/// 画面は閉じると再表示できないので、開くたびに DI から作る。UI スレッドから呼ぶ。
-/// 画面 (と ViewModel)は、開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。
-/// ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため。
+/// 画面は閉じると再表示できないので、開くたびに DI から作る。
+/// UI スレッドから呼ぶ。
+/// 画面 (と ViewModel)は開くたびに作るスコープから解決し、閉じたらスコープごと破棄する。
+/// ルートから解決した <see cref="IDisposable"/> の Transient はアプリの終了まで DI コンテナが保持し続けるため。
 /// </remarks>
 public sealed class ReminderDialogService(IServiceScopeFactory scopeFactory, IDialogHost dialogs) : IReminderDialogService
 {

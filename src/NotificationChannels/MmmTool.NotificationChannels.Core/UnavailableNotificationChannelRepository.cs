@@ -1,9 +1,11 @@
 namespace MmmTool.NotificationChannels.Core;
 
-/// <summary>
-/// 送信先 (<see cref="NotificationChannel"/>)を使えない保存先で、ローカルモードのもの。
-/// </summary>
-/// <remarks>DB モードのとき、ホストが、SQL Server の保存先に置き換える。画面は、<see cref="IsAvailable"/> が false の間は、送信先の入口を出さない。</remarks>
+/// <summary>送信先を使えない保存先で、ローカルモードのもの</summary>
+/// <remarks>
+/// <see cref="NotificationChannel"/>
+/// DB モードではホストが SQL Server の保存先に置き換える
+/// <see cref="IsAvailable"/> が false の間は画面に送信先の入口を出さない
+/// </remarks>
 public sealed class UnavailableNotificationChannelRepository : INotificationChannelRepository
 {
     /// <inheritdoc />
@@ -13,42 +15,42 @@ public sealed class UnavailableNotificationChannelRepository : INotificationChan
     public int CurrentUserId => 0;
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<IReadOnlyList<NotificationChannel>> GetChannelsAsync(bool includeDeleted, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<IReadOnlyList<NotificationChannelSummary>> GetSummariesAsync(NotificationChannelKind kind, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<IReadOnlyDictionary<NotificationChannelKind, IReadOnlyList<NotificationChannelSummary>>> GetAllSummariesAsync(CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<NotificationChannelMatch?> FindWebPushAsync(string endpoint, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<NotificationChannel> AddAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<bool> UpdateAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<bool> UpdateAndRestoreAsync(NotificationChannel channel, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">送信先は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">送信先は DB モードだけで使える</exception>
     public Task<bool> SetDeletedAsync(int id, bool isDeleted, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

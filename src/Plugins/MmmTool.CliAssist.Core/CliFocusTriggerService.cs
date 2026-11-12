@@ -2,12 +2,14 @@ using MmmTool.CliAssist.Core.Json;
 
 namespace MmmTool.CliAssist.Core;
 
-/// <summary>通知する文字列をメモリに持ち、変更を保存する。アプリ全体で 1 つ。</summary>
+/// <summary>通知する文字列をメモリに持ち、変更を保存する</summary>
 /// <param name="repository">通知する文字列の保存先</param>
+/// <remarks>アプリ全体で 1 つ</remarks>
 public sealed class CliFocusTriggerService(ICliFocusTriggerRepository repository)
     : CliListFileService<CliFocusTrigger>(repository, JsonCliFocusTriggerRepository.FileName, "通知する文字列", "通知する文字列は使われません。")
 {
-    /// <summary>通知する文字列と、ターミナルへ移るかの設定 (空の項目は除く)</summary>
+    /// <summary>通知する文字列とターミナルへ移るかの設定</summary>
+    /// <remarks>空の項目は除く</remarks>
     public IReadOnlyList<CliFocusTrigger> Triggers => [.. Items];
 
     /// <inheritdoc />

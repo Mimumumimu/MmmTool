@@ -12,7 +12,7 @@ namespace MmmTool.Links.Main;
 /// <summary>リンク編集ページ</summary>
 public sealed partial class LinkEditorPage : Page
 {
-    /// <summary>「保存しました」を出しておく時間。</summary>
+    /// <summary>「保存しました」を出しておく時間</summary>
     private static readonly TimeSpan SavedNoticeDuration = TimeSpan.FromSeconds(3);
 
     /// <summary>「保存しました」を閉じるタイマー</summary>
@@ -49,14 +49,14 @@ public sealed partial class LinkEditorPage : Page
 
     #region ツリー
 
-    /// <summary>ツリーの選択が変わったら、ViewModel に反映する</summary>
+    /// <summary>ツリーの選択が変わったら ViewModel に反映する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="args">選択の変更の情報</param>
     /// <remarks>TreeView.SelectedItem は x:Bind の双方向にできないため、選択はここで ViewModel と相互に合わせる。</remarks>
     private void OnTreeSelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
         => ViewModel.SelectedItem = args.GetAddedItem<LinkTreeItem>();
 
-    /// <summary>ViewModel の選択が変わったら、ツリーの選択を合わせる</summary>
+    /// <summary>ViewModel の選択が変わったらツリーの選択を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更されたプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -70,7 +70,10 @@ public sealed partial class LinkEditorPage : Page
 
     /// <summary>右クリックした行を選択してからメニューを出す</summary>
     /// <param name="source">右クリックされた要素</param>
-    /// <remarks>メニューの操作はその行が対象。何も無い所なら選択を外す。</remarks>
+    /// <remarks>
+    /// メニューの操作はその行が対象
+    /// 何も無い所なら選択を外す
+    /// </remarks>
     private void SelectForContextMenu(object source)
     {
         var item = LinkTree.FindItem<LinkTreeItem>(source);
@@ -79,7 +82,7 @@ public sealed partial class LinkEditorPage : Page
         LinkTree.SelectedItem = item;
     }
 
-    /// <summary>ツリーで Delete が押されたら、選択中の項目を削除する</summary>
+    /// <summary>ツリーで Delete が押されたら選択中の項目を削除する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キー入力の情報</param>
     private void OnTreeKeyDown(object sender, KeyRoutedEventArgs e)
@@ -94,7 +97,7 @@ public sealed partial class LinkEditorPage : Page
     #endregion
 
     /// <summary>名前欄にフォーカスして全選択する</summary>
-    /// <remarks>すぐ打ち替えられるように。</remarks>
+    /// <remarks>すぐ打ち替えられるように</remarks>
     private void FocusNameBox()
     {
         // 選択の切り替えで編集欄が表示されてから移す
@@ -107,7 +110,7 @@ public sealed partial class LinkEditorPage : Page
 
     #region 保存の通知
 
-    /// <summary>「保存しました」を表示して、一定時間後に閉じる</summary>
+    /// <summary>「保存しました」を表示して一定時間後に閉じる</summary>
     private void ShowSavedNotice()
     {
         SavedNotice.Visibility = Visibility.Visible;

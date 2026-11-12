@@ -5,11 +5,16 @@ using MmmTool.Tools.Main;
 
 namespace MmmTool.Tools;
 
-/// <summary>ツールの入口 (ページを登録する)</summary>
+/// <summary>ツールの入口</summary>
+/// <remarks>ページを登録する</remarks>
 public sealed class ToolsPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存するデータは無い。設定ページでオン・オフできる。オフの間はサイドバーに出さない。</remarks>
+    /// <remarks>
+    /// 保存するデータは無い
+    /// 設定ページでオン・オフできる
+    /// オフの間はサイドバーに出さない
+    /// </remarks>
     public void Register(IServiceCollection services)
     {
         services.AddFeature(ToolsFeature.Key, ToolsFeature.DisplayName);

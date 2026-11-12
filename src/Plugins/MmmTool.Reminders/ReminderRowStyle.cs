@@ -2,7 +2,7 @@ using Windows.UI.Text;
 
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダーの行・件名の見た目 (完了・削除済みの表現)</summary>
+/// <summary>リマインダーの行・件名の見た目</summary>
 /// <remarks>メイン画面と一覧画面で同じ表現にするため、XAML の <c>x:Bind</c> から関数として呼ぶ。</remarks>
 public static class ReminderRowStyle
 {

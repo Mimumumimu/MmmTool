@@ -6,11 +6,12 @@ using MmmTool.Data.SqlServer.Connection;
 
 namespace MmmTool.Data.SqlServer.WinUI.Connection;
 
-/// <summary>
-/// DB の接続の設定画面。入力欄 (<see cref="DatabaseConnectionViewModel"/>)に、保存とキャンセルを付ける。
-/// </summary>
+/// <summary>DB の接続の設定画面</summary>
 /// <remarks>
-/// 「接続を確認」で、つながると確認できるまで、保存できない。MmmTool の保存先の画面と同じで、確認の順序が、画面の見た目で分かるようにするため。
+/// <see cref="DatabaseConnectionViewModel"/>。
+/// 入力欄に保存とキャンセルを付ける。
+/// 「接続を確認」で、つながると確認できるまで、保存できない。
+/// MmmTool の保存先の画面と同じで、確認の順序が画面の見た目で分かるようにするため。
 /// 保存できたら、<see cref="SqlServerDatabase.ResetConnection"/> で覚えている接続を捨てて、再起動せずに新しい設定を使い、画面を閉じてもらう。
 /// </remarks>
 public sealed partial class ConnectionSettingsViewModel : ObservableObject
@@ -34,15 +35,17 @@ public sealed partial class ConnectionSettingsViewModel : ObservableObject
     /// <summary>接続の入力欄の ViewModel</summary>
     public DatabaseConnectionViewModel Connection { get; }
 
-    /// <summary>「保存」を押せない理由があるか (つながると、まだ確認できていない)</summary>
+    /// <summary>「保存」を押せない理由があるか</summary>
+    /// <remarks>つながるとまだ確認できていない</remarks>
     public bool NeedsVerification => !Connection.IsVerified;
 
-    /// <summary>保存できるか (入力欄を変更できて、つながると確認できている)</summary>
+    /// <summary>保存できるか</summary>
+    /// <remarks>入力欄を変更できて、つながると確認できている。</remarks>
     private bool CanSave() => Connection.IsEditable && !NeedsVerification;
 
-    /// <summary>入力した内容を保存して、閉じる</summary>
+    /// <summary>入力した内容を保存して閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存できなかったとき (つながらない・保存できない)は、入力欄のエラーに出して、閉じない。</remarks>
+    /// <remarks>保存できなかったとき (つながらない・保存できない)は入力欄のエラーに出して、閉じない。</remarks>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {

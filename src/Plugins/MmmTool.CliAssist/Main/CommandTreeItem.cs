@@ -2,9 +2,7 @@ using MmmTool.CliAssist.Core;
 
 namespace MmmTool.CliAssist.Main;
 
-/// <summary>
-/// 定型コマンドツリーの表示用の 1 要素。
-/// </summary>
+/// <summary>定型コマンドツリーの表示用の 1 要素</summary>
 public sealed class CommandTreeItem
 {
     /// <summary>要素を作る</summary>
@@ -14,7 +12,7 @@ public sealed class CommandTreeItem
     /// <param name="children">子要素</param>
     /// <param name="switchTo">コマンドを送ったあとに切り替えるタブ</param>
     /// <param name="focus">コマンドを送ったあとにフォーカスを移す先</param>
-    /// <remarks>生成は <see cref="From"/> などから行う。</remarks>
+    /// <remarks>生成は <see cref="From"/> などから行う</remarks>
     private CommandTreeItem(
         string label,
         CommandItemKind kind,
@@ -37,15 +35,16 @@ public sealed class CommandTreeItem
     /// <summary>種類</summary>
     public CommandItemKind Kind { get; }
 
-    /// <summary>ターミナルへ送るコマンド文字列 (葉のとき)</summary>
+    /// <summary>ターミナルへ送るコマンド文字列</summary>
+    /// <remarks>葉のとき</remarks>
     public string? Command { get; }
 
     /// <summary>コマンドを送ったあとに切り替えるタブ</summary>
-    /// <remarks>null なら切り替えない。</remarks>
+    /// <remarks>null なら切り替えない</remarks>
     public CommandCategory? SwitchTo { get; }
 
     /// <summary>コマンドを送ったあとにフォーカスを移す先</summary>
-    /// <remarks>null なら移さない。</remarks>
+    /// <remarks>null なら移さない</remarks>
     public FocusTarget? Focus { get; }
 
     /// <summary>子要素</summary>
@@ -59,7 +58,7 @@ public sealed class CommandTreeItem
         _ => "",
     };
 
-    /// <summary>ツールチップで、送るコマンド文字列。</summary>
+    /// <summary>ツールチップで送るコマンド文字列</summary>
     public string? ToolTip => Command;
 
     /// <summary>作業ディレクトリ変更の項目を作る</summary>

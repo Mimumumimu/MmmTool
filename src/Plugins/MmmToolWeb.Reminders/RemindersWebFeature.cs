@@ -8,13 +8,13 @@ using MmmToolWeb.Reminders.Client;
 
 namespace MmmToolWeb.Reminders;
 
-/// <summary>
-/// リマインダーの Web 版のサーバー側。画面の API と、「通知」の画面の一覧に出す提供元と、通知を押したときの行き先を登録する。
-/// </summary>
+/// <summary>リマインダーの Web 版のサーバー側</summary>
 /// <remarks>
-/// 状態 (未・スヌーズ・完了)は、読むだけで、書かない。変えるのは PC 版だけ。
+/// 画面の API と、「通知」の画面の一覧に出す提供元と、通知を押したときの行き先を登録する。
+/// 状態 (未・スヌーズ・完了)は読むだけで、書かない。
+/// 変えるのは PC 版だけ。
 /// 時刻に外へ送る通知は MmmBatch が行うので、この機能は通知を出さない。
-/// リマインダーを Web 版の「通知」に出さないときは、サーバー本体のこの機能の登録の 1 行を外す。
+/// リマインダーを Web 版の「通知」に出さないときはサーバー本体のこの機能の登録の 1 行を外す。
 /// </remarks>
 public sealed class RemindersWebFeature : IWebFeature
 {

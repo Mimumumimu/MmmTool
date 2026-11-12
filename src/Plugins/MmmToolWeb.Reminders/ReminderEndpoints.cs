@@ -11,22 +11,20 @@ using MmmToolWeb.Reminders.Client;
 
 namespace MmmToolWeb.Reminders;
 
-/// <summary>
-/// リマインダーの API <c>/api/reminders</c>。
-/// </summary>
+/// <summary>リマインダーの API /api/reminders</summary>
 /// <remarks>
-/// 状態 (未・スヌーズ・完了)は、読むだけで、書かない。変えるのは PC 版だけ。
-/// 日付の組み立てと判定は、PC 版と同じ <c>MmmTool.Reminders.Core</c> を使う。ブラウザの発行物に <c>.Core</c> を入れないため、画面側には、押せる条件だけの同じ決まりがあり、ここでも確かめて、守れなければ 400 を返す。
+/// 状態 (未・スヌーズ・完了)は読むだけで、書かない。
+/// 変えるのは PC 版だけ。
+/// 日付の組み立てと判定は PC 版と同じ <c>MmmTool.Reminders.Core</c> を使う。
+/// ブラウザの発行物に <c>.Core</c> を入れないため、画面側には押せる条件だけの同じ決まりがあり、ここでも確かめて、守れなければ 400 を返す。
 /// </remarks>
 internal static class ReminderEndpoints
 {
-    /// <summary>リマインダーが見つからないときの理由。</summary>
+    /// <summary>リマインダーが見つからないときの理由</summary>
     private const string NotFoundMessage = "このリマインダーは、見つからないか、ほかの人が先に変えました。";
 
-    /// <summary>
-    /// リマインダーの API を登録する。
-    /// </summary>
-    /// <param name="reminders">登録先の <c>/api/reminders</c>。</param>
+    /// <summary>リマインダーの API を登録する</summary>
+    /// <param name="reminders">登録先の <c>/api/reminders</c></param>
     public static void Map(RouteGroupBuilder reminders)
     {
         reminders.MapGet("/today", LoadTodayAsync);
@@ -39,13 +37,17 @@ internal static class ReminderEndpoints
         reminders.MapPost("/{no:int}/deleted", DeleteAsync);
     }
 
-    /// <summary>
-    /// ある日の対象と、その日の対応状態を返す。
-    /// </summary>
-    /// <param name="day">日。ブラウザの時計の今日。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>その日の対象。時刻、番号の順。</returns>
+    /// <summary>ある日の対象とその日の対応状態を返す</summary>
+    /// <param name="day">
+    /// 日
+    /// ブラウザの時計の今日
+    /// </param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// その日の対象。
+    /// 時刻、番号の順。
+    /// </returns>
     private static async Task<IResult> LoadTodayAsync(DateOnly day, SqlServerReminderWebRepository repository, CancellationToken cancellationToken)
     {
         var targets = await repository.GetTodayAsync(day, cancellationToken);
@@ -58,15 +60,19 @@ internal static class ReminderEndpoints
             (int)target.Status))]));
     }
 
-    /// <summary>
-    /// 見えるリマインダーの一覧を返す。
-    /// </summary>
-    /// <param name="day">今日。ブラウザの時計の今日で、「過去の予定」を外す基準。</param>
-    /// <param name="includePast">日付が過去の日付指定も含めるか。</param>
-    /// <param name="includeDeleted">削除済みも含めるか。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>日付、時刻、番号の順の一覧。曜日指定は後ろ。</returns>
+    /// <summary>見えるリマインダーの一覧を返す</summary>
+    /// <param name="day">
+    /// 今日。
+    /// ブラウザの時計の今日で、「過去の予定」を外す基準。
+    /// </param>
+    /// <param name="includePast">日付が過去の日付指定も含めるか</param>
+    /// <param name="includeDeleted">削除済みも含めるか</param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 日付、時刻、番号の順の一覧。
+    /// 曜日指定は後ろ。
+    /// </returns>
     private static async Task<IResult> LoadListAsync(
         DateOnly day, bool? includePast, bool? includeDeleted, SqlServerReminderWebRepository repository, CancellationToken cancellationToken)
     {
@@ -79,16 +85,23 @@ internal static class ReminderEndpoints
             reminder.IsDeleted))]));
     }
 
-    /// <summary>
-    /// 入力のシートが要る、宛先と送信先の選択肢と、文字数の上限を返す。
-    /// </summary>
-    /// <param name="target">編集するリマインダーの宛先の人の番号。もう選べない人のときも、選択肢に含めるため。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="users">ユーザーの保存先。</param>
-    /// <param name="channels">送信先の保存先。送る先の値は読まない。</param>
-    /// <param name="time">現在時刻の取得元。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>選択肢と上限。宛先は、先頭が自分、次が全員、そのあとはほかの使える人。</returns>
+    /// <summary>入力のシートが要る宛先と送信先の選択肢と文字数の上限を返す</summary>
+    /// <param name="target">
+    /// 編集するリマインダーの宛先の人の番号。
+    /// もう選べない人のときも、選択肢に含めるため。
+    /// </param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="users">ユーザーの保存先</param>
+    /// <param name="channels">
+    /// 送信先の保存先
+    /// 送る先の値は読まない
+    /// </param>
+    /// <param name="time">現在時刻の取得元</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 選択肢と上限。
+    /// 宛先は先頭が自分、次が全員、そのあとはほかの使える人。
+    /// </returns>
     private static async Task<IResult> LoadOptionsAsync(
         int? target,
         SqlServerReminderWebRepository repository,
@@ -124,14 +137,20 @@ internal static class ReminderEndpoints
             targets, [.. options], ReminderLimits.TitleMaxLength, ReminderLimits.NoteMaxLength, ReminderLimits.LinkMaxLength));
     }
 
-    /// <summary>
-    /// この端末が登録した、自分の送信先の番号を返す。新規の入力で、この端末の送信先を最初から選ぶために使う。
-    /// </summary>
-    /// <param name="request">この端末の通知の宛先。</param>
-    /// <param name="channels">送信先の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>削除されていない自分の送信先が見つかれば、その番号。無いときは 0。宛先の形が正しくないときは 400。</returns>
-    /// <remarks>宛先は秘密なので、道には載せず、本文で受ける。返すのは番号だけで、宛先は返さない。</remarks>
+    /// <summary>この端末が登録した自分の送信先の番号を返す</summary>
+    /// <param name="request">この端末の通知の宛先</param>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 削除されていない自分の送信先が見つかれば、その番号。
+    /// 無いときは 0。
+    /// 宛先の形が正しくないときは 400。
+    /// </returns>
+    /// <remarks>
+    /// 新規の入力で、この端末の送信先を最初から選ぶために使う。
+    /// 宛先は秘密なので、道には載せず、本文で受ける。
+    /// 返すのは番号だけで、宛先は返さない。
+    /// </remarks>
     private static async Task<IResult> FindThisDeviceAsync(
         ReminderDeviceRequest request, INotificationChannelRepository channels, CancellationToken cancellationToken)
     {
@@ -144,14 +163,16 @@ internal static class ReminderEndpoints
         return Results.Ok(new ReminderDeviceResponse(found is { IsDeleted: false } ? found.Id : 0));
     }
 
-    /// <summary>
-    /// 編集のために、リマインダー 1 件の中身を返す。
-    /// </summary>
-    /// <param name="no">リマインダーの番号。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="sendSettings">送信設定の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>中身。削除済みも返す。無い・見えないときは 404。</returns>
+    /// <summary>編集のためにリマインダー 1 件の中身を返す</summary>
+    /// <param name="no">リマインダーの番号</param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="sendSettings">送信設定の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 中身
+    /// 削除済みも返す
+    /// 無い・見えないときは 404
+    /// </returns>
     private static async Task<IResult> LoadDetailAsync(
         int no, SqlServerReminderWebRepository repository, SqlServerReminderSendSettingRepository sendSettings, CancellationToken cancellationToken)
     {
@@ -175,17 +196,20 @@ internal static class ReminderEndpoints
             channelIds));
     }
 
-    /// <summary>
-    /// リマインダーを追加する。
-    /// </summary>
-    /// <param name="request">保存する内容。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="sendSettings">送信設定の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 200 と、採番した番号。入力が正しくないときは 400。リマインダーは保存できたが送信先を保存できなかったときは、200 と、番号と理由。</returns>
+    /// <summary>リマインダーを追加する</summary>
+    /// <param name="request">保存する内容</param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="sendSettings">送信設定の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 200 と、採番した番号。
+    /// 入力が正しくないときは 400。
+    /// リマインダーは保存できたが送信先を保存できなかったときは 200 と、番号と理由。
+    /// </returns>
     /// <remarks>
-    /// リマインダーと送信設定は、別の書き込み。送信設定だけ失敗したとき、画面が保存し直すと、同じリマインダーが重なって作られる。
-    /// そのため、失敗を 200 の理由で返し、画面が、返した番号で更新し直せるようにする。
+    /// リマインダーと送信設定は別の書き込み。
+    /// 送信設定だけ失敗したとき、画面が保存し直すと、同じリマインダーが重なって作られる。
+    /// そのため、失敗を 200 の理由で返し、画面が返した番号で更新し直せるようにする。
     /// </remarks>
     private static async Task<IResult> AddAsync(
         ReminderSaveRequest request, SqlServerReminderWebRepository repository, SqlServerReminderSendSettingRepository sendSettings, CancellationToken cancellationToken)
@@ -215,15 +239,17 @@ internal static class ReminderEndpoints
         return Results.Ok(new ReminderSaveResult(saved.No));
     }
 
-    /// <summary>
-    /// リマインダーを変更する。
-    /// </summary>
-    /// <param name="no">リマインダーの番号。</param>
-    /// <param name="request">保存する内容。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="sendSettings">送信設定の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 200 と、番号。入力が正しくないときは 400。見えない・無いときは 404。</returns>
+    /// <summary>リマインダーを変更する</summary>
+    /// <param name="no">リマインダーの番号</param>
+    /// <param name="request">保存する内容</param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="sendSettings">送信設定の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 200 と、番号。
+    /// 入力が正しくないときは 400。
+    /// 見えない・無いときは 404。
+    /// </returns>
     private static async Task<IResult> UpdateAsync(
         int no, ReminderSaveRequest request, SqlServerReminderWebRepository repository, SqlServerReminderSendSettingRepository sendSettings, CancellationToken cancellationToken)
     {
@@ -244,15 +270,20 @@ internal static class ReminderEndpoints
         return Results.Ok(new ReminderSaveResult(no));
     }
 
-    /// <summary>
-    /// リマインダーを削除する。
-    /// </summary>
-    /// <param name="no">リマインダーの番号。</param>
-    /// <param name="request">削除する本文。</param>
-    /// <param name="repository">リマインダーの保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 204。見えない・無いときは 404。</returns>
-    /// <remarks>状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。削除を取り消すのは、編集して保存したとき。</remarks>
+    /// <summary>リマインダーを削除する</summary>
+    /// <param name="no">リマインダーの番号</param>
+    /// <param name="request">削除する本文</param>
+    /// <param name="repository">リマインダーの保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 204
+    /// 見えない・無いときは 404
+    /// </returns>
+    /// <remarks>
+    /// 状態を変える操作は JSON の本文を要る形にする。
+    /// ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。
+    /// 削除を取り消すのは編集して保存したとき。
+    /// </remarks>
     private static async Task<IResult> DeleteAsync(
         int no, ReminderDeletedRequest request, SqlServerReminderWebRepository repository, CancellationToken cancellationToken)
     {
@@ -266,17 +297,18 @@ internal static class ReminderEndpoints
             : Results.NotFound(new ErrorResponse(NotFoundMessage));
     }
 
-    /// <summary>入力が正しくないときの理由。</summary>
+    /// <summary>入力が正しくないときの理由</summary>
     private const string InvalidMessage = "入力の内容を確かめてください。";
 
-    /// <summary>リマインダーは保存したが、送信先を保存できなかったときの理由。</summary>
+    /// <summary>リマインダーは保存したが送信先を保存できなかったときの理由</summary>
     private const string SendSettingWarning = "リマインダーは保存しましたが、送信先を保存できませんでした。もう一度、保存してください。";
 
-    /// <summary>
-    /// 要求の入力を確かめる。
-    /// </summary>
-    /// <param name="request">保存する内容。</param>
-    /// <returns>正しくないときは画面に出せる理由。正しければ null。</returns>
+    /// <summary>要求の入力を確かめる</summary>
+    /// <param name="request">保存する内容</param>
+    /// <returns>
+    /// 正しくないときは画面に出せる理由
+    /// 正しければ null
+    /// </returns>
     private static string? Validate(ReminderSaveRequest request)
     {
         // JSON で項目を省かれると、null が入る。型の上は null にならないが、確かめて 400 にする
@@ -301,12 +333,16 @@ internal static class ReminderEndpoints
         return null;
     }
 
-    /// <summary>
-    /// 要求を、リマインダーにする。
-    /// </summary>
-    /// <param name="request">保存する内容。</param>
-    /// <param name="no">リマインダーの番号。新規は 0。</param>
-    /// <returns>リマインダー。時刻の文字・曜日の値が正しくないときは null。</returns>
+    /// <summary>要求をリマインダーにする</summary>
+    /// <param name="request">保存する内容</param>
+    /// <param name="no">
+    /// リマインダーの番号
+    /// 新規は 0
+    /// </param>
+    /// <returns>
+    /// リマインダー
+    /// 時刻の文字・曜日の値が正しくないときは null
+    /// </returns>
     private static Reminder? ToReminder(ReminderSaveRequest request, int no)
     {
         if (!TimeOnly.TryParseExact(request.Time, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
@@ -330,31 +366,40 @@ internal static class ReminderEndpoints
         };
     }
 
-    /// <summary>
-    /// 保存する送信先の番号を決める。宛先が自分でも全員でもないときは、空にする。
-    /// </summary>
-    /// <param name="request">保存する内容。</param>
-    /// <param name="selfId">今のユーザーの番号。</param>
-    /// <returns>選んだ送信先。宛先をほかの人にしたリマインダーは、自分の送信先へ送らないため、空。空にすると、自分の送信先の設定がすべて外れる。</returns>
+    /// <summary>保存する送信先の番号を決める</summary>
+    /// <param name="request">保存する内容</param>
+    /// <param name="selfId">今のユーザーの番号</param>
+    /// <returns>
+    /// 選んだ送信先。
+    /// 宛先をほかの人にしたリマインダーは自分の送信先へ送らないため、空。
+    /// 空にすると、自分の送信先の設定がすべて外れる。
+    /// </returns>
+    /// <remarks>宛先が自分でも全員でもないときは空にする</remarks>
     private static IReadOnlyList<int> EffectiveChannelIds(ReminderSaveRequest request, int selfId)
         => request.TargetUserId == 0 || request.TargetUserId == selfId ? request.ChannelIds : [];
 
-    /// <summary>時刻の整数を、<c>HH:mm</c> の文字にする。</summary>
-    /// <param name="value">HHmm の整数。</param>
-    /// <returns><c>HH:mm</c> の文字。</returns>
+    /// <summary>時刻の整数を HH:mm の文字にする</summary>
+    /// <param name="value">HHmm の整数</param>
+    /// <returns><c>HH:mm</c> の文字</returns>
     private static string TimeText(int value) => ReminderDates.ToTime(value)?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "--:--";
 
-    /// <summary>一覧の「いつ」の文字。日付指定は日付、曜日指定は曜日。</summary>
-    /// <param name="reminder">リマインダー。</param>
-    /// <returns><c>yyyy/MM/dd</c> か、「月火水」のような曜日。7 つ全部と 1 つも無いときは「毎日」。</returns>
+    /// <summary>一覧の「いつ」の文字</summary>
+    /// <param name="reminder">リマインダー</param>
+    /// <returns>
+    /// <c>yyyy/MM/dd</c> か、「月火水」のような曜日。
+    /// 7 つ全部と 1 つも無いときは「毎日」。
+    /// </returns>
+    /// <remarks>日付指定は日付、曜日指定は曜日。</remarks>
     private static string WhenText(Reminder reminder)
         => ReminderDates.ToDate(reminder.Date)?.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) ?? WeekdaySet.Describe(reminder.Weekdays);
 
-    /// <summary>
-    /// 件名から開くリンクにしてよいか確かめる。
-    /// </summary>
-    /// <param name="link">リマインダーのリンク。</param>
-    /// <returns><c>http</c> か <c>https</c> の絶対アドレスのときだけ、そのアドレス。それ以外は null。パソコンのファイルの場所は、iPhone で開けないため。</returns>
+    /// <summary>件名から開くリンクにしてよいか確かめる</summary>
+    /// <param name="link">リマインダーのリンク</param>
+    /// <returns>
+    /// <c>http</c> か <c>https</c> の絶対アドレスのときだけ、そのアドレス。
+    /// それ以外は null。
+    /// パソコンのファイルの場所は iPhone で開けないため。
+    /// </returns>
     private static string? SafeLink(string? link)
         => link is not null
             && Uri.TryCreate(link.Trim(), UriKind.Absolute, out var uri)

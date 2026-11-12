@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace MmmTool.CliAssist.FocusTriggers;
 
-/// <summary>編集ダイアログで編集中の、通知する文字列 1 件</summary>
+/// <summary>編集ダイアログで編集中の通知する文字列 1 件</summary>
 /// <param name="remove">この項目を一覧から取り除く処理</param>
 public sealed partial class FocusTriggerEditItem(Action<FocusTriggerEditItem> remove) : ObservableObject
 {
@@ -11,7 +11,7 @@ public sealed partial class FocusTriggerEditItem(Action<FocusTriggerEditItem> re
     [ObservableProperty]
     public partial string Text { get; set; } = string.Empty;
 
-    /// <summary>知らせるときに、ターミナルへフォーカスも移すか</summary>
+    /// <summary>知らせるときにターミナルへフォーカスも移すか</summary>
     [ObservableProperty]
     public partial bool MoveToTerminal { get; set; } = true;
 

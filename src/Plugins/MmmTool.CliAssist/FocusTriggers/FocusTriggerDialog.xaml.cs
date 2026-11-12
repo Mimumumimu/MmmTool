@@ -28,10 +28,10 @@ public sealed partial class FocusTriggerDialog : ContentDialog, ICliEditDialog
         await ShowAsync();
     }
 
-    /// <summary>項目の入力欄へ、フォーカスを移す</summary>
+    /// <summary>項目の入力欄へフォーカスを移す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="item">フォーカスを移す項目</param>
-    /// <remarks>項目を足した直後は、入力欄がまだ作られていないので、画面の配置を済ませてから探す。</remarks>
+    /// <remarks>項目を足した直後は入力欄がまだ作られていないので、画面の配置を済ませてから探す。</remarks>
     private void OnFocusRequested(object? sender, FocusTriggerEditItem item)
     {
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>

@@ -5,19 +5,22 @@ using MmmTool.Reminders.Core;
 
 namespace MmmBatch.ReminderSending.Core;
 
-/// <summary>
-/// 毎分の仕事として、時刻になったリマインダーを、選んだ送信先へ、一度だけ送る。
-/// </summary>
+/// <summary>毎分の仕事として、時刻になったリマインダーを選んだ送信先へ一度だけ送る</summary>
 /// <remarks>
 /// <para>
-/// 1 回の実行 (<see cref="RunAsync"/>)は、送る対象 (今日発動し、時刻が過ぎたもの)ごとに、送信の状況の行を先に作ってから送る。
-/// 行を作れた (一意制約に当たらなかった)ものだけが送る。失敗 (<see cref="SendStatus.Failed"/>)は、待つ時間を空けて、回数の上限まで送り直す。
-/// 決まりは <see cref="SendRetryPolicy"/> にある。送信中 (<see cref="SendStatus.Pending"/>)のまま長く止まっている行 (送っている途中で落ちた)も、送り直す。
-/// 送り直しの前に送信が済んでいたときは、二重に送られうる。取りこぼすより、重複を許す側に倒す。
+/// 1 回の実行 (<see cref="RunAsync"/>)は送る対象 (今日発動し、時刻が過ぎたもの)ごとに、送信の状況の行を先に作ってから送る。
+/// 行を作れた (一意制約に当たらなかった)ものだけが送る。
+/// 失敗 (<see cref="SendStatus.Failed"/>)は待つ時間を空けて、回数の上限まで送り直す。
+/// 決まりは <see cref="SendRetryPolicy"/> にある。
+/// 送信中 (<see cref="SendStatus.Pending"/>)のまま長く止まっている行 (送っている途中で落ちた)も送り直す。
+/// 送り直しの前に送信が済んでいたときは二重に送られうる。
+/// 取りこぼすより、重複を許す側に倒す。
 /// </para>
 /// <para>
-/// 宛先・対応状態 (完了・スヌーズ)は見ない。送信は、登録した人が選んだ送信先へ、時刻に一度だけ送るもので、人ごとの対応状態とは別。
-/// 起動した直後の実行でも、今日の時刻を過ぎた分を送る。止まっていた間の分は、起動後に送る。
+/// 宛先・対応状態 (完了・スヌーズ)は見ない。
+/// 送信は登録した人が選んだ送信先へ、時刻に一度だけ送るもので、人ごとの対応状態とは別。
+/// 起動した直後の実行でも今日の時刻を過ぎた分を送る。
+/// 止まっていた間の分は起動後に送る。
 /// </para>
 /// </remarks>
 /// <param name="source">送る対象の読み出し口</param>
@@ -30,7 +33,7 @@ public sealed class ReminderSendService(
     IReminderSendTargetSource source, IReminderSendStatusRepository statuses, IEnumerable<INotifier> notifiers, ISendLog log, BatchAlertService alerts, TimeProvider time)
     : IBatchJob
 {
-    /// <summary>区分ごとの、外部へ送る口</summary>
+    /// <summary>区分ごとの外部へ送る口</summary>
     private readonly Dictionary<NotificationChannelKind, INotifier> _notifiers = notifiers.ToDictionary(notifier => notifier.Kind);
 
     /// <inheritdoc />
@@ -41,23 +44,24 @@ public sealed class ReminderSendService(
     public TimeSpan Interval => TimeSpan.FromMinutes(1);
 
     /// <inheritdoc />
-    /// <remarks>任意のスレッドから発火する。</remarks>
+    /// <remarks>任意のスレッドから発火する</remarks>
     public event EventHandler? Changed;
 
     /// <inheritdoc />
-    /// <remarks>任意のスレッドから発火する。</remarks>
+    /// <remarks>任意のスレッドから発火する</remarks>
     public event EventHandler? Ran;
 
     /// <inheritdoc />
     public string? LastError { get; private set; }
 
-    /// <summary>今の時刻に送るものを、送る</summary>
+    /// <summary>今の時刻に送るものを送る</summary>
     /// <param name="now">今の日時 (ローカル)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>実行の完了を表すタスク</returns>
     /// <remarks>
-    /// DB の読み書きの失敗は、<see cref="LastError"/> に残して、その回を終え、次の分に、また試す。送信の失敗は、行の状態に残す。
-    /// 気づいてほしい失敗は、送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
+    /// DB の読み書きの失敗は <see cref="LastError"/> に残して、その回を終え、次の分にまた試す。
+    /// 送信の失敗は行の状態に残す。
+    /// 気づいてほしい失敗は送信の失敗が最初の失敗と回数の上限での最後の失敗の 2 回だけ、DB の失敗が内容の変わったときだけ、窓口 (<see cref="BatchAlertService"/>)へ報告する。
     /// </remarks>
     public async Task RunAsync(DateTime now, CancellationToken cancellationToken = default)
     {
@@ -111,19 +115,23 @@ public sealed class ReminderSendService(
         Ran?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>送る対象が、今日、送る時刻を過ぎているか</summary>
+    /// <summary>送る対象が今日送る時刻を過ぎているか</summary>
     /// <param name="target">送る対象</param>
     /// <param name="today">今日</param>
     /// <param name="nowTime">今の時刻 (HHmm の整数)</param>
-    /// <returns>今日発動し、時刻が正しく、過ぎていて、送信設定が今日の発動時刻より前からあれば true</returns>
-    /// <remarks>送信設定を、今日の発動時刻より後に付けた (更新した)ときは、今日の分は送らない。付けた時点で過ぎている分を、すぐ送らないためで、明日からは送る。</remarks>
+    /// <returns>今日発動し、時刻が正しく、過ぎていて、送信設定が今日の発動時刻より前からあれば true。</returns>
+    /// <remarks>
+    /// 送信設定を今日の発動時刻より後に付けた (更新した)ときは、今日の分は送らない。
+    /// 付けた時点で過ぎている分を、すぐ送らないためで、明日からは送る。
+    /// </remarks>
     private static bool IsDue(ReminderSendTarget target, DateOnly today, int nowTime)
         => target.Reminder.Time <= nowTime && IsPlanned(target, today);
 
-    /// <summary>送る対象が、今日の送信予定か (時刻が過ぎているかは問わない)</summary>
+    /// <summary>送る対象が今日の送信予定か</summary>
     /// <param name="target">送る対象</param>
     /// <param name="today">今日</param>
-    /// <returns>今日発動し、時刻が正しく、送信設定が今日の発動時刻より前からあれば true</returns>
+    /// <returns>今日発動し、時刻が正しく、送信設定が今日の発動時刻より前からあれば true。</returns>
+    /// <remarks>時刻が過ぎているかは問わない</remarks>
     private static bool IsPlanned(ReminderSendTarget target, DateOnly today)
         => ReminderDates.ToTime(target.Reminder.Time) is { } time
             && ReminderDates.OccursOn(target.Reminder, today)
@@ -132,9 +140,18 @@ public sealed class ReminderSendService(
     /// <summary>今日の送信予定を取得する</summary>
     /// <param name="now">今の日時 (ローカル)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>今日の送信予定で、時刻、リマインダーの番号の順に並ぶ。今日の分でないもの・削除したもの・送信先なしは含まない</returns>
-    /// <remarks>保存した時点で、送る時刻が過ぎていて、今日は送らないものも含める。なぜ送られないか見えるように、<see cref="ReminderSendPlanItem.IsSkipped"/> で示す。</remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 今日の送信予定で、時刻、リマインダーの番号の順に並ぶ。
+    /// 今日の分でないもの・削除したもの・送信先なしは含まない。
+    /// </returns>
+    /// <remarks>
+    /// 保存した時点で、送る時刻が過ぎていて、今日は送らないものも含める。
+    /// なぜ送られないか見えるように <see cref="ReminderSendPlanItem.IsSkipped"/> で示す。
+    /// </remarks>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public async Task<IReadOnlyList<ReminderSendPlanItem>> GetTodayPlanAsync(DateTime now, CancellationToken cancellationToken = default)
     {
         var today = DateOnly.FromDateTime(now);
@@ -147,22 +164,29 @@ public sealed class ReminderSendService(
             .ThenBy(item => item.Target.Reminder.No)];
     }
 
-    /// <summary>今日の分を、状態や時刻にかかわらず、今すぐ 1 回送る (画面の「再送」「今すぐ送る」)</summary>
+    /// <summary>今日の分を状態や時刻にかかわらず今すぐ 1 回送る</summary>
     /// <param name="target">送る対象</param>
     /// <param name="now">今の日時 (ローカル)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     /// <remarks>
     /// <para>
-    /// まだ時刻が来ていない予定 (今日送る予定で、まだ送ろうとしていない)は、送るだけで、「今日の送信の状況」は作らない。
-    /// テスト送信が、予定の送信を消さないため。時刻になれば、予定どおり、もう一度送られる。送ったことは、送信のログに残る。
+    /// まだ時刻が来ていない予定 (今日送る予定で、まだ送ろうとしていない)は送るだけで、「今日の送信の状況」は作らない。
+    /// テスト送信が予定の送信を消さないため。
+    /// 時刻になれば、予定どおり、もう一度送られる。
+    /// 送ったことは送信のログに残る。
     /// </para>
     /// <para>
-    /// それ以外は、送信済み・回数の上限に達した失敗も送り直せる。回数は数え続ける。時刻が過ぎているのに、まだ送ろうとしていないものは、行を作って送る。
-    /// 同じ送信を、別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
+    /// それ以外は送信済み・回数の上限に達した失敗も送り直せる。
+    /// 回数は数え続ける。
+    /// 時刻が過ぎているのに、まだ送ろうとしていないものは行を作って送る。
+    /// 同じ送信を別の MmmBatch・毎分の実行が同時に行っていたときは、先に権利を取ったほうだけが送り、こちらは何もしない。
     /// </para>
     /// </remarks>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public async Task ResendAsync(ReminderSendTarget target, DateTime now, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -199,11 +223,16 @@ public sealed class ReminderSendService(
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>送信の状況を作らず・変えずに、1 回送って、結果を送信のログだけに残す (まだ時刻が来ていない予定へのテスト送信)</summary>
+    /// <summary>送信の状況を作らず・変えずに 1 回送って、結果を送信のログだけに残す</summary>
     /// <param name="target">送る対象</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
-    /// <remarks>回数は 0 で記録する。予定の送信の回数には数えない。失敗は、ログに理由が残り、トレイの通知は出さない。操作した人が、画面で見ているため。</remarks>
+    /// <remarks>
+    /// 回数は 0 で記録する。
+    /// 予定の送信の回数には数えない。
+    /// 失敗はログに理由が残り、トレイの通知は出さない。
+    /// 操作した人が画面で見ているため。
+    /// </remarks>
     private async Task SendWithoutStatusAsync(ReminderSendTarget target, CancellationToken cancellationToken)
     {
         var status = SendStatus.Sent;
@@ -229,12 +258,19 @@ public sealed class ReminderSendService(
         await AppendLogAsync(target, 0, status, error, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>送る権利を取る (行を作る・送り直しの権利を取る)</summary>
+    /// <summary>送る権利を取る</summary>
     /// <param name="target">送る対象</param>
-    /// <param name="current">今日の送信の状況。まだ無ければ null</param>
+    /// <param name="current">
+    /// 今日の送信の状況
+    /// まだ無ければ null
+    /// </param>
     /// <param name="today">今日</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>送る権利を取れたときの、送信中の行。送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null</returns>
+    /// <returns>
+    /// 送る権利を取れたときの、送信中の行。
+    /// 送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null。
+    /// </returns>
+    /// <remarks>行を作る・送り直しの権利を取る</remarks>
     private async Task<ReminderSendStatus?> ClaimAsync(ReminderSendTarget target, ReminderSendStatus? current, DateOnly today, CancellationToken cancellationToken)
     {
         if (current is null)
@@ -245,10 +281,14 @@ public sealed class ReminderSendService(
         return await ClaimRetryAsync(current, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>送り直しの権利を取る (済み・上限・待ち時間のものは取らない)</summary>
+    /// <summary>送り直しの権利を取る</summary>
     /// <param name="current">今の送信の状況</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>権利を取れたときの、送信中の行。送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null</returns>
+    /// <returns>
+    /// 権利を取れたときの、送信中の行。
+    /// 送らないとき (済み・上限・待ち時間・別の MmmBatch が先)は null。
+    /// </returns>
+    /// <remarks>済み・上限・待ち時間のものは取らない</remarks>
     private async Task<ReminderSendStatus?> ClaimRetryAsync(ReminderSendStatus current, CancellationToken cancellationToken)
     {
         if (current.Status == SendStatus.Sent || current.Attempts >= SendRetryPolicy.MaxAttempts)
@@ -269,11 +309,18 @@ public sealed class ReminderSendService(
             : null;
     }
 
-    /// <summary>昨日の、送れなかったもの・送信中のまま止まったものを、送り直す</summary>
-    /// <param name="targets">送る対象と、昨日の送信の状況。送信設定が今もあるものだけで、削除されたリマインダー・送信先は送り直さない</param>
+    /// <summary>昨日の送れなかったもの・送信中のまま止まったものを送り直す</summary>
+    /// <param name="targets">
+    /// 送る対象と、昨日の送信の状況。
+    /// 送信設定が今もあるものだけで、削除されたリマインダー・送信先は送り直さない。
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送り直しを始めたものがあれば true</returns>
-    /// <remarks>新しい行は作らない。昨日の分を、今から新しく送らないため。送る内容は、今のリマインダーの内容。</remarks>
+    /// <remarks>
+    /// 新しい行は作らない
+    /// 昨日の分を今から新しく送らないため
+    /// 送る内容は今のリマインダーの内容
+    /// </remarks>
     private async Task<bool> RetryPreviousDayAsync(IReadOnlyList<ReminderSendTargetState> targets, CancellationToken cancellationToken)
     {
         var changed = false;
@@ -292,9 +339,9 @@ public sealed class ReminderSendService(
         return changed;
     }
 
-    /// <summary>送って、結果を行に残す</summary>
+    /// <summary>送って結果を行に残す</summary>
     /// <param name="target">送る対象</param>
-    /// <param name="claimed">送る権利を取った、送信中の行</param>
+    /// <param name="claimed">送る権利を取った、送信中の行。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信と記録の完了を表すタスク</returns>
     private async Task SendAsync(ReminderSendTarget target, ReminderSendStatus claimed, CancellationToken cancellationToken)
@@ -322,14 +369,21 @@ public sealed class ReminderSendService(
         await FinishAsync(target, claimed, SendStatus.Sent, "", cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>結果を、送信の状況 (今の状態)に残し、送信のログに 1 行足す</summary>
+    /// <summary>結果を送信の状況に残し、送信のログに 1 行足す</summary>
     /// <param name="target">送った対象</param>
-    /// <param name="claimed">送る権利を取った、送信中の行</param>
+    /// <param name="claimed">送る権利を取った、送信中の行。</param>
     /// <param name="status">結果 (<see cref="SendStatus.Sent"/> か <see cref="SendStatus.Failed"/>)</param>
-    /// <param name="error">失敗の理由。成功は空文字。送信のログにだけ残す</param>
+    /// <param name="error">
+    /// 失敗の理由
+    /// 成功は空文字
+    /// 送信のログにだけ残す
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
-    /// <remarks>ログを書けなくても、送信そのものは失敗にしない。気づけるよう、通知は出す。</remarks>
+    /// <remarks>
+    /// ログを書けなくても送信そのものは失敗にしない。
+    /// 気づけるよう、通知は出す。
+    /// </remarks>
     private async Task FinishAsync(ReminderSendTarget target, ReminderSendStatus claimed, SendStatus status, string error, CancellationToken cancellationToken)
     {
         if (status == SendStatus.Sent)
@@ -348,7 +402,10 @@ public sealed class ReminderSendService(
     /// <param name="target">送った対象</param>
     /// <param name="attempt">何回目の送信か</param>
     /// <param name="status">結果</param>
-    /// <param name="error">失敗の理由。成功は空文字</param>
+    /// <param name="error">
+    /// 失敗の理由
+    /// 成功は空文字
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>記録の完了を表すタスク</returns>
     private async Task AppendLogAsync(ReminderSendTarget target, int attempt, SendStatus status, string error, CancellationToken cancellationToken)
@@ -368,7 +425,10 @@ public sealed class ReminderSendService(
     }
 
     /// <summary>最後の失敗を記録する</summary>
-    /// <param name="message">失敗のメッセージ。無ければ null</param>
+    /// <param name="message">
+    /// 失敗のメッセージ
+    /// 無ければ null
+    /// </param>
     /// <returns>前回と違えば true</returns>
     private bool SetLastError(string? message)
     {

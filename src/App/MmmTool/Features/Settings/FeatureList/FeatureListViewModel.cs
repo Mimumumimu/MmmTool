@@ -9,31 +9,35 @@ using MmmSdk.WinUI.Components.Errors;
 
 namespace MmmTool.Features.Settings.FeatureList;
 
-/// <summary>設定ページの「機能」の一覧 (機能のオン・オフ・並び順)の ViewModel</summary>
+/// <summary>設定ページの「機能」の一覧の ViewModel</summary>
 public sealed class FeatureListViewModel : ObservableObject
 {
     /// <summary>機能のオン・オフ</summary>
     private readonly FeatureService _features;
 
-    /// <summary>並べ替えの保存を、操作が止まってから 1 回だけ行うための待ち</summary>
+    /// <summary>並べ替えの保存を操作が止まってから 1 回だけ行うための待ち</summary>
     private readonly Debouncer _saveDebouncer = new(TimeSpan.FromMilliseconds(300));
 
-    /// <summary>一覧の並びを、実際の並びに合わせている最中か (このときの変更は、保存しない)</summary>
+    /// <summary>一覧の並びを実際の並びに合わせている最中か</summary>
+    /// <remarks>このときの変更は保存しない</remarks>
     private bool _isSyncing;
 
-    /// <summary>画面に出すエラー (オン・オフ・並び順を保存できなかったとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>オン・オフ・並び順を保存できなかったとき</remarks>
     public ErrorState Error { get; } = new();
 
-    /// <summary>機能の一覧で、利用者が決めた並び順。ドラッグで並べ替える</summary>
+    /// <summary>機能の一覧で、利用者が決めた並び順</summary>
+    /// <remarks>ドラッグで並べ替える</remarks>
     public ObservableCollection<FeatureItem> Features { get; }
 
-    /// <summary>オン・オフ・並べ替えができるか (設定ファイルを読めたとき)</summary>
+    /// <summary>オン・オフ・並べ替えができるか</summary>
+    /// <remarks>設定ファイルを読めたとき</remarks>
     public bool IsEditable { get; }
 
     /// <summary>一覧を作る</summary>
     /// <param name="settings">汎用設定ストア</param>
     /// <param name="features">機能のオン・オフ</param>
-    /// <remarks>設定ファイルを読めなかったときは、上書きして消さないよう、スイッチを無効にする。</remarks>
+    /// <remarks>設定ファイルを読めなかったときは上書きして消さないよう、スイッチを無効にする。</remarks>
     public FeatureListViewModel(ISettingsStore settings, FeatureService features)
     {
         _features = features;
@@ -42,7 +46,7 @@ public sealed class FeatureListViewModel : ObservableObject
         Features.CollectionChanged += OnFeaturesChanged;
     }
 
-    /// <summary>一覧の並びが変わったとき (ドラッグでの並べ替え)の処理</summary>
+    /// <summary>一覧の並びが変わったときの処理</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変更の内容</param>
     /// <remarks>
@@ -59,9 +63,12 @@ public sealed class FeatureListViewModel : ObservableObject
         _saveDebouncer.RunAsync(() => true, _ => SaveOrderAsync().Forget()).Forget();
     }
 
-    /// <summary>ドラッグで並べ替えたあとの処理 (今の並びを保存して反映する)</summary>
+    /// <summary>ドラッグで並べ替えたあとの処理</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存できなかったときは、エラーを出して、実際の並びへ戻す。</remarks>
+    /// <remarks>
+    /// 今の並びを保存して反映する。
+    /// 保存できなかったときはエラーを出して、実際の並びへ戻す。
+    /// </remarks>
     public async Task SaveOrderAsync()
     {
         var keys = Features.Select(f => f.Key).ToList();
@@ -86,7 +93,7 @@ public sealed class FeatureListViewModel : ObservableObject
         }
     }
 
-    /// <summary>並び順を、登録の順に戻す</summary>
+    /// <summary>並び順を登録の順に戻す</summary>
     /// <returns>戻す処理の完了を表すタスク</returns>
     public async Task ResetOrderAsync()
     {
@@ -105,7 +112,8 @@ public sealed class FeatureListViewModel : ObservableObject
         SyncOrder();
     }
 
-    /// <summary>一覧の並びを、実際の並び (<see cref="FeatureService.Features"/>)に合わせる</summary>
+    /// <summary>一覧の並びを実際の並びに合わせる</summary>
+    /// <remarks><see cref="FeatureService.Features"/></remarks>
     private void SyncOrder()
     {
         _isSyncing = true;
@@ -122,12 +130,14 @@ public sealed class FeatureListViewModel : ObservableObject
         _isSyncing = false;
     }
 
-    /// <summary>スイッチが切り替わったときの処理 (機能のオン・オフを反映する)</summary>
+    /// <summary>スイッチが切り替わったときの処理</summary>
     /// <param name="item">切り替わった行</param>
     /// <returns>反映の完了を表すタスク</returns>
     /// <remarks>
-    /// 画面の状態と実際の状態が同じなら何もしない。初めの表示・下の巻き戻しでも、スイッチの切り替えが通知されるため。
-    /// 取りやめた・保存できなかったとき (読み込めない・ロックや権限での失敗は、画面に出す)は、スイッチを実際の状態へ戻す。
+    /// 機能のオン・オフを反映する。
+    /// 画面の状態と実際の状態が同じなら何もしない。
+    /// 初めの表示・下の巻き戻しでもスイッチの切り替えが通知されるため。
+    /// 取りやめた・保存できなかったとき (読み込めない・ロックや権限での失敗は画面に出す)は、スイッチを実際の状態へ戻す。
     /// </remarks>
     public async Task ToggleFeatureAsync(FeatureItem item)
     {

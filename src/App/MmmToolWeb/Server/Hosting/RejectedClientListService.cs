@@ -3,20 +3,19 @@ using System.Text;
 
 namespace MmmToolWeb.Server.Hosting;
 
-/// <summary>
-/// 断った接続元の一覧を、ファイルに保存する。起動時に読み込み、変わったときだけ 1 分ごとに書き直し、止めるときにも書く。
-/// </summary>
+/// <summary>断った接続元の一覧をファイルに保存する</summary>
 /// <param name="guard">探りの数え方と、断った接続元の一覧。</param>
-/// <param name="filePath">一覧のファイル。</param>
+/// <param name="filePath">一覧のファイル</param>
+/// <remarks>起動時に読み込み、変わったときだけ 1 分ごとに書き直し、止めるときにも書く。</remarks>
 internal sealed class RejectedClientListService(ProbeGuard guard, string filePath) : BackgroundService
 {
-    /// <summary>書き直す間隔。</summary>
+    /// <summary>書き直す間隔</summary>
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
 
-    /// <summary>日時の書き方。</summary>
+    /// <summary>日時の書き方</summary>
     private const string TimeFormat = "yyyy-MM-dd HH:mm:ss zzz";
 
-    /// <summary>項目の区切り。</summary>
+    /// <summary>項目の区切り</summary>
     private const char Separator = '\t';
 
     /// <inheritdoc />
@@ -47,9 +46,8 @@ internal sealed class RejectedClientListService(ProbeGuard guard, string filePat
         }
     }
 
-    /// <summary>
-    /// 保存してあった一覧を読み込む。読めなかった行は飛ばす。
-    /// </summary>
+    /// <summary>保存してあった一覧を読み込む</summary>
+    /// <remarks>読めなかった行は飛ばす</remarks>
     private void Load()
     {
         if (!File.Exists(filePath))
@@ -78,9 +76,7 @@ internal sealed class RejectedClientListService(ProbeGuard guard, string filePat
         }
     }
 
-    /// <summary>
-    /// 一覧を、ファイルに書き直す。
-    /// </summary>
+    /// <summary>一覧をファイルに書き直す</summary>
     private void Save()
     {
         var text = new StringBuilder()

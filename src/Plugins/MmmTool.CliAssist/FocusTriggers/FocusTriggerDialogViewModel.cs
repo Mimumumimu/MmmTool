@@ -11,7 +11,8 @@ namespace MmmTool.CliAssist.FocusTriggers;
 /// <param name="focusTriggers">通知する文字列</param>
 public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService focusTriggers) : ObservableObject
 {
-    /// <summary>編集中の一覧 (保存するまで、サービスには反映しない)</summary>
+    /// <summary>編集中の一覧</summary>
+    /// <remarks>保存するまで、サービスには反映しない。</remarks>
     public ObservableCollection<FocusTriggerEditItem> Items { get; } = [];
 
     /// <summary>一覧が空か</summary>
@@ -20,8 +21,11 @@ public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService f
     /// <summary>エラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>項目の入力欄にフォーカスを移すよう、View に頼む</summary>
-    /// <remarks>ViewModel は UI に触れないため。項目を足したときと、空の項目を見つけたときに頼む。</remarks>
+    /// <summary>項目の入力欄にフォーカスを移すよう View に頼む</summary>
+    /// <remarks>
+    /// ViewModel は UI に触れないため
+    /// 項目を足したときと空の項目を見つけたときに頼む
+    /// </remarks>
     public event EventHandler<FocusTriggerEditItem>? FocusRequested;
 
     /// <summary>保存済みの内容で、編集中の一覧を作り直す</summary>
@@ -38,7 +42,7 @@ public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService f
         Error.Clear();
     }
 
-    /// <summary>項目を末尾に足して、入力欄にフォーカスを移す</summary>
+    /// <summary>項目を末尾に足して入力欄にフォーカスを移す</summary>
     [RelayCommand]
     private void Add()
     {
@@ -49,7 +53,10 @@ public sealed partial class FocusTriggerDialogViewModel(CliFocusTriggerService f
     }
 
     /// <summary>入力を調べて保存する</summary>
-    /// <returns>保存できたら true で、ダイアログを閉じてよい。文字列が空の項目がある・保存に失敗したときは false</returns>
+    /// <returns>
+    /// 保存できたら true で、ダイアログを閉じてよい。
+    /// 文字列が空の項目がある・保存に失敗したときは false。
+    /// </returns>
     public async Task<bool> SaveAsync()
     {
         if (Items.FirstOrDefault(item => string.IsNullOrWhiteSpace(item.Text)) is { } empty)

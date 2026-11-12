@@ -10,10 +10,12 @@ namespace MmmTool.WorkItems.AutoEntry;
 
 /// <summary>自動入力の時間と曜日を設定する入力枠</summary>
 /// <remarks>
-/// 「保存」を押したときと、時間の欄で Enter を押したときだけ、設定を渡す。渡すイベントは <see cref="SaveRequested"/>。
+/// 「保存」を押したときと、時間の欄で Enter を押したときだけ、設定を渡す。
+/// 渡すイベントは <see cref="SaveRequested"/>。
 /// 入力が 2 つあり、途中で閉じたときに、中途半端な設定を保存しないため。
-/// 外側を押したときと Esc は、入れ物のフライアウトが閉じるだけで、何も渡さない。
-/// 時間が読めない・範囲外のときは、保存を押せない。時間を空か 0 にして保存すると、設定のクリアになる。
+/// 外側を押したときと Esc は入れ物のフライアウトが閉じるだけで、何も渡さない。
+/// 時間が読めない・範囲外のときは保存を押せない。
+/// 時間を空か 0 にして保存すると設定のクリアになる。
 /// </remarks>
 public sealed partial class AutoEntryEditor : UserControl
 {
@@ -23,7 +25,7 @@ public sealed partial class AutoEntryEditor : UserControl
         InitializeComponent();
     }
 
-    /// <summary>「保存」が押された (引数は、入力された時間と曜日)</summary>
+    /// <summary>「保存」が押された</summary>
     public event EventHandler<AutoEntrySetting>? SaveRequested;
 
     /// <summary>「クリア」が押された</summary>
@@ -52,7 +54,7 @@ public sealed partial class AutoEntryEditor : UserControl
     /// <param name="e">イベントの情報</param>
     private void OnHoursChanged(object sender, TextChangedEventArgs e) => ShowValidation();
 
-    /// <summary>時間の欄で Enter が押されたら、保存する</summary>
+    /// <summary>時間の欄で Enter が押されたら保存する</summary>
     /// <param name="sender">時間の欄</param>
     /// <param name="e">キー入力の情報</param>
     private void OnHoursKeyDown(object sender, KeyRoutedEventArgs e)
@@ -64,17 +66,18 @@ public sealed partial class AutoEntryEditor : UserControl
         }
     }
 
-    /// <summary>「保存」が押されたら、保存する</summary>
+    /// <summary>「保存」が押されたら保存する</summary>
     /// <param name="sender">ボタン</param>
     /// <param name="e">イベントの情報</param>
     private void OnSaveClick(object sender, RoutedEventArgs e) => Save();
 
-    /// <summary>「クリア」が押されたら、設定のクリアを渡す</summary>
+    /// <summary>「クリア」が押されたら設定のクリアを渡す</summary>
     /// <param name="sender">ボタン</param>
     /// <param name="e">イベントの情報</param>
     private void OnClearClick(object sender, RoutedEventArgs e) => ClearRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>入力された時間と曜日を渡す (時間が読めないときは、何もしない)</summary>
+    /// <summary>入力された時間と曜日を渡す</summary>
+    /// <remarks>時間が読めないときは何もしない</remarks>
     private void Save()
     {
         if (WorkItemViewModel.TryParseAutoHours(HoursBox.Text, out var hours))
@@ -93,7 +96,7 @@ public sealed partial class AutoEntryEditor : UserControl
     }
 }
 
-/// <summary>入力枠で決めた、自動入力の設定</summary>
+/// <summary>入力枠で決めた自動入力の設定</summary>
 /// <param name="Hours">時間 (0 は設定のクリア)</param>
 /// <param name="Weekdays">曜日</param>
 public readonly record struct AutoEntrySetting(double Hours, Weekdays Weekdays);

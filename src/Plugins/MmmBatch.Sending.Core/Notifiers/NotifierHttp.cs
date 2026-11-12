@@ -3,17 +3,20 @@ using System.Text;
 
 namespace MmmBatch.Sending.Core.Notifiers;
 
-/// <summary>送信の HTTP の、共通の処理</summary>
+/// <summary>送信の HTTP の共通の処理</summary>
 internal static class NotifierHttp
 {
-    /// <summary>JSON を POST して、成功 (2xx)でなければ、送信の失敗にする</summary>
+    /// <summary>JSON を POST して、成功でなければ、送信の失敗にする</summary>
     /// <param name="http">HTTP クライアント</param>
-    /// <param name="url">送る先の URL (秘密を含みうるので、メッセージには出さない)</param>
+    /// <param name="url">送る先の URL (秘密を含みうるので、メッセージには出さない)。</param>
     /// <param name="json">送る JSON</param>
-    /// <param name="serviceName">失敗のメッセージに出す、送る先のサービスの名前</param>
+    /// <param name="serviceName">失敗のメッセージに出す、送る先のサービスの名前。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>送信の完了を表すタスク</returns>
-    /// <exception cref="SendFailedException">つながらない・時間内に返らない・成功以外の応答。メッセージに URL は含まない。</exception>
+    /// <exception cref="SendFailedException">
+    /// つながらない・時間内に返らない・成功以外の応答
+    /// メッセージに URL は含まない
+    /// </exception>
     public static async Task PostJsonAsync(HttpClient http, string url, string json, string serviceName, CancellationToken cancellationToken)
     {
         try

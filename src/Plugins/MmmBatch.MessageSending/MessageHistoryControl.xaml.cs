@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmBatch.MessageSending;
 
-/// <summary>メッセージの送信の履歴の一覧の中身 (見出しつきの一覧・エラー)</summary>
+/// <summary>メッセージの送信の履歴の一覧の中身</summary>
 public sealed partial class MessageHistoryControl : UserControl
 {
     /// <summary>一覧の ViewModel</summary>

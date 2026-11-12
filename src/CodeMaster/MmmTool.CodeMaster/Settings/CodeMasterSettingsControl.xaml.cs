@@ -23,17 +23,17 @@ public sealed partial class CodeMasterSettingsControl : UserControl
         Unloaded += OnUnloaded;
     }
 
-    /// <summary>画面に載ったら、区分を並べて購読を始める</summary>
+    /// <summary>画面に載ったら区分を並べて購読を始める</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.Attach();
 
-    /// <summary>画面から外れたら、購読をやめる</summary>
+    /// <summary>画面から外れたら購読をやめる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnUnloaded(object sender, RoutedEventArgs e) => ViewModel.Detach();
 
-    /// <summary>出すか隠すかを、ViewModel に合わせる</summary>
+    /// <summary>出すか隠すかを ViewModel に合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">変わったプロパティの情報</param>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

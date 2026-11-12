@@ -10,12 +10,12 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Reminders.Input;
 
-/// <summary>
-/// リマインダー入力画面。リマインダー 1 件を新規登録・編集して保存する。
-/// </summary>
+/// <summary>リマインダー入力画面</summary>
 /// <remarks>
-/// 発動の指定は「日付を指定する」のオン (日付指定)とオフ (曜日指定)の 2 通り。曜日を 1 つも選ばない曜日指定は毎日通知になる。
-/// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう。
+/// リマインダー 1 件を新規登録・編集して保存する
+/// 発動の指定は「日付を指定する」のオン (日付指定)とオフ (曜日指定)の 2 通り
+/// 曜日を 1 つも選ばない曜日指定は毎日通知になる
+/// 保存に成功したら <see cref="CloseRequested"/> で画面を閉じてもらう
 /// </remarks>
 public sealed partial class ReminderInputViewModel : ObservableObject
 {
@@ -24,7 +24,8 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>リマインダーの読み書き</summary>
     private readonly ReminderService _reminders;
-    /// <summary>ユーザーの保存先 (宛先の選択肢に使う)</summary>
+    /// <summary>ユーザーの保存先</summary>
+    /// <remarks>宛先の選択肢に使う</remarks>
     private readonly IAppUserRepository _users;
     /// <summary>送信先の選択肢を作る</summary>
     private readonly ReminderChannelLoader _channelLoader;
@@ -33,11 +34,15 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>現在日時</summary>
     private readonly TimeProvider _time;
 
-    /// <summary>編集対象。新規なら null</summary>
+    /// <summary>編集対象</summary>
+    /// <remarks>新規なら null</remarks>
     private Reminder? _target;
 
-    /// <summary>読み込んだときに選んでいた送信先の番号 (なければ空)</summary>
-    /// <remarks>ほかの人が登録した送信先も含む。保存のときに、選び直していなければ、選んだ内容を、そのまま書き直し、外さない。</remarks>
+    /// <summary>読み込んだときに選んでいた送信先の番号</summary>
+    /// <remarks>
+    /// ほかの人が登録した送信先も含む。
+    /// 保存のときに、選び直していなければ、選んだ内容を、そのまま書き直し、外さない。
+    /// </remarks>
     private HashSet<int> _initialChannelIds = [];
 
     /// <summary>ViewModel を作る</summary>
@@ -71,7 +76,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial string Title { get; set; } = "";
 
-    /// <summary>件名のエラー。無ければ null</summary>
+    /// <summary>件名のエラー</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTitleError))]
     public partial string? TitleError { get; private set; }
@@ -79,27 +84,30 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>件名のエラーがあるか</summary>
     public bool HasTitleError => TitleError is not null;
 
-    /// <summary>日付を指定するか (オフなら曜日指定)</summary>
+    /// <summary>日付を指定するか</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWeekdaySpecified))]
     public partial bool IsDateSpecified { get; set; }
 
-    /// <summary>曜日指定か (<see cref="IsDateSpecified"/> の逆)</summary>
+    /// <summary>曜日指定か</summary>
+    /// <remarks><see cref="IsDateSpecified"/> の逆</remarks>
     public bool IsWeekdaySpecified => !IsDateSpecified;
 
-    /// <summary>発動日 (日付指定のとき)</summary>
+    /// <summary>発動日</summary>
+    /// <remarks>日付指定のとき</remarks>
     [ObservableProperty]
     public partial DateTimeOffset? Date { get; set; }
 
-    /// <summary>選んでいる曜日 (曜日指定のとき)</summary>
+    /// <summary>選んでいる曜日</summary>
+    /// <remarks>曜日指定のとき</remarks>
     [ObservableProperty]
     public partial Weekdays SelectedWeekdays { get; set; }
 
-    /// <summary>発動時刻の時 (0〜23)</summary>
+    /// <summary>発動時刻の時</summary>
     [ObservableProperty]
     public partial int Hour { get; set; }
 
-    /// <summary>発動時刻の分 (0〜59)</summary>
+    /// <summary>発動時刻の分</summary>
     [ObservableProperty]
     public partial int Minute { get; set; }
 
@@ -107,7 +115,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial string Note { get; set; } = "";
 
-    /// <summary>リンク (URL・ファイル・フォルダのパス)</summary>
+    /// <summary>リンク</summary>
     [ObservableProperty]
     public partial string Link { get; set; } = "";
 
@@ -115,23 +123,30 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSpeak { get; set; }
 
-    /// <summary>宛先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できているときだけ)</summary>
+    /// <summary>宛先を選ぶ欄を出すか</summary>
+    /// <remarks>DB モードで、今のユーザーを特定できているときだけ。</remarks>
     public bool IsTargetVisible => _reminders.CurrentUserId != 0;
 
-    /// <summary>宛先の選択肢 (自分・全員・ほかの使えるユーザー)</summary>
+    /// <summary>宛先の選択肢</summary>
     public ObservableCollection<ReminderTargetOption> TargetOptions { get; } = [];
 
     /// <summary>選んでいる宛先</summary>
     [ObservableProperty]
     public partial ReminderTargetOption? SelectedTarget { get; set; }
 
-    /// <summary>送信先を選ぶ欄を出すか (DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ)</summary>
+    /// <summary>送信先を選ぶ欄を出すか</summary>
+    /// <remarks>DB モードで、今のユーザーを特定できていて、送信先を読み込めたときだけ。</remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsChannelHintVisible))]
     public partial bool IsChannelVisible { get; private set; }
 
-    /// <summary>送信先を選べるか (宛先が自分か全員のときだけ)</summary>
-    /// <remarks>宛先をほかの人にしたリマインダーの通知を、自分の送信先へ送らないため。選べないときも、欄は消さない。高さを変えず、下のボタンが動かないようにするため。</remarks>
+    /// <summary>送信先を選べるか</summary>
+    /// <remarks>
+    /// 宛先が自分か全員のときだけ。
+    /// 宛先をほかの人にしたリマインダーの通知を自分の送信先へ送らないため。
+    /// 選べないときも欄は消さない。
+    /// 高さを変えず、下のボタンが動かないようにするため。
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsChannelHintVisible))]
     public partial bool IsChannelEnabled { get; private set; } = true;
@@ -139,13 +154,16 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>送信先を選べない理由の文を出すか</summary>
     public bool IsChannelHintVisible => IsChannelVisible && !IsChannelEnabled;
 
-    /// <summary>送信先を選べなくしたときに外した、チェックしていた送信先の番号。宛先を戻したときに、チェックを戻す</summary>
+    /// <summary>送信先を選べなくしたときに外したチェックしていた送信先の番号</summary>
+    /// <remarks>宛先を戻したときにチェックを戻す</remarks>
     private HashSet<int>? _stashedChannelIds;
 
-    /// <summary>送信先の選択肢で、自分が登録した送信先と、保存されている送信先。チェックで、複数選べる</summary>
+    /// <summary>送信先の選択肢で、自分が登録した送信先と保存されている送信先</summary>
+    /// <remarks>チェックで、複数選べる。</remarks>
     public ObservableCollection<ReminderChannelOption> ChannelOptions { get; } = [];
 
-    /// <summary>送信先が 1 つも無いか (送信先の欄を出していて、選べるものが無い)</summary>
+    /// <summary>送信先が 1 つも無いか</summary>
+    /// <remarks>送信先の欄を出していて、選べるものが無い。</remarks>
     [ObservableProperty]
     public partial bool HasNoChannels { get; private set; }
 
@@ -153,13 +171,19 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     public ErrorState SaveError { get; } = new();
 
     /// <summary>送信先の選択肢を作り、編集なら、保存されている送信先にチェックを入れる</summary>
-    /// <param name="copySourceNo">コピーして新規追加のときの、コピー元の連番。それ以外は 0</param>
+    /// <param name="copySourceNo">
+    /// コピーして新規追加のときの、コピー元の連番。
+    /// それ以外は 0。
+    /// </param>
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
-    /// <see cref="Load"/> のあとに呼ぶ。送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
-    /// 出すのは、自分が登録した送信先だけ。ほかの人の送信先は、出さず、保存でも触らない。
-    /// コピーして新規追加のときは、コピー元で選ばれていた送信先のうち、自分の登録分にチェックを入れる。新規なので、保存では選んだ内容をすべて書く。
-    /// 読み込めなかったとき (接続できない・表が無い)は、エラーを出して、送信先の欄を出さない。
+    /// <see cref="Load"/> のあとに呼ぶ。
+    /// 送信先を使えないとき (ローカルモード・ユーザー未特定)は何もしない。
+    /// 出すのは自分が登録した送信先だけ。
+    /// ほかの人の送信先は出さず、保存でも触らない。
+    /// コピーして新規追加のときはコピー元で選ばれていた送信先のうち、自分の登録分にチェックを入れる。
+    /// 新規なので、保存では選んだ内容をすべて書く。
+    /// 読み込めなかったとき (接続できない・表が無い)はエラーを出して、送信先の欄を出さない。
     /// </remarks>
     public async Task LoadChannelsAsync(int copySourceNo = 0)
     {
@@ -213,8 +237,9 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     /// <summary>宛先の選択肢を作り、新規なら「自分」・編集なら保存されている宛先を選ぶ</summary>
     /// <returns>読み込みの完了を表すタスク</returns>
     /// <remarks>
-    /// <see cref="Load"/> のあとに呼ぶ。宛先を出さないとき (<see cref="IsTargetVisible"/> が false)は何もしない。
-    /// ユーザーの一覧を読めなかったときは、エラーを出して、「自分」と「全員」だけにする。
+    /// <see cref="Load"/> のあとに呼ぶ。
+    /// 宛先を出さないとき (<see cref="IsTargetVisible"/> が false)は何もしない。
+    /// ユーザーの一覧を読めなかったときはエラーを出して、「自分」と「全員」だけにする。
     /// </remarks>
     public async Task LoadTargetsAsync()
     {
@@ -286,7 +311,7 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         }
     }
 
-    /// <summary>チェックしている送信先を覚えて、すべて外す</summary>
+    /// <summary>チェックしている送信先を覚えてすべて外す</summary>
     private void StashAndUncheckChannels()
     {
         _stashedChannelIds = ChannelOptions.Where(option => option.IsChecked).Select(option => option.Id).ToHashSet();
@@ -297,8 +322,15 @@ public sealed partial class ReminderInputViewModel : ObservableObject
     }
 
     /// <summary>入力欄に読み込む</summary>
-    /// <param name="target">編集するリマインダー。新規なら null</param>
-    /// <remarks>新規は 日付＝今日・時刻＝現在時刻・曜日指定 (曜日は未選択)・ほかは空。編集は対象の値を読み込む。曜日指定なら日付欄は今日。</remarks>
+    /// <param name="target">
+    /// 編集するリマインダー
+    /// 新規なら null
+    /// </param>
+    /// <remarks>
+    /// 新規は 日付＝今日・時刻＝現在時刻・曜日指定 (曜日は未選択)・ほかは空
+    /// 編集は対象の値を読み込む
+    /// 曜日指定なら日付欄は今日
+    /// </remarks>
     public void Load(Reminder? target)
     {
         _target = target;
@@ -333,14 +365,17 @@ public sealed partial class ReminderInputViewModel : ObservableObject
         SaveError.Clear();
     }
 
-    /// <summary>件名が変わったら、件名のエラーを消す</summary>
+    /// <summary>件名が変わったら件名のエラーを消す</summary>
     /// <param name="value">変更後の件名</param>
     partial void OnTitleChanged(string value) => TitleError = null;
 
-    /// <summary>日付が空にされたら、元の日付に戻す</summary>
+    /// <summary>日付が空にされたら元の日付に戻す</summary>
     /// <param name="oldValue">変更前の日付</param>
     /// <param name="newValue">変更後の日付</param>
-    /// <remarks>カレンダーで選択中の日付をもう一度押すと選択が外れるため。日付指定は常に日付を持つ。</remarks>
+    /// <remarks>
+    /// カレンダーで選択中の日付をもう一度押すと選択が外れるため
+    /// 日付指定は常に日付を持つ
+    /// </remarks>
     partial void OnDateChanged(DateTimeOffset? oldValue, DateTimeOffset? newValue)
     {
         if (newValue is null && oldValue is not null)
@@ -351,7 +386,10 @@ public sealed partial class ReminderInputViewModel : ObservableObject
 
     /// <summary>入力値を検証して保存し、閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>件名が未入力ならエラーを出して保存しない。保存に失敗したらエラーを出して閉じない。</remarks>
+    /// <remarks>
+    /// 件名が未入力ならエラーを出して保存しない
+    /// 保存に失敗したらエラーを出して閉じない
+    /// </remarks>
     [RelayCommand]
     private async Task SaveAsync()
     {

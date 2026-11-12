@@ -7,10 +7,12 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmToolAdmin.CodeMaster;
 
-/// <summary>共通設定に並ぶ「選択肢」の部品と、編集できる区分を登録する</summary>
+/// <summary>共通設定に並ぶ「選択肢」の部品と編集できる区分を登録する</summary>
 /// <remarks>
-/// コードマスタの保存先は、ホストが DB の実装を登録する。編集の画面は MmmTool と共有する。
-/// 編集できる区分は、ここに 1 行ずつ足す。機能が増えたら、その機能の Core が持つ区分の定義を足す。
+/// コードマスタの保存先はホストが DB の実装を登録する。
+/// 編集の画面は MmmTool と共有する。
+/// 編集できる区分はここに 1 行ずつ足す。
+/// 機能が増えたら、その機能の Core が持つ区分の定義を足す。
 /// </remarks>
 public sealed class CodeMasterPlugin : IFeaturePlugin
 {

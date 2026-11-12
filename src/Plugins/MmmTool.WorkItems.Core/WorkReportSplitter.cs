@@ -1,21 +1,25 @@
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>
-/// 複数の人をまとめて読んだ作業報告の中身を、人ごとに分ける。
-/// </summary>
+/// <summary>複数の人をまとめて読んだ作業報告の中身を人ごとに分ける</summary>
 /// <remarks>
-/// 保存先が、人の一覧を 1 回の往復で読み、この部品が、メモリで人ごとに分ける。SQL Server と SQLite で同じ分け方にするため、保存先の外に置く。
-/// 1 人分は、その人を指定して読んだ結果と同じ中身になる。
+/// 保存先が人の一覧を 1 回の往復で読み、この部品がメモリで人ごとに分ける。
+/// SQL Server と SQLite で同じ分け方にするため、保存先の外に置く。
+/// 1 人分はその人を指定して読んだ結果と同じ中身になる。
 /// </remarks>
 public static class WorkReportSplitter
 {
-    /// <summary>まとめて読んだ中身を、人ごとに分ける</summary>
+    /// <summary>まとめて読んだ中身を人ごとに分ける</summary>
     /// <param name="all">指定した全員分をまとめて読んだ中身</param>
     /// <param name="userIds">人の番号</param>
-    /// <returns>人の番号ごとの中身。作業も日報メモも無い人は、空の中身</returns>
+    /// <returns>
+    /// 人の番号ごとの中身
+    /// 作業も日報メモも無い人は空の中身
+    /// </returns>
     /// <remarks>
-    /// 作業は担当者、日報メモは持ち主で分ける。記録は、属する作業の担当者で分ける。
-    /// 案件とグループは、その人の作業が属するものだけにする。コードマスタは全員に同じものを付ける。
+    /// 作業は担当者、日報メモは持ち主で分ける。
+    /// 記録は属する作業の担当者で分ける。
+    /// 案件とグループはその人の作業が属するものだけにする。
+    /// コードマスタは全員に同じものを付ける。
     /// </remarks>
     public static IReadOnlyDictionary<int, WorkReportData> Split(WorkReportData all, IReadOnlyCollection<int> userIds)
     {

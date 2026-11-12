@@ -9,11 +9,14 @@ using Path = Microsoft.UI.Xaml.Shapes.Path;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>スケジュールの 1 行ぶんの、日付の棒を描くセル (休みの日の背景・日付の線・今日の線・予定の棒・実績の棒)</summary>
+/// <summary>スケジュールの 1 行ぶんの日付の棒を描くセル</summary>
 /// <remarks>
-/// 行 (<see cref="ScheduleRow"/>)が変わったとき・描画に関わる値が変わったとき (<see cref="ScheduleRow.VisualVersion"/>)・テーマが変わったときに、描き直す。
-/// 休みの日の背景と日付の線の図形は、セルが持ち、軸が変わったときだけ作り直す。位置は、軸 (<see cref="ScheduleAxisVisual"/>)が 1 回だけ数えて、全セルで使う。
-/// 1 行に、予定の棒 (太い背景)と、実績の棒 (細く、上に重ねる)を重ねる。クリックは通す。行の選択は、表が行の上で受ける。
+/// 行 (<see cref="ScheduleRow"/>)が変わったとき・描画に関わる値が変わったとき (<see cref="ScheduleRow.VisualVersion"/>)・テーマが変わったときに描き直す。
+/// 休みの日の背景と日付の線の図形はセルが持ち、軸が変わったときだけ作り直す。
+/// 位置は軸 (<see cref="ScheduleAxisVisual"/>)が 1 回だけ数えて、全セルで使う。
+/// 1 行に、予定の棒 (太い背景)と、実績の棒 (細く、上に重ねる)を重ねる。
+/// クリックは通す。
+/// 行の選択は表が行の上で受ける。
 /// </remarks>
 public sealed class ScheduleTimelineCell : Canvas
 {
@@ -23,81 +26,105 @@ public sealed class ScheduleTimelineCell : Canvas
     /// <summary>予定の棒の高さ</summary>
     private const double PlanBarHeight = 30;
 
-    /// <summary>開始日だけ・期限日だけの作業の、印の幅</summary>
+    /// <summary>開始日だけ・期限日だけの作業の印の幅</summary>
     private const double OpenMarkWidth = 7;
 
-    /// <summary>完了日の印 (日の単位の、チェック入りの丸)の直径</summary>
+    /// <summary>完了日の印の直径</summary>
     private const double CompletedBadgeSize = 14;
 
-    /// <summary>完了日の印 (週・月の単位の縦線)の幅</summary>
+    /// <summary>完了日の印の幅</summary>
     private const double CompletedTickWidth = 2;
 
-    /// <summary>日の備考の印 (日のセルの右上の三角)の一辺</summary>
+    /// <summary>日の備考の印の一辺</summary>
     private const double NoteMarkSize = 9;
 
-    /// <summary>日の備考の吹き出しの日付の書式に使う文化 (曜日を日本語で出す)</summary>
+    /// <summary>日の備考の吹き出しの日付の書式に使う文化</summary>
+    /// <remarks>曜日を日本語で出す</remarks>
     private static readonly CultureInfo JapaneseCulture = new("ja-JP");
 
-    /// <summary>実績の棒の上端 (予定の棒の中央に重ねる)</summary>
+    /// <summary>実績の棒の上端</summary>
+    /// <remarks>予定の棒の中央に重ねる</remarks>
     private const double ActualBarTop = 9;
 
     /// <summary>実績の棒の高さ</summary>
     private const double ActualBarHeight = 18;
 
-    /// <summary>実績の棒の左右の内側への寄せ幅の上限 (予定の棒の端の余白 1 と、期限切れの枠 2 を避け、枠に被らせない)</summary>
+    /// <summary>実績の棒の左右の内側への寄せ幅の上限</summary>
+    /// <remarks>予定の棒の端の余白 1 と期限切れの枠 2 を避け、枠に被らせない。</remarks>
     private const double ActualBarInset = 4;
 
     /// <summary>実績の時間の文字の標準の大きさ</summary>
     private const double HoursFontSize = 13;
 
     /// <summary>実績の時間の文字のフォント</summary>
-    /// <remarks>等幅にして、同じ桁数の数字を同じ大きさにそろえる。縦の位置は、このフォントの寸法 (<see cref="HoursAscent"/>・<see cref="HoursDigitHeight"/>)から、大きさごとに計算する。</remarks>
+    /// <remarks>
+    /// 等幅にして、同じ桁数の数字を同じ大きさにそろえる。
+    /// 縦の位置はこのフォントの寸法 (<see cref="HoursAscent"/>・<see cref="HoursDigitHeight"/>)から、大きさごとに計算する。
+    /// </remarks>
     private static readonly FontFamily HoursFont = new("BIZ UDGothic, MS Gothic, Consolas");
 
-    /// <summary>実績の時間の文字の、行の上端からベースラインまでの長さ</summary>
-    /// <remarks>フォントの大きさに対する比。BIZ UDGothic の 1802 / 2048。</remarks>
+    /// <summary>実績の時間の文字の行の上端からベースラインまでの長さ</summary>
+    /// <remarks>
+    /// フォントの大きさに対する比
+    /// BIZ UDGothic の 1802 / 2048
+    /// </remarks>
     private const double HoursAscent = 1802.0 / 2048;
 
     /// <summary>実績の時間の数字の高さ</summary>
-    /// <remarks>フォントの大きさに対する比。BIZ UDGothic の大文字の高さ 1567 / 2048。</remarks>
+    /// <remarks>
+    /// フォントの大きさに対する比
+    /// BIZ UDGothic の大文字の高さ 1567 / 2048
+    /// </remarks>
     private const double HoursDigitHeight = 1567.0 / 2048;
 
-    /// <summary>実績の棒の中の、数字を置ける高さ</summary>
+    /// <summary>実績の棒の中の数字を置ける高さ</summary>
     /// <remarks>棒の高さから、枠の上下を引いた値。</remarks>
     private const double HoursInnerHeight = ActualBarHeight - 2;
 
-    /// <summary>実績の時間の、大きさごとの上端の位置</summary>
-    /// <remarks>大きさごとに 1 回だけ計算して使い回す。</remarks>
+    /// <summary>実績の時間の大きさごとの上端の位置</summary>
+    /// <remarks>大きさごとに 1 回だけ計算して使い回す</remarks>
     private static readonly Dictionary<double, double> HoursTops = [];
 
     /// <summary>実績の時間の 1 文字の幅</summary>
-    /// <remarks>標準の大きさで 1 回だけ測って使い回す。等幅なので、文字数に掛けて幅にする。</remarks>
+    /// <remarks>
+    /// 標準の大きさで 1 回だけ測って使い回す。
+    /// 等幅なので、文字数に掛けて幅にする。
+    /// </remarks>
     private static double _hoursCharWidth;
 
     /// <summary>実績の時間の文字を縮めるときの下限</summary>
     private const double MinHoursFontSize = 8;
 
     /// <summary>実績の時間の文字の左右に空ける幅</summary>
-    /// <remarks>0 にする。数字は棒の縦の中央にあり、角の丸みに被らない。文字の幅に、左右の余白が元から含まれる。</remarks>
+    /// <remarks>
+    /// 0 にする。
+    /// 数字は棒の縦の中央にあり、角の丸みに被らない。
+    /// 文字の幅に左右の余白が元から含まれる。
+    /// </remarks>
     private const double HoursSideMargin = 0;
 
-    /// <summary>行 (<see cref="Row"/>)の依存関係プロパティ</summary>
+    /// <summary>行の依存関係プロパティ</summary>
+    /// <remarks><see cref="Row"/></remarks>
     public static readonly DependencyProperty RowProperty = DependencyProperty.Register(
         nameof(Row),
         typeof(ScheduleRow),
         typeof(ScheduleTimelineCell),
         new PropertyMetadata(null, (d, e) => ((ScheduleTimelineCell)d).OnRowChanged((ScheduleRow?)e.OldValue, (ScheduleRow?)e.NewValue)));
 
-    /// <summary>土曜の背景で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
+    /// <summary>土曜の背景で、このセルが持つ</summary>
+    /// <remarks>図形は軸が変わったときだけ作り直す</remarks>
     private readonly Path _saturdays = new();
 
-    /// <summary>日曜・祝日の背景で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
+    /// <summary>日曜・祝日の背景で、このセルが持つ</summary>
+    /// <remarks>図形は軸が変わったときだけ作り直す</remarks>
     private readonly Path _sundays = new();
 
-    /// <summary>日付の区切りの線で、このセルが持つ。図形は、軸が変わったときだけ作り直す</summary>
+    /// <summary>日付の区切りの線で、このセルが持つ</summary>
+    /// <remarks>図形は軸が変わったときだけ作り直す</remarks>
     private readonly Path _lines = new() { StrokeThickness = 1 };
 
-    /// <summary>休みの日の背景と日付の線の図形を作った軸 (違う軸になったら、図形を作り直す)</summary>
+    /// <summary>休みの日の背景と日付の線の図形を作った軸</summary>
+    /// <remarks>違う軸になったら、図形を作り直す。</remarks>
     private ScheduleAxisVisual? _shapesFor;
 
     /// <summary>セルを作る</summary>
@@ -135,7 +162,7 @@ public sealed class ScheduleTimelineCell : Canvas
         Redraw();
     }
 
-    /// <summary>描画に関わる値が変わったら、描き直す</summary>
+    /// <summary>描画に関わる値が変わったら描き直す</summary>
     /// <param name="sender">行</param>
     /// <param name="e">変更された値の名前</param>
     private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -146,7 +173,7 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>行の内容を、すべて描き直す</summary>
+    /// <summary>行の内容をすべて描き直す</summary>
     private void Redraw()
     {
         Children.Clear();
@@ -187,11 +214,15 @@ public sealed class ScheduleTimelineCell : Canvas
         AddDayNotes(axis, palette, row);
     }
 
-    /// <summary>日の備考がある日に、角の印と、触れると備考を出す吹き出しを足す (日の単位だけ)</summary>
+    /// <summary>日の備考がある日に角の印と触れると備考を出す吹き出しを足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
-    /// <remarks>週・月の単位は、1 日の幅が狭く、印も触れる面も作れないので出さない。吹き出しの面は、備考のある日だけに置くので、ほかの場所のクリックは、表が受ける。</remarks>
+    /// <remarks>
+    /// 日の単位だけ。
+    /// 週・月の単位は 1 日の幅が狭く、印も触れる面も作れないので出さない。
+    /// 吹き出しの面は備考のある日だけに置くので、ほかの場所のクリックは表が受ける。
+    /// </remarks>
     private void AddDayNotes(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
         if (!axis.ShowsHours)
@@ -230,10 +261,11 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>今日の列の中央に、縦の線を足す (棒と数字の下に描く)</summary>
+    /// <summary>今日の列の中央に縦の線を足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="today">今日</param>
+    /// <remarks>棒と数字の下に描く</remarks>
     private void AddTodayLine(ScheduleAxis axis, SchedulePalette palette, DateOnly today)
     {
         if (today < axis.Start || today > axis.End)
@@ -246,13 +278,17 @@ public sealed class ScheduleTimelineCell : Canvas
         Children.Add(line);
     }
 
-    /// <summary>予定の棒を足す。開始日から期限日までで、1 色</summary>
+    /// <summary>予定の棒を足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
     /// <remarks>
-    /// 開始日だけの作業は、開始日の左端に印と、右へ短い点線。期限だけの作業は、期限日の右端に印と、左へ短い点線。同じ形で、点線の向きだけ逆。日付が 1 つも無い作業は、棒を出さない。
-    /// 期限切れの作業は、危険の色の枠を付ける。
+    /// 開始日から期限日までで、1 色。
+    /// 開始日だけの作業は開始日の左端に印と、右へ短い点線。
+    /// 期限だけの作業は期限日の右端に印と、左へ短い点線。
+    /// 同じ形で、点線の向きだけ逆。
+    /// 日付が 1 つも無い作業は棒を出さない。
+    /// 期限切れの作業は危険の色の枠を付ける。
     /// </remarks>
     private void AddPlan(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
@@ -287,10 +323,11 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>実績の棒を足す。連続した日ごとで、日の単位では、日ごとの時間の数字入り</summary>
+    /// <summary>実績の棒を足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
+    /// <remarks>連続した日ごとで、日の単位では日ごとの時間の数字入り。</remarks>
     private void AddActual(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
         foreach (var run in row.Runs)
@@ -338,14 +375,16 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>完了日の印を、完了日の列の右端に足す (完了した作業だけ)</summary>
+    /// <summary>完了日の印を完了日の列の右端に足す</summary>
     /// <param name="axis">日付の軸</param>
     /// <param name="palette">色</param>
     /// <param name="row">行</param>
     /// <remarks>
-    /// 日の単位は、チェック入りの丸を、完了日の列と次の列の境目にまたがせて置く。列の中央に置くと、その日の時間の数字を隠すため。
-    /// 週・月の単位は、1 日の幅が狭く、丸が入らないので、同じ右端に細い縦線を置く。
-    /// 予定の棒の右端と見比べると、期限より早く終わったか、遅れて終わったかが、位置で分かる。
+    /// 完了した作業だけ。
+    /// 日の単位はチェック入りの丸を完了日の列と次の列の境目にまたがせて置く。
+    /// 列の中央に置くとその日の時間の数字を隠すため。
+    /// 週・月の単位は 1 日の幅が狭く、丸が入らないので、同じ右端に細い縦線を置く。
+    /// 予定の棒の右端と見比べると、期限より早く終わったか、遅れて終わったかが位置で分かる。
     /// </remarks>
     private void AddCompleted(ScheduleAxis axis, SchedulePalette palette, ScheduleRow row)
     {
@@ -382,7 +421,7 @@ public sealed class ScheduleTimelineCell : Canvas
         }
     }
 
-    /// <summary>実績の時間の文字が、1 日ぶんの欄の幅に収まる大きさを求める</summary>
+    /// <summary>実績の時間の文字が 1 日ぶんの欄の幅に収まる大きさを求める</summary>
     /// <param name="text">時間の文字</param>
     /// <param name="columnWidth">1 日ぶんの欄の幅</param>
     /// <returns>フォントの大きさ</returns>
@@ -407,11 +446,11 @@ public sealed class ScheduleTimelineCell : Canvas
         return Math.Max(MinHoursFontSize, Math.Floor(HoursFontSize * available / width));
     }
 
-    /// <summary>実績の時間の文字の、棒の中での上端の位置を求める</summary>
+    /// <summary>実績の時間の文字の棒の中での上端の位置を求める</summary>
     /// <param name="fontSize">フォントの大きさ</param>
-    /// <returns>棒の中の上端から、文字の枠の上端までの長さ (整数のピクセル)</returns>
+    /// <returns>棒の中の上端から、文字の枠の上端までの長さ (整数のピクセル)。</returns>
     /// <remarks>
-    /// 数字の真ん中が、棒の中の高さの中央に来る位置を、ベースラインの丸めまで含めて計算する。
+    /// 数字の真ん中が棒の中の高さの中央に来る位置を、ベースラインの丸めまで含めて計算する。
     /// 文字はベースラインが整数のピクセルに丸められるので、丸めたあとの数字の真ん中が中央に最も近い整数を選ぶ。
     /// 大きさごとに 1 回だけ計算して使い回す。
     /// </remarks>
@@ -426,7 +465,7 @@ public sealed class ScheduleTimelineCell : Canvas
         return top;
     }
 
-    /// <summary>期間の片方が決まっていない側へ伸ばす点線を作る (予定の棒の高さの中央)</summary>
+    /// <summary>期間の片方が決まっていない側へ伸ばす点線を作る</summary>
     /// <param name="fromX">印に近い側の位置</param>
     /// <param name="toX">印から遠い側の位置</param>
     /// <param name="stroke">線の色</param>
@@ -447,7 +486,7 @@ public sealed class ScheduleTimelineCell : Canvas
         return line;
     }
 
-    /// <summary>棒 (角の丸い長方形)を作る</summary>
+    /// <summary>棒を作る</summary>
     /// <param name="left">左端の位置</param>
     /// <param name="top">上端の位置</param>
     /// <param name="width">幅</param>

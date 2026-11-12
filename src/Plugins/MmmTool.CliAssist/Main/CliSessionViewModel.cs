@@ -13,22 +13,25 @@ using MmmTool.CliAssist.QuickMessages;
 
 namespace MmmTool.CliAssist.Main;
 
-/// <summary>CLI のセッション 1 つ分 (ターミナル・入力欄・添付)の ViewModel</summary>
+/// <summary>CLI のセッション 1 つ分の ViewModel</summary>
 /// <remarks>
-/// 定型コマンド・環境は、セッションをまたいで共通なので、<see cref="CliAssistViewModel"/> が持つ。送信履歴はセッションごとに持つ。
+/// 定型コマンド・環境はセッションをまたいで共通なので、<see cref="CliAssistViewModel"/> が持つ。
+/// 送信履歴はセッションごとに持つ。
 /// セッションは <see cref="CliSessionFactory"/> が Transient で DI から作る。
-/// 添付の一時保存先もセッションごとに持つ。ほかのタブの送信で、送信前の添付が影響を受けないようにするため。
-/// タブを閉じるときは <see cref="Dispose"/> を呼ぶと、シェルが終了し、一時保存した添付が消える。呼ばなくても、作ったスコープ (ページ)の破棄で同じ後始末が行われる。
+/// 添付の一時保存先もセッションごとに持つ。
+/// ほかのタブの送信で、送信前の添付が影響を受けないようにするため。
+/// タブを閉じるときは <see cref="Dispose"/> を呼ぶと、シェルが終了し、一時保存した添付が消える。
+/// 呼ばなくても作ったスコープ (ページ)の破棄で同じ後始末が行われる。
 /// </remarks>
 public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 {
-    /// <summary>添付ファイルの一時保存先 (Windows の %TEMP%)</summary>
+    /// <summary>添付ファイルの一時保存先</summary>
     private readonly AttachmentStore _windowsAttachmentStore;
-    /// <summary>添付ファイルの一時保存先 (WSL の /tmp)</summary>
+    /// <summary>添付ファイルの一時保存先</summary>
     private readonly AttachmentStore _wslAttachmentStore;
     /// <summary>画像の変換</summary>
     private readonly IImageConverter _imageConverter;
-    /// <summary>送信履歴 (このセッション専用)</summary>
+    /// <summary>送信履歴</summary>
     private readonly SendHistory _sendHistory;
     /// <summary>時刻の取得元</summary>
     private readonly TimeProvider _timeProvider;
@@ -39,11 +42,15 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <summary>通知する文字列</summary>
     private readonly CliFocusTriggerService _focusTriggerService;
     /// <summary>ターミナルの出力から、「ターミナルへ移る」がオンの通知する文字列を見つける</summary>
-    /// <remarks>オフの文字列と別の見張りにする。見張りは最初に見つけた 1 つで止まるので、同じ見張りに混ぜると、オフの文字列が先に出たとき、オンの確認を逃すため。</remarks>
+    /// <remarks>
+    /// オフの文字列と別の見張りにする。
+    /// 見張りは最初に見つけた 1 つで止まるので、同じ見張りに混ぜると、オフの文字列が先に出たとき、オンの確認を逃すため。
+    /// </remarks>
     private readonly TerminalOutputWatcher _moveWatcher;
     /// <summary>ターミナルの出力から、「ターミナルへ移る」がオフの通知する文字列を見つける</summary>
     private readonly TerminalOutputWatcher _notifyWatcher;
-    /// <summary>UI スレッドの同期コンテキスト (作ったときのもの)</summary>
+    /// <summary>UI スレッドの同期コンテキスト</summary>
+    /// <remarks>作ったときのもの</remarks>
     private readonly SynchronizationContext? _uiContext;
     /// <summary>後始末を済ませたか</summary>
     private bool _disposed;
@@ -102,18 +109,22 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         HistoryItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoHistory));
     }
 
-    /// <summary>左ペインで表示する定型コマンドの群 (シェル / AI セッション)</summary>
+    /// <summary>左ペインで表示する定型コマンドの群</summary>
     /// <remarks>
-    /// このタブのターミナルで、今シェルと AI セッションのどちらを動かしているかを表す。タブごとに持ち、タブを切り替えると左ペインが追従する。
+    /// このタブのターミナルで、今シェルと AI セッションのどちらを動かしているかを表す。
+    /// タブごとに持ち、タブを切り替えると左ペインが追従する。
     /// 新しいタブはシェルから始まる。
     /// </remarks>
     [ObservableProperty]
     public partial CommandCategory Category { get; set; }
 
-    /// <summary>シェルが終了したときの処理 (中の AI セッションも無くなるので、シェル側へ戻す)</summary>
+    /// <summary>シェルが終了したときの処理</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>終了はスレッドプールで通知されるので、UI スレッドへ移して値を変える。</remarks>
+    /// <remarks>
+    /// 中の AI セッションも無くなるので、シェル側へ戻す。
+    /// 終了はスレッドプールで通知されるので、UI スレッドへ移して値を変える。
+    /// </remarks>
     private void OnShellExited(object? sender, EventArgs e)
     {
         if (_uiContext is { } context)
@@ -126,76 +137,89 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>シェルのセッション。</summary>
+    /// <summary>シェルのセッション</summary>
     /// <remarks>
-    /// 起動するシェルは定型コマンドの環境 (<see cref="CliCommandSet.Environment"/>)で決まるので、<see cref="CliAssistViewModel.InitializeAsync"/> が済んでから画面につなぐ。つないだときに起動する。
-    /// 今どちらの環境で動いているかは、このシェルの種類 (<see cref="ShellInfo.Kind"/>)で見る。ここ 1 か所に持つ。
+    /// 起動するシェルは定型コマンドの環境 (<see cref="CliCommandSet.Environment"/>)で決まるので、<see cref="CliAssistViewModel.InitializeAsync"/> が済んでから画面につなぐ。
+    /// つないだときに起動する。
+    /// 今どちらの環境で動いているかはこのシェルの種類 (<see cref="ShellInfo.Kind"/>)で見る。
+    /// ここ 1 か所に持つ。
     /// </remarks>
     public ITerminalSession Terminal { get; }
 
-    /// <summary>シェルの作業ディレクトリで、Windows のパス。シェルの再起動時の開始位置でもある</summary>
-    /// <remarks>このアプリが送った作業ディレクトリ変更だけを反映する。プロンプトで直接打った <c>cd</c> は反映しない。</remarks>
+    /// <summary>シェルの作業ディレクトリで、Windows のパス</summary>
+    /// <remarks>
+    /// シェルの再起動時の開始位置でもある
+    /// このアプリが送った作業ディレクトリ変更だけを反映する
+    /// プロンプトで直接打った <c>cd</c> は反映しない
+    /// </remarks>
     public string WorkingDirectory => Terminal.WorkingDirectory;
 
     /// <summary>タブの名前</summary>
-    /// <remarks>名前は、ほかのタブとの兼ね合い (同じフォルダ名のタブがあるか)で決まるので、<see cref="CliAssistViewModel"/> が付ける。</remarks>
+    /// <remarks>名前はほかのタブとの兼ね合い (同じフォルダ名のタブがあるか)で決まるので、<see cref="CliAssistViewModel"/> が付ける。</remarks>
     [ObservableProperty]
     public partial string Title { get; set; }
 
-    /// <summary>シェルの作業ディレクトリを決める (次に (再)起動するシェルの開始位置になる)</summary>
+    /// <summary>シェルの作業ディレクトリを決める</summary>
     /// <param name="directory">作業ディレクトリ (Windows のパス)</param>
+    /// <remarks>次に (再)起動するシェルの開始位置になる</remarks>
     public void SetWorkingDirectory(string directory)
     {
         Terminal.WorkingDirectory = directory;
         OnPropertyChanged(nameof(WorkingDirectory));
     }
 
-    /// <summary>今の環境で使う、添付ファイルの一時保存先</summary>
+    /// <summary>今の環境で使う添付ファイルの一時保存先</summary>
     private AttachmentStore AttachmentStore => Terminal.Shell.Kind == ShellKind.Wsl ? _wslAttachmentStore : _windowsAttachmentStore;
 
     #region View への依頼
 
     /// <summary>フォーカスの移動を View に頼む</summary>
-    /// <remarks>ViewModel は UI に触れないため。</remarks>
+    /// <remarks>ViewModel は UI に触れないため</remarks>
     public event EventHandler<FocusTarget>? FocusRequested;
 
     /// <summary>ターミナルのシェルの起動し直しを View に頼む</summary>
     /// <remarks>起動し直すには端末の大きさが要り、それは画面 (ターミナルのコントロール)が持っているため。</remarks>
     public event EventHandler? TerminalRestartRequested;
 
-    /// <summary>出力に、通知する文字列が出たので、View に知らせる</summary>
+    /// <summary>出力に通知する文字列が出たので、View に知らせる</summary>
     /// <remarks>
-    /// 引数は、その文字列で、ターミナルへフォーカスも移すか。
-    /// 画面に出ているか、入力欄が空かは、View が確かめる。
+    /// 引数はその文字列で、ターミナルへフォーカスも移すか。
+    /// 画面に出ているか、入力欄が空かは View が確かめる。
     /// </remarks>
     public event EventHandler<bool>? FocusTriggerMatched;
 
     /// <summary>画面に出ていない間に出た確認で、画面に出たときにターミナルへフォーカスも移すか</summary>
-    /// <remarks><see cref="IsAwaitingInput"/> が true のときだけ意味を持つ。</remarks>
+    /// <remarks><see cref="IsAwaitingInput"/> が true のときだけ意味を持つ</remarks>
     public bool AwaitingMovesToTerminal { get; set; }
 
-    /// <summary>画面に出ていない間に、ターミナルで確認が出たか</summary>
+    /// <summary>画面に出ていない間にターミナルで確認が出たか</summary>
     /// <remarks>
-    /// 選ばれていないタブと、ほかのページを開いている間のタブが対象。タブの帯に印を出す。
+    /// 選ばれていないタブとほかのページを開いている間のタブが対象。
+    /// タブの帯に印を出す。
     /// 画面に出たとき (View が読み込まれたとき)に、ターミナルへフォーカスを移して、false に戻す。
-    /// シェルの終了・起動し直し・通知する文字列の保存でも false に戻す。確認が、もう出ていない恐れがあるため。
+    /// シェルの終了・起動し直し・通知する文字列の保存でも false に戻す。
+    /// 確認がもう出ていない恐れがあるため。
     /// </remarks>
     [ObservableProperty]
     public partial bool IsAwaitingInput { get; set; }
 
-    /// <summary>フォーカスを移すよう、View に頼む</summary>
+    /// <summary>フォーカスを移すよう View に頼む</summary>
     /// <param name="target">フォーカスを移す先</param>
     public void RequestFocus(FocusTarget target) => FocusRequested?.Invoke(this, target);
 
-    /// <summary>通知する文字列が保存されたときの処理 (見張りの文字列を差し替える)</summary>
+    /// <summary>通知する文字列が保存されたときの処理</summary>
+    /// <remarks>見張りの文字列を差し替える</remarks>
     private void OnFocusTriggersChanged()
     {
         SetWatcherPatterns();
         IsAwaitingInput = false;
     }
 
-    /// <summary>2 つの見張りに、通知する文字列を振り分けて渡す</summary>
-    /// <remarks>同じ文字列が、オンとオフの両方にあるときは、両方の見張りが見つける。オンの見張りが移すので、移すほうが勝つ。</remarks>
+    /// <summary>2 つの見張りに通知する文字列を振り分けて渡す</summary>
+    /// <remarks>
+    /// 同じ文字列がオンとオフの両方にあるときは、両方の見張りが見つける。
+    /// オンの見張りが移すので、移すほうが勝つ。
+    /// </remarks>
     private void SetWatcherPatterns()
     {
         var triggers = _focusTriggerService.Triggers;
@@ -214,7 +238,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     private void OnNotifyTriggerMatched(object? sender, string text) => NotifyMatched(moveToTerminal: false);
 
     /// <summary>通知する文字列が出たことを View に頼む</summary>
-    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか</param>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか。</param>
     /// <remarks>出力はスレッドプールから届くので、UI スレッドへ移して頼む。</remarks>
     private void NotifyMatched(bool moveToTerminal)
     {
@@ -227,7 +251,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }, null);
     }
 
-    /// <summary>ターミナルのシェルを起動し直すよう、View に頼む</summary>
+    /// <summary>ターミナルのシェルを起動し直すよう View に頼む</summary>
     public void RequestTerminalRestart()
     {
         IsAwaitingInput = false;
@@ -238,15 +262,22 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #region 作業ディレクトリ
 
-    /// <summary>アプリの EXE があるフォルダを、シェルから見たパスにする (<see cref="CommandPlaceholders.AppDir"/> の展開に使う)</summary>
-    /// <returns>シェルから見たパス。WSL から開けない場所 (ネットワークのフォルダーなど)に置いたときは、Windows のパスのまま</returns>
+    /// <summary>アプリの EXE があるフォルダをシェルから見たパスにする</summary>
+    /// <returns>
+    /// シェルから見たパス
+    /// WSL から開けない場所 (ネットワークのフォルダーなど)に置いたときは Windows のパスのまま
+    /// </returns>
+    /// <remarks><see cref="CommandPlaceholders.AppDir"/> の展開に使う</remarks>
     public string AppDirectoryForShell()
         => ShellCommands.TryConvertPath(Terminal.Shell, AppContext.BaseDirectory, out var path) ? path : AppContext.BaseDirectory;
 
     /// <summary>シェルの作業ディレクトリを変える</summary>
     /// <param name="directory">移動先のフォルダー</param>
-    /// <returns>移動を始めたら true。シェルから開けないフォルダーのときは、画面に知らせて false</returns>
-    /// <remarks>送れなかったとき (ターミナルが起動していない・シェルが終了している)も、これから (再)起動するシェルは、この場所から始める。</remarks>
+    /// <returns>
+    /// 移動を始めたら true
+    /// シェルから開けないフォルダーのときは画面に知らせて false
+    /// </returns>
+    /// <remarks>送れなかったとき (ターミナルが起動していない・シェルが終了している)も、これから (再)起動するシェルはこの場所から始める。</remarks>
     public bool TryChangeDirectory(string directory)
     {
         if (!ShellCommands.TryChangeDirectory(Terminal.Shell, directory, out var command))
@@ -267,30 +298,38 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #region 送信
 
-    /// <summary>複数行の貼り付けを CLI が取り込み終えたときに出す表示の先頭。Claude Code の「[Pasted text #1 +4 lines]」にあたる。</summary>
-    /// <remarks>Enter を、この表示が出てから送るために使う。出ない CLI では、待ちの上限 (2 秒)で送る。</remarks>
+    /// <summary>複数行の貼り付けを CLI が取り込み終えたときに出す表示の先頭</summary>
+    /// <remarks>
+    /// Claude Code の「[Pasted text #1 +4 lines]」にあたる
+    /// Enter をこの表示が出てから送るために使う
+    /// 出ない CLI では待ちの上限 (2 秒)で送る
+    /// </remarks>
     private const string PastedTextMarker = "[Pasted text";
 
-    /// <summary>下部の入力欄のテキスト。</summary>
+    /// <summary>下部の入力欄のテキスト</summary>
     [ObservableProperty]
     public partial string InputText { get; set; }
 
-    /// <summary>入力欄が変わったとき、よく使う文の表示を更新する。</summary>
+    /// <summary>入力欄が変わったとき、よく使う文の表示を更新する</summary>
     /// <param name="value">新しい入力欄のテキスト</param>
     partial void OnInputTextChanged(string value) => OnPropertyChanged(nameof(ShowQuickMessages));
 
     /// <summary>よく使う文のチップ</summary>
-    /// <remarks>編集画面で保存したときに作り直す。ファイルを手で直したときは、アプリを再起動して反映する。</remarks>
+    /// <remarks>
+    /// 編集画面で保存したときに作り直す
+    /// ファイルを手で直したときはアプリを再起動して反映する
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowQuickMessages))]
     public partial IReadOnlyList<QuickMessageItem> QuickMessages { get; private set; }
 
-    /// <summary>よく使う文が保存されたときの処理 (チップを作り直す)</summary>
+    /// <summary>よく使う文が保存されたときの処理</summary>
+    /// <remarks>チップを作り直す</remarks>
     private void OnQuickMessagesChanged() => QuickMessages = CreateQuickMessageItems();
 
     /// <summary>よく使う文の編集ダイアログを開く</summary>
     /// <returns>ダイアログが閉じるまでの完了を表すタスク</returns>
-    /// <remarks>読み込みに失敗しているときは、読めなかったファイルを上書きしないよう、開かずに理由を InfoBar で知らせる。</remarks>
+    /// <remarks>読み込みに失敗しているときは読めなかったファイルを上書きしないよう、開かずに理由を InfoBar で知らせる。</remarks>
     [RelayCommand]
     private async Task EditQuickMessagesAsync()
     {
@@ -302,24 +341,30 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         await _quickMessageDialog.ShowAsync();
     }
 
-    /// <summary>よく使う文から、チップの一覧を作る</summary>
+    /// <summary>よく使う文からチップの一覧を作る</summary>
     /// <returns>チップの一覧</returns>
-    /// <remarks>文が 0 件のグループは、押しても何も開かないので、出さない。</remarks>
+    /// <remarks>文が 0 件のグループは押しても何も開かないので、出さない。</remarks>
     private List<QuickMessageItem> CreateQuickMessageItems()
         => [.. _quickMessageService.Messages.Select(CreateQuickMessageItem).Where(item => item.Items is not { Count: 0 })];
 
     /// <summary>よく使う文の行を出すか</summary>
-    /// <remarks>入力欄が空のときに出す。編集ボタンがあるので、文が 0 件でも出す。</remarks>
+    /// <remarks>
+    /// 入力欄が空のときに出す。
+    /// 編集ボタンがあるので、文が 0 件でも出す。
+    /// </remarks>
     public bool ShowQuickMessages => string.IsNullOrEmpty(InputText);
 
-    /// <summary>よく使う文を、送信せずに入力欄に入れる。</summary>
+    /// <summary>よく使う文を送信せずに入力欄に入れる</summary>
     /// <param name="item">選ばれたチップ</param>
     public void UseQuickMessage(QuickMessageItem item) => InputText = item.Text ?? string.Empty;
 
     /// <summary>よく使う文またはグループからチップを作る</summary>
     /// <param name="message">よく使う文 (本文は空でない)またはグループ</param>
     /// <returns>チップ</returns>
-    /// <remarks>文は、名前が無ければ本文の 1 行目を名前にする。グループは、中の文のチップを持つ。</remarks>
+    /// <remarks>
+    /// 文は名前が無ければ本文の 1 行目を名前にする
+    /// グループは中の文のチップを持つ
+    /// </remarks>
     private static QuickMessageItem CreateQuickMessageItem(CliQuickMessage message)
     {
         if (message.Items is { } children)
@@ -336,8 +381,11 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         return new QuickMessageItem(label, text);
     }
 
-    /// <summary>入力欄のテキスト (と添付ファイルの指示文・パス)をターミナルへ送る。</summary>
-    /// <remarks>添付のパスは、シェルから見たパス (WSL では <c>/mnt/d/...</c>・<c>/tmp/...</c>)にして送る。変換できるかは、添付したときに確かめてある。</remarks>
+    /// <summary>入力欄のテキストをターミナルへ送る</summary>
+    /// <remarks>
+    /// 添付のパスはシェルから見たパス (WSL では <c>/mnt/d/...</c>・<c>/tmp/...</c>)にして送る
+    /// 変換できるかは添付したときに確かめてある
+    /// </remarks>
     [RelayCommand]
     private void Send()
     {
@@ -363,12 +411,17 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         AddSendHistory(text.TrimEnd('\r', '\n'));
     }
 
-    /// <summary>ターミナルが使える状態なら、テキストを送る (使えなければ、画面に知らせる)</summary>
+    /// <summary>ターミナルが使える状態ならテキストを送る</summary>
     /// <param name="text">送るテキスト</param>
     /// <param name="readyMarker">貼り付けの取り込みが終わった合図になる出力の文字列 (無ければ null)</param>
-    /// <returns>送ったら true。ターミナルが起動していない・シェルが終了しているときは false</returns>
+    /// <returns>
+    /// 送ったら true
+    /// ターミナルが起動していない・シェルが終了しているときは false
+    /// </returns>
     /// <remarks>
-    /// 起動していないのは、起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき。ターミナルの場所に理由が出る。
+    /// 使えなければ、画面に知らせる。
+    /// 起動していないのは起動の直前・再起動の途中のほか、WebView2 を初期化できなかったとき。
+    /// ターミナルの場所に理由が出る。
     /// 黙って捨てると、押したのに何も起きない状態になるので、知らせる。
     /// </remarks>
     public bool TrySubmit(string text, string? readyMarker = null)
@@ -399,11 +452,14 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <summary>添付があるか</summary>
     public bool HasAttachments => Attachments.Count > 0;
 
-    /// <summary>ディスク上のファイルを添付する。ドラッグ＆ドロップ・ファイルの貼り付けで使う。</summary>
+    /// <summary>ディスク上のファイルを添付する</summary>
     /// <param name="filePath">添付するファイルのパス</param>
     /// <remarks>
-    /// コピーせず、元のパスをそのまま送る。ローカルで動く CLI は、元の場所のファイルを直接読めるため。
-    /// WSL では、WSL から開けない場所 (ネットワークのフォルダーなど)のファイルは添付せず、知らせる。送ってから読めないと分かるより、先に分かるほうがよいため。
+    /// ドラッグ＆ドロップ・ファイルの貼り付けで使う。
+    /// コピーせず、元のパスをそのまま送る。
+    /// ローカルで動く CLI は元の場所のファイルを直接読めるため。
+    /// WSL では WSL から開けない場所 (ネットワークのフォルダーなど)のファイルは添付せず、知らせる。
+    /// 送ってから読めないと分かるより、先に分かるほうがよいため。
     /// </remarks>
     public void AddAttachmentFile(string filePath)
     {
@@ -416,12 +472,16 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         Error.Clear();
     }
 
-    /// <summary>ドロップされたフォルダーのパスを、入力欄に入れる文字列にする</summary>
+    /// <summary>ドロップされたフォルダーのパスを入力欄に入れる文字列にする</summary>
     /// <param name="folderPaths">ドロップされたフォルダーのパス (Windows のパス)</param>
-    /// <returns>シェルから見たパスを <c>"</c> で囲み、空白で区切った文字列。入れるものが無いときは null</returns>
+    /// <returns>
+    /// シェルから見たパスを <c>"</c> で囲み、空白で区切った文字列。
+    /// 入れるものが無いときは null。
+    /// </returns>
     /// <remarks>
-    /// 入力欄の文字は、送るときに変換できないので、入れる時点でシェルから見たパスにする。
-    /// WSL から開けない場所のフォルダーは入れず、知らせる。ネットワークのフォルダーなどが当たり、添付と同じ扱い。
+    /// 入力欄の文字は送るときに変換できないので、入れる時点でシェルから見たパスにする。
+    /// WSL から開けない場所のフォルダーは入れず、知らせる。
+    /// ネットワークのフォルダーなどが当たり、添付と同じ扱い。
     /// 空白の有無で形が変わらないよう、すべてのパスを囲む。
     /// </remarks>
     public string? CreateFolderPathText(IEnumerable<string> folderPaths)
@@ -444,19 +504,23 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         return string.Join(' ', paths);
     }
 
-    /// <summary>添付ファイルのパスを、シェルから見たパスにする</summary>
+    /// <summary>添付ファイルのパスをシェルから見たパスにする</summary>
     /// <param name="filePath">添付ファイルのパス (Windows のパス)</param>
     /// <returns>シェルから見たパス</returns>
-    /// <exception cref="InvalidOperationException">変換できない。添付したときに確かめてあるので、起きればバグ。</exception>
+    /// <exception cref="InvalidOperationException">
+    /// 変換できない。
+    /// 添付したときに確かめてあるので、起きればバグ。
+    /// </exception>
     private string ToShellPath(string filePath)
         => ShellCommands.TryConvertPath(Terminal.Shell, filePath, out var path)
             ? path
             : throw new InvalidOperationException($"添付ファイルのパスを、シェルから見たパスにできません: {filePath}");
 
-    /// <summary>ディスク上に無いファイルを一時保存して添付する。メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付けで使う。</summary>
+    /// <summary>ディスク上に無いファイルを一時保存して添付する</summary>
     /// <param name="content">ファイルの内容のストリーム</param>
     /// <param name="fileName">ファイル名</param>
     /// <returns>添付の完了を表すタスク</returns>
+    /// <remarks>メールの添付ファイルなど、パスの無いファイルのドロップ・貼り付けで使う。</remarks>
     public async Task AddAttachmentContentAsync(Stream content, string fileName)
     {
         try
@@ -473,9 +537,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>画像を JPEG にして添付する。画像の貼り付けで使う。</summary>
+    /// <summary>画像を JPEG にして添付する</summary>
     /// <param name="image">添付する画像のストリーム</param>
     /// <returns>添付の完了を表すタスク</returns>
+    /// <remarks>画像の貼り付けで使う</remarks>
     public async Task AddAttachmentImageAsync(Stream image)
     {
         try
@@ -504,7 +569,10 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     /// <summary>添付を取り除く</summary>
     /// <param name="item">取り除く添付</param>
-    /// <remarks>一時保存したファイルだけを削除する。元の場所のファイルは一覧から外すだけで、決して消さない。</remarks>
+    /// <remarks>
+    /// 一時保存したファイルだけを削除する。
+    /// 元の場所のファイルは一覧から外すだけで、決して消さない。
+    /// </remarks>
     [RelayCommand]
     private void RemoveAttachment(AttachmentItem item)
     {
@@ -528,28 +596,28 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #region 送信履歴
 
-    /// <summary>送信履歴の一覧 (絞り込み後)</summary>
+    /// <summary>送信履歴の一覧</summary>
     public ObservableCollection<SendHistoryItem> HistoryItems { get; } = [];
 
     /// <summary>表示する履歴が無いか</summary>
     public bool HasNoHistory => HistoryItems.Count == 0;
 
-    /// <summary>履歴の絞り込み文字列。</summary>
+    /// <summary>履歴の絞り込み文字列</summary>
     [ObservableProperty]
     public partial string HistoryFilter { get; set; }
 
-    /// <summary>絞り込み文字列が変わったら、一覧を作り直す</summary>
+    /// <summary>絞り込み文字列が変わったら一覧を作り直す</summary>
     /// <param name="value">変更後の絞り込み文字列</param>
     partial void OnHistoryFilterChanged(string value) => RefreshHistory();
 
-    /// <summary>履歴の一覧を開く前に、最新の内容にする。</summary>
+    /// <summary>履歴の一覧を開く前に最新の内容にする</summary>
     public void PrepareHistory()
     {
         HistoryFilter = string.Empty;
         RefreshHistory();
     }
 
-    /// <summary>履歴の本文を入力欄へ戻す。</summary>
+    /// <summary>履歴の本文を入力欄へ戻す</summary>
     /// <param name="item">戻す履歴の行</param>
     public void RestoreHistory(SendHistoryItem item) => InputText = item.Text;
 
@@ -558,7 +626,7 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
     /// <remarks>空白のみは無視し、同じ本文は先頭へ移す。</remarks>
     private void AddSendHistory(string text) => _sendHistory.Add(text, _timeProvider.GetLocalNow());
 
-    /// <summary>絞り込み文字列に合わせて、履歴の一覧を作り直す</summary>
+    /// <summary>絞り込み文字列に合わせて履歴の一覧を作り直す</summary>
     private void RefreshHistory()
     {
         var today = _timeProvider.GetLocalNow().Date;
@@ -574,8 +642,12 @@ public sealed partial class CliSessionViewModel : ObservableObject, IDisposable
 
     #endregion
 
-    /// <summary>タブを閉じる後始末 (シェルを終了し、一時保存した添付を消す)</summary>
-    /// <remarks>画面 (<see cref="CliSessionView"/>)からターミナルを外してから呼ぶ。何度呼んでもよい。</remarks>
+    /// <summary>タブを閉じる後始末</summary>
+    /// <remarks>
+    /// シェルを終了し、一時保存した添付を消す。
+    /// 画面 (<see cref="CliSessionView"/>)からターミナルを外してから呼ぶ。
+    /// 何度呼んでもよい。
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)

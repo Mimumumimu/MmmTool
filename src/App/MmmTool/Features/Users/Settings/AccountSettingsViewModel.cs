@@ -10,12 +10,13 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Features.Users.Settings;
 
-/// <summary>
-/// アカウント (表示名・ログイン名・パスワードの変更とログアウト)の設定ページの部品の ViewModel。
-/// </summary>
+/// <summary>アカウントの設定ページの部品の ViewModel</summary>
 /// <remarks>
-/// DB に保存していて、ログイン済みのときだけ出す。ローカルモードには、ユーザーがいない。保存先は起動時に決まるので、出すかどうかは、部品を作るときに決める。
-/// 変更は、別の画面 (<see cref="AccountEditWindow"/>)で行う。ここは、閉じたあとに、見せている内容を読み直す。
+/// DB に保存していて、ログイン済みのときだけ出す。
+/// ローカルモードにはユーザーがいない。
+/// 保存先は起動時に決まるので、出すかどうかは部品を作るときに決める。
+/// 変更は別の画面 (<see cref="AccountEditWindow"/>)で行う。
+/// ここは閉じたあとに、見せている内容を読み直す。
 /// </remarks>
 public sealed partial class AccountSettingsViewModel : ObservableObject
 {
@@ -54,7 +55,8 @@ public sealed partial class AccountSettingsViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>この部品を出すか (DB に保存していて、ログイン済み)</summary>
+    /// <summary>この部品を出すか</summary>
+    /// <remarks>DB に保存していて、ログイン済み。</remarks>
     public bool IsAvailable { get; }
 
     /// <summary>表示名</summary>
@@ -65,7 +67,8 @@ public sealed partial class AccountSettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial string LoginName { get; private set; } = "";
 
-    /// <summary>画面に出すエラー (ログイン情報を消せなかったとき)</summary>
+    /// <summary>画面に出すエラー</summary>
+    /// <remarks>ログイン情報を消せなかったとき</remarks>
     public ErrorState Error { get; } = new();
 
     /// <summary>表示名の編集画面を開く</summary>
@@ -83,7 +86,7 @@ public sealed partial class AccountSettingsViewModel : ObservableObject
     [RelayCommand]
     private Task EditPasswordAsync() => EditAsync(AccountEditKind.Password);
 
-    /// <summary>確認のあと、ログイン情報を消して、アプリを終了する</summary>
+    /// <summary>確認のあとログイン情報を消してアプリを終了する</summary>
     /// <returns>操作の完了を表すタスク</returns>
     [RelayCommand]
     private async Task SignOutAsync()
@@ -115,7 +118,7 @@ public sealed partial class AccountSettingsViewModel : ObservableObject
         Refresh();
     }
 
-    /// <summary>今のユーザーから、見せている内容を読み直す</summary>
+    /// <summary>今のユーザーから見せている内容を読み直す</summary>
     private void Refresh()
     {
         DisplayName = _currentUser.User?.DisplayName ?? "";

@@ -2,30 +2,41 @@ using MmmSdk.Db.Sqlite.Components.Connections;
 
 namespace MmmTool.Data.Sqlite;
 
-/// <summary>
-/// データベースの版を上げるスクリプトを読む。スクリプトは <c>Sql/NNN_*.sql</c> の埋め込みリソース。
-/// </summary>
-/// <remarks>ファイル名の先頭の数字が版になる。例は <c>001_CreateTables.sql</c> が版 1。集計の作り直しのスクリプト (<c>Sql/Maintenance</c>)は、埋め込まない。</remarks>
+/// <summary>データベースの版を上げるスクリプトを読む</summary>
+/// <remarks>
+/// スクリプトは Sql/NNN_*.sql の埋め込みリソース
+/// ファイル名の先頭の数字が版になる
+/// 例は <c>001_CreateTables.sql</c> が版 1
+/// 集計の作り直しのスクリプト (<c>Sql/Maintenance</c>)は埋め込まない
+/// </remarks>
 internal static class SqliteMigrations
 {
-    /// <summary>リソース名の前置き (csproj の <c>LogicalName</c> と同じ)</summary>
+    /// <summary>リソース名の前置き</summary>
     private const string ResourcePrefix = "MmmTool.Data.Sqlite.Sql.";
 
-    /// <summary>あるべき形の埋め込みリソースの名前 (csproj の <c>LogicalName</c> と同じ)</summary>
-    /// <remarks>番号つきのスクリプトの前置き (<see cref="ResourcePrefix"/>)とは別にする。同じ前置きだと、版を上げるスクリプトとして読まれる。</remarks>
+    /// <summary>あるべき形の埋め込みリソースの名前</summary>
+    /// <remarks>
+    /// 番号つきのスクリプトの前置き (<see cref="ResourcePrefix"/>)とは別にする
+    /// 同じ前置きだと版を上げるスクリプトとして読まれる
+    /// </remarks>
     private const string SchemaResourceName = "MmmTool.Data.Sqlite.Schema.schema.sql";
 
-    /// <summary>列の名前の変更 (リリース済みの DB が持つ古い名前を、<c>schema.sql</c> の名前に変える)</summary>
+    /// <summary>列の名前の変更</summary>
     /// <remarks>
-    /// 古い名前の列がある DB だけ変わる。新しい DB は、<c>schema.sql</c> が新しい名前で作る。
-    /// 名前を変える列が増えたら、ここに足す。次のリリース以降、古い名前の DB が無くなったら外す。
+    /// リリース済みの DB が持つ古い名前を <c>schema.sql</c> の名前に変える。
+    /// 古い名前の列がある DB だけ変わる。
+    /// 新しい DB は <c>schema.sql</c> が新しい名前で作る。
+    /// 名前を変える列が増えたら、ここに足す。
+    /// 次のリリース以降、古い名前の DB が無くなったら外す。
     /// </remarks>
     public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } = [];
 
-    /// <summary>列の置き換え (古い列の値を、<c>schema.sql</c> の新しい列に移して、古い列を落とす)</summary>
+    /// <summary>列の置き換え</summary>
     /// <remarks>
+    /// 古い列の値を <c>schema.sql</c> の新しい列に移して、古い列を落とす。
     /// 古い列と新しい列が両方ある DB だけ変わる。
-    /// 値の範囲を広げる変更に使う。名前の変更では、古い列の <c>CHECK</c> を引き継いで、広げられないため。
+    /// 値の範囲を広げる変更に使う。
+    /// 名前の変更では古い列の <c>CHECK</c> を引き継いで、広げられないため。
     /// 次のリリース以降、古い列の DB が無くなったら外す。
     /// </remarks>
     public static IReadOnlyList<SqliteColumnReplacement> ColumnReplacements { get; } =
@@ -37,7 +48,7 @@ internal static class SqliteMigrations
         new SqliteColumnReplacement("WorkItem", "PlanExcluded", "ReportExclusion", "\"PlanExcluded\""),
     ];
 
-    /// <summary>埋め込んだスクリプトを、版の順に読む</summary>
+    /// <summary>埋め込んだスクリプトを版の順に読む</summary>
     /// <returns>版を上げるスクリプト</returns>
     public static IReadOnlyList<SqliteMigration> Load()
     {
@@ -61,7 +72,11 @@ internal static class SqliteMigrations
 
     /// <summary>あるべき表と索引の SQL を読む</summary>
     /// <returns>あるべき形の SQL</returns>
-    /// <remarks>埋め込みリソースの <c>Sql/schema.sql</c> を読む。番号つきのスクリプトとは別で、版の番号を持たない。列・索引・表を足す変更は、このファイルに書き足す。</remarks>
+    /// <remarks>
+    /// 埋め込みリソースの <c>Sql/schema.sql</c> を読む。
+    /// 番号つきのスクリプトとは別で、版の番号を持たない。
+    /// 列・索引・表を足す変更はこのファイルに書き足す。
+    /// </remarks>
     public static string LoadSchema()
     {
         var assembly = typeof(SqliteMigrations).Assembly;

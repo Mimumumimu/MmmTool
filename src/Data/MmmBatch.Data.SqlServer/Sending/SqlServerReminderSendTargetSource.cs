@@ -8,20 +8,24 @@ using MmmTool.Data.SqlServer.Users;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
-/// <summary>
-/// 送る対象 (送信先を選んだリマインダーと、その送信先)を、SQL Server から読む。
-/// </summary>
+/// <summary>送る対象を SQL Server から読む</summary>
 /// <remarks>
-/// 読むだけで、書かない。リマインダーの宛先・作成者・対応状態は見ない。送信は、登録した人が選んだ送信先へ送るため。
+/// 送信先を選んだリマインダーとその送信先。
+/// 読むだけで、書かない。
+/// リマインダーの宛先・作成者・対応状態は見ない。
+/// 送信は登録した人が選んだ送信先へ送るため。
 /// 削除されたリマインダー・送信先・送信設定は含めない。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerReminderSendTargetSource(SqlServerDatabase database) : IReminderSendTargetSource
 {
     /// <inheritdoc />
-    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="MmmSdk.Core.Components.Storage.DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     /// <remarks>
-    /// 今日と昨日の送信の状況は、状況の表を外部結合して、同じ問い合わせで読む。
+    /// 今日と昨日の送信の状況は状況の表を外部結合して、同じ問い合わせで読む。
     /// 状況の表は <c>(ReminderId, ChannelId, Date)</c> が一意なので、結合しても対象の行は増えない。
     /// </remarks>
     public Task<IReadOnlyList<ReminderSendTargetState>> GetTargetsAsync(DateOnly today, CancellationToken cancellationToken = default)

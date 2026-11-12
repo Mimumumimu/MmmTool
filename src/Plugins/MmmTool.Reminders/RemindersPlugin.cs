@@ -17,11 +17,16 @@ using MmmTool.Reminders.Settings;
 
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダーの入口 (データ・時刻監視・各画面・トレイメニューを登録する)</summary>
+/// <summary>リマインダーの入口</summary>
+/// <remarks>データ・時刻監視・各画面・トレイメニューを登録する</remarks>
 public sealed class RemindersPlugin : IFeaturePlugin
 {
     /// <inheritdoc />
-    /// <remarks>保存先は JSON。設定が DB のときだけ、ホストが、登録のあとで SQL Server の保存先に置き換える。置き換え先は <c>MmmTool.Data.SqlServer</c>。</remarks>
+    /// <remarks>
+    /// 保存先は JSON。
+    /// 設定が DB のときだけ、ホストが登録のあとで SQL Server の保存先に置き換える。
+    /// 置き換え先は <c>MmmTool.Data.SqlServer</c>。
+    /// </remarks>
     public void Register(IServiceCollection services)
     {
         // オフにできない機能で、設定の「機能」の一覧では、並び順だけ使う。管理者が無効にしたユーザー (サーバーモード)には、サイドバー・設定の機能の一覧に出ない

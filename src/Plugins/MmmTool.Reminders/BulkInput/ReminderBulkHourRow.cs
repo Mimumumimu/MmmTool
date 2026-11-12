@@ -1,8 +1,6 @@
 namespace MmmTool.Reminders.BulkInput;
 
-/// <summary>
-/// まとめて追加の時刻の表の、1 時間ぶんの行。
-/// </summary>
+/// <summary>まとめて追加の時刻の表の 1 時間ぶんの行</summary>
 /// <param name="Hour">時 (0〜23)</param>
 /// <param name="OnTheHour">ちょうどのマス (:00)</param>
 /// <param name="HalfPast">30 分のマス (:30)</param>

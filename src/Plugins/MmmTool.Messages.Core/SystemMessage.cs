@@ -1,13 +1,16 @@
 namespace MmmTool.Messages.Core;
 
-/// <summary>システムメッセージの決まりと、文の作り方</summary>
+/// <summary>システムメッセージの決まりと文の作り方</summary>
 /// <remarks>
-/// 人の追加・抜けた・名前の変更を、会話の中に残す 1 通のメッセージ。<c>Message.SenderUserId</c> を 0 にして書く。
-/// 本文には出来上がった文を入れる。名前はその時点の表示名で固まり、あとで表示名が変わっても、過去の文は変えない。
+/// 人の追加・抜けた・名前の変更を会話の中に残す 1 通のメッセージ。
+/// <c>Message.SenderUserId</c> を 0 にして書く。
+/// 本文には出来上がった文を入れる。
+/// 名前はその時点の表示名で固まり、あとで表示名が変わっても、過去の文は変えない。
 /// </remarks>
 public static class SystemMessage
 {
-    /// <summary>システムメッセージの <c>Message.SenderUserId</c>。ユーザーではないことを表す</summary>
+    /// <summary>システムメッセージの Message.SenderUserId</summary>
+    /// <remarks>ユーザーではないことを表す</remarks>
     public const int SenderUserId = 0;
 
     /// <summary>人を追加したときの文を作る</summary>

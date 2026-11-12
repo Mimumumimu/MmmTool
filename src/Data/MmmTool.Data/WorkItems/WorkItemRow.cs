@@ -3,16 +3,23 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.Data.WorkItems;
 
-/// <summary>
-/// DB の <c>WorkItem</c> (作業)の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="WorkItem"/> とは別の、DB の形のまま持つ。
-/// </summary>
+/// <summary>DB の WorkItemの 1 行で、列と 1 対 1 に対応する</summary>
 /// <remarks>
-/// 日付の「ない」は <c>9999-12-31</c> で、開始日だけ <c>0001-01-01</c>。予定時間の「ない」は 0。NULL は使わない。理由は docs/specs/database.md にある。
-/// 変換は <see cref="FromWorkItem"/> と <see cref="ToWorkItem"/>。作成・更新の日時と作成者・更新者は、Repository が入れる。
+/// アプリの型 WorkItem とは別の DB の形のまま持つ。
+/// 日付の「ない」は <c>9999-12-31</c> で、開始日だけ <c>0001-01-01</c>。
+/// 予定時間の「ない」は 0。
+/// NULL は使わない。
+/// 理由は docs/specs/database.md にある。
+/// 変換は <see cref="FromWorkItem"/> と <see cref="ToWorkItem"/>。
+/// 作成・更新の日時と作成者・更新者は Repository が入れる。
 /// </remarks>
 public sealed record WorkItemRow
 {
-    /// <summary>主キー。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キー</summary>
+    /// <remarks>
+    /// DB が採番する
+    /// 0 は新規
+    /// </remarks>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
@@ -21,73 +28,87 @@ public sealed record WorkItemRow
     /// <summary>作成日時</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者 (ユーザーの番号)</summary>
+    /// <summary>作成者</summary>
     public int CreatedByUserId { get; init; }
 
     /// <summary>更新日時</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (ユーザーの番号)</summary>
+    /// <summary>更新者</summary>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>属する案件 (<c>WorkProject.Id</c>)</summary>
+    /// <summary>属する案件</summary>
     public int ProjectId { get; init; }
 
-    /// <summary>親のグループで、<c>WorkGroup.Id</c>。0 は案件の直下</summary>
+    /// <summary>親のグループで、WorkGroup.Id</summary>
+    /// <remarks>0 は案件の直下</remarks>
     public int GroupId { get; init; }
 
-    /// <summary>兄弟の中の並び (グループと作業にまたがる 1 つの数)</summary>
+    /// <summary>兄弟の中の並び</summary>
     public int SortOrder { get; init; }
 
     /// <summary>名前</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>担当者で、<c>AppUser.Id</c>。0 は未割り当て</summary>
+    /// <summary>担当者で、AppUser.Id</summary>
+    /// <remarks>0 は未割り当て</remarks>
     public int AssigneeUserId { get; init; }
 
-    /// <summary>備考 (無いときは空文字)</summary>
+    /// <summary>備考</summary>
     public string Note { get; init; } = "";
 
-    /// <summary>優先度のコード番号で、コードマスタの区分「優先度」。高 = 1・中 = 2・低 = 3</summary>
+    /// <summary>優先度のコード番号で、コードマスタの区分「優先度」</summary>
+    /// <remarks>高 = 1・中 = 2・低 = 3</remarks>
     public int PriorityCodeNo { get; init; } = (int)WorkItemPriority.Normal;
 
-    /// <summary>開始日 (ない日は <c>0001-01-01</c>)</summary>
+    /// <summary>開始日</summary>
     public DateOnly StartDate { get; init; } = WorkRowValues.NoStartDate;
 
-    /// <summary>期限日 (ない日は <c>9999-12-31</c>)</summary>
+    /// <summary>期限日</summary>
     public DateOnly DueDate { get; init; } = WorkRowValues.NoDate;
 
-    /// <summary>リンク (無いときは空文字)</summary>
+    /// <summary>リンク</summary>
     public string Link { get; init; } = "";
 
-    /// <summary>作業報告のどの部分から外すか (0 = 外さない・1 = 予定から外す・2 = 実績と予定から外す)</summary>
+    /// <summary>作業報告のどの部分から外すか</summary>
+    /// <remarks>0 = 外さない・1 = 予定から外す・2 = 実績と予定から外す</remarks>
     public byte ReportExclusion { get; init; }
 
-    /// <summary>状態のコード番号で、コードマスタの区分「状態」。未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4</summary>
+    /// <summary>状態のコード番号で、コードマスタの区分「状態」</summary>
+    /// <remarks>未対応 = 1・作業予定 = 2・作業中 = 3・完了 = 4</remarks>
     public int StatusCodeNo { get; init; } = (int)WorkItemStatus.Open;
 
-    /// <summary>進捗度のコード番号で、コードマスタの区分「進捗度」。%の値は、コードマスタの数値</summary>
+    /// <summary>進捗度のコード番号で、コードマスタの区分「進捗度」</summary>
+    /// <remarks>%の値はコードマスタの数値</remarks>
     public int ProgressCodeNo { get; init; } = WorkCodes.DefaultProgressCodeNo;
 
-    /// <summary>予定時間 (0 は予定なし)</summary>
+    /// <summary>予定時間</summary>
     public decimal PlannedHours { get; init; }
 
-    /// <summary>完了日 (未完了は <c>9999-12-31</c>)</summary>
+    /// <summary>完了日</summary>
     public DateOnly CompletedDate { get; init; } = WorkRowValues.NoDate;
 
-    /// <summary>実績の累計 (記録を保存するたびに、保存先が計算し直して書く)</summary>
+    /// <summary>実績の累計</summary>
+    /// <remarks>記録を保存するたびに保存先が計算し直して書く</remarks>
     public decimal ActualTotalHours { get; init; }
 
-    /// <summary>自動入力の時間 (0 は自動入力しない)</summary>
+    /// <summary>自動入力の時間</summary>
+    /// <remarks>0 は自動入力しない</remarks>
     public decimal AutoHours { get; init; }
 
     /// <summary>自動入力する曜日</summary>
-    /// <remarks>月 = 1 から日 = 64 の足し算の数。0 と 127 は、どちらも毎日。</remarks>
+    /// <remarks>
+    /// 月 = 1 から日 = 64 の足し算の数
+    /// 0 と 127 はどちらも毎日
+    /// </remarks>
     public byte AutoWeekdays { get; init; }
 
-    /// <summary>アプリの型から、DB の行にする</summary>
+    /// <summary>アプリの型から DB の行にする</summary>
     /// <param name="item">作業</param>
-    /// <returns>DB の行。作成・更新の日時と作成者・更新者は決めない (Repository が入れる)</returns>
+    /// <returns>
+    /// DB の行
+    /// 作成・更新の日時と作成者・更新者は決めない (Repository が入れる)
+    /// </returns>
     /// <exception cref="ArgumentException">DB に入れられない値で、長さ・範囲の外、「ない」を表す日付など。</exception>
     public static WorkItemRow FromWorkItem(WorkItem item)
     {
@@ -133,7 +154,7 @@ public sealed record WorkItemRow
         };
     }
 
-    /// <summary>DB の行から、アプリの型にする</summary>
+    /// <summary>DB の行からアプリの型にする</summary>
     /// <returns>作業</returns>
     public WorkItem ToWorkItem() => new()
     {

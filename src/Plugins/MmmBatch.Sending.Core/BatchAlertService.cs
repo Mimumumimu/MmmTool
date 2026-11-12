@@ -1,11 +1,17 @@
 namespace MmmBatch.Sending.Core;
 
-/// <summary>気づいてほしい失敗の窓口 (各機能の仕事が報告し、ホストがトレイの通知にする)</summary>
-/// <remarks>ホストは、機能ごとの通知の購読を持たず、この窓口だけを購読する。</remarks>
+/// <summary>気づいてほしい失敗の窓口</summary>
+/// <remarks>
+/// 各機能の仕事が報告し、ホストがトレイの通知にする。
+/// ホストは機能ごとの通知の購読を持たず、この窓口だけを購読する。
+/// </remarks>
 public sealed class BatchAlertService
 {
     /// <summary>気づいてほしい失敗が起きた</summary>
-    /// <remarks>引数は、画面に出せるメッセージ。任意のスレッドから発火する。</remarks>
+    /// <remarks>
+    /// 引数は画面に出せるメッセージ
+    /// 任意のスレッドから発火する
+    /// </remarks>
     public event EventHandler<string>? AlertRaised;
 
     /// <summary>気づいてほしい失敗を報告する</summary>

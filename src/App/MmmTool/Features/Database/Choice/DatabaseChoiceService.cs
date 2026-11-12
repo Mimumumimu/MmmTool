@@ -4,32 +4,43 @@ using MmmTool.Data.Connection;
 
 namespace MmmTool.Features.Database.Choice;
 
-/// <summary>
-/// 初回の保存先の選択の画面を開く。アプリ全体で 1 つ。
-/// </summary>
+/// <summary>初回の保存先の選択の画面を開く</summary>
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="settings">接続の設定の読み書き</param>
-/// <param name="settingsStore">汎用設定ストア (読み込み済みにしてから、保存先を調べる)</param>
+/// <param name="settingsStore">汎用設定ストア (読み込み済みにしてから、保存先を調べる)。</param>
 /// <remarks>
-/// 保存先が、まだ保存されていないとき (初回)だけ、画面を出して、選ぶまで待つ。各機能の起動時の準備より前に呼ぶ。保存先は準備で決まって使い始めるので、選んだ内容を最初から効かせるため。
-/// 設定ファイルを読めなかったときは出さない。保存できず、毎回出てしまうため。
-/// 「決定」では、画面を閉じずに隠したまま残す。最初のウィンドウなので、閉じるとアプリごと終了しうるため。メインウィンドウを作ったあとに <see cref="CloseWindow"/> で閉じる。
-/// 画面は閉じると再表示できないので、DI から作る。画面 (と ViewModel)は、作ったスコープから解決し、閉じたらスコープごと破棄する。
-/// ルートから解決した <see cref="IDisposable"/> の Transient は、アプリの終了まで DI コンテナが保持し続けるため。UI スレッドから呼ぶ。
+/// アプリ全体で 1 つ。
+/// 保存先がまだ保存されていないとき (初回)だけ、画面を出して、選ぶまで待つ。
+/// 各機能の起動時の準備より前に呼ぶ。
+/// 保存先は準備で決まって使い始めるので、選んだ内容を最初から効かせるため。
+/// 設定ファイルを読めなかったときは出さない。
+/// 保存できず、毎回出てしまうため。
+/// 「決定」では画面を閉じずに隠したまま残す。
+/// 最初のウィンドウなので、閉じるとアプリごと終了しうるため。
+/// メインウィンドウを作ったあとに <see cref="CloseWindow"/> で閉じる。
+/// 画面は閉じると再表示できないので、DI から作る。
+/// 画面 (と ViewModel)は作ったスコープから解決し、閉じたらスコープごと破棄する。
+/// ルートから解決した <see cref="IDisposable"/> の Transient はアプリの終了まで DI コンテナが保持し続けるため。
+/// UI スレッドから呼ぶ。
 /// </remarks>
 public sealed class DatabaseChoiceService(IServiceScopeFactory scopeFactory, DatabaseSettingsService settings, ISettingsStore settingsStore)
 {
-    /// <summary>画面を作ったスコープ。画面を出していなければ null</summary>
+    /// <summary>画面を作ったスコープ</summary>
+    /// <remarks>画面を出していなければ null</remarks>
     private IServiceScope? _scope;
 
-    /// <summary>隠して残している画面。無ければ null</summary>
+    /// <summary>隠して残している画面</summary>
     private DatabaseChoiceWindow? _window;
 
-    /// <summary>今回の起動で、選択の画面を出して、保存先を選んだか (初回の起動か)</summary>
+    /// <summary>今回の起動で、選択の画面を出して保存先を選んだか</summary>
+    /// <remarks>初回の起動か</remarks>
     public bool HasChosen { get; private set; }
 
     /// <summary>保存先がまだ選ばれていなければ、選択の画面を出して、選ぶまで待つ</summary>
-    /// <returns>先へ進んでよければ true で、選んで保存した・選ぶ必要が無かったとき。選ばずに閉じたら false で、アプリを終了する</returns>
+    /// <returns>
+    /// 先へ進んでよければ true で、選んで保存した・選ぶ必要が無かったとき。
+    /// 選ばずに閉じたら false で、アプリを終了する。
+    /// </returns>
     public async Task<bool> ShowIfNeededAsync()
     {
         // 設定ファイルを、UI スレッドを止めずに読み込んでおく (読めなかったときは IsReadOnly になる)
@@ -53,7 +64,10 @@ public sealed class DatabaseChoiceService(IServiceScopeFactory scopeFactory, Dat
     }
 
     /// <summary>隠して残している画面を閉じる</summary>
-    /// <remarks>メインウィンドウを作ったあとに呼ぶ。画面が無ければ何もしない。</remarks>
+    /// <remarks>
+    /// メインウィンドウを作ったあとに呼ぶ
+    /// 画面が無ければ何もしない
+    /// </remarks>
     public void CloseWindow()
     {
         _window?.Close();

@@ -2,51 +2,87 @@ using MmmTool.NotificationChannels.Core;
 
 namespace MmmTool.Data.Reminders;
 
-/// <summary>
-/// DB の <c>dbo.NotificationChannel</c> の 1 行で、列と 1 対 1 に対応する。アプリの型 <see cref="NotificationChannel"/> とは別の、DB の形のまま持つ。
-/// </summary>
-/// <remarks>変換は <see cref="FromChannel"/> と <see cref="ToChannel"/>。NULL は使わない。理由は docs/specs/database.md にある。</remarks>
+/// <summary>DB の dbo.NotificationChannel の 1 行で、列と 1 対 1 に対応する</summary>
+/// <remarks>
+/// アプリの型 NotificationChannel とは別の DB の形のまま持つ
+/// 変換は <see cref="FromChannel"/> と <see cref="ToChannel"/>
+/// NULL は使わない
+/// 理由は docs/specs/database.md にある
+/// </remarks>
 public sealed record NotificationChannelRow
 {
-    /// <summary>主キーで、<see cref="NotificationChannel.Id"/> にあたる。0 は新規 (DB が採番する)</summary>
+    /// <summary>主キーで、NotificationChannel.Id にあたる</summary>
+    /// <remarks>
+    /// DB が採番する
+    /// 0 は新規
+    /// </remarks>
     public int Id { get; init; }
 
     /// <summary>論理削除されているか</summary>
     public bool IsDeleted { get; init; }
 
     /// <summary>作成日時</summary>
-    /// <remarks>DB の既定値で入る。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <remarks>
+    /// DB の既定値で入る
+    /// <see cref="FromChannel"/> では決めない
+    /// </remarks>
     public DateTimeOffset CreatedAt { get; init; }
 
-    /// <summary>作成者。<c>AppUser.Id</c> で、この送信先を登録した人</summary>
-    /// <remarks>記録用の列で、行を最初に入れた人。条件・結合・索引には使わない。保存先が、今のユーザーを入れる。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <summary>作成者</summary>
+    /// <remarks>
+    /// AppUser.Id で、この送信先を登録した人。
+    /// 記録用の列で、行を最初に入れた人。
+    /// 条件・結合・索引には使わない。
+    /// 保存先が今のユーザーを入れる。
+    /// <see cref="FromChannel"/> では決めない。
+    /// </remarks>
     public int CreatedByUserId { get; init; }
 
-    /// <summary>使用者。<c>AppUser.Id</c> で、業務の列 <c>UserId</c>。この送信先を使う人</summary>
-    /// <remarks>一覧・選択・更新・削除の条件に使う。作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を、作るときに入れる。列は別。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <summary>使用者</summary>
+    /// <remarks>
+    /// AppUser.Id で、業務の列 UserId。
+    /// この送信先を使う人。
+    /// 一覧・選択・更新・削除の条件に使う。
+    /// 作成者の列 (<see cref="CreatedByUserId"/>)と同じ人を作るときに入れる。
+    /// 列は別。
+    /// <see cref="FromChannel"/> では決めない。
+    /// </remarks>
     public int UserId { get; init; }
 
     /// <summary>更新日時</summary>
-    /// <remarks>更新の SQL の中で、DB サーバーの時計を使って書く。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <remarks>
+    /// 更新の SQL の中で、DB サーバーの時計を使って書く。
+    /// <see cref="FromChannel"/> では決めない。
+    /// </remarks>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>更新者 (<c>AppUser.Id</c>)</summary>
-    /// <remarks>保存先が、今のユーザーを入れる。<see cref="FromChannel"/> では決めない。</remarks>
+    /// <summary>更新者</summary>
+    /// <remarks>
+    /// 保存先が今のユーザーを入れる
+    /// <see cref="FromChannel"/> では決めない
+    /// </remarks>
     public int UpdatedByUserId { get; init; }
 
-    /// <summary>区分 (ntfy = 1・Discord = 2)</summary>
+    /// <summary>区分</summary>
+    /// <remarks>ntfy = 1・Discord = 2</remarks>
     public byte Kind { get; init; }
 
     /// <summary>登録名</summary>
     public string Name { get; init; } = "";
 
-    /// <summary>送る先の値 (トピック名 / Webhook の URL)</summary>
+    /// <summary>送る先の値</summary>
     public string Value { get; init; } = "";
 
-    /// <summary>アプリの型から、DB の行にする</summary>
+    /// <summary>アプリの型から DB の行にする</summary>
     /// <param name="channel">送信先</param>
-    /// <returns>DB の行。作成・更新の日時と、作成者・更新者は決めない</returns>
-    /// <exception cref="ArgumentException">区分が正しくない、登録名・値が空か長すぎる。長さの上限は <see cref="NotificationChannelRules"/> にある。</exception>
+    /// <returns>
+    /// DB の行。
+    /// 作成・更新の日時と、作成者・更新者は決めない。
+    /// </returns>
+    /// <exception cref="ArgumentException">
+    /// 区分が正しくない、登録名・値が空か長すぎる。
+    /// 長さの上限は <see cref="NotificationChannelRules"/> にある。
+    /// </exception>
     public static NotificationChannelRow FromChannel(NotificationChannel channel)
     {
         ArgumentNullException.ThrowIfNull(channel);
@@ -74,9 +110,9 @@ public sealed record NotificationChannelRow
         };
     }
 
-    /// <summary>DB の行から、アプリの型にする</summary>
+    /// <summary>DB の行からアプリの型にする</summary>
     /// <returns>送信先</returns>
-    /// <exception cref="InvalidOperationException">区分が、定義にない値で、バグか、手で直した値。</exception>
+    /// <exception cref="InvalidOperationException">区分が定義にない値で、バグか、手で直した値。</exception>
     public NotificationChannel ToChannel()
     {
         var kind = (NotificationChannelKind)Kind;

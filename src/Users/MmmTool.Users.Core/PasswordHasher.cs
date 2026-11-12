@@ -2,11 +2,11 @@ using System.Security.Cryptography;
 
 namespace MmmTool.Users.Core;
 
-/// <summary>
-/// パスワードのハッシュを作り、照合する。方式は PBKDF2-SHA256。
-/// </summary>
+/// <summary>パスワードのハッシュを作り、照合する</summary>
 /// <remarks>
-/// 形は <c>pbkdf2-sha256$&lt;回数&gt;$&lt;ソルト&gt;$&lt;ハッシュ&gt;</c> で、ソルト・ハッシュは Base64。方式と回数を一緒に持つので、あとで強くできる。
+/// 方式は PBKDF2-SHA256。
+/// 形は <c>pbkdf2-sha256$&lt;回数&gt;$&lt;ソルト&gt;$&lt;ハッシュ&gt;</c> で、ソルト・ハッシュは Base64。
+/// 方式と回数を一緒に持つので、あとで強くできる。
 /// 回数は OWASP の推奨値で、PBKDF2-HMAC-SHA256 で 600,000 回。
 /// </remarks>
 public static class PasswordHasher
@@ -25,8 +25,11 @@ public static class PasswordHasher
 
     /// <summary>パスワードのハッシュを作る</summary>
     /// <param name="password">パスワード</param>
-    /// <returns>ハッシュ (毎回違うソルトを使うので、同じパスワードでも違う値になる)</returns>
-    /// <exception cref="ArgumentException">パスワードが空。空のハッシュは「新しく決める」状態を表すため、空のパスワードは使えない。</exception>
+    /// <returns>ハッシュ (毎回違うソルトを使うので、同じパスワードでも違う値になる)。</returns>
+    /// <exception cref="ArgumentException">
+    /// パスワードが空。
+    /// 空のハッシュは「新しく決める」状態を表すため、空のパスワードは使えない。
+    /// </exception>
     public static string Hash(string password)
     {
         ArgumentNullException.ThrowIfNull(password);
@@ -43,7 +46,10 @@ public static class PasswordHasher
     /// <summary>パスワードがハッシュと合うか調べる</summary>
     /// <param name="password">入力されたパスワード</param>
     /// <param name="stored">保存されているハッシュ</param>
-    /// <returns>合えば true。ハッシュが空・読めない形のときは false</returns>
+    /// <returns>
+    /// 合えば true
+    /// ハッシュが空・読めない形のときは false
+    /// </returns>
     public static bool Verify(string password, string stored)
     {
         ArgumentNullException.ThrowIfNull(password);

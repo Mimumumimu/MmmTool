@@ -1,31 +1,32 @@
 namespace MmmTool.Users.Core;
 
-/// <summary>
-/// ローカルモードで使う、ユーザーごとの設定を使えない保存先。
-/// </summary>
-/// <remarks>DB モードのとき、ホストが、SQL Server の保存先に置き換える。画面は、<see cref="IsAvailable"/> が false の間は、設定の入口を出さない。</remarks>
+/// <summary>ローカルモードで使うユーザーごとの設定を使えない保存先</summary>
+/// <remarks>
+/// DB モードではホストが SQL Server の保存先に置き換える
+/// <see cref="IsAvailable"/> が false の間は画面に設定の入口を出さない
+/// </remarks>
 public sealed class UnavailableAppUserSettingRepository : IAppUserSettingRepository
 {
     /// <inheritdoc />
     public bool IsAvailable => false;
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">ユーザーごとの設定は DB モードだけで使える</exception>
     public Task<string?> GetAsync(int featureNo, int categoryNo, int codeNo, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">ユーザーごとの設定は DB モードだけで使える</exception>
     public Task<IReadOnlyDictionary<int, string>> GetByFeatureAsync(int categoryNo, int codeNo, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">ユーザーごとの設定は DB モードだけで使える</exception>
     public Task SetAsync(int featureNo, int categoryNo, int codeNo, string value, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 
     /// <inheritdoc />
-    /// <exception cref="NotSupportedException">ユーザーごとの設定は、DB モードだけで使える。</exception>
+    /// <exception cref="NotSupportedException">ユーザーごとの設定は DB モードだけで使える</exception>
     public Task ClearAsync(int featureNo, int categoryNo, int codeNo, CancellationToken cancellationToken = default)
         => throw NotAvailable();
 

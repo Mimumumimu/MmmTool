@@ -6,19 +6,22 @@ using MmmTool.Data.SqlServer.Connection;
 
 namespace MmmBatch.Data.SqlServer.Sending;
 
-/// <summary>
-/// リマインダーの送信の状況 (<see cref="ReminderSendStatus"/>)を、SQL Server の <c>dbo.ReminderSendStatus</c> に保存する。
-/// </summary>
+/// <summary>リマインダーの送信の状況を SQL Server の dbo.ReminderSendStatus に保存する</summary>
 /// <remarks>
-/// 読むたびに DB から読む。MmmBatch はユーザーではないので、作成者・更新者は 0。更新日時は DB サーバーの時計で書く。複数の MmmBatch の時計のずれを入れないため。
+/// <see cref="ReminderSendStatus"/>。
+/// 読むたびに DB から読む。
+/// MmmBatch はユーザーではないので、作成者・更新者は 0。
+/// 更新日時は DB サーバーの時計で書く。
+/// 複数の MmmBatch の時計のずれを入れないため。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase database) : IReminderSendStatusRepository
 {
-    /// <summary>読む列 (<see cref="ReadStatus"/> の並び)</summary>
+    /// <summary>読む列</summary>
+    /// <remarks><see cref="ReadStatus"/> の並び</remarks>
     private const string Columns = "Id, ReminderId, ChannelId, Date, Status, Attempts, SentAt, UpdatedAt";
 
-    /// <summary>まだ送っていないことを表す日時 (<c>9999-12-31</c>)</summary>
+    /// <summary>まだ送っていないことを表す日時</summary>
     private static readonly DateTimeOffset NotSent = new(DateTime.MaxValue.Date, TimeSpan.Zero);
 
     /// <inheritdoc />
@@ -121,26 +124,42 @@ public sealed class SqlServerReminderSendStatusRepository(SqlServerDatabase data
             return 0;
         }, cancellationToken);
 
-    /// <summary>読む列 (<see cref="ReadStatus"/> の並び)に、表の別名を付けたもの</summary>
-    /// <param name="alias">表の別名。定数だけを渡す (SQL に埋め込むため)</param>
+    /// <summary>読む列に表の別名を付けたもの</summary>
+    /// <param name="alias">
+    /// 表の別名
+    /// 定数だけを渡す (SQL に埋め込むため)
+    /// </param>
     /// <returns>別名つきの列の並び (8 列)</returns>
-    /// <remarks>送る対象の問い合わせが、状況の表を結合して読むときに使う。</remarks>
+    /// <remarks>
+    /// <see cref="ReadStatus"/> の並び
+    /// 送る対象の問い合わせが状況の表を結合して読むときに使う
+    /// </remarks>
     internal static string ColumnsOf(string alias)
         => $"{alias}.Id, {alias}.ReminderId, {alias}.ChannelId, {alias}.Date, {alias}.Status, {alias}.Attempts, {alias}.SentAt, {alias}.UpdatedAt";
 
-    /// <summary>外部結合で読んだ行を、送信の状況にする。結合先の行が無いときは null</summary>
+    /// <summary>外部結合で読んだ行を送信の状況にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
-    /// <param name="offset">状況の 8 列の、先頭の位置</param>
-    /// <returns>送信の状況。結合先の行が無いとき null</returns>
-    /// <exception cref="InvalidOperationException">状態が、定義にない値になっている。バグか、手で直した値。</exception>
+    /// <param name="offset">状況の 8 列の、先頭の位置。</param>
+    /// <returns>
+    /// 送信の状況
+    /// 結合先の行が無いとき null
+    /// </returns>
+    /// <remarks>結合先の行が無いときは null</remarks>
+    /// <exception cref="InvalidOperationException">
+    /// 状態が定義にない値になっている。
+    /// バグか、手で直した値。
+    /// </exception>
     internal static ReminderSendStatus? ReadStatusOrNull(SqlDataReader reader, int offset)
         => reader.IsDBNull(offset) ? null : ReadStatus(reader, offset);
 
-    /// <summary>読んでいる行を、<see cref="Columns"/> の並びの <see cref="ReminderSendStatus"/> にする</summary>
+    /// <summary>読んでいる行を Columns の並びの ReminderSendStatus にする</summary>
     /// <param name="reader">読んでいる位置のリーダー</param>
-    /// <param name="offset">状況の 8 列の、先頭の位置</param>
+    /// <param name="offset">状況の 8 列の、先頭の位置。</param>
     /// <returns>送信の状況</returns>
-    /// <exception cref="InvalidOperationException">状態が、定義にない値になっている。バグか、手で直した値。</exception>
+    /// <exception cref="InvalidOperationException">
+    /// 状態が定義にない値になっている。
+    /// バグか、手で直した値。
+    /// </exception>
     private static ReminderSendStatus ReadStatus(SqlDataReader reader, int offset = 0)
     {
         var status = (SendStatus)reader.GetByte(offset + 4);

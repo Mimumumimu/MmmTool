@@ -6,12 +6,13 @@ using MmmTool.CliAssist.Main;
 
 namespace MmmTool.CliAssist;
 
-/// <summary>CLI補助をオフにする前の確認 (どれかのタブでターミナルが動いているときだけ)</summary>
-/// <param name="services">作ったページを引くための DI のサービスプロバイダー (ターミナルは、ページの ViewModel が持つ)</param>
+/// <summary>CLI補助をオフにする前の確認</summary>
+/// <param name="services">作ったページを引くための DI のサービスプロバイダー (ターミナルはページの ViewModel が持つ)</param>
 /// <param name="dialogs">確認ダイアログ</param>
 /// <remarks>
-/// ページをまだ開いていない・シェルが始まっていない・すでに終わっているときは、失うものが無いので、確認しない。
-/// ページを持つホスト側の <see cref="IPageCache"/> は、機能のオン・オフの管理に依存し、その管理はこの確認に依存するので、循環しないよう、使うときに取り出す。
+/// どれかのタブでターミナルが動いているときだけ。
+/// ページをまだ開いていない・シェルが始まっていない・すでに終わっているときは失うものが無いので、確認しない。
+/// ページを持つホスト側の <see cref="IPageCache"/> は機能のオン・オフの管理に依存し、その管理はこの確認に依存するので、循環しないよう、使うときに取り出す。
 /// </remarks>
 public sealed class CliAssistDisableConfirmation(IServiceProvider services, IDialogService dialogs) : IFeatureDisableConfirmation
 {

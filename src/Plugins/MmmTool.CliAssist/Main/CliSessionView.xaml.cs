@@ -17,16 +17,14 @@ using Windows.UI.Core;
 
 namespace MmmTool.CliAssist.Main;
 
-/// <summary>CLI のセッション 1 つ分の画面 (ターミナルと送信欄)</summary>
+/// <summary>CLI のセッション 1 つ分の画面</summary>
 public sealed partial class CliSessionView : UserControl
 {
     /// <summary>セッションの ViewModel</summary>
     private CliSessionViewModel _viewModel = null!;
 
     /// <summary>画面を作る</summary>
-    /// <remarks>
-    /// <see cref="ViewModel"/> と <see cref="WebView2Directory"/> は、画面を表示する前に設定する。
-    /// </remarks>
+    /// <remarks><see cref="ViewModel"/> と <see cref="WebView2Directory"/> は画面を表示する前に設定する</remarks>
     public CliSessionView()
     {
         InitializeComponent();
@@ -38,7 +36,8 @@ public sealed partial class CliSessionView : UserControl
         Composer.AddHandler(DropEvent, new DragEventHandler(OnComposerDrop), handledEventsToo: true);
     }
 
-    /// <summary>セッションの ViewModel (表示する前に 1 回だけ設定する)</summary>
+    /// <summary>セッションの ViewModel</summary>
+    /// <remarks>表示する前に 1 回だけ設定する</remarks>
     public CliSessionViewModel ViewModel
     {
         get => _viewModel;
@@ -53,15 +52,19 @@ public sealed partial class CliSessionView : UserControl
 
     /// <summary>通知する文字列が出力に出たら、知らせて、「ターミナルへ移る」がオンの文字列なら、ターミナルへフォーカスを移す</summary>
     /// <param name="sender">イベントの送信元</param>
-    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか</param>
+    /// <param name="moveToTerminal">その文字列で、ターミナルへフォーカスも移すか。</param>
     /// <remarks>
     /// 画面に出ているとき、つまり選ばれているタブで、CLI補助のページを開いていて、ウィンドウが見えているときだけ移す。
-    /// 選ばれていないタブの画面と、ほかのページを開いている間の画面は、画面の木から外れていて、読み込まれた状態ではない。
-    /// この間に出た確認は、入力欄に下書きがあっても、タブの印 (<see cref="CliSessionViewModel.IsAwaitingInput"/>)で覚えておき、画面に出たとき (<see cref="OnLoaded"/>)に移す。
-    /// 画面に出ているときは、入力欄が空のときだけ移す。打ちかけの文字が、ターミナルへ入ってしまわないようにするため。
-    /// トレイに隠れているときと最小化しているときは、画面の木に残るので、ウィンドウが見えているかも確かめる。この間は覚えない。
-    /// ダイアログを開いている間も、移さない。入力欄に打っている途中で、後ろのターミナルへフォーカスが移ると、打った文字が CLI に入ってしまうため。
-    /// 出ていないタブやページを、勝手に切り替えて見せることはしない。ウィンドウも前面に出さない。
+    /// 選ばれていないタブの画面と、ほかのページを開いている間の画面は画面の木から外れていて、読み込まれた状態ではない。
+    /// この間に出た確認は入力欄に下書きがあっても、タブの印 (<see cref="CliSessionViewModel.IsAwaitingInput"/>)で覚えておき、画面に出たとき (<see cref="OnLoaded"/>)に移す。
+    /// 画面に出ているときは入力欄が空のときだけ移す。
+    /// 打ちかけの文字がターミナルへ入ってしまわないようにするため。
+    /// トレイに隠れているときと最小化しているときは画面の木に残るので、ウィンドウが見えているかも確かめる。
+    /// この間は覚えない。
+    /// ダイアログを開いている間も移さない。
+    /// 入力欄に打っている途中で、後ろのターミナルへフォーカスが移ると、打った文字が CLI に入ってしまうため。
+    /// 出ていないタブやページを勝手に切り替えて見せることはしない。
+    /// ウィンドウも前面に出さない。
     /// </remarks>
     private void OnFocusTriggerMatched(object? sender, bool moveToTerminal)
     {
@@ -77,8 +80,9 @@ public sealed partial class CliSessionView : UserControl
         }
     }
 
-    /// <summary>ウィンドウが見えていて、ダイアログを開いていないか (ターミナルへフォーカスを移してよいか)</summary>
+    /// <summary>ウィンドウが見えていてダイアログを開いていないか</summary>
     /// <returns>移してよければ true</returns>
+    /// <remarks>ターミナルへフォーカスを移してよいか</remarks>
     private bool CanMoveFocusToTerminal()
         => XamlRoot is { IsHostVisible: true } root && !IsDialogOpen(root);
 
@@ -88,27 +92,40 @@ public sealed partial class CliSessionView : UserControl
     private static bool IsDialogOpen(XamlRoot root)
         => VisualTreeHelper.GetOpenPopupsForXamlRoot(root).Any(popup => popup.Child is ContentDialog);
 
-    /// <summary>ターミナルの起動し直しを求められたら、起動し直す</summary>
+    /// <summary>ターミナルの起動し直しを求められたら起動し直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnTerminalRestartRequested(object? sender, EventArgs e) => TerminalView.RestartSessionAsync().Forget();
 
-    /// <summary>WebView2 のデータ (キャッシュなど)の保存先フォルダー (表示する前に設定する)</summary>
-    /// <remarks>データのフォルダーの下の <c>WebView2</c> で、WebView2 の既定の EXE の横ではなく、データにまとめる。</remarks>
+    /// <summary>WebView2 のデータの保存先フォルダー</summary>
+    /// <remarks>
+    /// 表示する前に設定する。
+    /// データのフォルダーの下の <c>WebView2</c> で、WebView2 の既定の EXE の横ではなく、データにまとめる。
+    /// </remarks>
     public string WebView2Directory { get; set; } = string.Empty;
 
-    /// <summary>ターミナルのコントロールにセッションをつなぐ (つないだとき、シェルが起動する)</summary>
-    /// <remarks>起動するシェル (Windows / WSL)は、定型コマンドの読み込みで決まるので、読み込みが済んでから呼ぶ。</remarks>
+    /// <summary>ターミナルのコントロールにセッションをつなぐ</summary>
+    /// <remarks>
+    /// つないだとき、シェルが起動する。
+    /// 起動するシェル (Windows / WSL)は定型コマンドの読み込みで決まるので、読み込みが済んでから呼ぶ。
+    /// </remarks>
     public void ConnectTerminal() => TerminalView.Session ??= ViewModel.Terminal;
 
-    /// <summary>ページを別のウィンドウへ移すために、ターミナルの画面の内容を取り出す</summary>
+    /// <summary>ページを別のウィンドウへ移すためにターミナルの画面の内容を取り出す</summary>
     /// <returns>取り出しの完了を表すタスク</returns>
-    /// <remarks>画面は表示したままでよい。取り出すあいだに届いた出力は、ためておく。終わったら <see cref="TakeHandover"/> を呼ぶ。</remarks>
+    /// <remarks>
+    /// 画面は表示したままでよい
+    /// 取り出すあいだに届いた出力はためておく
+    /// 終わったら <see cref="TakeHandover"/> を呼ぶ
+    /// </remarks>
     public Task PrepareHandoverAsync() => TerminalView.FreezeAndCaptureAsync();
 
-    /// <summary>ターミナルの画面を閉じて、引き継ぎの情報を受け取る</summary>
+    /// <summary>ターミナルの画面を閉じて引き継ぎの情報を受け取る</summary>
     /// <returns>新しい画面の <see cref="ApplyHandover"/> へ渡す情報</returns>
-    /// <remarks>シェル (セッション)は終了しない。ViewModel とのつなぎは外す。</remarks>
+    /// <remarks>
+    /// シェル (セッション)は終了しない
+    /// ViewModel とのつなぎは外す
+    /// </remarks>
     public TerminalHandover TakeHandover()
     {
         var handover = TerminalView.TakeHandover();
@@ -116,16 +133,17 @@ public sealed partial class CliSessionView : UserControl
         return handover;
     }
 
-    /// <summary>前の画面から引き継いだ内容を、ターミナルに渡す</summary>
+    /// <summary>前の画面から引き継いだ内容をターミナルに渡す</summary>
     /// <param name="handover">前の画面の <see cref="TakeHandover"/> の戻り値</param>
-    /// <remarks><see cref="ConnectTerminal"/> の前に呼ぶ。</remarks>
+    /// <remarks><see cref="ConnectTerminal"/> の前に呼ぶ</remarks>
     public void ApplyHandover(TerminalHandover handover) => TerminalView.InitialHandover = handover;
 
     /// <summary>ターミナルを閉じて WebView2 のプロセスも解放し、ViewModel とのつなぎも外す</summary>
     /// <remarks>
-    /// 機能をオフにしたときと、タブを閉じたとき。閉じたあとは、この画面を再利用できない。
-    /// シェル (とその中の CLI)は、このあとの ViewModel の後始末 (Dispose)・スコープの破棄で終了する。
-    /// つなぎを外すのは、ViewModel が (スコープに)残っても、この画面を残さないため。
+    /// 機能をオフにしたときとタブを閉じたとき。
+    /// 閉じたあとはこの画面を再利用できない。
+    /// シェル (とその中の CLI)はこのあとの ViewModel の後始末 (Dispose)・スコープの破棄で終了する。
+    /// つなぎを外すのは ViewModel が (スコープに)残っても、この画面を残さないため。
     /// </remarks>
     public void Release()
     {
@@ -137,7 +155,7 @@ public sealed partial class CliSessionView : UserControl
         _viewModel.TerminalRestartRequested -= OnTerminalRestartRequested;
     }
 
-    /// <summary>フォーカスの移動を求められたら、移す</summary>
+    /// <summary>フォーカスの移動を求められたら移す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="target">フォーカスを移す先</param>
     private void OnFocusRequested(object? sender, FocusTarget target)
@@ -158,13 +176,13 @@ public sealed partial class CliSessionView : UserControl
         });
     }
 
-    /// <summary>読み込み時の処理 (入力欄の高さ調整・入力欄へのフォーカス)</summary>
+    /// <summary>読み込み時の処理</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスは、ターミナルではなく入力欄に置く。
-    /// ターミナル (WebView2)にフォーカスがあると、Alt+矢印のページ移動が効かないため。
-    /// ただし、画面に出ていない間に確認が出ていて、その文字列の「ターミナルへ移る」がオンのときは、入力欄が空で、ダイアログを開いていなければ、ターミナルへ移す。
+    /// 表示したとき (ページの切り替え・タブの切り替え)のフォーカスはターミナルではなく入力欄に置く。
+    /// ターミナル (WebView2)にフォーカスがあると Alt+矢印のページ移動が効かないため。
+    /// ただし、画面に出ていない間に確認が出ていて、その文字列の「ターミナルへ移る」がオンのときは入力欄が空で、ダイアログを開いていなければ、ターミナルへ移す。
     /// 入力欄へのフォーカスのあとに移すため、移すのは次の処理に回す。
     /// </remarks>
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -189,8 +207,8 @@ public sealed partial class CliSessionView : UserControl
         }
     }
 
-    /// <summary>入力欄の高さを、実際の 1 行の高さ × 3 行に合わせる</summary>
-    /// <remarks>固定値だと、フォントによって下だけ余る・欠けるため。</remarks>
+    /// <summary>入力欄の高さを実際の 1 行の高さ × 3 行に合わせる</summary>
+    /// <remarks>固定値だとフォントによって下だけ余る・欠けるため</remarks>
     private void FitInputBoxToThreeLines()
     {
         const int lines = 3;
@@ -208,7 +226,7 @@ public sealed partial class CliSessionView : UserControl
 
     #region 送信欄
 
-    /// <summary>入力欄で Ctrl+Enter が押されたら、送信する</summary>
+    /// <summary>入力欄で Ctrl+Enter が押されたら送信する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">キー入力の情報</param>
     private void OnInputPreviewKeyDown(object sender, KeyRoutedEventArgs e)
@@ -225,10 +243,10 @@ public sealed partial class CliSessionView : UserControl
     /// <summary>IME をオンにしたか</summary>
     private bool _imeInitialized;
 
-    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする (日本語をすぐ打てるように)</summary>
+    /// <summary>入力欄に最初にフォーカスが来たときだけ IME をオンにする</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
-    /// <remarks>以降はユーザーの切り替えを尊重する。</remarks>
+    /// <remarks>以降はユーザーの切り替えを尊重する</remarks>
     private void OnInputGotFocus(object sender, RoutedEventArgs e)
     {
         if (_imeInitialized) return;
@@ -236,15 +254,16 @@ public sealed partial class CliSessionView : UserControl
         ImeControl.TurnOn();
     }
 
-    /// <summary>貼り付けられたものがファイルや画像なら、添付する</summary>
+    /// <summary>貼り付けられたものがファイルや画像なら添付する</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">貼り付けの情報</param>
     /// <remarks>
-    /// このイベントの中では、<c>Clipboard.GetContent()</c> など、コピー元のアプリへ問い合わせるクリップボードの呼び出しをしない。
+    /// このイベントの中では <c>Clipboard.GetContent()</c> など、コピー元のアプリへ問い合わせるクリップボードの呼び出しをしない。
     /// 返事を待つ間に画面の操作が割り込み、入力欄の貼り付けの途中で WinUI が内部で失敗して落ちるため。
-    /// 添付するか (ファイルか、画像だけか)は、問い合わせずに分かる <see cref="ClipboardFormats"/> で決め、
-    /// 添付するときだけ、イベントが終わったあとに中身を読む。読むのは <see cref="AttachFromClipboardAsync"/>。
-    /// テキストの貼り付けは、入力欄の標準の動きに任せる。
+    /// 添付するか (ファイルか、画像だけか)は問い合わせずに分かる <see cref="ClipboardFormats"/> で決め、
+    /// 添付するときだけ、イベントが終わったあとに中身を読む。
+    /// 読むのは <see cref="AttachFromClipboardAsync"/>。
+    /// テキストの貼り付けは入力欄の標準の動きに任せる。
     /// </remarks>
     private void OnInputPaste(object sender, TextControlPasteEventArgs e)
     {
@@ -259,10 +278,13 @@ public sealed partial class CliSessionView : UserControl
         DispatcherQueue.TryEnqueue(AttachFromClipboardAsync);
     }
 
-    /// <summary>クリップボードのファイル・画像を添付する (貼り付けのイベントが終わったあとに呼ぶ)</summary>
+    /// <summary>クリップボードのファイル・画像を添付する</summary>
     /// <remarks>
-    /// クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。このときは添付せず、画面に知らせる。
-    /// 形式の判定は目安なので、実際にはファイルも画像も取り出せなかったときは、テキストがあれば、入力欄の選択範囲へ貼り付ける。貼り付けが消えないようにするため。
+    /// 貼り付けのイベントが終わったあとに呼ぶ。
+    /// クリップボードは同時に 1 つのプロセスしか開けないので、ほかのアプリが開いている瞬間は <see cref="COMException"/> になりうる。
+    /// このときは添付せず、画面に知らせる。
+    /// 形式の判定は目安なので、実際にはファイルも画像も取り出せなかったときはテキストがあれば、入力欄の選択範囲へ貼り付ける。
+    /// 貼り付けが消えないようにするため。
     /// </remarks>
     private async void AttachFromClipboardAsync()
     {
@@ -308,8 +330,9 @@ public sealed partial class CliSessionView : UserControl
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">ドラッグの情報</param>
     /// <remarks>
-    /// 中身の読み取りは非同期なので、ドラッグごとに 1 回だけここで行う。ドラッグ中に何度も呼ばれる <see cref="OnComposerDragOver"/> では行わない。
-    /// 読めなかったときは、既定の「添付する」のままにして、読めなかったことはドロップのときに知らせる。
+    /// 中身の読み取りは非同期なので、ドラッグごとに 1 回だけここで行う。
+    /// ドラッグ中に何度も呼ばれる <see cref="OnComposerDragOver"/> では行わない。
+    /// 読めなかったときは既定の「添付する」のままにして、読めなかったことはドロップのときに知らせる。
     /// </remarks>
     private async void OnComposerDragEnter(object sender, DragEventArgs e)
     {
@@ -374,7 +397,7 @@ public sealed partial class CliSessionView : UserControl
         FocusInputAfterDrop();
     }
 
-    /// <summary>ドロップのあと、このウィンドウを前面に出し、入力欄にフォーカスを移す</summary>
+    /// <summary>ドロップのあとこのウィンドウを前面に出し、入力欄にフォーカスを移す</summary>
     /// <remarks>ドロップを受けても前面は元のアプリ (エクスプローラーなど)のままなので、続けて入力できるようにする。</remarks>
     private void FocusInputAfterDrop()
     {
@@ -388,9 +411,12 @@ public sealed partial class CliSessionView : UserControl
         InputBox.Focus(FocusState.Programmatic);
     }
 
-    /// <summary>ドロップされたフォルダーのパスを、入力欄の選択範囲へ入れる</summary>
+    /// <summary>ドロップされたフォルダーのパスを入力欄の選択範囲へ入れる</summary>
     /// <param name="folders">ドロップされたフォルダー</param>
-    /// <remarks>選択範囲があれば置き換える。入れたあとは、入力欄にフォーカスを移し、入れた文字の後ろにカーソルを置く。</remarks>
+    /// <remarks>
+    /// 選択範囲があれば置き換える。
+    /// 入れたあとは入力欄にフォーカスを移し、入れた文字の後ろにカーソルを置く。
+    /// </remarks>
     private void PasteFolderPaths(IEnumerable<StorageFolder> folders)
     {
         // パスの無いフォルダー (仮想フォルダーなど)は、入れられない
@@ -411,8 +437,8 @@ public sealed partial class CliSessionView : UserControl
     /// <param name="items">ドロップ・貼り付けされた項目 (フォルダーは添付しない)</param>
     /// <returns>添付の完了を表すタスク</returns>
     /// <remarks>
-    /// ディスク上のファイルは、元のパスをそのまま添付する。
-    /// パスの無いファイル (メールの添付ファイルなど、ディスク上に無いもの)は、中身を読んで一時保存する。
+    /// ディスク上のファイルは元のパスをそのまま添付する。
+    /// パスの無いファイル (メールの添付ファイルなど、ディスク上に無いもの)は中身を読んで一時保存する。
     /// </remarks>
     private async Task AddAttachmentFilesAsync(IReadOnlyList<IStorageItem> items)
     {
@@ -456,7 +482,7 @@ public sealed partial class CliSessionView : UserControl
     /// <param name="e">イベントの情報</param>
     private void OnHistoryFlyoutOpening(object sender, object e) => ViewModel.PrepareHistory();
 
-    /// <summary>履歴の項目が選ばれたら、入力欄に戻す</summary>
+    /// <summary>履歴の項目が選ばれたら入力欄に戻す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">クリックされた項目の情報</param>
     private void OnHistoryItemClick(object sender, ItemClickEventArgs e)
@@ -471,10 +497,13 @@ public sealed partial class CliSessionView : UserControl
 
     #region よく使う文
 
-    /// <summary>よく使う文が選ばれたら、入力欄に入れる (送信はしない)</summary>
+    /// <summary>よく使う文が選ばれたら入力欄に入れる</summary>
     /// <param name="sender">イベントの送信元 (チップの行)</param>
     /// <param name="item">選ばれた文</param>
-    /// <remarks>一覧から選んだときは、一覧が閉じてから元のボタンにフォーカスが戻るので、そのあとに入力欄へ移す。</remarks>
+    /// <remarks>
+    /// 送信はしない。
+    /// 一覧から選んだときは一覧が閉じてから元のボタンにフォーカスが戻るので、そのあとに入力欄へ移す。
+    /// </remarks>
     private void OnQuickMessageChosen(object? sender, QuickMessageItem item)
     {
         ViewModel.UseQuickMessage(item);

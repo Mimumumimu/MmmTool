@@ -6,18 +6,19 @@ using MmmTool.Data.CodeMaster;
 
 namespace MmmTool.Data.Sqlite.CodeMaster;
 
-/// <summary>
-/// コードマスタの名前を、ローカルの SQLite (<c>Data/MmmTool.db</c>)で編集する。
-/// </summary>
+/// <summary>コードマスタの名前をローカルの SQLiteで編集する</summary>
 /// <param name="database">データベースファイルを開く入口</param>
-/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)</param>
+/// <param name="time">更新日時を書くための時計 (SQLite にはサーバーの時計が無いので、アプリが書く)。</param>
 /// <remarks>
-/// 名前の列だけを書き、更新日時と更新者を進める。更新日時が進むので、作業管理の差分の取得が、変えた行を拾う。
-/// ユーザーは <c>Id = 1</c> の固定値。書き込みは、書き込みの許可を最初に取るトランザクションの中で行う。処理は別のスレッドで行い、SQL はパラメーター化だけで書く。
+/// 名前の列だけを書き、更新日時と更新者を進める。
+/// 更新日時が進むので、作業管理の差分の取得が変えた行を拾う。
+/// ユーザーは <c>Id = 1</c> の固定値。
+/// 書き込みは書き込みの許可を最初に取るトランザクションの中で行う。
+/// 処理は別のスレッドで行い、SQL はパラメーター化だけで書く。
 /// </remarks>
 public sealed class SqliteCodeMasterRepository(SqliteDatabase database, TimeProvider time) : ICodeMasterRepository
 {
-    /// <summary>ローカルのユーザーの番号 (固定)</summary>
+    /// <summary>ローカルのユーザーの番号</summary>
     private const int LocalUserId = 1;
 
     /// <inheritdoc />

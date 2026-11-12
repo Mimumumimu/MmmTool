@@ -7,11 +7,10 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Features.Users.Edit;
 
-/// <summary>
-/// アカウントの項目 (表示名・ログイン名・パスワード)を 1 つ編集する画面の ViewModel。
-/// </summary>
+/// <summary>アカウントの項目を 1 つ編集する画面の ViewModel</summary>
 /// <remarks>
-/// 項目は <see cref="Initialize"/> で決める。ログイン名とパスワードは、本人の確認のために、今のパスワードを入力させる。
+/// 項目は <see cref="Initialize"/> で決める。
+/// ログイン名とパスワードは本人の確認のために、今のパスワードを入力させる。
 /// 保存できたら <see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
 /// </remarks>
 public sealed partial class AccountEditViewModel : ObservableObject
@@ -54,16 +53,17 @@ public sealed partial class AccountEditViewModel : ObservableObject
     /// <summary>名前の最大文字数</summary>
     public int ValueMaxLength => _kind == AccountEditKind.LoginName ? AppUser.LoginNameMaxLength : AppUser.DisplayNameMaxLength;
 
-    /// <summary>名前の入力欄を出すか (表示名・ログイン名)</summary>
+    /// <summary>名前の入力欄を出すか</summary>
     public bool ShowValue => _kind != AccountEditKind.Password;
 
-    /// <summary>今のパスワードの入力欄を出すか。ログイン名・パスワードで、本人の確認</summary>
+    /// <summary>今のパスワードの入力欄を出すか</summary>
+    /// <remarks>ログイン名・パスワードで、本人の確認。</remarks>
     public bool NeedsCurrentPassword => _kind != AccountEditKind.DisplayName;
 
     /// <summary>新しいパスワードの入力欄を出すか</summary>
     public bool IsPassword => _kind == AccountEditKind.Password;
 
-    /// <summary>表示名・ログイン名の入力 (初期値は今の値)</summary>
+    /// <summary>表示名・ログイン名の入力</summary>
     [ObservableProperty]
     public partial string Value { get; set; } = "";
 
@@ -79,16 +79,16 @@ public sealed partial class AccountEditViewModel : ObservableObject
     [ObservableProperty]
     public partial string NewPasswordConfirm { get; set; } = "";
 
-    /// <summary>入力のエラー。無ければ null</summary>
+    /// <summary>入力のエラー</summary>
     [ObservableProperty]
     public partial string? Error { get; private set; }
 
-    /// <summary>保存先 (DB)の失敗のエラー (接続できない・設定が足りない など)</summary>
+    /// <summary>保存先の失敗のエラー</summary>
     public ErrorState SaveError { get; } = new();
 
     /// <summary>編集する項目を決め、入力欄の初期値を入れる</summary>
     /// <param name="kind">編集する項目</param>
-    /// <remarks>画面を開く前に 1 度だけ呼ぶ。</remarks>
+    /// <remarks>画面を開く前に 1 度だけ呼ぶ</remarks>
     public void Initialize(AccountEditKind kind)
     {
         _kind = kind;
@@ -103,7 +103,7 @@ public sealed partial class AccountEditViewModel : ObservableObject
 
     /// <summary>入力を検証して保存し、閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>入力が正しくないときや、保存できなかったときは、エラーを出して閉じない。</remarks>
+    /// <remarks>入力が正しくないときや、保存できなかったときはエラーを出して閉じない。</remarks>
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -135,8 +135,11 @@ public sealed partial class AccountEditViewModel : ObservableObject
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>項目に合わせて、検証と保存を行う</summary>
-    /// <returns>保存した (変更が無くて、保存が要らなかった場合も含む)なら true。エラーを出したなら false</returns>
+    /// <summary>項目に合わせて検証と保存を行う</summary>
+    /// <returns>
+    /// 保存した (変更が無くて、保存が要らなかった場合も含む)なら true。
+    /// エラーを出したなら false。
+    /// </returns>
     private Task<bool> TrySaveAsync() => _kind switch
     {
         AccountEditKind.LoginName => SaveLoginNameAsync(),
@@ -145,7 +148,10 @@ public sealed partial class AccountEditViewModel : ObservableObject
     };
 
     /// <summary>表示名を保存する</summary>
-    /// <returns>保存した、または変更が無ければ true。入力が正しくなければ false</returns>
+    /// <returns>
+    /// 保存した、または変更が無ければ true。
+    /// 入力が正しくなければ false。
+    /// </returns>
     private async Task<bool> SaveDisplayNameAsync()
     {
         if (Value.Trim().Length == 0)
@@ -161,7 +167,10 @@ public sealed partial class AccountEditViewModel : ObservableObject
     }
 
     /// <summary>ログイン名を保存する</summary>
-    /// <returns>保存した、または変更が無ければ true。入力が正しくない・今のパスワードが合わなければ false</returns>
+    /// <returns>
+    /// 保存した、または変更が無ければ true。
+    /// 入力が正しくない・今のパスワードが合わなければ false。
+    /// </returns>
     private async Task<bool> SaveLoginNameAsync()
     {
         if (Value.Trim().Length == 0)
@@ -192,7 +201,10 @@ public sealed partial class AccountEditViewModel : ObservableObject
     }
 
     /// <summary>パスワードを保存する</summary>
-    /// <returns>保存したなら true。入力が正しくない・今のパスワードが合わなければ false</returns>
+    /// <returns>
+    /// 保存したなら true
+    /// 入力が正しくない・今のパスワードが合わなければ false
+    /// </returns>
     private async Task<bool> SavePasswordAsync()
     {
         if (CurrentPassword.Length == 0)
@@ -218,9 +230,16 @@ public sealed partial class AccountEditViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>入力中に出すエラーを求める (ログイン名に使えない文字があるときだけ)</summary>
-    /// <returns>エラーの文言。無ければ null</returns>
-    /// <remarks>今のログイン名と同じなら出さない。ASCII 以外で登録済みのログイン名を、変えずに開いたとき。</remarks>
+    /// <summary>入力中に出すエラーを求める</summary>
+    /// <returns>
+    /// エラーの文言
+    /// 無ければ null
+    /// </returns>
+    /// <remarks>
+    /// ログイン名に使えない文字があるときだけ
+    /// 今のログイン名と同じなら出さない
+    /// ASCII 以外で登録済みのログイン名を変えずに開いたとき
+    /// </remarks>
     private string? GetLiveError()
     {
         var name = Value.Trim();
@@ -229,16 +248,19 @@ public sealed partial class AccountEditViewModel : ObservableObject
             : null;
     }
 
-    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは出す)</summary>
+    /// <summary>入力を変えたらエラーを消す</summary>
     /// <param name="value">変えたあとの値</param>
+    /// <remarks>ログイン名に使えない文字があるときは出す</remarks>
     partial void OnValueChanged(string value) => Error = GetLiveError();
 
-    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
+    /// <summary>入力を変えたらエラーを消す</summary>
     /// <param name="value">変えたあとの値</param>
+    /// <remarks>ログイン名に使えない文字があるときは残す</remarks>
     partial void OnCurrentPasswordChanged(string value) => Error = GetLiveError();
 
-    /// <summary>入力を変えたら、エラーを消す (ログイン名に使えない文字があるときは残す)</summary>
+    /// <summary>入力を変えたらエラーを消す</summary>
     /// <param name="value">変えたあとの値</param>
+    /// <remarks>ログイン名に使えない文字があるときは残す</remarks>
     partial void OnNewPasswordChanged(string value) => Error = GetLiveError();
 }
 

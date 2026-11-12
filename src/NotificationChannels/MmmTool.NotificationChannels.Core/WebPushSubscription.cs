@@ -4,37 +4,43 @@ using System.Text.Json.Serialization;
 
 namespace MmmTool.NotificationChannels.Core;
 
-/// <summary>
-/// ブラウザが作った通知の宛先 (Web プッシュの購読) 1 件。
-/// </summary>
+/// <summary>ブラウザが作った通知の宛先 1 件</summary>
 /// <param name="Endpoint">配達係 (アップル・グーグルなど)の宛先の URL</param>
 /// <param name="P256dh">通知を暗号化する公開鍵 (base64url)</param>
 /// <param name="Auth">通知を暗号化する認証の秘密 (base64url)</param>
 /// <remarks>
-/// <see cref="NotificationChannelKind.WebPush"/> の送信先の値 (<see cref="NotificationChannel.Value"/>)に、JSON の文字列にして入れる。
-/// 宛先を知っている人は、その端末へ通知を送れるので、秘密として扱い、画面の一覧にもログにも出さない。
+/// <see cref="NotificationChannelKind.WebPush"/> の送信先の値 (<see cref="NotificationChannel.Value"/>)に JSON の文字列にして入れる。
+/// 宛先を知っている人はその端末へ通知を送れるので、秘密として扱い、画面の一覧にもログにも出さない。
 /// </remarks>
 public sealed record WebPushSubscription(string Endpoint, string P256dh, string Auth)
 {
-    /// <summary>公開鍵のバイト数。圧縮しない P-256 の点</summary>
+    /// <summary>公開鍵のバイト数</summary>
+    /// <remarks>圧縮しない P-256 の点</remarks>
     private const int PublicKeyLength = 65;
 
-    /// <summary>認証の秘密の長さ (バイト)</summary>
+    /// <summary>認証の秘密の長さ</summary>
+    /// <remarks>単位はバイト</remarks>
     private const int AuthLength = 16;
 
-    /// <summary>宛先として許す配達係のホスト (ちょうど一致)</summary>
+    /// <summary>宛先として許す配達係のホスト</summary>
     private static readonly string[] AllowedHosts = ["fcm.googleapis.com", "android.googleapis.com"];
 
-    /// <summary>宛先として許す配達係のホスト (この名前の下のホスト)</summary>
+    /// <summary>宛先として許す配達係のホスト</summary>
     private static readonly string[] AllowedHostSuffixes = [".push.apple.com", ".push.services.mozilla.com", ".notify.windows.com"];
 
     /// <summary>値の文字列にする</summary>
-    /// <returns>JSON の文字列。<see cref="NotificationChannel.Value"/> に入れる</returns>
+    /// <returns>
+    /// JSON の文字列
+    /// <see cref="NotificationChannel.Value"/> に入れる
+    /// </returns>
     public string ToValue() => JsonSerializer.Serialize(this, WebPushJsonContext.Default.WebPushSubscription);
 
     /// <summary>値の文字列から読む</summary>
     /// <param name="value"><see cref="NotificationChannel.Value"/> の文字列</param>
-    /// <returns>読めて、<see cref="IsValid"/> を満たせば、その宛先。そうでなければ null</returns>
+    /// <returns>
+    /// 読めて、<see cref="IsValid"/> を満たせば、その宛先。
+    /// そうでなければ null。
+    /// </returns>
     public static WebPushSubscription? FromValue(string? value)
     {
         if (string.IsNullOrWhiteSpace(value) || value.Length > NotificationChannelRules.ValueMaxLength)
@@ -77,14 +83,15 @@ public sealed record WebPushSubscription(string Endpoint, string P256dh, string 
 
     /// <summary>base64url の文字列を戻したときの長さ</summary>
     /// <param name="text">base64url の文字列</param>
-    /// <returns>バイト数。正しい base64url でなければ -1</returns>
+    /// <returns>
+    /// バイト数
+    /// 正しい base64url でなければ -1
+    /// </returns>
     private static int DecodedLength(string? text)
         => !string.IsNullOrEmpty(text) && Base64Url.IsValid(text, out var length) ? length : -1;
 }
 
-/// <summary>
-/// <see cref="WebPushSubscription"/> の JSON を読み書きする、ソース生成の設定。
-/// </summary>
+/// <summary>WebPushSubscription の JSON を読み書きする、ソース生成の設定</summary>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(WebPushSubscription))]
 internal sealed partial class WebPushJsonContext : JsonSerializerContext;

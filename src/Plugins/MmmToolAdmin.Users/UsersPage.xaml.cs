@@ -4,8 +4,11 @@ using MmmSdk.Core.Utilities;
 
 namespace MmmToolAdmin.Users;
 
-/// <summary>ユーザーのページで、一覧と、選んだ人の登録用コードの発行を出す</summary>
-/// <remarks>ページを出すたびに、一覧を読み直す。出していない間に変わった分を、すぐ見せるため。</remarks>
+/// <summary>ユーザーのページで、一覧と選んだ人の登録用コードの発行を出す</summary>
+/// <remarks>
+/// ページを出すたびに一覧を読み直す
+/// 出していない間に変わった分をすぐ見せるため
+/// </remarks>
 public sealed partial class UsersPage : Page
 {
     /// <summary>ページの ViewModel</summary>
@@ -20,7 +23,7 @@ public sealed partial class UsersPage : Page
         Loaded += OnLoaded;
     }
 
-    /// <summary>ページを出したら、一覧を読み直す</summary>
+    /// <summary>ページを出したら一覧を読み直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.RefreshAsync().Forget();

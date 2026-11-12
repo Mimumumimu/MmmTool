@@ -4,12 +4,11 @@ using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Messages.Client;
 
-/// <summary>
-/// メッセージの API の JSON を読み書きする、ソース生成の設定。サーバーとブラウザが同じものを使う。
-/// </summary>
+/// <summary>メッセージの API の JSON を読み書きする、ソース生成の設定</summary>
 /// <remarks>
-/// ブラウザの発行では、使っていない型が削られるので、型を書いて調べる方式 (リフレクション)に頼らない。
-/// 端末の控えに残す JSON も、この設定で読み書きする。
+/// サーバーとブラウザが同じものを使う。
+/// ブラウザの発行では使っていない型が削られるので、型を書いて調べる方式 (リフレクション)に頼らない。
+/// 端末の控えに残す JSON もこの設定で読み書きする。
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(MessageSyncDto))]

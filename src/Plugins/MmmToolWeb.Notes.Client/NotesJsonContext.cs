@@ -4,11 +4,10 @@ using MmmToolWeb.Features.Client;
 
 namespace MmmToolWeb.Notes.Client;
 
-/// <summary>
-/// ノートの API の JSON を読み書きする、ソース生成の設定。サーバーとブラウザが同じものを使う。
-/// </summary>
+/// <summary>ノートの API の JSON を読み書きする、ソース生成の設定</summary>
 /// <remarks>
-/// ブラウザの発行では、使っていない型が削られるので、型を書いて調べる方式 (リフレクション)に頼らない。
+/// サーバーとブラウザが同じものを使う。
+/// ブラウザの発行では使っていない型が削られるので、型を書いて調べる方式 (リフレクション)に頼らない。
 /// </remarks>
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
 [JsonSerializable(typeof(NoteListResponse))]

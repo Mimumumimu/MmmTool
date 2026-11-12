@@ -1,11 +1,9 @@
 namespace MmmTool.Reminders.Core;
 
-/// <summary>
-/// まとめて追加で選ぶ、何分前に鳴らすか。
-/// </summary>
+/// <summary>まとめて追加で選ぶ何分前に鳴らすか</summary>
 public static class ReminderBulkLead
 {
-    /// <summary>選べる分 (0 は開始時刻ちょうど)</summary>
+    /// <summary>選べる分</summary>
     public static IReadOnlyList<int> Minutes { get; } = [0, 3, 5, 10, 15];
 
     /// <summary>最初に選んでいる分</summary>

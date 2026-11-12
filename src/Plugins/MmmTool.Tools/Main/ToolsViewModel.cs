@@ -3,7 +3,8 @@ using MmmTool.Tools.Core;
 
 namespace MmmTool.Tools.Main;
 
-/// <summary>ツールページ。貼った URL の文字コードを、その場で日本語などに戻して見せる</summary>
+/// <summary>ツールページ</summary>
+/// <remarks>貼った URL の文字コードをその場で日本語などに戻して見せる</remarks>
 public sealed partial class ToolsViewModel : ObservableObject
 {
     /// <summary>入力欄の文字列</summary>

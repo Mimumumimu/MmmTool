@@ -2,7 +2,7 @@ using Microsoft.UI.Xaml.Controls;
 
 namespace MmmTool.Features.Settings.General;
 
-/// <summary>メインウィンドウの設定 (設定ページに並べる部品)</summary>
+/// <summary>メインウィンドウの設定</summary>
 public sealed partial class MainWindowSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>

@@ -7,15 +7,18 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Reminders;
 
-/// <summary>
-/// リマインダーの送信設定を、SQL Server の <c>dbo.ReminderSendSetting</c> に保存する。
-/// </summary>
+/// <summary>リマインダーの送信設定を SQL Server の dbo.ReminderSendSetting に保存する</summary>
 /// <remarks>
-/// 読むたびに DB から読む。操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。特定していないと、保存できない。
-/// 1 つのリマインダーに、送信先を複数持てる。1 つの送信先につき 1 行。選んでいない送信先の行は論理削除する。
-/// 読み書きするのは、自分が使用者の送信先 (<c>NotificationChannel.UserId</c>)の分だけ。ほかの人の送信先の設定は、読まず、足さず、外さない。
+/// 読むたびに DB から読む。
+/// 操作した人 (作成者・更新者)は <see cref="CurrentUser"/>。
+/// 特定していないと保存できない。
+/// 1 つのリマインダーに送信先を複数持てる。
+/// 1 つの送信先につき 1 行。
+/// 選んでいない送信先の行は論理削除する。
+/// 読み書きするのは自分が使用者の送信先 (<c>NotificationChannel.UserId</c>)の分だけ。
+/// ほかの人の送信先の設定は読まず、足さず、外さない。
 /// 全員宛てのリマインダーに、複数の人が送信先を付けたとき、片方の保存で、ほかの人の設定が消えないようにするため。
-/// 選び直したときは、そのリマインダーと送信先の既存の行 (削除済みも含む)を更新して使い回し、無いときだけ追加する。
+/// 選び直したときはそのリマインダーと送信先の既存の行 (削除済みも含む)を更新して使い回し、無いときだけ追加する。
 /// </remarks>
 /// <param name="database">SQL Server への入口</param>
 /// <param name="currentUser">今のユーザー</param>
@@ -25,7 +28,10 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     public bool IsAvailable => true;
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyDictionary<int, IReadOnlyList<int>>> GetChannelIdsAsync(CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -60,9 +66,18 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     /// <summary>1 件のリマインダーに選んでいる送信先の番号を読む</summary>
     /// <param name="reminderNo">リマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>自分が使用者の送信先の番号。選んでいない (または削除済み)ときは空</returns>
-    /// <remarks>Web 版が、編集のために 1 件だけ読む。全リマインダー分を読む <see cref="GetChannelIdsAsync"/> は、PC 版の一覧が使う。</remarks>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった。メッセージは画面に出せる。</exception>
+    /// <returns>
+    /// 自分が使用者の送信先の番号
+    /// 選んでいない (または削除済み)ときは空
+    /// </returns>
+    /// <remarks>
+    /// Web 版が編集のために 1 件だけ読む
+    /// 全リマインダー分を読む <see cref="GetChannelIdsAsync"/> は PC 版の一覧が使う
+    /// </remarks>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・読めなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task<IReadOnlyList<int>> GetChannelIdsOfAsync(int reminderNo, CancellationToken cancellationToken = default)
     {
         var userId = SendTableAccess.RequireUserId(currentUser);
@@ -91,16 +106,23 @@ public sealed class SqlServerReminderSendSettingRepository(SqlServerDatabase dat
     }
 
     /// <inheritdoc />
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task SetChannelsAsync(int reminderNo, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
         => SetChannelsAsync([reminderNo], channelIds, cancellationToken);
 
     /// <inheritdoc />
     /// <remarks>
     /// 送信先の確認と、不要な設定の論理削除と、選んだ設定の更新と、無いものの追加を、1 つのトランザクションの 1 回の往復で行う。
-    /// 番号は JSON の 1 つのパラメーターで渡す。リマインダーや送信先の数が増えても、問い合わせの数は変わらない。
+    /// 番号は JSON の 1 つのパラメーターで渡す。
+    /// リマインダーや送信先の数が増えても問い合わせの数は変わらない。
     /// </remarks>
-    /// <exception cref="DataFileException">ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・設定が足りない・接続できない・表が無い・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     public Task SetChannelsAsync(IReadOnlyCollection<int> reminderNos, IReadOnlyCollection<int> channelIds, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reminderNos);

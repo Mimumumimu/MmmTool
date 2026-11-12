@@ -2,24 +2,24 @@ using MmmSdk.Core.Components.Storage;
 
 namespace MmmTool.Reminders.Core;
 
-/// <summary>
-/// リマインダー (本体・対応状態)を読み書きする。アプリ全体で 1 つ。
-/// </summary>
+/// <summary>リマインダーを読み書きする</summary>
 /// <remarks>
-/// 保存先 (<see cref="IReminderRepository"/>)の 1 件単位の操作に、業務の決まり (論理削除・物理削除・今日の対象の組み立て)を載せる。
-/// 一覧は持たず、そのつど保存先から読む。番号の採番・排他・読み込みの失敗の扱いは保存先の仕事。
+/// アプリ全体で 1 つ。
+/// 保存先 (<see cref="IReminderRepository"/>)の 1 件単位の操作に業務の決まり (論理削除・物理削除・今日の対象の組み立て)を載せる。
+/// 一覧は持たず、そのつど保存先から読む。
+/// 番号の採番・排他・読み込みの失敗の扱いは保存先の仕事。
 /// </remarks>
 public sealed class ReminderService
 {
     /// <summary>リマインダーの保存先</summary>
     private readonly IReminderRepository _repository;
 
-    /// <summary>時刻が正しくないリマインダーがあるときの警告。無ければ null</summary>
+    /// <summary>時刻が正しくないリマインダーがあるときの警告</summary>
     private volatile string? _timeWarning;
 
-    /// <summary>リマインダー (本体・対応状態)を読み書きするサービスを作る</summary>
+    /// <summary>リマインダーを読み書きするサービスを作る</summary>
     /// <param name="repository">リマインダーの保存先</param>
-    /// <remarks>保存先の外での変更 (<see cref="IReminderRepository.ExternalChanged"/>)も、<see cref="Changed"/> として知らせる。</remarks>
+    /// <remarks>保存先の外での変更 (<see cref="IReminderRepository.ExternalChanged"/>)も <see cref="Changed"/> として知らせる</remarks>
     public ReminderService(IReminderRepository repository)
     {
         _repository = repository;
@@ -27,29 +27,51 @@ public sealed class ReminderService
     }
 
     /// <summary>本体・状態のどちらかが変わった</summary>
-    /// <remarks>保存したスレッドから発火する。任意のスレッドになりうる。UI スレッドへの切り替えは受け取る側で行う。</remarks>
+    /// <remarks>
+    /// 保存したスレッドから発火する
+    /// 任意のスレッドになりうる
+    /// UI スレッドへの切り替えは受け取る側で行う
+    /// </remarks>
     public event EventHandler? Changed;
 
-    /// <summary>ファイルを読めなかったときのメッセージ。正常なら null。</summary>
-    /// <remarks>ロック・権限などで読めなかったとき。最初に読んだあとに分かる。元のファイルを上書きで消さないよう、このときは保存を止める。保存しようとすると例外になる。</remarks>
+    /// <summary>ファイルを読めなかったときのメッセージ</summary>
+    /// <remarks>
+    /// 正常なら null。
+    /// ロック・権限などで読めなかったとき。
+    /// 最初に読んだあとに分かる。
+    /// 元のファイルを上書きで消さないよう、このときは保存を止める。
+    /// 保存しようとすると例外になる。
+    /// </remarks>
     public string? LoadError => _repository.LoadError;
 
-    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ。通常は null。</summary>
-    /// <remarks>最初に読んだあとに分かる。</remarks>
+    /// <summary>壊れていたファイルを退避して作り直したときのメッセージ</summary>
+    /// <remarks>
+    /// 通常は null
+    /// 最初に読んだあとに分かる
+    /// </remarks>
     public string? RecoveryMessage => _repository.RecoveryMessage;
 
-    /// <summary>今のユーザーの番号。ローカルモードは 0</summary>
-    /// <remarks>宛先の選択や、送信先の表示を出すかの判断に使う。削除は、見える人ならできるので、判断に使わない。</remarks>
+    /// <summary>今のユーザーの番号</summary>
+    /// <remarks>
+    /// ローカルモードは 0。
+    /// 宛先の選択や送信先の表示を出すかの判断に使う。
+    /// 削除は見える人ならできるので、判断に使わない。
+    /// </remarks>
     public int CurrentUserId => _repository.CurrentUserId;
 
-    /// <summary>完全削除ができるか (DB モードではできない)</summary>
-    /// <remarks>false のとき、画面は、完全削除の操作を出さない。</remarks>
+    /// <summary>完全削除ができるか</summary>
+    /// <remarks>
+    /// DB モードではできない。
+    /// false のとき、画面は完全削除の操作を出さない。
+    /// </remarks>
     public bool CanPurge => _repository.CanPurge;
 
-    /// <summary>時刻が正しくないリマインダーがあるときの警告で、番号つき。無ければ null。</summary>
+    /// <summary>時刻が正しくないリマインダーがあるときの警告で、番号つき</summary>
     /// <remarks>
-    /// リマインダーを読むたびに更新する。ファイルの退避 (<see cref="RecoveryMessage"/>)とは別の問題なので、別のプロパティにする。
-    /// 手で編集した JSON の時刻が正しくないと、「常に発動済み」のように誤って動くため、通知・今日の対象から外している。本体は消さないので、編集して直せる。
+    /// リマインダーを読むたびに更新する。
+    /// ファイルの退避 (<see cref="RecoveryMessage"/>)とは別の問題なので、別のプロパティにする。
+    /// 手で編集した JSON の時刻が正しくないと、「常に発動済み」のように誤って動くため、通知・今日の対象から外している。
+    /// 本体は消さないので、編集して直せる。
     /// </remarks>
     public string? TimeWarning => _timeWarning;
 
@@ -64,10 +86,14 @@ public sealed class ReminderService
         return reminders;
     }
 
-    /// <summary>ある日の対象 (その日に発生するリマインダー)と、その日の対応状態を取得する</summary>
+    /// <summary>ある日の対象とその日の対応状態を取得する</summary>
     /// <param name="now">基準にする日時 (この日付を「今日」とする)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>その日の対象で、時刻、参照番号の順。論理削除済みは含めない。別の日の状態は未対応として扱う</returns>
+    /// <returns>
+    /// その日の対象で、時刻、参照番号の順。
+    /// 論理削除済みは含めない。
+    /// 別の日の状態は未対応として扱う。
+    /// </returns>
     /// <remarks>画面 (メイン画面)と通知 (<see cref="ReminderMonitor"/>)が同じ内容を見るよう、「今日の状態」の組み立てはここだけで行う。</remarks>
     public async Task<IReadOnlyList<ReminderTarget>> GetTargetsAsync(DateTime now, CancellationToken cancellationToken = default)
     {
@@ -91,16 +117,18 @@ public sealed class ReminderService
             .Select(reminder => new ReminderTarget(reminder, statuses.GetValueOrDefault(reminder.No)))];
     }
 
-    /// <summary>リマインダー本体を保存する (追加・更新)</summary>
+    /// <summary>リマインダー本体を保存する</summary>
     /// <param name="reminder">保存するリマインダー</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存した内容 (採番後)</returns>
     /// <remarks>
-    /// <see cref="Reminder.No"/> が 0 なら新規として追加する。番号は保存先が決める。
-    /// それ以外は同じ <see cref="Reminder.No"/> の既存分を更新する。論理削除済みなら削除フラグを解除する。
+    /// <see cref="Reminder.No"/> が 0 なら新規として追加する
+    /// 番号は保存先が決める
+    /// それ以外は同じ <see cref="Reminder.No"/> の既存分を更新する
+    /// 論理削除済みなら削除フラグを解除する
     /// </remarks>
-    /// <exception cref="ArgumentException">指定の番号のリマインダーが無い。</exception>
-    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <exception cref="ArgumentException">指定の番号のリマインダーが無い</exception>
+    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
     public async Task<Reminder> SaveAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         Reminder saved;
@@ -121,11 +149,12 @@ public sealed class ReminderService
         return saved;
     }
 
-    /// <summary>リマインダー本体を論理削除する (削除フラグを立てる)</summary>
+    /// <summary>リマインダー本体を論理削除する</summary>
     /// <param name="no">削除するリマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
-    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <remarks>削除フラグを立てる</remarks>
+    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
     public async Task<bool> DeleteAsync(int no, CancellationToken cancellationToken = default)
     {
         var found = await _repository.SetDeletedAsync(no, isDeleted: true, cancellationToken);
@@ -136,12 +165,16 @@ public sealed class ReminderService
         return found;
     }
 
-    /// <summary>リマインダー本体を物理削除する (一覧から完全に取り除く)</summary>
+    /// <summary>リマインダー本体を物理削除する</summary>
     /// <param name="no">削除するリマインダーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>対象があれば true</returns>
-    /// <remarks>対応状態 (<see cref="ReminderState"/>)も一緒に消える。保存先の仕事で、理由は <see cref="IReminderRepository.PurgeAsync"/> にある。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <remarks>
+    /// 一覧から完全に取り除く。
+    /// 対応状態 (<see cref="ReminderState"/>)も一緒に消える。
+    /// 保存先の仕事で、理由は <see cref="IReminderRepository.PurgeAsync"/> にある。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
     public async Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
     {
         var purged = await _repository.PurgeAsync(no, cancellationToken);
@@ -156,8 +189,12 @@ public sealed class ReminderService
     /// <param name="changes">変更する対応状態</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>同じ参照番号の状態は 1 件に保ち、あれば対象日・値を上書きする。無ければ追加する。まとめて 1 回で保存し、変更の通知も 1 回。</remarks>
-    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <remarks>
+    /// 同じ参照番号の状態は 1 件に保ち、あれば対象日・値を上書きする。
+    /// 無ければ追加する。
+    /// まとめて 1 回で保存し、変更の通知も 1 回。
+    /// </remarks>
+    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
     public async Task SetStatesAsync(IReadOnlyList<ReminderStateChange> changes, CancellationToken cancellationToken = default)
     {
         if (changes.Count == 0)
@@ -175,11 +212,11 @@ public sealed class ReminderService
     /// <param name="status">対応状態</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない。</exception>
+    /// <exception cref="DataFileException">保存に失敗した・読み込みに失敗していて保存できない</exception>
     public Task SetStateAsync(int baseNo, int date, ReminderStatus status, CancellationToken cancellationToken = default)
         => SetStatesAsync([new ReminderStateChange(baseNo, date, status)], cancellationToken);
 
-    /// <summary>読んだリマインダーから、時刻が正しくないものの警告を更新する</summary>
+    /// <summary>読んだリマインダーから時刻が正しくないものの警告を更新する</summary>
     /// <param name="reminders">読んだリマインダー</param>
     private void UpdateTimeWarning(IReadOnlyList<Reminder> reminders)
     {

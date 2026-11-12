@@ -5,21 +5,26 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.WorkItems.ViewOptions;
 
-/// <summary>「表示」の入れ物にある、完了した作業の見え方を選ぶ部 (見出しと、3 つのラジオ)</summary>
+/// <summary>「表示」の入れ物にある完了した作業の見え方を選ぶ部</summary>
 /// <remarks>
-/// 作業管理の「過去の完了」とスケジュールの「完了」が共有する。選択肢の並びは <see cref="CompletedDisplay"/> の値と同じで、保存しない。
-/// 見出しの言葉と補足は、画面ごとに渡す。
+/// 作業管理の「過去の完了」とスケジュールの「完了」が共有する。
+/// 選択肢の並びは <see cref="CompletedDisplay"/> の値と同じで、保存しない。
+/// 見出しの言葉と補足は画面ごとに渡す。
 /// </remarks>
 public sealed class CompletedDisplaySection : StackPanel
 {
-    /// <summary>選択肢の名前 (<see cref="CompletedDisplay"/> の値の順)</summary>
-    /// <remarks>設定ページの選択欄も、この並びを使う。</remarks>
+    /// <summary>選択肢の名前</summary>
+    /// <remarks>
+    /// <see cref="CompletedDisplay"/> の値の順
+    /// 設定ページの選択欄もこの並びを使う
+    /// </remarks>
     public static IReadOnlyList<string> Names { get; } = ["表示", "グループのみ表示", "非表示"];
 
     /// <summary>ラジオ</summary>
     private readonly RadioButtons _radios = new();
 
-    /// <summary>選ばれたときに呼ぶ処理 (選択肢の番号を受け取る)</summary>
+    /// <summary>選ばれたときに呼ぶ処理</summary>
+    /// <remarks>選択肢の番号を受け取る</remarks>
     private readonly Action<int> _selected;
 
     /// <summary>部を作る</summary>
@@ -51,7 +56,8 @@ public sealed class CompletedDisplaySection : StackPanel
         Children.Add(_radios);
     }
 
-    /// <summary>今の選択を、ラジオに表示する (入れ物を開くたびに呼ぶ)</summary>
+    /// <summary>今の選択をラジオに表示する</summary>
     /// <param name="index">選択肢の番号</param>
+    /// <remarks>入れ物を開くたびに呼ぶ</remarks>
     public void Select(int index) => _radios.SelectedIndex = index;
 }

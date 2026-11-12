@@ -2,12 +2,16 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.WorkItems.Core;
 
-/// <summary>基準の時刻より後に更新された行で、差分の取得の結果。論理削除された行も含む</summary>
+/// <summary>基準の時刻より後に更新された行で、差分の取得の結果</summary>
 /// <param name="Projects">選んでいる案件の行</param>
 /// <param name="Groups">選んでいる案件の中のグループ</param>
 /// <param name="Items">選んでいる案件の中の作業</param>
-/// <param name="Records">選んでいる案件の記録。全員分で、指定した日だけか、すべての日か</param>
+/// <param name="Records">
+/// 選んでいる案件の記録。
+/// 全員分で、指定した日だけか、すべての日か。
+/// </param>
 /// <param name="Codes">更新されたコードマスタの件 (論理削除された件も含む)</param>
+/// <remarks>論理削除された行も含む</remarks>
 public sealed record WorkChanges(
     IReadOnlyList<WorkProject> Projects,
     IReadOnlyList<WorkGroup> Groups,
@@ -15,7 +19,8 @@ public sealed record WorkChanges(
     IReadOnlyList<WorkRecord> Records,
     IReadOnlyList<CodeMasterEntry> Codes)
 {
-    /// <summary>届いた行のうち、いちばん新しい更新日時で、次の基準の時刻にする。1 行も無ければ null</summary>
+    /// <summary>届いた行のうち、いちばん新しい更新日時で、次の基準の時刻にする</summary>
+    /// <remarks>1 行も無ければ null</remarks>
     public DateTimeOffset? MaxUpdatedAt => new[]
     {
         Projects.Select(r => (DateTimeOffset?)r.UpdatedAt).Max(),

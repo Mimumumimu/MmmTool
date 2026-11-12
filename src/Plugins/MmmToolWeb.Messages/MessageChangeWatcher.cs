@@ -6,26 +6,28 @@ using MmmTool.Messages.Core;
 
 namespace MmmToolWeb.Messages;
 
-/// <summary>
-/// 数秒おきに、DB の更新されたメッセージを調べて、会話を開いている端末に知らせる常駐の処理。
-/// </summary>
+/// <summary>数秒おきに DB の更新されたメッセージを調べて、会話を開いている端末に知らせる常駐の処理</summary>
 /// <remarks>
-/// 全員分を 1 つの問い合わせにして、索引で、基準より後に更新された行だけを読む。接続している端末が無いときは、読まない。
-/// 基準から <see cref="MessageSync.Lookback"/> だけ戻して読むので、同じ行を何度か読む。同じ行は、番号と更新日時を覚えて、2 度目からは知らせない。
-/// MmmTool (PC 版)が DB に直接書いたメッセージも、DB を読んで気づける。
+/// 全員分を 1 つの問い合わせにして、索引で、基準より後に更新された行だけを読む。
+/// 接続している端末が無いときは読まない。
+/// 基準から <see cref="MessageSync.Lookback"/> だけ戻して読むので、同じ行を何度か読む。
+/// 同じ行は番号と更新日時を覚えて、2 度目からは知らせない。
+/// MmmTool (PC 版)が DB に直接書いたメッセージも DB を読んで気づける。
 /// </remarks>
 /// <param name="reader">更新を読む部品</param>
 /// <param name="hub">知らせる口</param>
 /// <param name="logger">ログ</param>
 public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, MessageChangeHub hub, ILogger<MessageChangeWatcher> logger) : BackgroundService
 {
-    /// <summary>DB を調べる間隔。仮</summary>
+    /// <summary>DB を調べる間隔</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(3);
 
-    /// <summary>知らせ済みの印を残す時間。戻して読む時間より長くする</summary>
+    /// <summary>知らせ済みの印を残す時間</summary>
+    /// <remarks>戻して読む時間より長くする</remarks>
     private static readonly TimeSpan RememberTime = MessageSync.Lookback + TimeSpan.FromSeconds(20);
 
-    /// <summary>知らせ済みの、更新された行の種類と番号と更新日時と、知らせた相手。古いものから捨てる</summary>
+    /// <summary>知らせ済みの更新された行の種類と番号と更新日時と知らせた相手</summary>
+    /// <remarks>古いものから捨てる</remarks>
     private readonly Dictionary<(bool IsReadPosition, int RowId, DateTimeOffset UpdatedAt, int UserId), DateTimeOffset> _seen = [];
 
     /// <inheritdoc />
@@ -65,7 +67,7 @@ public sealed class MessageChangeWatcher(SqlServerMessageChangeReader reader, Me
         }
     }
 
-    /// <summary>まだ知らせていない更新を、参加者に知らせる</summary>
+    /// <summary>まだ知らせていない更新を参加者に知らせる</summary>
     /// <param name="changes">読んだ更新</param>
     /// <param name="now">DB の今の日時</param>
     private void Notify(IReadOnlyList<MessageChange> changes, DateTimeOffset now)

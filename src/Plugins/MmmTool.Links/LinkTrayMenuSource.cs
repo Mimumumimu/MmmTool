@@ -5,12 +5,11 @@ using MmmTool.Links.Core;
 
 namespace MmmTool.Links;
 
-/// <summary>
-/// トレイメニューの「リンク」。リンク編集ページで保存した構成を階層メニューにする。
-/// </summary>
+/// <summary>トレイメニューの「リンク」</summary>
 /// <param name="links">リンクメニューの構成</param>
 /// <param name="opener">パスを開く処理</param>
 /// <param name="notifications">通知ダイアログの表示 (リンクを開けなかったことを知らせる)</param>
+/// <remarks>リンク編集ページで保存した構成を階層メニューにする</remarks>
 public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener, INotificationDialogService notifications) : ITrayMenuSource
 {
     /// <inheritdoc />
@@ -29,7 +28,10 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
     /// <param name="name">リンクの表示名</param>
     /// <param name="path">開くパス</param>
     /// <returns>開く処理の完了を表すタスク</returns>
-    /// <remarks>パスが存在しない・開けない (<see cref="PathOpenException"/>)ときは、通知ダイアログで知らせる。それ以外の失敗は、バグとして、アプリの安全網が受ける。</remarks>
+    /// <remarks>
+    /// パスが存在しない・開けない (<see cref="PathOpenException"/>)ときは通知ダイアログで知らせる。
+    /// それ以外の失敗はバグとして、アプリの安全網が受ける。
+    /// </remarks>
     private async Task OpenAsync(string name, string path)
     {
         try
@@ -42,12 +44,13 @@ public sealed class LinkTrayMenuSource(LinkMenuService links, IPathOpener opener
         }
     }
 
-    /// <summary>
-    /// 区切り線は区切り線に、子要素があればサブメニューに、パスがあれば開く項目に、どれでもなければ押せない項目にする。
-    /// </summary>
+    /// <summary>区切り線は区切り線に子要素があればサブメニューにパスがあれば開く項目にどれでもなければ押せない項目にする</summary>
     /// <param name="node">リンクメニューの要素</param>
     /// <returns>トレイメニューの項目</returns>
-    /// <remarks>中身が空のフォルダも、開く先が無いので押せない項目として出す。種類は <see cref="LinkNode.ResolveKind"/> で決める。</remarks>
+    /// <remarks>
+    /// 中身が空のフォルダも開く先が無いので押せない項目として出す
+    /// 種類は <see cref="LinkNode.ResolveKind"/> で決める
+    /// </remarks>
     private TrayMenuItem ToMenuItem(LinkNode node)
     {
         if (node.ResolveKind() == LinkNodeKind.Separator)

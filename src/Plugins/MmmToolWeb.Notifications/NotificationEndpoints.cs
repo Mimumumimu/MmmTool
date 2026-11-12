@@ -6,21 +6,19 @@ using MmmToolWeb.Notifications.Client;
 
 namespace MmmToolWeb.Notifications;
 
-/// <summary>
-/// 通知の API <c>/api/notifications</c>。
-/// </summary>
+/// <summary>通知の API /api/notifications</summary>
 internal static class NotificationEndpoints
 {
-    /// <summary>送り手の公開鍵を置く設定のキー。MmmBatch が作った公開鍵を写す。</summary>
+    /// <summary>送り手の公開鍵を置く設定のキー</summary>
+    /// <remarks>MmmBatch が作った公開鍵を写す</remarks>
     internal const string PublicKeySetting = "Web:PushPublicKey";
 
-    /// <summary>受け取った通知の一覧に出す、最大の件数。種類ごとにも、この件数まで読む。</summary>
+    /// <summary>受け取った通知の一覧に出す最大の件数</summary>
+    /// <remarks>種類ごとにもこの件数まで読む</remarks>
     private const int ReceivedListCount = 50;
 
-    /// <summary>
-    /// 通知の API を登録する。
-    /// </summary>
-    /// <param name="notifications">登録先の <c>/api/notifications</c>。</param>
+    /// <summary>通知の API を登録する</summary>
+    /// <param name="notifications">登録先の <c>/api/notifications</c></param>
     public static void Map(RouteGroupBuilder notifications)
     {
         notifications.MapGet("/settings", LoadSettingsAsync);
@@ -32,13 +30,14 @@ internal static class NotificationEndpoints
         NotificationTargetSettingEndpoints.Map(notifications);
     }
 
-    /// <summary>
-    /// 画面を出すのに要る情報を返す。
-    /// </summary>
-    /// <param name="channels">送信先の保存先。</param>
-    /// <param name="configuration">サーバーの設定。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>送り手の公開鍵と、自分が登録した端末。端末の宛先は含めない。</returns>
+    /// <summary>画面を出すのに要る情報を返す</summary>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="configuration">サーバーの設定</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 送り手の公開鍵と、自分が登録した端末。
+    /// 端末の宛先は含めない。
+    /// </returns>
     private static async Task<IResult> LoadSettingsAsync(
         INotificationChannelRepository channels, IConfiguration configuration, CancellationToken cancellationToken)
     {
@@ -49,13 +48,21 @@ internal static class NotificationEndpoints
             [.. devices.Select(device => new PushDeviceDto(device.Id, device.Name))]));
     }
 
-    /// <summary>
-    /// 受け取った通知の一覧を返す。種類ごとの提供元から集めて、新しい順に並べる。
-    /// </summary>
-    /// <param name="item">通知を押して開いたときの、その通知の識別子。一覧に無ければ、その 1 件も加える。</param>
-    /// <param name="sources">受け取った通知の提供元。登録された種類のぶん。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>新しい順の通知。提供元の名前を、ここでは持たない。</returns>
+    /// <summary>受け取った通知の一覧を返す</summary>
+    /// <param name="item">
+    /// 通知を押して開いたときの、その通知の識別子。
+    /// 一覧に無ければ、その 1 件も加える。
+    /// </param>
+    /// <param name="sources">
+    /// 受け取った通知の提供元
+    /// 登録された種類のぶん
+    /// </param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 新しい順の通知。
+    /// 提供元の名前を、ここでは持たない。
+    /// </returns>
+    /// <remarks>種類ごとの提供元から集めて、新しい順に並べる。</remarks>
     private static async Task<IResult> LoadReceivedAsync(
         string? item, IEnumerable<IReceivedNotificationSource> sources, CancellationToken cancellationToken)
     {
@@ -94,15 +101,29 @@ internal static class NotificationEndpoints
         return Results.Ok(new ReceivedListResponse(items));
     }
 
-    /// <summary>
-    /// 通知を押したときに開く画面を返す。種類ごとの行き先の登録に聞く。
-    /// </summary>
-    /// <param name="item">通知の識別子。「種類:番号」の形。</param>
-    /// <param name="destinations">行き先の登録。登録された種類のぶん。</param>
-    /// <param name="sources">受け取った通知の提供元。押した通知を受け取った日時を引くため。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>開く画面の道と、押した通知を受け取った日時。行き先が無い種類・開けないときは、道が null。</returns>
-    /// <remarks>メッセージなどの名前は、ここでは持たない。登録が無い種類は、通知の一覧を開く。</remarks>
+    /// <summary>通知を押したときに開く画面を返す</summary>
+    /// <param name="item">
+    /// 通知の識別子
+    /// 「種類:番号」の形
+    /// </param>
+    /// <param name="destinations">
+    /// 行き先の登録
+    /// 登録された種類のぶん
+    /// </param>
+    /// <param name="sources">
+    /// 受け取った通知の提供元
+    /// 押した通知を受け取った日時を引くため
+    /// </param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 開く画面の道と、押した通知を受け取った日時。
+    /// 行き先が無い種類・開けないときは道が null。
+    /// </returns>
+    /// <remarks>
+    /// 種類ごとの行き先の登録に聞く
+    /// メッセージなどの名前はここでは持たない
+    /// 登録が無い種類は通知の一覧を開く
+    /// </remarks>
     private static async Task<IResult> LoadDestinationAsync(
         string? item,
         IEnumerable<INotificationDestination> destinations,
@@ -122,13 +143,11 @@ internal static class NotificationEndpoints
         return Results.Ok(new DestinationResponse(await owner.GetPathAsync(id, cancellationToken), received?.ReceivedAt));
     }
 
-    /// <summary>
-    /// 識別子を、種類と番号に分ける。
-    /// </summary>
-    /// <param name="key">「種類:番号」の形の識別子。</param>
-    /// <param name="kind">種類のキー。</param>
-    /// <param name="id">番号。</param>
-    /// <returns>分けられたら true。</returns>
+    /// <summary>識別子を種類と番号に分ける</summary>
+    /// <param name="key">「種類:番号」の形の識別子</param>
+    /// <param name="kind">種類のキー</param>
+    /// <param name="id">番号</param>
+    /// <returns>分けられたら true</returns>
     private static bool TryParseKey(string? key, out string kind, out int id)
     {
         kind = "";
@@ -142,29 +161,36 @@ internal static class NotificationEndpoints
         return true;
     }
 
-    /// <summary>
-    /// 届いた日時を、表示の文字にする。サーバーの時計で作る。ブラウザ上の .NET は、端末のタイムゾーンを知らないため。
-    /// </summary>
-    /// <param name="receivedAt">届いた日時。</param>
-    /// <param name="now">今。</param>
+    /// <summary>届いた日時を表示の文字にする</summary>
+    /// <param name="receivedAt">届いた日時</param>
+    /// <param name="now">今</param>
     /// <returns>今日なら「HH:mm」、それ以外は「M/d HH:mm」。</returns>
+    /// <remarks>
+    /// サーバーの時計で作る
+    /// ブラウザ上の .NET は端末のタイムゾーンを知らないため
+    /// </remarks>
     private static string FormatReceivedAt(DateTimeOffset receivedAt, DateTimeOffset now)
     {
         var local = receivedAt.ToLocalTime();
         return local.Date == now.Date ? local.ToString("HH:mm", CultureInfo.InvariantCulture) : local.ToString("M/d HH:mm", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>
-    /// この端末の宛先を登録する。この端末が登録した行があれば更新し、無ければ追加する。
-    /// </summary>
-    /// <param name="request">登録する内容。</param>
-    /// <param name="channels">送信先の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>登録した送信先の番号。入力が正しくないときは 400。</returns>
+    /// <summary>この端末の宛先を登録する</summary>
+    /// <param name="request">登録する内容</param>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 登録した送信先の番号
+    /// 入力が正しくないときは 400
+    /// </returns>
     /// <remarks>
-    /// 状態を変える操作は、JSON の本文を要る形にする。ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。
-    /// 更新は、自分の、Web 版通知の行だけが対象。ほかの種類の行や、ほかの人の行は、番号を偽られても書き換わらない。
-    /// 更新した行が削除済みなら、削除を戻す。端末が登録し直したので、通知を受け取りたいという意思があるため。
+    /// この端末が登録した行があれば更新し、無ければ追加する。
+    /// 状態を変える操作は JSON の本文を要る形にする。
+    /// ほかのサイトの画面から、本文のないフォームの送信で呼ばれないため。
+    /// 更新は自分の、Web 版通知の行だけが対象。
+    /// ほかの種類の行や、ほかの人の行は番号を偽られても書き換わらない。
+    /// 更新した行が削除済みなら、削除を戻す。
+    /// 端末が登録し直したので、通知を受け取りたいという意思があるため。
     /// </remarks>
     private static async Task<IResult> RegisterAsync(
         PushRegisterRequest request, INotificationChannelRepository channels, CancellationToken cancellationToken)
@@ -206,16 +232,20 @@ internal static class NotificationEndpoints
         return Results.Ok(new PushRegisterResponse(added.Id));
     }
 
-    /// <summary>
-    /// 端末の宛先が、自分の登録済みの行かを調べる。
-    /// </summary>
-    /// <param name="request">調べる宛先。</param>
-    /// <param name="channels">送信先の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>削除されていない行が見つかれば、その番号。無い・削除済みのときは、番号が 0。宛先の形が正しくないときは 400。</returns>
+    /// <summary>端末の宛先が自分の登録済みの行かを調べる</summary>
+    /// <param name="request">調べる宛先</param>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 削除されていない行が見つかれば、その番号。
+    /// 無い・削除済みのときは番号が 0。
+    /// 宛先の形が正しくないときは 400。
+    /// </returns>
     /// <remarks>
-    /// 宛先は秘密なので、URL の道には載せず、本文で受ける。道は、ログに残るため。
-    /// 返すのは番号だけで、宛先や鍵は返さない。端末が登録の番号の記憶を失っても、登録済みかを正しく出すために使う。
+    /// 宛先は秘密なので、URL の道には載せず、本文で受ける。
+    /// 道はログに残るため。
+    /// 返すのは番号だけで、宛先や鍵は返さない。
+    /// 端末が登録の番号の記憶を失っても登録済みかを正しく出すために使う。
     /// </remarks>
     private static async Task<IResult> LookupAsync(
         PushLookupRequest request, INotificationChannelRepository channels, CancellationToken cancellationToken)
@@ -229,14 +259,19 @@ internal static class NotificationEndpoints
         return Results.Ok(new PushLookupResponse(found is { IsDeleted: false } ? found.Id : 0));
     }
 
-    /// <summary>
-    /// この端末の登録を解除する。論理削除する。
-    /// </summary>
-    /// <param name="request">解除する送信先。</param>
-    /// <param name="channels">送信先の保存先。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 204。対象が無い・自分の行ではないときは 404。</returns>
-    /// <remarks>対象は、自分が使用者の行だけ。ほかの人の行は、番号を偽られても削除されない。</remarks>
+    /// <summary>この端末の登録を解除する</summary>
+    /// <param name="request">解除する送信先</param>
+    /// <param name="channels">送信先の保存先</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 204
+    /// 対象が無い・自分の行ではないときは 404
+    /// </returns>
+    /// <remarks>
+    /// 論理削除する
+    /// 対象は自分が使用者の行だけ
+    /// ほかの人の行は番号を偽られても削除されない
+    /// </remarks>
     private static async Task<IResult> RemoveAsync(
         PushRemoveRequest request, INotificationChannelRepository channels, CancellationToken cancellationToken)
     {

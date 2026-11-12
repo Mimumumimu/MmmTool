@@ -10,23 +10,30 @@ using MmmTool.WorkItems.Core;
 
 namespace MmmTool.Data.SqlServer.WorkItems;
 
-/// <summary>
-/// 作業管理を、SQL Server (DB モード)に保存する。
-/// </summary>
+/// <summary>作業管理を SQL Serverに保存する</summary>
 /// <param name="database">SQL Server に接続して処理を実行する入口</param>
 /// <param name="currentUser">今のユーザー (記録の持ち主・作成者・更新者)</param>
 /// <remarks>
 /// ローカルの SQLite の保存先 (<c>SqliteWorkItemRepository</c>)と同じ設計の表と、同じ読み書きの形で、docs/specs/work-items.md にある。
-/// 読みは、表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。書きは 1 件単位で、更新は変えた列だけ書く。更新日時は、更新の SQL の中で DB サーバーの時計を使って書く。
-/// コードマスタ (状態・進捗度・優先度の選択肢)は全員に影響するので、画面から編集しない。表を SQL で直す。SQL はパラメーター化だけで書く。完全削除 (行を消す)はしない。
+/// 読みは表示しない案件 (この PC の設定)を除いて、表ごとの別の <c>SELECT</c> で行う。
+/// 書きは 1 件単位で、更新は変えた列だけ書く。
+/// 更新日時は更新の SQL の中で DB サーバーの時計を使って書く。
+/// コードマスタ (状態・進捗度・優先度の選択肢)は全員に影響するので、画面から編集しない。
+/// 表を SQL で直す。
+/// SQL はパラメーター化だけで書く。
+/// 完全削除 (行を消す)はしない。
 /// </remarks>
 public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, CurrentUser currentUser) : IWorkItemRepository
 {
-    /// <summary>「ない」日付 (<c>9999-12-31</c>)</summary>
+    /// <summary>「ない」日付</summary>
     private static readonly DateTime NoDate = new(9999, 12, 31);
 
     /// <inheritdoc />
-    /// <remarks>ユーザーを特定していないときは 0。読み込みは、何も返さない。書き込みは <see cref="DataFileException"/>。</remarks>
+    /// <remarks>
+    /// ユーザーを特定していないときは 0
+    /// 読み込みは何も返さない
+    /// 書き込みは <see cref="DataFileException"/>
+    /// </remarks>
     public int UserId => currentUser.User?.Id ?? 0;
 
     /// <inheritdoc />
@@ -122,15 +129,24 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return WorkReportSplitter.Split(all, userIds);
     }
 
-    /// <summary>作業報告の中身を、担当者の条件を指定して、1 回の往復で読む</summary>
+    /// <summary>作業報告の中身を担当者の条件を指定して 1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="from">記録を読み始める日</param>
-    /// <param name="to">記録を読み終える日で、報告日</param>
-    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
+    /// <param name="to">記録を読み終える日で、報告日。</param>
+    /// <param name="assignee">
+    /// 担当者の列と比べる条件の後半。
+    /// <c>= @me</c> か、<c>IN (…)</c>。
+    /// </param>
     /// <param name="assigneeParameter">条件が使うパラメーターの名前と値</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>指定の担当者の、作業報告の中身</returns>
-    /// <remarks>担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業。表示しない案件も含む。担当者で絞るので、記録を付けた人は問わない。日報メモは、持ち主が指定の人の行の、報告日の分だけ。6 つの問い合わせを 1 回の往復で受け取る。</remarks>
+    /// <returns>指定の担当者の、作業報告の中身。</returns>
+    /// <remarks>
+    /// 担当が指定の人で、状態が作業予定・作業中・保留か、期間内に記録があるか、期間内に完了した作業。
+    /// 表示しない案件も含む。
+    /// 担当者で絞るので、記録を付けた人は問わない。
+    /// 日報メモは持ち主が指定の人の行の、報告日の分だけ。
+    /// 6 つの問い合わせを 1 回の往復で受け取る。
+    /// </remarks>
     private async Task<WorkReportData> LoadReportCoreAsync(
         SqlConnection connection, DateOnly from, DateOnly to, string assignee, (string, object) assigneeParameter, CancellationToken cancellationToken)
     {
@@ -230,12 +246,18 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>作業報告の対象の作業の条件</summary>
     /// <param name="alias">作業の表の別名</param>
-    /// <param name="assignee">担当者の列と比べる条件の後半。<c>= @me</c> か、<c>IN (…)</c></param>
-    /// <returns>条件の SQL。パラメーター <c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う</returns>
+    /// <param name="assignee">
+    /// 担当者の列と比べる条件の後半。
+    /// <c>= @me</c> か、<c>IN (…)</c>。
+    /// </param>
+    /// <returns>
+    /// 条件の SQL。
+    /// パラメーター <c>@closed</c>・<c>@from</c>・<c>@to</c>・<c>@exclAll</c> と、<paramref name="assignee"/> のパラメーターを使う。
+    /// </returns>
     /// <remarks>
     /// 担当が指定の人で、次のどちらか。
-    /// 予定の枝は、外す印が無く、状態が作業予定・作業中・保留。
-    /// 実績の枝は、実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
+    /// 予定の枝は外す印が無く、状態が作業予定・作業中・保留。
+    /// 実績の枝は実績と予定から外す印が無く、期間内に完了したか、期間内に記録がある。
     /// </remarks>
     private static string ReportItemCondition(string alias, string assignee)
         => $"{alias}.IsDeleted = 0 AND {alias}.AssigneeUserId {assignee} AND (({alias}.ReportExclusion = 0 AND {alias}.StatusCodeNo IN ({WorkItemStatuses.ReportSqlList})) OR ({alias}.ReportExclusion <> @exclAll AND (({alias}.StatusCodeNo = @closed AND {alias}.CompletedDate >= @from AND {alias}.CompletedDate <= @to) OR EXISTS (SELECT 1 FROM dbo.WorkRecord rr WHERE rr.WorkItemId = {alias}.Id AND rr.IsDeleted = 0 AND rr.Date >= @from AND rr.Date <= @to))))";
@@ -489,9 +511,12 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>日ごとの記録を書き、その作業の累計を計算し直す</summary>
     /// <param name="record">書く記録</param>
-    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない</param>
+    /// <param name="onlyIfAbsent">true なら、同じ作業・日付の行が (論理削除も含めて)あるとき、何も書かない。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>書いた記録と累計。何も書かなかったときは null</returns>
+    /// <returns>
+    /// 書いた記録と累計
+    /// 何も書かなかったときは null
+    /// </returns>
     private async Task<WorkRecordResult?> WriteRecordAsync(WorkRecord record, bool onlyIfAbsent, CancellationToken cancellationToken)
     {
         var user = RequireUser();
@@ -616,24 +641,33 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
 
     /// <summary>ユーザーを特定していることを確かめる</summary>
     /// <returns>今のユーザーの番号</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない。ログインが必要。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない
+    /// ログインが必要
+    /// </exception>
     private int RequireUser()
         => currentUser.User?.Id ?? throw new DataFileException("ユーザーが特定されていないため、作業管理を使えません。ログインが必要です。", new InvalidOperationException("今のユーザーが特定されていません。"));
 
-    /// <summary>接続を開いて、処理を実行する</summary>
+    /// <summary>接続を開いて処理を実行する</summary>
     /// <typeparam name="T">処理の結果の型</typeparam>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の結果</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・実行中に失敗した
+    /// メッセージは画面に出せる
+    /// </exception>
     private Task<T> RunAsync<T>(Func<SqlConnection, Task<T>> work, CancellationToken cancellationToken)
         => database.RunAsync(work, cancellationToken);
 
-    /// <summary>接続を開いて、結果を返さない処理を実行する</summary>
+    /// <summary>接続を開いて結果を返さない処理を実行する</summary>
     /// <param name="work">開いた接続で行う処理</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>処理の完了を表すタスク</returns>
-    /// <exception cref="DataFileException">設定が足りない・接続できない・実行中に失敗した。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// 設定が足りない・接続できない・実行中に失敗した
+    /// メッセージは画面に出せる
+    /// </exception>
     private Task RunAsync(Func<SqlConnection, Task> work, CancellationToken cancellationToken)
         => database.RunAsync(work, cancellationToken);
 
@@ -641,7 +675,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="work">開いた接続・トランザクション・今のユーザーの番号で行う書き込み</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの完了を表すタスク</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     private Task WriteAsync(Func<SqlConnection, SqlTransaction, int, Task> work, CancellationToken cancellationToken)
         => RunAsync(async connection =>
         {
@@ -651,12 +688,12 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 
-    /// <summary>1 つの表の、変えた列だけを更新する</summary>
+    /// <summary>1 つの表の変えた列だけを更新する</summary>
     /// <param name="table">表の名前 (<c>dbo</c> なし)</param>
     /// <param name="id">行の番号</param>
     /// <param name="changes">変えた列</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新の完了を表すタスク (変えた列が無ければ、何も書かない)</returns>
+    /// <returns>更新の完了を表すタスク (変えた列が無ければ、何も書かない)。</returns>
     private Task UpdateColumnsAsync(string table, int id, ColumnChanges changes, CancellationToken cancellationToken)
     {
         if (changes.IsEmpty)
@@ -674,14 +711,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             cancellationToken);
     }
 
-    /// <summary>行の位置 (案件・親・並び)を書く</summary>
+    /// <summary>行の位置を書く</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション</param>
     /// <param name="user">今のユーザーの番号</param>
     /// <param name="positions">位置</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの完了を表すタスク</returns>
-    /// <remarks>作業の案件が変わるときは、その作業の記録の案件の番号も直す。</remarks>
+    /// <remarks>作業の案件が変わるときはその作業の記録の案件の番号も直す</remarks>
     private static async Task ApplyPositionsAsync(SqlConnection connection, SqlTransaction transaction, int user, IReadOnlyList<WorkPosition> positions, CancellationToken cancellationToken)
     {
         if (positions.Count == 0)
@@ -711,13 +748,16 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>案件の中身 (案件の行・グループ・作業)と、必要ならコードマスタを、1 回の往復で読む</summary>
+    /// <summary>案件の中身と必要ならコードマスタを 1 回の往復で読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="projectIds">案件の番号 (JSON の 1 つのパラメーターで渡す)</param>
-    /// <param name="exclude">その番号を除くか。表示しない案件を除いて読むとき true で、番号を指定して読むときは false</param>
+    /// <param name="exclude">
+    /// その番号を除くか。
+    /// 表示しない案件を除いて読むとき true で、番号を指定して読むときは false。
+    /// </param>
     /// <param name="withMaster">コードマスタも読むか</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときは、コードマスタは空)</returns>
+    /// <returns>読み込んだ内容 (<paramref name="withMaster"/> が false のときはコードマスタは空)</returns>
     private static async Task<WorkLoadResult> ReadContentAsync(SqlConnection connection, IReadOnlyCollection<int> projectIds, bool exclude, bool withMaster, CancellationToken cancellationToken)
     {
         (string, object)[] parameters = [("@projects", IdJson.From(projectIds)), ("@feature", WorkCodes.FeatureNo)];
@@ -740,15 +780,19 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return new WorkLoadResult(projects, groups, items, codes);
     }
 
-    /// <summary>案件の番号が、パラメーター <c>@projects</c> (JSON の配列)に、含まれる (または含まれない)という条件</summary>
+    /// <summary>案件の番号がパラメーター @projectsに含まれるという条件</summary>
     /// <param name="alias">表の別名</param>
     /// <param name="column">案件の番号の列</param>
-    /// <param name="exclude">含まれないものに絞るか。表示しない案件を除くとき true で、番号を指定して読むときは false</param>
+    /// <param name="exclude">
+    /// 含まれないものに絞るか。
+    /// 表示しない案件を除くとき true で、番号を指定して読むときは false。
+    /// </param>
     /// <returns>条件の SQL</returns>
+    /// <remarks>または含まれない</remarks>
     private static string ProjectFilter(string alias, string column, bool exclude)
         => $"{alias}.{column} {(exclude ? "NOT IN" : "IN")} (SELECT ProjectId FROM OPENJSON(@projects) WITH (ProjectId int '$'))";
 
-    /// <summary>共通ヘッダー (番号・論理削除・作成と更新の日時と人)の列の並び</summary>
+    /// <summary>共通ヘッダーの列の並び</summary>
     /// <param name="alias">表の別名</param>
     /// <returns>列の並び (6 列)</returns>
     private static string Header(string alias)
@@ -760,7 +804,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     private static string ItemColumns(string alias)
         => $"{alias}.ProjectId, {alias}.GroupId, {alias}.SortOrder, {alias}.Name, {alias}.AssigneeUserId, {alias}.PriorityCodeNo, {alias}.StartDate, {alias}.DueDate, {alias}.CompletedDate, {alias}.PlannedHours, {alias}.ActualTotalHours, {alias}.Link, {alias}.ReportExclusion, {alias}.StatusCodeNo, {alias}.ProgressCodeNo, {alias}.Note, {alias}.AutoHours, {alias}.AutoWeekdays";
 
-    /// <summary>案件の行を読む (共通ヘッダー 6 列のあとに、名前・備考)</summary>
+    /// <summary>案件の行を読む</summary>
     /// <param name="r">読み取り中の結果</param>
     /// <returns>行</returns>
     private static WorkProjectRow ReadProject(SqlDataReader r) => new()
@@ -860,7 +904,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         Note = r.GetString(8),
     };
 
-    /// <summary>検索語の中の、<c>LIKE</c> の特別な文字を、そのままの文字として扱うようにする</summary>
+    /// <summary>検索語の中の LIKE の特別な文字をそのままの文字として扱うようにする</summary>
     /// <param name="query">検索語</param>
     /// <returns><c>\</c> で逃がした検索語</returns>
     private static string EscapeLike(string query)
@@ -871,7 +915,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="transaction">トランザクション (使わないなら null)</param>
     /// <param name="sql">SQL (値はパラメーターで渡す)</param>
     /// <param name="parameters">パラメーターの名前 (<c>@</c> つき)と値</param>
-    /// <returns>コマンド。呼ぶ側が破棄する</returns>
+    /// <returns>
+    /// コマンド
+    /// 呼ぶ側が破棄する
+    /// </returns>
     private static SqlCommand Command(SqlConnection connection, SqlTransaction? transaction, string sql, (string Name, object Value)[] parameters)
     {
         var command = connection.CreateCommand();
@@ -896,7 +943,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return command;
     }
 
-    /// <summary>検索の結果を、すべて読む</summary>
+    /// <summary>検索の結果をすべて読む</summary>
     /// <typeparam name="T">1 行を変換した型</typeparam>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション (使わないなら null)</param>
@@ -923,13 +970,14 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         return list;
     }
 
-    /// <summary>複数の <c>SELECT</c> を 1 つのコマンドで送り、結果を順に読む (1 回の往復で受け取る)</summary>
+    /// <summary>複数の SELECT を 1 つのコマンドで送り、結果を順に読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="transaction">トランザクション (使わないなら null)</param>
-    /// <param name="queries"><c>SELECT</c> と、その 1 行を受け取る処理の並び (結果は、この順に届く)</param>
+    /// <param name="queries"><c>SELECT</c> と、その 1 行を受け取る処理の並び (結果はこの順に届く)。</param>
     /// <param name="parameters">パラメーター (すべての <c>SELECT</c> で共有する)</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み込みの完了を表すタスク</returns>
+    /// <remarks>1 回の往復で受け取る</remarks>
     private static async Task QueryBatchAsync(
         SqlConnection connection,
         SqlTransaction? transaction,
@@ -958,7 +1006,10 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
     /// <param name="sql">SQL</param>
     /// <param name="parameters">パラメーター</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>1 行 1 列目の値。行が無ければ null</returns>
+    /// <returns>
+    /// 1 行 1 列目の値
+    /// 行が無ければ null
+    /// </returns>
     private static async Task<object?> ScalarAsync(SqlConnection connection, SqlTransaction? transaction, string sql, (string, object)[] parameters, CancellationToken cancellationToken)
     {
         await using var command = Command(connection, transaction, sql, parameters);
@@ -997,7 +1048,7 @@ public sealed class SqlServerWorkItemRepository(SqlServerDatabase database, Curr
         /// <summary>パラメーター</summary>
         public IEnumerable<(string, object)> Parameters => _parameters;
 
-        /// <summary>値が違うときだけ、列を足す</summary>
+        /// <summary>値が違うときだけ列を足す</summary>
         /// <param name="column">列の名前</param>
         /// <param name="before">更新前の値</param>
         /// <param name="after">更新後の値</param>

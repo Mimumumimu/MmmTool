@@ -7,14 +7,16 @@ using MmmTool.Messages.Core;
 
 namespace MmmTool.Messages.Cache;
 
-/// <summary>
-/// メッセージの、端末の控え。<c>Cache/MessageCache.db</c> の SQLite に、JSON の文書として置く。
-/// </summary>
+/// <summary>メッセージの端末の控え</summary>
 /// <remarks>
-/// サーバーが唯一の正で、控えは、いつでも作り直せる。消しても作り直される置き場 (<c>Cache</c>)に置く。
-/// 控えが読めない・書けないときは、控えなしで動く。エラーにしない。
+/// Cache/MessageCache.db の SQLite に JSON の文書として置く。
+/// サーバーが唯一の正で、控えはいつでも作り直せる。
+/// 消しても作り直される置き場 (<c>Cache</c>)に置く。
+/// 控えが読めない・書けないときは控えなしで動く。
+/// エラーにしない。
 /// 人の一覧と、会話ごとのメッセージ (新しい順の <see cref="MessageSync.CacheCountPerConversation"/> 件まで)を、ログインした人ごとに分けて持つ。
-/// 全部をメモリに読み込まない。会話を開いたときに、その会話の分だけ読む。
+/// 全部をメモリに読み込まない。
+/// 会話を開いたときにその会話の分だけ読む。
 /// </remarks>
 public sealed class MessageCacheStore : IDisposable
 {
@@ -27,14 +29,18 @@ public sealed class MessageCacheStore : IDisposable
     /// <summary>会話の文書の名前の先頭</summary>
     private const string ConversationKeyPrefix = "c.";
 
-    /// <summary>あるべき形。文書を 1 行ずつ置く表</summary>
+    /// <summary>あるべき形</summary>
+    /// <remarks>文書を 1 行ずつ置く表</remarks>
     private const string Schema = "CREATE TABLE IF NOT EXISTS Entry (Key TEXT NOT NULL PRIMARY KEY, Json TEXT NOT NULL);";
 
     /// <summary>控えの SQLite</summary>
     private readonly SqliteDatabase _database;
 
     /// <summary>控えを作る</summary>
-    /// <param name="environment">アプリの置き場。<c>Cache</c> のフォルダーを使う</param>
+    /// <param name="environment">
+    /// アプリの置き場
+    /// <c>Cache</c> のフォルダーを使う
+    /// </param>
     public MessageCacheStore(AppEnvironment environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
@@ -47,9 +53,15 @@ public sealed class MessageCacheStore : IDisposable
     }
 
     /// <summary>人の一覧の控えを読む</summary>
-    /// <param name="userId">いまの人の番号。ほかの人の控えは、読まない</param>
+    /// <param name="userId">
+    /// いまの人の番号
+    /// ほかの人の控えは読まない
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>控え。無い・別の人の控え・古い形の控え・読めないときは null</returns>
+    /// <returns>
+    /// 控え
+    /// 無い・別の人の控え・古い形の控え・読めないときは null
+    /// </returns>
     public async Task<CachedConversationList?> ReadListAsync(int userId, CancellationToken cancellationToken = default)
     {
         var json = await ReadAsync(ListKey, cancellationToken).ConfigureAwait(false);
@@ -60,7 +72,10 @@ public sealed class MessageCacheStore : IDisposable
     /// <summary>人の一覧の控えを書く</summary>
     /// <param name="cached">書く内容</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>書いたことを表すタスク。書けなくても、エラーにしない</returns>
+    /// <returns>
+    /// 書いたことを表すタスク。
+    /// 書けなくても、エラーにしない。
+    /// </returns>
     public Task WriteListAsync(CachedConversationList cached, CancellationToken cancellationToken = default)
         => WriteAsync(ListKey, JsonSerializer.Serialize(cached, MessageCacheJsonContext.Default.CachedConversationList), cancellationToken);
 
@@ -68,7 +83,11 @@ public sealed class MessageCacheStore : IDisposable
     /// <param name="userId">いまの人の番号</param>
     /// <param name="conversationId">会話の番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>メッセージ。古いものが先。無い・別の人の控え・読めないときは空</returns>
+    /// <returns>
+    /// メッセージ
+    /// 古いものが先
+    /// 無い・別の人の控え・読めないときは空
+    /// </returns>
     public async Task<IReadOnlyList<ChatMessage>> ReadMessagesAsync(int userId, int conversationId, CancellationToken cancellationToken = default)
     {
         var json = await ReadAsync(ConversationKeyPrefix + conversationId, cancellationToken).ConfigureAwait(false);
@@ -76,12 +95,19 @@ public sealed class MessageCacheStore : IDisposable
         return cached is not null && cached.UserId == userId ? cached.Messages : [];
     }
 
-    /// <summary>会話の控えを書く。新しいほうから、上限の件数までを残す</summary>
+    /// <summary>会話の控えを書く</summary>
     /// <param name="userId">いまの人の番号</param>
     /// <param name="conversationId">会話の番号</param>
-    /// <param name="messages">いま見えているメッセージ。古いものが先</param>
+    /// <param name="messages">
+    /// いま見えているメッセージ
+    /// 古いものが先
+    /// </param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>書いたことを表すタスク。書けなくても、エラーにしない</returns>
+    /// <returns>
+    /// 書いたことを表すタスク。
+    /// 書けなくても、エラーにしない。
+    /// </returns>
+    /// <remarks>新しいほうから、上限の件数までを残す。</remarks>
     public Task WriteMessagesAsync(int userId, int conversationId, IReadOnlyList<ChatMessage> messages, CancellationToken cancellationToken = default)
     {
         var recent = messages.Count > MessageSync.CacheCountPerConversation ? messages.Skip(messages.Count - MessageSync.CacheCountPerConversation).ToList() : messages;
@@ -91,9 +117,13 @@ public sealed class MessageCacheStore : IDisposable
             cancellationToken);
     }
 
-    /// <summary>控えを全部捨てる。ログインした人が替わったときに呼ぶ</summary>
+    /// <summary>控えを全部捨てる</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>捨てたことを表すタスク。捨てられなくても、エラーにしない</returns>
+    /// <returns>
+    /// 捨てたことを表すタスク。
+    /// 捨てられなくても、エラーにしない。
+    /// </returns>
+    /// <remarks>ログインした人が替わったときに呼ぶ</remarks>
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -121,7 +151,10 @@ public sealed class MessageCacheStore : IDisposable
     /// <summary>文書を 1 つ読む</summary>
     /// <param name="key">文書の名前</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>JSON の文字。無い・読めないときは null</returns>
+    /// <returns>
+    /// JSON の文字
+    /// 無い・読めないときは null
+    /// </returns>
     private async Task<string?> ReadAsync(string key, CancellationToken cancellationToken)
     {
         try
@@ -140,11 +173,15 @@ public sealed class MessageCacheStore : IDisposable
         }
     }
 
-    /// <summary>文書を 1 つ書く。あれば置き換える</summary>
+    /// <summary>文書を 1 つ書く</summary>
     /// <param name="key">文書の名前</param>
     /// <param name="json">JSON の文字</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>書いたことを表すタスク。書けなくても、エラーにしない</returns>
+    /// <returns>
+    /// 書いたことを表すタスク。
+    /// 書けなくても、エラーにしない。
+    /// </returns>
+    /// <remarks>あれば置き換える</remarks>
     private async Task WriteAsync(string key, string json, CancellationToken cancellationToken)
     {
         try
@@ -165,11 +202,17 @@ public sealed class MessageCacheStore : IDisposable
         }
     }
 
-    /// <summary>JSON の文字を、型にする</summary>
+    /// <summary>JSON の文字を型にする</summary>
     /// <typeparam name="T">型</typeparam>
-    /// <param name="json">JSON の文字。null なら null を返す</param>
-    /// <param name="typeInfo">型の、ソース生成の情報</param>
-    /// <returns>型にした値。読めないときは null</returns>
+    /// <param name="json">
+    /// JSON の文字
+    /// null なら null を返す
+    /// </param>
+    /// <param name="typeInfo">型の、ソース生成の情報。</param>
+    /// <returns>
+    /// 型にした値
+    /// 読めないときは null
+    /// </returns>
     private static T? Deserialize<T>(string? json, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo)
         where T : class
     {
@@ -188,8 +231,9 @@ public sealed class MessageCacheStore : IDisposable
         }
     }
 
-    /// <summary>控えの読み書きの失敗か。ファイルの失敗と、SQLite の失敗を、控えなしで続けられる失敗として扱う</summary>
+    /// <summary>控えの読み書きの失敗か</summary>
     /// <param name="ex">例外</param>
     /// <returns>控えなしで続けてよいとき true</returns>
+    /// <remarks>ファイルの失敗と SQLite の失敗を控えなしで続けられる失敗として扱う</remarks>
     private static bool IsCacheFailure(Exception ex) => ex is DataFileException or SqliteException or IOException or UnauthorizedAccessException;
 }

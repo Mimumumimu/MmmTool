@@ -22,15 +22,21 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
         RootItems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoItems));
     }
 
-    /// <summary>グループが別のグループの中へ入った (ドロップで)</summary>
-    /// <remarks>ドロップの処理の途中で呼ばれる。画面は、処理が終わってから <see cref="MoveNestedGroupsOut"/> を呼ぶ。</remarks>
+    /// <summary>グループが別のグループの中へ入った</summary>
+    /// <remarks>
+    /// ドロップの処理の途中で呼ばれる
+    /// 画面は処理が終わってから <see cref="MoveNestedGroupsOut"/> を呼ぶ
+    /// </remarks>
     public event EventHandler? GroupNested;
 
     /// <summary>追加した項目の入力欄へフォーカスを移してほしい</summary>
     public event EventHandler? EditRequested;
 
-    /// <summary>編集中の一覧 (保存するまで、サービスには反映しない)</summary>
-    /// <remarks>文とグループが並び、グループは中に文を持つ。</remarks>
+    /// <summary>編集中の一覧</summary>
+    /// <remarks>
+    /// 保存するまで、サービスには反映しない。
+    /// 文とグループが並び、グループは中に文を持つ。
+    /// </remarks>
     public ObservableCollection<QuickMessageEditItem> RootItems { get; } = [];
 
     /// <summary>一覧で選ばれている項目</summary>
@@ -42,10 +48,10 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     /// <summary>項目が選ばれているか</summary>
     public bool HasSelection => SelectedItem is not null;
 
-    /// <summary>グループが選ばれているか (右にグループ名の入力欄を出す条件)</summary>
+    /// <summary>グループが選ばれているか</summary>
     public bool IsGroupSelected => SelectedItem is { IsGroup: true };
 
-    /// <summary>文が選ばれているか (右に表示名と文の入力欄を出す条件)</summary>
+    /// <summary>文が選ばれているか</summary>
     public bool IsMessageSelected => SelectedItem is { IsGroup: false };
 
     /// <summary>一覧が空か</summary>
@@ -69,7 +75,8 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     /// <summary>文を追加して選ぶ</summary>
     /// <remarks>
     /// 選びがグループなら、その中の末尾に入れる。
-    /// 文なら、同じ場所の直後に入れる。未選択なら、一覧の末尾に入れる。
+    /// 文なら、同じ場所の直後に入れる。
+    /// 未選択なら、一覧の末尾に入れる。
     /// </remarks>
     [RelayCommand]
     private void AddMessage()
@@ -91,7 +98,11 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     }
 
     /// <summary>グループを追加して選ぶ</summary>
-    /// <remarks>グループは一覧の直下だけに置く。選びがグループ、または、グループの中の文なら、そのグループの直後に入れる。未選択なら、一覧の末尾に入れる。</remarks>
+    /// <remarks>
+    /// グループは一覧の直下だけに置く。
+    /// 選びがグループまたはグループの中の文なら、そのグループの直後に入れる。
+    /// 未選択なら、一覧の末尾に入れる。
+    /// </remarks>
     [RelayCommand]
     private void AddGroup()
     {
@@ -100,8 +111,13 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
         Select(item);
     }
 
-    /// <summary>選ばれている項目を削除する (隣の項目を選ぶ)</summary>
-    /// <remarks>グループは、中の文もまとめて削除する。確認は出さない。保存するまでは、「キャンセル」で元に戻せるため。</remarks>
+    /// <summary>選ばれている項目を削除する</summary>
+    /// <remarks>
+    /// 隣の項目を選ぶ
+    /// グループは中の文もまとめて削除する
+    /// 確認は出さない
+    /// 保存するまでは「キャンセル」で元に戻せるため
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void Remove()
     {
@@ -118,10 +134,11 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
             : owner ?? RootItems.FirstOrDefault();
     }
 
-    /// <summary>別のグループの中にあるグループを、一覧の直下へ出す</summary>
+    /// <summary>別のグループの中にあるグループを一覧の直下へ出す</summary>
     /// <remarks>
-    /// グループの中にグループは入れないので、ドロップで入ったときは、入った先のグループの直後へ出す。
-    /// ドロップの処理が終わってから呼ぶ。処理の途中で一覧を変えると、一覧が壊れるため。
+    /// グループの中にグループは入れないので、ドロップで入ったときは入った先のグループの直後へ出す。
+    /// ドロップの処理が終わってから呼ぶ。
+    /// 処理の途中で一覧を変えると一覧が壊れるため。
     /// </remarks>
     public void MoveNestedGroupsOut()
     {
@@ -137,7 +154,10 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     }
 
     /// <summary>入力を調べて保存する</summary>
-    /// <returns>保存できたら true で、ウィンドウを閉じてよい。名前や文が空の項目がある・保存に失敗したときは false</returns>
+    /// <returns>
+    /// 保存できたら true で、ウィンドウを閉じてよい。
+    /// 名前や文が空の項目がある・保存に失敗したときは false。
+    /// </returns>
     public async Task<bool> SaveAsync()
     {
         if (FindInvalid() is { } found)
@@ -159,8 +179,11 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>名前が空のグループ・文が空の文を、表示の順に探す</summary>
-    /// <returns>最初に見つけた項目とエラーの文。無ければ null</returns>
+    /// <summary>名前が空のグループ・文が空の文を表示の順に探す</summary>
+    /// <returns>
+    /// 最初に見つけた項目とエラーの文
+    /// 無ければ null
+    /// </returns>
     private (QuickMessageEditItem Item, string Message)? FindInvalid()
     {
         foreach (var item in EnumerateInOrder())
@@ -177,8 +200,8 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
         return null;
     }
 
-    /// <summary>画面に出る順に、グループとその中の文を並べる</summary>
-    /// <returns>グループの直後に、その中の文が続く並び</returns>
+    /// <summary>画面に出る順にグループとその中の文を並べる</summary>
+    /// <returns>グループの直後に、その中の文が続く並び。</returns>
     private IEnumerable<QuickMessageEditItem> EnumerateInOrder()
     {
         foreach (var item in RootItems)
@@ -192,8 +215,11 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     }
 
     /// <summary>グループを一覧に入れ、グループの中にグループが入らないよう見張る</summary>
-    /// <param name="group">入れる項目 (グループでなければ、そのまま末尾に入れる)</param>
-    /// <param name="insertAfter">この項目の直後に入れる。null なら末尾</param>
+    /// <param name="group">入れる項目 (グループでなければ、そのまま末尾に入れる)。</param>
+    /// <param name="insertAfter">
+    /// この項目の直後に入れる
+    /// null なら末尾
+    /// </param>
     /// <returns>入れた項目</returns>
     private QuickMessageEditItem Watch(QuickMessageEditItem group, QuickMessageEditItem? insertAfter = null)
     {
@@ -227,7 +253,7 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
     /// <summary>項目を選び、入力欄へのフォーカスを求める</summary>
     /// <param name="item">選ぶ項目</param>
     /// <param name="requestEdit">入力欄へのフォーカスを求めるか</param>
-    /// <remarks>閉じたグループの中の項目は、グループを開いてから選ぶ。</remarks>
+    /// <remarks>閉じたグループの中の項目はグループを開いてから選ぶ</remarks>
     private void Select(QuickMessageEditItem item, bool requestEdit = true)
     {
         if (FindGroupOf(item) is { } group)
@@ -241,16 +267,22 @@ public sealed partial class QuickMessageWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>項目が入っているコレクション (一覧の直下または、グループの中)を探す</summary>
+    /// <summary>項目が入っているコレクションを探す</summary>
     /// <param name="item">探す項目</param>
-    /// <returns>項目が入っているコレクション。見つからなければ null</returns>
-    /// <remarks>ドロップで動かしたあとも、その時点の構造から探す。</remarks>
+    /// <returns>
+    /// 項目が入っているコレクション
+    /// 見つからなければ null
+    /// </returns>
+    /// <remarks>ドロップで動かしたあともその時点の構造から探す</remarks>
     private ObservableCollection<QuickMessageEditItem>? FindParentCollection(QuickMessageEditItem item)
         => RootItems.Contains(item) ? RootItems : FindGroupOf(item)?.Children;
 
     /// <summary>文が入っているグループを探す</summary>
     /// <param name="item">探す項目 (null のこともある)</param>
-    /// <returns>項目が中に入っているグループ。一覧の直下にある・グループそのもの・null なら null</returns>
+    /// <returns>
+    /// 項目が中に入っているグループ
+    /// 一覧の直下にある・グループそのもの・null なら null
+    /// </returns>
     private QuickMessageEditItem? FindGroupOf(QuickMessageEditItem? item)
         => item is null ? null : RootItems.FirstOrDefault(group => group.Children?.Contains(item) == true);
 }

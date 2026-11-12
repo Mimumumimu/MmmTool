@@ -12,37 +12,39 @@ using MmmToolWeb.Server.Hosting;
 
 namespace MmmToolWeb.Server.Auth;
 
-/// <summary>
-/// ログインに関する API (<c>/api/auth</c>)の登録。
-/// </summary>
+/// <summary>ログインに関する APIの登録</summary>
 internal static class AuthEndpoints
 {
-    /// <summary>ログインに関する API の、道の先頭。</summary>
+    /// <summary>ログインに関する API の道の先頭</summary>
     public const string BasePath = "/api/auth";
 
-    /// <summary>パスキーの登録の API の、道の先頭。</summary>
+    /// <summary>パスキーの登録の API の道の先頭</summary>
     public const string EnrollPath = BasePath + "/enroll";
 
-    /// <summary>登録・ログインの口にかける、接続元ごとの回数制限の名前。</summary>
+    /// <summary>登録・ログインの口にかける接続元ごとの回数制限の名前</summary>
     public const string RateLimitPolicy = "auth";
 
-    /// <summary>ログインした日時を入れる値の名前で、UTC の ISO 8601。</summary>
+    /// <summary>ログインした日時を入れる値の名前でUTC の ISO 8601</summary>
     private const string SignedInAtClaim = "signed_in_at";
 
-    /// <summary>ログインの世代の番号を入れる値の名前。管理者が番号を上げると、前の番号のログインは無効になる。</summary>
+    /// <summary>ログインの世代の番号を入れる値の名前</summary>
+    /// <remarks>管理者が番号を上げると前の番号のログインは無効になる</remarks>
     public const string SessionVersionClaim = "session_version";
 
-    /// <summary>世代の番号を持たないログイン (番号を入れる前に発行したもの)を、扱う番号。行が無い人の番号と同じ。</summary>
+    /// <summary>世代の番号を持たないログインを扱う番号</summary>
+    /// <remarks>
+    /// 番号を入れる前に発行したもの
+    /// 行が無い人の番号と同じ
+    /// </remarks>
     public const int DefaultSessionVersion = 1;
 
-    /// <summary>ログイン状態を覚えておく日数。使うたびに延びる。</summary>
+    /// <summary>ログイン状態を覚えておく日数</summary>
+    /// <remarks>使うたびに延びる</remarks>
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(90);
 
-    /// <summary>
-    /// ログインの API を登録する。
-    /// </summary>
-    /// <param name="app">API を登録する先。</param>
-    /// <returns>続けて呼ぶための <paramref name="app"/>。</returns>
+    /// <summary>ログインの API を登録する</summary>
+    /// <param name="app">API を登録する先</param>
+    /// <returns>続けて呼ぶための <paramref name="app"/></returns>
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(BasePath);
@@ -57,21 +59,17 @@ internal static class AuthEndpoints
         return app;
     }
 
-    /// <summary>
-    /// ログイン中のユーザーの情報を返す。
-    /// </summary>
-    /// <param name="user">ログイン中のユーザー。</param>
-    /// <returns>ユーザーの情報。</returns>
+    /// <summary>ログイン中のユーザーの情報を返す</summary>
+    /// <param name="user">ログイン中のユーザー</param>
+    /// <returns>ユーザーの情報</returns>
     private static IResult GetMe(ClaimsPrincipal user)
     {
         var signedInAt = DateTimeOffset.TryParse(user.FindFirstValue(SignedInAtClaim), out var at) ? at : DateTimeOffset.UtcNow;
         return Results.Ok(new MeResponse(user.Identity?.Name ?? string.Empty, signedInAt));
     }
 
-    /// <summary>
-    /// ログイン状態を捨てる。
-    /// </summary>
-    /// <param name="context">今の要求。</param>
+    /// <summary>ログイン状態を捨てる</summary>
+    /// <param name="context">今の要求</param>
     /// <returns>ログアウトの完了を表すタスクで、応答は常に 204。</returns>
     private static async Task Logout(HttpContext context)
     {
@@ -79,15 +77,16 @@ internal static class AuthEndpoints
         context.Response.StatusCode = StatusCodes.Status204NoContent;
     }
 
-    /// <summary>
-    /// 登録用コードを確かめて、パスキーの登録を始める。
-    /// </summary>
-    /// <param name="request">要求の内容。</param>
-    /// <param name="codes">登録用コードの確認。</param>
-    /// <param name="users">ログインできる人の検索。</param>
-    /// <param name="passkeys">パスキーの手続き。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>ブラウザに渡す選択肢。コードが違う・持ち主が使えない状態のときは 403。</returns>
+    /// <summary>登録用コードを確かめてパスキーの登録を始める</summary>
+    /// <param name="request">要求の内容</param>
+    /// <param name="codes">登録用コードの確認</param>
+    /// <param name="users">ログインできる人の検索</param>
+    /// <param name="passkeys">パスキーの手続き</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// ブラウザに渡す選択肢
+    /// コードが違う・持ち主が使えない状態のときは 403
+    /// </returns>
     private static async Task<IResult> EnrollStart(
         EnrollStartRequest request, EnrollmentCodeService codes, WebUserLookup users, PasskeyService passkeys,
         CancellationToken cancellationToken)
@@ -103,16 +102,17 @@ internal static class AuthEndpoints
         return Results.Ok(ToResponse(start));
     }
 
-    /// <summary>
-    /// 登録用コードを使い終わりにして、パスキーの登録を完了し、ログインさせる。
-    /// </summary>
-    /// <param name="request">要求の内容。</param>
-    /// <param name="context">今の要求。</param>
-    /// <param name="codes">登録用コードの確認。</param>
-    /// <param name="users">ログインできる人の検索。</param>
-    /// <param name="passkeys">パスキーの手続き。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 204。コードが違うときは 403、検証に失敗したときは 400。</returns>
+    /// <summary>登録用コードを使い終わりにして、パスキーの登録を完了し、ログインさせる</summary>
+    /// <param name="request">要求の内容</param>
+    /// <param name="context">今の要求</param>
+    /// <param name="codes">登録用コードの確認</param>
+    /// <param name="users">ログインできる人の検索</param>
+    /// <param name="passkeys">パスキーの手続き</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 204。
+    /// コードが違うときは 403、検証に失敗したときは 400。
+    /// </returns>
     private static async Task<IResult> EnrollFinish(
         EnrollFinishRequest request, HttpContext context, EnrollmentCodeService codes, WebUserLookup users,
         PasskeyService passkeys, CancellationToken cancellationToken)
@@ -144,22 +144,21 @@ internal static class AuthEndpoints
         return await SignInAsync(context, users, appUserId.Value, cancellationToken);
     }
 
-    /// <summary>
-    /// パスキーでのログインを始める。
-    /// </summary>
-    /// <param name="passkeys">パスキーの手続き。</param>
-    /// <returns>ブラウザに渡す選択肢。</returns>
+    /// <summary>パスキーでのログインを始める</summary>
+    /// <param name="passkeys">パスキーの手続き</param>
+    /// <returns>ブラウザに渡す選択肢</returns>
     private static IResult LoginStart(PasskeyService passkeys) => Results.Ok(ToResponse(passkeys.StartLogin()));
 
-    /// <summary>
-    /// パスキーでのログインを完了して、ログインさせる。
-    /// </summary>
-    /// <param name="request">要求の内容。</param>
-    /// <param name="context">今の要求。</param>
-    /// <param name="users">ログインできる人の検索。</param>
-    /// <param name="passkeys">パスキーの手続き。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>成功なら 204。失敗なら 401。</returns>
+    /// <summary>パスキーでのログインを完了してログインさせる</summary>
+    /// <param name="request">要求の内容</param>
+    /// <param name="context">今の要求</param>
+    /// <param name="users">ログインできる人の検索</param>
+    /// <param name="passkeys">パスキーの手続き</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 成功なら 204
+    /// 失敗なら 401
+    /// </returns>
     private static async Task<IResult> LoginFinish(
         LoginFinishRequest request, HttpContext context, WebUserLookup users, PasskeyService passkeys,
         CancellationToken cancellationToken)
@@ -185,28 +184,30 @@ internal static class AuthEndpoints
         return await SignInAsync(context, users, appUserId.Value, cancellationToken);
     }
 
-    /// <summary>
-    /// ログイン状態の Cookie を発行する。
-    /// </summary>
-    /// <param name="context">今の要求。</param>
-    /// <param name="users">ログインできる人の検索。</param>
-    /// <param name="appUserId">ログインした人のユーザーの番号。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>発行できたら 204。その人が今は使えない状態 (削除済み・使える期間の外)なら 401。</returns>
+    /// <summary>ログイン状態の Cookie を発行する</summary>
+    /// <param name="context">今の要求</param>
+    /// <param name="users">ログインできる人の検索</param>
+    /// <param name="appUserId">ログインした人のユーザーの番号</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 発行できたら 204
+    /// その人が今は使えない状態 (削除済み・使える期間の外)なら 401
+    /// </returns>
     private static async Task<IResult> SignInAsync(
         HttpContext context, WebUserLookup users, int appUserId, CancellationToken cancellationToken) =>
         await IssueSessionAsync(context, users, appUserId, cancellationToken) is null
             ? Results.Unauthorized()
             : Results.NoContent();
 
-    /// <summary>
-    /// ログイン状態の Cookie を発行し、その人のログイン状態を返す。
-    /// </summary>
-    /// <param name="context">今の要求。</param>
-    /// <param name="users">ログインできる人の検索。</param>
-    /// <param name="appUserId">ログインした人のユーザーの番号。</param>
-    /// <param name="cancellationToken">キャンセルの通知。</param>
-    /// <returns>発行したログイン状態。その人が今は使えない状態 (削除済み・使える期間の外)なら null。</returns>
+    /// <summary>ログイン状態の Cookie を発行し、その人のログイン状態を返す</summary>
+    /// <param name="context">今の要求</param>
+    /// <param name="users">ログインできる人の検索</param>
+    /// <param name="appUserId">ログインした人のユーザーの番号</param>
+    /// <param name="cancellationToken">キャンセルの通知</param>
+    /// <returns>
+    /// 発行したログイン状態
+    /// その人が今は使えない状態 (削除済み・使える期間の外)なら null
+    /// </returns>
     internal static async Task<ClaimsPrincipal?> IssueSessionAsync(
         HttpContext context, WebUserLookup users, int appUserId, CancellationToken cancellationToken)
     {
@@ -214,13 +215,17 @@ internal static class AuthEndpoints
         return user is null ? null : await IssueSessionAsync(context, user);
     }
 
-    /// <summary>
-    /// 読み済みの、使える状態のユーザーに、ログイン状態の Cookie を発行する。
-    /// </summary>
-    /// <param name="context">今の要求。</param>
-    /// <param name="user">ログインした人。今日使える状態であることを、呼ぶ側が確かめてある。</param>
-    /// <returns>発行したログイン状態。</returns>
-    /// <remarks>ユーザーを探したあとに呼ぶ。同じ人を、同じ要求の中でもう一度読まないため。</remarks>
+    /// <summary>読み済みの使える状態のユーザーにログイン状態の Cookie を発行する</summary>
+    /// <param name="context">今の要求</param>
+    /// <param name="user">
+    /// ログインした人。
+    /// 今日使える状態であることを、呼ぶ側が確かめてある。
+    /// </param>
+    /// <returns>発行したログイン状態</returns>
+    /// <remarks>
+    /// ユーザーを探したあとに呼ぶ
+    /// 同じ人を同じ要求の中でもう一度読まないため
+    /// </remarks>
     internal static async Task<ClaimsPrincipal> IssueSessionAsync(HttpContext context, AppUser user)
     {
         var now = DateTimeOffset.UtcNow;
@@ -244,11 +249,9 @@ internal static class AuthEndpoints
         return principal;
     }
 
-    /// <summary>
-    /// 手続きの開始の結果を、ブラウザに返す形にする。
-    /// </summary>
-    /// <param name="start">手続きの開始の結果。</param>
-    /// <returns>ブラウザに返す内容。</returns>
+    /// <summary>手続きの開始の結果をブラウザに返す形にする</summary>
+    /// <param name="start">手続きの開始の結果</param>
+    /// <returns>ブラウザに返す内容</returns>
     private static CeremonyStartResponse ToResponse(PasskeyStart start) =>
         new(start.CeremonyId, JsonDocument.Parse(start.OptionsJson).RootElement.Clone());
 }

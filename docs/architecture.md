@@ -297,6 +297,11 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - 原因は VS の「XAML 診断」(オプション → デバッグ → XAML 診断)で、オフにすると解消する
   - Ctrl+F5 や VS なしでは起きない
   - 開発時はオフにしておく
+- Git の改行は、リポジトリの中が LF、手元のファイルが CRLF
+  - 設定は、`core.autocrlf=true` と、`.gitattributes` の `* text=auto`
+  - `git ls-files --eol` で、`i/lf w/crlf` と出るのが正しい形
+  - 手元が LF (`w/lf`) のファイルは、WinMerge などの差分ツールで全行が変わったように見える。`.gitattributes` で `eol=lf` と決まっているファイルは、LF が正しい
+- Visual Studio の Git の画面で差分をダブルクリックしたときの差分ツールは、WinMerge に差し替えられない
 - 既定の定型コマンドを増やしても、生成済みの `Data/CliCommands.json` には反映されない ([specs/cli-assist.md](specs/cli-assist.md) の「定型コマンド」)
 
 ## DB のコードの置き場所

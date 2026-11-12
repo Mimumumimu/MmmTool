@@ -3,17 +3,17 @@ using MmmSdk.Core.Components.Settings;
 
 namespace MmmTool.Data.Connection;
 
-/// <summary>
-/// DB への接続の設定。パスワードは秘密の保管庫、それ以外は汎用設定ストアに保存・取得する。
-/// </summary>
+/// <summary>DB への接続の設定</summary>
 /// <remarks>
-/// 設定のキーは <c>Database.</c> で始める。キーは <c>Mode</c>・<c>Server</c>・<c>Name</c>・<c>Authentication</c>・<c>UserName</c>・<c>TrustServerCertificate</c>。
+/// パスワードは秘密の保管庫、それ以外は汎用設定ストアに保存・取得する。
+/// 設定のキーは <c>Database.</c> で始める。
+/// キーは <c>Mode</c>・<c>Server</c>・<c>Name</c>・<c>Authentication</c>・<c>UserName</c>・<c>TrustServerCertificate</c>。
 /// 種類 (<see cref="DatabaseMode"/>・<see cref="DatabaseAuthentication"/>)は名前で保存し、手で直した値などで読めないときは既定値 (JSON・ユーザー名とパスワード)にする。
 /// </remarks>
 /// <param name="settings">汎用設定ストア</param>
 /// <param name="secrets">秘密の保管庫</param>
-/// <param name="defaults">アプリごとの、データベース名・ユーザー名の初期値と、パスワードの保存名</param>
-/// <param name="modeChangeHandlers">モード (ローカル・サーバー)が変わったときに、モードに依存するユーザー設定を初期化するもの</param>
+/// <param name="defaults">アプリごとの、データベース名・ユーザー名の初期値と、パスワードの保存名。</param>
+/// <param name="modeChangeHandlers">モード (ローカル・サーバー)が変わったときに、モードに依存するユーザー設定を初期化するもの。</param>
 public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStore secrets, DatabaseSettingsDefaults defaults, IEnumerable<IDatabaseModeChangeHandler> modeChangeHandlers)
 {
     private const string ModeKey = "Database.Mode";
@@ -23,15 +23,22 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     private const string UserNameKey = "Database.UserName";
     private const string TrustServerCertificateKey = "Database.TrustServerCertificate";
 
-    /// <summary>設定を保存できない状態か (設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている)</summary>
+    /// <summary>設定を保存できない状態か</summary>
+    /// <remarks>設定ファイルを読めなかったため、元のファイルを上書きしないよう保存を止めている。</remarks>
     public bool IsReadOnly => settings.IsReadOnly;
 
-    /// <summary>保存先の種類が、保存されているか</summary>
-    /// <remarks>false なら、まだ保存先を選んでいない。初回のとき。</remarks>
+    /// <summary>保存先の種類が保存されているか</summary>
+    /// <remarks>
+    /// false なら、まだ保存先を選んでいない。
+    /// 初回のとき。
+    /// </remarks>
     public bool IsModeSaved => settings.Contains(ModeKey);
 
     /// <summary>今の接続の設定を取得する</summary>
-    /// <returns>接続の設定。保存されていない項目は既定値 (データベース名とユーザー名は <c>MmmTool</c>)</returns>
+    /// <returns>
+    /// 接続の設定
+    /// 保存されていない項目は既定値 (データベース名とユーザー名は <c>MmmTool</c>)
+    /// </returns>
     public DatabaseSettings Load() => new()
     {
         Mode = GetEnum(ModeKey, DatabaseMode.Json),
@@ -45,8 +52,11 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     /// <summary>接続の設定を保存する</summary>
     /// <param name="value">保存する接続の設定</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>すべて保存したら true。設定を保存できない状態 (<see cref="IsReadOnly"/>)で保存しなかったら false</returns>
-    /// <remarks>モード (<see cref="DatabaseMode"/>)が変わったときは、<see cref="IDatabaseModeChangeHandler"/> を呼ぶ。</remarks>
+    /// <returns>
+    /// すべて保存したら true
+    /// 設定を保存できない状態 (<see cref="IsReadOnly"/>)で保存しなかったら false
+    /// </returns>
+    /// <remarks>モード (<see cref="DatabaseMode"/>)が変わったときは <see cref="IDatabaseModeChangeHandler"/> を呼ぶ</remarks>
     public async Task<bool> SaveAsync(DatabaseSettings value, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -76,13 +86,17 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
     }
 
     /// <summary>登録済みのパスワードを取得する</summary>
-    /// <returns>パスワード。登録が無ければ null</returns>
-    /// <exception cref="SecretStoreException">秘密の保管庫を読めなかった。</exception>
+    /// <returns>
+    /// パスワード
+    /// 登録が無ければ null
+    /// </returns>
+    /// <exception cref="SecretStoreException">秘密の保管庫を読めなかった</exception>
     public string? GetPassword() => secrets.Get(defaults.PasswordSecretName);
 
-    /// <summary>パスワードを登録する。空なら、登録を消す</summary>
+    /// <summary>パスワードを登録する</summary>
     /// <param name="password">登録するパスワード</param>
-    /// <exception cref="SecretStoreException">秘密の保管庫に書けなかった。</exception>
+    /// <remarks>空なら、登録を消す。</remarks>
+    /// <exception cref="SecretStoreException">秘密の保管庫に書けなかった</exception>
     public void SetPassword(string password)
     {
         if (string.IsNullOrEmpty(password))
@@ -95,11 +109,14 @@ public sealed class DatabaseSettingsService(ISettingsStore settings, ISecretStor
         }
     }
 
-    /// <summary>設定の名前から、種類を取得する</summary>
+    /// <summary>設定の名前から種類を取得する</summary>
     /// <typeparam name="T">種類の型</typeparam>
     /// <param name="key">設定のキー</param>
     /// <param name="defaultValue">値が無い・読めないときに返す種類</param>
-    /// <returns>保存されている種類。無い・名前が合わないときは既定の種類</returns>
+    /// <returns>
+    /// 保存されている種類
+    /// 無い・名前が合わないときは既定の種類
+    /// </returns>
     private T GetEnum<T>(string key, T defaultValue) where T : struct, Enum
         => Enum.TryParse<T>(settings.Get(key, ""), ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) ? parsed : defaultValue;
 }

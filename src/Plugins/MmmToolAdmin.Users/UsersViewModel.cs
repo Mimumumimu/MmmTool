@@ -11,9 +11,7 @@ using MmmToolWeb.Auth.Core.Enrollment;
 
 namespace MmmToolAdmin.Users;
 
-/// <summary>
-/// ユーザーのページの ViewModel。ユーザーの一覧を出し、選んだ人の登録用コードの発行・ログインの無効化・機能の利用の設定を行う。
-/// </summary>
+/// <summary>ユーザーのページの ViewModel</summary>
 /// <param name="users">ユーザーの保存先</param>
 /// <param name="lookup">今日使える状態のユーザーを探す</param>
 /// <param name="codes">登録用コードの発行</param>
@@ -22,6 +20,7 @@ namespace MmmToolAdmin.Users;
 /// <param name="dialogs">接続の設定の画面を開く</param>
 /// <param name="confirm">発行と無効化の前の確認ダイアログ</param>
 /// <param name="time">今日の日付を決める時計</param>
+/// <remarks>ユーザーの一覧を出し、選んだ人の登録用コードの発行・ログインの無効化・機能の利用の設定を行う。</remarks>
 public sealed partial class UsersViewModel(
     IAppUserRepository users,
     WebUserLookup lookup,
@@ -32,16 +31,18 @@ public sealed partial class UsersViewModel(
     IDialogService confirm,
     TimeProvider time) : DatabaseViewModelBase(dialogs)
 {
-    /// <summary>機能の利用を読み込む処理の世代。古い読み込みの結果で、新しい選択の表示を上書きしないための番号</summary>
+    /// <summary>機能の利用を読み込む処理の世代</summary>
+    /// <remarks>古い読み込みの結果で、新しい選択の表示を上書きしないための番号。</remarks>
     private int _featureVersion;
 
     /// <summary>ユーザーの一覧で、番号の順</summary>
     public ObservableCollection<UserItem> Items { get; } = [];
 
-    /// <summary>選んでいる人の、機能の利用の一覧。<see cref="ManagedFeatures.All"/> の並び</summary>
+    /// <summary>選んでいる人の機能の利用の一覧</summary>
+    /// <remarks>ManagedFeatures.All の並び</remarks>
     public ObservableCollection<FeatureAccessItem> FeatureItems { get; } = [];
 
-    /// <summary>一覧で選んでいるユーザー。無ければ null</summary>
+    /// <summary>一覧で選んでいるユーザー</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(IssueCodeCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevokeSessionsCommand))]
@@ -49,10 +50,12 @@ public sealed partial class UsersViewModel(
     [NotifyPropertyChangedFor(nameof(HasNoSelection))]
     public partial UserItem? Selected { get; set; }
 
-    /// <summary>ユーザーを選んでいるか。機能の利用の一覧を出す条件</summary>
+    /// <summary>ユーザーを選んでいるか</summary>
+    /// <remarks>機能の利用の一覧を出す条件</remarks>
     public bool HasSelection => Selected is not null;
 
-    /// <summary>ユーザーを選んでいないか。機能の利用の欄に、案内を出す条件</summary>
+    /// <summary>ユーザーを選んでいないか</summary>
+    /// <remarks>機能の利用の欄に案内を出す条件</remarks>
     public bool HasNoSelection => Selected is null;
 
     /// <summary>発行した登録用コードを出しているか</summary>
@@ -67,7 +70,7 @@ public sealed partial class UsersViewModel(
     [ObservableProperty]
     public partial string IssuedCode { get; private set; } = "";
 
-    /// <summary>発行した登録用コードの、期限と使い方の説明</summary>
+    /// <summary>発行した登録用コードの期限と使い方の説明</summary>
     [ObservableProperty]
     public partial string IssuedMessage { get; private set; } = "";
 
@@ -121,7 +124,10 @@ public sealed partial class UsersViewModel(
 
     /// <summary>選んだ人の登録用コードを発行する</summary>
     /// <returns>発行の完了を表すタスク</returns>
-    /// <remarks>前に出したコードは使えなくなる。使えるのは、今日使える状態のユーザーだけ。</remarks>
+    /// <remarks>
+    /// 前に出したコードは使えなくなる
+    /// 使えるのは今日使える状態のユーザーだけ
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(CanIssueCode))]
     private async Task IssueCodeAsync()
     {
@@ -165,9 +171,13 @@ public sealed partial class UsersViewModel(
         }
     }
 
-    /// <summary>選んだ人の、Web 版のログインを、すべての端末で無効にする</summary>
+    /// <summary>選んだ人の Web 版のログインをすべての端末で無効にする</summary>
     /// <returns>無効化の完了を表すタスク</returns>
-    /// <remarks>ログインの世代の番号を 1 上げる。前の番号の Cookie は、Web 版が次の API の呼び出しで断る。パスキーの登録は消えないので、本人は、もう一度ログインできる。</remarks>
+    /// <remarks>
+    /// ログインの世代の番号を 1 上げる。
+    /// 前の番号の Cookie は Web 版が次の API の呼び出しで断る。
+    /// パスキーの登録は消えないので、本人はもう一度ログインできる。
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task RevokeSessionsAsync()
     {
@@ -206,11 +216,17 @@ public sealed partial class UsersViewModel(
     private bool CanIssueCode() => Selected is { IsActive: true };
 
     /// <summary>ユーザーを選び直したら、その人の機能の利用を読み込む</summary>
-    /// <param name="value">選んだユーザー。選択が外れたときは null</param>
+    /// <param name="value">
+    /// 選んだユーザー
+    /// 選択が外れたときは null
+    /// </param>
     partial void OnSelectedChanged(UserItem? value) => LoadFeaturesAsync(value).Forget();
 
-    /// <summary>選んだ人の、機能の利用を読み込んで、一覧に入れる</summary>
-    /// <param name="user">選んだユーザー。null なら何もしない</param>
+    /// <summary>選んだ人の機能の利用を読み込んで、一覧に入れる</summary>
+    /// <param name="user">
+    /// 選んだユーザー
+    /// null なら何もしない
+    /// </param>
     /// <returns>読み込みの完了を表すタスク</returns>
     private async Task LoadFeaturesAsync(UserItem? user)
     {
@@ -253,10 +269,10 @@ public sealed partial class UsersViewModel(
         }
     }
 
-    /// <summary>選んだ人の、1 つの機能の状態を保存する</summary>
+    /// <summary>選んだ人の 1 つの機能の状態を保存する</summary>
     /// <param name="item">状態を選び直した行</param>
     /// <returns>保存の完了を表すタスク</returns>
-    /// <remarks>保存できなかったときは、エラーを出して、保存されている状態に読み直す。</remarks>
+    /// <remarks>保存できなかったときはエラーを出して、保存されている状態に読み直す。</remarks>
     private async Task SaveFeatureAsync(FeatureAccessItem item)
     {
         if (Selected is not { } user || item.Selected is null)

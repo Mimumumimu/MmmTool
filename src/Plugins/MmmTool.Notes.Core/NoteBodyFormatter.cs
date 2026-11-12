@@ -4,31 +4,34 @@ using MmmSdk.Core.Components.TextLinks;
 
 namespace MmmTool.Notes.Core;
 
-/// <summary>
-/// ノートの本文を、許可したタグだけを、アプリが決まった形で組み立て直して、HTML にする。
-/// </summary>
+/// <summary>ノートの本文を許可したタグだけをアプリが決まった形で組み立て直して、HTML にする</summary>
 /// <remarks>
 /// <para>
-/// 取り除く方式ではなく、組み立て直す方式。本文の文字は、すべて HTML の文字 (<c>&amp;</c> <c>&lt;</c> など)に直して出し、
-/// 許可したタグ (太字・斜体・下線・取消線・改行・箇条書き・パレットの色・リンク)に当たる部分だけを、アプリが決まった形の
-/// タグ (属性も、アプリが決めた形だけ)で出す。そのため、出力には、アプリが作ったタグしか入らない。
-/// 外部への接続の型を含むパッケージ (HTML の除去用の部品が使う AngleSharp など)は、MmmTool に入れない決まりのため、この方式にしている。
+/// 取り除く方式ではなく、組み立て直す方式。
+/// 本文の文字はすべて HTML の文字 (<c>&amp;</c> <c>&lt;</c> など)に直して出し、
+/// 許可したタグ (太字・斜体・下線・取消線・改行・箇条書き・パレットの色・リンク)に当たる部分だけをアプリが決まった形の。
+/// タグ (属性もアプリが決めた形だけ)で出す。
+/// そのため、出力にはアプリが作ったタグしか入らない。
+/// 外部への接続の型を含むパッケージ (HTML の除去用の部品が使う AngleSharp など)は MmmTool に入れない決まりのため、この方式にしている。
 /// </para>
 /// <para>
-/// 許可していないタグは、タグだけを取り除き、中の文字は残す。<c>script</c> と <c>style</c> は、中身ごと取り除く。
+/// 許可していないタグはタグだけを取り除き、中の文字は残す。
+/// <c>script</c> と <c>style</c> は中身ごと取り除く。
 /// 閉じていないタグは最後に閉じ、対応しない閉じタグは捨てる。
-/// 本文の <c>http://</c> と <c>https://</c> で始まる文字は、リンクにする。<c>&lt;a&gt;</c> の中は除く。
+/// 本文の <c>http://</c> と <c>https://</c> で始まる文字はリンクにする。
+/// <c>&lt;a&gt;</c> の中は除く。
 /// </para>
 /// </remarks>
 public sealed partial class NoteBodyFormatter : INoteBodyFormatter
 {
-    /// <summary>中身ごと取り除くブロック (<c>script</c>・<c>style</c>)</summary>
+    /// <summary>中身ごと取り除くブロック</summary>
     /// <returns>正規表現</returns>
     [GeneratedRegex(@"<(script|style)\b[^>]*>.*?</\1\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex DroppedBlockRegex();
 
-    /// <summary>タグの 1 つ。許可するものは名前つきのグループで見分け、それ以外のタグ (最後の候補)は取り除く</summary>
+    /// <summary>タグの 1 つ</summary>
     /// <returns>正規表現</returns>
+    /// <remarks>許可するものは名前つきのグループで見分け、それ以外のタグは取り除く。</remarks>
     [GeneratedRegex(
         @"(?<comment><!--.*?-->)"
         + @"|<(?<close>/?)(?<simple>strong|b|em|i|u|s|ul|ol|li)\s*>"
@@ -42,8 +45,9 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex TagRegex();
 
-    /// <summary>箇条書きのタグのすぐ前の改行 (タグの前後の改行で、空きが出ないように)</summary>
+    /// <summary>箇条書きのタグのすぐ前の改行</summary>
     /// <returns>正規表現</returns>
+    /// <remarks>タグの前後の改行で、空きが出ないように。</remarks>
     [GeneratedRegex(@"<br>(?=</?(?:ul|ol|li)>)")]
     private static partial Regex BreakBeforeListRegex();
 
@@ -52,26 +56,26 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
     [GeneratedRegex(@"(?<=</?(?:ul|ol|li)>)<br>")]
     private static partial Regex BreakAfterListRegex();
 
-    /// <summary>出力に出した、まだ閉じていないタグ</summary>
+    /// <summary>出力に出したまだ閉じていないタグ</summary>
     /// <param name="Name">タグの名前</param>
-    /// <param name="Emitted">開きタグを出力に出したか (出していないものは、閉じタグも出さない)</param>
+    /// <param name="Emitted">開きタグを出力に出したか (出していないものは閉じタグも出さない)</param>
     private readonly record struct OpenTag(string Name, bool Emitted);
 
-    /// <summary><c>file:</c> のリンクを、リンクにするか</summary>
+    /// <summary>file: のリンクをリンクにするか</summary>
     private readonly bool _allowFileLinks;
 
-    /// <summary>
-    /// <c>file:</c> のリンクも、リンクにする整形を作る。パソコンのアプリが使う。
-    /// </summary>
+    /// <summary>file: のリンクもリンクにする整形を作る</summary>
+    /// <remarks>パソコンのアプリが使う</remarks>
     public NoteBodyFormatter()
         : this(allowFileLinks: true)
     {
     }
 
-    /// <summary>
-    /// 整形を作る。
-    /// </summary>
-    /// <param name="allowFileLinks"><c>file:</c> のリンクを、リンクにするか。false のときは、中の文字だけを残す (ファイルを開けない iPhone の Web 版)</param>
+    /// <summary>整形を作る</summary>
+    /// <param name="allowFileLinks">
+    /// <c>file:</c> のリンクを、リンクにするか。
+    /// false のときは中の文字だけを残す (ファイルを開けない iPhone の Web 版)。
+    /// </param>
     public NoteBodyFormatter(bool allowFileLinks)
     {
         _allowFileLinks = allowFileLinks;
@@ -106,15 +110,17 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         return BreakAfterListRegex().Replace(BreakBeforeListRegex().Replace(output.ToString(), ""), "");
     }
 
-    /// <summary>リンクの中か (開きタグを出力に出した <c>a</c> が、まだ閉じていないか)</summary>
+    /// <summary>リンクの中か</summary>
     /// <param name="open">閉じていないタグ</param>
     /// <returns>リンクの中なら true</returns>
+    /// <remarks>開きタグを出力に出した <c>a</c> がまだ閉じていないか</remarks>
     private static bool InsideAnchor(List<OpenTag> open) => open.Any(tag => tag is { Name: "a", Emitted: true });
 
-    /// <summary>タグ 1 つを処理する (許可したタグは、決まった形で出力に出し、それ以外は捨てる)</summary>
+    /// <summary>タグ 1 つを処理する</summary>
     /// <param name="tag">見つけたタグ</param>
     /// <param name="output">出力</param>
     /// <param name="open">閉じていないタグ</param>
+    /// <remarks>許可したタグは決まった形で出力に出し、それ以外は捨てる。</remarks>
     private void HandleTag(Match tag, StringBuilder output, List<OpenTag> open)
     {
         if (tag.Groups["simple"].Success)
@@ -171,10 +177,11 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         // 注釈 (comment)と、許可していないタグ (other)は、何も出さずに捨てる
     }
 
-    /// <summary>いちばん新しい開きタグが、指定の名前のときだけ閉じる (対応しない閉じタグは捨てる)</summary>
+    /// <summary>いちばん新しい開きタグが指定の名前のときだけ閉じる</summary>
     /// <param name="name">閉じるタグの名前</param>
     /// <param name="output">出力</param>
     /// <param name="open">閉じていないタグ</param>
+    /// <remarks>対応しない閉じタグは捨てる</remarks>
     private static void CloseIfLast(string name, StringBuilder output, List<OpenTag> open)
     {
         if (open.Count > 0 && open[^1].Name == name)
@@ -184,9 +191,10 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         }
     }
 
-    /// <summary>閉じタグを出力に出す (開きタグを出していないものは、何も出さない)</summary>
+    /// <summary>閉じタグを出力に出す</summary>
     /// <param name="tag">閉じるタグ</param>
     /// <param name="output">出力</param>
+    /// <remarks>開きタグを出していないものは何も出さない</remarks>
     private static void CloseTag(OpenTag tag, StringBuilder output)
     {
         if (tag.Emitted)
@@ -195,10 +203,11 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         }
     }
 
-    /// <summary>タグではない文字の部分を、出力に出す (URL はリンクにし、それ以外は HTML の文字に直す)</summary>
+    /// <summary>タグではない文字の部分を出力に出す</summary>
     /// <param name="segment">文字の部分</param>
     /// <param name="output">出力</param>
-    /// <param name="insideAnchor">リンクの中か (リンクの中の URL は、二重にリンクにしない)</param>
+    /// <param name="insideAnchor">リンクの中か (リンクの中の URL は二重にリンクにしない)</param>
+    /// <remarks>URL はリンクにし、それ以外は HTML の文字に直す。</remarks>
     private static void AppendText(string segment, StringBuilder output, bool insideAnchor)
     {
         if (segment.Length == 0)
@@ -229,9 +238,10 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         AppendEscaped(segment[position..], output);
     }
 
-    /// <summary>文字を、HTML の文字に直して出力に出す (改行は <c>&lt;br&gt;</c> にする)</summary>
+    /// <summary>文字を HTML の文字に直して出力に出す</summary>
     /// <param name="text">文字</param>
     /// <param name="output">出力</param>
+    /// <remarks>改行は <c>&lt;br&gt;</c> にする</remarks>
     private static void AppendEscaped(string text, StringBuilder output)
     {
         foreach (var c in text)
@@ -249,7 +259,7 @@ public sealed partial class NoteBodyFormatter : INoteBodyFormatter
         }
     }
 
-    /// <summary>属性の値として、HTML の文字に直す</summary>
+    /// <summary>属性の値として HTML の文字に直す</summary>
     /// <param name="value">値</param>
     /// <returns>直した文字列</returns>
     private static string EscapeAttribute(string value)

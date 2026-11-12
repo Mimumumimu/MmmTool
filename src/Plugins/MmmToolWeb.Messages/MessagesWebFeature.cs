@@ -8,12 +8,12 @@ using MmmToolWeb.Messages.Client;
 
 namespace MmmToolWeb.Messages;
 
-/// <summary>
-/// メッセージの Web 版のサーバー側。会話とメッセージの読み書きは、MmmTool と同じ <c>SqlServerMessageRepository</c> を使う。
-/// </summary>
+/// <summary>メッセージの Web 版のサーバー側</summary>
 /// <remarks>
-/// 外部へ送る処理は、ここには無い。メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
-/// 会話を開いている端末に、更新を知らせる常駐の処理 (<see cref="MessageChangeWatcher"/>)を持つ。
+/// 会話とメッセージの読み書きは MmmTool と同じ SqlServerMessageRepository を使う。
+/// 外部へ送る処理はここには無い。
+/// メッセージと通知の状態の行を DB に書くだけで、実際に送るのは MmmBatch。
+/// 会話を開いている端末に更新を知らせる常駐の処理 (<see cref="MessageChangeWatcher"/>)を持つ。
 /// </remarks>
 public sealed class MessagesWebFeature : IWebFeature
 {

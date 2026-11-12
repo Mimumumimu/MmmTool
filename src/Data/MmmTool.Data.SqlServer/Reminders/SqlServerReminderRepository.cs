@@ -12,32 +12,44 @@ using MmmTool.Users.Core;
 
 namespace MmmTool.Data.SqlServer.Reminders;
 
-/// <summary>
-/// リマインダーを、SQL Server の <c>dbo.Reminder</c>・<c>dbo.ReminderState</c> に保存する。
-/// </summary>
+/// <summary>リマインダーを SQL Server の dbo.Reminder・dbo.ReminderState に保存する</summary>
 /// <remarks>
 /// <para>
-/// 読みはメモリから返す。通知の毎分の判定で、DB を毎回読まないため。見えるのは、宛先が自分のもの・全員宛て・自分が作成したリマインダーと、自分の対応状態だけ。通知と今日の対象にするのは、宛先が自分と全員宛てだけで、これは <see cref="ReminderService"/> が絞る。
-/// 1 分ごとに、前回より後に更新された行だけを読んでメモリに重ね、前回と違えば <see cref="ExternalChanged"/> で知らせる。ほかの PC の変更を知るため。
-/// 最初と、ユーザーが替わったときと、管理者の無効の状態が変わったときと、差分を 30 回続けたときは、見える分を全件読み直す。
+/// 読みはメモリから返す。
+/// 通知の毎分の判定で、DB を毎回読まないため。
+/// 見えるのは宛先が自分のもの・全員宛て・自分が作成したリマインダーと、自分の対応状態だけ。
+/// 通知と今日の対象にするのは宛先が自分と全員宛てだけで、これは <see cref="ReminderService"/> が絞る。
+/// 1 分ごとに、前回より後に更新された行だけを読んでメモリに重ね、前回と違えば <see cref="ExternalChanged"/> で知らせる。
+/// ほかの PC の変更を知るため。
+/// 最初と、ユーザーが替わったときと、管理者の無効の状態が変わったときと、差分を 30 回続けたときは見える分を全件読み直す。
 /// </para>
 /// <para>
-/// 書きは、トランザクションで DB に書き、成功したら全件を読み直してメモリに反映する。DB の内容と同じ形になり、備考・リンクの空文字は null などになる。
-/// 読み込みに失敗したときは、最後に読めた内容を返し続け、<see cref="LoadError"/> に残す。次の読み直しで、つながれば消える。書き込みの失敗は、
-/// 画面に出せるメッセージの <see cref="DataFileException"/>。同時編集の上書きは検出しない。
+/// 書きはトランザクションで DB に書き、成功したら全件を読み直してメモリに反映する。
+/// DB の内容と同じ形になり、備考・リンクの空文字は null などになる。
+/// 読み込みに失敗したときは最後に読めた内容を返し続け、<see cref="LoadError"/> に残す。
+/// 次の読み直しで、つながれば消える。
+/// 書き込みの失敗は。
+/// 画面に出せるメッセージの <see cref="DataFileException"/>。
+/// 同時編集の上書きは検出しない。
 /// </para>
 /// <para>
-/// 操作した人 (作成者・更新者・対応状態の持ち主)は <see cref="CurrentUser"/>。特定していないと、読み込めず、保存もできない。
-/// 編集は見える人なら誰でもでき、削除済みを編集すると復活する。論理削除は作成者だけができる。
-/// 完全削除は、DB では行わない。<see cref="CanPurge"/> が false になる。未対応への変更も、対応状態の行を消さず、<c>Status</c> を 0 にする。
+/// 操作した人 (作成者・更新者・対応状態の持ち主)は <see cref="CurrentUser"/>。
+/// 特定していないと、読み込めず、保存もできない。
+/// 編集は見える人なら誰でもでき、削除済みを編集すると復活する。
+/// 論理削除は作成者だけができる。
+/// 完全削除は DB では行わない。
+/// <see cref="CanPurge"/> が false になる。
+/// 未対応への変更も、対応状態の行を消さず、<c>Status</c> を 0 にする。
 /// </para>
 /// </remarks>
 public sealed class SqlServerReminderRepository : IReminderRepository, IDisposable
 {
-    /// <summary>差分の読み出しで、前回の基準より戻して読む時間。更新が確定するのが遅れた書き込みを、取りこぼさないため</summary>
+    /// <summary>差分の読み出しで、前回の基準より戻して読む時間</summary>
+    /// <remarks>更新が確定するのが遅れた書き込みを取りこぼさないため</remarks>
     private static readonly TimeSpan DiffOverlap = TimeSpan.FromSeconds(10);
 
-    /// <summary>差分の読み出しを何回続けたら、全件を読み直すか。見えなくなった行など、差分では分からない変わりを直すため</summary>
+    /// <summary>差分の読み出しを何回続けたら全件を読み直すか</summary>
+    /// <remarks>見えなくなった行など、差分では分からない変わりを直すため。</remarks>
     private const int FullReloadEvery = 30;
 
     /// <summary>SQL Server への入口</summary>
@@ -55,48 +67,61 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>毎分の合図</summary>
     private readonly ITicker _ticker;
 
-    /// <summary>ほかの PC の変更を読み直す合図の登録。最初の読み込みの前は null</summary>
+    /// <summary>ほかの PC の変更を読み直す合図の登録</summary>
+    /// <remarks>最初の読み込みの前は null</remarks>
     private ITickSubscription? _poll;
 
-    /// <summary>読み書きと、読み直しを順番に行うためのロック</summary>
+    /// <summary>読み書きと読み直しを順番に行うためのロック</summary>
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     /// <summary>読み直しの繰り返しを止める</summary>
     private readonly CancellationTokenSource _stop = new();
 
-    /// <summary>見えるリマインダー本体の一覧で、論理削除済みも含む。書き換えず、読み直したときに差し替える</summary>
+    /// <summary>見えるリマインダー本体の一覧で、論理削除済みも含む</summary>
+    /// <remarks>書き換えず、読み直したときに差し替える。</remarks>
     private volatile IReadOnlyList<Reminder> _reminders = [];
 
-    /// <summary>自分の対応状態の一覧。書き換えず、読み直したときに差し替える</summary>
+    /// <summary>自分の対応状態の一覧</summary>
+    /// <remarks>書き換えず、読み直したときに差し替える。</remarks>
     private volatile IReadOnlyList<ReminderState> _states = [];
 
-    /// <summary>最初の読み込みと、読み直しの繰り返しを始めたか</summary>
+    /// <summary>最初の読み込みと読み直しの繰り返しを始めたか</summary>
     private volatile bool _started;
 
-    /// <summary>破棄したか (0 = まだ、1 = 破棄した)</summary>
+    /// <summary>破棄したか</summary>
+    /// <remarks>0 = まだ、1 = 破棄した。</remarks>
     private int _disposed;
 
-    /// <summary>最後の読み込みに失敗したときのメッセージ。正常なら null</summary>
+    /// <summary>最後の読み込みに失敗したときのメッセージ</summary>
+    /// <remarks>正常なら null</remarks>
     private volatile string? _loadError;
 
-    /// <summary>前回の読み出しを始めたときの、DB の時計の日時。差分の読み出しの基準。まだ読んでいなければ null</summary>
+    /// <summary>前回の読み出しを始めたときの DB の時計の日時</summary>
+    /// <remarks>
+    /// 差分の読み出しの基準
+    /// まだ読んでいなければ null
+    /// </remarks>
     private DateTimeOffset? _readAt;
 
     /// <summary>前回の読み出しで、管理者にリマインダーを無効にされていたか</summary>
     private bool _wasDisabled;
 
-    /// <summary>前回の読み出しが、どの人の分か。人が替わったら、全件を読み直す</summary>
+    /// <summary>前回の読み出しがどの人の分か</summary>
+    /// <remarks>人が替わったら、全件を読み直す。</remarks>
     private int _loadedUserId;
 
-    /// <summary>前回の全件の読み出しから、差分で読んだ回数</summary>
+    /// <summary>前回の全件の読み出しから差分で読んだ回数</summary>
     private int _diffReads;
 
     /// <summary>DB に保存するリマインダーの保存先を作る</summary>
     /// <param name="database">SQL Server への入口</param>
     /// <param name="currentUser">今のユーザー</param>
-    /// <param name="signIn">ログイン (起動時にログインできなかったとき、読み直しのたびに、覚えているログイン名とパスワードで、もう一度試す)</param>
+    /// <param name="signIn">ログイン (起動時にログインできなかったとき、読み直しのたびに、覚えているログイン名とパスワードで、もう一度試す)。</param>
     /// <param name="time">現在の日付を知るための時計</param>
-    /// <param name="ticker">毎分の合図。ほかの PC の変更を、毎分 1 回読み直すのに使う</param>
+    /// <param name="ticker">
+    /// 毎分の合図。
+    /// ほかの PC の変更を、毎分 1 回読み直すのに使う。
+    /// </param>
     public SqlServerReminderRepository(
         SqlServerDatabase database, CurrentUser currentUser, UserSignInService signIn, TimeProvider time, ITicker ticker)
     {
@@ -109,7 +134,11 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <remarks>DB を読めなかったとき。ユーザーを特定していない場合も含む。最後に読めた内容は、そのまま使える。</remarks>
+    /// <remarks>
+    /// DB を読めなかったとき
+    /// ユーザーを特定していない場合も含む
+    /// 最後に読めた内容はそのまま使える
+    /// </remarks>
     public string? LoadError => _loadError;
 
     /// <inheritdoc />
@@ -117,11 +146,11 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     public string? RecoveryMessage => null;
 
     /// <inheritdoc />
-    /// <remarks>特定していないときは 0。</remarks>
+    /// <remarks>特定していないときは 0</remarks>
     public int CurrentUserId => _currentUser.User?.Id ?? 0;
 
     /// <inheritdoc />
-    /// <remarks>DB は、行を消さない方針 (論理削除だけ)なので、false。</remarks>
+    /// <remarks>DB は行を消さない方針 (論理削除だけ)なので、false。</remarks>
     public bool CanPurge => false;
 
     /// <inheritdoc />
@@ -143,7 +172,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が、DB に入れられない値。</exception>
+    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が DB に入れられない値</exception>
     public async Task<Reminder> AddAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder with { No = 0 });
@@ -154,7 +183,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が、DB に入れられない値。</exception>
+    /// <exception cref="ArgumentException">日付・時刻・曜日・宛先が DB に入れられない値</exception>
     public Task<bool> UpdateAsync(Reminder reminder, CancellationToken cancellationToken = default)
     {
         var row = ReminderRow.FromReminder(reminder);
@@ -165,24 +194,36 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <inheritdoc />
-    /// <remarks>見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる。編集と同じ。見えないときは、対象が無いのと同じで、false を返す。</remarks>
+    /// <remarks>
+    /// 見える人 (宛先が自分・全員宛て・自分が作成したもの)なら、誰でも変えられる。
+    /// 編集と同じ。
+    /// 見えないときは対象が無いのと同じで、false を返す。
+    /// </remarks>
     public Task<bool> SetDeletedAsync(int no, bool isDeleted, CancellationToken cancellationToken = default)
         => WriteAsync(
             (connection, transaction, userId) => ReminderSql.SetDeletedAsync(connection, transaction, userId, no, isDeleted, cancellationToken),
             cancellationToken);
 
     /// <inheritdoc />
-    /// <remarks>DB は、行を消さない方針 (論理削除だけ)なので、できない。画面は、<see cref="CanPurge"/> が false のとき、操作を出さない。</remarks>
-    /// <exception cref="NotSupportedException">常に。呼ぶ側のバグ。</exception>
+    /// <remarks>
+    /// DB は行を消さない方針 (論理削除だけ)なので、できない。
+    /// 画面は <see cref="CanPurge"/> が false のとき、操作を出さない。
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// 常に
+    /// 呼ぶ側のバグ
+    /// </exception>
     public Task<bool> PurgeAsync(int no, CancellationToken cancellationToken = default)
         => throw new NotSupportedException("DB モードでは、完全削除はできません。論理削除だけです。");
 
     /// <inheritdoc />
     /// <remarks>
-    /// 未対応 (<see cref="ReminderStatus.None"/>)に戻したときも、行は消さない。<c>Status</c> を 0 にして残す。
-    /// 完了・スヌーズ・未対応のどれも、あれば上書きし、無ければ追加する。全部を 1 つのトランザクションで書く。
+    /// 未対応 (<see cref="ReminderStatus.None"/>)に戻したときも行は消さない。
+    /// <c>Status</c> を 0 にして残す。
+    /// 完了・スヌーズ・未対応のどれも、あれば上書きし、無ければ追加する。
+    /// 全部を 1 つのトランザクションで書く。
     /// </remarks>
-    /// <exception cref="ArgumentException">対応状態の値・日付が、DB に入れられない値。</exception>
+    /// <exception cref="ArgumentException">対応状態の値・日付が DB に入れられない値</exception>
     public Task SetStatesAsync(IReadOnlyList<ReminderStateChange> changes, CancellationToken cancellationToken = default)
     {
         // 行にする値を、先に確かめる (書き始めてから、途中で例外にしないため)
@@ -216,7 +257,10 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     }
 
     /// <summary>読み直しの繰り返しを止める</summary>
-    /// <remarks>何度呼んでもよい。DI が、同じインスタンスを、実体の型とインターフェースの両方の登録から、2 回破棄するため。</remarks>
+    /// <remarks>
+    /// 何度呼んでもよい。
+    /// DI が同じインスタンスを実体の型とインターフェースの両方の登録から、2 回破棄するため。
+    /// </remarks>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -230,12 +274,13 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         _stop.Dispose();
     }
 
-    /// <summary>今のユーザーが設定されたら、すぐに読み直す (ログインした直後に、「ログインが必要」が、次の読み直しまで残らないように)</summary>
+    /// <summary>今のユーザーが設定されたらすぐに読み直す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="e">イベントの情報</param>
     /// <remarks>
-    /// 読み直しの中でユーザーを特定したとき (ロックを持っている間)にも呼ばれるので、ロックを同期で待たず、別に読み直しを始める
-    /// すでに読み直した内容と同じなら、何も通知しない。最初の読み込みがまだなら、そちらが読むので、何もしない。
+    /// 読み直しの中でユーザーを特定したとき (ロックを持っている間)にも呼ばれるので、ロックを同期で待たず、別に読み直しを始める。
+    /// すでに読み直した内容と同じなら、何も通知しない。
+    /// 最初の読み込みがまだなら、そちらが読むので、何もしない。
     /// </remarks>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
@@ -247,8 +292,11 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         ReloadAndNotifyAsync().Forget();
     }
 
-    /// <summary>読み直して、変わっていれば <see cref="ExternalChanged"/> で知らせる</summary>
-    /// <returns>読み直しの結果を表すタスク。読めなかった (読み込みの失敗が残っている)ときは失敗で、続くと次の合図までの時間が延びる</returns>
+    /// <summary>読み直して、変わっていれば ExternalChanged で知らせる</summary>
+    /// <returns>
+    /// 読み直しの結果を表すタスク。
+    /// 読めなかった (読み込みの失敗が残っている)ときは失敗で、続くと次の合図までの時間が延びる。
+    /// </returns>
     private async Task<TickResult> ReloadAndNotifyAsync()
     {
         bool changed;
@@ -283,9 +331,9 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return result;
     }
 
-    /// <summary>最初の読み込みと、読み直しの繰り返しを、まだなら始める</summary>
+    /// <summary>最初の読み込みと読み直しの繰り返しをまだなら始める</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>始めた (または、すでに始めていた)ことを表すタスク</returns>
+    /// <returns>始めた (またはすでに始めていた)ことを表すタスク</returns>
     private async Task EnsureStartedAsync(CancellationToken cancellationToken)
     {
         if (_started)
@@ -311,9 +359,10 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         }
     }
 
-    /// <summary>見える分を全件読み直して、メモリに反映する (ロックを持って呼ぶ)</summary>
+    /// <summary>見える分を全件読み直してメモリに反映する</summary>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>内容が変わった (または、読み込みの失敗の有無が変わった)なら true</returns>
+    /// <returns>内容が変わった (または読み込みの失敗の有無が変わった)なら true</returns>
+    /// <remarks>ロックを持って呼ぶ</remarks>
     private async Task<bool> ReloadAsync(CancellationToken cancellationToken)
     {
         try
@@ -375,14 +424,24 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return changed;
     }
 
-    /// <summary>読み出しの結果。見えるリマインダーと、自分の対応状態と、読み始めた DB の時計の日時</summary>
-    /// <param name="Reminders">リマインダー本体。全件の読み出しでは全部で、差分の読み出しでは、更新された行だけ</param>
-    /// <param name="States">自分の対応状態。全件の読み出しでは全部で、差分の読み出しでは、更新された行だけ</param>
-    /// <param name="ReadAt">読み始めたときの、DB の時計の日時。次の差分の基準になる</param>
-    /// <param name="Disabled">管理者に、リマインダーを無効にされているか</param>
+    /// <summary>読み出しの結果</summary>
+    /// <param name="Reminders">
+    /// リマインダー本体。
+    /// 全件の読み出しでは全部で、差分の読み出しでは更新された行だけ。
+    /// </param>
+    /// <param name="States">
+    /// 自分の対応状態。
+    /// 全件の読み出しでは全部で、差分の読み出しでは更新された行だけ。
+    /// </param>
+    /// <param name="ReadAt">
+    /// 読み始めたときの、DB の時計の日時。
+    /// 次の差分の基準になる。
+    /// </param>
+    /// <param name="Disabled">管理者に、リマインダーを無効にされているか。</param>
+    /// <remarks>見えるリマインダーと自分の対応状態と読み始めた DB の時計の日時</remarks>
     private sealed record Snapshot(IReadOnlyList<Reminder> Reminders, IReadOnlyList<ReminderState> States, DateTimeOffset ReadAt, bool Disabled);
 
-    /// <summary>DB の今の日時と、管理者にリマインダーを無効にされているかを読む問い合わせ</summary>
+    /// <summary>DB の今の日時と管理者にリマインダーを無効にされているかを読む問い合わせ</summary>
     private static readonly string TimeAndDisabledSql =
         $"SELECT SYSDATETIMEOFFSET(), CASE WHEN {FeatureAccessSql.IsDisabled("@UserId", CodeFeatures.Reminders)} THEN 1 ELSE 0 END";
 
@@ -392,7 +451,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <summary>対応状態の列を選ぶ問い合わせの先頭部分</summary>
     private const string StateSelect = "SELECT Id, ReminderId, Date, Status FROM dbo.ReminderState";
 
-    /// <summary>見えるリマインダーと、自分の対応状態を、全件読む</summary>
+    /// <summary>見えるリマインダーと自分の対応状態を全件読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="userId">今のユーザーの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
@@ -417,16 +476,22 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return await ReadSnapshotAsync(reader, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>前回の基準より後に更新された、リマインダーと対応状態だけを読む</summary>
+    /// <summary>前回の基準より後に更新されたリマインダーと対応状態だけを読む</summary>
     /// <param name="connection">開いた接続</param>
     /// <param name="userId">今のユーザーの番号</param>
     /// <param name="since">この日時以降に更新された行を読む</param>
-    /// <param name="wasDisabled">前回の読み出しで、無効にされていたか</param>
+    /// <param name="wasDisabled">前回の読み出しで、無効にされていたか。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
-    /// <returns>更新された行。無効の状態が前回と変わったとき (有効に戻ったときも含む)は null で、全件を読み直す。無効のままのときは、リマインダーを空にして返す</returns>
+    /// <returns>
+    /// 更新された行。
+    /// 無効の状態が前回と変わったとき (有効に戻ったときも含む)は null で、全件を読み直す。
+    /// 無効のままのときはリマインダーを空にして返す。
+    /// </returns>
     /// <remarks>
-    /// 3 つの問い合わせを 1 回の往復で読む。見える範囲の絞り込みは、全件のときと同じ。
-    /// 更新日時の索引 (<c>IX_Reminder_UpdatedAt</c>・<c>IX_ReminderState_UserId_UpdatedAt</c>)で、更新された行だけを探す。論理削除された行も、更新日時が進むので届く。
+    /// 3 つの問い合わせを 1 回の往復で読む。
+    /// 見える範囲の絞り込みは全件のときと同じ。
+    /// 更新日時の索引 (<c>IX_Reminder_UpdatedAt</c>・<c>IX_ReminderState_UserId_UpdatedAt</c>)で、更新された行だけを探す。
+    /// 論理削除された行も更新日時が進むので届く。
     /// </remarks>
     private static async Task<Snapshot?> ReadChangesAsync(
         SqlConnection connection, int userId, DateTimeOffset since, bool wasDisabled, CancellationToken cancellationToken)
@@ -457,7 +522,7 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return snapshot.Disabled ? snapshot with { Reminders = [] } : snapshot;
     }
 
-    /// <summary>3 つの結果 (日時と無効の有無・リマインダー・対応状態)を、順に読む</summary>
+    /// <summary>3 つの結果を順に読む</summary>
     /// <param name="reader">読んでいるリーダー</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>読み出しの結果</returns>
@@ -490,11 +555,14 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
         return new Snapshot(reminders, states, readAt, disabled);
     }
 
-    /// <summary>差分で読んだ行を、メモリの一覧に重ねる</summary>
+    /// <summary>差分で読んだ行をメモリの一覧に重ねる</summary>
     /// <param name="changes">差分の読み出しの結果</param>
     /// <param name="reminders">メモリのリマインダー</param>
     /// <param name="states">メモリの対応状態</param>
-    /// <returns>重ねたあとの全件の一覧。番号の順</returns>
+    /// <returns>
+    /// 重ねたあとの全件の一覧
+    /// 番号の順
+    /// </returns>
     private static Snapshot Merge(Snapshot changes, IReadOnlyList<Reminder> reminders, IReadOnlyList<ReminderState> states)
     {
         var mergedReminders = reminders.ToDictionary(reminder => reminder.No);
@@ -521,7 +589,10 @@ public sealed class SqlServerReminderRepository : IReminderRepository, IDisposab
     /// <param name="work">開いた接続・トランザクション・今のユーザーの番号で行う書き込み</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き込みの結果</returns>
-    /// <exception cref="DataFileException">ユーザーを特定していない・接続できない・保存できなかった。メッセージは画面に出せる。</exception>
+    /// <exception cref="DataFileException">
+    /// ユーザーを特定していない・接続できない・保存できなかった
+    /// メッセージは画面に出せる
+    /// </exception>
     private async Task<T> WriteAsync<T>(Func<SqlConnection, SqlTransaction, int, Task<T>> work, CancellationToken cancellationToken)
     {
         await EnsureStartedAsync(cancellationToken).ConfigureAwait(false);

@@ -12,13 +12,14 @@ using MmmTool.WorkItems.ProjectPicker;
 
 namespace MmmTool.WorkItems.Schedule;
 
-/// <summary>
-/// スケジュールのページ。作業の予定と実績を、日付を横に並べて見る。見るだけ。
-/// </summary>
+/// <summary>スケジュールのページ</summary>
 /// <remarks>
-/// 案件・グループ・作業と、他の人の更新の取り込みは、作業管理と同じ <see cref="WorkItemService"/> を使う。
-/// 実績 (すべての日の記録)は、ページを開くたびに読み、離れたら捨てる。読むのは <see cref="InitializeAsync"/>、捨てるのは <see cref="Suspend"/>。
-/// 「表示する案件」「自分の担当だけ」は、作業管理と同じ設定を共有する。
+/// 作業の予定と実績を日付を横に並べて見る。
+/// 見るだけ。
+/// 案件・グループ・作業と、他の人の更新の取り込みは作業管理と同じ <see cref="WorkItemService"/> を使う。
+/// 実績 (すべての日の記録)はページを開くたびに読み、離れたら捨てる。
+/// 読むのは <see cref="InitializeAsync"/>、捨てるのは <see cref="Suspend"/>。
+/// 「表示する案件」「自分の担当だけ」は作業管理と同じ設定を共有する。
 /// </remarks>
 public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
 {
@@ -31,102 +32,135 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>マウスカーソルを処理待ちの形にする口</summary>
     private readonly IBusyCursor _busyCursor;
 
-    /// <summary>行の識別から、表の行を引く (使い回す)</summary>
+    /// <summary>行の識別から表の行を引く</summary>
+    /// <remarks>使い回す</remarks>
     private readonly Dictionary<WorkKey, ScheduleRow> _rowByKey = [];
 
-    /// <summary>画面で選んだ状態 (ページを作り直しても引き継ぐために、ページの外で持つ)</summary>
+    /// <summary>画面で選んだ状態</summary>
+    /// <remarks>ページを作り直しても引き継ぐためにページの外で持つ</remarks>
     private readonly ScheduleViewState _state;
 
     /// <summary>利用者が閉じた案件・グループ</summary>
-    /// <remarks>状態クラスと同じ集合。既定では、すべて開く。</remarks>
+    /// <remarks>
+    /// 状態クラスと同じ集合
+    /// 既定ではすべて開く
+    /// </remarks>
     private readonly HashSet<WorkKey> _collapsed;
 
-    /// <summary>ページを開いている間か (離れている間は、サービスの変更で表を作り直さない)</summary>
+    /// <summary>ページを開いている間か</summary>
+    /// <remarks>離れている間はサービスの変更で表を作り直さない</remarks>
     private bool _active;
 
-    /// <summary>続いている、開いたときの読み込みの数で、1 つ以上の間は、途中のサービスの変更で、表を作り直さない。ページの出し入れで、重なることがある</summary>
+    /// <summary>続いている、開いたときの読み込みの数で、1 つ以上の間は途中のサービスの変更で、表を作り直さない</summary>
+    /// <remarks>ページの出し入れで、重なることがある。</remarks>
     private int _loadCount;
 
-    /// <summary>他の人の更新の取得を、このページが始めているか (二重に始めない・止め損なわない)</summary>
+    /// <summary>他の人の更新の取得をこのページが始めているか</summary>
+    /// <remarks>二重に始めない・止め損なわない</remarks>
     private bool _polling;
 
-    /// <summary>作っている最中か (設定の読み込みで、値の変更の処理を動かさないため)</summary>
+    /// <summary>作っている最中か</summary>
+    /// <remarks>設定の読み込みで、値の変更の処理を動かさないため。</remarks>
     private bool _initializing = true;
 
-    /// <summary>案件マスターが空か (表示する案件が無いときの案内を決める)</summary>
+    /// <summary>案件マスターが空か</summary>
+    /// <remarks>表示する案件が無いときの案内を決める</remarks>
     private bool _masterEmpty;
 
-    /// <summary>表の行で、見えている行を 1 つにならしたもの。木の順</summary>
+    /// <summary>表の行で、見えている行を 1 つにならしたもの</summary>
+    /// <remarks>木の順</remarks>
     public ObservableCollection<ScheduleRow> Rows { get; } = [];
 
-    /// <summary>総合計の行で、表示している案件を合わせた実績を出す。表の上に固定する</summary>
+    /// <summary>総合計の行で、表示している案件を合わせた実績を出す</summary>
     /// <remarks>
-    /// 合わせるのは、「表示する案件」で選んでいる案件。案件の行の合計と同じく、「自分の担当だけ」と「完了」で隠した作業も含めて、全員の作業から計算する。
+    /// 表の上に固定する。
+    /// 合わせるのは「表示する案件」で選んでいる案件。
+    /// 案件の行の合計と同じく、「自分の担当だけ」と「完了」で隠した作業も含めて、全員の作業から計算する。
     /// </remarks>
     public ScheduleRow TotalRow { get; } = ScheduleRow.CreateTotal();
 
-    /// <summary>総合計の値 (案件の出し入れに合わせて、足し引きする)</summary>
+    /// <summary>総合計の値</summary>
+    /// <remarks>案件の出し入れに合わせて、足し引きする。</remarks>
     private readonly ScheduleTotal _total = new();
 
-    /// <summary>総合計に足してある、案件ごとの実績の合計と実績の棒</summary>
+    /// <summary>総合計に足してある案件ごとの実績の合計と実績の棒</summary>
     /// <remarks>案件を表示から外したとき、足したときと同じ値を、総合計から引くために持つ。</remarks>
     private readonly Dictionary<int, (double Hours, IReadOnlyList<ScheduleActualRun> Runs)> _projectTotals = [];
 
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>表示する案件を選ぶ画面の ViewModel (作業管理と同じ設定を使う)</summary>
+    /// <summary>表示する案件を選ぶ画面の ViewModel</summary>
+    /// <remarks>作業管理と同じ設定を使う</remarks>
     public ProjectPickerViewModel ProjectPicker { get; }
 
-    /// <summary>担当者を扱うか。ローカルモードは false で、担当の列と絞り込みを出さない</summary>
+    /// <summary>担当者を扱うか</summary>
+    /// <remarks>ローカルモードは false で、担当の列と絞り込みを出さない。</remarks>
     public bool HasAssignees => _service.HasAssignees;
 
-    /// <summary>更新ボタンを出すか。他の人の更新がある DB モードだけで、ローカルモードは false</summary>
+    /// <summary>更新ボタンを出すか</summary>
+    /// <remarks>他の人の更新がある DB モードだけで、ローカルモードは false。</remarks>
     public bool CanRefresh => _service.HasAssignees;
 
-    /// <summary>自分が担当の作業だけを表示するか (作業管理と同じ設定)</summary>
+    /// <summary>自分が担当の作業だけを表示するか</summary>
     [ObservableProperty]
     public partial bool MineOnly { get; set; }
 
-    /// <summary>表示の単位の番号 (<see cref="ScheduleUnit"/> の値と同じ)</summary>
-    /// <remarks>保存しない。状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときは日になる。</remarks>
+    /// <summary>表示の単位の番号</summary>
+    /// <remarks>
+    /// <see cref="ScheduleUnit"/> の値と同じ。
+    /// 保存しない。
+    /// 状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときは日になる。
+    /// </remarks>
     [ObservableProperty]
     public partial int UnitIndex { get; set; }
 
-    /// <summary>「完了」の選択肢の番号 (<see cref="CompletedDisplay"/> の値と同じ)</summary>
+    /// <summary>「完了」の選択肢の番号</summary>
     /// <remarks>
-    /// 画面で選んだ値は保存しない。状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときの値は、設定の起動時の表示 (<see cref="WorkItemDisplaySettings.ScheduleCompleted"/>)で決まる。
+    /// <see cref="CompletedDisplay"/> の値と同じ。
+    /// 画面で選んだ値は保存しない。
+    /// 状態クラス (<see cref="ScheduleViewState"/>)が引き継ぎ、起動したときの値は設定の起動時の表示 (<see cref="WorkItemDisplaySettings.ScheduleCompleted"/>)で決まる。
     /// 作業管理の「過去の完了」とは共有しない。
     /// </remarks>
     [ObservableProperty]
     public partial int CompletedIndex { get; set; }
 
-    /// <summary>保存先から読み込み中か (マウスカーソルを砂時計にする)</summary>
-    /// <remarks>読み込んでいる間も、前に開いたときの表は、そのまま出しておく。空にして、ちらつかせないため。</remarks>
+    /// <summary>保存先から読み込み中か</summary>
+    /// <remarks>
+    /// マウスカーソルを砂時計にする。
+    /// 読み込んでいる間も前に開いたときの表はそのまま出しておく。
+    /// 空にして、ちらつかせないため。
+    /// </remarks>
     [ObservableProperty]
     public partial bool IsLoading { get; private set; }
 
-    /// <summary>行が 1 つも無いか (案内を出す)</summary>
+    /// <summary>行が 1 つも無いか</summary>
+    /// <remarks>案内を出す</remarks>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
 
-    /// <summary>行が無いときの案内 (表示する案件を選ぶか、案件を追加するか)</summary>
+    /// <summary>行が無いときの案内</summary>
+    /// <remarks>表示する案件を選ぶか、案件を追加するか。</remarks>
     [ObservableProperty]
     public partial string EmptyMessage { get; private set; } = "";
 
     /// <summary>今日の日付</summary>
     public DateOnly Today => _service.Today;
 
-    /// <summary>今の日付の軸で、範囲と単位。まだ作っていなければ null</summary>
+    /// <summary>今の日付の軸で、範囲と単位</summary>
+    /// <remarks>まだ作っていなければ null</remarks>
     public ScheduleAxisVisual? Axis { get; private set; }
 
-    /// <summary>日付の軸が変わった。範囲・単位が変わったときで、列の幅と見出しを作り直すため</summary>
+    /// <summary>日付の軸が変わった</summary>
+    /// <remarks>範囲・単位が変わったときで、列の幅と見出しを作り直すため。</remarks>
     public event EventHandler? AxisChanged;
 
-    /// <summary>行の塊 (案件 1 つぶん)を、差し込んだ・抜いた (表に、行の一覧を付け直させるため)</summary>
+    /// <summary>行の塊を差し込んだ・抜いた</summary>
+    /// <remarks>表に行の一覧を付け直させるため</remarks>
     public event EventHandler? RowsBlockChanged;
 
-    /// <summary>行の一覧を作り直した。値だけが変わったときも含み、列の幅を直すきっかけにする</summary>
+    /// <summary>行の一覧を作り直した</summary>
+    /// <remarks>値だけが変わったときも含み、列の幅を直すきっかけにする。</remarks>
     public event EventHandler? Rebuilt;
 
     /// <summary>ViewModel を作る</summary>
@@ -153,13 +187,16 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         _initializing = false;
     }
 
-    /// <summary>読み込み中の表示 (砂時計)を、読み込みの開始より先に始める</summary>
-    /// <remarks>ページが画面に載ってから、読み込みを始めるまでの間にも、待ち時間があるため。終わりは <see cref="InitializeAsync"/> が決める。</remarks>
+    /// <summary>読み込み中の表示を読み込みの開始より先に始める</summary>
+    /// <remarks>
+    /// ページが画面に載ってから、読み込みを始めるまでの間にも、待ち時間があるため。
+    /// 終わりは <see cref="InitializeAsync"/> が決める。
+    /// </remarks>
     public void BeginLoading() => IsLoading = true;
 
-    /// <summary>他の人の更新を、今すぐ取り込む</summary>
+    /// <summary>他の人の更新を今すぐ取り込む</summary>
     /// <returns>取り込みの完了を表すタスク</returns>
-    /// <remarks>失敗は、定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
+    /// <remarks>失敗は定期的な取り込みと同じく、サービスの通知で画面に出す。</remarks>
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -167,11 +204,13 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         await _service.RefreshNowAsync();
     }
 
-    /// <summary>ページを開いたときに、保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
+    /// <summary>ページを開いたときに保存先から読み直して表を作り、他の人の更新の取得を始める</summary>
     /// <returns>初期化の完了を表すタスク</returns>
     /// <remarks>
     /// 作業管理の表の入力日をずらさないよう、記録を読んでいる日 (<see cref="WorkItemService.Day"/>)のまま読み直す。
-    /// 読み込みの途中は、表を作り直さない。案件・実績を読むたびに作り直すと、実績が空の表を挟んで、3 回作ることになるため。読み終えてから 1 回だけ作る。
+    /// 読み込みの途中は表を作り直さない。
+    /// 案件・実績を読むたびに作り直すと、実績が空の表を挟んで、3 回作ることになるため。
+    /// 読み終えてから 1 回だけ作る。
     /// </remarks>
     public async Task InitializeAsync()
     {
@@ -222,7 +261,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>ページを離れたときに、他の人の更新の取得を止め、実績を捨てる</summary>
+    /// <summary>ページを離れたときに他の人の更新の取得を止め、実績を捨てる</summary>
     public void Suspend()
     {
         _active = false;
@@ -239,7 +278,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <param name="e">変更の内容</param>
     private void OnServiceChangedEvent(object? sender, WorkChangedEventArgs e) => OnServiceChanged(e);
 
-    /// <summary>取り込みに失敗したことを、画面のエラーに出す</summary>
+    /// <summary>取り込みに失敗したことを画面のエラーに出す</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="message">失敗の内容</param>
     private void OnServiceRefreshFailed(object? sender, string message) => Error.Show(message);
@@ -247,7 +286,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>サービスの通知の購読を解除する</summary>
     /// <remarks>
     /// サービスはアプリの終了まで生きるので、購読したままだと、ページを捨てたあとも、この ViewModel とページがメモリに残り続ける。
-    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は、取得の参照と実績も返す。
+    /// ページを開いたまま捨てられるとき (外したウィンドウを閉じる・機能をオフにする)は取得の参照と実績も返す。
     /// </remarks>
     public void Dispose()
     {
@@ -260,7 +299,7 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>案件・グループを、開く・閉じる</summary>
+    /// <summary>案件・グループを開く・閉じる</summary>
     /// <param name="row">押された行</param>
     public void Toggle(ScheduleRow row)
     {
@@ -271,8 +310,9 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         RebuildBusyAsync().Forget();
     }
 
-    /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す (読み込みは、やり直さない)</summary>
+    /// <summary>自分の担当だけを表示するかが変わったら、設定に残して、表を作り直す</summary>
     /// <param name="value">自分の担当だけにするか</param>
+    /// <remarks>読み込みはやり直さない</remarks>
     partial void OnMineOnlyChanged(bool value)
     {
         if (_initializing)
@@ -288,7 +328,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
     /// <summary>作業管理で「自分の担当だけ」が変わったとき、この画面の値を合わせる</summary>
     /// <param name="sender">イベントの送信元</param>
     /// <param name="value">新しい値</param>
-    /// <remarks>設定へは、変えた側が保存する。画面が見えていなければ、次に開くときに、設定から読む。</remarks>
+    /// <remarks>
+    /// 設定へは変えた側が保存する。
+    /// 画面が見えていなければ、次に開くときに、設定から読む。
+    /// </remarks>
     private void OnServiceMineOnlyChanged(object? sender, bool value)
     {
         if (value == MineOnly)
@@ -305,8 +348,9 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>表示の単位が変わったら、軸を作り直す (全部の日付の棒を描き直すので、砂時計を出す)</summary>
+    /// <summary>表示の単位が変わったら軸を作り直す</summary>
     /// <param name="value">単位の番号</param>
+    /// <remarks>全部の日付の棒を描き直すので、砂時計を出す。</remarks>
     partial void OnUnitIndexChanged(int value)
     {
         if (!_initializing)
@@ -319,8 +363,12 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>「完了」の選択が変わったら、表を作り直す。読み込みは、やり直さない。行の出し入れが多いので、砂時計を出す</summary>
+    /// <summary>「完了」の選択が変わったら表を作り直す</summary>
     /// <param name="value">選択肢の番号</param>
+    /// <remarks>
+    /// 読み込みはやり直さない。
+    /// 行の出し入れが多いので、砂時計を出す。
+    /// </remarks>
     partial void OnCompletedIndexChanged(int value)
     {
         if (!_initializing)
@@ -333,11 +381,13 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>マウスカーソルを砂時計にして、表を作り直す (長く動くので、先に砂時計を描かせる)</summary>
+    /// <summary>マウスカーソルを砂時計にして表を作り直す</summary>
     /// <returns>作り直しの完了を表すタスク</returns>
+    /// <remarks>長く動くので、先に砂時計を描かせる。</remarks>
     private Task RebuildBusyAsync() => _busyCursor.RunAsync(Rebuild);
 
-    /// <summary>サービスの内容から、軸と行の一覧を作り直す (同じ行は使い回し、差分だけを一覧に反映する)</summary>
+    /// <summary>サービスの内容から軸と行の一覧を作り直す</summary>
+    /// <remarks>同じ行は使い回し、差分だけを一覧に反映する。</remarks>
     private void Rebuild()
     {
         if (!_active || _loadCount > 0)
@@ -379,8 +429,8 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>案件の実績の合計と実績の棒を、総合計に足す</summary>
-    /// <param name="project">案件の行 (合計は、隠した作業も含めて計算済み)</param>
+    /// <summary>案件の実績の合計と実績の棒を総合計に足す</summary>
+    /// <param name="project">案件の行 (合計は隠した作業も含めて計算済み)</param>
     /// <param name="snapshot">スケジュールに出す内容 (実績の棒を引く)</param>
     private void AddProjectTotal(WorkNode project, ScheduleSnapshot snapshot)
     {
@@ -390,8 +440,9 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         _total.Add(added.Item1, added.Item2);
     }
 
-    /// <summary>足してあった案件の分を、総合計から引く (足していない案件なら、何もしない)</summary>
+    /// <summary>足してあった案件の分を総合計から引く</summary>
     /// <param name="projectId">案件の番号</param>
+    /// <remarks>足していない案件なら、何もしない。</remarks>
     private void RemoveProjectTotal(int projectId)
     {
         if (_projectTotals.Remove(projectId, out var removed))
@@ -400,10 +451,10 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>総合計の行を、今の総合計の値に合わせる</summary>
+    /// <summary>総合計の行を今の総合計の値に合わせる</summary>
     private void UpdateTotalRow() => TotalRow.UpdateTotal(_total.Hours, _total.Runs(), Axis!, _service.Today);
 
-    /// <summary>木の行から、表の行を使い回しで作り、見えている行を、木の順に並べる</summary>
+    /// <summary>木の行から、表の行を使い回しで作り、見えている行を木の順に並べる</summary>
     /// <param name="node">木の行</param>
     /// <param name="level">字下げの段</param>
     /// <param name="snapshot">スケジュールに出す内容 (実績の棒を引く)</param>
@@ -448,11 +499,15 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>表示する案件の変更に、その案件の行だけで応える (できないときは、全体を作り直す)</summary>
+    /// <summary>表示する案件の変更にその案件の行だけで応える</summary>
     /// <param name="args">変更の内容</param>
     /// <remarks>
-    /// 案件の中身は、ほかの案件に依存しない。そのため、外した案件は、その行のかたまりを抜くだけ、加えた案件は、その案件の分だけを作って、名前の順の位置へ差し込めばよい。
-    /// 日付の軸は、外したときは変えない。縮めないで、開き直したときに、データに合わせる。加えたときは、軸の範囲に収まるときだけ差し込み、はみ出すときは、全体を作り直す。
+    /// できないときは全体を作り直す。
+    /// 案件の中身はほかの案件に依存しない。
+    /// そのため、外した案件はその行のかたまりを抜くだけ、加えた案件はその案件の分だけを作って、名前の順の位置へ差し込めばよい。
+    /// 日付の軸は外したときは変えない。
+    /// 縮めないで、開き直したときに、データに合わせる。
+    /// 加えたときは軸の範囲に収まるときだけ差し込み、はみ出すときは全体を作り直す。
     /// </remarks>
     private void OnServiceChanged(WorkChangedEventArgs args)
     {
@@ -468,9 +523,9 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>外した案件の行のかたまり (案件の行と、その下の行)を、表から抜く</summary>
+    /// <summary>外した案件の行のかたまりを表から抜く</summary>
     /// <param name="projectId">案件の番号</param>
-    /// <returns>反映できたら true (表に出ていない案件は、反映できなかったことにして、全体を作り直す)</returns>
+    /// <returns>反映できたら true (表に出ていない案件は反映できなかったことにして、全体を作り直す)。</returns>
     private bool RemoveProjectRows(int projectId)
     {
         if (ProjectBlockRows.Remove(Rows, projectId) is not { } removed)
@@ -518,10 +573,11 @@ public sealed partial class ScheduleViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    /// <summary>完了した作業の見え方で、選択肢の番号から求める。範囲外の値は「非表示」</summary>
+    /// <summary>完了した作業の見え方で、選択肢の番号から求める</summary>
+    /// <remarks>範囲外の値は「非表示」</remarks>
     private CompletedDisplay Completed => Enum.IsDefined((CompletedDisplay)CompletedIndex) ? (CompletedDisplay)CompletedIndex : CompletedDisplay.Hidden;
 
-    /// <summary>行が無いときの案内を、今の行に合わせる</summary>
+    /// <summary>行が無いときの案内を今の行に合わせる</summary>
     private void UpdateEmptyState()
     {
         IsEmpty = Rows.Count == 0;

@@ -6,10 +6,11 @@ using MmmSdk.WinUI.Components.Pages;
 
 namespace MmmBatch.NoteSending;
 
-/// <summary>ノートの送信の入口 (10 秒おきの仕事とページを登録する)</summary>
+/// <summary>ノートの送信の入口</summary>
 /// <remarks>
-/// 更新されたノートと通知する相手の読み出し口 (<see cref="INoteSendSource"/>)は、ホストが DB の実装を登録する。
-/// 機能に共通の送信の処理 (送る口・ログ・定期の監視)は、ホストが <c>AddSendingCore</c> で登録する。
+/// 10 秒おきの仕事とページを登録する
+/// 更新されたノートと通知する相手の読み出し口 (<see cref="INoteSendSource"/>)はホストが DB の実装を登録する
+/// 機能に共通の送信の処理 (送る口・ログ・定期の監視)はホストが <c>AddSendingCore</c> で登録する
 /// </remarks>
 public sealed class NoteSendingPlugin : IFeaturePlugin
 {

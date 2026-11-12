@@ -7,12 +7,11 @@ using MmmTool.CodeMaster.Core;
 
 namespace MmmTool.CodeMaster.Edit;
 
-/// <summary>
-/// コードマスタの区分 1 つの名前を編集する画面の ViewModel。
-/// </summary>
+/// <summary>コードマスタの区分 1 つの名前を編集する画面の ViewModel</summary>
 /// <param name="repository">コードマスタの保存先</param>
 /// <remarks>
-/// 保存するのは「保存」を押したときだけ。入力できない名前は、画面のエラーに出して閉じない。
+/// 保存するのは「保存」を押したときだけ。
+/// 入力できない名前は画面のエラーに出して閉じない。
 /// 保存できたら、機能の後始末 (<see cref="CodeCategoryEditor.AfterSavedAsync"/>)を行い、<see cref="CloseRequested"/> で、画面を閉じてよいことを知らせる。
 /// </remarks>
 public sealed partial class CodeNameEditViewModel(ICodeMasterRepository repository) : ObservableObject
@@ -27,19 +26,20 @@ public sealed partial class CodeNameEditViewModel(ICodeMasterRepository reposito
     [ObservableProperty]
     public partial string Title { get; private set; } = "";
 
-    /// <summary>一覧の行 (表示順)</summary>
+    /// <summary>一覧の行</summary>
     public ObservableCollection<CodeNameItem> Items { get; } = [];
 
     /// <summary>画面に出すエラー</summary>
     public ErrorState Error { get; } = new();
 
-    /// <summary>「保存」を押せるか (一覧を読み込めている)</summary>
+    /// <summary>「保存」を押せるか</summary>
+    /// <remarks>一覧を読み込めている</remarks>
     private bool CanSave() => Items.Count > 0;
 
     /// <summary>区分の選択肢を読み込んで、一覧にする</summary>
     /// <param name="editor">編集する区分</param>
     /// <returns>読み込みの完了を表すタスク</returns>
-    /// <remarks>読めなかったときは、エラーに出して、一覧を空のままにして、「保存」を押せなくする。</remarks>
+    /// <remarks>読めなかったときはエラーに出して、一覧を空のままにして、「保存」を押せなくする。</remarks>
     public async Task LoadAsync(CodeCategoryEditor editor)
     {
         _editor = editor;
@@ -60,7 +60,7 @@ public sealed partial class CodeNameEditViewModel(ICodeMasterRepository reposito
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>名前を保存して、閉じる</summary>
+    /// <summary>名前を保存して閉じる</summary>
     /// <returns>保存の完了を表すタスク</returns>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()

@@ -6,8 +6,11 @@ namespace MmmTool.CliAssist.Setup;
 /// <summary>CLI補助の初期設定ダイアログの ViewModel</summary>
 public sealed partial class CliSetupDialogViewModel : ObservableObject
 {
-    /// <summary>選んでいる環境の番号で、0 = Windows、1 = WSL。<see cref="CliEnvironment"/> の値と同じ</summary>
-    /// <remarks>ラジオボタンの並び (<c>RadioButtons.SelectedIndex</c>)とつなぐため、番号で持つ。</remarks>
+    /// <summary>選んでいる環境の番号で、0 = Windows、1 = WSL</summary>
+    /// <remarks>
+    /// CliEnvironment の値と同じ。
+    /// ラジオボタンの並び (<c>RadioButtons.SelectedIndex</c>)とつなぐため、番号で持つ。
+    /// </remarks>
     [ObservableProperty]
     public partial int EnvironmentIndex { get; set; }
 
@@ -21,17 +24,24 @@ public sealed partial class CliSetupDialogViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanConfirm))]
     public partial bool UsesKiro { get; set; }
 
-    /// <summary>初期化 (今の定型コマンドを作り直す)として開いたか</summary>
-    /// <remarks>true のときは、消えるもの・終了するものの警告を出す。</remarks>
+    /// <summary>初期化として開いたか</summary>
+    /// <remarks>
+    /// 今の定型コマンドを作り直す
+    /// true のときは消えるもの・終了するものの警告を出す
+    /// </remarks>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFirstRun))]
     public partial bool IsReset { get; set; }
 
     /// <summary>初回として開いたか</summary>
-    /// <remarks>true のときだけ、あとで変える方法を案内する。初期化のときは、今まさにその方法で開いているため。</remarks>
+    /// <remarks>
+    /// true のときだけ、あとで変える方法を案内する。
+    /// 初期化のときは今まさにその方法で開いているため。
+    /// </remarks>
     public bool IsFirstRun => !IsReset;
 
-    /// <summary>決定できるか (ツールを 1 つ以上選んでいる)</summary>
+    /// <summary>決定できるか</summary>
+    /// <remarks>ツールを 1 つ以上選んでいる</remarks>
     public bool CanConfirm => UsesClaudeCode || UsesKiro;
 
     /// <summary>開く前の状態にする</summary>
@@ -47,7 +57,7 @@ public sealed partial class CliSetupDialogViewModel : ObservableObject
     }
 
     /// <summary>選んだ内容を初期設定にする</summary>
-    /// <returns>選んだ環境と、使うツール (<see cref="CliTool"/> の順)</returns>
+    /// <returns>選んだ環境と、使うツール (<see cref="CliTool"/> の順)。</returns>
     public CliSetup ToSetup()
     {
         List<CliTool> tools = [];

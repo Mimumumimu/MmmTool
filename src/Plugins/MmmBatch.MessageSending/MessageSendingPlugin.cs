@@ -6,10 +6,11 @@ using MmmSdk.WinUI.Components.Pages;
 
 namespace MmmBatch.MessageSending;
 
-/// <summary>メッセージの送信の入口 (毎分の仕事とページを登録する)</summary>
+/// <summary>メッセージの送信の入口</summary>
 /// <remarks>
-/// 送信依頼の読み出しと状態の保存先 (<see cref="IMessageSendStore"/>)は、ホストが DB の実装を登録する。
-/// 機能に共通の送信の処理 (送る口・ログ・毎分の監視)は、ホストが <c>AddSendingCore</c> で登録する。
+/// 毎分の仕事とページを登録する
+/// 送信依頼の読み出しと状態の保存先 (<see cref="IMessageSendStore"/>)はホストが DB の実装を登録する
+/// 機能に共通の送信の処理 (送る口・ログ・毎分の監視)はホストが <c>AddSendingCore</c> で登録する
 /// </remarks>
 public sealed class MessageSendingPlugin : IFeaturePlugin
 {
