@@ -15,7 +15,7 @@ namespace MmmTool.Notes;
 /// ページ・入力ウィンドウを登録する。
 /// 保存先 (<see cref="INoteRepository"/>)はここでは登録しない。
 /// 設定でローカルの SQLite か DB の SQL Server かを選ぶのは両方を参照できるホストの役目。
-/// ホストの <c>AddStorage</c> で選び、機能が増えても、選ぶ処理は 1 か所。
+/// 共通の部品 <c>AddStorage</c> で選び、機能が増えても、選ぶ処理は 1 か所。
 /// </remarks>
 public sealed class NotesPlugin : IFeaturePlugin
 {

@@ -16,6 +16,7 @@ using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
 using MmmTool.CodeMaster;
 using MmmTool.CodeMaster.Core;
+using MmmTool.Data.Connection;
 using MmmTool.Data.Sqlite;
 using MmmTool.Data.Sqlite.CodeMaster;
 using MmmTool.Data.Sqlite.Notes;

@@ -37,7 +37,7 @@
 | `src/CodeMaster/MmmTool.CodeMaster` | `net10.0-windows` | コードマスタの名前を編集する画面で、設定ページの「選択肢」と編集ウィンドウ。登録された区分を並べるだけで、特定の機能を知らない。機能は `AddCodeCategoryEditor` で区分を足す ([specs/settings.md](specs/settings.md)の「選択肢」) |
 | `src/DayContent/MmmTool.DayContent.Core` | `net10.0` | 機能をまたいで共有する、日ごとの内容の契約 `IDayContentSource`。提供する機能 (作業管理の作業報告など)と、使う機能 (ノート)の両方が、これだけを参照するので、機能どうしは参照しない。画面は持たず、依存は無い。仕様は [specs/notes-sources.md](specs/notes-sources.md) |
 | `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先。`NotificationChannel`・区分・規則・`INotificationChannelRepository` を持つ。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たず、登録の画面はリマインダーの機能にある。保存先の実装は `MmmTool.Data.<種類>` |
-| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
+| `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定・保存先を設定で選んで登録する共通の部品 `AddStorage` を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装で、`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite` がある。SDK の `MmmSdk.Db.<種類>` を参照する。保存先の選び方は、「DI と起動」の「保存先」に書く |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 `MmmSdk.Db.SqlServer`。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・定期処理の合図 (`ITicker`)・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
@@ -100,7 +100,8 @@ CodeMaster/MmmTool.CodeMaster.Core/     機能をまたいで共有するコー�
 CodeMaster/MmmTool.CodeMaster/          コードマスタの名前を編集する画面 (設定ページの「選択肢」と編集ウィンドウ)
 DayContent/MmmTool.DayContent.Core/     機能をまたいで共有する、日ごとの内容の契約 (IDayContentSource)
 NotificationChannels/MmmTool.NotificationChannels.Core/   機能をまたいで共有する通知の送信先 (NotificationChannel・INotificationChannelRepository)
-Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService)
+Data/MmmTool.Data/Connection/           DB への接続の設定 (DatabaseSettings・DatabaseSettingsService)と、
+                                        保存先を設定で選んで登録する部品 (DatabaseStorageServiceCollectionExtensions)
                                         機能をまたぐので、機能のフォルダではない
 Data/MmmTool.Data/<機能>/               DB の行のクラス (<名前>Row)と、アプリの型との変換。全機能の分を、機能ごとのフォルダに置く
 Data/MmmTool.Data.<種類>/Connection/    その DB への接続を作る処理 SqlServerConnectionFactoryBuilder
@@ -179,10 +180,12 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 - 常駐するもの (リマインダーの監視など)は、Host の破棄で `Dispose` されることを前提に、ルートから解決する
 - 保存先 (Repository の実装)は、各機能の入口 (`<機能>Plugin.Register`)の「保存先」の行で決める
   - CLI補助・リンクはローカル専用
-  - リマインダーは、ホストが設定 (`Database.Mode`)で DB を選んだときだけ、その行の JSON の Repository を、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()`)で DB の実装に置き換える
+  - リマインダーは、設定 (`Database.Mode`)で DB を選んだときだけ、JSON の Repository を DB の実装に切り替える。切り替えは、`AddSqlServerData()` が共通の部品 `AddStorage` で登録する
+  - DB モードだけで使うもの (送信先・メッセージ・ユーザーごとの設定・管理者が決める設定)も、`AddSqlServerData()` が `AddStorage` で、ローカルモードでは「使えない」保存先に切り替えて登録する
   - 作業管理とノートは、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する
     - SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため
-    - 選ぶ処理は、共通の部品 `AddStorage<TService, TLocal, TServer>` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)に 1 か所だけ持つ
+    - 選ぶ処理は、共通の部品 `AddStorage<TService, TLocal, TServer>` (`MmmTool.Data` の `Connection/DatabaseStorageServiceCollectionExtensions`)に 1 か所だけ持つ
+      - SQLite の型を参照しないので、MmmBatch も参照する `MmmTool.Data` に置く。ホストにも `AddSqlServerData` にも、同じ選び方を書き写さない。
     - ノートは `App.xaml.cs` で 1 行を足すだけ。機能名のファイルを、ホストに足さない。
     - 作業管理の `WorkItemStorageServiceCollectionExtensions` は、その部品を呼び、モードが変わったときの後始末 (`IDatabaseModeChangeHandler`)だけを足す
   - 詳細は [specs/database.md](specs/database.md)

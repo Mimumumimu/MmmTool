@@ -39,10 +39,7 @@ public static class SqlServerDataServiceCollectionExtensions
         services.AddSingleton<ISavedCredentialStore, SecretSavedCredentialStore>();
         services.AddSingleton<SqlServerReminderRepository>();
 
-        services.AddSingleton<IReminderRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerReminderRepository>()
-                : provider.GetRequiredService<JsonReminderRepository>());
+        services.AddStorage<IReminderRepository, JsonReminderRepository, SqlServerReminderRepository>();
 
         // 作業管理。保存先の選択 (ローカルの SQLite / SQL Server)は、SQLite を参照できるホストが、設定で行う (MmmBatch に SQLite を持ち込まないため)
         services.AddSingleton<SqlServerWorkItemRepository>();
@@ -53,35 +50,20 @@ public static class SqlServerDataServiceCollectionExtensions
         // 送信先とリマインダーの送信設定は、DB モードだけで使う (ローカルモードは、機能が登録した「使えない」保存先のまま)
         services.AddSingleton<SqlServerNotificationChannelRepository>();
         services.AddSingleton<SqlServerReminderSendSettingRepository>();
-        services.AddSingleton<INotificationChannelRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerNotificationChannelRepository>()
-                : provider.GetRequiredService<UnavailableNotificationChannelRepository>());
-        services.AddSingleton<IReminderSendSettingRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerReminderSendSettingRepository>()
-                : provider.GetRequiredService<UnavailableReminderSendSettingRepository>());
+        services.AddStorage<INotificationChannelRepository, UnavailableNotificationChannelRepository, SqlServerNotificationChannelRepository>();
+        services.AddStorage<IReminderSendSettingRepository, UnavailableReminderSendSettingRepository, SqlServerReminderSendSettingRepository>();
 
         // 会話とメッセージの読み書きも、DB モードだけ。ローカルモードは、機能が登録した「使えない」保存先のまま
         services.AddSingleton<SqlServerMessageRepository>();
-        services.AddSingleton<IMessageRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerMessageRepository>()
-                : provider.GetRequiredService<UnavailableMessageRepository>());
+        services.AddStorage<IMessageRepository, UnavailableMessageRepository, SqlServerMessageRepository>();
 
         // ユーザーごとの設定 (メッセージの通知先など)も、DB モードだけ
         services.AddSingleton<SqlServerAppUserSettingRepository>();
-        services.AddSingleton<IAppUserSettingRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerAppUserSettingRepository>()
-                : provider.GetRequiredService<UnavailableAppUserSettingRepository>());
+        services.AddStorage<IAppUserSettingRepository, UnavailableAppUserSettingRepository, SqlServerAppUserSettingRepository>();
 
         // 管理者が決める設定 (機能の利用)も、DB モードだけ
         services.AddSingleton<SqlServerAppUserAdminSettingRepository>();
-        services.AddSingleton<IAppUserAdminSettingRepository>(provider =>
-            provider.GetRequiredService<DatabaseSettingsService>().Load().Mode == DatabaseMode.SqlServer
-                ? provider.GetRequiredService<SqlServerAppUserAdminSettingRepository>()
-                : provider.GetRequiredService<UnavailableAppUserAdminSettingRepository>());
+        services.AddStorage<IAppUserAdminSettingRepository, UnavailableAppUserAdminSettingRepository, SqlServerAppUserAdminSettingRepository>();
         return services;
     }
 }

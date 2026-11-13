@@ -15,7 +15,7 @@ public static class WorkItemStorageServiceCollectionExtensions
     /// <remarks>
     /// 設定 (<see cref="DatabaseMode"/>)が DB のときは SQL Server、それ以外は SQLite の <c>Data/MmmTool.db</c>。
     /// 選ぶ処理は共通の部品 <see cref="DatabaseStorageServiceCollectionExtensions.AddStorage{TService, TLocal, TServer}"/> が持つ。
-    /// 選ぶのは SQLite と SQL Server の両方を参照するホストの役目。
+    /// SQLite の型を指すので、SQLite と SQL Server の両方を参照するホストが呼ぶ。
     /// MmmBatch は SQLite を参照しないので、<c>MmmTool.Data.SqlServer</c> の側には置かない。
     /// <c>AddSqliteData</c> と <c>AddSqlServerData</c> のあとに呼ぶ。
     /// </remarks>

@@ -1107,8 +1107,10 @@
   - SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う
   - コードマスタの初期値は、作成用のスクリプトが入れる
 - ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)
-  - 選ぶ処理は、共通の部品 `AddStorage` (`App/Features/Database/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))
-  - MmmBatch は SQLite を参照しない (`MmmTool.Data.SqlServer` に選ぶ処理を置かないのは、このため)
+  - 選ぶ処理は、共通の部品 `AddStorage` (`MmmTool.Data` の `Connection/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))
+  - ローカルの保存先が SQLite のものは、SQLite と SQL Server の両方を参照できるホストが `AddStorage` を呼んで登録する
+    - 理由: MmmBatch は SQLite を参照しないので、SQLite の型を `MmmTool.Data.SqlServer` の登録の中に書けないため
+  - ローカルの保存先が JSON や「使えない」保存先のものは、`AddSqlServerData` が `AddStorage` で登録する
 
 ## 他の DB を足すとき
 
