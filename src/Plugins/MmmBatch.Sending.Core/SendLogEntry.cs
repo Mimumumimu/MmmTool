@@ -4,10 +4,9 @@ namespace MmmBatch.Sending.Core;
 
 /// <summary>送信のログの 1 行で送った 1 回の結果</summary>
 /// <param name="At">送った日時 (結果が決まった日時)</param>
-/// <param name="ReminderId">
-/// 送ったものの番号
-/// リマインダーはリマインダーの番号
-/// メッセージは送信依頼の番号
+/// <param name="SourceId">
+/// 送ったものの番号。
+/// 機能ごとに、送ったものを指す番号を入れる。
 /// </param>
 /// <param name="Title">
 /// 件名で、送った時点のもの。
@@ -32,17 +31,18 @@ namespace MmmBatch.Sending.Core;
 /// 各機能が自分の値を決める。
 /// この項目を持たない古い行は <see cref="LegacySource"/> のリマインダーの行。
 /// </param>
-/// <param name="SenderName">
-/// メッセージを依頼した人の表示名で、送った時点のもの。
-/// リマインダーは空文字。
+/// <param name="ActorName">
+/// 送るきっかけを作った人の表示名で、送った時点のもの。
+/// 機能が決める。
+/// 該当する人がいなければ空文字。
 /// </param>
 /// <remarks>
 /// 件名・名前を、送った時点のまま持つので、あとでリマインダーや送信先を直したり消したりしても、ログは変わらない。
 /// 送る先の値 (トピック名・Webhook の URL)は秘密なので、持たない。
 /// </remarks>
 public sealed record SendLogEntry(
-    DateTimeOffset At, int ReminderId, string Title, string OwnerName, int ChannelId, NotificationChannelKind ChannelKind, string ChannelName,
-    int Attempt, SendStatus Status, string Error, string Source = SendLogEntry.LegacySource, string SenderName = "")
+    DateTimeOffset At, int SourceId, string Title, string OwnerName, int ChannelId, NotificationChannelKind ChannelKind, string ChannelName,
+    int Attempt, SendStatus Status, string Error, string Source = SendLogEntry.LegacySource, string ActorName = "")
 {
     /// <summary>機能のキーを持たない古い行の機能のキーで、リマインダーの値と同じ</summary>
     /// <remarks>ログのファイルにはこの文字列で残っている</remarks>

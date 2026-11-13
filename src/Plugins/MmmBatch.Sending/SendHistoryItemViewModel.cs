@@ -26,9 +26,9 @@ public sealed class SendHistoryItemViewModel(SendLogEntry entry)
     /// <summary>送信先を登録した人の表示名</summary>
     public string OwnerName => Source.OwnerName;
 
-    /// <summary>メッセージを依頼した人の表示名</summary>
-    /// <remarks>リマインダーは空文字</remarks>
-    public string SenderName => Source.SenderName;
+    /// <summary>送るきっかけを作った人の表示名</summary>
+    /// <remarks>メッセージは依頼した人、ノートは更新した人で、リマインダーは空文字。</remarks>
+    public string ActorName => Source.ActorName;
 
     /// <summary>送信先</summary>
     public string ChannelText { get; } = SendDisplay.ChannelText(entry.ChannelKind, entry.ChannelName);
