@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using MmmSdk.Core.Components.Scheduling;
 using MmmSdk.Core.Utilities;
 using MmmSdk.WinUI.Components.Dialogs;
+using MmmTool.NotificationChannels;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.Core;
 
@@ -25,6 +26,8 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     private readonly IDialogService _dialogs;
     /// <summary>入力画面</summary>
     private readonly IReminderDialogService _reminderDialogs;
+    /// <summary>送信先の画面</summary>
+    private readonly INotificationChannelDialogService _channelDialogs;
     /// <summary>送信先の保存先</summary>
     /// <remarks>送信先の入口を出すかの判断に使う</remarks>
     private readonly INotificationChannelRepository _channels;
@@ -33,15 +36,18 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <param name="reminders">リマインダーの読み書き</param>
     /// <param name="dialogs">確認ダイアログを開く</param>
     /// <param name="reminderDialogs">入力画面を開く</param>
+    /// <param name="channelDialogs">送信先の画面を開く</param>
     /// <param name="channels">送信先の保存先</param>
     /// <param name="time">現在時刻の提供元</param>
     /// <param name="ticker">毎分の合図</param>
     public ReminderListViewModel(
-        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelRepository channels, TimeProvider time, ITicker ticker)
+        ReminderService reminders, IDialogService dialogs, IReminderDialogService reminderDialogs, INotificationChannelDialogService channelDialogs,
+        INotificationChannelRepository channels, TimeProvider time, ITicker ticker)
         : base(reminders, time, ticker)
     {
         _dialogs = dialogs;
         _reminderDialogs = reminderDialogs;
+        _channelDialogs = channelDialogs;
         _channels = channels;
     }
 
@@ -52,7 +58,7 @@ public sealed partial class ReminderListViewModel : ReminderViewModelBase
     /// <summary>送信先の一覧画面を開く</summary>
     /// <returns>一覧画面が閉じるまでの待機を表すタスク</returns>
     [RelayCommand]
-    private Task OpenChannelsAsync() => _reminderDialogs.ShowChannelListAsync();
+    private Task OpenChannelsAsync() => _channelDialogs.ShowChannelListAsync();
 
     /// <summary>一覧の行</summary>
     public ObservableCollection<ReminderListItem> Items { get; } = [];

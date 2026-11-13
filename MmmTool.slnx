@@ -90,6 +90,9 @@
   </Folder>
   <Folder Name="/NotificationChannels/">
     <Project Path="src/NotificationChannels/MmmTool.NotificationChannels.Core/MmmTool.NotificationChannels.Core.csproj" />
+    <Project Path="src/NotificationChannels/MmmTool.NotificationChannels/MmmTool.NotificationChannels.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/Users/">
     <Project Path="src/Users/MmmTool.Users.Core/MmmTool.Users.Core.csproj" />
@@ -102,6 +105,9 @@
       <Platform Project="x64" />
     </Project>
     <Project Path="src/Data/MmmTool.Data.SqlServer/MmmTool.Data.SqlServer.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Data/MmmTool.Data.Storage/MmmTool.Data.Storage.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="src/Data/MmmTool.Data.SqlServer.WinUI/MmmTool.Data.SqlServer.WinUI.csproj">

@@ -92,7 +92,8 @@
     <ProjectReference Include="..\..\Plugins\MmmTool.Reminders\MmmTool.Reminders.csproj" />
     <ProjectReference Include="..\..\Plugins\MmmTool.CliAssist\MmmTool.CliAssist.csproj" />
     <ProjectReference Include="..\..\CodeMaster\MmmTool.CodeMaster\MmmTool.CodeMaster.csproj" />
-    <ProjectReference Include="..\..\Data\MmmTool.Data.Sqlite\MmmTool.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\..\NotificationChannels\MmmTool.NotificationChannels\MmmTool.NotificationChannels.csproj" />
+    <ProjectReference Include="..\..\Data\MmmTool.Data.Storage\MmmTool.Data.Storage.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer\MmmTool.Data.SqlServer.csproj" />
     <ProjectReference Include="..\..\Data\MmmTool.Data.SqlServer.WinUI\MmmTool.Data.SqlServer.WinUI.csproj" />
     <ProjectReference Include="..\..\..\external\MmmSdk\MmmSdk.WinUI\MmmSdk.WinUI.csproj" />

@@ -483,4 +483,4 @@
   - DB の種類で変わる所は、その文書の「SQL Server の場合」「SQLite の場合」
 - ホスト (`src/App/MmmTool`)に、ノートの名前を書いた保存先の登録を足さない
   - 設定でローカルか DB かを選ぶ処理は、共通の部品 `AddStorage` (`MmmTool.Data` の `Connection`)に 1 か所だけあり、機能は 1 行で使う (機能を足すたびに、ホストへ機能名のファイルや、同じ処理のコピーが増えないようにするため)
-  - ノートは、その 1 行 (`App.xaml.cs`)と、機能の登録 (`AddFeaturePlugin<NotesPlugin>`)だけで足している
+  - ノートは、その 1 行 (`MmmTool.Data.Storage` の `AddLocalAndServerStorage`)と、機能の登録 (`AddFeaturePlugin<NotesPlugin>`)だけで足している

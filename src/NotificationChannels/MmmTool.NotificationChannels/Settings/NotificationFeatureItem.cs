@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
 /// <summary>設定ページの「通知を受け取る機能」に並べる、機能 1 件のオン・オフ</summary>
 /// <param name="setting">登録された設定</param>

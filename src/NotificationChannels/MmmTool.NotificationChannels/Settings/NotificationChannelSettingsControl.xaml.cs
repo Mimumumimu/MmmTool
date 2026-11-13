@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
 /// <summary>設定ページの「送信先」で、設定ページに並べる部品</summary>
 /// <remarks>サーバーモードだけ</remarks>

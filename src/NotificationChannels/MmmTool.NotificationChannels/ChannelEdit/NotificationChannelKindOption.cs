@@ -1,6 +1,6 @@
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.ChannelEdit;
+namespace MmmTool.NotificationChannels.ChannelEdit;
 
 /// <summary>登録画面で選ぶ送信先の種類で選択肢として使う</summary>
 /// <param name="Kind">区分</param>

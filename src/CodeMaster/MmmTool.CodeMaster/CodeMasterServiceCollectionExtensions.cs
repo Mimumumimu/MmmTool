@@ -14,7 +14,7 @@ public static class CodeMasterServiceCollectionExtensions
     /// <param name="order">設定ページでの並び順の値</param>
     /// <returns>登録先のサービスコレクション</returns>
     /// <remarks>
-    /// コードマスタの保存先 (<see cref="ICodeMasterRepository"/>)はホストが設定で選んで登録する
+    /// コードマスタの保存先 (<see cref="ICodeMasterRepository"/>)はアプリが設定で選んで登録する
     /// 出す区分は各機能が <see cref="AddCodeCategoryEditor"/> で登録する
     /// この画面は特定の機能を知らない
     /// </remarks>

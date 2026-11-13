@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
 /// <summary>設定ページの「通知先」に並べる通知先の選択</summary>
 /// <param name="options">

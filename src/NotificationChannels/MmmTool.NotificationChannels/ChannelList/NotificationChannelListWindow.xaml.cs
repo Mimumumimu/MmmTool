@@ -6,7 +6,7 @@ using MmmSdk.WinUI.Utilities;
 using Windows.Foundation;
 using Windows.Graphics;
 
-namespace MmmTool.Reminders.ChannelList;
+namespace MmmTool.NotificationChannels.ChannelList;
 
 /// <summary>送信先の一覧ウィンドウ</summary>
 /// <remarks>

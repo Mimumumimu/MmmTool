@@ -151,6 +151,7 @@ C# + WinUI 3 のデスクトップアプリ。作業管理・ノート・リマ�
   - 一覧と理由は [docs/specs/database.md](docs/specs/database.md) の「設計の判断」の「意図した仕様」
 - DB のコードを、機能ごとではなく 1 か所に集める
   - 集める先は `MmmTool.Data` と `MmmTool.Data.<種類>`
+  - SQLite と SQL Server を切り替える保存先の登録は `MmmTool.Data.Storage` に集める。DB の種類ではない。
   - `MmmTool.Data` が複数の機能の Core を参照する
   - DB の行のクラスと、アプリの型 (`Reminder` など)が別
   - 詳細は [docs/architecture.md](docs/architecture.md) の「DB のコードの置き場所」

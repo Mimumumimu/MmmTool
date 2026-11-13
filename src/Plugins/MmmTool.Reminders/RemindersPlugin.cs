@@ -5,8 +5,6 @@ using MmmSdk.WinUI.Components.Tray;
 using MmmTool.CodeMaster.Core;
 using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.BulkInput;
-using MmmTool.Reminders.ChannelEdit;
-using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Core.Json;
 using MmmTool.Reminders.Input;
@@ -63,16 +61,12 @@ public sealed class RemindersPlugin : IFeaturePlugin
         services.AddTransient<ReminderBulkInputViewModel>();
         services.AddTransient<ReminderListViewModel>();
         services.AddTransient<ReminderMainViewModel>();
-        services.AddTransient<NotificationChannelListWindow>();
-        services.AddTransient<NotificationChannelListViewModel>();
-        services.AddTransient<NotificationChannelEditWindow>();
-        services.AddTransient<NotificationChannelEditViewModel>();
 
         // 設定ページに並べる設定 (スヌーズ間隔)
         services.AddTransient<ReminderSettingsViewModel>();
         services.AddSettingsSection<ReminderSettingsControl>(RemindersFeature.Key);
 
-        // 設定ページの「送信先」「通知先」「通知を受け取る機能」は、機能に属さない共通の節。ホストが AddNotificationSettings で並び順を渡して登録する
+        // 送信先の画面 (一覧・登録)と、設定ページの「送信先」「通知先」「通知を受け取る機能」は、機能に属さない共通の部品。ホストが AddNotificationChannelScreens で登録する
 
         // サイドバーの「リマインダー」で、一覧。ウィンドウの一覧と中身を共有する。オフにできない機能なので、機能のキーは、並び順のためだけに渡す
         services.AddNavigationPage<ReminderListPage>(RemindersFeature.DisplayName, "", NavigationArea.Top, RemindersFeature.Key);

@@ -4,7 +4,7 @@ using MmmSdk.WinUI.Components.Windowing;
 using MmmSdk.WinUI.Utilities;
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.ChannelEdit;
+namespace MmmTool.NotificationChannels.ChannelEdit;
 
 /// <summary>送信先の登録ウィンドウ</summary>
 /// <remarks>

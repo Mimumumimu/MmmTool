@@ -1,6 +1,6 @@
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
 /// <summary>通知先に選べる送信先 1 件</summary>
 /// <param name="ChannelId">

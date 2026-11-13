@@ -220,10 +220,10 @@
   - 既定は、作業管理の「過去の完了」が「グループのみ表示」で、スケジュールの「完了」が「表示」
   - 反映は次の起動から。画面の状態クラス (`WorkItemViewState`・`ScheduleViewState`)を最初に作るときに読むだけなので、動いている画面は変わらない。
   - 設定ファイルを読めなかったとき (`IsReadOnly`)は、選択欄を無効にする。保存の失敗 (`DataFileException`)は、画面の InfoBar に出す。
-- **送信先** (`src/Plugins/MmmTool.Reminders/Settings/NotificationChannelSettingsControl` ＋ `NotificationChannelSettingsViewModel`)
-  - リマインダーの機能の設定の部品 (`ReminderSettingsControl` の次に並ぶ)
+- **送信先** (`src/NotificationChannels/MmmTool.NotificationChannels/Settings/NotificationChannelSettingsControl` ＋ `NotificationChannelSettingsViewModel`)
+  - どの機能にも属さない共通の節で、リマインダーの機能の設定の部品ではない
   - 見出しは「送信先」で、カードは 1 枚
-    - カードは「送信先の登録」で、押すと、送信先の一覧画面を開く (`IReminderDialogService.ShowChannelListAsync`)
+    - カードは「送信先の登録」で、押すと、送信先の一覧画面を開く (`INotificationChannelDialogService.ShowChannelListAsync`)
     - リマインダーの一覧画面の「送信先の設定」と同じ画面
   - サーバーモード (DB モード)のときだけ並べる
     - 判定は `INotificationChannelRepository.IsAvailable`

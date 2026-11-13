@@ -104,5 +104,7 @@
   - 保存は、複数の名前を 1 つのトランザクションで行う
 - 並べる部品 `CodeMasterSettingsControl` と編集ウィンドウは、MmmTool の設定ページの「選択肢」と同じものを使う。詳細は [settings.md](settings.md) の「選択肢」。見出し「選択肢」も、同じものが出る。
 - 編集できる区分は、プラグイン `MmmToolAdmin.CodeMaster` に 1 行ずつ足す。作業管理の「進捗度の名前」は、`WorkCodes.ProgressNameEditor` を使い、MmmTool の設定ページと同じ定義にする。
+  - 区分の定義は各機能の Core が持ち、プラグインはどの区分を管理ツールで出すかだけを選ぶ。管理ツールのホスト (`App.xaml.cs`)には、機能の名前を足さない。
+  - 理由: 管理ツールが、どの機能の区分を直せるかを決めるのは、管理ツールの「選択肢」の役目だから。機能の Core を参照しないと、区分の定義を使えない。
 - MmmTool は、DB モードでは、名前を編集しない。保存先は、編集できない `UnavailableCodeMasterRepository` のままにする。DB モードの名前は、管理ツールだけが直す。
 - 管理ツールの `App.xaml` は、共有の部品が使う見出しのスタイル `SettingsSectionHeaderStyle` と、入力欄の標準のスタイルを、SDK の `AppStyles.xaml` から読む。MmmTool の `App.xaml` と同じファイルを読み、管理ツールには書き写さない。

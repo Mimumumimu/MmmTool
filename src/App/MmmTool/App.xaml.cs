@@ -12,21 +12,15 @@ using MmmTool.Backlog;
 using MmmTool.CliAssist;
 using MmmTool.ClipboardTransfer;
 using MmmTool.CodeMaster;
-using MmmTool.CodeMaster.Core;
-using MmmTool.Data.Connection;
-using MmmTool.Data.Sqlite;
-using MmmTool.Data.Sqlite.CodeMaster;
-using MmmTool.Data.Sqlite.Notes;
 using MmmTool.Data.SqlServer;
-using MmmTool.Data.SqlServer.Notes;
+using MmmTool.Data.Storage;
 using MmmTool.Features.Database;
 using MmmTool.Features.Database.Choice;
 using MmmTool.Features.Settings;
 using MmmTool.Features.Users;
 using MmmTool.Links;
-using MmmTool.Notes.Core;
+using MmmTool.NotificationChannels;
 using MmmTool.Reminders;
-using MmmTool.Reminders.Settings;
 using MmmTool.Shell;
 using MmmTool.Shell.Main;
 using MmmTool.Tools;
@@ -84,20 +78,14 @@ public partial class App : Application
         // SQL Server への保存。機能が登録した JSON の保存先を、設定が DB のときだけ置き換えるので、機能の登録のあとに呼ぶ
         services.AddSqlServerData();
 
-        // 作業管理の保存先。ローカルは SQLite の Data/MmmTool.db、DB モードは SQL Server。ホストが設定で選ぶ
-        services.AddSqliteData();
-        services.AddWorkItemStorage();
+        // 作業管理・ノート・コードマスタの保存先。ローカルは SQLite の Data/MmmTool.db、DB モードは SQL Server。設定で選ぶ。保存先が増えたときに足すのは、この中の 1 行
+        services.AddLocalAndServerStorage();
 
-        // ノートの保存先。同じく、ローカルは SQLite、DB モードは SQL Server。選ぶ処理は共通の部品 (機能は 1 行を足すだけ)
-        services.AddStorage<INoteRepository, SqliteNoteRepository, SqlServerNoteRepository>();
-
-        // コードマスタの編集。ローカルは SQLite に書けるが、DB モードは編集できない。全員で共通なので、管理ツールで直す。設定ページの「選択肢」は、編集できるときだけ出る
-        services.AddSingleton<UnavailableCodeMasterRepository>();
-        services.AddStorage<ICodeMasterRepository, SqliteCodeMasterRepository, UnavailableCodeMasterRepository>();
+        // コードマスタの編集の画面。DB モードは編集できず、全員で共通なので管理ツールで直す。設定ページの「選択肢」は、編集できるときだけ出る
         services.AddCodeMasterSettings(SettingsSectionOrder.CodeMaster);
 
-        // 設定ページの通知の節は、送信先・通知先・通知を受け取る機能の 3 つ。どの機能にも属さない共通の節で、サーバーモードだけ出る
-        services.AddNotificationSettings(SettingsSectionOrder.Notifications);
+        // 送信先の一覧と登録の画面、設定ページの通知の節。どの機能にも属さない共通の部品で、サーバーモードだけ出る
+        services.AddNotificationChannelScreens(SettingsSectionOrder.Notifications);
 
         // 保存先の画面 (設定ページの部品と、初回の選択)
         services.AddDatabaseScreens();

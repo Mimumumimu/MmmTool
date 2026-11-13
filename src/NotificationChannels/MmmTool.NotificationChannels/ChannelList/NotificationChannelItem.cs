@@ -1,6 +1,6 @@
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.ChannelList;
+namespace MmmTool.NotificationChannels.ChannelList;
 
 /// <summary>送信先の一覧の 1 行</summary>
 /// <param name="source">元の送信先</param>

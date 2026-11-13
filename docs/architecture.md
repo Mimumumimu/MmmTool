@@ -33,12 +33,14 @@
 | `src/Plugins/MmmTool.<機能>.Core` | `net10.0` (Messages・Notes・Reminders は AnyCPU) | 機能の、UI に依存しない処理 (Entity・Repository・サービス)を持ち、Windows / WinUI を参照しない。Messages・Notes・Reminders の `.Core` は、Web 版の画面側 (ブラウザ)が、判定と上限を共有するために参照するので、AnyCPU にする。参照先の `CodeMaster.Core`・`DayContent.Core`・`NotificationChannels.Core`・`Users.Core`・`MmmSdk.Core` も AnyCPU。機能は Backlog / CliAssist / ClipboardTransfer / Links / Messages / Notes / Reminders / Tools / WorkItems の 9 つ |
 | `src/Plugins/MmmTool.<機能>` | `net10.0-windows10.0.19041.0`(WinUI 3 のライブラリ) | 機能の画面・ViewModel・DI 登録の入口 (`<機能>Plugin`)・機能が持つ資材 (CLI補助の補助スクリプト) |
 | `src/Users/MmmTool.Users.Core` | `net10.0` | 機能をまたいで共有する、ユーザー。`AppUser`・今のユーザー `CurrentUser`・ログイン名とパスワードからの特定を持つ。画面は持たない。DB の保存先 (`IAppUserRepository`)のインターフェースだけを持ち、実装は `MmmTool.Data.<種類>` |
-| `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)と、名前を編集する保存先の口 (`ICodeMasterRepository`)・編集できる区分の登録 (`CodeCategoryEditor`)を持つ。依存は SDK の Core だけ。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
+| `src/CodeMaster/MmmTool.CodeMaster.Core` | `net10.0` | 機能をまたいで共有する、コードマスタ。番号と名前と数値の組で、選択肢などに使う。コードマスタの 1 件 (`CodeMasterEntry`)・引くための入れ物 (`CodeBook`)・機能番号の台帳 (`CodeFeatures`)と、名前を編集する保存先の口 (`ICodeMasterRepository`)・編集できる区分の登録 (`CodeCategoryEditor`)を持つ。依存は SDK の Core だけ。機能番号は DB の値で、重なると意味が壊れ、ユーザーの Core や MmmBatch の SQL が機能の Core を参照せずに使えるので、各機能の Core に分けずこの台帳に置く。保存先の実装は `MmmTool.Data.<種類>` の表 `CodeMaster` ([specs/database.md](specs/database.md)) |
 | `src/CodeMaster/MmmTool.CodeMaster` | `net10.0-windows` | コードマスタの名前を編集する画面で、設定ページの「選択肢」と編集ウィンドウ。登録された区分を並べるだけで、特定の機能を知らない。機能は `AddCodeCategoryEditor` で区分を足す ([specs/settings.md](specs/settings.md)の「選択肢」) |
 | `src/DayContent/MmmTool.DayContent.Core` | `net10.0` | 機能をまたいで共有する、日ごとの内容の契約 `IDayContentSource`。提供する機能 (作業管理の作業報告など)と、使う機能 (ノート)の両方が、これだけを参照するので、機能どうしは参照しない。画面は持たず、依存は無い。仕様は [specs/notes-sources.md](specs/notes-sources.md) |
-| `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先。`NotificationChannel`・区分・規則・`INotificationChannelRepository` を持つ。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たず、登録の画面はリマインダーの機能にある。保存先の実装は `MmmTool.Data.<種類>` |
+| `src/NotificationChannels/MmmTool.NotificationChannels.Core` | `net10.0` | 機能をまたいで共有する、通知の送信先。`NotificationChannel`・区分・規則・`INotificationChannelRepository` を持つ。リマインダーとメッセージの両方が使うので、どちらの機能の Core にも置かない。画面は持たず、登録の画面は `MmmTool.NotificationChannels` にある。保存先の実装は `MmmTool.Data.<種類>` |
+| `src/NotificationChannels/MmmTool.NotificationChannels` | `net10.0-windows` | 通知の送信先の画面。送信先の一覧と登録のウィンドウ・設定ページの「送信先」「通知先」「通知を受け取る機能」の節・画面を開く口 `INotificationChannelDialogService` を持ち、`AddNotificationChannelScreens` で登録する。どの機能にも属さない共通の部品なので、リマインダーの機能には置かない。リマインダーの一覧画面は、この口で送信先の画面を開く |
 | `src/Data/MmmTool.Data` | `net10.0` | DB の種類に依存しない部分で、DB の行のクラスと、アプリの型との変換・接続の設定・保存先を設定で選んで登録する共通の部品 `AddStorage` を持つ。全機能の分をここに集める。参照するのは、DB に保存する機能の `.Core`(Reminders・Messages・WorkItems・Notes)と `MmmTool.Users.Core`・`MmmTool.CodeMaster.Core`・`MmmTool.NotificationChannels.Core`。MmmBatch も参照するので、SQLite など DB の種類ごとの依存は入れない |
 | `src/Data/MmmTool.Data.<種類>` | `net10.0` | その DB の Repository の実装で、`MmmTool.Data.SqlServer`・`MmmTool.Data.Sqlite` がある。SDK の `MmmSdk.Db.<種類>` を参照する。保存先の選び方は、「DI と起動」の「保存先」に書く |
+| `src/Data/MmmTool.Data.Storage` | `net10.0` | ローカルは SQLite、DB モードは SQL Server に切り替える保存先の登録 `AddLocalAndServerStorage` を持つ。SQLite と SQL Server の両方を参照するアプリ (MmmTool)だけが参照する。作業管理・ノート・コードマスタの登録と、モードが変わったときの後始末 (`WorkItemSelectionReset`)がある |
 | `external/MmmSdk/MmmSdk.Db.<種類>` | `net10.0` | DB への接続の部品 `MmmSdk.Db.SqlServer`。外部のドライバーを参照するので、`MmmSdk.Core` とは別のプロジェクト ([SDK の db-sqlserver.md](../external/MmmSdk/docs/db-sqlserver.md)) |
 | `external/MmmSdk/MmmSdk.Core` | `net10.0` | 共有部品のうち UI に依存しないもの (機能がホストへ入る口 (`Features`・`Hosting`)・JSON の保存・設定ストア・秘密の保存の口・位置保存・パスを開く・通知の項目・定期処理の合図 (`ITicker`)・添付の一時保存・多重起動の防止・エラーログ・`Forget`) |
 | `external/MmmSdk/MmmSdk.WinUI` | `net10.0-windows10.0.19041.0` | Win32 の宣言は CsWin32 でここに集める。共有部品のうち UI・Windows に依存するもの (サイドバーのページ・設定の部品の登録 (`Pages`)・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択・資格情報マネージャーでの秘密の保存・擬似モーダル・タスクトレイ・ConPTY・コントロール・IME・ウィンドウ補助・エラー処理) |
@@ -182,12 +184,14 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - CLI補助・リンクはローカル専用
   - リマインダーは、設定 (`Database.Mode`)で DB を選んだときだけ、JSON の Repository を DB の実装に切り替える。切り替えは、`AddSqlServerData()` が共通の部品 `AddStorage` で登録する
   - DB モードだけで使うもの (送信先・メッセージ・ユーザーごとの設定・管理者が決める設定)も、`AddSqlServerData()` が `AddStorage` で、ローカルモードでは「使えない」保存先に切り替えて登録する
-  - 作業管理とノートは、機能が保存先を登録せず、ホストが設定でローカルの SQLite か SQL Server を選んで登録する
-    - SQLite と SQL Server の両方を参照できるのはホストだけで、MmmBatch に SQLite を持ち込まないため
+  - 作業管理・ノート・コードマスタは、機能が保存先を登録せず、`MmmTool.Data.Storage` の `AddLocalAndServerStorage()` が、設定でローカルの SQLite か SQL Server を選んで登録する
+    - SQLite と SQL Server の両方を参照できるのは `MmmTool.Data.Storage` だけで、MmmBatch に SQLite を持ち込まないため
     - 選ぶ処理は、共通の部品 `AddStorage<TService, TLocal, TServer>` (`MmmTool.Data` の `Connection/DatabaseStorageServiceCollectionExtensions`)に 1 か所だけ持つ
-      - SQLite の型を参照しないので、MmmBatch も参照する `MmmTool.Data` に置く。ホストにも `AddSqlServerData` にも、同じ選び方を書き写さない。
-    - ノートは `App.xaml.cs` で 1 行を足すだけ。機能名のファイルを、ホストに足さない。
-    - 作業管理の `WorkItemStorageServiceCollectionExtensions` は、その部品を呼び、モードが変わったときの後始末 (`IDatabaseModeChangeHandler`)だけを足す
+      - SQLite の型を参照しないので、MmmBatch も参照する `MmmTool.Data` に置く。`AddLocalAndServerStorage` にも `AddSqlServerData` にも、同じ選び方を書き写さない。
+    - 同じ形の保存先が増えたら、`AddLocalAndServerStorage` に 1 行を足す。ホスト (`App.xaml.cs`)には、機能名を足さない。
+    - 作業管理は、その部品を呼び、モードが変わったときの後始末 (`WorkItemSelectionReset`、`IDatabaseModeChangeHandler`)を足す
+    - 後始末を機能のプラグインに置かない
+      - 理由: `IDatabaseModeChangeHandler` は `MmmTool.Data` にあり、`MmmTool.Data` は全機能の Core を参照するため。プラグインが参照すると、他の機能の Core まで巻き込む。
   - 詳細は [specs/database.md](specs/database.md)
 - 設定ページ: 各機能が `AddSettingsSection<TControl>()` で設定の部品を登録し、設定ページは並び順の値の順に並べるだけ ([specs/settings.md](specs/settings.md))
 - 機能のオン・オフ: オフにできる機能は、CLI補助・ノート・作業管理・メッセージ・クリップボード転送・Backlog・ツール
@@ -318,6 +322,7 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
 
 - リレーショナル DB への保存のコードは、機能のライブラリ (`MmmTool.<機能>.Core`)には置かず、`MmmTool.Data` と `MmmTool.Data.<種類>` に、全機能の分を集める
   - `MmmTool.Data` は DB の種類に依存しない部分、`MmmTool.Data.<種類>` は DB 別の実装 ([specs/database.md](specs/database.md))
+  - `MmmTool.Data.Storage` は、SQLite と SQL Server の両方を参照して、保存先を切り替える登録を集める。DB の種類ではない。
   - ユーザーの決定で、意図した仕様。レビューで指摘・提案しない。
 - `MmmTool.Data`: 表の列と 1 対 1 の DB の行のクラス (`ReminderRow` など)と、アプリの型 (`Reminder` など)との変換
 - `MmmTool.Data.<種類>`: その DB の Repository の実装 (DB 別のドライバーは SDK の `MmmSdk.Db.<種類>`)

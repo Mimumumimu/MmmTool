@@ -2,7 +2,7 @@ using MmmSdk.Core.Components.Settings;
 using MmmTool.Data.Connection;
 using MmmTool.WorkItems.Core;
 
-namespace MmmTool.Features.Database;
+namespace MmmTool.Data.Storage.WorkItems;
 
 /// <summary>保存先のモードが変わったときに作業管理の表示しない案件の番号を初期化する</summary>
 /// <param name="settings">この PC の設定</param>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="MmmTool.Reminders.Settings.NotificationChannelSettingsControl"
+    x:Class="MmmTool.NotificationChannels.Settings.NotificationChannelSettingsControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">

@@ -19,7 +19,7 @@
   - ローカルモードでは、DB に接続せず、ユーザーの特定・初回登録・宛先の選択も出さない (今までの動きと同じ)
   - DB を選んだときは、ローカルの JSON を使わない (保存先を 1 つにして、内容のずれを作らない)
 - 実装は `IReminderRepository` の差し替え
-  - 作業管理は、機能が保存先を登録せず、ホストが設定で SQLite と SQL Server から選ぶ (下の「SQLite の場合」)
+  - 作業管理は、機能が保存先を登録せず、`MmmTool.Data.Storage` が設定で SQLite と SQL Server から選ぶ (下の「SQLite の場合」)
   - リマインダーの機能は、これまでどおり JSON の Repository を登録し、ホストが設定 (`Database.Mode`)で DB を選んだときだけ、`MmmTool.Data.<種類>` の登録 (`AddSqlServerData()` など)で、DB 別の Repository (`SqlServerReminderRepository` など)に置き換える
   - Repository のインターフェースには、DB のドライバーの型を出さない
   - DB のコードの置き場所と理由は [../architecture.md](../architecture.md) の「DB のコードの置き場所」
@@ -793,7 +793,7 @@
   - 宛先がもう選べないユーザー (削除済み・期間外)のときも、保存で宛先が変わらないよう、その名前を選択肢に足す
   - ユーザーの一覧を読めなかったときは、エラーを出して、「自分」「全員」だけにする
 - **送信先の登録と、入力画面の「送信先」**: DB モード (今のユーザーを特定済み)のときだけ出す
-  - 登録は、自分の送信先を、区分 (ntfy / Discord)・登録名・値で登録する画面 (リマインダーの機能の `ChannelList/` と `ChannelEdit/`)
+  - 登録は、自分の送信先を、区分 (ntfy / Discord)・登録名・値で登録する画面 (`MmmTool.NotificationChannels` の `ChannelList/` と `ChannelEdit/`)
     - 一覧は、リマインダーの一覧画面の「送信先」ボタンから開く
     - ntfy は、トピック名の値を自動で作って見せ、コピーと再発行ができる。Discord は、Webhook の URL を貼る。
     - URL は、一覧に出さず、編集でも伏せる
@@ -1106,9 +1106,9 @@
   - 集計の作り直しのスクリプトは `Sql/Maintenance/RebuildActualTotal.sql` (埋め込まず、管理者が、アプリを止めてから流す)
   - SQLite の処理は、UI スレッドを止めないよう別のスレッドで行う
   - コードマスタの初期値は、作成用のスクリプトが入れる
-- ホストが、設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する (`App/Features/Database/WorkItemStorageServiceCollectionExtensions`)
+- 設定 (`Database.Mode`)で、SQLite と SQL Server を選んで `IWorkItemRepository` に登録する (`MmmTool.Data.Storage` の `AddLocalAndServerStorage`)
   - 選ぶ処理は、共通の部品 `AddStorage` (`MmmTool.Data` の `Connection/DatabaseStorageServiceCollectionExtensions`)が 1 か所だけ持ち、ノートの `INoteRepository` も、それで登録する ([notes.md](notes.md))
-  - ローカルの保存先が SQLite のものは、SQLite と SQL Server の両方を参照できるホストが `AddStorage` を呼んで登録する
+  - ローカルの保存先が SQLite のものは、SQLite と SQL Server の両方を参照できる `MmmTool.Data.Storage` が `AddStorage` を呼んで登録する
     - 理由: MmmBatch は SQLite を参照しないので、SQLite の型を `MmmTool.Data.SqlServer` の登録の中に書けないため
   - ローカルの保存先が JSON や「使えない」保存先のものは、`AddSqlServerData` が `AddStorage` で登録する
 

@@ -19,7 +19,7 @@ public static class SqliteDataServiceCollectionExtensions
     /// <remarks>
     /// データのフォルダー (<see cref="AppEnvironment.DataDirectory"/>)の <c>MmmTool.db</c> を使う。
     /// ファイルは最初に使うときに作り、版を上げたあと、あるべき形 (<c>Sql/schema.sql</c>)と比べて、足りない列・表・索引を足す。
-    /// 保存先の選択 (ローカル / DB)はホストが設定で行う。
+    /// 保存先の選択 (ローカル / DB)は <c>MmmTool.Data.Storage</c> が設定で行う。
     /// <c>IWorkItemRepository</c> はここでは登録しない。
     /// </remarks>
     public static IServiceCollection AddSqliteData(this IServiceCollection services)

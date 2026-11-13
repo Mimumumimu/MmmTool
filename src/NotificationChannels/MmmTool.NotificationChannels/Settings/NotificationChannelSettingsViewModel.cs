@@ -1,13 +1,13 @@
 using CommunityToolkit.Mvvm.Input;
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
 /// <summary>設定ページの「送信先」の ViewModel</summary>
 /// <param name="dialogs">送信先の画面を開く</param>
 /// <param name="channels">送信先の保存先 (DB モードかどうかの判定に使う)</param>
 /// <remarks>送信先の一覧画面を開く</remarks>
-public sealed partial class NotificationChannelSettingsViewModel(IReminderDialogService dialogs, INotificationChannelRepository channels)
+public sealed partial class NotificationChannelSettingsViewModel(INotificationChannelDialogService dialogs, INotificationChannelRepository channels)
 {
     /// <summary>DB モードか</summary>
     /// <remarks>false のときは部品を出さない</remarks>

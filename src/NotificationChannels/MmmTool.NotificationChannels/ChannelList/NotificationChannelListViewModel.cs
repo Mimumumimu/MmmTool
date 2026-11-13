@@ -5,7 +5,7 @@ using MmmSdk.WinUI.Components.Dialogs;
 using MmmSdk.WinUI.Components.Errors;
 using MmmTool.NotificationChannels.Core;
 
-namespace MmmTool.Reminders.ChannelList;
+namespace MmmTool.NotificationChannels.ChannelList;
 
 /// <summary>送信先の一覧画面</summary>
 /// <remarks>
@@ -16,9 +16,9 @@ namespace MmmTool.Reminders.ChannelList;
 /// </remarks>
 /// <param name="channels">送信先の保存先</param>
 /// <param name="dialogs">確認ダイアログを開く</param>
-/// <param name="reminderDialogs">登録画面を開く</param>
+/// <param name="channelDialogs">登録画面を開く</param>
 public sealed partial class NotificationChannelListViewModel(
-    INotificationChannelRepository channels, IDialogService dialogs, IReminderDialogService reminderDialogs)
+    INotificationChannelRepository channels, IDialogService dialogs, INotificationChannelDialogService channelDialogs)
 {
     /// <summary>一覧の行</summary>
     public ObservableCollection<NotificationChannelItem> Items { get; } = [];
@@ -52,7 +52,7 @@ public sealed partial class NotificationChannelListViewModel(
     [RelayCommand]
     private async Task AddAsync()
     {
-        if (await reminderDialogs.ShowChannelEditAsync(null) is not null)
+        if (await channelDialogs.ShowChannelEditAsync(null) is not null)
         {
             await InitializeAsync();
         }
@@ -65,7 +65,7 @@ public sealed partial class NotificationChannelListViewModel(
     [RelayCommand]
     private async Task EditAsync(NotificationChannelItem item)
     {
-        if (await reminderDialogs.ShowChannelEditAsync(item.Source) is not null)
+        if (await channelDialogs.ShowChannelEditAsync(item.Source) is not null)
         {
             await InitializeAsync();
         }

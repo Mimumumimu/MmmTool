@@ -2,24 +2,24 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using MmmSdk.Core.Utilities;
 
-namespace MmmTool.Reminders.Settings;
+namespace MmmTool.NotificationChannels.Settings;
 
-/// <summary>設定ページの「通知先」</summary>
+/// <summary>設定ページの「通知を受け取る機能」</summary>
 /// <remarks>設定ページに並べる部品で、サーバーモードだけ出る。</remarks>
-public sealed partial class NotificationTargetSettingsControl : UserControl
+public sealed partial class NotificationFeatureSettingsControl : UserControl
 {
     /// <summary>部品の ViewModel</summary>
-    public NotificationTargetSettingsViewModel ViewModel { get; }
+    public NotificationFeatureSettingsViewModel ViewModel { get; }
 
     /// <summary>部品を作る</summary>
     /// <param name="viewModel">部品の ViewModel</param>
-    public NotificationTargetSettingsControl(NotificationTargetSettingsViewModel viewModel)
+    public NotificationFeatureSettingsControl(NotificationFeatureSettingsViewModel viewModel)
     {
         ViewModel = viewModel;
         InitializeComponent();
         Visibility = viewModel.IsAvailable ? Visibility.Visible : Visibility.Collapsed;
 
-        // 設定ページを開くたびに、送信先の登録の変わりを取り込む
+        // 設定ページを開くたびに、読み直す
         Loaded += (_, _) => ViewModel.InitializeAsync().Forget();
     }
 }

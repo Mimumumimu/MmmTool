@@ -1,16 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using MmmSdk.WinUI.Components.Dialogs;
-using MmmTool.NotificationChannels.Core;
 using MmmTool.Reminders.BulkInput;
-using MmmTool.Reminders.ChannelEdit;
-using MmmTool.Reminders.ChannelList;
 using MmmTool.Reminders.Core;
 using MmmTool.Reminders.Input;
 using MmmTool.Reminders.List;
 
 namespace MmmTool.Reminders;
 
-/// <summary>リマインダーの入力・まとめて追加・一覧画面と送信先の画面を開く</summary>
+/// <summary>リマインダーの入力・まとめて追加・一覧画面を開く</summary>
 /// <param name="scopeFactory">画面ごとの DI のスコープを作る</param>
 /// <param name="dialogs">ダイアログの親を決めるサービス</param>
 /// <remarks>
@@ -47,25 +44,5 @@ public sealed class ReminderDialogService(IServiceScopeFactory scopeFactory, IDi
             await window.ShowModalAsync(owner);
             return true;
         });
-    }
-
-    /// <inheritdoc />
-    public async Task ShowChannelListAsync()
-    {
-        using var scope = scopeFactory.CreateScope();
-        var window = scope.ServiceProvider.GetRequiredService<NotificationChannelListWindow>();
-        await dialogs.ShowModalAsync(window, async owner =>
-        {
-            await window.ShowModalAsync(owner);
-            return true;
-        });
-    }
-
-    /// <inheritdoc />
-    public async Task<NotificationChannel?> ShowChannelEditAsync(NotificationChannel? channel)
-    {
-        using var scope = scopeFactory.CreateScope();
-        var window = scope.ServiceProvider.GetRequiredService<NotificationChannelEditWindow>();
-        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, channel));
     }
 }
