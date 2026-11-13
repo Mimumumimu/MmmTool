@@ -44,6 +44,9 @@ Backlog の共有ファイル (ファイル画面の URL で示すフォルダ�
 
 ## 通信 (`BacklogClient`、Core)
 
+- 利用者が貼ったドメインへ、`GET` だけで接続して読む
+  - CLAUDE.md の「外部送信」の節で、禁止の対象外と決めてある
+  - MmmTool から外へ送り出す通信ではないため、MmmBatch へ移さない
 - `HttpClient` はアプリ全体で 1 つ
   - `BacklogClient` を Singleton にし、自分で持つ
   - 接続は 10 分で張り直す
