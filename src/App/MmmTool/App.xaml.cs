@@ -1,13 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmSdk.Core;
 using MmmSdk.Core.Components.Features;
-using MmmSdk.Core.Components.Logging;
-using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Dialogs;
-using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Hosting;
 using MmmSdk.WinUI.Components.Pages;
 using MmmSdk.WinUI.Components.Tray;
 using MmmSdk.WinUI.Utilities;
@@ -40,56 +37,25 @@ namespace MmmTool;
 /// <summary>アプリケーション</summary>
 public partial class App : Application
 {
-    /// <summary>多重起動の防止</summary>
-    private readonly SingleInstanceGuard _instanceGuard = new(AppInfo.Name);
-    /// <summary>復旧できないエラーの報告先</summary>
-    private readonly FatalErrorHandler _fatalErrors;
-    /// <summary>DI とライフタイムを扱う Host</summary>
-    private readonly IHost _host;
+    /// <summary>起動と終了の骨格</summary>
+    private readonly AppHost _appHost;
     /// <summary>メインウィンドウ</summary>
     /// <remarks>まだ作っていなければ null</remarks>
     private MainWindow? _window;
 
     /// <summary>多重起動を確認して DI の構成を作る</summary>
-    /// <remarks>未処理の例外の受け皿は Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
     public App()
     {
-        if (!_instanceGuard.IsFirstInstance)
-        {
-            NativeMessageBox.ShowInformation($"{AppInfo.Name} はすでに起動しています。", AppInfo.Name);
-            Environment.Exit(0);
-        }
-
-        var errorLog = new ErrorLog(AppInfo.LogDirectory);
-        _fatalErrors = new FatalErrorHandler(errorLog, AppInfo.Name);
-        _fatalErrors.AttachTo(this);
-
+        _appHost = new AppHost(this, AppInfo.Name, AppInfo.LogDirectory);
         InitializeComponent();
-
-        // 設定 (appsettings.json・環境変数)とログの既定は使わないので、無効にする (起動時に読まないため)
-        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
-        {
-            DisableDefaults = true,
-            ContentRootPath = AppContext.BaseDirectory,
-        });
-        ConfigureServices(builder.Services, _fatalErrors, errorLog);
-        _host = builder.Build();
+        _appHost.Build(ConfigureServices);
     }
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
-    /// <param name="fatalErrors">復旧できないエラーの報告先 (トレイなど、SDK の部品が使う)。</param>
-    /// <param name="errorLog">
-    /// エラーを書くログ。
-    /// 復旧できないエラーの報告と共有し、DB の失敗の記録にも使う。
-    /// </param>
     /// <remarks>機能ごとの中身 (保存先・サービス・画面)は各機能の Add～ メソッドにある</remarks>
-    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
+    private static void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(fatalErrors);
-        services.AddSingleton(errorLog);
-
         // SDK の部品は、JsonFileStore・設定ストア・位置保存・パスを開く処理・通知ダイアログ・確認ダイアログ・ファイル/フォルダー選択。JsonFileStore はアプリ固有の保存でも共有する
         services.AddMmmSdkCore(AppInfo.DataDirectory);
         services.AddMmmSdkWinUI();
@@ -142,33 +108,26 @@ public partial class App : Application
     /// <inheritdoc />
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        try
-        {
-            await StartAsync();
-        }
-        catch (Exception ex)
-        {
-            // 起動が途中で止まると、ウィンドウもトレイも出ないまま動き続けて気づけない。復旧できないので、ログ・ダイアログ・終了にする
-            _fatalErrors.Report("起動に失敗しました", ex);
-        }
+        await _appHost.LaunchAsync(StartAsync);
     }
 
     /// <summary>Host を始めてトレイと各機能を用意する</summary>
     /// <returns>起動の完了を表すタスク</returns>
     /// <remarks>
     /// 読み込みの失敗など、起動を止めたくない例外は各機能の起動時の準備 (<see cref="MmmSdk.Core.Components.Features.IStartupTask"/>)の中で受け止め、画面を開いたときに知らせる。
-    /// ここまで届いた例外は復旧できない失敗として <see cref="OnLaunched"/> が報告する。
+    /// ここまで届いた例外は復旧できない失敗として <see cref="AppHost.LaunchAsync"/> が報告する。
     /// </remarks>
     private async Task StartAsync()
     {
-        await _host.StartAsync();
+        await _appHost.StartHostAsync();
+        var services = _appHost.Services;
 
         // トレイは画面・各機能より先に作る。Host は作った順の逆に破棄するので、終了時に各機能の後始末が済んでからトレイアイコンが消える
-        var tray = _host.Services.GetRequiredService<TrayIcon>();
+        var tray = services.GetRequiredService<TrayIcon>();
 
         // 保存先がまだ選ばれていない初回だけ、選択の画面を出す。各機能の準備より前に出す。保存先は準備で決まって使い始めるため、選んだ内容を最初から効かせる
         // 選ばずに閉じたときは、先へ進ませずに終了する
-        var databaseChoice = _host.Services.GetRequiredService<DatabaseChoiceService>();
+        var databaseChoice = services.GetRequiredService<DatabaseChoiceService>();
         if (!await databaseChoice.ShowIfNeededAsync())
         {
             await ExitAsync();
@@ -177,25 +136,25 @@ public partial class App : Application
 
         // 各機能の起動時の準備で、設定の読み込み・時刻監視の開始など。画面を作る前に行う。前回の作業ディレクトリでシェルを始めるため等
         // オフにした機能の準備は行わない (オンにしたときに行う)
-        await _host.Services.GetRequiredService<FeatureService>().StartAsync();
+        await services.GetRequiredService<FeatureService>().StartAsync();
 
-        _window = _host.Services.GetRequiredService<MainWindow>();
+        _window = services.GetRequiredService<MainWindow>();
         // メインウィンドウから開くダイアログを、メインウィンドウの上に出すため (リマインダーのメイン画面と使い分ける)
-        _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
+        services.GetRequiredService<IDialogHost>().TrackWindow(_window);
 
         tray.OpenRequested += (_, _) => _window.BringToFront();
         // 通知のクリックなどで、機能がサイドバーのページを開くとき、トレイへ隠れているメインウィンドウも前面に出す
-        _host.Services.GetRequiredService<INavigationService>().ShowRequested += (_, _) => _window.BringToFront();
+        services.GetRequiredService<INavigationService>().ShowRequested += (_, _) => _window.BringToFront();
         tray.ExitRequested += async (_, _) => await ExitAsync();
         // 設定ページなど、画面からの終了の依頼も、トレイの「終了」と同じ処理にする
-        _host.Services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();
+        services.GetRequiredService<AppExitService>().ExitRequested += async (_, _) => await ExitAsync();
 
         // 保存先の選択の画面は、最後のウィンドウを閉じてアプリごと終了しないよう、メインウィンドウを作るまで隠して残していた。ここで閉じる
         databaseChoice.CloseWindow();
 
         // DB モードで、ログインできていないとき、ログインの画面を出す。メインウィンドウを作ったあとに出し、作る前に出すと、閉じたときにアプリごと終了しうる
         // ログインを済ませないと先へ進ませず、トレイも出さない。ログインせずに閉じたときは、終了する
-        if (!await _host.Services.GetRequiredService<SignInPrompt>().ShowIfRequestedAsync())
+        if (!await services.GetRequiredService<SignInPrompt>().ShowIfRequestedAsync())
         {
             await ExitAsync();
             return;
@@ -207,7 +166,7 @@ public partial class App : Application
         // メインウィンドウを出すのは、次のとき (ユーザーの登録が済んでから出す)
         // - 初回の起動で、保存先を選んだとき。トレイだけでは、何も起動していないように見えるため
         // - 設定で「起動時にメイン画面を開く」がオンのとき (設定ストアは、機能の準備の前に先読み済み)
-        if (databaseChoice.HasChosen || _host.Services.GetRequiredService<MainWindowSettingsService>().OpenOnStartup)
+        if (databaseChoice.HasChosen || services.GetRequiredService<MainWindowSettingsService>().OpenOnStartup)
         {
             _window.BringToFront();
         }
@@ -220,14 +179,7 @@ public partial class App : Application
     /// 各機能の後始末 (ターミナルのシェル・添付の一時フォルダ等)→ トレイアイコンの解放 → アプリの終了 の順に行う
     /// 後の 2 つは Host の破棄 (作った順の逆)で行われる
     /// 未保存の編集内容は確認せずに破棄する
+    /// 順序と二重の呼び出しの防止は <see cref="AppHost.ExitAsync"/> が持つ
     /// </remarks>
-    private async Task ExitAsync()
-    {
-        _window?.PrepareExit();
-        // 開いているウィンドウ (モーダル・リマインダーのメイン画面など)は、Host が生きているうちに閉じる。閉じる処理が、破棄済みのサービスを触らないようにするためで、メインウィンドウは Exit が閉じる
-        _host.Services.GetRequiredService<IDialogHost>().CloseAll(_window);
-        await _host.StopAsync();
-        _host.Dispose();
-        Exit();
-    }
+    private Task ExitAsync() => _appHost.ExitAsync(_window, () => _window?.PrepareExit());
 }

@@ -216,12 +216,15 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - 機能固有の画面は、各機能の口から開く。例は `IReminderDialogService.ShowInputAsync` / `ShowListAsync` と `IWorkingDirectoryDialogService.ShowAsync`。
   - 実装は SDK の `IDialogHost` の `Owner`(親の決定)・`ShowModalAsync`(開いている間モーダルとして覚える)・`Attach`(`ContentDialog` に親の画面とテーマを渡す)を使う (具象の `DialogService` には依存しない)
   - ピッカーの親も `IDialogHost.Owner`
-- 終了の順序: `App.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`
+- 起動と終了の骨格は SDK の `AppHost` に集める。`MmmTool`・`MmmBatch`・`MmmToolAdmin` の `App` は、DI の登録と、起動の途中でする画面の準備だけを書く ([external/MmmSdk/docs/architecture.md](../external/MmmSdk/docs/architecture.md) の「部品の一覧」の `.Hosting`)
+- 終了の順序: `AppHost.ExitAsync` で `MainWindow.PrepareExit`(閉じる要求を素通しにする)→ `IDialogHost.CloseAll`(メインウィンドウ以外の開いているウィンドウを、モーダル → 普通のウィンドウの順に、新しいものから閉じる)→ Host 停止・破棄 → `Exit()`
   - DI は作った順の逆に破棄するので、`TrayIcon` を画面・各機能 (起動時の準備を含む)より先に解決しておき、各機能の後始末のあとにトレイアイコンが消えるようにしている
   - ウィンドウを Host の破棄の前に閉じるのは、破棄してから `Exit()` の中で閉じると、`Exit()` の中 (WinUI のネイティブ側)で管理側の例外 (`0xE0434352`)が抜けられず、`ExecutionEngineException` になるため (ログには残らない)
     - 起きる状況: メイン画面にリマインダーのページを開き、リマインダーのメイン画面から一覧 (モーダル)を開いた状態で、トレイから終了したとき
     - 原因は、ウィンドウの閉じる処理が破棄済みの Host のサービスを触る、または親子のウィンドウが順不同で閉じられる、のどちらかと見ている
   - メインウィンドウは閉じずに残し、`Exit()` に任せる (最後のウィンドウを閉じるとアプリごと終了し、トレイアイコンを各機能の後始末のあとに消す順序が崩れるため)
+  - 終了は二重に実行しない
+    - 理由: 終了の入口が複数あり、Host の停止を待つ間は UI スレッドが空いて、別の入口から続けて呼ばれうる。破棄済みの Host を触らないため。
 
 ## エラーの扱い
 
@@ -232,9 +235,9 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
     - ログは `AppContext.BaseDirectory/Data/Logs/yyyy-MM-dd.log`
   - SQL Server の失敗 (`SqlException`)は、画面に出す前に、`SqlServerDatabase` が同じログへ書く。サーバー名・データベース名・エラー番号と、例外全体 (スタックトレースで、どの機能の処理かが分かる)を残す。画面の文は変えない
   - 隠さず、握りつぶさない
-- `App` のコンストラクターで `FatalErrorHandler` を作って `AttachTo(this)` する
+- `App` のコンストラクターで `AppHost` を作ると、`FatalErrorHandler` が作られて `AttachTo(this)` される
   - Host を作る前の失敗も拾うため
-  - DI にも登録する (トレイが使う)
+  - `AppHost.Build` が DI にも登録する (トレイが使う)
 - `try/catch` を書けない場所 (`async void`・タイマー・待たれないタスク)の例外は、`AttachTo` の安全網が、同じ処理 (ログ → ダイアログ → 終了)で受ける
   - 例: SDK の `Ticker` が動かす、定期処理
 - 待たずに走らせるタスクは、`_ = SomeAsync();` で捨てず、`SomeAsync().Forget()`(SDK の `MmmSdk.Core.Utilities`)にする

@@ -43,7 +43,6 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <!-- Windows App SDK は全部入りのパッケージを参照し、使わない部品の中身は出力に入れない。MmmTool と同じで、理由は docs/build-and-distribution.md の「決定の理由」にある -->
     <PackageReference Include="Microsoft.WindowsAppSDK" />

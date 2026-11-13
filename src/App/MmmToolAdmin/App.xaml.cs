@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
 using MmmTool.Data.Connection;
 using MmmTool.Data.SqlServer.WinUI.Connection;
@@ -12,72 +11,36 @@ using MmmToolAdmin.Users;
 using MmmSdk.Core;
 using MmmSdk.Core.Components.Features;
 using MmmSdk.Core.Components.Hosting;
-using MmmSdk.Core.Components.Logging;
 using MmmSdk.Core.Components.Settings;
-using MmmSdk.Core.Components.SingleInstance;
 using MmmSdk.WinUI;
 using MmmSdk.WinUI.Components.Dialogs;
-using MmmSdk.WinUI.Components.Errors;
+using MmmSdk.WinUI.Components.Hosting;
 using MmmSdk.WinUI.Components.Pages;
-using MmmSdk.WinUI.Utilities;
 
 namespace MmmToolAdmin;
 
 /// <summary>アプリケーション</summary>
 public partial class App : Application
 {
-    /// <summary>多重起動の防止</summary>
-    private readonly SingleInstanceGuard _instanceGuard = new(AppInfo.Name);
-
-    /// <summary>復旧できないエラーの報告先</summary>
-    private readonly FatalErrorHandler _fatalErrors;
-
-    /// <summary>DI とライフタイムを扱う Host</summary>
-    private readonly IHost _host;
+    /// <summary>起動と終了の骨格</summary>
+    private readonly AppHost _appHost;
 
     /// <summary>メインウィンドウ</summary>
     /// <remarks>まだ作っていなければ null</remarks>
     private MainWindow? _window;
 
     /// <summary>多重起動を確認して DI の構成を作る</summary>
-    /// <remarks>未処理の例外の受け皿は Host を作る前の失敗も受けられるよう、最初に付ける。</remarks>
     public App()
     {
-        if (!_instanceGuard.IsFirstInstance)
-        {
-            NativeMessageBox.ShowInformation($"{AppInfo.Name} はすでに起動しています。", AppInfo.Name);
-            Environment.Exit(0);
-        }
-
-        var errorLog = new ErrorLog(AppInfo.LogDirectory);
-        _fatalErrors = new FatalErrorHandler(errorLog, AppInfo.Name);
-        _fatalErrors.AttachTo(this);
-
+        _appHost = new AppHost(this, AppInfo.Name, AppInfo.LogDirectory);
         InitializeComponent();
-
-        // 設定 (appsettings.json・環境変数)とログの既定は使わないので、無効にする (起動時に読まないため)
-        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
-        {
-            DisableDefaults = true,
-            ContentRootPath = AppContext.BaseDirectory,
-        });
-        ConfigureServices(builder.Services, _fatalErrors, errorLog);
-        _host = builder.Build();
+        _appHost.Build(ConfigureServices);
     }
 
     /// <summary>DI に登録する</summary>
     /// <param name="services">登録先のサービスコレクション</param>
-    /// <param name="fatalErrors">復旧できないエラーの報告先 (SDK の部品が使う)</param>
-    /// <param name="errorLog">
-    /// エラーを書くログ。
-    /// 復旧できないエラーの報告と共有し、DB の失敗の記録にも使う。
-    /// </param>
-    private static void ConfigureServices(IServiceCollection services, FatalErrorHandler fatalErrors, ErrorLog errorLog)
+    private static void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(fatalErrors);
-        services.AddSingleton(errorLog);
-
         // SDK (JsonFileStore・設定ストア・位置保存・通知ダイアログ・確認ダイアログなど)
         services.AddMmmSdkCore(AppInfo.DataDirectory);
         services.AddMmmSdkWinUI();
@@ -107,15 +70,7 @@ public partial class App : Application
     /// <inheritdoc />
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
-        try
-        {
-            await StartAsync();
-        }
-        catch (Exception ex)
-        {
-            // 起動が途中で止まると、ウィンドウが出ないまま動き続けて気づけない。復旧できないので、ログ・ダイアログ・終了にする
-            _fatalErrors.Report("起動に失敗しました", ex);
-        }
+        await _appHost.LaunchAsync(StartAsync);
     }
 
     /// <summary>Host を始めてメインウィンドウを出す</summary>
@@ -126,21 +81,22 @@ public partial class App : Application
     /// </remarks>
     private async Task StartAsync()
     {
-        await _host.StartAsync();
+        await _appHost.StartHostAsync();
+        var services = _appHost.Services;
 
         // 設定ファイルの先読みなどの起動時の準備を、画面を作る前に行う
-        await _host.Services.GetRequiredService<FeatureService>().StartAsync();
+        await services.GetRequiredService<FeatureService>().StartAsync();
 
-        _window = _host.Services.GetRequiredService<MainWindow>();
+        _window = services.GetRequiredService<MainWindow>();
         // 開いたウィンドウを、メインウィンドウの上に出すため
-        _host.Services.GetRequiredService<IDialogHost>().TrackWindow(_window);
+        services.GetRequiredService<IDialogHost>().TrackWindow(_window);
         _window.Closed += async (_, _) => await ExitAsync();
         _window.Activate();
 
         // 接続の設定がまだ無い最初の起動では、接続の設定の画面を自動で開く。閉じたあとの読み直しは、各ページが、画面が閉じた通知を受けて行う
-        if (!_host.Services.GetRequiredService<DatabaseSettingsService>().IsModeSaved)
+        if (!services.GetRequiredService<DatabaseSettingsService>().IsModeSaved)
         {
-            await _host.Services.GetRequiredService<IConnectionSettingsDialogService>().ShowConnectionSettingsAsync();
+            await services.GetRequiredService<IConnectionSettingsDialogService>().ShowConnectionSettingsAsync();
         }
     }
 
@@ -149,12 +105,7 @@ public partial class App : Application
     /// <remarks>
     /// メインウィンドウを閉じたとき。
     /// 開いているウィンドウを閉じ、Host を止めて破棄してから、アプリを終える。
+    /// 二重の呼び出しの防止は <see cref="AppHost.ExitAsync"/> が持つ。
     /// </remarks>
-    private async Task ExitAsync()
-    {
-        _host.Services.GetRequiredService<IDialogHost>().CloseAll(_window);
-        await _host.StopAsync();
-        _host.Dispose();
-        Exit();
-    }
+    private Task ExitAsync() => _appHost.ExitAsync(_window);
 }
