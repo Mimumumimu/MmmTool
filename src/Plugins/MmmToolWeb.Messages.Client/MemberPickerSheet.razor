@@ -1,6 +1,6 @@
 @* 複数の人を選ぶシート。新しいグループの名前と参加者を決める、または開いているグループへ人を追加する。 *@
 <SheetFrame Label="@Title">
-    <FeatureHeader Title="@Title" Busy="@Busy" BackText="キャンセル" BackMark="" OnBack="OnCancel">
+    <FeatureHeader Title="@Title" Busy="@Busy" BackText="キャンセル" ShowBackMark="false" OnBack="OnCancel">
         <button type="button" class="text strong" @onclick="ConfirmAsync" disabled="@(!CanConfirm || Busy)">@ConfirmText</button>
     </FeatureHeader>
 

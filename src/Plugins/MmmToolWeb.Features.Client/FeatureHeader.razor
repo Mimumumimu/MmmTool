@@ -3,11 +3,23 @@
 <header class="bar">
     @if (OnBack.HasDelegate)
     {
-        <button type="button" class="home" @onclick="OnBack">@BackMark@BackText</button>
+        <button type="button" class="home" @onclick="OnBack">
+            @if (ShowBackMark)
+            {
+                <Chevron Left="true" />
+            }
+            @BackText
+        </button>
     }
     else
     {
-        <a class="home" href="@(BackPath ?? HomePath)">@BackMark@BackText</a>
+        <a class="home" href="@(BackPath ?? HomePath)">
+            @if (ShowBackMark)
+            {
+                <Chevron Left="true" />
+            }
+            @BackText
+        </a>
     }
     <h1>@Title</h1>
     <div class="actions">@ChildContent</div>
@@ -45,9 +57,9 @@
     [Parameter]
     public EventCallback OnBack { get; set; }
 
-    /// <summary>左の操作の名前の前に付ける印。戻る操作は「‹ 」。取りやめには、付けない。</summary>
+    /// <summary>左の操作の名前の前に、戻る山形 (<c>Chevron</c>)を付けるか。戻る操作は付け、取りやめと閉じるには付けない。</summary>
     [Parameter]
-    public string BackMark { get; set; } = "‹ ";
+    public bool ShowBackMark { get; set; } = true;
 
     /// <summary>読み込み中か。true の間、バーの下に進行バーを出す。</summary>
     [Parameter]

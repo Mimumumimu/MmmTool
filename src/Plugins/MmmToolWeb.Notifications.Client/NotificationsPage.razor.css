@@ -14,6 +14,15 @@
     overflow-wrap: anywhere;
 }
 
+/* 読み込みの失敗の並びは共通の .failure。上の .block p の下余白を、理由の段落には付けない。見出しの下の間隔は、見出しの下余白だけにする */
+.block .failure p {
+    margin: 0;
+}
+
+.block .failure {
+    margin-top: 0;
+}
+
 /* この端末が通知を受け取れないときの案内。設定の画面へ移る操作を添える。帯の見た目は、共通の .info */
 .info {
     margin: 0.75rem 0 0;

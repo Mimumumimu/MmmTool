@@ -10,7 +10,13 @@
 
     @if (_error is not null)
     {
-        <p class="result error" role="alert">@_error</p>
+        <div class="failure">
+            <p class="result error" role="alert">@_error</p>
+            @if (_loadFailed)
+            {
+                <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
+            }
+        </div>
     }
 
     @if (_loaded && Store.Conversations.Count == 0)
@@ -56,7 +62,7 @@
 else if (_picking)
 {
     <SheetFrame Label="宛先を選ぶ">
-        <FeatureHeader Title="宛先を選ぶ" Busy="@(!_peopleLoaded)" BackText="キャンセル" BackMark="" OnBack="CancelPick" />
+        <FeatureHeader Title="宛先を選ぶ" Busy="@(!_peopleLoaded)" BackText="キャンセル" ShowBackMark="false" OnBack="CancelPick" />
 
         @if (_peopleLoaded && _people.Count == 0)
         {
@@ -93,6 +99,9 @@ else if (_picking)
     private bool _loading;
     private bool _loaded;
     private string? _error;
+
+    /// <summary>出している失敗が、会話の一覧の読み込みの失敗か。true のときだけ「もう一度」を出す。宛先や会話を開く失敗は、読み直しでは直らない。</summary>
+    private bool _loadFailed;
     private bool _picking;
     private bool _peopleLoaded;
     private bool _opening;
@@ -159,6 +168,7 @@ else if (_picking)
 
         _loaded = true;
         _error = result.Succeeded ? null : $"会話を読み込めませんでした: {result.Message}";
+        _loadFailed = !result.Succeeded;
         StateHasChanged();
     }
 
@@ -187,6 +197,7 @@ else if (_picking)
         if (!result.Succeeded)
         {
             _error = $"宛先の人を読み込めませんでした: {result.Message}";
+            _loadFailed = false;
             _picking = false;
         }
     }
@@ -232,6 +243,7 @@ else if (_picking)
             if (!result.Succeeded)
             {
                 _error = $"会話を開けませんでした: {result.Message}";
+                _loadFailed = false;
                 _picking = false;
                 return;
             }

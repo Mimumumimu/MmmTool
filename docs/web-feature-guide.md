@@ -68,6 +68,7 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
     - 参照を足すときは、その `.Core` と、参照先の `.Core` を、すべて AnyCPU にする。方法は [build-and-distribution.md](build-and-distribution.md) の「ビルドの共通設定」。
   - 日付を API の要求や通知から開く道に載せる文字 (`yyyy-MM-dd`)は、`ApiDay` で作る・読む。書式を、画面やサーバーに書き写さない。
   - 機能の画面の上のバーは `FeatureHeader` で、ホームへ戻る・名前・操作を持つ。
+    - 戻る操作の前に、山形を付ける。取りやめと閉じるに使うときは、`ShowBackMark` を false にする。
     - 読み込みや送信を待つ間は、`Busy` に true を渡して、進行バーを出す。
     - 速く終わっても見える最低の時間 (0.4 秒)は、`FeatureHeader` が持つ。
   - ホームは `/home` で、ログインのあとは常にここへ移る。ログアウトは `SessionClient`。
@@ -84,6 +85,7 @@ Web 版 (MmmToolWeb)に機能を足すときの、プロジェクトの作り方
       - `.text` には、`.strong` と `.danger` を足せる。
     - 入力の欄: `.form-field` (欄の名前の `span` と入力欄)・`.form-group` (`fieldset`)・`.form-label` (入力欄から離れて置く名前)
     - 文字と帯: `.hint` (欄の下の補足)・`.muted`・`.caption` (薄い小さな見出し)・`.empty` (何もないとき)・`.message` (失敗の文)・`.info` (知らせの帯)・`.result` と `.result.error` (操作の結果の帯)
+    - 一覧の失敗: `.failure` の中に、理由の帯 (`.result.error`)を置き、読み込みの失敗だけは、その右に文字のボタン「もう一度」を並べる。
     - 一覧: `.list`・`.card` (1 件の枠)
       - `.card` には、`.selected`・`.finished`・`.deleted` を足せる。
     - 幕と箱: `.backdrop` (`.center`・`.bottom`・`.front`)・`.bottom-panel`

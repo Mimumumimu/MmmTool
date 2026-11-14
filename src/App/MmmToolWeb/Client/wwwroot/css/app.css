@@ -99,9 +99,11 @@ textarea:disabled {
     color: var(--disabled);
 }
 
+/* 強調色のボタンも、押せないときは、地と枠を押せない部品の色にして、文字を専用の薄い色にする */
 button.primary:disabled {
-    color: var(--accent-text);
-    opacity: 0.4;
+    border-color: var(--border);
+    background: var(--pressed);
+    color: var(--disabled);
 }
 
 input {

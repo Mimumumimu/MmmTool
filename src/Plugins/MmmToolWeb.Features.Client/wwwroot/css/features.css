@@ -295,6 +295,21 @@
     color: var(--danger);
 }
 
+/* 読み込みや操作に失敗したとき。理由 (.result.error の帯)と、その場の「もう一度」(.text)を横に並べる。「もう一度」が無いときは、理由だけが横いっぱいに広がる */
+.failure {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+}
+
+.failure > :first-child {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 /* 一覧と、一覧の中の枠 */
 
 .list {

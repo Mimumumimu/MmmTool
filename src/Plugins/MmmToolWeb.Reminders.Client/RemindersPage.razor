@@ -21,7 +21,13 @@
 
     @if (_error is not null)
     {
-        <p class="message" role="alert">@_error</p>
+        <div class="failure">
+            <p class="result error" role="alert">@_error</p>
+            @if (_loadFailed)
+            {
+                <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
+            }
+        </div>
     }
 
     @if (!_showAll)
@@ -109,7 +115,7 @@
 
 @if (_deleting is { } target)
 {
-    <ConfirmDialog Title="このリマインダーを削除しますか?" Target="@target.Title" ConfirmText="削除"
+    <ConfirmDialog Title="このリマインダーを削除しますか？" Target="@target.Title" ConfirmText="削除"
                    OnConfirm="ConfirmDeleteAsync" OnCancel="() => _deleting = null" />
 }
 
@@ -126,6 +132,9 @@
     private bool _includeDeleted;
     private bool _loading = true;
     private string? _error;
+
+    /// <summary>出している失敗が、一覧の読み込みの失敗か。true のときだけ「もう一度」を出す。保存・削除・編集の失敗は、読み直しでは直らない。</summary>
+    private bool _loadFailed;
     private IReadOnlyList<ReminderTodayItemDto> _todayItems = [];
     private IReadOnlyList<ReminderListItemDto> _listItems = [];
     private bool _editorOpen;
@@ -264,6 +273,7 @@
             return Task.FromResult(true);
         }
         _error = status == ApiFailure.None ? null : message;
+        _loadFailed = status != ApiFailure.None;
         return Task.FromResult(false);
     }
 
@@ -305,6 +315,7 @@
             // ほかの人や PC 版が先に変えたとき。理由を出して、読み直す
             await LoadAsync();
             _error = result.Message;
+            _loadFailed = false;
             return;
         }
         _editing = result.Value;
@@ -344,6 +355,7 @@
         _editorOpen = false;
         await LoadAsync();
         _error = message;
+        _loadFailed = false;
     }
 
     private async Task ConfirmDeleteAsync()
@@ -359,6 +371,7 @@
         if (!result.Succeeded)
         {
             _error = result.Message;
+            _loadFailed = false;
         }
     }
 

@@ -58,14 +58,14 @@
 
 @if (_confirmingUnsubscribe)
 {
-    <ConfirmDialog Title="この端末の通知を解除しますか?" ConfirmText="解除"
+    <ConfirmDialog Title="この端末の通知を解除しますか？" ConfirmText="解除"
                    Message="解除すると、この端末には通知が届かなくなります。通知先やリマインダーの送信先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
                    OnConfirm="ConfirmUnsubscribeAsync" OnCancel="() => _confirmingUnsubscribe = false" />
 }
 
 @if (_deleting is { } target)
 {
-    <ConfirmDialog Title="登録した端末を削除しますか?" Target="@target.Name" ConfirmText="削除"
+    <ConfirmDialog Title="登録した端末を削除しますか？" Target="@target.Name" ConfirmText="削除"
                    Message="削除すると、この端末には通知が届かなくなります。通知先に選んでいた場合は、登録し直したあとに、選び直す必要があります。"
                    OnConfirm="ConfirmDeleteAsync" OnCancel="() => _deleting = null" />
 }

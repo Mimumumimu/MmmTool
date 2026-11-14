@@ -8,7 +8,9 @@
 @inject NavigationManager Navigation
 
 <div class="screen">
-    <FeatureHeader Title="通知" Busy="@_loading" />
+    <FeatureHeader Title="通知" Busy="@_loading">
+        <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">更新</button>
+    </FeatureHeader>
 
     @if (_loaded && !IsRegistered)
     {
@@ -24,7 +26,10 @@
             <h2 class="caption">受け取った通知</h2>
             @if (_receivedError is not null)
             {
-                <p class="result error" role="alert">@_receivedError</p>
+                <div class="failure">
+                    <p class="result error" role="alert">@_receivedError</p>
+                    <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
+                </div>
             }
             else if (_received.Count == 0)
             {

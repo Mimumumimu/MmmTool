@@ -8,10 +8,6 @@
     color: var(--muted);
 }
 
-.message {
-    margin: 0.75rem 0;
-}
-
 .cards {
     display: flex;
     flex-direction: column;

@@ -77,13 +77,15 @@
     @if (_error is not null)
     {
         <div class="failure" role="alert">
-            <p class="message">@_error</p>
+            <p class="result error">@_error</p>
             <button type="button" class="text" @onclick="LoadAsync" disabled="@_loading">もう一度</button>
         </div>
     }
     @if (_actionError is not null)
     {
-        <p class="message" role="alert">@_actionError</p>
+        <div class="failure">
+            <p class="result error" role="alert">@_actionError</p>
+        </div>
     }
 
     <main class="cards">
@@ -152,7 +154,7 @@
 
 @if (_deleting is { } target)
 {
-    <ConfirmDialog Title="このノートを削除しますか?" Target="@target.Title" ConfirmText="削除"
+    <ConfirmDialog Title="このノートを削除しますか？" Target="@target.Title" ConfirmText="削除"
                    OnConfirm="ConfirmDeleteAsync" OnCancel="() => _deleting = null" />
 }
 
