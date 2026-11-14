@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using MmmTool.CodeMaster.Core;
+using MmmTool.Data.CodeMaster;
 using MmmTool.Data.SqlServer.Connection;
 
 namespace MmmTool.Data.SqlServer.CodeMaster;
@@ -41,7 +42,7 @@ public sealed class SqlServerCodeMasterRepository(SqlServerDatabase database) : 
             var list = new List<CodeMasterEntry>();
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                list.Add(CodeMasterRowReader.Read(reader).ToEntry());
+                list.Add(CodeMasterRowReader.Read(reader, SqlServerDialect.Instance).ToEntry());
             }
             return list;
         }, cancellationToken);

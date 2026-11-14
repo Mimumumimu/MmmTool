@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using MmmSdk.Db.Sqlite.Components.Connections;
 using MmmTool.CodeMaster.Core;
 using MmmTool.Data.CodeMaster;
@@ -39,7 +38,7 @@ public sealed class SqliteCodeMasterRepository(SqliteDatabase database, TimeProv
                     var list = new List<CodeMasterEntry>();
                     while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        list.Add(ReadCode(reader).ToEntry());
+                        list.Add(CodeMasterRowReader.Read(reader, SqliteDialect.Instance).ToEntry());
                     }
                     return list;
                 },
@@ -83,23 +82,4 @@ public sealed class SqliteCodeMasterRepository(SqliteDatabase database, TimeProv
                 cancellationToken),
             cancellationToken);
     }
-
-    /// <summary>コードマスタの行を読む</summary>
-    /// <param name="r">読み取り中の結果</param>
-    /// <returns>行</returns>
-    private static CodeMasterRow ReadCode(SqliteDataReader r) => new()
-    {
-        Id = r.GetInt32(0),
-        IsDeleted = r.GetInt64(1) != 0,
-        CreatedAt = SqliteValues.ParseDateTime(r.GetString(2)),
-        CreatedByUserId = r.GetInt32(3),
-        UpdatedAt = SqliteValues.ParseDateTime(r.GetString(4)),
-        UpdatedByUserId = r.GetInt32(5),
-        FeatureNo = r.GetInt32(6),
-        CategoryNo = r.GetInt32(7),
-        CodeNo = r.GetInt32(8),
-        SortOrder = r.GetInt32(9),
-        NumericValue = r.GetInt32(10),
-        Name = r.GetString(11),
-    };
 }

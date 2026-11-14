@@ -67,7 +67,7 @@ internal static class SqliteValues
         command.CommandText = sql;
         foreach (var (name, value) in parameters)
         {
-            command.Parameters.AddWithValue(name, Convert(value));
+            command.Parameters.AddWithValue(name, ToStoredValue(value));
         }
         return command;
     }
@@ -75,7 +75,7 @@ internal static class SqliteValues
     /// <summary>パラメーターの値を保存する形にする</summary>
     /// <param name="value">値</param>
     /// <returns>保存する形の値</returns>
-    private static object Convert(object value) => value switch
+    internal static object ToStoredValue(object value) => value switch
     {
         DateTimeOffset dateTime => Text(dateTime),
         DateOnly date => Text(date),

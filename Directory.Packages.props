@@ -5,6 +5,8 @@
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- 間接参照のパッケージも、下の PackageVersion のバージョンに揃える。Fido2 が引き込む System.Formats.Cbor を、脆弱性の直った版に上げるため -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
@@ -27,6 +29,7 @@
     <PackageVersion Include="Microsoft.WindowsAppSDK.ML" Version="2.1.94" />
     <PackageVersion Include="Microsoft.WindowsAppSDK.Search" Version="2.5.5" />
     <PackageVersion Include="Microsoft.WindowsAppSDK.Widgets" Version="2.0.5" />
+    <PackageVersion Include="System.Formats.Cbor" Version="10.0.15" />
     <PackageVersion Include="System.Numerics.Tensors" Version="9.0.0" />
   </ItemGroup>
 </Project>

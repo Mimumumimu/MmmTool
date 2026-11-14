@@ -326,6 +326,11 @@ App/MmmTool/Shell/Main/                 メインウィンドウ MainWindow
   - ユーザーの決定で、意図した仕様。レビューで指摘・提案しない。
 - `MmmTool.Data`: 表の列と 1 対 1 の DB の行のクラス (`ReminderRow` など)と、アプリの型 (`Reminder` など)との変換
 - `MmmTool.Data.<種類>`: その DB の Repository の実装 (DB 別のドライバーは SDK の `MmmSdk.Db.<種類>`)
+- SQLite と SQL Server の両方にある機能 (作業管理・ノート)の Repository は、処理の流れを `MmmTool.Data` の基底 (`WorkItemRepository`・`NoteRepository`)に 1 つだけ書く
+  - 理由: 同じ流れを 2 つの DB のプロジェクトに写すと、1 か所の直しが片方に届かず、DB の種類で振る舞いが食い違うため
+  - `MmmTool.Data.<種類>` に残すのは、その DB だけの SQL (番号の一覧の渡し方・書いた行の受け取り方・表の名前・更新日時の書き方など)と、ユーザーの持ち方
+  - 接続を開く入口は `DbGateway`、DB ごとの SQL の書き方は `SqlDialect`、開いた接続での実行は `DbSession` (すべて `MmmTool.Data/Queries/`)。DB の種類ごとの実装は、`MmmTool.Data.<種類>` の `<種類>Gateway` と `<種類>Dialect`
+  - 機能を DB の種類に足すときは、基底を継ぐ Repository と、その DB だけの SQL を書く
 - DB の種類ごとの依存 (SQLite のネイティブ DLL など)は、その種類のプロジェクトに閉じ、MmmBatch も参照する `MmmTool.Data` には入れない
 - 保存先の選び方は、「DI と起動」の「保存先」に書く
 - 集める理由:

@@ -281,6 +281,9 @@
   - 設定ページのカード (`CommunityToolkit.WinUI.Controls.SettingsControls`)も、`Segmented` と同じ版 (8.2.251219)で、同じ依存を持つ。使う csproj (アプリ本体・Reminders・Backlog・WorkItems)に、同じ指定 (全部入りの直接参照と、使わない部品の `ExcludeAssets`)を書く。
   - SDK は CommunityToolkit の WinUI 部品を使わないので、使う部品のパッケージ (`.WinUI`・`.Foundation`・`.InteractiveExperiences`)だけを参照する
     - InteractiveExperiences を明示する理由: WinUI 2.3.9 が求める 2.1.8 は公開されておらず、NuGet が警告 (NU1603)を出して 2.1.9 を選ぶ。全部入り 2.5.1 と同じ 2.1.9 を明示する。
+- 間接参照のパッケージの脆弱性は、`Directory.Packages.props` の `CentralPackageTransitivePinningEnabled` と `PackageVersion` で、直った版に上げる
+  - 例: `Fido2` が引き込む `System.Formats.Cbor` (9.0.0 は NU1902 の対象)を、`PackageVersion` で 10.0.15 に指定する
+  - 理由: `Fido2` の新しい版が出るのを待たずに、警告を消し、直った版を使うため
 - `Lib` への移動: `MmmTool.dll` 以外の DLL は `Lib` に置く
   - 次を、それぞれ csproj のターゲットでコピー先を変える
     - パッケージのファイル
