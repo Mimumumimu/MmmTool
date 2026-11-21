@@ -20,6 +20,20 @@
     white-space: nowrap;
 }
 
+/* 鉛筆のアイコンだけのボタン。日付の文字の横に置いて、押すとカレンダーを開く。押せる範囲は 44 ピクセル以上 */
+.icon-trigger {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+}
+
 /* 期間の外のような、直すまで残る誤りの欄。エラーの色の太い枠にする */
 .trigger.invalid {
     border: 2px solid var(--danger);

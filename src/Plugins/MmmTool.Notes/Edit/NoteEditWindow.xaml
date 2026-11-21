@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:core="using:MmmTool.Notes.Core"
     xmlns:local="using:MmmTool.Notes.Edit"
+    xmlns:controls="using:MmmSdk.WinUI.Controls"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     Title="{x:Bind ViewModel.WindowTitle, Mode=OneWay}">
 
@@ -48,6 +49,7 @@
 
         <!-- 入力欄の 2 列。左はタイトルと本文で、本文が余った幅と高さまで伸びる。右は内容の幅で、期間・実施日・ほかの実施日・重要度・公開範囲 -->
         <Grid
+            x:Name="ContentGrid"
             Grid.Row="1"
             Padding="24,16,24,0"
             ColumnSpacing="24">
@@ -57,7 +59,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左の列: タイトルと本文。下に、期間の警告と知らせの InfoBar。右の列は縮められないので、InfoBar が出たときは本文が縮んで場所を空ける -->
-            <Grid Grid.Column="0" RowSpacing="12">
+            <Grid x:Name="MainColumn" Grid.Column="0" RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -72,8 +74,27 @@
                     MaxLength="{x:Bind core:NoteLimits.TitleMaxLength}"
                     Text="{x:Bind ViewModel.Title, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <!-- 本文。普通の文章で書く。上のボタンか右クリックで、書式やリンクを足せる。ファイルをドロップすると、リンクが入る -->
-                <Grid Grid.Row="1" RowSpacing="4">
+                <!-- タイトルの下。種類が日程のときだけ、本文と日程のタブを出す。選んだタブの中身が、残りの高さを使う -->
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <SelectorBar
+                        x:Name="TabBar"
+                        Margin="0,0,0,8"
+                        SelectionChanged="OnTabChanged"
+                        Visibility="{x:Bind ViewModel.ShowTabs, Mode=OneWay}">
+                        <SelectorBarItem Text="本文" />
+                        <SelectorBarItem IsSelected="True" Text="日程" />
+                    </SelectorBar>
+
+                    <!-- 本文。普通の文章で書く。上のボタンか右クリックで、書式やリンクを足せる。ファイルをドロップすると、リンクが入る -->
+                    <Grid
+                        Grid.Row="1"
+                        RowSpacing="4"
+                        Visibility="{x:Bind ViewModel.ShowBody, Mode=OneWay}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -99,6 +120,186 @@
                         ScrollViewer.VerticalScrollBarVisibility="Visible"
                         Text="{x:Bind ViewModel.Body, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         TextWrapping="Wrap" />
+                    </Grid>
+
+                    <!-- 日程の入力。日付ごとにまとまりを作り、予定を縦に並べる。時刻は空にできる。1 件を 1 行にして、開始・終了・内容・備考を常に出す -->
+                    <Border
+                        Grid.Row="1"
+                        Padding="12"
+                        Background="{ThemeResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Visibility="{x:Bind ViewModel.ShowSchedule, Mode=OneWay}">
+                        <Grid RowSpacing="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <Button
+                                x:Name="AddScheduleDateButton"
+                                HorizontalAlignment="Left"
+                                Click="OnAddScheduleDateClick">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon FontSize="14" Glyph="&#xE787;" />
+                                    <TextBlock Text="日付を追加" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- 列の見出し。予定の行と同じ列の定義で、スクロールバーの分だけ右をあける。列はすべて固定の幅か割合で、手で寄せない -->
+                            <Grid
+                                Grid.Row="1"
+                                Margin="0,0,12,0"
+                                ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="40" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" Text="開始" />
+                                <TextBlock Grid.Column="2" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" Text="終了" />
+                                <TextBlock Grid.Column="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" Text="内容" />
+                                <TextBlock Grid.Column="4" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Style="{StaticResource CaptionTextBlockStyle}" Text="備考" />
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Visible">
+                                <ItemsControl ItemsSource="{x:Bind ViewModel.Schedule.Days}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:ScheduleDayGroup">
+                                            <!-- 日ごとのまとまり。上の細い線が、日の切れ目 -->
+                                            <Border
+                                                Margin="0,0,12,0"
+                                                Padding="0,8,0,8"
+                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                                BorderThickness="0,1,0,0">
+                                            <StackPanel Spacing="4">
+                                                <!-- 日付の見出し。右のボタンで、その日の予定ごと別の日へ移せる -->
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <!-- 日付の文字。土曜は青、日曜と祝日は赤。色はテーマごとに変わるので、種類ごとに文字を 1 つずつ置き、該当する 1 つだけを出す -->
+                                                    <Grid VerticalAlignment="Center">
+                                                        <TextBlock
+                                                            FontWeight="SemiBold"
+                                                            Text="{x:Bind DateText, Mode=OneWay}"
+                                                            Visibility="{x:Bind IsPlainDay, Mode=OneWay}" />
+                                                        <TextBlock
+                                                            FontWeight="SemiBold"
+                                                            Foreground="{ThemeResource WeekdaySaturdayBrush}"
+                                                            Text="{x:Bind DateText, Mode=OneWay}"
+                                                            Visibility="{x:Bind IsSaturday, Mode=OneWay}" />
+                                                        <TextBlock
+                                                            FontWeight="SemiBold"
+                                                            Foreground="{ThemeResource WeekdaySundayBrush}"
+                                                            Text="{x:Bind DateText, Mode=OneWay}"
+                                                            Visibility="{x:Bind IsSunday, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <Button
+                                                        Padding="6,4"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        AutomationProperties.Name="日付を変える"
+                                                        Click="OnChangeScheduleDateClick"
+                                                        Tag="{x:Bind}"
+                                                        ToolTipService.ToolTip="日付を変える">
+                                                        <FontIcon FontSize="12" Glyph="&#xE70F;" />
+                                                    </Button>
+                                                    <Button
+                                                        Padding="6,4"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        AutomationProperties.Name="他の日付にコピー"
+                                                        Click="OnCopyScheduleDateClick"
+                                                        Tag="{x:Bind}"
+                                                        ToolTipService.ToolTip="他の日付にコピー">
+                                                        <FontIcon FontSize="12" Glyph="&#xE8C8;" />
+                                                    </Button>
+                                                </StackPanel>
+                                                <ItemsControl ItemsSource="{x:Bind Items}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="local:ScheduleItemEditor">
+                                                            <!-- 1 件を 1 行にする。開始・終了・内容・備考を、常にすべて出し、使わない欄は空のままにする。列の定義は、上の見出しと同じ -->
+                                                            <Grid Margin="0,0,0,4" ColumnSpacing="8">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="112" />
+                                                                    <ColumnDefinition Width="16" />
+                                                                    <ColumnDefinition Width="112" />
+                                                                    <ColumnDefinition Width="2*" />
+                                                                    <ColumnDefinition Width="3*" />
+                                                                    <ColumnDefinition Width="40" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <controls:TimeInputBox
+                                                                    HorizontalAlignment="Stretch"
+                                                                    AllowEmpty="True"
+                                                                    AutomationProperties.Name="開始"
+                                                                    Hour="{x:Bind StartHour, Mode=TwoWay}"
+                                                                    IsEmpty="{x:Bind StartIsEmpty, Mode=TwoWay}"
+                                                                    Minute="{x:Bind StartMinute, Mode=TwoWay}" />
+                                                                <TextBlock
+                                                                    Grid.Column="1"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center"
+                                                                    Text="～" />
+                                                                <controls:TimeInputBox
+                                                                    Grid.Column="2"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    AllowEmpty="True"
+                                                                    AutomationProperties.Name="終了"
+                                                                    Hour="{x:Bind EndHour, Mode=TwoWay}"
+                                                                    IsEmpty="{x:Bind EndIsEmpty, Mode=TwoWay}"
+                                                                    Minute="{x:Bind EndMinute, Mode=TwoWay}" />
+                                                                <TextBox
+                                                                    Grid.Column="3"
+                                                                    MinHeight="32"
+                                                                    Padding="12,5,12,5"
+                                                                    VerticalAlignment="Center"
+                                                                    AutomationProperties.Name="内容"
+                                                                    GotFocus="{x:Bind local:NoteEditWindow.TurnOnIme}"
+                                                                    MaxLength="{x:Bind core:NoteLimits.ScheduleTextMaxLength}"
+                                                                    PlaceholderText="内容"
+                                                                    Text="{x:Bind Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                                <TextBox
+                                                                    Grid.Column="4"
+                                                                    MinHeight="32"
+                                                                    Padding="12,5,12,5"
+                                                                    VerticalAlignment="Center"
+                                                                    AutomationProperties.Name="備考"
+                                                                    GotFocus="{x:Bind local:NoteEditWindow.TurnOnIme}"
+                                                                    MaxLength="{x:Bind core:NoteLimits.ScheduleTextMaxLength}"
+                                                                    PlaceholderText="備考"
+                                                                    Text="{x:Bind Remark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                                <Button
+                                                                    Grid.Column="5"
+                                                                    Padding="8,6"
+                                                                    VerticalAlignment="Center"
+                                                                    AutomationProperties.Name="削除"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Click="OnRemoveScheduleItemClick"
+                                                                    Tag="{x:Bind}"
+                                                                    ToolTipService.ToolTip="削除">
+                                                                    <FontIcon FontSize="14" Glyph="&#xE74D;" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <HyperlinkButton
+                                                    Padding="0"
+                                                    Command="{x:Bind AddItemCommand}"
+                                                    Content="＋ この日に予定を追加" />
+                                            </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
                 </Grid>
 
                 <!-- 期間の警告と、期間を動かした知らせ。入力欄に重ねない。警告は、直すまで出続ける -->
@@ -115,8 +316,8 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 右の列。広い範囲を決める期間が先で、実施日とほかの実施日は、その中に入る日 -->
-            <StackPanel Grid.Column="1" Spacing="12">
+            <!-- 右の列。広い範囲を決める期間が先で、実施日とほかの実施日は、その中に入る日。日程のときだけ、コードで、タイトルの下の横 1 列に移す -->
+            <StackPanel x:Name="SideColumn" Grid.Column="1" Spacing="12">
 
                 <!-- 期間。終了日が空なら無期限 -->
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -141,7 +342,10 @@
                 </StackPanel>
 
                 <!-- 実施日。空は未設定。期間の外に入れると、開始日・終了日が動く。ほかの実施日にある日にはできない -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Visibility="{x:Bind ViewModel.IsNormal, Mode=OneWay}">
                     <CalendarDatePicker
                         x:Name="EventDatePicker"
                         Date="{x:Bind ViewModel.EventDate, Mode=TwoWay}"
@@ -155,7 +359,7 @@
                 </StackPanel>
 
                 <!-- ほかの実施日。見出しの右に追加のボタン。下の一覧は、3 行ぶん (32 × 3 + 枠 2)で高さを固定し、4 本以上は一覧の中だけがスクロールする -->
-                <StackPanel Spacing="4">
+                <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.IsNormal, Mode=OneWay}">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />

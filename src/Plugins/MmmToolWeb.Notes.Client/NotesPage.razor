@@ -3,6 +3,7 @@
 @inject NotesClient Notes
 @inject NotesViewState View
 @inject BrowserClient Browser
+@inject HolidayClient Holidays
 
 <HeadContent>
     <link rel="stylesheet" href="@NotesClient.StylesPath" />
@@ -109,7 +110,7 @@
                 {
                     <div class="event-band">@(note.IsEventToday ? "今日実施" : $"{_day:MM/dd} 実施")</div>
                 }
-                @if (string.IsNullOrWhiteSpace(note.Body))
+                @if (string.IsNullOrWhiteSpace(note.Body) && (note.Schedule is null || note.Schedule.Count == 0))
                 {
                     <div class="head">
                         <NoteHeading Note="note" Day="_day" />
@@ -121,7 +122,25 @@
                         <summary class="head">
                             <NoteHeading Note="note" Day="_day" />
                         </summary>
-                        <div class="body">@((MarkupString)note.BodyHtml)</div>
+                        @if (!string.IsNullOrWhiteSpace(note.Body))
+                        {
+                            <div class="body">@((MarkupString)note.BodyHtml)</div>
+                        }
+                        @if (note.Schedule is { Count: > 0 } schedule)
+                        {
+                            <div class="schedule">
+                                @for (var index = 0; index < schedule.Count; index++)
+                                {
+                                    var item = schedule[index];
+                                    <div class="srow@(item.Date < _day ? " past" : item.Date == _day ? " on" : "")">
+                                        <span class="sdate@(DayColorClass(item.Date))">@(index > 0 && schedule[index - 1].Date == item.Date ? "" : $"{item.Date:MM/dd} ({"日月火水木金土"[(int)item.Date.DayOfWeek]})")</span>
+                                        <span class="stime">@(item.Start is null ? "" : item.End is null ? $"{item.Start} ～" : $"{item.Start} ～ {item.End}")</span>
+                                        <span class="stext">@item.Content</span>
+                                        <span class="sremark">@item.Remark</span>
+                                    </div>
+                                }
+                            </div>
+                        }
                     </details>
                 }
                 <div class="actions">
@@ -143,13 +162,30 @@
         <button type="button" class="icon" aria-label="前の日" @onclick="() => MoveDayAsync(-1)"><Chevron Left="true" /></button>
         <button type="button" class="text" @onclick="GoTodayAsync">今日</button>
         <button type="button" class="icon" aria-label="次の日" @onclick="() => MoveDayAsync(1)"><Chevron /></button>
-        <button type="button" class="fab" @onclick="StartNew">＋ 新規</button>
+        @if (_newMenuOpen)
+        {
+            <button type="button" class="new-backdrop" aria-label="メニューを閉じる" tabindex="-1" @onclick="() => _newMenuOpen = false"></button>
+        }
+        <div class="new-split">
+            @* 新規。本体は通常のノート、右の ▲ から種類を選ぶ。日程はあまり作らないので、通常のノートを 1 回で開ける *@
+            <button type="button" class="fab new-main" @onclick="() => StartNew(0)">＋ 新規</button>
+            <button type="button" class="fab new-more" aria-label="新規の種類を選ぶ" aria-haspopup="menu" aria-expanded="@(_newMenuOpen ? "true" : "false")" @onclick="() => _newMenuOpen = !_newMenuOpen">
+                <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true"><path d="M2 8l4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
+            </button>
+            @if (_newMenuOpen)
+            {
+                <div class="new-menu" role="menu">
+                    <button type="button" role="menuitem" @onclick="() => StartNew(0)">ノート</button>
+                    <button type="button" role="menuitem" @onclick="() => StartNew(1)">日程</button>
+                </div>
+            }
+        </div>
     </div>
 </div>
 
 @if (_editorOpen)
 {
-    <NoteEditSheet Note="_editing" DefaultStart="_day" OnSaved="OnSavedAsync" OnCancel="CloseEditor" OnFailed="OnEditFailedAsync" />
+    <NoteEditSheet Note="_editing" NewKind="_newKind" DefaultStart="_day" OnSaved="OnSavedAsync" OnCancel="CloseEditor" OnFailed="OnEditFailedAsync" />
 }
 
 @if (_deleting is { } target)
@@ -181,6 +217,12 @@
     private IReadOnlyList<NoteDto> _notes = [];
     private bool _editorOpen;
     private NoteDto? _editing;
+
+    /// <summary>新規のときの、ノートの種類。0 は通常のノート、1 は日程。「新規」を押したときに決まる。</summary>
+    private int _newKind;
+
+    /// <summary>新規の種類のメニューを開いているか。</summary>
+    private bool _newMenuOpen;
     private NoteDto? _deleting;
     private int _loadVersion;
     private bool _watching;
@@ -246,6 +288,38 @@
     /// <summary>アプリが裏から戻ったときに、読み直す。</summary>
     private Task LoadOnReturnAsync() => InvokeAsync(LoadAsync);
 
+    /// <summary>日程の日付の祝日。読めるまでは空で、読めたら色を付け直す。</summary>
+    private IReadOnlyDictionary<DateOnly, string> _holidays = new Dictionary<DateOnly, string>();
+
+    /// <summary>日程の日付の色を決める class を返す。日曜と祝日は " sun"、土曜は " sat"、それ以外は空。土曜が祝日なら祝日の色。PC 版と同じ決まり。</summary>
+    private string DayColorClass(DateOnly date)
+        => date.DayOfWeek == DayOfWeek.Sunday || _holidays.ContainsKey(date) ? " sun" : date.DayOfWeek == DayOfWeek.Saturday ? " sat" : "";
+
+    /// <summary>表示中のノートの日程にある年の祝日を読んで、色を付け直す。</summary>
+    /// <remarks>
+    /// カードは、祝日を待たずに先に出す。
+    /// 読めなかった年は祝日なしとして扱う。祝日が出なくても日程は読めるため。
+    /// </remarks>
+    private async Task LoadHolidaysAsync()
+    {
+        var years = _notes.SelectMany(note => note.Schedule ?? []).Select(item => item.Date.Year).Distinct().ToList();
+        if (years.Count == 0)
+        {
+            return;
+        }
+
+        var merged = new Dictionary<DateOnly, string>();
+        foreach (var year in years)
+        {
+            foreach (var holiday in await Holidays.GetYearAsync(year))
+            {
+                merged[holiday.Key] = holiday.Value;
+            }
+        }
+        _holidays = merged;
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task LoadAsync()
     {
         var version = ++_loadVersion;
@@ -267,6 +341,7 @@
         {
             _notes = result.Value!.Notes;
             _error = null;
+            _ = LoadHolidaysAsync();
         }
         else
         {
@@ -408,9 +483,12 @@
         return LoadAsync();
     }
 
-    private void StartNew()
+    /// <summary>種類を決めて、新しいノートの入力シートを開く。</summary>
+    private void StartNew(int kind)
     {
         _editing = null;
+        _newKind = kind;
+        _newMenuOpen = false;
         _editorOpen = true;
     }
 

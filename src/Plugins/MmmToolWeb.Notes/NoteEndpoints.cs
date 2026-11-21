@@ -148,7 +148,15 @@ internal static class NoteEndpoints
     /// </returns>
     private static async Task<IResult> AddAsync(NoteSaveRequest request, NoteService service, CancellationToken cancellationToken)
     {
-        var input = ToInput(request);
+        NoteInput input;
+        try
+        {
+            input = ToInput(request);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ErrorResponse(ex.Message));
+        }
         if (input.Validate() is { } error)
         {
             return Results.BadRequest(new ErrorResponse(error));
@@ -175,14 +183,31 @@ internal static class NoteEndpoints
             return Results.BadRequest(new ErrorResponse("画面が古いため保存できません。読み込み直してください。"));
         }
 
-        var input = ToInput(request);
+        NoteInput input;
+        try
+        {
+            input = ToInput(request);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ErrorResponse(ex.Message));
+        }
         if (input.Validate() is { } error)
         {
             return Results.BadRequest(new ErrorResponse(error));
         }
-        return await service.UpdateAsync(id, input, cancellationToken)
-            ? Results.NoContent()
-            : Results.NotFound(new ErrorResponse(NotFoundMessage));
+
+        // 種類は作ったあとに変えられない。日程を知らない古い画面の保存は、種類が合わず、ここで断られて、日程が空で上書きされない
+        try
+        {
+            return await service.UpdateAsync(id, input, cancellationToken)
+                ? Results.NoContent()
+                : Results.NotFound(new ErrorResponse(NotFoundMessage));
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new ErrorResponse(ex.Message));
+        }
     }
 
     /// <summary>ノートを削除する・復元する</summary>
@@ -257,7 +282,29 @@ internal static class NoteEndpoints
             card.AuthorName,
             card.IsUpdatedByOther ? card.UpdatedByName : null,
             note.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture),
-            card.IsUpdatedToday);
+            card.IsUpdatedToday,
+            (int)note.Kind,
+            [.. note.Schedule.Select(item => new ScheduleItemDto(item.Date, FormatTime(item.Start), FormatTime(item.End), item.Content, item.Remark))]);
+    }
+
+    /// <summary>時刻を HH:mm の文字にする</summary>
+    /// <param name="time">時刻</param>
+    /// <returns>文字で、無ければ null。</returns>
+    private static string? FormatTime(TimeOnly? time) => time?.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>HH:mm の文字を時刻にする</summary>
+    /// <param name="text">文字で、無ければ null か空。</param>
+    /// <returns>時刻で、無ければ null。</returns>
+    /// <exception cref="ArgumentException">HH:mm の形ではない</exception>
+    private static TimeOnly? ParseTime(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+        return TimeOnly.TryParseExact(text.Trim(), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
+            ? time
+            : throw new ArgumentException("時刻の形が正しくありません。");
     }
 
     /// <summary>要求を保存する入力の形にする</summary>
@@ -273,5 +320,7 @@ internal static class NoteEndpoints
         EndDate = request.EndDate ?? DateOnly.MaxValue,
         EventDate = request.EventDate ?? DateOnly.MaxValue,
         OtherEventDates = request.OtherEventDates ?? [],
+        Kind = (NoteKind)request.Kind,
+        ScheduleItems = [.. (request.Schedule ?? []).Select(item => new ScheduleItem(item.Date, ParseTime(item.Start), ParseTime(item.End), item.Content ?? "", item.Remark ?? ""))],
     };
 }

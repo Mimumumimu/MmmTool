@@ -10,7 +10,7 @@
             <p class="dialog-message">@Message</p>
         }
         <div class="dialog-actions">
-            <button type="button" @onclick="OnCancel">キャンセル</button>
+            <button type="button" @onclick="OnCancel">@CancelText</button>
             <button type="button" class="danger-fill" @onclick="OnConfirm">@ConfirmText</button>
         </div>
     </div>
@@ -24,6 +24,10 @@
     /// <summary>実行するボタンの名前。操作の名前をそのまま渡す。</summary>
     [Parameter, EditorRequired]
     public string ConfirmText { get; set; } = "";
+
+    /// <summary>やめるボタンの名前。渡さないときは「キャンセル」。</summary>
+    [Parameter]
+    public string CancelText { get; set; } = "キャンセル";
 
     /// <summary>対象の名前。問いの下に出す。無いときは出さない。</summary>
     [Parameter]

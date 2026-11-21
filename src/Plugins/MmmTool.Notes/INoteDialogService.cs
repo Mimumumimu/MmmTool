@@ -12,9 +12,13 @@ public interface INoteDialogService
     /// 新規なら null
     /// </param>
     /// <param name="defaultStartDate">新規のときの、開始日の初期値 (ページが表示している日)。</param>
+    /// <param name="kind">
+    /// 新規のときの、ノートの種類。
+    /// 編集のときは、編集するノートの種類が使われる。
+    /// </param>
     /// <returns>
     /// 保存したら true
     /// キャンセル・× なら false
     /// </returns>
-    Task<bool> ShowEditAsync(Note? note, DateOnly defaultStartDate);
+    Task<bool> ShowEditAsync(Note? note, DateOnly defaultStartDate, NoteKind kind = NoteKind.Normal);
 }

@@ -76,14 +76,16 @@ public sealed record NoteRow
     }
 
     /// <summary>DB の行からアプリの型にする</summary>
-    /// <param name="otherEventDates">
-    /// ほかの実施日で、<c>NoteAttribute</c> の行から読んだ日付の順の一覧。
-    /// 省くと、無し。
+    /// <param name="attributes">
+    /// <c>NoteAttribute</c> の行から読んだ種類と日程。
+    /// 省くと、通常で日程なし。
     /// </param>
     /// <returns>ノート</returns>
     /// <exception cref="InvalidOperationException">重要度が定義にない値で、バグか、手で直した値。</exception>
-    public Note ToNote(IReadOnlyList<DateOnly>? otherEventDates = null)
+    public Note ToNote(NoteAttributeData? attributes = null)
     {
+        var kind = attributes?.Kind ?? NoteKind.Normal;
+        var items = attributes?.Items ?? [];
         var priority = (NotePriority)Priority;
         if (!Enum.IsDefined(priority))
         {
@@ -99,7 +101,9 @@ public sealed record NoteRow
             StartDate = StartDate,
             EndDate = EndDate,
             EventDate = EventDate,
-            OtherEventDates = otherEventDates ?? [],
+            Kind = kind,
+            Schedule = kind == NoteKind.Schedule ? items : [],
+            OtherEventDates = [.. items.Select(item => item.Date).Distinct().Order()],
             Priority = priority,
             Title = Title,
             Body = Body,

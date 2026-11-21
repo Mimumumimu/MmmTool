@@ -39,13 +39,30 @@ public sealed partial class NoteEditWindow : Window
     /// <remarks>タイトルバーを含む</remarks>
     private const double WindowHeight = 640;
 
+    /// <summary>日程のウィンドウの幅で、単位は DIP</summary>
+    /// <remarks>予定を 1 件 1 行で並べるため、通常のノートより広くする。</remarks>
+    private const double ScheduleWindowWidth = 1280;
+
+    /// <summary>日程のウィンドウの高さで、単位は DIP</summary>
+    /// <remarks>
+    /// タイトルバーを含む
+    /// 期間と重要度をタイトルの下に移した分を足して予定が 5 行ほど見える高さにする
+    /// </remarks>
+    private const double ScheduleWindowHeight = 760;
+
+    /// <summary>日程のウィンドウの最小の幅で、単位は DIP</summary>
+    /// <remarks>
+    /// 予定の 1 行は開始・終了・削除で約 310 を使う
+    /// 右の列と余白を引いた残りを内容と備考で分けても読める幅にする
+    /// </remarks>
+    private const double ScheduleMinimumWidth = 1100;
+
     /// <summary>最小の幅で、単位は DIP</summary>
     /// <remarks>
     /// 期間の行が最も広い。
-    /// 右の列は内容の幅で、本文の列が縮む。
-    /// 本文の列に 300 ほどを残す幅。
+    /// 右の列は内容の幅で、左の列が縮む。
     /// </remarks>
-    private const double MinimumWidth = 800;
+    private const double MinimumWidth = 960;
 
     /// <summary>最小の高さで、単位は DIP</summary>
     /// <remarks>
@@ -106,6 +123,9 @@ public sealed partial class NoteEditWindow : Window
     /// <summary>保存したか</summary>
     private bool _saved;
 
+    /// <summary>予定の削除の確認を開いている間は true</summary>
+    private bool _isConfirmingItemRemoval;
+
     /// <summary>メニューを開いたときの本文欄の選択の開始位置</summary>
     private int _selectionStart;
 
@@ -123,6 +143,8 @@ public sealed partial class NoteEditWindow : Window
     {
         ViewModel = viewModel;
         _dialogs = dialogs;
+        // 日程の日付の色は、XAML の読み込み中に引かれるので、読み込みの前に登録しておく
+        AddWeekdayBrushes();
         InitializeComponent();
 
         this.UseCustomTitleBar(TitleBarArea, environment.IconPath);
@@ -156,20 +178,26 @@ public sealed partial class NoteEditWindow : Window
     /// 新規なら null
     /// </param>
     /// <param name="defaultStartDate">新規のときの、開始日の初期値。</param>
+    /// <param name="kind">新規のときの、ノートの種類。</param>
     /// <returns>
     /// 保存したら true
     /// キャンセル・× なら false
     /// </returns>
-    public async Task<bool> ShowModalAsync(Window owner, Note? note, DateOnly defaultStartDate)
+    public async Task<bool> ShowModalAsync(Window owner, Note? note, DateOnly defaultStartDate, NoteKind kind = NoteKind.Normal)
     {
-        ViewModel.Load(note, defaultStartDate);
+        ViewModel.Load(note, defaultStartDate, kind);
+        if (ViewModel.IsSchedule)
+        {
+            ArrangeForSchedule();
+        }
 
         _modal.SetOwner(owner);
         var scale = this.GetDpiScale();
         // 画面が小さい (フル HD の 150% など)ときは、作業領域に収まる幅と高さまで抑える。最小の大きさも、その分下げる
-        var width = Math.Min(WindowWidth, _modal.GetAvailableWidthDip());
-        var height = Math.Min(WindowHeight, _modal.GetAvailableHeightDip());
-        var minimumWidth = Math.Min(MinimumWidth, width);
+        var schedule = ViewModel.IsSchedule;
+        var width = Math.Min(schedule ? ScheduleWindowWidth : WindowWidth, _modal.GetAvailableWidthDip());
+        var height = Math.Min(schedule ? ScheduleWindowHeight : WindowHeight, _modal.GetAvailableHeightDip());
+        var minimumWidth = Math.Min(schedule ? ScheduleMinimumWidth : MinimumWidth, width);
         var minimumHeight = Math.Min(MinimumHeight, height);
         this.UseFixedPresenter(isDialog: true, isResizable: true, new SizeInt32((int)(minimumWidth * scale), (int)(minimumHeight * scale)));
         this.ResizeClientDip(width, height - TitleBarHeight, _modal.OwnerScale, roundUp: true);
@@ -177,6 +205,72 @@ public sealed partial class NoteEditWindow : Window
 
         _modal.Show();
         return await _closed.Task;
+    }
+
+    /// <summary>土曜と日曜の日付の文字の色を登録済みか</summary>
+    private static bool _weekdayBrushesAdded;
+
+    /// <summary>土曜と日曜の日付の文字の色をライトとダークの色としてアプリの資源へ登録する</summary>
+    /// <remarks>
+    /// 色は SDK の <see cref="WeekdayColors"/> で日付の欄のカレンダーの線と同じ
+    /// XAML の <c>ThemeResource</c> はウィンドウの読み込み中に引かれるので読み込みの前に呼ぶ
+    /// ウィンドウの資源ではなくアプリの資源に足す
+    /// 理由は読み込みの前にはウィンドウの中の要素が無いため
+    /// 既にあるテーマの資源を置き換えないよう結合した資源として足す
+    /// 登録は 1 回だけ
+    /// </remarks>
+    private static void AddWeekdayBrushes()
+    {
+        if (_weekdayBrushesAdded)
+        {
+            return;
+        }
+
+        var brushes = new ResourceDictionary();
+        foreach (var (key, theme) in (ReadOnlySpan<(string, ElementTheme)>)[("Light", ElementTheme.Light), ("Dark", ElementTheme.Dark)])
+        {
+            brushes.ThemeDictionaries[key] = new ResourceDictionary
+            {
+                ["WeekdaySaturdayBrush"] = new SolidColorBrush(WeekdayColors.Saturday(theme)),
+                ["WeekdaySundayBrush"] = new SolidColorBrush(WeekdayColors.Sunday(theme)),
+            };
+        }
+        Application.Current.Resources.MergedDictionaries.Add(brushes);
+        _weekdayBrushesAdded = true;
+    }
+
+    /// <summary>日程のときに右の列をタイトルの下の横 1 列に移す</summary>
+    /// <remarks>
+    /// 日程の一覧にウィンドウの全幅を使わせる
+    /// 右の列に残るのは期間・重要度・公開範囲だけで下が大きく空く
+    /// 移すのは開くときの 1 回だけ
+    /// ウィンドウは開くたびに作る
+    /// </remarks>
+    private void ArrangeForSchedule()
+    {
+        ContentGrid.Children.Remove(SideColumn);
+        ContentGrid.ColumnDefinitions.RemoveAt(1);
+        ContentGrid.ColumnSpacing = 0;
+
+        // タイトルの下に 1 行を足す。それより下の行は、1 つ下へずらす
+        foreach (var child in MainColumn.Children.OfType<FrameworkElement>())
+        {
+            if (Grid.GetRow(child) >= 1)
+            {
+                Grid.SetRow(child, Grid.GetRow(child) + 1);
+            }
+        }
+        MainColumn.RowDefinitions.Insert(1, new RowDefinition { Height = GridLength.Auto });
+
+        SideColumn.Orientation = Orientation.Horizontal;
+        SideColumn.Spacing = 32;
+        foreach (var child in SideColumn.Children.OfType<FrameworkElement>())
+        {
+            child.VerticalAlignment = VerticalAlignment.Bottom;
+        }
+        Grid.SetColumn(SideColumn, 0);
+        Grid.SetRow(SideColumn, 1);
+        MainColumn.Children.Add(SideColumn);
     }
 
     /// <summary>期間と実施日の日付の欄</summary>
@@ -202,7 +296,32 @@ public sealed partial class NoteEditWindow : Window
         {
             MarkInvalid(EventDatePicker, ViewModel.IsEventDateInvalid);
         }
+        else if (e.PropertyName is nameof(NoteEditViewModel.SelectedTabIndex) && TabBar.Items[ViewModel.SelectedTabIndex] is { } tab && !ReferenceEquals(TabBar.SelectedItem, tab))
+        {
+            TabBar.SelectedItem = tab;
+        }
     }
+
+    /// <summary>本文と日程のタブを選んだ</summary>
+    /// <param name="sender">タブの列</param>
+    /// <param name="args">選びの情報</param>
+    private void OnTabChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        var index = sender.Items.IndexOf(sender.SelectedItem);
+        if (index >= 0)
+        {
+            ViewModel.SelectedTabIndex = index;
+        }
+    }
+
+    /// <summary>日程の入力欄にフォーカスが来たら IME をオンにする</summary>
+    /// <param name="sender">イベントの送信元</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 時刻の欄は IME をオフにするので、続けて内容に移ったとき、オンに戻す。
+    /// 一覧の行の中から x:Bind で呼ぶため、static にしている。
+    /// </remarks>
+    public static void TurnOnIme(object sender, RoutedEventArgs e) => ImeControl.TurnOn();
 
     /// <summary>日付の欄の枠をエラーの色にする・元に戻す</summary>
     /// <param name="picker">日付の欄</param>
@@ -290,6 +409,190 @@ public sealed partial class NoteEditWindow : Window
         done.Click += (_, _) => flyout.Hide();
         flyout.Content = new StackPanel { Spacing = 8, Children = { hint, calendar, done } };
         flyout.ShowAt(AddOtherDateButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
+    }
+
+    /// <summary>「日付を追加」を押したらカレンダーを開く</summary>
+    /// <param name="sender">ボタン</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 複数の日を選べて、日を押すたびに日付のまとまりが増える・減る。
+    /// 「完了」を押すまで開いたままにする。
+    /// 入力した予定のある日を外そうとしたときは、確認する。
+    /// 開くたびに作り直し、開いたときに見せる月はいつも今日の月。
+    /// </remarks>
+    private void OnAddScheduleDateClick(object sender, RoutedEventArgs e)
+    {
+        var flyout = new Flyout();
+        var calendar = new CalendarView
+        {
+            SelectionMode = CalendarViewSelectionMode.Multiple,
+            Language = "ja-JP",
+        };
+        foreach (var day in ViewModel.Schedule.Dates)
+        {
+            calendar.SelectedDates.Add(new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue)));
+        }
+        calendar.SetDisplayDate(DateTimeOffset.Now);
+        CalendarHolidayColoring.SetIsEnabled(calendar, true);
+
+        calendar.SelectedDatesChanged += async (_, args) =>
+        {
+            foreach (var added in args.AddedDates)
+            {
+                ViewModel.Schedule.AddDate(DateOnly.FromDateTime(added.Date));
+            }
+            foreach (var removed in args.RemovedDates)
+            {
+                var day = DateOnly.FromDateTime(removed.Date);
+                if (!ViewModel.Schedule.HasInput(day))
+                {
+                    ViewModel.Schedule.RemoveDate(day);
+                    continue;
+                }
+
+                // 入力のある日は、確認してから外す。ダイアログと重ならないよう、カレンダーを閉じる
+                flyout.Hide();
+                if (await ConfirmRemoveScheduleDateAsync(day))
+                {
+                    ViewModel.Schedule.RemoveDate(day);
+                }
+            }
+        };
+
+        var hint = new TextBlock
+        {
+            Text = "日を押して、何日でも追加できます。もう一度押すと外れます。",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 296,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        };
+        var done = new Button
+        {
+            Content = "完了",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Style = (Style)Application.Current.Resources["AccentButtonStyle"],
+        };
+        done.Click += (_, _) => flyout.Hide();
+        flyout.Content = new StackPanel { Spacing = 8, Children = { hint, calendar, done } };
+        flyout.ShowAt(AddScheduleDateButton, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
+    }
+
+    /// <summary>日付のまとまりの「日付を変える」を押したらカレンダーを開く</summary>
+    /// <param name="sender">ボタン。Tag に日付のまとまりを持つ。</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 日を 1 つ押すと、その日の予定ごと、押した日へ移って閉じる。
+    /// 開いたときに見せる月はその日付の月で、その日が選んである。
+    /// </remarks>
+    private void OnChangeScheduleDateClick(object sender, RoutedEventArgs e)
+        => OpenScheduleDayCalendar(sender, (group, day) => group.MoveTo(day));
+
+    /// <summary>日付のまとまりの「他の日付にコピー」を押したらカレンダーを開く</summary>
+    /// <param name="sender">ボタン。Tag に日付のまとまりを持つ。</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>日を 1 つ押すと、その日の予定を、押した日へコピーして閉じる。元の予定は残る。</remarks>
+    private void OnCopyScheduleDateClick(object sender, RoutedEventArgs e)
+        => OpenScheduleDayCalendar(sender, (group, day) => group.CopyTo(day));
+
+    /// <summary>日付のまとまりの日付を選ぶ、単一選択のカレンダーを開く</summary>
+    /// <param name="sender">ボタン。Tag に日付のまとまりを持つ。</param>
+    /// <param name="pick">日を 1 つ押したときの処理で、まとまりと押した日を受け取る。</param>
+    private static void OpenScheduleDayCalendar(object sender, Action<ScheduleDayGroup, DateOnly> pick)
+    {
+        if (sender is not Button { Tag: ScheduleDayGroup group } button)
+        {
+            return;
+        }
+
+        var current = new DateTimeOffset(group.Date.ToDateTime(TimeOnly.MinValue));
+        var calendar = new CalendarView
+        {
+            SelectionMode = CalendarViewSelectionMode.Single,
+            Language = "ja-JP",
+        };
+        calendar.SelectedDates.Add(current);
+        calendar.SetDisplayDate(current);
+        CalendarHolidayColoring.SetIsEnabled(calendar, true);
+
+        var flyout = new Flyout { Content = calendar };
+        calendar.SelectedDatesChanged += (_, args) =>
+        {
+            if (args.AddedDates.Count == 0)
+            {
+                return;
+            }
+            flyout.Hide();
+            pick(group, DateOnly.FromDateTime(args.AddedDates[0].Date));
+        };
+        flyout.ShowAt(button, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Bottom });
+    }
+
+    /// <summary>予定のごみ箱を押したときの処理</summary>
+    /// <param name="sender">ボタン。Tag に予定を持つ。</param>
+    /// <param name="e">イベントの情報</param>
+    /// <remarks>
+    /// 入力のある予定は、確認してから削除する。
+    /// 空の予定は、すぐ削除する。
+    /// </remarks>
+    private async void OnRemoveScheduleItemClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: ScheduleItemEditor item } || _isConfirmingItemRemoval)
+        {
+            return;
+        }
+
+        if (item.HasInput)
+        {
+            // 確認が開くまでに続けて押されても、確認を重ねて開かない
+            _isConfirmingItemRemoval = true;
+            try
+            {
+                if (!await ConfirmRemoveScheduleItemAsync(item))
+                {
+                    return;
+                }
+            }
+            finally
+            {
+                _isConfirmingItemRemoval = false;
+            }
+        }
+        item.RemoveCommand.Execute(null);
+    }
+
+    /// <summary>入力のある予定を削除してよいか確認する</summary>
+    /// <param name="item">削除する予定</param>
+    /// <returns>削除するなら true</returns>
+    private async Task<bool> ConfirmRemoveScheduleItemAsync(ScheduleItemEditor item)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "この予定を削除しますか？",
+            Content = item.Summary,
+            PrimaryButtonText = "はい",
+            CloseButtonText = "いいえ",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        _dialogs.Attach(dialog);
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    /// <summary>入力のある日を日程から外してよいか確認する</summary>
+    /// <param name="day">外す日</param>
+    /// <returns>外すなら true</returns>
+    private async Task<bool> ConfirmRemoveScheduleDateAsync(DateOnly day)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "この日の日程を削除しますか？",
+            Content = $"{day.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)} に入力した内容も削除されます。",
+            PrimaryButtonText = "はい",
+            CloseButtonText = "いいえ",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        _dialogs.Attach(dialog);
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     /// <summary>タイトル・本文にフォーカスが来たら IME をオンにする</summary>

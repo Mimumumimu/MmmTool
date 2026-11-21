@@ -46,22 +46,25 @@ public sealed class SqlServerNoteRepository(SqlServerDatabase database, CurrentU
         """;
 
     /// <inheritdoc />
-    protected override string WriteOtherEventDatesSql =>
+    protected override string WriteAttributesSql =>
         """
         UPDATE a
         SET a.Value = j.Value, a.IsDeleted = 0, a.UpdatedAt = SYSDATETIMEOFFSET(), a.UpdatedByUserId = @user
         FROM dbo.NoteAttribute AS a
-        INNER JOIN OPENJSON(@update) WITH (CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j ON j.CodeNo = a.CodeNo
-        WHERE a.NoteId = @noteId AND a.CategoryNo = @category;
+        INNER JOIN OPENJSON(@update) WITH (CategoryNo int '$.categoryNo', BranchNo int '$.branchNo', CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j
+            ON j.CategoryNo = a.CategoryNo AND j.BranchNo = a.BranchNo AND j.CodeNo = a.CodeNo
+        WHERE a.NoteId = @noteId;
 
-        UPDATE dbo.NoteAttribute
-        SET IsDeleted = 1, UpdatedAt = SYSDATETIMEOFFSET(), UpdatedByUserId = @user
-        WHERE NoteId = @noteId AND CategoryNo = @category
-          AND CodeNo IN (SELECT CAST([value] AS int) FROM OPENJSON(@delete));
+        UPDATE a
+        SET a.IsDeleted = 1, a.UpdatedAt = SYSDATETIMEOFFSET(), a.UpdatedByUserId = @user
+        FROM dbo.NoteAttribute AS a
+        INNER JOIN OPENJSON(@delete) WITH (CategoryNo int '$.categoryNo', BranchNo int '$.branchNo', CodeNo int '$.codeNo') AS j
+            ON j.CategoryNo = a.CategoryNo AND j.BranchNo = a.BranchNo AND j.CodeNo = a.CodeNo
+        WHERE a.NoteId = @noteId;
 
-        INSERT INTO dbo.NoteAttribute (CreatedByUserId, UpdatedByUserId, NoteId, CategoryNo, CodeNo, Value)
-        SELECT @user, @user, @noteId, @category, j.CodeNo, j.Value
-        FROM OPENJSON(@insert) WITH (CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j;
+        INSERT INTO dbo.NoteAttribute (CreatedByUserId, UpdatedByUserId, NoteId, CategoryNo, BranchNo, CodeNo, Value)
+        SELECT @user, @user, @noteId, j.CategoryNo, j.BranchNo, j.CodeNo, j.Value
+        FROM OPENJSON(@insert) WITH (CategoryNo int '$.categoryNo', BranchNo int '$.branchNo', CodeNo int '$.codeNo', Value nvarchar(200) '$.value') AS j;
         """;
 
     /// <inheritdoc />

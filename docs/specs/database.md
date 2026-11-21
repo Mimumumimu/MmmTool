@@ -627,6 +627,9 @@
   - SQL Server は、管理者が、DB を選んで流す
 - `NoteAttribute` は、SQLite が `Sql/schema.sql` に書き足し、起動時の点検が作る。SQL Server が `014_AddNoteAttribute.sql`。
   - 理由: 1 度コミットしたスクリプトを変えない決まりのため。SQLite の表の追加は、番号つきのスクリプトに書かず、`schema.sql` に書く。
+- `NoteAttribute` の枝番 `BranchNo` と項目 `CodeNo` は、SQL Server が `016_AddNoteAttributeBranchNo.sql`、SQLite が `SqliteMigrations.ColumnRenames` と `schema.sql` で入れる。
+  - SQL Server は、014 で作った `CodeNo` (枝番)を `BranchNo` に名前を変え、新しい `CodeNo` を既定値 1 で足し、2 つの索引を作り直す。
+  - SQLite は、起動時の点検が、古い名前の `CodeNo` を `BranchNo` に変え、新しい `CodeNo` を足して、新しい名前の索引を作る。点検は古い名前の索引を消さないので、`007_DropNoteAttributeOldIndexes.sql` が消す。
 - SQLite の型は、上の「型の対応 (作業管理の表)」
 
 #### `Note`(ノートで、期間とタイトルと本文を持つ 1 件)
@@ -680,34 +683,40 @@
 | `UpdatedAt` | 日時 (時差つき・ミリ秒) | `datetimeoffset(3)` | 現在 | 更新日時で、SQL Server は DB の時計、SQLite はアプリが書く |
 | `UpdatedByUserId` | 整数 | `int` | | 更新者の `AppUser.Id`。記録用で、検索の条件・索引には使わない。0 以上の検査 |
 | `NoteId` | 整数 | `int` | | 親の `Note.Id`。業務の列。1 以上の検査。**列の並び: 共通ヘッダーの次、`CategoryNo` の前** |
-| `CategoryNo` | 整数 | `int` | | 種類の番号。1 = ほかの実施日で、値は日付。1 以上の検査 |
-| `CodeNo` | 整数 | `int` | | 枝番。同じ種類の値が複数あるとき、値ごとに別の番号にする。ほかの実施日では、日付の順の位置で、1 番目が 1。1 以上の検査 |
+| `CategoryNo` | 整数 | `int` | | 種類の番号。1 = 日程 (日付だけの枝番は、ほかの実施日と同じ)、2 = このノートが使う部品。1 以上の検査 |
+| `BranchNo` | 整数 | `int` | | 枝番。同じ種類の中の、1 行ぶんの値をまとめる番号。ほかの実施日では、日付の順の位置で、1 番目が 1。1 以上の検査。**列の並び: `CategoryNo` の次、`CodeNo` の前** |
+| `CodeNo` | 整数 | `int` | 1 | 項目の番号。1 つの枝番の中で、値が何の項目かを表す。種類 1 は、1 = 日付・2 = 開始・3 = 終了・4 = 内容・5 = 備考。種類 2 は、1 = 使う部品。1 以上の検査。**列の並び: `BranchNo` の次、`Value` の前**。SQL Server は `016_AddNoteAttributeBranchNo.sql` が表の末尾に足し、並びは SSMS で直す。SQLite は起動時の点検が足し、末尾のまま |
 | `Value` | 文字列 (200) | `nvarchar(200)` | 空文字 | 値。文字列で持ち、日付は `2026-11-17` の形 (`yyyy-MM-dd`)で書く。この形なら、文字列のまま、日付の順に並び、等しいかも比べられる |
 
-- 行は、削除済みも含めて、`(NoteId, CategoryNo, CodeNo)` で 1 行だけ
-- ほかの実施日の保存は、日付を日付の順に並べて、枝番 1 から順に書き直す
+- 行は、削除済みも含めて、`(NoteId, CategoryNo, BranchNo, CodeNo)` で 1 行だけ
+- 種類 2 (このノートが使う部品)は、1 行だけ。枝番 1・項目 1 で、値は使う部品の種類の番号 (日程は `1`)。行が無ければ通常のノート。
+  - 部品が増えても、種類の番号を足して、この行の値が変わるだけで、列も表も変わらない。
+  - ノートの種類は、作ったあとに変えない。
+- 種類 1 (日程)の保存は、日程を日付と開始の順に並べて、枝番 1 から順に書き直す。日付の行 (項目 1)は必ず書き、開始・終了・内容・備考の行は、値があるときだけ書く。時刻を空に戻すときは、その項目の行を論理削除する。
+  - 通常のノートのほかの実施日は、日付だけの日程として、種類 1 に保存する。
   - 1 番目の日付を枝番 1 の行、2 番目を枝番 2 の行に書く。枝番の順と日付の順が、いつも同じになる。
   - 行があって、日付か削除の状態が違うものは、日付を書き直して `IsDeleted` を 0 にする。行が無い枝番は足す。日付も状態も同じ行は、触らない。
   - 日付の数より後ろの枝番で、削除されていない行は、`IsDeleted` を 1 にする。物理削除はしない。
   - 理由: 削除済みの行を使い回すので、行の数は、そのノートで同時に持った日付の最大の数で止まる。日付が入れ替わるたびに行が増え続けたり、枝番と日付の順が散らばったりしない。
   - 枝番は、他の表から指されず、日付の順の位置を表すだけなので、行の日付を書き直して使い回しても困らない。
 - ノートの追加の値は、種類ごとに列や表を足さず、行で持つ。値の種類が増えても、列が増えないため。
-  - 日付ごとの内容や備考を持たせるときは、種類の番号を足し、同じ枝番の行を 1 組にする。
+  - 日程の項目を足すときは、項目の番号 `CodeNo` を足し、同じ枝番の行を 1 組にする。
 - 複数の値は、カンマでつないだ文字列にせず、枝番を分けた行にする (1 つだけ足す・外す操作を、行の追加と論理削除で行うため)
 - 種類の番号の一覧は、列の検査にしない。種類を足すたびに、表を直さないため。
-- 日付が期間の中にあることと、同じ日が重ならないことは、アプリが検査する (外部キーも付けない)
+- 日付が期間の中にあることと、時刻・内容・備考の中身は、アプリが検査する (外部キーも付けない)。同じ日の重なりは、検査しない。
 - 日付の足す・外す操作は、親の `Note` の `UpdatedAt` と `UpdatedByUserId` を、同じトランザクションで更新する。
   - 理由: 他の人の作成・更新の通知が、`Note.UpdatedAt` を基準に探すため。日付だけの変更も拾う。
-- 一意のインデックスは、`UX_NoteAttribute_NoteId_CategoryNo_CodeNo (NoteId, CategoryNo, CodeNo)`。論理削除された行も含める。
-  - ノートごとの値を読む問い合わせと、同じ枝番が重ならないことを守るため
-  - 論理削除された行も含めるのは、保存のとき、そのノートの行を、削除済みも含めて番号で探して、使い回すため。削除済みの行も、同じ枝番の行は 1 行だけなので、含めても一意は守れる。
-- もう 1 つのインデックスは、`IX_NoteAttribute_CategoryNo_Value_NoteId (CategoryNo, Value, NoteId)`。`IsDeleted = 0` の行だけ。
+- 一意のインデックスは、`UX_NoteAttribute_NoteId_CategoryNo_BranchNo_CodeNo (NoteId, CategoryNo, BranchNo, CodeNo)`。論理削除された行も含める。
+  - ノートごとの値を読む問い合わせと、同じ枝番の同じ項目が重ならないことを守るため
+  - 論理削除された行も含めるのは、保存のとき、そのノートの行を、削除済みも含めて番号で探して、使い回すため。削除済みの行も、同じ枝番の同じ項目の行は 1 行だけなので、含めても一意は守れる。
+- もう 1 つのインデックスは、`IX_NoteAttribute_CategoryNo_CodeNo_Value_NoteId (CategoryNo, CodeNo, Value, NoteId)`。`IsDeleted = 0` の行だけ。
   - 実際の今日がほかの実施日のノートを、全件を調べずに探して、通知ダイアログに出すため
+  - `CodeNo` を含めるのは、種類の中に日付以外の項目 (内容・備考など)が入っても、その値を日付と取り違えないため
   - SQL Server と SQLite の両方に、同じ名前・同じ列で入れる
 - ノートを読むときは、ノートの問い合わせとは別に、読んだ `NoteId` の分を 1 回の問い合わせでまとめて読む (ノートごとに 1 回ずつ読まない)
   - 結合しない理由: ノートの本文 `Body` は長く、日付の行の数だけ同じ本文を運ぶことになるため
-- 「今日が実施日のノート」の問い合わせ (`INoteRepository.GetOnEventDateAsync`)は、`Note.EventDate = その日` のノートの番号と、`NoteAttribute` に `CategoryNo = 1` かつ `Value = その日` の行があるノートの番号を、`UNION` で集めて、ノートを読む。
-  - 理由: 2 つの表をまたぐ `OR` にすると、ノートの表を走査しうる。`UNION` の枝ごとなら、`IX_Note_EventDate` と `IX_NoteAttribute_CategoryNo_Value_NoteId` が、それぞれ使える。
+- 「今日が実施日のノート」の問い合わせ (`INoteRepository.GetOnEventDateAsync`)は、`Note.EventDate = その日` のノートの番号と、`NoteAttribute` に `CategoryNo = 1` かつ `CodeNo = 1` (日付)かつ `Value = その日` の行があるノートの番号を、`UNION` で集めて、ノートを読む。
+  - 理由: 2 つの表をまたぐ `OR` にすると、ノートの表を走査しうる。`UNION` の枝ごとなら、`IX_Note_EventDate` と `IX_NoteAttribute_CategoryNo_CodeNo_Value_NoteId` が、それぞれ使える。
   - 呼ぶのは、PC 版の通知ダイアログが使う `NoteService.LoadEventsTodayAsync` だけ。カードを目立たせるかは、ノートと一緒に読んだ `OtherEventDates` から、`Note.IsEventOn` で決める。Web 版の API も、同じ `NoteService.LoadAsync` が決めた結果を返す。
 - 見えるかどうかは、親のノートの条件 (`IsPrivate`・`AuthorUserId`)で決まる。この表に、公開範囲の列は持たない。
 - MmmBatch は、この表を読まない。
@@ -940,6 +949,7 @@
     - Web 版の DB のログインは `Value` を読めないので、表と同じ持ち主 (`dbo`)の権限で動くプロシージャに探させる。`Value` は返さない。
     - SQL Server だけで、SQLite には送信先の表が無い。
   - 機能番号は、共通 0・作業管理 1・ノート 2・リマインダー 4・メッセージ 5 で、台帳は `AppUserSetting` の節に書いてある。コードマスタの初期値は、作業管理の機能番号 1 で入れる。
+  - SQLite の `007_DropNoteAttributeOldIndexes.sql` は、`NoteAttribute` の古い名前の索引 2 つを消す。点検は同じ名前の索引を中身を比べずに飛ばし、古い索引を消さないため。起動時に、版が新しいスクリプトとして自動で流れる。
   - SQLite の `006_AddWorkStatusOnHold.sql` は、コードマスタの作業管理の状態に保留を足す。起動時に、版が新しいスクリプトとして自動で流れる。
   - SQLite の `005_RenumberFeatureNo.sql` は、作業管理の機能番号を、コードマスタ `CodeMaster` で 2 から 1 に変える。ローカルモードにあるのは、この行だけ。起動時に、版が新しいスクリプトとして自動で流れる。
   - SQLite は、あるべき形の `Sql/schema.sql` が列・索引・表の追加を担うので、同じ変更を番号つきのスクリプトに書かない。詳細は、下の「あるべき形の点検」にある。
@@ -958,6 +968,7 @@
     - MmmTool の `001_CreateTables.sql` を流した DB に流す。1.0.0 のあとの変更は、次の番号 `003` から書く。
     - `003_AddReminderSendStatusRetryIndex.sql` が、送り直す対象を探す索引 `IX_ReminderSendStatus_Date_Status_Attempts` を足す。キーは日付・状態・回数・リマインダー・送信先。
   - MmmTool の `015_AddReminderTimeIndex.sql` が、`Reminder` に、MmmBatch が送る日付と時刻の範囲を探す索引 `IX_Reminder_Date_Time_Weekdays` を足す。削除されていない行だけで、SQLite にはリマインダーの表が無いので足さない。
+  - MmmTool の `016_AddNoteAttributeBranchNo.sql` が、`NoteAttribute` の枝番の列を `BranchNo` にし、項目の列 `CodeNo` を足し、2 つの索引を枝番と項目を含む形に作り直す。
   - sqlcmd で流すときは、フィルターつきのインデックスに QUOTED_IDENTIFIER が要るので `-I`、日本語を含むので `-f 65001` を付ける (SSMS は既定でオン)
   - 記録から作業の累計を作り直すスクリプトは `Sql/Maintenance/RebuildActualTotal.sql`
     - 普段は使わない

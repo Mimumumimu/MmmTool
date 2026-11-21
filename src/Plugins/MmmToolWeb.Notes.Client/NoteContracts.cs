@@ -53,6 +53,14 @@ namespace MmmToolWeb.Notes.Client;
 /// ブラウザ上の .NET は端末のタイムゾーンを知らないため。
 /// </param>
 /// <param name="IsUpdatedToday">更新が今日か</param>
+/// <param name="Kind">
+/// ノートの種類。
+/// 0 は通常のノートで、1 は日程。
+/// </param>
+/// <param name="Schedule">
+/// 日程。
+/// 日付と開始の順で、種類が日程でないときは空か null。
+/// </param>
 public sealed record NoteDto(
     int Id,
     string Title,
@@ -71,7 +79,23 @@ public sealed record NoteDto(
     string AuthorName,
     string? UpdatedByName,
     string UpdatedAtText,
-    bool IsUpdatedToday);
+    bool IsUpdatedToday,
+    int Kind = 0,
+    IReadOnlyList<ScheduleItemDto>? Schedule = null);
+
+/// <summary>日程の 1 件</summary>
+/// <param name="Date">日付</param>
+/// <param name="Start">
+/// 開始の時刻で、HH:mm の形。
+/// 無いときは null。
+/// </param>
+/// <param name="End">
+/// 終了の時刻で、HH:mm の形。
+/// 無いときは null。
+/// </param>
+/// <param name="Content">内容</param>
+/// <param name="Remark">備考</param>
+public sealed record ScheduleItemDto(DateOnly Date, string? Start, string? End, string Content, string Remark);
 
 /// <summary>ある日に有効なノートの一覧</summary>
 /// <param name="Day">日</param>
@@ -133,10 +157,21 @@ public sealed record DayContentFramesResponse(IReadOnlyList<DayContentFrameDto> 
 /// <param name="OtherEventDates">
 /// ほかの実施日。
 /// 省くと無し。
-/// 開始日から終了日の間に限り、実施日と同じ日・同じ日の重なりは入れられない。
+/// 開始日から終了日の間に限る。
+/// 種類が日程のときは使わない。
+/// </param>
+/// <param name="Kind">
+/// ノートの種類。
+/// 0 は通常のノートで、1 は日程。
+/// 作ったあとに変えられない。
+/// </param>
+/// <param name="Schedule">
+/// 日程。
+/// 種類が日程のときだけ使い、省くと無し。
+/// 日付は開始日から終了日の間に限る。
 /// </param>
 /// <remarks>新規の登録と編集で同じ</remarks>
-public sealed record NoteSaveRequest(string Title, string Body, int Priority, bool IsPrivate, DateOnly StartDate, DateOnly? EndDate, DateOnly? EventDate, IReadOnlyList<DateOnly>? OtherEventDates = null);
+public sealed record NoteSaveRequest(string Title, string Body, int Priority, bool IsPrivate, DateOnly StartDate, DateOnly? EndDate, DateOnly? EventDate, IReadOnlyList<DateOnly>? OtherEventDates = null, int Kind = 0, IReadOnlyList<ScheduleItemDto>? Schedule = null);
 
 /// <summary>ノートを削除する・復元する要求</summary>
 /// <param name="IsDeleted">削除するなら true、復元するなら false。</param>

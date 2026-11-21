@@ -14,4 +14,12 @@ public static class NoteLimits
     /// <summary>1 つのノートに入れられるほかの実施日の最大の数</summary>
     /// <remarks>Web 版の API が上限のない一覧を受け取らないための値</remarks>
     public const int OtherEventDatesMaxCount = 366;
+
+    /// <summary>1 つのノートに入れられる日程の最大の数</summary>
+    /// <remarks>Web 版の API が上限のない一覧を受け取らないための値</remarks>
+    public const int ScheduleItemsMaxCount = 366;
+
+    /// <summary>日程の内容と備考の最大文字数</summary>
+    /// <remarks>保存先の NoteAttribute の値の列の長さと同じ</remarks>
+    public const int ScheduleTextMaxLength = 200;
 }

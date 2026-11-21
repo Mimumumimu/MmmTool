@@ -207,12 +207,22 @@ public sealed partial class NotesViewModel(
         await ReloadAsync(preserveState: true);
     }
 
-    /// <summary>ノートを新しく書く</summary>
+    /// <summary>通常のノートを新しく書く</summary>
     /// <returns>入力ウィンドウを閉じるまでの完了を表すタスク</returns>
     [RelayCommand]
-    private async Task NewNoteAsync()
+    private Task NewNoteAsync() => NewAsync(NoteKind.Normal);
+
+    /// <summary>日程を新しく書く</summary>
+    /// <returns>入力ウィンドウを閉じるまでの完了を表すタスク</returns>
+    [RelayCommand]
+    private Task NewScheduleAsync() => NewAsync(NoteKind.Schedule);
+
+    /// <summary>種類を決めて、ノートを新しく書く</summary>
+    /// <param name="kind">ノートの種類</param>
+    /// <returns>入力ウィンドウを閉じるまでの完了を表すタスク</returns>
+    private async Task NewAsync(NoteKind kind)
     {
-        if (await dialogs.ShowEditAsync(null, Day))
+        if (await dialogs.ShowEditAsync(null, Day, kind))
         {
             await ReloadAsync(preserveState: true);
         }

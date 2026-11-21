@@ -17,10 +17,10 @@ namespace MmmTool.Notes;
 public sealed class NoteDialogService(IServiceScopeFactory scopeFactory, IDialogHost dialogs) : INoteDialogService
 {
     /// <inheritdoc />
-    public async Task<bool> ShowEditAsync(Note? note, DateOnly defaultStartDate)
+    public async Task<bool> ShowEditAsync(Note? note, DateOnly defaultStartDate, NoteKind kind = NoteKind.Normal)
     {
         using var scope = scopeFactory.CreateScope();
         var window = scope.ServiceProvider.GetRequiredService<NoteEditWindow>();
-        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, note, defaultStartDate));
+        return await dialogs.ShowModalAsync(window, owner => window.ShowModalAsync(owner, note, defaultStartDate, kind));
     }
 }

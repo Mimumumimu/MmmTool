@@ -29,7 +29,11 @@ internal static class SqliteMigrations
     /// 名前を変える列が増えたら、ここに足す。
     /// 次のリリース以降、古い名前の DB が無くなったら外す。
     /// </remarks>
-    public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } = [];
+    public static IReadOnlyList<SqliteColumnRename> ColumnRenames { get; } =
+    [
+        // ノートの追加の値の枝番。古い名前 CodeNo の列を BranchNo にする。新しい CodeNo (行の中の項目)は、点検が既定値 1 で足す
+        new SqliteColumnRename("NoteAttribute", "CodeNo", "BranchNo"),
+    ];
 
     /// <summary>列の置き換え</summary>
     /// <remarks>

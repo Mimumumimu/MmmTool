@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MmmSdk.Core.Components.Holidays;
 
 namespace MmmTool.Notes.Core;
 
@@ -104,9 +105,11 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         }
         html.Append("</div>\n");
 
-        // 本文が無いカードは、開く先が無いので、開閉の矢印を出さない
+        // 本文も日程も無いカードは、開く先が無いので、開閉の矢印を出さない
         var hasBody = !string.IsNullOrWhiteSpace(note.Body);
-        if (hasBody)
+        var hasSchedule = note.Kind == NoteKind.Schedule && note.Schedule.Count > 0;
+        var hasContent = hasBody || hasSchedule;
+        if (hasContent)
         {
             html.Append("<details").Append(isOpen ? " open" : "").Append(">\n<summary>\n");
         }
@@ -123,10 +126,17 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             html.Append("<span>").Append(Escape(part)).Append("</span>");
         }
         html.Append("</span>\n");
-        if (hasBody)
+        if (hasContent)
         {
             html.Append("</summary>\n");
-            html.Append("<div class=\"body\">").Append(formatter.ToHtml(note.Body)).Append("</div>\n");
+            if (hasBody)
+            {
+                html.Append("<div class=\"body\">").Append(formatter.ToHtml(note.Body)).Append("</div>\n");
+            }
+            if (hasSchedule)
+            {
+                AppendSchedule(html, note, options.Day);
+            }
             html.Append("</details>\n</article>\n");
         }
         else
@@ -142,6 +152,68 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
     /// <param name="label">リンクの文字</param>
     private static void AppendAction(StringBuilder html, NoteAction action, int noteId, string label)
         => html.Append("<a class=\"action\" href=\"").Append(NoteLinks.ActionUrl(action, noteId)).Append("\">").Append(label).Append("</a>");
+
+    /// <summary>日程の表を出力に出す</summary>
+    /// <param name="html">出力</param>
+    /// <param name="note">日程を持つノート</param>
+    /// <param name="day">表示する日</param>
+    /// <remarks>
+    /// 日付ごとにまとめて、日付は、その日の最初の行にだけ出す。
+    /// 表示する日の行は強調し、その日より前の行は薄くする。
+    /// 隠さないので、期間が無期限でも、過ぎた予定をさかのぼって探さずに読める。
+    /// </remarks>
+    private static void AppendSchedule(StringBuilder html, Note note, DateOnly day)
+    {
+        html.Append("<div class=\"schedule\">\n");
+        DateOnly? previous = null;
+        foreach (var item in note.Schedule)
+        {
+            var state = item.Date < day ? " past" : item.Date == day ? " on" : "";
+            html.Append("<div class=\"srow").Append(state).Append("\">");
+            html.Append("<span class=\"sdate").Append(DayColorClass(item.Date)).Append("\">").Append(previous == item.Date ? "" : Escape(FormatScheduleDate(item.Date))).Append("</span>");
+            html.Append("<span class=\"stime\">").Append(Escape(FormatScheduleTime(item))).Append("</span>");
+            html.Append("<span class=\"stext\">").Append(Escape(item.Content)).Append("</span>");
+            html.Append("<span class=\"sremark\">").Append(Escape(item.Remark)).Append("</span>");
+            html.Append("</div>\n");
+            previous = item.Date;
+        }
+        html.Append("</div>\n");
+    }
+
+    /// <summary>日程の日付の色を決める class を返す</summary>
+    /// <param name="date">日付</param>
+    /// <returns>
+    /// 日曜と祝日は " sun"
+    /// 土曜は " sat"
+    /// それ以外は空
+    /// </returns>
+    /// <remarks>
+    /// 土曜が祝日のときは祝日の色にする
+    /// 日付の欄のカレンダーの色分けと同じ決まり
+    /// </remarks>
+    private static string DayColorClass(DateOnly date)
+        => date.DayOfWeek == DayOfWeek.Sunday || JapaneseHolidays.IsHoliday(date) ? " sun" : date.DayOfWeek == DayOfWeek.Saturday ? " sat" : "";
+
+    /// <summary>日程の日付を月日と曜日にする</summary>
+    /// <param name="date">日付</param>
+    /// <returns>文字</returns>
+    private static string FormatScheduleDate(DateOnly date) => $"{date.ToString("MM/dd", CultureInfo.InvariantCulture)} ({Weekdays[(int)date.DayOfWeek]})";
+
+    /// <summary>日程の時刻を文字にする</summary>
+    /// <param name="item">日程の 1 件</param>
+    /// <returns>
+    /// 開始と終了があれば「10:00 ～ 12:00」で、開始だけなら「19:30 ～」。
+    /// 時刻が無ければ空。
+    /// </returns>
+    private static string FormatScheduleTime(ScheduleItem item)
+    {
+        if (item.Start is not { } start)
+        {
+            return "";
+        }
+        var text = start.ToString("HH:mm", CultureInfo.InvariantCulture);
+        return item.End is { } end ? $"{text} ～ {end.ToString("HH:mm", CultureInfo.InvariantCulture)}" : $"{text} ～";
+    }
 
     /// <summary>印を出力に出す</summary>
     /// <param name="html">出力</param>
@@ -238,8 +310,8 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
         var css = new StringBuilder(8192);
         css.Append(
             """
-            :root { --text:#1B1B1B; --sub:#5B5B5B; --card:#FFFFFF; --border:#D6D6D6; --link:#0F6CBD; --p5:#C42B1C; --p4:#D9730D; --badge:#EAEAEA; --badge-text:#303030; --today:#FDE7E9; --today-text:#8E1B10; --event:#6F2DA8; --event-text:#FFFFFF; --event-bg:#F3E8FB; --event-glow:rgba(111,45,168,0.55); --event-glow-peak:rgba(111,45,168,0.9); }
-            html.dark { --text:#F0F0F0; --sub:#BDBDBD; --card:#2B2B2B; --border:#454545; --link:#6CB8F6; --p5:#FF7B6E; --p4:#FFB454; --badge:#3A3A3A; --badge-text:#E6E6E6; --today:#5A2A28; --today-text:#FFD0CB; --event:#B58CF0; --event-text:#1A1030; --event-bg:#3A2D4D; --event-glow:rgba(181,140,240,0.5); --event-glow-peak:rgba(181,140,240,0.9); }
+            :root { --text:#1B1B1B; --sub:#5B5B5B; --card:#FFFFFF; --border:#D6D6D6; --link:#0F6CBD; --p5:#C42B1C; --p4:#D9730D; --badge:#EAEAEA; --badge-text:#303030; --today:#FDE7E9; --today-text:#8E1B10; --sat:#1E5AC8; --sun:#C42B1C; --event:#6F2DA8; --event-text:#FFFFFF; --event-bg:#F3E8FB; --event-glow:rgba(111,45,168,0.55); --event-glow-peak:rgba(111,45,168,0.9); }
+            html.dark { --text:#F0F0F0; --sub:#BDBDBD; --card:#2B2B2B; --border:#454545; --link:#6CB8F6; --p5:#FF7B6E; --p4:#FFB454; --badge:#3A3A3A; --badge-text:#E6E6E6; --today:#5A2A28; --today-text:#FFD0CB; --sat:#78AAFF; --sun:#FF99A4; --event:#B58CF0; --event-text:#1A1030; --event-bg:#3A2D4D; --event-glow:rgba(181,140,240,0.5); --event-glow-peak:rgba(181,140,240,0.9); }
             * { box-sizing:border-box; }
             html, body { margin:0; background:transparent; color:var(--text); }
             body { padding:4px 20px 24px 4px; font:14px/1.7 "BIZ UDGothic","BIZ UDゴシック","MS Gothic","ＭＳ ゴシック",Consolas,monospace; }
@@ -285,6 +357,18 @@ public sealed class NotePageBuilder(INoteBodyFormatter formatter)
             .badge.priority.p5 { border-color:var(--p5); }
             .body { margin:6px 0 2px 18px; overflow-wrap:anywhere; }
             .body ul, .body ol { margin:4px 0; padding-left:24px; }
+            .schedule { display:grid; grid-template-columns:max-content max-content minmax(0,1fr) minmax(0,3fr); margin:8px 0 2px 18px; }
+            .srow { display:contents; }
+            .srow > span { padding:3px 8px; overflow-wrap:anywhere; }
+            .sdate { font-weight:700; }
+            .sremark { color:var(--sub); }
+            .srow.past > span { opacity:0.55; }
+            .srow.on > span { background:rgba(111,45,168,0.14); }
+            .srow.on > .sdate { color:var(--event); }
+            .srow > .sdate.sat { color:var(--sat); }
+            .srow > .sdate.sun { color:var(--sun); }
+            .srow.past > .sdate.sat, .srow.past > .sdate.sun { opacity:0.8; }
+            .srow.on > span:first-child { border-left:3px solid var(--event); }
 
             """);
 

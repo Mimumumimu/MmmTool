@@ -93,3 +93,156 @@
     background: transparent;
     color: inherit;
 }
+
+/* 日程。見出しと日付を追加するボタンを 1 行に置き、下に日付ごとのまとまりを縦に並べる */
+.schedule-edit {
+    margin-bottom: 1rem;
+}
+
+.schedule-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+}
+
+.schedule-head h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+/* 入力のある日を外すときの確認。押すまで、日は外れない */
+.schedule-confirm {
+    margin: 0 0 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--danger);
+    border-radius: 0.75rem;
+}
+
+.confirm-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.schedule-day {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background: var(--surface);
+}
+
+/* 日付の見出しと、日付を変えるボタンを 1 行に置く。予定の枠との間を空ける */
+.schedule-day-date {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.schedule-day-date h4 {
+    margin: 0;
+    font-size: 1.0625rem;
+}
+
+/* 土曜は青、日曜と祝日は赤。色は日付の欄のカレンダーと同じで、app.css の --saturday と --sunday */
+.schedule-day-date h4.sat {
+    color: var(--saturday);
+}
+
+.schedule-day-date h4.sun {
+    color: var(--sunday);
+}
+
+/* 1 件の予定を枠で囲む。開始・終了・内容・備考を常に出し、使わない欄は空のままにする。削除は、時刻の行の右端に置く */
+.schedule-entry {
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0.75rem 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+}
+
+/* 時刻の行。左に開始と終了、右端に削除。欄の下の余白は、行の側で持つ。欄が余白を持つと、下に揃えた「～」と削除が、入力欄より下にずれる */
+.entry-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.entry-head .form-field {
+    margin-bottom: 0;
+}
+
+/* 開始と終了は、横に並べる。長さは 9rem までで、狭い画面では、2 つが同じだけ縮む */
+.time-pair {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.time-pair .form-field {
+    flex: 0 1 9rem;
+    min-width: 0;
+}
+
+/* 「～」は、時刻の入力欄と同じ高さの中央に置く */
+.time-pair .tilde {
+    display: grid;
+    place-items: center;
+    height: 2.75rem;
+}
+
+/* 共通の `.form-field > span` (欄の名前の下の余白)が、この span にもかかるので、余白を打ち消す。余白があると、入力欄の下に空きができて、下に揃えた「～」と削除が、入力欄の中心より下にずれる */
+.time-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+/* 時刻は左に寄せ、右の「✕」の分をあける。内容や備考の文字と、左の位置をそろえる */
+.time-field input {
+    padding-right: 2.75rem;
+    text-align: left;
+}
+
+.time-field input::-webkit-date-and-time-value {
+    text-align: left;
+}
+
+/* 時刻をクリアする「✕」。押せる範囲は 44 × 44 ピクセル以上で、見た目の大きさは小さいまま。入力欄の上に重ねるので、前面に出す。出さないと、押した位置が入力欄に取られて、時刻の選択が開く */
+.clear-time {
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+}
+
+/* 削除。ごみ箱のアイコンだけで、押せる範囲は 44 × 44 ピクセル。赤は確認の段のためにとっておく */
+.entry-delete {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+}
+
+.add-entry {
+    min-height: 2.75rem;
+    padding-left: 0;
+}

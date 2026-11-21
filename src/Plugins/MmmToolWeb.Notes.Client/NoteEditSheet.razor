@@ -1,5 +1,6 @@
 @inject NotesClient Notes
 @inject BrowserClient Browser
+@inject HolidayClient Holidays
 @implements IAsyncDisposable
 
 <EditSheet Title="@SheetTitle" CancelDisabled="_saving" ConfirmDisabled="CannotSave" OnCancel="OnCancel" OnConfirm="SaveAsync" Footer="@(IsFormatBarVisible ? FormatBar : null)">
@@ -13,10 +14,10 @@
         <input type="text" maxlength="@NoteLimits.TitleMaxLength" autocomplete="off" @bind="_title" @bind:event="oninput" />
     </label>
 
-    <label class="form-field">
-        <span>本文</span>
-        <textarea @ref="_bodyBox" rows="10" @bind="_body" @bind:event="oninput" @onfocus="OnBodyFocusAsync" @onblur="() => _bodyFocused = false"></textarea>
-    </label>
+    @if (_kind == 0)
+    {
+        @BodyField
+    }
 
     <div class="dates">
         <div class="form-field">
@@ -30,13 +31,11 @@
             <div class="end-footer">
                 <button type="button" class="text" @onclick="OnEndCleared" disabled="@(_end is null)">クリア</button>
             </div>
-            @if (_end is null)
-            {
-                <small class="hint">空のときは無期限です</small>
-            }
         </div>
     </div>
 
+    @if (_kind == 0)
+    {
     <div class="dates">
         <div class="form-field">
             <span>実施日</span>
@@ -71,6 +70,85 @@
             </ul>
         }
     </div>
+    }
+    else
+    {
+        <section class="schedule-edit">
+            <div class="schedule-head">
+                <h3>日程</h3>
+                <DatePicker Multiple="true" TriggerText="日付を追加" Selected="ScheduleDates" OnToggled="OnScheduleDateToggled" />
+            </div>
+
+            @if (_pendingRemoveDay is { } pending)
+            {
+                <ConfirmDialog Title="この日の日程を削除しますか？" Target="@DateText(pending)" Message="入力した内容も削除されます。" ConfirmText="はい" CancelText="いいえ"
+                               OnConfirm="ConfirmRemoveScheduleDate" OnCancel="CancelRemoveScheduleDate" />
+            }
+
+            @if (_pendingRemoveEntry is { } pendingEntry)
+            {
+                <ConfirmDialog Title="この予定を削除しますか？" Target="@pendingEntry.Entry.Summary" ConfirmText="はい" CancelText="いいえ"
+                               OnConfirm="ConfirmRemoveEntry" OnCancel="CancelRemoveEntry" />
+            }
+
+            @foreach (var day in _days)
+            {
+                <div class="schedule-day" @key="day">
+                    <div class="schedule-day-date">
+                        <h4 class="@DayColorClass(day.Date)">@ShortDayText(day.Date)</h4>
+                        <DatePicker Value="day.Date" IconLabel="日付を変える" OnPicked="picked => MoveScheduleDay(day, picked)" />
+                        <DatePicker Value="day.Date" IconLabel="他の日付にコピー" Icon="copy" OnPicked="picked => CopyScheduleDay(day, picked)" />
+                    </div>
+                    @foreach (var entry in day.Items)
+                    {
+                        <div class="schedule-entry" @key="entry">
+                            <div class="entry-head">
+                            <div class="time-pair">
+                                <div class="form-field">
+                                    <span>開始</span>
+                                    <span class="time-field">
+                                        <input type="time" aria-label="開始" value="@entry.Start" @onchange="e => entry.Start = e.Value?.ToString() ?? string.Empty" />
+                                        @if (entry.Start.Length > 0)
+                                        {
+                                            <button type="button" class="clear-time" aria-label="開始の時刻をクリア" @onclick="() => entry.Start = string.Empty">
+                                                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" /></svg>
+                                            </button>
+                                        }
+                                    </span>
+                                </div>
+                                <span class="tilde" aria-hidden="true">～</span>
+                                <div class="form-field">
+                                    <span>終了</span>
+                                    <span class="time-field">
+                                        <input type="time" aria-label="終了" value="@entry.End" @onchange="e => entry.End = e.Value?.ToString() ?? string.Empty" />
+                                        @if (entry.End.Length > 0)
+                                        {
+                                            <button type="button" class="clear-time" aria-label="終了の時刻をクリア" @onclick="() => entry.End = string.Empty">
+                                                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none" /></svg>
+                                            </button>
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                            <button type="button" class="entry-delete" aria-label="削除" @onclick="() => AskRemoveEntry(day, entry)">
+                                <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5M7 7v4M9 7v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
+                            </button>
+                            </div>
+                            <label class="form-field">
+                                <span>内容</span>
+                                <input type="text" maxlength="@NoteLimits.ScheduleTextMaxLength" autocomplete="off" @bind="entry.Content" @bind:event="oninput" />
+                            </label>
+                            <label class="form-field">
+                                <span>備考</span>
+                                <input type="text" maxlength="@NoteLimits.ScheduleTextMaxLength" autocomplete="off" @bind="entry.Remark" @bind:event="oninput" />
+                            </label>
+                        </div>
+                    }
+                    <button type="button" class="text add-entry" @onclick="() => AddEntry(day)">＋ この日に予定を追加</button>
+                </div>
+            }
+        </section>
+    }
 
     @if (PeriodErrorText is { } periodError)
     {
@@ -79,6 +157,11 @@
     else if (_info is not null)
     {
         <p class="info" role="status">@_info</p>
+    }
+
+    @if (_kind == 1)
+    {
+        @BodyField
     }
 
     <fieldset class="form-group">
@@ -107,11 +190,19 @@
     /// <summary>キーボードのすぐ上に貼り付ける、書式の列。</summary>
     private RenderFragment FormatBar => @<NoteFormatBar Target="_bodyBox" HasSelection="_hasSelection" OnLinkOpenChanged="OnLinkOpenChanged" />;
 
+    /// <summary>本文の入力欄。通常のノートは、タイトルのすぐ下に 10 行で出す。日程は、書くことが少ないので、日程の下に 3 行で出す。</summary>
+    private RenderFragment BodyField => @<label class="form-field">
+        <span>本文</span>
+        <textarea @ref="_bodyBox" rows="@(_kind == 1 ? 3 : 10)" @bind="_body" @bind:event="oninput" @onfocus="OnBodyFocusAsync" @onblur="() => _bodyFocused = false"></textarea>
+    </label>;
+
     /// <summary>書式の列を出すか。本文に触れている間と、リンクの入力を開いている間。リンクの入力に移ると、本文から離れるため。</summary>
     private bool IsFormatBarVisible => _bodyFocused || _linkOpen;
 
-    /// <summary>シートの名前。新規か編集かで変える。</summary>
-    private string SheetTitle => Note is null ? "新規ノート" : "ノートの編集";
+    /// <summary>シートの名前。種類と、新規か編集かで変える。</summary>
+    private string SheetTitle => _kind == 1
+        ? (Note is null ? "新規日程" : "日程の編集")
+        : (Note is null ? "新規ノート" : "ノートの編集");
 
     /// <summary>保存できないとき true。保存中と、タイトルが空のときと、実施日かほかの実施日が期間の外のとき。</summary>
     private bool CannotSave => _saving || string.IsNullOrWhiteSpace(_title) || HasPeriodError;
@@ -126,6 +217,10 @@
     /// <summary>新規のときの開始日の初期値。画面が表示している日。</summary>
     [Parameter]
     public DateOnly DefaultStart { get; set; }
+
+    /// <summary>新規のときの、ノートの種類。0 は通常のノート、1 は日程。編集のときは、ノートの種類を使う。</summary>
+    [Parameter]
+    public int NewKind { get; set; }
 
     /// <summary>保存できたときに呼ぶ。</summary>
     [Parameter]
@@ -149,6 +244,18 @@
 
     /// <summary>ほかの実施日。日付の順に並べる。</summary>
     private List<DateOnly> _others = [];
+
+    /// <summary>ノートの種類。0 は通常のノート、1 は日程。作ったあとに変えられない。</summary>
+    private int _kind;
+
+    /// <summary>日程の、日付ごとのまとまり。日付の順に並べる。</summary>
+    private List<ScheduleDay> _days = [];
+
+    /// <summary>入力のある日を外してよいか、確認を待っている日。</summary>
+    private DateOnly? _pendingRemoveDay;
+
+    /// <summary>入力のある予定を削除してよいか、確認を待っている予定。</summary>
+    private (ScheduleDay Day, ScheduleEntry Entry)? _pendingRemoveEntry;
     private bool _saving;
     private string? _error;
 
@@ -184,7 +291,7 @@
     }.IsEventDateOutOfPeriod;
 
     /// <summary>実施日かほかの実施日が、開始日から終了日の外にあるか。開始日・終了日の欄の枠と、保存できるかに使う。</summary>
-    private bool HasPeriodError => IsEventOutOfPeriod || _others.Any(IsOutOfPeriod);
+    private bool HasPeriodError => _kind == 0 ? IsEventOutOfPeriod || _others.Any(IsOutOfPeriod) : _days.Any(day => IsOutOfPeriod(day.Date));
 
     /// <summary>日付が、開始日から終了日の外にあるか。PC 版と共通の判定 (<see cref="NoteInput.IsOutOfPeriod"/>)を使う。</summary>
     private bool IsOutOfPeriod(DateOnly day) => new NoteInput { StartDate = _start, EndDate = _end ?? DateOnly.MaxValue }.IsOutOfPeriod(day);
@@ -194,6 +301,12 @@
     {
         get
         {
+            if (_kind == 1)
+            {
+                return _days.Where(day => IsOutOfPeriod(day.Date)).Select(day => (DateOnly?)day.Date).FirstOrDefault() is { } outDay
+                    ? $"日程の日付 ({outDay:yyyy/MM/dd})が期間の外です。開始日・終了日か日程を直してください。"
+                    : null;
+            }
             if (IsEventOutOfPeriod && _eventDate is { } eventDate)
             {
                 return $"実施日 ({eventDate:yyyy/MM/dd})が期間の外です。開始日・終了日か実施日を直してください。";
@@ -218,16 +331,54 @@
             _start = note.StartDate;
             _end = note.EndDate;
             _eventDate = note.EventDate;
-            _others = [.. note.OtherEventDates.Order()];
+            _kind = note.Kind;
+            _others = note.Kind == 1 ? [] : [.. note.OtherEventDates.Order()];
+            _days = [.. (note.Schedule ?? []).GroupBy(item => item.Date).OrderBy(group => group.Key).Select(group => new ScheduleDay(group.Key, [.. group.Select(ScheduleEntry.From)]))];
         }
         else
         {
             _start = DefaultStart;
+            _kind = NewKind;
         }
+    }
+
+    /// <summary>日程の日付の祝日。読めるまでは空で、読めたら色を付け直す。</summary>
+    private readonly Dictionary<DateOnly, string> _holidays = [];
+
+    /// <summary>祝日を読み始めた年。同じ年を何度も頼まない。</summary>
+    private readonly HashSet<int> _holidayYears = [];
+
+    /// <summary>日程の日付の色を決める class を返す。日曜と祝日は「sun」、土曜は「sat」、それ以外は空。土曜が祝日なら祝日の色。PC 版と同じ決まり。</summary>
+    private string DayColorClass(DateOnly date)
+        => date.DayOfWeek == DayOfWeek.Sunday || _holidays.ContainsKey(date) ? "sun" : date.DayOfWeek == DayOfWeek.Saturday ? "sat" : "";
+
+    /// <summary>日程にある年のうち、まだ読んでいない年の祝日を読んで、色を付け直す。</summary>
+    /// <remarks>
+    /// 日付は何年のものでも足せるので、描画のたびに、足りない年だけを読む。
+    /// 読めなかった年は祝日なしとして扱う。祝日が出なくても日程は入力できるため。
+    /// </remarks>
+    private async Task LoadHolidaysAsync()
+    {
+        var missing = _days.Select(day => day.Date.Year).Where(year => !_holidayYears.Contains(year)).Distinct().ToList();
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var year in missing)
+        {
+            _holidayYears.Add(year);
+            foreach (var holiday in await Holidays.GetYearAsync(year))
+            {
+                _holidays[holiday.Key] = holiday.Value;
+            }
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await LoadHolidaysAsync();
         if (!firstRender)
         {
             return;
@@ -380,6 +531,208 @@
         return messages.Count > 0 ? string.Concat(messages) : null;
     }
 
+    /// <summary>日程の日付の一覧。日付の欄の複数選択が、選んだ印に使う。</summary>
+    private List<DateOnly> ScheduleDates => [.. _days.Select(day => day.Date)];
+
+    /// <summary>日程の日付を、押すたびに、入れる・外すを切り替える。</summary>
+    /// <remarks>
+    /// 入れた日は、予定が 1 つ入ったまとまりになる。期間の外の日は、開始日・終了日を動かして合わせる。
+    /// 入力のある日を外すときは、確認を待つ。確認するまで、日は外れない。
+    /// </remarks>
+    private void OnScheduleDateToggled(DateOnly day)
+    {
+        _info = null;
+        if (_days.FirstOrDefault(item => item.Date == day) is { } existing)
+        {
+            if (existing.Items.Any(entry => entry.HasInput))
+            {
+                _pendingRemoveDay = day;
+            }
+            else
+            {
+                _days.Remove(existing);
+            }
+            return;
+        }
+        if (_days.Sum(item => item.Items.Count) >= NoteLimits.ScheduleItemsMaxCount)
+        {
+            _info = $"日程は {NoteLimits.ScheduleItemsMaxCount} 件までです";
+            return;
+        }
+
+        _days.Add(new ScheduleDay(day, [new ScheduleEntry()]));
+        _days.Sort((left, right) => left.Date.CompareTo(right.Date));
+        _info = ExtendPeriodTo(day);
+    }
+
+    /// <summary>日程のまとまりの見出しに出す、月日と曜日。</summary>
+    private static string ShortDayText(DateOnly date) => $"{date:MM/dd} ({"日月火水木金土"[(int)date.DayOfWeek]})";
+
+    /// <summary>日程のまとまりの日付を変える。</summary>
+    /// <remarks>
+    /// 新しい日付に既にまとまりがあれば、空の予定も含めて全部そこへ足して、元のまとまりを外す。
+    /// 無ければ、まとまりの日付を変えて、日付の順に並べ直す。
+    /// 期間の外の日は、開始日・終了日を動かして合わせる。
+    /// </remarks>
+    private void MoveScheduleDay(ScheduleDay day, DateOnly picked)
+    {
+        _info = null;
+        if (picked == day.Date)
+        {
+            return;
+        }
+        if (_days.FirstOrDefault(item => item.Date == picked) is { } target)
+        {
+            target.Items.AddRange(day.Items);
+            _days.Remove(day);
+        }
+        else
+        {
+            day.Date = picked;
+            _days.Sort((left, right) => left.Date.CompareTo(right.Date));
+        }
+        _info = ExtendPeriodTo(picked);
+    }
+
+    /// <summary>入力のある日を外す確認で、外さないと答える。</summary>
+    private void CancelRemoveScheduleDate() => _pendingRemoveDay = null;
+
+    /// <summary>入力のある日を外す確認で、外すと答える。</summary>
+    private void ConfirmRemoveScheduleDate()
+    {
+        if (_pendingRemoveDay is { } day)
+        {
+            _days.RemoveAll(item => item.Date == day);
+        }
+        _pendingRemoveDay = null;
+    }
+
+    /// <summary>その日に、予定を 1 つ足す。</summary>
+    private void AddEntry(ScheduleDay day) => day.Items.Add(new ScheduleEntry());
+
+    /// <summary>ごみ箱を押したときの処理。入力のある予定は、確認を待つ。空の予定は、すぐ削除する。</summary>
+    private void AskRemoveEntry(ScheduleDay day, ScheduleEntry entry)
+    {
+        if (entry.HasInput)
+        {
+            _pendingRemoveEntry = (day, entry);
+            return;
+        }
+        RemoveEntry(day, entry);
+    }
+
+    /// <summary>予定の削除の確認で、「いいえ」と答える。</summary>
+    private void CancelRemoveEntry() => _pendingRemoveEntry = null;
+
+    /// <summary>予定の削除の確認で、「はい」と答える。</summary>
+    private void ConfirmRemoveEntry()
+    {
+        if (_pendingRemoveEntry is { } pending)
+        {
+            RemoveEntry(pending.Day, pending.Entry);
+        }
+        _pendingRemoveEntry = null;
+    }
+
+    /// <summary>日程のまとまりの予定を、別の日付にコピーする。</summary>
+    /// <remarks>
+    /// 入力のある予定だけをコピーする。元の予定は、そのまま残す。
+    /// 選んだ日にまとまりが既にあれば、その下に足す。無ければ、新しく作る。
+    /// 入力のある予定が無いときは、日付だけのまとまりを作る。
+    /// 期間の外の日は、開始日・終了日を動かして合わせる。
+    /// </remarks>
+    private void CopyScheduleDay(ScheduleDay day, DateOnly picked)
+    {
+        _info = null;
+        if (picked == day.Date)
+        {
+            return;
+        }
+
+        var copies = day.Items.Where(entry => entry.HasInput).Select(entry => entry.Copy()).ToList();
+        var total = _days.Sum(item => item.Items.Count) + Math.Max(copies.Count, 1);
+        if (total > NoteLimits.ScheduleItemsMaxCount)
+        {
+            _info = $"日程は {NoteLimits.ScheduleItemsMaxCount} 件までです";
+            return;
+        }
+
+        if (_days.FirstOrDefault(item => item.Date == picked) is { } target)
+        {
+            target.Items.AddRange(copies);
+        }
+        else
+        {
+            _days.Add(new ScheduleDay(picked, copies.Count > 0 ? copies : [new ScheduleEntry()]));
+            _days.Sort((left, right) => left.Date.CompareTo(right.Date));
+        }
+        _info = ExtendPeriodTo(picked);
+    }
+
+    /// <summary>予定を 1 つ削除する。その日の最後の予定を削除したら、日ごと外す。</summary>
+    private void RemoveEntry(ScheduleDay day, ScheduleEntry entry)
+    {
+        day.Items.Remove(entry);
+        if (day.Items.Count == 0)
+        {
+            _days.Remove(day);
+        }
+    }
+
+    /// <summary>保存する日程にする。入力のある予定だけを残し、1 つも無い日は、日付だけの 1 件にする。</summary>
+    private List<ScheduleItemDto> BuildSchedule()
+    {
+        var items = new List<ScheduleItemDto>();
+        foreach (var day in _days)
+        {
+            var filled = day.Items.Where(entry => entry.HasInput).ToList();
+            if (filled.Count == 0)
+            {
+                items.Add(new ScheduleItemDto(day.Date, null, null, "", ""));
+                continue;
+            }
+            items.AddRange(filled.Select(entry => new ScheduleItemDto(day.Date, Time(entry.Start), Time(entry.End), entry.Content, entry.Remark)));
+        }
+        return items;
+    }
+
+    /// <summary>時刻の入力欄の値を、HH:mm の文字にする。空は null。</summary>
+    private static string? Time(string value) => value.Length >= 5 ? value[..5] : null;
+
+    /// <summary>日程の、日付ごとのまとまり。</summary>
+    private sealed class ScheduleDay(DateOnly date, List<ScheduleEntry> items)
+    {
+        public DateOnly Date { get; set; } = date;
+        public List<ScheduleEntry> Items { get; } = items;
+    }
+
+    /// <summary>日程の予定 1 つの入力。</summary>
+    private sealed class ScheduleEntry
+    {
+        public string Start { get; set; } = "";
+        public string End { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string Remark { get; set; } = "";
+
+        /// <summary>時刻・内容・備考のどれかを入れてあるか。</summary>
+        public bool HasInput => Start.Length > 0 || End.Length > 0 || Content.Trim().Length > 0 || Remark.Trim().Length > 0;
+
+        /// <summary>確認の画面に出す、予定の要約。開始の時刻・内容・備考の、入っているものを空白でつなぐ。</summary>
+        public string Summary => string.Join(' ', new[] { Start, Content.Trim(), Remark.Trim() }.Where(part => part.Length > 0));
+
+        /// <summary>同じ内容の、別の予定を作る。</summary>
+        public ScheduleEntry Copy() => new() { Start = Start, End = End, Content = Content, Remark = Remark };
+
+        /// <summary>保存済みの日程から、入力にする。</summary>
+        public static ScheduleEntry From(ScheduleItemDto item) => new()
+        {
+            Start = item.Start ?? "",
+            End = item.End ?? "",
+            Content = item.Content,
+            Remark = item.Remark,
+        };
+    }
+
     /// <summary>実施日をクリアして、未設定にする。</summary>
     private void OnEventCleared()
     {
@@ -397,7 +750,7 @@
 
         _saving = true;
         _error = null;
-        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _eventDate, [.. _others]));
+        var result = await Notes.SaveAsync(Note?.Id, new NoteSaveRequest(_title.Trim(), _body, _priority, _private, _start, _end, _kind == 0 ? _eventDate : null, _kind == 0 ? [.. _others] : [], _kind, _kind == 1 ? BuildSchedule() : null));
         _saving = false;
         switch (result.Status)
         {

@@ -104,6 +104,43 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// <summary>開始日・終了日を動かして合わせたことの知らせ</summary>
     public ErrorState AdjustInfo { get; } = new();
 
+    /// <summary>日程の入力</summary>
+    public ScheduleEditorViewModel Schedule { get; } = new();
+
+    /// <summary>日程の入力の変化を受け取り始めたか</summary>
+    private bool _scheduleHooked;
+
+    /// <summary>ノートの種類の番号</summary>
+    /// <remarks>
+    /// 0 は通常のノートで、1 は日程。
+    /// 新規を押したときに決まり、ウィンドウの中では変えない。
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSchedule), nameof(IsNormal), nameof(ShowTabs), nameof(ShowBody), nameof(ShowSchedule))]
+    public partial int KindIndex { get; set; }
+
+    /// <summary>左の列で選んだタブの位置</summary>
+    /// <remarks>0 は本文で、1 は日程。</remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowBody), nameof(ShowSchedule))]
+    public partial int SelectedTabIndex { get; set; }
+
+    /// <summary>種類が日程か</summary>
+    public bool IsSchedule => KindIndex == (int)NoteKind.Schedule;
+
+    /// <summary>種類が通常か</summary>
+    /// <remarks>実施日とほかの実施日の欄は、通常のときだけ出す。</remarks>
+    public bool IsNormal => !IsSchedule;
+
+    /// <summary>本文と日程のタブを出すか</summary>
+    public bool ShowTabs => IsSchedule;
+
+    /// <summary>本文の欄を出すか</summary>
+    public bool ShowBody => !IsSchedule || SelectedTabIndex == 0;
+
+    /// <summary>日程の入力を出すか</summary>
+    public bool ShowSchedule => IsSchedule && SelectedTabIndex == 1;
+
     /// <summary>重要度の選択の位置で、最低が 0最高が 4</summary>
     /// <remarks>初期は「中」</remarks>
     [ObservableProperty]
@@ -123,12 +160,15 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// 新規なら null
     /// </param>
     /// <param name="defaultStartDate">新規のときの、開始日の初期値。</param>
+    /// <param name="kind">新規のときの、ノートの種類。</param>
     /// <remarks>
-    /// 新規の終了日は開始日と同じで、1 日だけ。
-    /// 無期限は利用者が空にして選ぶ。
+    /// 新規の終了日は空で、無期限。
+    /// 種類は、新規を押したときに選んでいて、ウィンドウの中では選ばない。
+    /// 編集のときは、ノートの種類を使う。
     /// </remarks>
-    public void Load(Note? note, DateOnly defaultStartDate)
+    public void Load(Note? note, DateOnly defaultStartDate, NoteKind kind = NoteKind.Normal)
     {
+        HookSchedule();
         _target = note;
         SaveError.Clear();
         AdjustInfo.Clear();
@@ -137,25 +177,31 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         {
             if (note is null)
             {
-                WindowTitle = "ノート入力";
+                WindowTitle = kind == NoteKind.Schedule ? "日程入力" : "ノート入力";
                 Title = "";
                 Body = "";
                 StartDate = ToOffset(defaultStartDate);
                 EndDate = null;
                 EventDate = null;
                 SetOtherEventDates([]);
+                KindIndex = (int)kind;
+                SelectedTabIndex = kind == NoteKind.Schedule ? 1 : 0;
+                Schedule.Load([]);
                 PriorityIndex = (int)NotePriority.Normal - PriorityOffset;
                 IsPrivate = false;
             }
             else
             {
-                WindowTitle = "ノート編集";
+                WindowTitle = note.Kind == NoteKind.Schedule ? "日程編集" : "ノート編集";
                 Title = note.Title;
                 Body = note.Body;
                 StartDate = ToOffset(note.StartDate);
                 EndDate = note.IsOpenEnded ? null : ToOffset(note.EndDate);
                 EventDate = note.HasEventDate ? ToOffset(note.EventDate) : null;
-                SetOtherEventDates(note.OtherEventDates);
+                SetOtherEventDates(note.Kind == NoteKind.Schedule ? [] : note.OtherEventDates);
+                KindIndex = (int)note.Kind;
+                SelectedTabIndex = note.Kind == NoteKind.Schedule ? 1 : 0;
+                Schedule.Load(note.Schedule);
                 PriorityIndex = (int)note.Priority - PriorityOffset;
                 IsPrivate = note.IsPrivate;
             }
@@ -165,6 +211,36 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
             _syncingDates = false;
         }
         OnPropertyChanged(nameof(CanChangeVisibility));
+        UpdatePeriodError();
+    }
+
+    /// <summary>日程の入力の変化を受け取り始める</summary>
+    /// <remarks>
+    /// 日付を足したら、期間の外のとき開始日・終了日を動かして合わせる。
+    /// 日付が増減したら、期間の外の警告を合わせる。
+    /// </remarks>
+    private void HookSchedule()
+    {
+        if (_scheduleHooked)
+        {
+            return;
+        }
+
+        _scheduleHooked = true;
+        Schedule.DateAdded += (_, day) =>
+        {
+            AdjustInfo.Clear();
+            AdjustPeriodToEvent(ToOffset(day));
+            UpdatePeriodError();
+        };
+        Schedule.DatesChanged += (_, _) => UpdatePeriodError();
+    }
+
+    /// <summary>種類を変えたら、日程のときは日程のタブに合わせて、警告を合わせる</summary>
+    /// <param name="value">新しい種類の選択の位置</param>
+    partial void OnKindIndexChanged(int value)
+    {
+        SelectedTabIndex = value == (int)NoteKind.Schedule ? 1 : 0;
         UpdatePeriodError();
     }
 
@@ -345,7 +421,7 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
     /// <remarks>警告の文は実施日が外れているときは実施日を、外れていなければ、ほかの実施日のいちばん早い外れた日を言う。</remarks>
     private void UpdatePeriodError()
     {
-        IsEventDateInvalid = EventDate is { } eventDate && IsOutOfPeriod(eventDate);
+        IsEventDateInvalid = IsNormal && EventDate is { } eventDate && IsOutOfPeriod(eventDate);
         foreach (var item in OtherEventDates)
         {
             item.IsInvalid = StartDate is not null && IsOutOfPeriod(ToOffset(item.Date));
@@ -355,9 +431,13 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
         {
             PeriodErrorMessage = $"実施日 ({FormatDate(outEvent)})が期間の外です。開始日・終了日か実施日を直してください。";
         }
-        else if (OtherEventDates.FirstOrDefault(item => item.IsInvalid) is { } outOther)
+        else if (IsNormal && OtherEventDates.FirstOrDefault(item => item.IsInvalid) is { } outOther)
         {
             PeriodErrorMessage = $"ほかの実施日 ({outOther.Date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)})が期間の外です。開始日・終了日かほかの実施日を直してください。";
+        }
+        else if (IsSchedule && Schedule.Dates.Where(day => IsOutOfPeriod(ToOffset(day))).Select(day => (DateOnly?)day).FirstOrDefault() is { } outDay)
+        {
+            PeriodErrorMessage = $"日程の日付 ({outDay.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)})が期間の外です。開始日・終了日か日程を直してください。";
         }
         else
         {
@@ -409,8 +489,10 @@ public sealed partial class NoteEditViewModel(NoteService notes) : ObservableObj
             IsPrivate = IsShared && IsPrivate,
             StartDate = DateOnly.FromDateTime(start.Date),
             EndDate = EndDate is { } end ? DateOnly.FromDateTime(end.Date) : DateOnly.MaxValue,
-            EventDate = EventDate is { } eventDate ? DateOnly.FromDateTime(eventDate.Date) : DateOnly.MaxValue,
-            OtherEventDates = [.. OtherEventDates.Select(item => item.Date)],
+            EventDate = IsNormal && EventDate is { } eventDate ? DateOnly.FromDateTime(eventDate.Date) : DateOnly.MaxValue,
+            Kind = (NoteKind)KindIndex,
+            ScheduleItems = IsSchedule ? Schedule.ToItems() : [],
+            OtherEventDates = IsNormal ? [.. OtherEventDates.Select(item => item.Date)] : [],
         };
         if (input.Validate() is { } error)
         {

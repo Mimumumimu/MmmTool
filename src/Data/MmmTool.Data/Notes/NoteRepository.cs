@@ -45,12 +45,13 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
     /// </remarks>
     protected abstract string NameJoins { get; }
 
-    /// <summary>ほかの実施日を新しい日付の一覧に合わせて書く SQL</summary>
+    /// <summary>NoteAttribute の行を書きたい内容に合わせて書く SQL</summary>
     /// <remarks>
     /// 3 つの文 (更新・削除・挿入)を 1 回の往復で行う。
-    /// パラメーターは <c>@noteId</c>・<c>@category</c> と、JSON の <c>@update</c>・<c>@delete</c>・<c>@insert</c>。
+    /// パラメーターは <c>@noteId</c> と、JSON の <c>@update</c>・<c>@delete</c>・<c>@insert</c>。
+    /// JSON の要素は <c>categoryNo</c>・<c>branchNo</c>・<c>codeNo</c> で、更新と挿入は <c>value</c> も持つ。
     /// </remarks>
-    protected abstract string WriteOtherEventDatesSql { get; }
+    protected abstract string WriteAttributesSql { get; }
 
     /// <inheritdoc />
     public abstract Task<NoteChange?> FindAsync(int id, CancellationToken cancellationToken = default);
@@ -95,9 +96,9 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
                     reader => (Row: ReadRow(reader), AuthorName: reader.GetString(14), UpdatedByName: reader.GetString(15)),
                     cancellationToken).ConfigureAwait(false);
 
-                // ほかの実施日は、読んだノートの番号の分を、1 回の問い合わせでまとめて読む (本文を、日付の行の数だけ運ばないため、結合しない)
-                var dates = await ReadOtherEventDatesAsync(session, [.. rows.Select(item => item.Row.Id)], cancellationToken).ConfigureAwait(false);
-                return [.. rows.Select(item => new NoteWithNames(item.Row.ToNote(DatesOf(dates, item.Row.Id)), item.AuthorName, item.UpdatedByName))];
+                // 種類と日程は、読んだノートの番号の分を、1 回の問い合わせでまとめて読む (本文を、行の数だけ運ばないため、結合しない)
+                var attributes = await ReadAttributesAsync(session, [.. rows.Select(item => item.Row.Id)], cancellationToken).ConfigureAwait(false);
+                return [.. rows.Select(item => new NoteWithNames(item.Row.ToNote(AttributesOf(attributes, item.Row.Id)), item.AuthorName, item.UpdatedByName))];
             },
             cancellationToken);
     }
@@ -111,22 +112,22 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
             {
                 var d = session.Dialect;
 
-                // 実施日か、ほかの実施日のどちらかがその日のノート。番号を UNION で集める。枝ごとに、IX_Note_EventDate と IX_NoteAttribute_CategoryNo_Value_NoteId の索引が使えるため (OR で 2 つの表をまたぐと、ノートの表を走査しうる)
+                // 実施日か、ほかの実施日のどちらかがその日のノート。番号を UNION で集める。枝ごとに、IX_Note_EventDate と IX_NoteAttribute_CategoryNo_CodeNo_Value_NoteId の索引が使えるため (OR で 2 つの表をまたぐと、ノートの表を走査しうる)
                 var rows = await session.QueryAsync(
                     $"""
                     SELECT {Columns}
                     FROM {d.Table("Note")}
                     WHERE Id IN (SELECT Id FROM {d.Table("Note")} WHERE EventDate = @day
                                  UNION
-                                 SELECT NoteId FROM {d.Table("NoteAttribute")} WHERE CategoryNo = @category AND Value = @dayText AND IsDeleted = 0)
+                                 SELECT NoteId FROM {d.Table("NoteAttribute")} WHERE CategoryNo = @category AND CodeNo = @item AND Value = @dayText AND IsDeleted = 0)
                       AND IsDeleted = 0
                       AND (IsPrivate = 0 OR AuthorUserId = @me)
                     """,
-                    [("@day", day), ("@category", (int)NoteAttributeKind.OtherEventDate), ("@dayText", NoteOtherEventDates.ToValue(day)), ("@me", userId)],
+                    [("@day", day), ("@category", NoteAttributeKind.Schedule), ("@item", NoteAttributeItem.Date), ("@dayText", NoteAttributes.ToValue(day)), ("@me", userId)],
                     ReadRow,
                     cancellationToken).ConfigureAwait(false);
-                var dates = await ReadOtherEventDatesAsync(session, [.. rows.Select(row => row.Id)], cancellationToken).ConfigureAwait(false);
-                return [.. rows.Select(row => row.ToNote(DatesOf(dates, row.Id)))];
+                var attributes = await ReadAttributesAsync(session, [.. rows.Select(row => row.Id)], cancellationToken).ConfigureAwait(false);
+                return [.. rows.Select(row => row.ToNote(AttributesOf(attributes, row.Id)))];
             },
             cancellationToken);
     }
@@ -138,7 +139,7 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
         NoteRow.Validate(input);
         Note? saved = null;
 
-        // ノートとほかの実施日は、1 つのトランザクションで書く。途中で止まっても、日付だけが抜けたノートが残らないため
+        // ノートと種類・日程は、1 つのトランザクションで書く。途中で止まっても、日程だけが抜けたノートが残らないため
         await gateway.WriteAsync(
             async session =>
             {
@@ -150,7 +151,8 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
                     InputParameters(input),
                     reader => (Id: reader.GetInt32(0), UpdatedAt: d.ReadDateTime(reader, 1)),
                     cancellationToken).ConfigureAwait(false))[0];
-                await WriteOtherEventDatesAsync(session, created.Id, input.OtherEventDates, cancellationToken).ConfigureAwait(false);
+                await WriteAttributesAsync(session, created.Id, input, cancellationToken).ConfigureAwait(false);
+                var items = ItemsOf(input);
                 saved = new Note
                 {
                     Id = created.Id,
@@ -159,7 +161,9 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
                     StartDate = input.StartDate,
                     EndDate = input.EndDate,
                     EventDate = input.EventDate,
-                    OtherEventDates = [.. input.OtherEventDates.Order()],
+                    Kind = input.Kind,
+                    Schedule = input.Kind == NoteKind.Schedule ? items : [],
+                    OtherEventDates = [.. items.Select(item => item.Date).Distinct().Order()],
                     Priority = input.Priority,
                     Title = input.Title,
                     Body = input.Body,
@@ -177,12 +181,30 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
     {
         NoteRow.Validate(input);
         var changed = 0;
+        var kindChanged = false;
 
-        // ノートの更新日時と更新者は、ほかの実施日だけを直したときも動く。他の人の更新の通知が、日付だけの変更も拾うため
+        // ノートの更新日時と更新者は、日程だけを直したときも動く。他の人の更新の通知が、日付だけの変更も拾うため
         await gateway.WriteAsync(
             async session =>
             {
                 var d = session.Dialect;
+
+                // 種類は作ったあとに変えられない。見えるノートの今の種類を、書く前に、同じトランザクションの中で読む
+                var currentKinds = await session.QueryAsync(
+                    $"""
+                    SELECT COALESCE((SELECT a.Value FROM {d.Table("NoteAttribute")} AS a WHERE a.NoteId = n.Id AND a.CategoryNo = @partCategory AND a.CodeNo = @partItem AND a.IsDeleted = 0), '')
+                    FROM {d.Table("Note")} AS n
+                    WHERE n.Id = @id AND (n.IsPrivate = 0 OR n.AuthorUserId = @user)
+                    """,
+                    [("@id", id), ("@partCategory", NoteAttributeKind.UsedPart), ("@partItem", NoteAttributeItem.Part)],
+                    reader => reader.GetString(0),
+                    cancellationToken).ConfigureAwait(false);
+                if (currentKinds.Count > 0 && KindOf(currentKinds[0]) != input.Kind)
+                {
+                    kindChanged = true;
+                    return;
+                }
+
                 changed = await session.ExecuteAsync(
                     $"""
                     UPDATE {d.Table("Note")}
@@ -195,10 +217,14 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
                     cancellationToken).ConfigureAwait(false);
                 if (changed > 0)
                 {
-                    await WriteOtherEventDatesAsync(session, id, input.OtherEventDates, cancellationToken).ConfigureAwait(false);
+                    await WriteAttributesAsync(session, id, input, cancellationToken).ConfigureAwait(false);
                 }
             },
             cancellationToken).ConfigureAwait(false);
+        if (kindChanged)
+        {
+            throw new ArgumentException("種類は変えられません。", nameof(input));
+        }
         return changed > 0;
     }
 
@@ -215,17 +241,17 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
         return changed > 0;
     }
 
-    /// <summary>ノートの番号の分のほかの実施日を 1 回の問い合わせでまとめて読む</summary>
+    /// <summary>ノートの番号の分の種類と日程を 1 回の問い合わせでまとめて読む</summary>
     /// <param name="session">開いた接続</param>
     /// <param name="noteIds">ノートの番号</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>
-    /// ノートの番号ごとの、日付の順の一覧。
-    /// ほかの実施日が無いノートは含まない。
+    /// ノートの番号ごとの、種類と日程。
+    /// 種類も日程も無いノートは含まない。
     /// </returns>
-    private static async Task<Dictionary<int, IReadOnlyList<DateOnly>>> ReadOtherEventDatesAsync(DbSession session, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
+    private static async Task<Dictionary<int, NoteAttributeData>> ReadAttributesAsync(DbSession session, IReadOnlyCollection<int> noteIds, CancellationToken cancellationToken)
     {
-        var result = new Dictionary<int, IReadOnlyList<DateOnly>>();
+        var result = new Dictionary<int, NoteAttributeData>();
         if (noteIds.Count == 0)
         {
             return result;
@@ -234,66 +260,82 @@ public abstract class NoteRepository(DbGateway gateway) : INoteRepository
         // 番号は JSON の 1 つのパラメーターで渡す。引数を 1 つずつ並べると、1 回の問い合わせで渡せる数 (SQL Server は 2100 個)を超えうるため
         var d = session.Dialect;
         var rows = await session.QueryAsync(
-            $"SELECT NoteId, Value FROM {d.Table("NoteAttribute")} WHERE CategoryNo = @category AND IsDeleted = 0 AND NoteId IN ({d.IdSelect("@ids")})",
-            [("@category", (int)NoteAttributeKind.OtherEventDate), ("@ids", IdJson.From(noteIds))],
-            reader => (NoteId: reader.GetInt32(0), Value: reader.GetString(1)),
+            $"SELECT NoteId, CategoryNo, BranchNo, CodeNo, Value FROM {d.Table("NoteAttribute")} WHERE CategoryNo IN (@schedule, @usedPart) AND IsDeleted = 0 AND NoteId IN ({d.IdSelect("@ids")})",
+            [("@schedule", NoteAttributeKind.Schedule), ("@usedPart", NoteAttributeKind.UsedPart), ("@ids", IdJson.From(noteIds))],
+            reader => (NoteId: reader.GetInt32(0), Key: new NoteAttributeKey(reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3)), Value: reader.GetString(4)),
             cancellationToken).ConfigureAwait(false);
 
         foreach (var group in rows.GroupBy(row => row.NoteId))
         {
-            result[group.Key] = NoteOtherEventDates.ToDates(group.Select(row => row.Value));
+            result[group.Key] = NoteAttributes.Read(group.Select(row => (row.Key, row.Value)));
         }
         return result;
     }
 
-    /// <summary>ノートの番号に合うほかの実施日を取り出す</summary>
-    /// <param name="dates"><see cref="ReadOtherEventDatesAsync"/> の結果</param>
+    /// <summary>ノートの番号に合う種類と日程を取り出す</summary>
+    /// <param name="attributes"><see cref="ReadAttributesAsync"/> の結果</param>
     /// <param name="noteId">ノートの番号</param>
-    /// <returns>
-    /// 日付の順の一覧
-    /// 無ければ空
-    /// </returns>
-    private static IReadOnlyList<DateOnly> DatesOf(Dictionary<int, IReadOnlyList<DateOnly>> dates, int noteId)
-        => dates.TryGetValue(noteId, out var list) ? list : [];
+    /// <returns>種類と日程で、無ければ通常で日程なし。</returns>
+    private static NoteAttributeData AttributesOf(Dictionary<int, NoteAttributeData> attributes, int noteId)
+        => attributes.TryGetValue(noteId, out var data) ? data : new NoteAttributeData(NoteKind.Normal, []);
 
-    /// <summary>枝番と日付の組を JSON にする</summary>
-    /// <param name="items">枝番と日付の組</param>
+    /// <summary>保存したい日程の行にする</summary>
+    /// <param name="input">入力内容で、保存する形に直したもの。</param>
+    /// <returns>種類が日程なら日程の行で、通常なら、ほかの実施日を日付だけの行にしたもの。</returns>
+    private static IReadOnlyList<ScheduleItem> ItemsOf(NoteInput input)
+        => input.Kind == NoteKind.Schedule ? ScheduleItem.Sort(input.ScheduleItems) : [.. input.OtherEventDates.Distinct().Order().Select(ScheduleItem.OfDate)];
+
+    /// <summary>種類の値の文字を種類にする</summary>
+    /// <param name="value">使う部品の行の値で、行が無ければ空文字。</param>
+    /// <returns>種類で、読めないときは通常。</returns>
+    private static NoteKind KindOf(string value)
+        => int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) && Enum.IsDefined((NoteKind)number)
+            ? (NoteKind)number
+            : NoteKind.Normal;
+
+    /// <summary>書き込む行を JSON にする</summary>
+    /// <param name="rows">書き込む行</param>
     /// <returns>JSON の文字</returns>
-    private static string ToJson(IReadOnlyList<(int CodeNo, DateOnly Day)> items)
-        => System.Text.Json.JsonSerializer.Serialize(items.Select(item => new { codeNo = item.CodeNo, value = NoteOtherEventDates.ToValue(item.Day) }));
+    private static string ToJson(IEnumerable<NoteAttributeValue> rows)
+        => System.Text.Json.JsonSerializer.Serialize(rows.Select(row => new { categoryNo = row.Key.CategoryNo, branchNo = row.Key.BranchNo, codeNo = row.Key.CodeNo, value = row.Value }));
 
-    /// <summary>ノートのほかの実施日を新しい日付の一覧に合わせて書く</summary>
+    /// <summary>削除する行の位置を JSON にする</summary>
+    /// <param name="keys">削除する行の位置</param>
+    /// <returns>JSON の文字</returns>
+    private static string ToJson(IEnumerable<NoteAttributeKey> keys)
+        => System.Text.Json.JsonSerializer.Serialize(keys.Select(key => new { categoryNo = key.CategoryNo, branchNo = key.BranchNo, codeNo = key.CodeNo }));
+
+    /// <summary>ノートの種類と日程を、入力内容に合わせて書く</summary>
     /// <param name="session">ノートを書いているトランザクションの接続</param>
     /// <param name="noteId">ノートの番号</param>
-    /// <param name="dates">保存したい日付の一覧</param>
+    /// <param name="input">保存したい内容で、保存する形に直したもの。</param>
     /// <param name="cancellationToken">キャンセルを監視するトークン</param>
     /// <returns>書き終わったことを表すタスク</returns>
     /// <remarks>
     /// 保存済みの行を、削除済みも含めて 1 回で読み、差を計算して、書き込みを 1 回の往復でまとめる。
-    /// 日付ごとに問い合わせない。
-    /// 日付を日付の順に並べて、枝番 1 から順に書き直す。
-    /// 削除済みの行も使い回し、日付の数より後ろの行は論理削除する。
+    /// 行ごとに問い合わせない。
+    /// 日程は日付と開始の順に並べて、枝番 1 から順に書き直す。
+    /// 削除済みの行も使い回し、数より後ろの行は論理削除する。
     /// </remarks>
-    private async Task WriteOtherEventDatesAsync(DbSession session, int noteId, IReadOnlyList<DateOnly> dates, CancellationToken cancellationToken)
+    private async Task WriteAttributesAsync(DbSession session, int noteId, NoteInput input, CancellationToken cancellationToken)
     {
         var existing = await session.QueryAsync(
-            $"SELECT CodeNo, Value, IsDeleted FROM {session.Dialect.Table("NoteAttribute")} WHERE NoteId = @noteId AND CategoryNo = @category",
-            [("@noteId", noteId), ("@category", (int)NoteAttributeKind.OtherEventDate)],
-            reader => new NoteAttributeRow(reader.GetInt32(0), reader.GetString(1), session.Dialect.ReadBool(reader, 2)),
+            $"SELECT CategoryNo, BranchNo, CodeNo, Value, IsDeleted FROM {session.Dialect.Table("NoteAttribute")} WHERE NoteId = @noteId AND CategoryNo IN (@schedule, @usedPart)",
+            [("@noteId", noteId), ("@schedule", NoteAttributeKind.Schedule), ("@usedPart", NoteAttributeKind.UsedPart)],
+            reader => new NoteAttributeRow(new NoteAttributeKey(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)), reader.GetString(3), session.Dialect.ReadBool(reader, 4)),
             cancellationToken).ConfigureAwait(false);
 
-        var changes = NoteOtherEventDates.Diff([.. existing], dates);
+        var changes = NoteAttributes.Diff([.. existing], NoteAttributes.Desired(input.Kind, ItemsOf(input)));
         if (changes.IsEmpty)
         {
             return;
         }
 
         await session.ExecuteAsync(
-            WriteOtherEventDatesSql,
+            WriteAttributesSql,
             [
                 ("@noteId", noteId),
-                ("@category", (int)NoteAttributeKind.OtherEventDate),
-                ("@delete", System.Text.Json.JsonSerializer.Serialize(changes.Delete)),
+                ("@delete", ToJson(changes.Delete)),
                 ("@update", ToJson(changes.Update)),
                 ("@insert", ToJson(changes.Insert)),
             ],

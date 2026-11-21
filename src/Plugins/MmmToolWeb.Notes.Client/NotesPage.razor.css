@@ -232,6 +232,130 @@ details > summary.head:active {
     padding-left: 1.5rem;
 }
 
+/* 新規の分割ボタン。本体は通常のノート、右の ▲ で種類のメニューを上に出す。押せる範囲は、どちらも 44 ピクセル以上 */
+.new-split {
+    position: relative;
+    display: flex;
+    margin-left: auto;
+}
+
+.new-split .fab {
+    margin-left: 0;
+}
+
+.new-main {
+    padding: 0 1.25rem;
+    border-radius: 999px 0 0 999px;
+}
+
+.new-more {
+    display: grid;
+    place-items: center;
+    min-width: 2.75rem;
+    padding: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 0 999px 999px 0;
+}
+
+.new-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 12;
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* 共通の button の角丸を打ち消す。角丸が残ると、2 つ目の上の仕切り線が、丸い枠に見える */
+.new-menu button {
+    min-height: 2.75rem;
+    padding: 0 1.25rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    text-align: left;
+}
+
+.new-menu button + button {
+    border-top: 1px solid var(--border);
+}
+
+/* メニューの外を押したら閉じる。画面全体を覆う、見えない面 */
+.new-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    border: 0;
+    background: transparent;
+}
+
+/* 日程の表。日付ごとにまとめて、日付は、その日の最初の行にだけ出す。表示する日の行は強調し、過ぎた行は薄くする。スマホの幅では、備考を下の行に回す */
+.schedule {
+    display: grid;
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+    padding: 0.25rem 0 0.5rem;
+}
+
+.srow {
+    display: contents;
+}
+
+.srow > span {
+    padding: 0.25rem 0.5rem;
+    overflow-wrap: anywhere;
+}
+
+.sdate {
+    font-weight: 700;
+}
+
+.sremark {
+    grid-column: 3;
+    color: var(--muted);
+}
+
+.sremark:empty {
+    display: none;
+}
+
+.srow.past > span {
+    opacity: 0.55;
+}
+
+.srow.on > span {
+    background: rgba(111, 45, 168, 0.14);
+}
+
+.srow.on > .sdate {
+    color: var(--event, #6f2da8);
+}
+
+.srow.on > span:first-child {
+    border-left: 3px solid var(--event, #6f2da8);
+}
+
+/* 土曜は青、日曜と祝日は赤。色は日付の欄のカレンダーと同じで、app.css の --saturday と --sunday。表示する日の行の紫より優先する。過ぎた行は、薄さを弱めて、青が暗く沈まないようにする */
+.srow > .sdate.sat {
+    color: var(--saturday);
+}
+
+.srow > .sdate.sun {
+    color: var(--sunday);
+}
+
+.srow.past > .sdate.sat,
+.srow.past > .sdate.sun {
+    opacity: 0.8;
+}
+
 .actions {
     display: flex;
     justify-content: flex-end;

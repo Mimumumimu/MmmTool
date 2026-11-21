@@ -39,9 +39,20 @@ public sealed record Note
     /// <remarks>未設定なら DateOnly.MaxValue</remarks>
     public DateOnly EventDate { get; init; } = DateOnly.MaxValue;
 
+    /// <summary>ノートの種類</summary>
+    public NoteKind Kind { get; init; } = NoteKind.Normal;
+
+    /// <summary>日程</summary>
+    /// <remarks>
+    /// 日付の順で、同じ日は開始の時刻の順に並ぶ。
+    /// 種類が日程のノートだけが持ち、通常のノートは空。
+    /// </remarks>
+    public IReadOnlyList<ScheduleItem> Schedule { get; init; } = [];
+
     /// <summary>ほかの実施日</summary>
     /// <remarks>
-    /// 日付の順に並び、実施日と同じ日・同じ日の重なりは含まない。
+    /// 日付の順に並び、同じ日の重なりは含まない。
+    /// 日程のノートは日程の日付の一覧になる。
     /// 無ければ空。
     /// </remarks>
     public IReadOnlyList<DateOnly> OtherEventDates { get; init; } = [];

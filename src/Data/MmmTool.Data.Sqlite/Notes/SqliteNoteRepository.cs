@@ -30,21 +30,30 @@ public sealed class SqliteNoteRepository(SqliteDatabase database, TimeProvider t
     protected override string NameJoins => "";
 
     /// <inheritdoc />
-    protected override string WriteOtherEventDatesSql =>
+    protected override string WriteAttributesSql =>
         """
         UPDATE NoteAttribute
-        SET Value = (SELECT json_extract(j.value, '$.value') FROM json_each(@update) AS j WHERE json_extract(j.value, '$.codeNo') = NoteAttribute.CodeNo),
+        SET Value = (SELECT json_extract(j.value, '$.value') FROM json_each(@update) AS j
+                     WHERE json_extract(j.value, '$.categoryNo') = NoteAttribute.CategoryNo
+                       AND json_extract(j.value, '$.branchNo') = NoteAttribute.BranchNo
+                       AND json_extract(j.value, '$.codeNo') = NoteAttribute.CodeNo),
             IsDeleted = 0, UpdatedAt = @now, UpdatedByUserId = @user
-        WHERE NoteId = @noteId AND CategoryNo = @category
-          AND CodeNo IN (SELECT json_extract(j.value, '$.codeNo') FROM json_each(@update) AS j);
+        WHERE NoteId = @noteId
+          AND EXISTS (SELECT 1 FROM json_each(@update) AS j
+                      WHERE json_extract(j.value, '$.categoryNo') = NoteAttribute.CategoryNo
+                        AND json_extract(j.value, '$.branchNo') = NoteAttribute.BranchNo
+                        AND json_extract(j.value, '$.codeNo') = NoteAttribute.CodeNo);
 
         UPDATE NoteAttribute
         SET IsDeleted = 1, UpdatedAt = @now, UpdatedByUserId = @user
-        WHERE NoteId = @noteId AND CategoryNo = @category
-          AND CodeNo IN (SELECT value FROM json_each(@delete));
+        WHERE NoteId = @noteId
+          AND EXISTS (SELECT 1 FROM json_each(@delete) AS j
+                      WHERE json_extract(j.value, '$.categoryNo') = NoteAttribute.CategoryNo
+                        AND json_extract(j.value, '$.branchNo') = NoteAttribute.BranchNo
+                        AND json_extract(j.value, '$.codeNo') = NoteAttribute.CodeNo);
 
-        INSERT INTO NoteAttribute (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, NoteId, CategoryNo, CodeNo, Value)
-        SELECT 0, @now, @user, @now, @user, @noteId, @category, json_extract(j.value, '$.codeNo'), json_extract(j.value, '$.value')
+        INSERT INTO NoteAttribute (IsDeleted, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId, NoteId, CategoryNo, BranchNo, CodeNo, Value)
+        SELECT 0, @now, @user, @now, @user, @noteId, json_extract(j.value, '$.categoryNo'), json_extract(j.value, '$.branchNo'), json_extract(j.value, '$.codeNo'), json_extract(j.value, '$.value')
         FROM json_each(@insert) AS j;
         """;
 
